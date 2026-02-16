@@ -1,0 +1,12 @@
+- As an expert with Git, you should handle source control for this project
+- Never hard reset or remove previous commits in the Git history. Always maintain a clear and accurate commit history to facilitate collaboration and troubleshooting.
+- When I ask you to create a new commit, do NOT immediately execute the commit. ALWAYS analyze what has changed, and provide the following: (1) the current branch where the commit will live, (2) a summary of the commit, (3) list of files and folders that have been recently added, changed, removed, (4) a short, intelligent commit message that captures the essence of what has changed since the previous commit
+- When executing the commit, use a short, intelligent commit message that captures the essence of what has changed since the previous commit
+- Always follow the instructions found in .gitignore
+- Branching strategy is as follows:
+    - master: for working production releases
+    - build: for working development versions; agents must issue a pull request to merge into build, with the human user and the tech lead agent as reviewers / approvers
+    - phaseX: branches off of build, tracks an entire project phase (step): phase0, phase1, phase2, etc...
+    - phaseX/featureY: branches off of a phaseX branch, and is a feature implemented by SWE agent(s) - feature0, feature1, feature2, etc... A FEATURES.txt file in the base directory contains a list of the features with their description. Associated TESTS.txt and TASKS.txt files contain the test cases and tasks for features.
+    - phaseX/featureY/taskZ: if a feature is better broken up into multiple tasks, this will track each individual task, if appropriate
+    - phaseX/issueY: branches off a phaseX to fix any bugs and issues that arise during development
