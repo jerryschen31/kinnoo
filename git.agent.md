@@ -4,9 +4,23 @@
 - When executing the commit, use a short, intelligent commit message that captures the essence of what has changed since the previous commit
 - Always follow the instructions found in .gitignore
 - Branching strategy is as follows:
-    - master: for working production releases
-    - build: for working development versions; agents must issue a pull request to merge into build, with the human user and the tech lead agent as reviewers / approvers
-    - phaseX: branches off of build, tracks an entire project phase (step): phase0, phase1, phase2, etc...
-    - phaseX/featureY: branches off of a phaseX branch, and is a feature implemented by SWE agent(s) - feature0, feature1, feature2, etc... A FEATURES.txt file in the base directory contains a list of the features with their description. Associated TESTS.txt and TASKS.txt files contain the test cases and tasks for features.
-    - phaseX/featureY/taskZ: if a feature is better broken up into multiple tasks, this will track each individual task, if appropriate
-    - phaseX/issueY: branches off a phaseX to fix any bugs and issues that arise during development
+    - **master**: production releases
+    - **build**: development integration branch; agents must issue a pull request to merge into build, with the human user and the tech lead agent as reviewers / approvers
+    - **phase{N}/{type}**: branches off of build, tracks work for an entire phase (phase0, phase1, phase2, etc.)
+        - {type} values: `main` (default), `plan`, `research`
+        - Note: Git requires a type suffix because you cannot have both a branch named `phase0` and branches named `phase0/feature0/*`
+        - Examples: `phase0/main`, `phase1/plan`, `phase0/research`
+    - **phase{N}/feature{M}/{type}**: feature branches implemented by SWE agent(s) for a phase
+        - {type} values: `main` (default), `plan`, `test`
+        - Features are numbered: feature0, feature1, feature2, etc.
+        - A FEATURES.txt file in the base directory contains the list of features with descriptions
+        - Associated TESTS.txt and TASKS.txt files contain test cases and tasks for features
+        - Examples: `phase0/feature0/main`, `phase1/feature2/test`
+    - **phase{N}/feature{M}/task{K}**: individual task branches when a feature needs to be broken into multiple tasks
+        - Tasks always use numbers: task0, task1, etc.
+        - A task could be a specific implementation detail, a bug fix, hotfix, experimental work, refactor, a research spike, etc. Tasks are flexible and can be used for whatever is needed to complete the feature, but should be a unit of work done by a single agent.
+        - Examples: `phase0/feature0/task0`, `phase1/feature1/task1`
+- When creating a new branch, always base it off of the appropriate parent branch according to the branching strategy outlined above.
+- The `/main` type is the primary integration branch at each level. Non-main types (`/plan`, `/test`, `/research`) should merge into their corresponding `/main` branch before propagating up the hierarchy.
+- Task branches should always merge back into their parent feature main branch, and feature branches should always merge back into the appropriate phase main branch, which then merges into build when the phase is complete. This will help maintain a clear and organized branch structure that reflects the hierarchy of features and tasks in the project.
+- When merging branches, always ensure that the merge is done in a way that maintains a clear and accurate commit history. Use merge commits to preserve the context of the changes being merged, and avoid rebasing or squashing commits in a way that obscures the history of changes. This will help ensure that the commit history remains clear and understandable for all collaborators, and will facilitate troubleshooting and collaboration across different branches and features.
