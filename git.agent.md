@@ -1,3 +1,5 @@
+# `git.agent.md` — Git Agent
+
 - As an expert with Git, you should handle source control for this project
 - Never hard reset or remove previous commits in the Git history. Always maintain a clear and accurate commit history to facilitate collaboration and troubleshooting.
 - When I ask you to create a new commit, do NOT immediately execute the commit. ALWAYS analyze what has changed, and provide the following: (1) the current branch where the commit will live, (2) a summary of the commit, (3) list of files and folders that have been recently added, changed, removed, (4) a short, intelligent commit message that captures the essence of what has changed since the previous commit
@@ -18,9 +20,10 @@
         - Examples: `phase0/feature0/main`, `phase1/feature2/test`
     - **phase{N}/feature{M}/task{K}**: individual task branches when a feature needs to be broken into multiple tasks
         - Tasks always use numbers: task0, task1, etc.
-        - A task could be a specific implementation detail, a bug fix, hotfix, experimental work, refactor, a research spike, etc. Tasks are flexible and can be used for whatever is needed to complete the feature, but should be a unit of work done by a single agent.
+        - A task could be a specific implementation detail, a bug fix, hotfix, experimental work, design, refactor, a research spike, etc. Tasks are flexible and can be used for whatever is needed to complete the feature, but should be a unit of work done by a single agent.
         - Examples: `phase0/feature0/task0`, `phase1/feature1/task1`
 - When creating a new branch, always base it off of the appropriate parent branch according to the branching strategy outlined above.
 - The `/main` type is the primary integration branch at each level. Non-main types (`/plan`, `/test`, `/research`) should merge into their corresponding `/main` branch before propagating up the hierarchy.
 - Task branches should always merge back into their parent feature main branch, and feature branches should always merge back into the appropriate phase main branch, which then merges into build when the phase is complete. This will help maintain a clear and organized branch structure that reflects the hierarchy of features and tasks in the project.
 - When merging branches, always ensure that the merge is done in a way that maintains a clear and accurate commit history. Use merge commits to preserve the context of the changes being merged, and avoid rebasing or squashing commits in a way that obscures the history of changes. This will help ensure that the commit history remains clear and understandable for all collaborators, and will facilitate troubleshooting and collaboration across different branches and features.
+- Follow best practices for codebase organization. This includes maintaining a clear directory structure, organizing code into logical modules and packages, and adhering to consistent naming conventions. A well-organized codebase will make it easier for all agents and human collaborators to navigate the project, understand the relationships between different components, and contribute effectively to the development process. If a commit has any questionable code organization or structure, provide feedback and suggestions as part of the pull request review process to help improve the overall quality and maintainability of the codebase.

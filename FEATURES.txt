@@ -39,4 +39,43 @@
 #     owner: swe-agent
 #     dependencies: []
 #     status: not-started
+#
+- id: feature1
+  title: Manifest schema and validation
+  description: |
+    Define the kinnoo.yaml manifest schema and implement a validator that parses 
+    and validates manifest files against it. The validator returns clear, actionable 
+    error messages and is usable as a library function for other commands (pack, run, etc.).
 
+    Schema definition:
+    | Field              | Required | Type         | Constraints                                      |
+    |--------------------|----------|--------------|--------------------------------------------------|
+    | name               | yes      | string       | non-empty, valid package name (alphanumeric, -)  |
+    | version            | yes      | string       | valid semver (e.g., "0.1.0", "1.2.3")            |
+    | entrypoint         | yes      | string       | non-empty file path                              |
+    | runtime.language   | yes      | string       | e.g., "python"                                   |
+    | runtime.version    | yes      | string       | version constraint (e.g., ">=3.10")              |
+    | runtime.type       | yes      | string       | e.g., "one-shot"                                 |
+    | dependencies       | yes      | list[string] | can be empty list                                |
+    | inputs.type        | yes      | string       | e.g., "text"                                     |
+    | outputs.type       | yes      | string       | e.g., "text"                                     |
+    | framework          | no       | string       | optional, e.g., "langchain"                      |
+  tasks: []
+  acceptance_criteria:
+    - id: AC1
+      description: A kinnoo.yaml with all required fields and valid values passes validation without errors.
+    - id: AC2
+      description: Missing any required field (name, version, entrypoint, runtime.language, runtime.version, runtime.type, dependencies, inputs.type, outputs.type) produces a specific error naming the missing field.
+    - id: AC3
+      description: Invalid field types (e.g., version as number, dependencies as string) produce a specific error describing the type mismatch.
+    - id: AC4
+      description: Invalid semver format in version field produces a descriptive error.
+    - id: AC5
+      description: The validator is callable as a Python function that returns (is_valid: bool, errors: list[str]).
+    - id: AC6
+      description: Optional field 'framework' is accepted when present, ignored when absent.
+    - id: AC7
+      description: runtime.type set to any value other than "one-shot" produces a descriptive error stating it is not supported in this version.
+  owner: techlead-agent
+  dependencies: []
+  status: not-started
