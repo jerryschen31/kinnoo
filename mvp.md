@@ -209,7 +209,7 @@ Compressed into a single distributable artifact.
 
 Example:
 ```
-customer-support-agent.agnt
+customer-support-agent.tar.gz
 ```
 
 ### 📜 The most important file: the agent manifest
@@ -227,7 +227,7 @@ name: customer-support-agent
 version: 1.2.0
 
 runtime:
-  interface: agnt/v1
+  interface: kinnoo/v1
 
 models:
   required_capabilities:
@@ -259,14 +259,14 @@ Like how developers use containers or packages in GitHub workflows.
 
 Example commands:
 ```bash
-agnt pack
-agnt publish
-agnt install
-agnt run
-agnt test
-agnt inspect
-agnt sandbox
-agnt upgrade
+kinnoo pack
+kinnoo publish
+kinnoo install
+kinnoo run
+kinnoo test
+kinnoo inspect
+kinnoo sandbox
+kinnoo upgrade
 ```
 
 The CLI handles:
@@ -347,7 +347,7 @@ Keep it minimal but structured.
 
 ```
 my-agent/
-  agnt.yaml
+  kinnoo.yaml
   run.py
   requirements.txt
   tools/
@@ -357,12 +357,12 @@ my-agent/
 
 Then packed into:
 ```
-my-agent-1.0.0.agnt
+my-agent-1.0.0.tar.gz
 ```
 
 This is your distributable artifact.
 
-### 📜 The MVP manifest (agnt.yaml)
+### 📜 The MVP manifest (kinnoo.yaml)
 
 This is your most important design decision.
 It must define only what is necessary to run the agent.
@@ -417,7 +417,7 @@ Your CLI enforces this.
 
 Example execution:
 ```bash
-agnt run my-agent "Help me refund an order"
+kinnoo run my-agent "Help me refund an order"
 ```
 
 Internally:
@@ -434,34 +434,34 @@ You only need 6 commands to have a real platform.
 
 #### 1. Initialize
 ```bash
-agnt init
+kinnoo init
 ```
 Creates template project.
 
 #### 2. Package
 ```bash
-agnt pack
+kinnoo pack
 ```
-Validates structure and creates .agnt archive.
+Validates structure and creates kinnoo archive.
 
 #### 3. Publish (local or remote registry)
 ```bash
-agnt publish
+kinnoo publish
 ```
 
 #### 4. Install
 ```bash
-agnt install customer-support-agent
+kinnoo install customer-support-agent
 ```
 
 #### 5. Run
 ```bash
-agnt run customer-support-agent "input"
+kinnoo run customer-support-agent "input"
 ```
 
 #### 6. Inspect
 ```bash
-agnt inspect customer-support-agent
+kinnoo inspect customer-support-agent
 ```
 Shows metadata.
 
@@ -485,9 +485,6 @@ Later you build adapters.
 Just use a compressed archive:
 - tar.gz
 - zip
-
-Rename extension:
-- `.agnt`
 
 Inside is just a directory.
 No custom binary format needed.
@@ -545,11 +542,11 @@ That is already extremely powerful.
 ```
 Developer
    ↓
-agnt CLI
+kinnoo CLI
    ↓
 Local runtime environment
    ↓
-Agent package (.agnt)
+Agent package (.tar.gz)
    ↓
 Registry (optional but recommended)
 ```

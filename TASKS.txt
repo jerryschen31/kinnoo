@@ -1,0 +1,85 @@
+# This file contains a list of the tasks implemented by SWE agents - numbered task0, task1, task2, etc.
+# Each new task should just increment the task number.
+# The current task types are: 
+#   - task: any general task to be implemented with code or through command(s)
+#   - issue: anything that needs to be resolved - e.g., bug
+#   - decision: any decision that needs to be made - e.g., choosing a model
+#
+# This file contains the project tasks as YAML entries. Use the top-level `tasks` list.
+# Each task should reference its parent feature and list any test IDs it owns.
+# The validator script `scripts/validate_manifest.py` will enforce unique IDs and references.
+#
+# Template (YAML):
+# tasks:
+#   - id: taskX
+#     title: Short title
+#     type: Task type (defaults to "task" if omitted)
+#     description: Short description of the work
+#     files: [path/to/file1, path/to/file2]
+#     steps:
+#       - Step 1 description
+#       - Step 2 description
+#     dependencies: [taskZ]
+#     tests: [test0, test1]
+#     status: not-started / in-progress / etc
+#
+# A decision task has different fields:
+#
+# Template for decision tasks (YAML):
+# tasks:
+#   - id: taskX
+#     title: Short title
+#     type: decision
+#     description: Description of the decision to be made. Can include some initial choices, if available.
+#     options: Potential choices for the decision (e.g., choice of model), as a YAML style list. Populated once these are available.
+#           - option1: overview/pros/cons/artifacts
+#           - option2: overview/pros/cons/artifacts
+#     criteria: list of measurable evaluation criteria (latency, accuracy, size, license)
+#     selected_option: option id (set when status: approved)
+#     rationale: short reasoning for selection.
+#     approvals: list of approvers: human name / agent ID (optional)
+#     status: not-started / in-progress / etc
+#
+# Examples:
+# tasks:
+#   - id: task0
+#     title: Add capture button to camera view
+#     type: task
+#     description: Add a white capture button centered at the bottom of the camera view and wire it to the capture action.
+#     files: [Sources/Views/CameraView.swift]
+#     steps:
+#       - step1: Add SwiftUI button centered at the bottom of the camera view
+#       - step2: Wire button action to `CameraViewModel.capturePhoto()`
+#       - step3: Add unit/UI test verifying the button triggers the capture action
+#     dependencies: []
+#     tests: [test0]
+#     status: not-started
+#
+#   - id: task10
+#     title: Select CoreML model for waste classification
+#     type: decision
+#     description: Evaluate candidate CoreML models for on-device inference and choose one.
+#     options:
+#       - id: option1
+#         name: MobileNetV2-quant
+#         summary: Lightweight MobileNetV2 quantized
+#         pros: [small size, fast inference]
+#         cons: [lower accuracy on electronics class]
+#         artifacts: [s3://models/mobilenetv2-quant.mlmodel]
+#       - id: option2
+#         name: EfficientNet-lite
+#         summary: Better accuracy, slightly larger
+#         pros: [higher accuracy]
+#         cons: [bigger binary]
+#         artifacts: [s3://models/efficientnet-lite.mlmodel]
+#     criteria:
+#       - latency_ms: "<=200"
+#       - accuracy_top1: ">=0.80"
+#       - size_mb: "<=20"
+#     selected_option: option1
+#     rationale: smaller size and faster inference time
+#     approvals: []
+#     status: completed
+
+
+

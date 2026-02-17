@@ -1,0 +1,42 @@
+# This file contains a list of the features implemented by SWE agents - numbered feature0, feature1, feature2, etc...
+# A feature can be broken down into one or more individual tasks. Each task can be completed by the same SWE agent, or SWE sub-agents if needed. 
+# Each new feature should just increment the feature number.
+# 
+# The description of the test cases are kept in a separate TESTS.txt, which is a running list of test cases
+# The description of the tasks are kept in a separate TASKS.txt, which is a running list of tasks. In the example above, task1 might be "create a white button in the camera view" and task2 might be "create an action event of capturing a photo when the user presses the white button".
+#
+# This file contains the project features as YAML entries. Each feature should
+# be represented as an item in the top-level `features` list. Use the template
+# below and the example to add new features. The validator script
+# `scripts/validate_manifest.py` enforces unique IDs and cross-file links.
+#
+# Template (YAML):
+# features:
+#   - id: featureX
+#     title: Short title
+#     description: 1-3 sentence measurable description
+#     tasks: [task1, task2]
+#     acceptance_criteria:
+#       - id: AC1
+#         description: Measurable acceptance criterion
+#       - id: AC2
+#         description: Another criterion
+#     owner: person/agent
+#     dependencies: [featureY]
+#     status: not-started / in-progress / etc...
+#
+# Example (one feature entry):
+# features:
+#   - id: feature2
+#     title: Implement camera button
+#     description: Add a white capture button centered at the bottom of the camera view.
+#     tasks: [task0, task1]
+#     acceptance_criteria:
+#       - id: AC1
+#         description: Button is visible bottom-center on iPhone 12/13/14 in portrait.
+#       - id: AC2
+#         description: Tapping the button captures an image and stores it in a temporary buffer within 200ms.
+#     owner: swe-agent
+#     dependencies: []
+#     status: not-started
+
