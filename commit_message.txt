@@ -1,0 +1,39 @@
+branch: phase1/plan
+docs: MVP planning, epics, feature1 schema definition
+
+Session summary
+---------------
+- Analyzed MVP.md and established Phase 1 acceptance criteria (5 criteria,
+  end-to-end flow: create → pack → publish → install → run → reproduce)
+- Decomposed the original 11 MVP epics into 18 granular features (F1–F18)
+  organized into Foundation, Pack, Inspect, Run, Local Registry, Remote Registry tiers
+- Created EPICS.txt as a reference-only planning document (no formal linkage
+  to features/tasks/tests; validator not updated)
+- Defined feature1: Manifest schema and validation (schema definition + validator
+  combined into one feature, with 7 acceptance criteria)
+- Created docs/manifest-schema-reference.md with field definitions, two concrete
+  examples (LangChain, CrewAI), and full schema reference table
+- Researched top 5 agent frameworks; confirmed all are compatible with
+  `python run.py` entrypoint (AsyncIO note for AutoGen and OpenAI Agents SDK)
+- Assessed GitHub Copilot Extensions and MCP — both incompatible with MVP
+  one-shot runtime contract; deferred to V2+
+
+Key decisions
+-------------
+- Epics: reference/planning only — no EPICS layer added to the validation
+  hierarchy (keeps Feature → Task → Test flat)
+- Schema + validator: merged into single feature1 (rather than two separate
+  features) to avoid a design artifact with no runnable output
+- runtime.type: added as a required field; MVP only accepts "one-shot";
+  future values (server, mcp-server, worker) documented in tech lead notes
+- framework: optional field — agent runs without it; provides discoverability
+  and enables future adapter system and registry filtering
+- MCP support: explicitly out of scope for MVP; runtime.type field designed
+  to be extensible for mcp-server in V2 without breaking the manifest schema
+
+Files changed
+-------------
+- EPICS.txt                          (created)
+- FEATURES.txt                       (feature1 added)
+- docs/manifest-schema-reference.md  (created)
+- notes/human-notes.md               (framework optional field note added)
