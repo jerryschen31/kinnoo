@@ -1,0 +1,42 @@
+# This file contains a list of the test cases written by SWE agents - numbered test0, test1, etc.
+# Each new test case should just increment the test number.
+#
+# Template (YAML):
+# tests:
+#   - id: testX
+#     title: One-line title
+#     type: unit|integration|e2e|manual
+#     preconditions: e.g., iPhone 12, iOS 15, camera permission granted
+#     steps:
+#       - Step 1
+#       - Step 2
+#     expected: Short expected result
+#     pass_criteria: Measurable pass criteria
+#     automated: true|false
+#     automation_path: path/to/test (if automated)
+#
+# Example:
+# tests:
+#   - id: test0
+#     title: Capture action stores image in buffer
+#     type: integration
+#     preconditions: App running on iPhone 12 (iOS 15), camera permission granted
+#     steps:
+#       - step1: Open the camera view
+#       - step2: Tap the white capture button
+#     expected: An image is captured and stored in the temporary buffer
+#     pass_criteria: buffer non-empty and capture recorded within 200ms of tap
+#     automated: false
+#     automation_path: null
+#
+#   - id: test1
+#     title: Capture button visible bottom-center
+#     type: e2e
+#     preconditions: App running on iPhone 12 (iOS 15)
+#     steps:
+#       - step1: Open camera view in portrait
+#       - step2: Observe UI layout
+#     expected: White capture button is visible bottom-center across supported devices
+#     pass_criteria: visible on iPhone12/13/14 portrait
+#     automated: false
+#     automation_path: null
