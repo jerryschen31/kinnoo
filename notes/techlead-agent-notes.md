@@ -1,5 +1,33 @@
 # Running notes for the Tech Lead Agent (techlead.agent.md)
 
+## feature1 — Manifest schema and validation (COMPLETED)
+
+**Status:** Completed 2026-02-17. All 9 tests pass. Manifests validated.
+
+### Files created / modified
+| File | Purpose |
+|---|---|
+| `src/kinnoo/__init__.py` | Package init; re-exports `validate` |
+| `src/kinnoo/schema.py` | Constants: `REQUIRED_FIELDS`, `FIELD_TYPES`, `SEMVER_PATTERN`, `NAME_PATTERN`, `SUPPORTED_RUNTIME_TYPES` |
+| `src/kinnoo/validator.py` | Public `validate(path) -> (bool, list[str])` function |
+| `tests/test_validator.py` | 9 unit tests covering all 7 ACs (test0–test6 plus two extra parameterized helpers) |
+| `requirements.txt` | `PyYAML>=6.0`, `pytest>=7.0` |
+| `FEATURES.txt` | Fixed YAML structure (added `features:` key, fixed indentation, quoted AC5 description) |
+| `TASKS.txt` | Fixed YAML syntax (quoted step3 description); all tasks marked `completed` |
+
+### Key design decisions
+- Nested manifest fields (`runtime.language`, `inputs.type`, etc.) are accessed with a `_get_nested()` helper using dot-separated paths — keeps `schema.py` constants clean and `validator.py` logic uniform.
+- Semver validation uses the canonical regex from semver.org; it correctly rejects `"1.0"` (missing patch) and accepts pre-release/build-metadata suffixes.
+- `runtime.type` is validated against `SUPPORTED_RUNTIME_TYPES = ["one-shot"]` — extensible for V2 without changing validator logic.
+- `framework` field is intentionally absent from `REQUIRED_FIELDS` and `FIELD_TYPES`; it is silently accepted when present (no extra logic needed).
+
+### Manifest fixes made during setup
+1. **FEATURES.txt**: was missing top-level `features:` key; content was not indented under it; AC5 description had an unquoted colon sequence `(is_valid: bool, ...)`.
+2. **TASKS.txt**: task0 step3 had an unquoted colon sequence `validate(manifest_path: str)`.
+Both files now pass `python3 src/validate_project_manifests.py`.
+
+---
+
 ## Notes on Framework Compatibility with `python run.py`
 
 ### ⚠️ MVP: Async entrypoint template

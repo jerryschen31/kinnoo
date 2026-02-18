@@ -96,11 +96,11 @@ tasks:
     steps:
       - step1: Create src/kinnoo/ package with __init__.py
       - step2: In schema.py, define REQUIRED_FIELDS list and FIELD_TYPES dict
-      - step3: In validator.py, create validate(manifest_path: str) -> tuple[bool, list[str]] stub
+      - step3: "In validator.py, create validate(manifest_path: str) -> tuple[bool, list[str]] stub"
       - step4: Add PyYAML to requirements.txt
     dependencies: []
     tests: [test4]
-    status: not-started
+    status: completed
 
   - id: task1
     title: Required field and type validation
@@ -117,7 +117,7 @@ tasks:
       - step4: Return (False, errors) if any errors, (True, []) otherwise
     dependencies: [task0]
     tests: [test1, test2]
-    status: not-started
+    status: completed
 
   - id: task2
     title: Semantic validation (semver, runtime.type, name format)
@@ -134,7 +134,7 @@ tasks:
       - step4: Collect errors with descriptive messages for each violation
     dependencies: [task1]
     tests: [test3, test6]
-    status: not-started
+    status: completed
 
   - id: task3
     title: Optional fields and integration
@@ -151,4 +151,4 @@ tasks:
       - step4: Add docstrings and type hints to public API
     dependencies: [task2]
     tests: [test0, test5]
-    status: not-started
+    status: completed
