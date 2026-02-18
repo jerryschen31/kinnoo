@@ -7,7 +7,7 @@
 #
 # This file contains the project tasks as YAML entries. Use the top-level `tasks` list.
 # Each task should reference its parent feature and list any test IDs it owns.
-# The validator script `scripts/validate_manifest.py` will enforce unique IDs and references.
+# The validator script `src/validate_project_manifests.py` will enforce unique IDs and references.
 #
 # Template (YAML):
 # tasks:
@@ -81,5 +81,74 @@
 #     approvals: []
 #     status: completed
 
+tasks:
+  - id: task0
+    title: Project structure and schema definition
+    type: task
+    description: |
+      Create the kinnoo Python package structure and define the manifest schema
+      as constants. Create the validate() function stub with the correct signature
+      (is_valid: bool, errors: list[str]).
+    files:
+      - src/kinnoo/__init__.py
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+    steps:
+      - step1: Create src/kinnoo/ package with __init__.py
+      - step2: In schema.py, define REQUIRED_FIELDS list and FIELD_TYPES dict
+      - step3: In validator.py, create validate(manifest_path: str) -> tuple[bool, list[str]] stub
+      - step4: Add PyYAML to requirements.txt
+    dependencies: []
+    tests: [test4]
+    status: not-started
 
+  - id: task1
+    title: Required field and type validation
+    type: task
+    description: |
+      Implement YAML parsing and validation for required fields and correct types.
+      Return specific error messages naming the missing field or describing type mismatch.
+    files:
+      - src/kinnoo/validator.py
+    steps:
+      - step1: Parse YAML file using PyYAML
+      - step2: Check each required field exists; collect errors for missing ones
+      - step3: Check each field has correct type; collect errors for mismatches
+      - step4: Return (False, errors) if any errors, (True, []) otherwise
+    dependencies: [task0]
+    tests: [test1, test2]
+    status: not-started
 
+  - id: task2
+    title: Semantic validation (semver, runtime.type, name format)
+    type: task
+    description: |
+      Implement semantic validation: semver format for the version field,
+      runtime.type must be "one-shot", name must be alphanumeric with hyphens only.
+    files:
+      - src/kinnoo/validator.py
+    steps:
+      - step1: Add semver regex validation for version field
+      - step2: Add check that runtime.type == "one-shot"; error if not
+      - step3: Add package name format validation (^[a-z0-9][a-z0-9-]*$)
+      - step4: Collect errors with descriptive messages for each violation
+    dependencies: [task1]
+    tests: [test3, test6]
+    status: not-started
+
+  - id: task3
+    title: Optional fields and integration
+    type: task
+    description: |
+      Handle optional framework field (accept if present, ignore if absent).
+      Ensure a fully valid manifest passes with no errors. Add docstrings and type hints.
+    files:
+      - src/kinnoo/validator.py
+    steps:
+      - step1: Ensure framework field does not trigger "missing field" error
+      - step2: Ensure framework field with valid string value passes
+      - step3: Verify complete valid manifest returns (True, [])
+      - step4: Add docstrings and type hints to public API
+    dependencies: [task2]
+    tests: [test0, test5]
+    status: not-started

@@ -68,5 +68,5 @@
 1. Create test entry in TESTS.txt (increment ID).
 2. Create/update task entry in TASKS.txt; add test ID to `tests` list.
 3. Create/update feature entry in FEATURES.txt; add task ID to `tasks`.
-4. Run `python3 scripts/validate_manifest.py` — fix any errors before committing.
+4. Run `python3 src/validate_project_manifests.py` — fix any errors before committing.
 5. Commit manifest changes in the same branch/PR as the code.
