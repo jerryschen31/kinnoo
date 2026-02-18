@@ -87,4 +87,4 @@ features:
         description: runtime.type set to any value other than "one-shot" produces a descriptive error stating it is not supported in this version.
     owner: techlead-agent
     dependencies: []
-    status: needs-review
+    status: completed
