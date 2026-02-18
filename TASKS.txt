@@ -9,6 +9,8 @@
 # Each task should reference its parent feature and list any test IDs it owns.
 # The validator script `src/validate_project_manifests.py` will enforce unique IDs and references.
 #
+# Important Note: dependencies field can be other tasks, OR external packages, libraries, frameworks - with the version - that need to be installed in order to complete the task 
+#
 # Template (YAML):
 # tasks:
 #   - id: taskX
@@ -19,7 +21,7 @@
 #     steps:
 #       - Step 1 description
 #       - Step 2 description
-#     dependencies: [taskZ]
+#     dependencies: [taskZ, boto3]
 #     tests: [test0, test1]
 #     status: not-started / in-progress / etc
 #
@@ -152,3 +154,62 @@ tasks:
     dependencies: [task2]
     tests: [test0, test5]
     status: completed
+
+  - id: task4
+    title: CLI entry point and argument parsing
+    type: task
+    description: |
+      Create the kinnoo CLI entry point with argparse. Implement the `init` subcommand
+      that parses the agent name argument. Handle missing arguments with clear usage message.
+      Validate agent name format using NAME_PATTERN from schema.py.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/__init__.py
+    steps:
+      - step1: Create src/kinnoo/cli.py with argparse-based CLI structure
+      - step2: Add `init` subcommand that accepts a positional `agent-name` argument
+      - step3: "Print usage error if agent name is missing: 'Usage: kinnoo init <agent-name>'"
+      - step4: Import NAME_PATTERN from schema.py and validate agent name; print error if invalid
+      - step5: Add `kinnoo` console script entry point to pyproject.toml (create pyproject.toml if needed)
+    dependencies: [task0]
+    tests: [test7, test8, test15]
+    status: not-started
+
+  - id: task5
+    title: Template files and directory generation
+    type: task
+    description: |
+      Create the scaffolding module that generates the agent directory structure
+      with all template files. The generated kinnoo.yaml must pass feature1 validation.
+      The run.py must include asyncio.run() boilerplate.
+    files:
+      - src/kinnoo/templates.py
+      - src/kinnoo/init_command.py
+    steps:
+      - step1: Create src/kinnoo/templates.py with string templates for kinnoo.yaml, run.py, requirements.txt, README.md. requirements.txt template should be an empty file for MVP (no dependencies for hello-world agent)
+      - step2: "kinnoo.yaml template: use agent name, version 0.1.0, entrypoint run.py, runtime python/>=3.10/one-shot, empty deps, inputs/outputs text"
+      - step3: "run.py template: include asyncio.run() boilerplate with main(input_text) async function, print hello-world output"
+      - step4: Create src/kinnoo/init_command.py with init_agent(name, target_dir) function
+      - step5: Generate directory structure with tools/, prompts/ subdirectories
+      - step6: Write all template files to the created directory
+    dependencies: [task4]
+    tests: [test9, test10, test11, test12]
+    status: not-started
+
+  - id: task6
+    title: Directory collision detection and CLI integration
+    type: task
+    description: |
+      Add check for existing directory before scaffolding. Print error if directory
+      already exists. Wire up init_command to CLI. Add integration test.
+    files:
+      - src/kinnoo/init_command.py
+      - src/kinnoo/cli.py
+    steps:
+      - step1: In init_command.py, check if target directory exists before creating
+      - step2: "If exists, raise error or return failure: 'Error: Directory <name>/ already exists. Will not overwrite.'"
+      - step3: Wire init_command.init_agent() into cli.py init subcommand handler
+      - step4: Add integration test that runs full `kinnoo init` and verifies generated manifest passes validation
+    dependencies: [task5]
+    tests: [test13, test14]
+    status: not-started

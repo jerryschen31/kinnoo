@@ -31,6 +31,24 @@ def load_yaml(path: Path):
         print(f"Failed to parse {path}: {e}")
         sys.exit(2)
 
+def get_tests_for_ac(tests, feature_id, ac_id):
+    """Get all test IDs that cover a specific acceptance criterion.
+    
+    Args:
+        tests: List of test dictionaries from TESTS.txt
+        feature_id: Feature ID (e.g., 'feature1')
+        ac_id: Acceptance criterion ID (e.g., 'AC1')
+    
+    Returns:
+        List of test IDs that cover the specified feature/AC combination
+    """
+    return [
+        test['id'] for test in tests
+        if 'covers' in test
+        for cover in test.get('covers', [])
+        if cover.get('feature') == feature_id and cover.get('ac') == ac_id
+    ]
+
 def main():
     features = load_yaml(ROOT / 'FEATURES.txt').get('features', [])
     tasks = load_yaml(ROOT / 'TASKS.txt').get('tasks', [])
