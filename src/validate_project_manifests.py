@@ -7,7 +7,7 @@ Checks performed:
 - Each task.tests item exists in TESTS.txt
 - Each test.covers entry references an existing feature and AC id
 
-Usage: python3 scripts/validate_manifest.py
+Usage: python3 src/validate_project_manifests.py
 Requires: PyYAML (`pip install pyyaml`) or will instruct how to install.
 """
 import sys

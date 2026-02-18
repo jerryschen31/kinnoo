@@ -40,3 +40,109 @@
 #     pass_criteria: visible on iPhone12/13/14 portrait
 #     automated: false
 #     automation_path: null
+
+tests:
+  - id: test0
+    title: Valid manifest passes validation
+    type: unit
+    preconditions: validator module available, PyYAML installed
+    steps:
+      - step1: Create a kinnoo.yaml with all required fields and valid values
+      - step2: Call validate(path)
+    expected: Returns (True, [])
+    pass_criteria: is_valid is True and errors list is empty
+    covers:
+      - feature: feature1
+        ac: AC1
+    automated: true
+    automation_path: tests/test_validator.py::test_valid_manifest_passes
+
+  - id: test1
+    title: Missing required field produces specific error
+    type: unit
+    preconditions: validator module available, PyYAML installed
+    steps:
+      - step1: Create a kinnoo.yaml missing the 'entrypoint' field
+      - step2: Call validate(path)
+    expected: Returns (False, [...]) with error message naming 'entrypoint'
+    pass_criteria: is_valid is False; errors list contains a string mentioning 'entrypoint'
+    covers:
+      - feature: feature1
+        ac: AC2
+    automated: true
+    automation_path: tests/test_validator.py::test_missing_required_field
+
+  - id: test2
+    title: Invalid field type produces specific error
+    type: unit
+    preconditions: validator module available, PyYAML installed
+    steps:
+      - step1: Create a kinnoo.yaml with 'dependencies' set to a string instead of a list
+      - step2: Call validate(path)
+    expected: Returns (False, [...]) with error describing type mismatch
+    pass_criteria: is_valid is False; errors list contains a string mentioning 'dependencies' and 'list'
+    covers:
+      - feature: feature1
+        ac: AC3
+    automated: true
+    automation_path: tests/test_validator.py::test_invalid_field_type
+
+  - id: test3
+    title: Invalid semver format produces descriptive error
+    type: unit
+    preconditions: validator module available, PyYAML installed
+    steps:
+      - step1: Create a kinnoo.yaml with version set to "1.0" (missing patch segment)
+      - step2: Call validate(path)
+    expected: Returns (False, [...]) with error describing invalid semver
+    pass_criteria: is_valid is False; errors list contains a string mentioning 'version' and 'semver'
+    covers:
+      - feature: feature1
+        ac: AC4
+    automated: true
+    automation_path: tests/test_validator.py::test_invalid_semver_format
+
+  - id: test4
+    title: Validator function returns correct type signature
+    type: unit
+    preconditions: validator module available
+    steps:
+      - step1: Call validate(path) on any manifest file
+      - step2: Inspect the return value
+    expected: Returns a tuple of (bool, list[str])
+    pass_criteria: Return type is tuple; first element is bool; second element is a list
+    covers:
+      - feature: feature1
+        ac: AC5
+    automated: true
+    automation_path: tests/test_validator.py::test_validator_return_type
+
+  - id: test5
+    title: Optional framework field is accepted with and without value
+    type: unit
+    preconditions: validator module available, PyYAML installed
+    steps:
+      - step1: Create a valid kinnoo.yaml without the framework field; call validate(path)
+      - step2: Create a valid kinnoo.yaml with framework set to "langchain"; call validate(path)
+    expected: Both return (True, [])
+    pass_criteria: Both manifests pass validation with no errors
+    covers:
+      - feature: feature1
+        ac: AC6
+    automated: true
+    automation_path: tests/test_validator.py::test_framework_optional
+
+  - id: test6
+    title: runtime.type not "one-shot" produces descriptive error
+    type: unit
+    preconditions: validator module available, PyYAML installed
+    steps:
+      - step1: Create a kinnoo.yaml with runtime.type set to "server"
+      - step2: Call validate(path)
+    expected: Returns (False, [...]) with error stating "one-shot" is the only supported value
+    pass_criteria: is_valid is False; errors list contains a string mentioning 'runtime.type' and 'one-shot'
+    covers:
+      - feature: feature1
+        ac: AC7
+    automated: true
+    automation_path: tests/test_validator.py::test_invalid_runtime_type
