@@ -62,14 +62,6 @@ features:
       | outputs.type       | yes      | string       | e.g., "text"                                     |
       | framework          | no       | string       | optional, e.g., "langchain"                      |
     tasks: [task0, task1, task2, task3]
-    tests_map:
-      AC1: [test0]
-      AC2: [test1]
-      AC3: [test2]
-      AC4: [test3]
-      AC5: [test4]
-      AC6: [test5]
-      AC7: [test6]
     acceptance_criteria:
       - id: AC1
         description: A kinnoo.yaml with all required fields and valid values passes validation without errors.
@@ -88,3 +80,100 @@ features:
     owner: techlead-agent
     dependencies: []
     status: completed
+
+  - id: feature2
+    title: "kinnoo init — Project scaffolding"
+    description: |
+      Implement the `kinnoo init` CLI command that generates a template agent directory
+      with the canonical kinnoo structure. Creates a working hello-world agent that
+      passes validation and can be run immediately with `kinnoo run`.
+
+      Creates `<agent-name>/` directory in the current working directory.
+
+      Generated structure:
+      ```
+      <agent-name>/
+        kinnoo.yaml        # Pre-filled manifest with user-provided name
+        run.py             # Hello-world entrypoint with asyncio boilerplate
+        requirements.txt   # Empty for MVP, but file should exist
+        README.md          # Basic documentation template
+        tools/             # Empty directory for future tools
+        prompts/           # Empty directory for prompt templates
+      ```
+
+      The command accepts an agent name as argument: `kinnoo init my-agent`
+    tasks: [task4, task5, task6]
+    acceptance_criteria:
+      - id: AC1
+        description: "Running `kinnoo init my-agent` creates a directory named `my-agent/` with all expected files and subdirectories."
+      - id: AC2
+        description: "The generated kinnoo.yaml passes validation (feature1 validator returns True with no errors)."
+      - id: AC3
+        description: "The generated run.py is executable and prints output when run with `python run.py \"test input\"`."
+      - id: AC4
+        description: "The entrypoint includes asyncio.run() boilerplate for compatibility with async-first frameworks (AutoGen, OpenAI SDK)."
+      - id: AC5
+        description: "Running `kinnoo init` without an agent name prints a usage error with example: `Usage: kinnoo init <agent-name>`."
+      - id: AC6
+        description: "Running `kinnoo init my-agent` when `my-agent/` already exists prints an error and does not overwrite."
+      - id: AC7
+        description: "Agent name validation matches manifest rules (lowercase alphanumeric with hyphens, must start with lowercase letter or digit)."
+    notes:
+      - "Asyncio boilerplate included by default for AutoGen/OpenAI SDK compatibility — harmless for sync agents"
+      - "Name validation reuses manifest NAME_PATTERN from schema.py for consistency"
+      - "No --force flag in MVP to overwrite existing directories — safety first"
+      - "tools/ and prompts/ directories are empty placeholders for future use"
+      - "Framework-specific templates (--framework=langchain) deferred to V2 per framework strategy decision"
+    owner: techlead-agent
+    dependencies: [feature1]
+    status: not-started
+
+  - id: feature3
+    title: "kinnoo run (local) — Agent execution from source"
+    description: |
+      Implement the `kinnoo run` CLI command that executes an agent from a local
+      directory. This is the core runtime contract: validate manifest, set up
+      environment, install dependencies, and execute the entrypoint.
+
+      Execution flow:
+      1. Validate kinnoo.yaml using feature1 validator
+      2. Create Python virtual environment (if not exists)
+      3. Install dependencies from requirements.txt
+      4. Execute entrypoint with user-provided input: `python run.py "<input>"`
+      5. Stream stdout/stderr to terminal
+      6. Return exit code from entrypoint
+
+      Usage: `kinnoo run <path> "<input>"`
+      Example: `kinnoo run ./my-agent "Hello, agent!"`
+    tasks: []  
+    acceptance_criteria:
+      - id: AC1
+        description: "Running `kinnoo run ./my-agent \"test\"` on a valid agent directory executes the entrypoint and prints output."
+      - id: AC2
+        description: "Invalid or missing kinnoo.yaml produces clear validation errors from feature1 validator before execution."
+      - id: AC3
+        description: "A Python venv is created in `<agent-dir>/.venv/` if it does not exist."
+      - id: AC4
+        description: "Dependencies from requirements.txt are installed into the venv before execution."
+      - id: AC5
+        description: "The entrypoint receives the input string as the first CLI argument (sys.argv[1])."
+      - id: AC6
+        description: "Stdout and stderr from the entrypoint are streamed to the terminal in real-time."
+      - id: AC7
+        description: "Non-zero exit codes from the entrypoint are propagated to the kinnoo process exit code."
+      - id: AC8
+        description: "Running `kinnoo run` without arguments prints usage: `Usage: kinnoo run <path> \"<input>\"`."
+      - id: AC9
+        description: "Missing entrypoint file (as declared in manifest) produces a clear error before execution."
+    notes:
+      - "Uses feature1 validator — reuse existing validation, single source of truth"
+      - "Venv created inside agent directory (.venv/) for isolation without Docker overhead"
+      - "Real-time streaming provides developer-friendly UX during agent execution"
+      - "Exit code propagation enables composability with shell scripts and CI pipelines"
+      - "Fail-fast on missing entrypoint — check before venv setup to save time"
+      - "Framework-agnostic execution: blindly runs entrypoint per MVP black-box philosophy"
+      - "No --docker or --remote flags in MVP — escape hatches deferred to V1.1/V2"
+      - "Preflight checks (tools, services, GPU) deferred to future feature per roadmap"
+    owner: techlead-agent
+    dependencies: [feature1]
+    status: not-started
