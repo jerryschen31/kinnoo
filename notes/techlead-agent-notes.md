@@ -475,3 +475,280 @@ $ kinnoo run my-agent --remote    # Send to configured runner
 | Doable for Senior Engineer + AI? | Absolutely—10-15 focused tasks |
 
 The hard part isn't the code—it's the design decisions. You've already made the key ones (black-box execution, framework-agnostic MVP, declarative manifest). Implementation is straightforward integration work.
+
+---
+
+## Packaging Kinnoo for Pip Installation — MVP Requirement
+
+**Decision Date:** 2026-02-18  
+**Status:** **Required for MVP** (likely the final feature)  
+**Context:** User feedback
+
+### Problem Statement
+
+**Q: How would a user install `kinnoo`?**  
+**A:** The most common way to install Python packages like `kinnoo` is via `pip`. This requires packaging the project as a Python package and making it available through either:
+- **PyPI** (Python Package Index) — public registry, `pip install kinnoo`
+- **Git repository** — direct install, `pip install git+https://github.com/username/kinnoo.git`
+
+### Why This Must Be Part of the MVP
+
+**Core principle:** If kinnoo is a tool for making agents easy to install and run, then **kinnoo itself must be easy to install and run.**
+
+Without proper packaging:
+- Other developers can't easily try kinnoo
+- Installation requires manual cloning, venv setup, dependency installation
+- No version management or updates
+- Violates the "batteries included" philosophy
+
+### Current State
+
+The groundwork is already in place:
+- ✅ `pyproject.toml` exists in the project
+- ✅ Package structure already set up (`src/kinnoo/`)
+- ✅ Console script entry point already specified (task4 for feature2)
+
+### What's Required (Implementation Plan)
+
+#### 1. Complete `pyproject.toml` Metadata
+
+Add the necessary metadata fields:
+
+```toml
+[project]
+name = "kinnoo"
+version = "0.1.0"  # Start with MVP version
+description = "A lightweight package manager for AI agents"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}  # or appropriate license
+authors = [
+    {name = "Your Name", email = "your.email@example.com"}
+]
+keywords = ["ai", "agents", "packaging", "cli"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+[project.urls]
+Homepage = "https://github.com/username/kinnoo"
+Repository = "https://github.com/username/kinnoo"
+Issues = "https://github.com/username/kinnoo/issues"
+
+dependencies = [
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+]
+
+[project.scripts]
+kinnoo = "kinnoo.cli:main"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+```
+
+#### 2. Test Local Installation
+
+Before publishing, verify the package installs correctly:
+
+```bash
+# Build the package
+python3 -m build
+
+# Install locally from the built wheel
+pip install dist/kinnoo-0.1.0-py3-none-any.whl
+
+# Test the CLI
+kinnoo --help
+kinnoo init test-agent
+```
+
+#### 3. Build and Share Wheel Files (MVP Distribution Method)
+
+**Strategy:** Start simple—build wheels and share directly with early users.
+
+```bash
+# Build the package
+python3 -m build
+
+# This creates dist/kinnoo-0.1.0-py3-none-any.whl
+# Share this file with early users via email, Slack, Dropbox, etc.
+
+# Users install locally:
+pip install kinnoo-0.1.0-py3-none-any.whl
+```
+
+**Pros:**
+- ✅ **Simplest possible distribution** — no servers, no infrastructure
+- ✅ **Complete privacy** — only people you explicitly send the file to can install
+- ✅ **No Git access needed** — just a .whl file
+- ✅ **Fast iteration** — build and share new versions instantly
+- ✅ **Perfect for MVP validation** — get feedback before investing in infrastructure
+
+**Cons:**
+- Manual distribution (acceptable for small group of early users)
+- No automatic updates (users install new .whl files manually)
+- Not scalable beyond ~10-20 users
+
+**Privacy considerations:**
+- ✅ **Maximum privacy** — you control exactly who gets the file
+- ✅ **No public exposure** — not indexed by AI bots or search engines
+- ✅ **No Git repo needed** — can even work with completely private/local development
+
+#### 4. Private Git-Based Installation (Post-V2, For Scaling Private Testing)
+
+**Deferred to post-V2** when ready to scale beyond direct file sharing:
+
+```bash
+# Invited collaborators with repo access can install:
+pip install git+https://github.com/username/kinnoo.git@v0.2.0
+```
+
+This requires:
+- Private Git repository with controlled access
+- Access control via GitHub collaborators/teams
+- Users need Git access (SSH keys or tokens)
+
+**When to transition:** When manual wheel sharing becomes cumbersome (~10-20+ users), or when you want automatic version tracking.
+
+Alternative: **GitHub Packages** (PyPI-compatible private hosting)
+
+#### 5. Public PyPI Publication (V3/V4+, After Product-Market Fit)
+
+**Deferred to V3/V4+** when kinnoo has achieved product-market fit with private users:
+
+```bash
+# Build distribution packages
+python3 -m build
+
+# Upload to public PyPI (makes it publicly accessible)
+python3 -m twine upload dist/*
+
+# Anyone can then install:
+pip install kinnoo
+```
+
+⚠️ **PyPI is completely public** — only publish when ready for full public release.
+
+Optional pre-release testing with **TestPyPI**:
+
+```bash
+python3 -m twine upload --repository testpypi dist/*
+pip install --index-url https://test.pypi.org/simple/ kinnoo
+```
+
+### Recommended Approach for MVP
+
+**MVP (Private Wheel Distribution):**
+1. Complete `pyproject.toml` metadata
+2. Test local installation (`pip install .`)
+3. Build wheel: `python3 -m build`
+4. Test wheel installation: `pip install dist/kinnoo-0.1.0-py3-none-any.whl`
+5. Document wheel installation in README.md
+6. Share .whl file directly with early users (email, Slack, etc.)
+
+**Post-V2 (Scale Private Distribution):**
+7. Set up private GitHub repo (if not already)
+8. Test Git-based installation
+9. Document Git installation method
+10. Transition users to Git-based installs
+11. Alternative: Consider GitHub Packages for PyPI-like private hosting
+
+**V3/V4+ (Public Release, After Product-Market Fit):**
+12. Optional: Test on TestPyPI first
+13. Publish to public PyPI
+14. Update README with `pip install kinnoo`
+15. Public announcement
+
+### Implementation Effort
+
+| Task | Effort | Priority | Phase |
+|------|--------|----------|-------|
+| Complete pyproject.toml metadata | Low (1 task) | **Required** | MVP |
+| Test local installation (`pip install .`) | Low (validation) | **Required** | MVP |
+| Build wheel (`python3 -m build`) | Low (validation) | **Required** | MVP |
+| Test wheel installation | Low (validation) | **Required** | MVP |
+| Update README with wheel install instructions | Low (documentation) | **Required** | MVP |
+| Set up Git-based installation | Low (validation) | Optional | Post-V2 |
+| GitHub Packages setup | Medium (1-2 tasks) | Optional | Post-V2 |
+| Publish to TestPyPI | Medium (1-2 tasks) | Optional | V3/V4+ |
+| Publish to public PyPI | Medium (1-2 tasks) | Deferred | V3/V4+ |
+
+**Total MVP effort:** 2-3 tasks for wheel-based distribution
+
+### Where This Fits in the MVP
+
+**Recommendation:** Make this the **last feature** before declaring MVP complete.
+
+**Rationale:**
+1. All other features (manifest validation, init, run, list, etc.) must be implemented first
+2. Packaging is the final step that proves kinnoo is ready for users
+3. Enables dogfooding—use kinnoo to package kinnoo
+4. Natural completion milestone—"kinnoo can now be distributed as a wheel"
+5. Maximum privacy for early validation—you control exactly who gets access
+6. Simple to scale up later (Git → PyPI) as project matures
+
+### Success Criteria
+
+**MVP (Wheel Distribution):**
+
+When complete, you should be able to:
+
+```bash
+# Build kinnoo
+python3 -m build
+
+# Install and test locally
+pip install dist/kinnoo-0.1.0-py3-none-any.whl
+kinnoo --version
+kinnoo init my-agent
+cd my-agent
+kinnoo run "Hello, world!"
+
+# Share with early users
+# They can install the same way:
+pip install kinnoo-0.1.0-py3-none-any.whl
+```
+
+**Post-V2 (Git-Based Distribution, When Scaling):**
+
+```bash
+# Users with repo access install:
+pip install git+https://github.com/username/kinnoo.git@v0.2.0
+
+# Same commands work
+kinnoo --version
+kinnoo init my-agent
+```
+
+**V3/V4+ (Public PyPI, After Product-Market Fit):**
+
+```bash
+# Public installation
+pip install kinnoo
+
+# Same commands work
+kinnoo --version
+kinnoo init my-agent
+```
+
+### Distribution Strategy Summary
+
+| Phase | Method | Target Audience | Privacy Level |
+|-------|--------|-----------------|---------------|
+| **MVP** | **Wheel files** | Early testers (1-10) | **Maximum** — you control file sharing |
+| Post-V2 | Git-based or GitHub Packages | Private beta (10-100) | High — invite-only via repo access |
+| V3/V4+ | Public PyPI | General public | Public — anyone can install |
+
+**This is essential for the MVP vision: making AI agents as easy to install as any other Python package, while starting with the simplest distribution method and maintaining maximum privacy during early validation.**
