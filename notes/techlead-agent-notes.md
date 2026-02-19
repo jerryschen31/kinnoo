@@ -752,3 +752,201 @@ kinnoo init my-agent
 | V3/V4+ | Public PyPI | General public | Public — anyone can install |
 
 **This is essential for the MVP vision: making AI agents as easy to install as any other Python package, while starting with the simplest distribution method and maintaining maximum privacy during early validation.**
+
+---
+
+## V2 Strategy: LangChain Adapter + MCP Server Integration
+
+**Decision Date:** 2026-02-18  
+**Status:** Planned (post-MVP)  
+**Scope:** V2
+
+### V2 Goal
+
+**One framework, done extremely well, with real tool support.**
+
+Enable a LangChain developer to package an agent that uses MCP tools, share it, and have another developer run it with minimal friction.
+
+### Why LangChain First?
+
+- Largest community (most users to validate with)
+- Most documentation/examples
+- LangChain has native MCP support
+- If kinnoo works for LangChain, others will ask for their framework
+- Demand-driven expansion > speculative expansion
+
+### MCP Support Levels
+
+| Level | What | V2? | Complexity |
+|-------|------|-----|------------|
+| **Declare** | List MCP servers in manifest | ✅ Yes | Low |
+| **Verify** | Preflight checks ("is this server available?") | ✅ Yes | Low |
+| **Launch** | `kinnoo run` starts required MCP servers | ✅ Yes | Medium |
+| **Bundle** | Package MCP server binaries into .kno | ❌ V3+ | High |
+
+**V2 Scope:** Declare + Verify + Launch (not Bundle)
+
+### MCP Manifest Schema
+
+```yaml
+# kinnoo.yaml
+name: my-research-agent
+version: 1.0.0
+framework: langchain
+
+mcp_servers:
+  - name: filesystem
+    package: "@anthropics/mcp-filesystem"  # npm package
+    config:
+      allowed_directories:
+        - "./data"
+    required: true
+    
+  - name: brave-search
+    package: "@anthropics/mcp-brave-search"
+    config:
+      api_key: env.BRAVE_API_KEY
+    required: true
+    
+  - name: github
+    package: "@anthropics/mcp-github"
+    config:
+      token: env.GITHUB_TOKEN
+    required: false  # optional tool
+    
+  - name: postgres
+    package: "@anthropics/mcp-postgres"
+    config:
+      connection_string: env.DATABASE_URL
+    required: false
+```
+
+### What `kinnoo run` Does in V2
+
+```bash
+$ kinnoo run my-agent "research topic X"
+
+Preflight checks:
+✓ Python 3.11 found
+✓ Node.js/npx available
+✓ MCP server: filesystem (npx @anthropics/mcp-filesystem)
+✓ MCP server: brave-search (npx @anthropics/mcp-brave-search)
+  → BRAVE_API_KEY set
+✗ MCP server: github (optional, skipping)
+  → GITHUB_TOKEN not set
+
+Starting MCP servers...
+✓ filesystem listening on stdio
+✓ brave-search listening on stdio
+
+Running agent...
+[agent output]
+
+Shutting down MCP servers...
+```
+
+### Why This Works
+
+1. **Most MCP servers are npm packages** → `npx @anthropics/mcp-xxx` just works
+2. **Stdio-based** → No port management, just spawn processes
+3. **Config is declarative** → User fills in env vars, kinnoo wires it up
+4. **Credentials via env** → No secrets in manifest, standard pattern
+5. **LangChain has MCP support** → Native integration, no custom wiring
+
+### Supported MCP Servers (V2 Initial Set)
+
+Focus on stable, well-documented npm packages:
+
+| Server | Package | Use Case |
+|--------|---------|----------|
+| Filesystem | `@anthropics/mcp-filesystem` | Read/write local files |
+| Brave Search | `@anthropics/mcp-brave-search` | Web search |
+| GitHub | `@anthropics/mcp-github` | Repo operations |
+| Postgres | `@anthropics/mcp-postgres` | Database queries |
+| Supabase | `@supabase/mcp-server` | Supabase integration |
+| SQLite | `@anthropics/mcp-sqlite` | Local database |
+
+### What We're NOT Doing in V2
+
+- **Bundling server binaries** → User must have npx/node installed (acceptable)
+- **Custom MCP servers** → Only well-known packages with stable APIs
+- **HTTP-based MCP servers** → Stdio only (simpler lifecycle)
+- **Server versioning/pinning** → Use latest (add pinning in V3)
+- **Memory abstraction** → Too complex, framework-specific (defer to V3)
+- **Other framework adapters** → CrewAI, AutoGen, etc. deferred to V3
+
+### V2 Developer Workflow
+
+```bash
+# Create agent with LangChain + MCP tools
+kinnoo init my-agent --framework=langchain --mcp=filesystem,brave-search
+
+# Edit agent logic, configure API keys in .env
+cd my-agent && edit...
+
+# Run with MCP servers auto-launched
+kinnoo run . "search for X and save to ./data/results.txt"
+# → Starts filesystem + brave-search MCP servers
+# → Runs agent
+# → Agent uses tools
+# → Shuts down servers
+
+# Package and share
+kinnoo pack
+# → my-agent.kno includes manifest with MCP requirements
+
+# Recipient
+kinnoo install my-agent.kno
+# Preflight warns: "This agent requires BRAVE_API_KEY, Node.js"
+kinnoo run my-agent "query"
+# → Same MCP server launch flow
+```
+
+### V2 Implementation Estimate
+
+| Task | Effort | Notes |
+|------|--------|-------|
+| `framework` manifest field | Low | Schema extension |
+| `mcp_servers` manifest field | Low | Schema extension |
+| `kinnoo init --framework=langchain` | Medium | LangChain-specific scaffold |
+| `kinnoo init --mcp=...` flag | Medium | MCP server config templates |
+| MCP server preflight checks | Low | `which npx`, env var checks |
+| MCP server launcher/lifecycle | Medium | Spawn processes, manage stdio |
+| Wire to LangChain MCP client | Medium | LangChain has MCP support |
+| Common server config templates | Low | 5-6 server configs |
+| Documentation | Medium | User guide for LangChain + MCP |
+
+**Total V2 effort:** ~8-12 tasks (4-6 weeks with AI assistance)
+
+### V3+ Roadmap (Deferred)
+
+| Feature | Why Deferred |
+|---------|--------------|
+| CrewAI adapter | Wait for V2 LangChain validation |
+| AutoGen adapter | Wait for V2 LangChain validation |
+| MCP server bundling | Complex; requires Node.js packaging |
+| Memory abstraction | Framework-specific, needs research |
+| Server version pinning | Wait for ecosystem to stabilize |
+| HTTP MCP servers | More complex lifecycle management |
+
+### Success Criteria for V2
+
+When complete, this workflow should work end-to-end:
+
+1. Developer A creates LangChain agent with MCP tools
+2. Developer A runs `kinnoo pack` → gets `.kno` file
+3. Developer A shares `.kno` file with Developer B
+4. Developer B runs `kinnoo install` + `kinnoo run`
+5. MCP servers launch automatically
+6. Agent executes with tools working
+7. Developer B did not need to understand MCP, LangChain internals, or manual setup
+
+**Key metric:** Time from receiving `.kno` to running agent < 5 minutes (assuming deps installed).
+
+### Design Principles
+
+1. **Declare, don't embed** — MCP servers declared in manifest, not bundled
+2. **Env vars for secrets** — No credentials in manifest or package
+3. **Fail fast with helpful errors** — Preflight checks before running
+4. **One framework first** — Prove the model before expanding
+5. **User has Node.js** — Acceptable prerequisite for V2 (can bundle in V3)
