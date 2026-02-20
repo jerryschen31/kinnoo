@@ -81,3 +81,38 @@ def test_generated_entrypoint_has_asyncio(tmp_path):
     contents = run_py.read_text()
     assert "asyncio.run" in contents
     assert "async def" in contents
+
+
+def test_init_existing_directory_fails(tmp_path):
+    agent_name = "test-agent"
+    agent_dir = tmp_path / agent_name
+    agent_dir.mkdir()
+    code, out, err = run_cli(["init", agent_name], cwd=tmp_path)
+    assert code != 0
+    assert "already exists" in err
+    # Directory should be unchanged (still exists)
+    assert agent_dir.exists() and agent_dir.is_dir()
+
+
+def test_init_full_workflow(tmp_path):
+    agent_name = "my-first-agent"
+    code, out, err = run_cli(["init", agent_name], cwd=tmp_path)
+    assert code == 0 or code is None
+    agent_dir = tmp_path / agent_name
+    # Directory and files exist
+    assert agent_dir.exists() and agent_dir.is_dir()
+    for fname in ["kinnoo.yaml", "run.py", "requirements.txt", "README.md"]:
+        assert (agent_dir / fname).exists()
+    assert (agent_dir / "tools").is_dir()
+    assert (agent_dir / "prompts").is_dir()
+    # Manifest passes validation
+    from kinnoo.validator import validate
+    manifest_path = agent_dir / "kinnoo.yaml"
+    is_valid, errors = validate(str(manifest_path))
+    assert is_valid
+    assert not errors
+    # Entrypoint runs successfully
+    run_py = agent_dir / "run.py"
+    result = subprocess.run([sys.executable, str(run_py), "test"], capture_output=True, text=True)
+    assert result.returncode == 0
+    assert "Hello, world!" in result.stdout
