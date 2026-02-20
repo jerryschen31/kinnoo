@@ -126,7 +126,7 @@ features:
       - "Framework-specific templates (--framework=langchain) deferred to V2 per framework strategy decision"
     owner: techlead-agent
     dependencies: [feature1]
-    status: not-started
+    status: completed
 
   - id: feature3
     title: "kinnoo run (local) — Agent execution from source"
