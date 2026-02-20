@@ -13,3 +13,12 @@ plan: feature2 planning complete, feature3 added as to-do
 - Added some tech lead notes on packaging strategy for install
 - task4 completed by SWE agent and tests passed
 - task5 completed by SWE agent and tests passed
+
+feature2 complete: kinnoo init CLI, project scaffolding, and tests
+
+- Implemented `kinnoo init` CLI command for agent project scaffolding
+- Generates canonical directory structure and manifest (kinnoo.yaml)
+- Added input validation, error handling, and name pattern enforcement
+- Created templates for README, run.py, requirements.txt, tools/, prompts/
+- Comprehensive test suite for CLI and scaffolding logic
+- All acceptance criteria and tasks for feature2 completed and verified
