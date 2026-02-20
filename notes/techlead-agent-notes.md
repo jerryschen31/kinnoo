@@ -943,6 +943,143 @@ When complete, this workflow should work end-to-end:
 
 **Key metric:** Time from receiving `.kno` to running agent < 5 minutes (assuming deps installed).
 
+### Possible additional frameworks to support for V2
+
+Here are some **single-agent frameworks** that would be relatively easy to support in kinnoo V2 (after LangChain and possibly LlamaIndex):
+
+---
+
+### 1. **LlamaIndex**
+- **Why easy:** Pythonic, simple agent API, minimal dependencies, similar entrypoint pattern to LangChain.
+- **What’s needed:** Template with `llama_index` in `requirements.txt`, example agent in `main.py`.
+
+---
+
+### 2. **Haystack**
+- **Why easy:** Well-documented, supports pipeline/agent pattern, can expose a simple `run(input)` interface.
+- **What’s needed:** Template with `haystack` in `requirements.txt`, example pipeline/agent in `main.py`.
+
+---
+
+### 3. **Semantic Kernel (Python)**
+- **Why easy:** Has a Python SDK, supports function calling and skills, can be wrapped in a simple entrypoint.
+- **What’s needed:** Template with `semantic-kernel` in `requirements.txt`, example kernel in `main.py`.
+
+---
+
+### 4. **AutoGPT (as a library)**
+- **Why easy:** Recent versions can be used as a Python package, can expose a single-agent workflow.
+- **What’s needed:** Template with `autogpt` in `requirements.txt`, example agent in `main.py`.
+
+---
+
+### 5. **OpenAI Function Calling (barebones)**
+- **Why easy:** Just needs `openai` package, a prompt, and a function call handler.
+- **What’s needed:** Template with `openai` in `requirements.txt`, example function-calling agent in `main.py`.
+
+---
+
+**Summary:**  
+LlamaIndex and Haystack are the easiest after LangChain, as they have clear agent APIs and minimal setup.  
+Semantic Kernel and barebones OpenAI function-calling are also straightforward.  
+Choose frameworks with simple, well-documented APIs and minimal external dependencies for the smoothest V2 integration.
+Multi-Agent (LangGraph, CrewAI) is harder
+
+
+### Clarification: V1 vs V2 Functionality (LangChain Project Structure)
+
+## V1: Generic Template (Framework-Agnostic)
+- `kinnoo init` creates a minimal Python agent scaffold: `run.py`, `kinnoo.yaml`, `requirements.txt`, etc.
+- You can use this scaffold to build a LangChain agent, but you must manually add LangChain-specific code, dependencies, and structure.
+- V1 does **not** provide LangChain boilerplate, example agent code, or recommended project layout.
+
+### Example: Generic Python Agent Template (V1)
+
+```
+my-agent/
+├── kinnoo.yaml
+├── run.py
+├── requirements.txt
+├── README.md
+├── tools/
+└── prompts/
+```
+
+**run.py** (example):
+```python
+import sys
+
+def main(input_text):
+    print(f"Hello, you said: {input_text}")
+
+if __name__ == "__main__":
+    main(sys.argv[1])
+```
+
+---
+
+## V2: Framework-Aware Template (Ready-to-Use)
+- `kinnoo init --framework=langchain` creates a project with:
+  - LangChain-specific directory structure (e.g., `src/agent.py`, `src/tools.py`)
+  - Example LangChain agent code (pre-filled scripts using LangChain classes)
+  - LangChain dependencies in `requirements.txt`
+  - Example prompts and tool definitions tailored for LangChain
+  - Manifest fields pre-populated for LangChain conventions
+- You can immediately run or extend the agent without needing to research LangChain setup or copy boilerplate from docs.
+
+### Example: LangChain-Specific Agent Template (V2)
+
+```
+my-langchain-agent/
+├── kinnoo.yaml
+├── src/
+│   ├── main.py
+│   ├── agent.py
+│   └── tools.py
+├── requirements.txt
+├── README.md
+├── prompts/
+│   └── system_prompt.txt
+└── tools/
+```
+
+**src/agent.py** (example):
+```python
+from langchain.agents import initialize_agent, Tool
+from langchain.llms import OpenAI
+
+def build_agent():
+    llm = OpenAI()
+    tools = [Tool(name="search", func=lambda x: "result", description="Dummy search tool")]
+    return initialize_agent(tools, llm, agent="zero-shot-react-description")
+```
+
+**src/main.py** (example):
+```python
+import sys
+from agent import build_agent
+
+def run(input_text):
+    agent = build_agent()
+    return agent.run(input_text)
+
+if __name__ == "__main__":
+    print(run(sys.argv[1]))
+```
+
+**requirements.txt** (example):
+```
+langchain
+openai
+```
+
+---
+
+**Summary:**
+- The **generic template** is minimal and framework-agnostic.
+- The **LangChain template** includes a structured `src/` directory, agent/tool definitions, and LangChain-specific dependencies and code patterns.
+- V2 reduces friction for new users and helps ensure agents are built correctly for their framework.
+
 ### Design Principles
 
 1. **Declare, don't embed** — MCP servers declared in manifest, not bundled
