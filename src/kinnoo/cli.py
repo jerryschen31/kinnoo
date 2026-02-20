@@ -30,8 +30,14 @@ def main():
         if not re.match(NAME_PATTERN, args.agent_name):
             print(f"Error: Invalid agent name '{args.agent_name}'. Must match pattern: {NAME_PATTERN}", file=sys.stderr)
             sys.exit(1)
-        # Placeholder for actual init logic
-        print(f"[dry-run] Would initialize agent: {args.agent_name}")
+        from kinnoo.init_command import init_agent
+        from pathlib import Path
+        try:
+            init_agent(args.agent_name, Path.cwd())
+            print(f"Initialized agent: {args.agent_name}")
+        except FileExistsError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
 
 if __name__ == "__main__":
     main()
