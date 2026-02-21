@@ -286,3 +286,120 @@ tests:
     covers: []
     automated: true
     automation_path: tests/test_cli.py::test_cli_installable_and_runnable
+
+  - id: test7
+    title: kinnoo run with invalid/missing kinnoo.yaml prints validation errors and aborts
+    type: unit
+    preconditions: kinnoo CLI installed, invalid or missing kinnoo.yaml
+    steps:
+      - step1: Run kinnoo run on a directory with invalid or missing kinnoo.yaml
+    expected: Prints validation errors and aborts execution
+    pass_criteria: Output contains error messages; process exits non-zero
+    covers:
+      - feature: feature3
+        ac: AC2
+    automated: true
+    automation_path: tests/test_cli.py::test_run_invalid_manifest
+
+  - id: test8
+    title: kinnoo run creates .venv/ if missing; skips if present
+    type: unit
+    preconditions: kinnoo CLI installed, agent directory without .venv/
+    steps:
+      - step1: Run kinnoo run on agent directory without .venv/
+      - step2: Run kinnoo run again with .venv/ present
+    expected: .venv/ is created if missing; not recreated if present
+    pass_criteria: .venv/ exists after first run; no error on second run
+    covers:
+      - feature: feature3
+        ac: AC3
+    automated: true
+    automation_path: tests/test_cli.py::test_run_creates_venv
+
+  - id: test9
+    title: kinnoo run installs requirements.txt packages into .venv/
+    type: unit
+    preconditions: kinnoo CLI installed, requirements.txt with packages
+    steps:
+      - step1: Add a package to requirements.txt
+      - step2: Run kinnoo run and check .venv/ for installed package
+    expected: Package is installed in .venv/
+    pass_criteria: Package importable in .venv/ after run
+    covers:
+      - feature: feature3
+        ac: AC4
+    automated: true
+    automation_path: tests/test_cli.py::test_run_installs_requirements
+
+  - id: test10
+    title: kinnoo run executes entrypoint with input; sys.argv[1] matches user input
+    type: integration
+    preconditions: kinnoo CLI installed, valid agent directory
+    steps:
+      - step1: Run kinnoo run <agent-dir> "test input"
+      - step2: Check entrypoint receives input as sys.argv[1]
+    expected: Entry point prints output based on input
+    pass_criteria: Output matches expected; sys.argv[1] is "test input"
+    covers:
+      - feature: feature3
+        ac: AC1
+      - feature: feature3
+        ac: AC5
+    automated: true
+    automation_path: tests/test_cli.py::test_run_entrypoint_input
+
+  - id: test11
+    title: kinnoo run streams stdout/stderr in real-time during agent execution
+    type: integration
+    preconditions: kinnoo CLI installed, agent entrypoint with both stdout and stderr
+    steps:
+      - step1: Run kinnoo run on agent with entrypoint that prints to stdout and stderr
+    expected: Both stdout and stderr are streamed to terminal in real-time
+    pass_criteria: Output appears as produced; no buffering delay
+    covers:
+      - feature: feature3
+        ac: AC6
+    automated: true
+    automation_path: tests/test_cli.py::test_run_streams_output
+
+  - id: test12
+    title: kinnoo run returns entrypoint exit code; non-zero codes propagate
+    type: unit
+    preconditions: kinnoo CLI installed, entrypoint with non-zero exit
+    steps:
+      - step1: Run kinnoo run on agent with entrypoint that exits non-zero
+    expected: kinnoo run exits with same code
+    pass_criteria: kinnoo run exit code matches entrypoint
+    covers:
+      - feature: feature3
+        ac: AC7
+    automated: true
+    automation_path: tests/test_cli.py::test_run_exit_code
+
+  - id: test13
+    title: kinnoo run with missing args prints usage error
+    type: unit
+    preconditions: kinnoo CLI installed
+    steps:
+      - step1: Run kinnoo run with no arguments
+    expected: Prints usage error and exits non-zero
+    pass_criteria: Output contains usage message; exit code non-zero
+    covers:
+      - feature: feature3
+        ac: AC8
+    automated: true
+    automation_path: tests/test_cli.py::test_run_missing_args
+
+  - id: test14
+    title: kinnoo run with missing entrypoint file prints error and aborts
+    type: unit
+    preconditions: kinnoo CLI installed, kinnoo.yaml with missing entrypoint file
+    steps:
+      - step1: Run kinnoo run on agent directory with missing entrypoint file
+    expected: Prints error and aborts execution
+    pass_criteria: Output contains error message; process exits non-zero
+    covers:
+      - feature: feature3
+        ac: AC9
+    automated: true
+    automation_path: tests/test_cli.py::test_run_missing_entrypoint
