@@ -177,3 +177,70 @@ features:
     owner: techlead-agent
     dependencies: [feature1]
     status: in-progress
+
+  - id: feature4
+    title: "kinnoo pack — Agent packaging"
+    description: |
+      Implement the `kinnoo pack` CLI command that packages an agent project (code, manifest, dependencies)
+      into a distributable archive with the `.kno` extension. The archive contains all files needed to run the agent,
+      including kinnoo.yaml, entrypoint, requirements.txt, and any additional files declared in the manifest.
+      This enables easy sharing and distribution of agents.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "Running `kinnoo pack <agent-dir>` creates a `.kno` archive containing all required files."
+      - id: AC2
+        description: "Archive includes kinnoo.yaml, entrypoint, requirements.txt, and all files listed in the manifest."
+      - id: AC3
+        description: "Archive includes pre-built wheel files for all dependencies listed in requirements.txt."
+      - id: AC4
+        description: "Archive format is zip with `.kno` extension and can be inspected with standard zip tools."
+      - id: AC5
+        description: "Running `kinnoo pack` without arguments prints usage: `Usage: kinnoo pack <agent-dir>`."
+      - id: AC6
+        description: "Packing fails with a clear error if manifest is invalid or required files are missing."
+      - id: AC7
+        description: "Archive produced by `kinnoo pack` is accepted by `kinnoo install` for installation."
+      - id: AC8
+        description: "If `kinnoo pack` is run from inside the agent directory (with `.` or no argument), the CLI prints a clear error: 'Do not run kinnoo pack from inside the agent directory. Please navigate outside and run: kinnoo pack <agent-dir>'."
+    notes:
+      - "Archive format is zip with `.kno` extension for MVP."
+      - "Pre-built wheels ensure offline installation and reproducibility."
+      - "Manifest validation uses feature1 validator."
+      - "Packing aborts on missing files or invalid manifest."
+      - "No Docker or remote install support in MVP; deferred to V1.1/V2."
+      - "AC4 (agent is runnable after install) should be tested with an integration or end-to-end test. Recommended steps: (1) Prepare a valid .kno archive of an agent. (2) Run 'kinnoo install <archive.kno>' to install the agent to a new directory. (3) Immediately run 'kinnoo run <agent-dir> "test input"' on the installed agent directory. (4) Verify the entrypoint executes, produces expected output, and no manual setup is required between install and run."
+    owner: techlead-agent
+    dependencies: [feature3]
+    status: not-started
+
+  - id: feature5
+    title: "kinnoo install — Agent installation from archive"
+    description: |
+      Implement the `kinnoo install` CLI command that installs a packaged agent archive with the `.kno` extension
+      onto the user's machine. Sets up the agent directory, environment, and dependencies so the agent can be run
+      immediately with `kinnoo run`. Handles manifest validation, file extraction, venv creation, and dependency installation.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "Running `kinnoo install <archive.kno>` extracts agent files to a new directory."
+      - id: AC2
+        description: "Manifest is validated before installation; errors abort install with a clear message."
+      - id: AC3
+        description: "A Python venv is created in the agent directory and dependencies are installed from wheel files in the archive."
+      - id: AC4
+        description: "Agent is runnable immediately with `kinnoo run <agent-dir> \"<input>\"` after install."
+      - id: AC5
+        description: "Running `kinnoo install` without arguments prints usage: `Usage: kinnoo install <archive.kno>`."
+      - id: AC6
+        description: "Installation fails with a clear error if archive is invalid or required files are missing."
+      - id: AC7
+        description: "Installation does not overwrite existing directories unless a `--force` flag is provided."
+    notes:
+      - "Installation is offline-capable if archive contains wheel files."
+      - "Manifest validation uses feature1 validator."
+      - "No remote install or Docker support in MVP; deferred to V1.1/V2."
+      - "Safety-first: no overwrites unless explicitly allowed."
+    owner: techlead-agent
+    dependencies: [feature4]
+    status: not-started
