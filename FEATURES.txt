@@ -145,7 +145,7 @@ features:
 
       Usage: `kinnoo run <path> "<input>"`
       Example: `kinnoo run ./my-agent "Hello, agent!"`
-    tasks: []  
+    tasks: [task7, task8, task9, task10, task11, task12, task13, task14]
     acceptance_criteria:
       - id: AC1
         description: "Running `kinnoo run ./my-agent \"test\"` on a valid agent directory executes the entrypoint and prints output."
@@ -176,4 +176,4 @@ features:
       - "Preflight checks (tools, services, GPU) deferred to future feature per roadmap"
     owner: techlead-agent
     dependencies: [feature1]
-    status: not-started
+    status: in-progress

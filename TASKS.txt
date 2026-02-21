@@ -58,6 +58,101 @@
 #     status: not-started
 #
 #   - id: task10
+  - id: task7
+    title: Manifest validation in kinnoo run
+    type: task
+    description: Validate kinnoo.yaml manifest before execution using the feature1 validator. Print clear errors and abort if invalid or missing.
+    files: [src/kinnoo/cli.py, src/kinnoo/validator.py]
+    steps:
+      - step1: Load kinnoo.yaml from agent directory
+      - step2: Call validator; if invalid, print errors and exit
+    dependencies: [task3]
+    tests: [test7]
+    status: not-started
+
+  - id: task8
+    title: Create Python venv in agent directory
+    type: task
+    description: Ensure .venv/ is created in the agent directory if it does not exist, using standard Python venv tools.
+    files: [src/kinnoo/cli.py]
+    steps:
+      - step1: Check for .venv/ in agent directory
+      - step2: If missing, create venv using Python's venv module
+    dependencies: []
+    tests: [test8]
+    status: not-started
+
+  - id: task9
+    title: Install dependencies from requirements.txt
+    type: task
+    description: Install all dependencies listed in requirements.txt into the agent’s venv before running the entrypoint.
+    files: [src/kinnoo/cli.py]
+    steps:
+      - step1: Read requirements.txt from agent directory
+      - step2: Install packages into .venv/ using pip
+    dependencies: [task8]
+    tests: [test9]
+    status: not-started
+
+  - id: task10
+    title: Execute entrypoint with user input
+    type: task
+    description: Run the entrypoint script (as specified in kinnoo.yaml) with the input string as the first CLI argument (sys.argv[1]).
+    files: [src/kinnoo/cli.py]
+    steps:
+      - step1: Parse entrypoint from kinnoo.yaml
+      - step2: Run entrypoint with input as sys.argv[1]
+    dependencies: [task7, task9]
+    tests: [test10]
+    status: not-started
+
+  - id: task11
+    title: Stream stdout and stderr from entrypoint
+    type: task
+    description: Stream both stdout and stderr from the entrypoint process to the terminal as output is produced.
+    files: [src/kinnoo/cli.py]
+    steps:
+      - step1: Capture stdout and stderr from entrypoint process
+      - step2: Stream output to terminal in real-time
+    dependencies: [task10]
+    tests: [test11]
+    status: not-started
+
+  - id: task12
+    title: Propagate entrypoint exit code
+    type: task
+    description: Ensure that the exit code from the entrypoint script is returned as the kinnoo process exit code.
+    files: [src/kinnoo/cli.py]
+    steps:
+      - step1: Capture exit code from entrypoint process
+      - step2: Return exit code from kinnoo run
+    dependencies: [task10]
+    tests: [test12]
+    status: not-started
+
+  - id: task13
+    title: Print usage error when arguments are missing
+    type: task
+    description: If kinnoo run is called without required arguments, print a usage error with example.
+    files: [src/kinnoo/cli.py]
+    steps:
+      - step1: Check for required arguments
+      - step2: If missing, print usage error and exit non-zero
+    dependencies: []
+    tests: [test13]
+    status: not-started
+
+  - id: task14
+    title: Handle missing entrypoint file gracefully
+    type: task
+    description: If the entrypoint file (as declared in kinnoo.yaml) is missing, print a clear error and abort before execution.
+    files: [src/kinnoo/cli.py]
+    steps:
+      - step1: Check if entrypoint file exists before running
+      - step2: If missing, print error and exit non-zero
+    dependencies: [task7]
+    tests: [test14]
+    status: not-started
 #     title: Select CoreML model for waste classification
 #     type: decision
 #     description: Evaluate candidate CoreML models for on-device inference and choose one.
