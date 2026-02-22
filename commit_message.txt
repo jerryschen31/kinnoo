@@ -13,6 +13,8 @@ plan: feature2 planning complete, feature3 added as to-do
 - Added some tech lead notes on packaging strategy for install
 - task4 completed by SWE agent and tests passed
 - task5 completed by SWE agent and tests passed
+- task8 completed by SWE agent and tests passed
+- task9 completed by SWE agent and tests passed
 
 feature2 complete: kinnoo init CLI, project scaffolding, and tests
 

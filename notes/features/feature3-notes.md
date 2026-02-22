@@ -67,3 +67,39 @@ These notes supplement the requirements in FEATURES.txt, TASKS.txt, and TESTS.tx
 - **Key Takeaway:**  
   - Always ensure your Python interpreter, package installation, and test runner are consistent and point to the same environment, especially on macOS where multiple Python installations are common.
 
+## Task9
+
+- **Goal:** Install all dependencies listed in `requirements.txt` into the agent’s venv before running the entrypoint.
+- **Files:** `cli.py`
+- **Steps:**
+    1. Read `requirements.txt` from agent directory.
+    2. Install packages into `.venv/` using pip.
+
+## Test9
+
+- **Title:** kinnoo run installs `requirements.txt` packages into `.venv/`
+- **Steps:**
+    1. Add a package to `requirements.txt`.
+    2. Run `kinnoo run` and check `.venv/` for installed package.
+- **Pass criteria:** Package importable in `.venv/` after run.
+
+## Implementation Plan
+
+1. Add a `run` subcommand to kinnoo CLI.
+2. In the run handler:
+    - Ensure `.venv/` exists (task8, assumed done).
+    - Read `requirements.txt`.
+    - Use the venv’s pip to install all listed packages.
+    - (Do not install if `requirements.txt` is empty.)
+3. Write a test in `test_cli.py` that:
+    - Creates a temp agent directory with a `requirements.txt` specifying a package (e.g., requests).
+    - Runs `kinnoo run` on that directory.
+    - Verifies the package is importable in the venv.
+
+Task9 and its associated test (test9) have been successfully implemented and verified:
+
+- The kinnoo CLI now installs all dependencies from requirements.txt into the agent’s .venv before running the entrypoint.
+- The test test_run_installs_requirements in tests/test_cli.py creates a test agent, adds a package to requirements.txt, runs kinnoo run, and verifies the package is importable in the venv.
+- The test passed using /usr/local/bin/python3.14, confirming correct implementation.
+
+If you need a markdown summary or want to proceed to the next task, let me know!
