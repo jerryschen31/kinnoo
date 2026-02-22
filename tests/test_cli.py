@@ -7,3 +7,51 @@ def test_cli_installable_and_runnable():
     result = subprocess.run([sys.executable, "-m", "kinnoo.cli", "--help"], capture_output=True, text=True)
     assert result.returncode == 0
     assert "init" in result.stdout
+
+
+import tempfile
+import shutil
+import os
+import sys
+import venv
+from pathlib import Path
+
+def test_run_installs_requirements(tmp_path):
+        """Test that kinnoo run installs requirements.txt packages into .venv/"""
+        # 1. Create agent dir with requirements.txt specifying a package (e.g., requests)
+        agent_dir = tmp_path / "test-agent"
+        agent_dir.mkdir()
+        (agent_dir / "requirements.txt").write_text("requests==2.31.0\n")
+        (agent_dir / "kinnoo.yaml").write_text("""
+name: test-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+""")
+        (agent_dir / "run.py").write_text("""
+import sys\nprint('Hello from run.py')\n""")
+        (agent_dir / "README.md").write_text("Test agent.")
+        (agent_dir / "tools").mkdir()
+        (agent_dir / "prompts").mkdir()
+
+        # 2. Run kinnoo run on that directory
+        result = subprocess.run([sys.executable, "-m", "kinnoo.cli", "run", str(agent_dir)], capture_output=True, text=True)
+        assert result.returncode == 0, f"kinnoo run failed: {result.stderr}"
+
+        # 3. Verify requests is importable in the venv
+        venv_python = agent_dir / ".venv" / "bin" / "python"
+        if not venv_python.exists():
+                venv_python = agent_dir / ".venv" / "Scripts" / "python.exe"  # Windows fallback
+        assert venv_python.exists(), ".venv python not found"
+        check_code = "import requests; print(requests.__version__)"
+        check = subprocess.run([str(venv_python), "-c", check_code], capture_output=True, text=True)
+        assert check.returncode == 0, f"requests not importable: {check.stderr}"
+        assert check.stdout.strip() == "2.31.0"
