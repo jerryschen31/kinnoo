@@ -197,7 +197,11 @@ features:
       - id: AC4
         description: "README.md includes API key setup instructions for each framework."
       - id: AC5
-        description: "Generated agents are runnable with `kinnoo run` and produce LLM responses to input."
+        description: "Generated Gemini agent is runnable with `kinnoo run` and produces Gemini LLM responses to input."
+      - id: AC6
+        description: "Generated ChatGPT agent is runnable with `kinnoo run` and produces ChatGPT LLM responses to input."
+      - id: AC7
+        description: "Generated Claude Chat agent is runnable with `kinnoo run` and produces Claude LLM responses to input."
     owner: techlead-agent
     dependencies: [feature2]
     status: not-started
