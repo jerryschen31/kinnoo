@@ -182,3 +182,39 @@ def test_run_missing_args():
     assert result.returncode != 0, "Expected non-zero exit code for missing args"
     assert "Usage: kinnoo run" in result.stderr
     assert "<agent-dir> '<input>'" in result.stderr
+
+
+def test_run_missing_entrypoint(tmp_path):
+    """Test kinnoo run with missing entrypoint file prints error and aborts."""
+    agent_dir = tmp_path / "test-agent"
+    agent_dir.mkdir()
+    (agent_dir / "requirements.txt").write_text("")
+    (agent_dir / "kinnoo.yaml").write_text(
+        """
+name: test-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+"""
+    )
+    (agent_dir / "README.md").write_text("Test agent.")
+    (agent_dir / "tools").mkdir()
+    (agent_dir / "prompts").mkdir()
+    # Do NOT create run.py
+
+    # Run kinnoo run and check for error
+    result = subprocess.run(
+        [sys.executable, "-m", "kinnoo.cli", "run", str(agent_dir), "hello!"],
+        capture_output=True, text=True
+    )
+    assert result.returncode != 0, "Expected non-zero exit code for missing entrypoint"
+    assert "Entrypoint file" in result.stderr
+    assert "not found" in result.stderr
