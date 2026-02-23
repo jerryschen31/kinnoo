@@ -24,6 +24,7 @@ def main():
     # Add 'run' subcommand
     run_parser = subparsers.add_parser("run", help="Run a kinnoo agent")
     run_parser.add_argument("agent_dir", help="Path to agent directory")
+    run_parser.add_argument("input", nargs="?", help="Input string to pass to the agent entrypoint")
 
     args = parser.parse_args()
 
@@ -35,7 +36,7 @@ def main():
             print(f"Error: Invalid agent name '{args.agent_name}'. Must match pattern: {NAME_PATTERN}", file=sys.stderr)
             sys.exit(1)
         from kinnoo.init_command import init_agent
-        from pathlib import Path
+        # from pathlib import Path
         try:
             init_agent(args.agent_name, Path.cwd())
             print(f"Initialized agent: {args.agent_name}")
@@ -47,10 +48,15 @@ def main():
         agent_dir = Path(args.agent_dir)
         venv_dir = agent_dir / ".venv"
         requirements = agent_dir / "requirements.txt"
+        kinnoo_yaml = agent_dir / "kinnoo.yaml"
+        import subprocess
+        import yaml
+
         # Ensure .venv exists (task8, assumed done)
         if not venv_dir.exists():
             import venv
             venv.create(venv_dir, with_pip=True)
+
         # Install requirements.txt packages into venv
         if requirements.exists() and requirements.read_text().strip():
             pip_exe = venv_dir / "bin" / "pip"
@@ -59,13 +65,50 @@ def main():
             if not pip_exe.exists():
                 print(f"Error: pip not found in venv at {pip_exe}", file=sys.stderr)
                 sys.exit(1)
-            import subprocess
             result = subprocess.run([str(pip_exe), "install", "-r", str(requirements)], capture_output=True, text=True)
             if result.returncode != 0:
                 print(f"Error installing requirements:\n{result.stderr}", file=sys.stderr)
                 sys.exit(result.returncode)
             else:
                 print(result.stdout)
+
+        # Validate kinnoo.yaml manifest (task7, assumed done)
+        if not kinnoo_yaml.exists():
+            print(f"Error: kinnoo.yaml not found in {agent_dir}", file=sys.stderr)
+            sys.exit(1)
+
+        # Parse kinnoo.yaml to get entrypoint
+        try:
+            with open(kinnoo_yaml, "r") as f:
+                manifest = yaml.safe_load(f)
+        except Exception as e:
+            print(f"Error parsing kinnoo.yaml: {e}", file=sys.stderr)
+            sys.exit(1)
+
+        entrypoint = manifest.get("entrypoint")
+        if not entrypoint:
+            print("Error: 'entrypoint' not specified in kinnoo.yaml", file=sys.stderr)
+            sys.exit(1)
+
+        entrypoint_path = agent_dir / entrypoint
+        if not entrypoint_path.exists():
+            print(f"Error: Entrypoint file '{entrypoint}' not found in {agent_dir}", file=sys.stderr)
+            sys.exit(1)
+
+        # Find python executable in venv
+        python_exe = venv_dir / "bin" / "python"
+        if not python_exe.exists():
+            python_exe = venv_dir / "Scripts" / "python.exe"  # Windows fallback
+        if not python_exe.exists():
+            print(f"Error: python not found in venv at {python_exe}", file=sys.stderr)
+            sys.exit(1)
+
+        # Prepare input argument
+        input_arg = args.input if args.input is not None else ""
+
+        # Run entrypoint with input as sys.argv[1]
+        result = subprocess.run([str(python_exe), str(entrypoint_path), input_arg], cwd=agent_dir)
+        sys.exit(result.returncode)
 
 if __name__ == "__main__":
     main()
