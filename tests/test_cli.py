@@ -171,3 +171,14 @@ outputs:
         capture_output=True, text=True
     )
     assert result.returncode == 42, f"Expected exit code 42, got {result.returncode}"
+
+
+def test_run_missing_args():
+    """Test kinnoo run with missing args prints usage error and exits non-zero."""
+    result = subprocess.run([
+        sys.executable, "-m", "kinnoo.cli", "run"],
+        capture_output=True, text=True
+    )
+    assert result.returncode != 0, "Expected non-zero exit code for missing args"
+    assert "Usage: kinnoo run" in result.stderr
+    assert "<agent-dir> '<input>'" in result.stderr
