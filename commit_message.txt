@@ -19,3 +19,9 @@ plan: feature2 planning complete, feature3 added as to-do
   - Implemented and tested task10 and task11 (CLI and run logic)
   - All automated tests for tasks 10 and 11 passed
   - Manually tested `kinnoo init` and `kinnoo run` — both confirmed working as expected
+- task12 complete: propagate entrypoint exit code
+  - kinnoo run now returns the exit code from the agent entrypoint (run.py)
+  - Implemented sys.exit(process.returncode) in CLI
+  - Added test_run_exit_code to verify correct propagation
+  - All tests passed (including non-zero exit code scenario)
+  - Feature supports robust scripting and automation
