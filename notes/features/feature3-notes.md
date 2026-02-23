@@ -229,3 +229,95 @@ Ensure that the exit code from the agent entrypoint script is returned as the ex
 **Conclusion:**  
 Task12 is complete and verified. `kinnoo run` now reliably returns the exit code from the agent entrypoint, supporting robust scripting and automation.
 
+## Task13 Summary: Print Usage Error When Arguments Are Missing
+
+### Purpose
+
+Ensure that `kinnoo run` prints a clear usage error and exits non-zero when required arguments are missing, showing the input argument in single quotes (e.g., `kinnoo run myagent 'hello world'`).
+
+---
+
+### Implementation
+
+- Updated the CLI to pre-parse arguments and check for missing arguments before argparse triggers its own error.
+- If arguments are missing, prints:
+  ```
+  Usage: kinnoo run <agent-dir> '<input>'
+  ```
+  and exits with code 1.
+
+---
+
+### Test Case
+
+- **Test Name:** `test_run_missing_args`
+- **Purpose:** Verifies that running `kinnoo run` with no arguments prints the usage error and exits non-zero.
+- **How it works:**
+  - Runs `kinnoo run` with no arguments.
+  - Asserts that the exit code is non-zero and the usage message is printed.
+
+---
+
+### Test Run Result
+
+- The test was executed with:
+  ```
+  pytest tests/test_cli.py -k test_run_missing_args --maxfail=1 --disable-warnings -v
+  ```
+- **Result:**  
+  ```
+  tests/test_cli.py::test_run_missing_args PASSED
+  ```
+  The test passed, confirming correct usage error handling.
+
+---
+
+**Conclusion:**  
+Task13 is complete and verified. `kinnoo run` now reliably prints a custom usage error and exits non-zero when required arguments are missing.
+
+
+## Task14 Summary: Handle Missing Entrypoint File Gracefully
+
+### Purpose
+
+Ensure that `kinnoo run` prints a clear error and aborts with a non-zero exit code if the entrypoint file (as declared in kinnoo.yaml) is missing.
+
+---
+
+### Implementation
+
+- The CLI checks for the existence of the entrypoint file before execution.
+- If the file is missing, prints:
+  ```
+  Error: Entrypoint file '<entrypoint>' not found in <agent-dir>
+  ```
+  and exits with code 1.
+
+---
+
+### Test Case
+
+- **Test Name:** `test_run_missing_entrypoint`
+- **Purpose:** Verifies that running `kinnoo run` on an agent directory with a missing entrypoint file prints a clear error and exits non-zero.
+- **How it works:**
+  - Creates a test agent directory with kinnoo.yaml referencing a missing run.py.
+  - Runs `kinnoo run` and asserts that the exit code is non-zero and the error message is printed.
+
+---
+
+### Test Run Result
+
+- The test was executed with:
+  ```
+  pytest tests/test_cli.py -k test_run_missing_entrypoint --maxfail=1 --disable-warnings -v
+  ```
+- **Result:**  
+  ```
+  tests/test_cli.py::test_run_missing_entrypoint PASSED
+  ```
+  The test passed, confirming correct error handling for missing entrypoint files.
+
+---
+
+**Conclusion:**  
+Task14 is complete and verified. `kinnoo run` now reliably prints a clear error and exits non-zero when the entrypoint file is missing.
