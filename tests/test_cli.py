@@ -218,3 +218,76 @@ outputs:
     assert result.returncode != 0, "Expected non-zero exit code for missing entrypoint"
     assert "Entrypoint file" in result.stderr
     assert "not found" in result.stderr
+
+
+def test_run_corrupted_manifest(tmp_path):
+    """Test kinnoo run handles corrupted kinnoo.yaml gracefully (test24)."""
+    agent_dir = tmp_path / "test-agent"
+    agent_dir.mkdir()
+    (agent_dir / "requirements.txt").write_text("")
+    # Write corrupted kinnoo.yaml
+    (agent_dir / "kinnoo.yaml").write_text("""
+name: test-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+  this is: not valid yaml
+inputs:
+    type: text
+outputs:
+    type: text
+""")
+    (agent_dir / "run.py").write_text("import sys\nprint('Should not run')\n")
+    (agent_dir / "README.md").write_text("Test agent.")
+    (agent_dir / "tools").mkdir()
+    (agent_dir / "prompts").mkdir()
+    # Run kinnoo run and check for YAML error
+    result = subprocess.run([
+        sys.executable, "-m", "kinnoo.cli", "run", str(agent_dir), "hello!"],
+        capture_output=True, text=True
+    )
+    assert result.returncode != 0, "Expected non-zero exit code for corrupted kinnoo.yaml"
+    assert "kinnoo.yaml is corrupted" in result.stderr or "invalid YAML" in result.stderr
+    assert "Should not run" not in result.stdout
+
+
+def test_run_permission_error(tmp_path):
+    """Test kinnoo run handles permission errors with clear messages (test25)."""
+    import stat
+    agent_dir = tmp_path / "test-agent"
+    agent_dir.mkdir()
+    (agent_dir / "requirements.txt").write_text("")
+    (agent_dir / "kinnoo.yaml").write_text("""
+name: test-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+""")
+    (agent_dir / "run.py").write_text("import sys\nprint('Should not run')\n")
+    (agent_dir / "README.md").write_text("Test agent.")
+    (agent_dir / "tools").mkdir()
+    (agent_dir / "prompts").mkdir()
+    # Make agent_dir read-only to trigger PermissionError on venv creation
+    agent_dir.chmod(stat.S_IREAD)
+    try:
+        result = subprocess.run([
+            sys.executable, "-m", "kinnoo.cli", "run", str(agent_dir), "hello!"],
+            capture_output=True, text=True
+        )
+        assert result.returncode != 0, "Expected non-zero exit code for permission error"
+        assert "Permission denied" in result.stderr
+        assert "Should not run" not in result.stdout
+    finally:
+        # Restore permissions so tmp_path can clean up
+        agent_dir.chmod(stat.S_IWRITE | stat.S_IREAD | stat.S_IEXEC)
