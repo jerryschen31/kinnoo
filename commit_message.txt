@@ -25,3 +25,11 @@ plan: feature2 planning complete, feature3 added as to-do
   - Added test_run_exit_code to verify correct propagation
   - All tests passed (including non-zero exit code scenario)
   - Feature supports robust scripting and automation
+- task13 complete: kinnoo run missing args error handling
+  - Implemented error handling for missing arguments in kinnoo run CLI
+  - Added test_run_missing_args to verify correct error message and exit code
+  - All tests passed
+- task14 complete: kinnoo run missing entrypoint error handling
+  - Implemented error handling for missing entrypoint (run.py) in kinnoo run CLI
+  - Added test_run_missing_entrypoint to verify correct error message and exit code
+  - All tests passed
