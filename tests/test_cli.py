@@ -134,3 +134,40 @@ outputs:
     assert "stdout: hello" in result.stdout or "stdout: hello" in result.stderr
     assert "stderr: error" in result.stdout or "stderr: error" in result.stderr
     assert result.returncode == 0
+
+
+def test_run_exit_code(tmp_path):
+    """Test kinnoo run returns entrypoint exit code; non-zero codes propagate."""
+    agent_dir = tmp_path / "test-agent"
+    agent_dir.mkdir()
+    (agent_dir / "requirements.txt").write_text("")
+    (agent_dir / "kinnoo.yaml").write_text(
+        """
+name: test-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+"""
+    )
+    # run.py exits with code 42
+    (agent_dir / "run.py").write_text(
+        "import sys\nsys.exit(42)\n"
+    )
+    (agent_dir / "README.md").write_text("Test agent.")
+    (agent_dir / "tools").mkdir()
+    (agent_dir / "prompts").mkdir()
+
+    # Run kinnoo run and check exit code
+    result = subprocess.run(
+        [sys.executable, "-m", "kinnoo.cli", "run", str(agent_dir)],
+        capture_output=True, text=True
+    )
+    assert result.returncode == 42, f"Expected exit code 42, got {result.returncode}"
