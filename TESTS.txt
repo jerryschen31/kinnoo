@@ -287,7 +287,7 @@ tests:
     automated: true
     automation_path: tests/test_cli.py::test_cli_installable_and_runnable
 
-  - id: test7
+  - id: test16
     title: kinnoo run with invalid/missing kinnoo.yaml prints validation errors and aborts
     type: unit
     preconditions: kinnoo CLI installed, invalid or missing kinnoo.yaml
@@ -301,7 +301,7 @@ tests:
     automated: true
     automation_path: tests/test_cli.py::test_run_invalid_manifest
 
-  - id: test8
+  - id: test17
     title: kinnoo run creates .venv/ if missing; skips if present
     type: unit
     preconditions: kinnoo CLI installed, agent directory without .venv/
@@ -316,7 +316,7 @@ tests:
     automated: true
     automation_path: tests/test_cli.py::test_run_creates_venv
 
-  - id: test9
+  - id: test18
     title: kinnoo run installs requirements.txt packages into .venv/
     type: unit
     preconditions: kinnoo CLI installed, requirements.txt with packages
@@ -331,7 +331,7 @@ tests:
     automated: true
     automation_path: tests/test_cli.py::test_run_installs_requirements
 
-  - id: test10
+  - id: test19
     title: kinnoo run executes entrypoint with input; sys.argv[1] matches user input
     type: integration
     preconditions: kinnoo CLI installed, valid agent directory
@@ -348,7 +348,7 @@ tests:
     automated: true
     automation_path: tests/test_cli.py::test_run_entrypoint_input
 
-  - id: test11
+  - id: test20
     title: kinnoo run streams stdout/stderr in real-time during agent execution
     type: integration
     preconditions: kinnoo CLI installed, agent entrypoint with both stdout and stderr
@@ -362,7 +362,7 @@ tests:
     automated: true
     automation_path: tests/test_cli.py::test_run_streams_output
 
-  - id: test12
+  - id: test21
     title: kinnoo run returns entrypoint exit code; non-zero codes propagate
     type: unit
     preconditions: kinnoo CLI installed, entrypoint with non-zero exit
@@ -376,7 +376,7 @@ tests:
     automated: true
     automation_path: tests/test_cli.py::test_run_exit_code
 
-  - id: test13
+  - id: test22
     title: kinnoo run with missing args prints usage error
     type: unit
     preconditions: kinnoo CLI installed
@@ -390,7 +390,7 @@ tests:
     automated: true
     automation_path: tests/test_cli.py::test_run_missing_args
 
-  - id: test14
+  - id: test23
     title: kinnoo run with missing entrypoint file prints error and aborts
     type: unit
     preconditions: kinnoo CLI installed, kinnoo.yaml with missing entrypoint file
@@ -403,3 +403,63 @@ tests:
         ac: AC9
     automated: true
     automation_path: tests/test_cli.py::test_run_missing_entrypoint
+
+  - id: test24
+    title: kinnoo run handles corrupted kinnoo.yaml gracefully
+    type: unit
+    preconditions: kinnoo CLI installed, kinnoo.yaml with invalid YAML syntax
+    steps:
+      - step1: Run kinnoo run on agent directory with corrupted kinnoo.yaml
+    expected: Prints clear error about manifest corruption; does not crash
+    pass_criteria: Output contains error message; process exits non-zero; no traceback or crash
+    covers:
+      - feature: feature3
+        ac: AC2
+      - task: task15
+    automated: true
+    automation_path: tests/test_cli.py::test_run_corrupted_manifest
+
+  - id: test25
+    title: kinnoo run handles permission errors with clear messages
+    type: unit
+    preconditions: kinnoo CLI installed, agent directory with restricted permissions
+    steps:
+      - step1: Run kinnoo run on agent directory where .venv cannot be created or files cannot be written
+    expected: Prints clear error about permission issue; does not crash
+    pass_criteria: Output contains permission error message; process exits non-zero; no traceback or crash
+    covers:
+      - feature: feature3
+        ac: AC3
+      - task: task15
+    automated: true
+    automation_path: tests/test_cli.py::test_run_permission_error
+
+  - id: test26
+    title: kinnoo run always uses validator for manifest checks
+    type: unit
+    preconditions: kinnoo CLI installed, kinnoo.yaml present
+    steps:
+      - step1: Run kinnoo run and verify manifest validation is performed only via validator module
+    expected: Manifest validation logic is centralized in validator; no duplicate validation code in CLI
+    pass_criteria: CLI calls validator for manifest checks; no duplicate validation logic found
+    covers:
+      - feature: feature3
+        ac: AC2
+      - task: task15
+    automated: false
+    automation_path: null
+
+  - id: test27
+    title: kinnoo run does not modify files outside agent directory
+    type: unit
+    preconditions: kinnoo CLI installed, agent directory present, other files outside agent directory
+    steps:
+      - step1: Run kinnoo run and monitor file operations
+    expected: No files outside agent directory are modified
+    pass_criteria: Only files within agent directory are changed; no external modifications
+    covers:
+      - feature: feature3
+        ac: AC5
+      - task: task15
+    automated: false
+    automation_path: null
