@@ -102,4 +102,87 @@ Task9 and its associated test (test9) have been successfully implemented and ver
 - The test test_run_installs_requirements in tests/test_cli.py creates a test agent, adds a package to requirements.txt, runs kinnoo run, and verifies the package is importable in the venv.
 - The test passed using /usr/local/bin/python3.14, confirming correct implementation.
 
-If you need a markdown summary or want to proceed to the next task, let me know!
+## Task10 Implementation Summary
+
+### What Was Done
+
+- **CLI Update:**  
+  The `kinnoo run` command was enhanced to:
+  - Parse `kinnoo.yaml` in the agent directory to find the `entrypoint` script.
+  - Accept an optional input string argument, which is passed as `sys.argv[1]` to the entrypoint.
+  - Use the Python executable from the agent's `.venv` to run the entrypoint script with the input.
+  - Handle errors for missing files or configuration.
+
+- **Test Added:**  
+  A new test (`test_run_entrypoint_with_input`) was added to `tests/test_cli.py`:
+  - It creates a temporary agent directory with a minimal `kinnoo.yaml` and a `run.py` that prints its input argument.
+  - It runs `kinnoo run <agent_dir> <input>` and asserts that the output matches the input string.
+
+### Test Run
+
+- The test was run using:
+  ```
+  pytest tests/test_cli.py -k test_run_entrypoint_with_input --maxfail=1 --disable-warnings -v
+  ```
+- **Result:**  
+  ```
+  tests/test_cli.py::test_run_entrypoint_with_input PASSED
+  ```
+  The test passed successfully, confirming that the CLI correctly executes the entrypoint with the provided input.
+
+### Outcome
+
+- The implementation for task10 is complete and verified.
+- The CLI now supports running agent entrypoints with user input, and the behavior is covered by an automated test.
+
+
+## Task11 Summary: Stream stdout and stderr from entrypoint
+
+### Implementation
+
+- Updated the `kinnoo run` command to use `subprocess.Popen` with `stdout=sys.stdout` and `stderr=sys.stderr`, so that both stdout and stderr from the entrypoint script are streamed live to the terminal as the process runs.
+- This allows users to see real-time output and error messages from their agent's entrypoint, improving usability and debugging.
+
+---
+
+### Test Case
+
+- **Test Name:** `test_run_streams_stdout_stderr`
+- **Purpose:** Verifies that both stdout and stderr from the entrypoint are captured and visible when running `kinnoo run`.
+- **How it works:**  
+  - Creates a test agent directory with a `run.py` that prints to both stdout and stderr.
+  - Runs `kinnoo run` and asserts that both outputs appear in the result.
+
+---
+
+### Test Run Result
+
+- The test was executed with:
+  ```
+  pytest tests/test_cli.py -k test_run_streams_stdout_stderr --maxfail=1 --disable-warnings -v
+  ```
+- **Result:**  
+  ```
+  tests/test_cli.py::test_run_streams_stdout_stderr PASSED
+  ```
+  The test passed, confirming correct streaming of both stdout and stderr.
+
+---
+
+### Patch Fix: Relative Path Handling
+
+- **Issue:**  
+  Users experienced `FileNotFoundError` when running `kinnoo run` with a relative path, even though the `.venv/bin/python` file existed.
+- **Fix:**  
+  The CLI was updated to always resolve the agent directory path to an absolute path before using it:
+  ```python
+  agent_dir = Path(args.agent_dir).resolve()
+  ```
+  This ensures that all internal file and subprocess operations work correctly, regardless of whether the user provides a relative or absolute path.
+- **Outcome:**  
+  After this patch, `kinnoo run <relative-path>` works reliably from any directory.
+
+---
+
+**Conclusion:**  
+Task11 is complete, tested, and the CLI now robustly handles both real-time output streaming and path resolution for agent directories.
