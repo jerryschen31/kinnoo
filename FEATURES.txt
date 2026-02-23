@@ -179,6 +179,30 @@ features:
     status: in-progress
 
   - id: feature4
+    title: "kinnoo init --framework flag for LLM agent templates"
+    description: |
+      Add a `--framework` flag to the `kinnoo init` CLI command to generate agent directories pre-populated with boilerplate for popular LLM APIs. Supported values: `gemini`, `chatgpt`, `claude-chat`.
+      - When `--framework gemini` is specified, generate `run.py` with Gemini Pro API call boilerplate and add `google-generativeai` to requirements.txt.
+      - When `--framework chatgpt` is specified, generate `run.py` with OpenAI ChatGPT API call boilerplate and add `openai` to requirements.txt.
+      - When `--framework claude-chat` is specified, generate `run.py` with Anthropic Claude API call boilerplate and add `anthropic` to requirements.txt.
+      - README.md should include instructions for setting up API keys and running the agent.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "Running `kinnoo init my-agent --framework gemini` creates a directory with Gemini Pro boilerplate and correct requirements."
+      - id: AC2
+        description: "Running `kinnoo init my-agent --framework chatgpt` creates a directory with ChatGPT boilerplate and correct requirements."
+      - id: AC3
+        description: "Running `kinnoo init my-agent --framework claude-chat` creates a directory with Claude Chat boilerplate and correct requirements."
+      - id: AC4
+        description: "README.md includes API key setup instructions for each framework."
+      - id: AC5
+        description: "Generated agents are runnable with `kinnoo run` and produce LLM responses to input."
+    owner: techlead-agent
+    dependencies: [feature2]
+    status: not-started
+  
+  - id: feature5
     title: "kinnoo pack — Agent packaging"
     description: |
       Implement the `kinnoo pack` CLI command that packages an agent project (code, manifest, dependencies)
@@ -214,7 +238,7 @@ features:
     dependencies: [feature3]
     status: not-started
 
-  - id: feature5
+  - id: feature6
     title: "kinnoo install — Agent installation from archive"
     description: |
       Implement the `kinnoo install` CLI command that installs a packaged agent archive with the `.kno` extension
