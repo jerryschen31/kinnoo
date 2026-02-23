@@ -357,4 +357,31 @@ Feature3 implementation appears robust and nearly complete, based on the notes a
    - If any new edge cases are discovered, add corresponding tests and update manifests.
 
 **Summary:**  
-Feature3 is functionally complete and well-tested. Addressing the above minor improvements will further strengthen reliability and user experience. If you want to focus on any of these areas, let me know!
+Feature3 is functionally complete and well-tested. Addressing the above minor improvements will further strengthen reliability and user experience.
+
+## Task15 Summary: Comprehensive Review and Edge Case Handling for kinnoo run
+
+**Summary:**
+Task15 implements robust error handling and safety checks for the kinnoo run CLI, ensuring:
+- Corrupted or unreadable kinnoo.yaml files are detected and reported with clear error messages (test24).
+- Permission errors (e.g., when creating .venv or installing requirements) are caught and reported clearly (test25).
+- Manifest validation is always performed via the validator module, with no duplicate logic in the CLI (test26).
+- All file operations are scoped to the agent directory; no files outside the agent directory are modified (test27).
+
+### Implementation Details
+- Updated src/kinnoo/cli.py to:
+  - Catch yaml.YAMLError and print a clear error for corrupted kinnoo.yaml.
+  - Catch PermissionError for venv creation, requirements install, and kinnoo.yaml reading, printing clear errors and exiting non-zero.
+  - Audit file operations to ensure safety.
+- All manifest validation is delegated to the validator module.
+
+### Test Results
+- **test24 (corrupted kinnoo.yaml):** PASSED — CLI prints a clear error and does not crash or run the entrypoint.
+- **test25 (permission errors):** PASSED — CLI prints a clear permission error and does not run the entrypoint.
+- **test26 (validator-only):** Code review confirms all manifest validation is via the validator; no duplicate logic found.
+- **test27 (no external modification):** Code review confirms all file operations are scoped to the agent directory.
+
+**Conclusion:**
+All edge cases for feature3 are now robustly handled and verified by automated tests and code review.
+
+
