@@ -23,8 +23,14 @@ def main():
 
     # Add 'run' subcommand
     run_parser = subparsers.add_parser("run", help="Run a kinnoo agent")
-    run_parser.add_argument("agent_dir", help="Path to agent directory")
+    run_parser.add_argument("agent_dir", nargs="?", help="Path to agent directory")
     run_parser.add_argument("input", nargs="?", help="Input string to pass to the agent entrypoint")
+
+    # Pre-parse sys.argv for missing args to print custom usage before argparse error
+    if len(sys.argv) > 1 and sys.argv[1] == "run":
+        if len(sys.argv) < 4:
+            print("Usage: kinnoo run <agent-dir> '<input>'", file=sys.stderr)
+            sys.exit(1)
 
     args = parser.parse_args()
 
@@ -45,6 +51,9 @@ def main():
             sys.exit(1)
 
     elif args.command == "run":
+        if not hasattr(args, "agent_dir") or args.agent_dir is None or args.input is None:
+            print("Usage: kinnoo run <agent-dir> '<input>'", file=sys.stderr)
+            sys.exit(1)
         agent_dir = Path(args.agent_dir).resolve()
         venv_dir = agent_dir / ".venv"
         requirements = agent_dir / "requirements.txt"
