@@ -94,3 +94,43 @@ outputs:
     )
     assert result.returncode == 0, f"kinnoo run failed: {result.stderr}"
     assert f"input: {input_str}" in result.stdout or f"input: {input_str}" in result.stderr
+
+
+def test_run_streams_stdout_stderr(tmp_path, capsys):
+    """Test kinnoo run streams both stdout and stderr from entrypoint in real-time."""
+    agent_dir = tmp_path / "test-agent"
+    agent_dir.mkdir()
+    (agent_dir / "requirements.txt").write_text("")
+    (agent_dir / "kinnoo.yaml").write_text(
+        """
+name: test-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+"""
+    )
+    # run.py prints to both stdout and stderr
+    (agent_dir / "run.py").write_text(
+        "import sys\nimport time\nprint('stdout: hello', flush=True)\nprint('stderr: error', file=sys.stderr, flush=True)\n"
+    )
+    (agent_dir / "README.md").write_text("Test agent.")
+    (agent_dir / "tools").mkdir()
+    (agent_dir / "prompts").mkdir()
+
+    # Run kinnoo run and capture output
+    result = subprocess.run(
+        [sys.executable, "-m", "kinnoo.cli", "run", str(agent_dir)],
+        capture_output=True, text=True
+    )
+    # Both outputs should appear in either stdout or stderr
+    assert "stdout: hello" in result.stdout or "stdout: hello" in result.stderr
+    assert "stderr: error" in result.stdout or "stderr: error" in result.stderr
+    assert result.returncode == 0

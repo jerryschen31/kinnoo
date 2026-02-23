@@ -45,7 +45,7 @@ def main():
             sys.exit(1)
 
     elif args.command == "run":
-        agent_dir = Path(args.agent_dir)
+        agent_dir = Path(args.agent_dir).resolve()
         venv_dir = agent_dir / ".venv"
         requirements = agent_dir / "requirements.txt"
         kinnoo_yaml = agent_dir / "kinnoo.yaml"
@@ -106,9 +106,15 @@ def main():
         # Prepare input argument
         input_arg = args.input if args.input is not None else ""
 
-        # Run entrypoint with input as sys.argv[1]
-        result = subprocess.run([str(python_exe), str(entrypoint_path), input_arg], cwd=agent_dir)
-        sys.exit(result.returncode)
+        # Run entrypoint with input as sys.argv[1], streaming stdout and stderr
+        process = subprocess.Popen(
+            [str(python_exe), str(entrypoint_path), input_arg],
+            cwd=agent_dir,
+            stdout=sys.stdout,
+            stderr=sys.stderr
+        )
+        process.communicate()
+        sys.exit(process.returncode)
 
 if __name__ == "__main__":
     main()
