@@ -186,3 +186,46 @@ Task9 and its associated test (test9) have been successfully implemented and ver
 
 **Conclusion:**  
 Task11 is complete, tested, and the CLI now robustly handles both real-time output streaming and path resolution for agent directories.
+
+## Task12 Summary: Propagate Entrypoint Exit Code
+
+### Purpose
+
+Ensure that the exit code from the agent entrypoint script is returned as the exit code of the `kinnoo run` process. This allows users and automation tools to detect failures or custom exit statuses from their agents.
+
+---
+
+### Implementation
+
+- The CLI (`kinnoo run`) captures the exit code from the entrypoint process (the agent's `run.py`).
+- After the entrypoint finishes, `kinnoo run` calls `sys.exit(process.returncode)`, propagating the exit code to the shell or calling process.
+
+---
+
+### Test Case
+
+- **Test Name:** `test_run_exit_code`
+- **Purpose:** Verifies that a non-zero exit code from the entrypoint is propagated by `kinnoo run`.
+- **How it works:**
+  - Creates a test agent directory with a `run.py` that exits with code 42.
+  - Runs `kinnoo run` and asserts that the process exits with code 42.
+
+---
+
+### Test Run Result
+
+- The test was executed with:
+  ```
+  pytest tests/test_cli.py -k test_run_exit_code --maxfail=1 --disable-warnings -v
+  ```
+- **Result:**  
+  ```
+  tests/test_cli.py::test_run_exit_code PASSED
+  ```
+  The test passed, confirming correct exit code propagation.
+
+---
+
+**Conclusion:**  
+Task12 is complete and verified. `kinnoo run` now reliably returns the exit code from the agent entrypoint, supporting robust scripting and automation.
+
