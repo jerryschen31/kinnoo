@@ -176,7 +176,7 @@ features:
       - "Preflight checks (tools, services, GPU) deferred to future feature per roadmap"
     owner: techlead-agent
     dependencies: [feature1]
-    status: in-progress
+    status: needs-review
 
   - id: feature4
     title: "kinnoo init --framework flag for LLM agent templates"
