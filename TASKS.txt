@@ -310,20 +310,20 @@ tasks:
     tests: [test23]
     status: not-started
 
-    - id: task15
-      title: feature3 review - checks
-      type: task
-      description: |
-        Comprehensive review of kinnoo run implementation for edge case handling, manifest validation consistency, and safety. Ensure the CLI handles corrupted/unreadable kinnoo.yaml and permission errors gracefully, always uses the validator for manifest checks, and does not modify files outside the agent directory.
-      files:
-        - src/kinnoo/cli.py
-        - src/kinnoo/validator.py
-        - tests/test_cli.py
-      steps:
-        - step1: Test CLI handling of corrupted or unreadable kinnoo.yaml (prints clear error, does not crash)
-        - step2: Test CLI handling of permission errors (cannot create .venv or write files) with clear messages
-        - step3: Confirm validator is always used for manifest checks; no duplicate validation logic
-        - step4: Ensure kinnoo run does not overwrite or modify files outside the agent directory
-      dependencies: [task7, task8, task9, task10, task11, task12, task13, task14]
-      tests: [test24, test25, test26, test27]
-      status: not-started    
+  - id: task15
+    title: feature3 review - checks
+    type: task
+    description: |
+      Comprehensive review of kinnoo run implementation for edge case handling, manifest validation consistency, and safety. Ensure the CLI handles corrupted/unreadable kinnoo.yaml and permission errors gracefully, always uses the validator for manifest checks, and does not modify files outside the agent directory.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/validator.py
+      - tests/test_cli.py
+    steps:
+      - step1: Test CLI handling of corrupted or unreadable kinnoo.yaml (prints clear error, does not crash)
+      - step2: Test CLI handling of permission errors (cannot create .venv or write files) with clear messages
+      - step3: Confirm validator is always used for manifest checks; no duplicate validation logic
+      - step4: Ensure kinnoo run does not overwrite or modify files outside the agent directory
+    dependencies: [task7, task8, task9, task10, task11, task12, task13, task14]
+    tests: [test24, test25, test26, test27]
+    status: not-started    
