@@ -1,3 +1,7 @@
+## Random Notes and Learnings
+
+- One task at a time for an SWE agent. It is tempting to combine tasks for an agent to do - but as I found out with trying to have an agent do task10 and task11 at the same time, an agent gets very confused and gets stuck with bugs
+
 ## Why is `framework` an optional field in `kinnoo.yaml`?
 
 The MVP runtime contract treats every agent as a **black box** — `kinnoo` only needs
@@ -65,3 +69,4 @@ If kinnoo only supports running single agents (but can package multi-agent syste
 
 **Summary:**
 Kinnoo would still provide real value for reproducibility, sharing, and onboarding in the single-agent space, but would be seen as incomplete for the most advanced and collaborative agent use cases.
+
