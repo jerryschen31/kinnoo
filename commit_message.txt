@@ -1,2 +1,5 @@
-branch: phase1/feature4/...
-task16 complete
+Fix: Pass --framework argument from CLI to init_agent
+
+- Update src/kinnoo/cli.py to pass the parsed --framework argument to init_agent.
+- Ensures that kinnoo init --framework <framework> generates the correct framework-specific templates (run.py, requirements.txt, README.md) for Gemini, ChatGPT, and Claude-Chat agents.
+- Addresses issue where framework-specific files were not being created despite the flag being parsed.

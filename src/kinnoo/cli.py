@@ -49,7 +49,7 @@ def main():
         from kinnoo.init_command import init_agent
         # from pathlib import Path
         try:
-            init_agent(args.agent_name, Path.cwd())
+            init_agent(args.agent_name, Path.cwd(), framework=args.framework)
             print(f"Initialized agent: {args.agent_name}")
         except FileExistsError as e:
             print(f"Error: {e}", file=sys.stderr)
