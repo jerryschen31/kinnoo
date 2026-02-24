@@ -1,3 +1,21 @@
+def test_gemini_template_uses_genai_and_flash_lite(tmp_path):
+    """Test that Gemini template uses google-genai and gemini-2.5-flash-lite (test39).
+    This covers test39 in TESTS.txt."""
+    agent_name = "gemini-flash-lite-agent"
+    code, out, err = run_cli(["init", agent_name, "--framework", "gemini"], cwd=tmp_path)
+    assert code == 0 or code is None
+    agent_dir = tmp_path / agent_name
+    # requirements.txt should contain google-genai and NOT google-generativeai
+    reqs = (agent_dir / "requirements.txt").read_text()
+    assert "google-genai" in reqs, "google-genai should be in requirements.txt"
+    assert "google-generativeai" not in reqs, "google-generativeai should NOT be in requirements.txt"
+    # run.py should reference gemini-2.5-flash-lite
+    runpy = (agent_dir / "run.py").read_text()
+    assert "gemini-2.5-flash-lite" in runpy, "run.py should reference gemini-2.5-flash-lite"
+    # README.md should mention GOOGLE_API_KEY and usage
+    readme = (agent_dir / "README.md").read_text()
+    assert "GOOGLE_API_KEY" in readme, "README.md should mention GOOGLE_API_KEY"
+    assert "python run.py" in readme, "README.md should show run.py usage"
 import pytest
 
 @pytest.mark.parametrize("framework,dep,envvar,run_example,model_hint,test_id", [

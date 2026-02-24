@@ -1,6 +1,7 @@
 ## Random Notes and Learnings
 
 - One task at a time for an SWE agent. It is tempting to combine tasks for an agent to do - but as I found out with trying to have an agent do task10 and task11 at the same time, an agent gets very confused and gets stuck with bugs
+- Coding models are not always up to date with latests API docs (e.g., recent google.genai API doc updates). Sometimes I need to manually give them a URL to the newest docs.
 
 ## Why is `framework` an optional field in `kinnoo.yaml`?
 
