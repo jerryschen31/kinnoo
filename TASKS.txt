@@ -562,21 +562,6 @@ tasks:
     status: not-started
 
   - id: task28
-    title: Integration with kinnoo install (forward compatibility)
-    type: task
-    description: |
-      Ensure the produced .kno archive is accepted by kinnoo install for installation and immediate execution.
-    files:
-      - src/kinnoo/pack_command.py
-      - src/kinnoo/install_command.py
-    steps:
-      - step1: Test produced archive with kinnoo install
-      - step2: Fix any incompatibilities in archive structure or contents
-    dependencies: [task27]
-    tests: [test45]
-    status: not-started
-
-  - id: task29
     title: Unit and integration tests for kinnoo pack
     type: task
     description: |
@@ -586,7 +571,7 @@ tasks:
     steps:
       - step1: Test kinnoo pack with valid agent directory
       - step2: Test missing arguments, missing files, invalid manifest, and error cases
-      - step3: Test archive contents and compatibility with kinnoo install
+      - step3: Test manual extraction of .kno archive (extract .tar.gz with command-line tool), confirm requirements.txt, run.py, kinnoo.yaml, and other expected files are present in agent-dir; throw error if any are missing
     dependencies: [task28]
-    tests: [test46, test47, test48]
+    tests: [test46, test47, test48, test50]
     status: not-started
