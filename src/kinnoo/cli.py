@@ -86,8 +86,14 @@ def main():
             if not pip_exe.exists():
                 print(f"Error: pip not found in venv at {pip_exe}", file=sys.stderr)
                 sys.exit(1)
+            print("[kinnoo] installing requirements for running agent...")
             try:
-                result = subprocess.run([str(pip_exe), "install", "-r", str(requirements)], capture_output=True, text=True)
+                # Suppress pip output by redirecting stdout and stderr to DEVNULL
+                result = subprocess.run(
+                    [str(pip_exe), "install", "-r", str(requirements)],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
             except PermissionError as e:
                 print(f"Error: Permission denied while installing requirements in {agent_dir}: {e}", file=sys.stderr)
                 sys.exit(1)
@@ -95,10 +101,8 @@ def main():
                 print(f"Error: Failed to install requirements in {agent_dir}: {e}", file=sys.stderr)
                 sys.exit(1)
             if result.returncode != 0:
-                print(f"Error installing requirements:\n{result.stderr}", file=sys.stderr)
+                print("Error: Failed to install requirements for running agent. Please check your requirements.txt and try again.", file=sys.stderr)
                 sys.exit(result.returncode)
-            else:
-                print(result.stdout)
 
         # Validate kinnoo.yaml manifest (task7, assumed done)
         if not kinnoo_yaml.exists():
