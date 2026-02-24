@@ -8,3 +8,4 @@ __pycache__/
 scratch/
 .env
 dist/
+build/
