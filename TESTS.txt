@@ -613,3 +613,20 @@ tests:
       - task: task21
     automated: true
     automation_path: tests/test_init.py::test_agent_name_with_underscore_is_accepted
+
+  - id: test39
+    title: Gemini agent template uses google-genai and gemini-2.5-flash-lite
+    type: unit
+    preconditions: kinnoo CLI installed
+    steps:
+      - step1: Run `kinnoo init <name> --framework gemini`
+      - step2: Inspect generated run.py, requirements.txt, and README.md
+    expected: run.py imports google.genai and uses model "gemini-2.5-flash-lite"; requirements.txt lists google-genai; README.md mentions google-genai and correct model
+    pass_criteria: All files present and correct for updated Gemini template
+    covers:
+      - feature: feature4
+        ac: AC5
+      - task: task22
+    automated: true
+    automation_path: tests/test_init.py::test_gemini_template_uses_genai_and_flash_lite
+
