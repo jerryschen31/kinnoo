@@ -326,4 +326,134 @@ tasks:
       - step4: Ensure kinnoo run does not overwrite or modify files outside the agent directory
     dependencies: [task7, task8, task9, task10, task11, task12, task13, task14]
     tests: [test24, test25, test26, test27]
-    status: not-started    
+    status: completed    
+
+  - id: task16
+    title: CLI Argument Parsing and Validation for --framework
+    type: task
+    description: |
+      Update kinnoo init CLI to accept an optional --framework flag. Validate the value of --framework. If an unsupported value is provided (e.g., langgraph, pigglypoo), print an error message listing supported frameworks and the general usage message. Exit without creating files or directories.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/init_command.py
+    steps:
+      - step1: Add --framework flag to kinnoo init CLI argument parser
+      - step2: "Validate framework value; supported: gemini, chatgpt, claude-chat"
+      - step3: Print error and usage if unsupported value; exit without creating files
+    dependencies: [task4]
+    tests: [test28]
+    acceptance_criteria:
+      - CLI accepts --framework flag and validates value
+      - Invalid values print error and usage, no files created
+    notes:
+      - Error message: "Unsupported framework. The supported frameworks are: gemini, chatgpt, claude-chat."
+      - Usage message matches existing CLI convention
+    status: not-started
+
+  - id: task17
+    title: Framework-Specific Template Generation
+    type: task
+    description: |
+      For each supported framework, generate run.py with LLM API call boilerplate, requirements.txt with correct dependency, and README.md with API key setup instructions and run example. All other files/directories remain as before.
+    files:
+      - src/kinnoo/templates.py
+      - src/kinnoo/init_command.py
+    steps:
+      - step1: Add templates for gemini, chatgpt, claude-chat to templates.py
+      - step2: Generate run.py, requirements.txt, README.md for each framework
+      - step3: Ensure tools/ and prompts/ directories are created as before
+    dependencies: [task16]
+    tests: [test29, test30, test31]
+    acceptance_criteria:
+      - Directory contains correct files for each framework
+      - requirements.txt lists correct dependency
+      - README.md includes API key setup and run instructions
+    notes:
+      - Templates must be minimal but runnable (hello-world for each LLM)
+    status: not-started
+
+  - id: task18
+    title: Manifest Validation for Generated Agents
+    type: task
+    description: |
+      Ensure generated kinnoo.yaml passes validation using feature1 validator. Entry point and fields must be correct for each template.
+    files:
+      - src/kinnoo/init_command.py
+      - src/kinnoo/templates.py
+    steps:
+      - step1: Generate kinnoo.yaml for each framework template
+      - step2: Validate manifest using feature1 validator
+      - step3: Fix template fields as needed to pass validation
+    dependencies: [task17]
+    tests: [test32]
+    acceptance_criteria:
+      - kinnoo.yaml passes validation (no errors)
+    notes:
+      - Use validator from src/kinnoo/validator.py
+    status: not-started
+
+  - id: task19
+    title: General Usage and Error Handling
+    type: task
+    description: |
+      If kinnoo init is run without agent name, print usage message. If agent directory already exists, print error and do not overwrite. If --framework is omitted, generate vanilla agent as before.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/init_command.py
+    steps:
+      - step1: Check for agent name argument; print usage if missing
+      - step2: Check for existing directory; print error and do not overwrite
+      - step3: If --framework omitted, generate vanilla agent
+    dependencies: [task16]
+    tests: [test33, test34]
+    acceptance_criteria:
+      - Usage and error messages are clear and actionable
+      - No files are overwritten or created in error cases
+    notes:
+      - Follows safety-first conventions from previous features
+    status: not-started
+
+  - id: task20
+    title: Unit Tests for Framework Templates and Error Cases
+    type: task
+    description: |
+      Add unit tests for each framework template (directory structure, file contents, requirements, README), invalid framework values (error and usage message), and manifest validation for generated agents.
+    files:
+      - tests/test_init.py
+      - src/kinnoo/init_command.py
+      - src/kinnoo/templates.py
+    steps:
+      - step1: Add tests for gemini, chatgpt, claude-chat templates
+      - step2: Add tests for invalid framework values
+      - step3: Add tests for manifest validation
+    dependencies: [task17, task18, task19]
+    tests: [test35, test36, test37]
+    acceptance_criteria:
+      - All tests pass, covering positive and negative cases
+    notes:
+      - Reference acceptance criteria in FEATURES.txt for completeness
+      - Update documentation if CLI usage changes
+    status: not-started
+
+  - id: task21
+    title: Allow underscores in agent names
+    type: task
+    description: |
+      Update agent name validation rules to allow underscores (_) in addition to lowercase letters, digits, and hyphens. Update NAME_PATTERN in schema.py and all related validation logic and tests. This should be part of feature4.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+      - src/kinnoo/init_command.py
+      - tests/test_init.py
+    steps:
+      - step1: Update NAME_PATTERN regex to allow underscores
+      - step2: Update validator and CLI to use new pattern
+      - step3: Add/modify tests to cover agent names with underscores
+    dependencies: [task16]
+    tests: [test38]
+    acceptance_criteria:
+      - Agent names with underscores are accepted and pass validation
+      - All related tests pass
+    notes:
+      - This change is part of feature4 and should be reflected in documentation and error messages
+    status: not-started
