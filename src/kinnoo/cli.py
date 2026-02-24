@@ -7,6 +7,7 @@ import sys
 import re
 from pathlib import Path
 import traceback
+import yaml
 
 try:
     from kinnoo.schema import NAME_PATTERN
@@ -195,6 +196,23 @@ def main():
             for err in errors:
                 print(f"  - {err}", file=sys.stderr)
             sys.exit(1)
+
+        # --- Task25: Gather required files for packaging ---
+        with open(kinnoo_yaml_path, "r") as f:
+            manifest = yaml.safe_load(f)
+        entrypoint = manifest.get("entrypoint")
+        if not entrypoint:
+            print("Error: 'entrypoint' not specified in kinnoo.yaml", file=sys.stderr)
+            sys.exit(1)
+        entrypoint_path = os.path.join(abs_agent_dir, entrypoint)
+        if not os.path.isfile(entrypoint_path):
+            print(f"Error: Entrypoint file '{entrypoint}' not found in {agent_dir}", file=sys.stderr)
+            sys.exit(1)
+        requirements_path = os.path.join(abs_agent_dir, "requirements.txt")
+        if not os.path.isfile(requirements_path):
+            print(f"Error: requirements.txt not found in {agent_dir}", file=sys.stderr)
+            sys.exit(1)
+        # kinnoo.yaml already checked above
 
         print(f"[kinnoo pack] Packaging agent directory: {agent_dir}")
         return
