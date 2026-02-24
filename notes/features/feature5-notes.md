@@ -42,3 +42,74 @@
 ## Conclusion
 
 Feature5 is a well-scoped, moderately complex packaging task that builds directly on the foundation laid by features 1–3. It is highly suitable for implementation by a free-tier model like GPT-4.1, provided the agent follows best practices and project guidelines. No advanced AI capabilities are required beyond what GPT-4.1 offers.
+
+# Task24 Summary: kinnoo pack manifest validation before packaging
+
+## Overview
+Task24 implements manifest validation for the `kinnoo pack` command. Before packaging, the CLI loads and validates `kinnoo.yaml` in the agent directory using the feature1 validator. If the manifest is missing or invalid, it prints clear errors and aborts, ensuring only valid agents are packaged.
+
+## Implementation Details
+- The `pack` subcommand in `src/kinnoo/cli.py` now:
+  - Loads `kinnoo.yaml` from the agent directory.
+  - Calls the validator (`validate` from `src/kinnoo/validator.py`).
+  - Prints all validation errors and aborts if the manifest is invalid or missing.
+- This prevents packaging of broken or incomplete agents and enforces a single source of truth for manifest validation.
+
+## Tests
+Automated tests were added/updated in `tests/test_pack.py`:
+- **test_pack_invalid_manifest_aborts**: Verifies that running `kinnoo pack` on an agent directory with an invalid manifest prints validation errors and exits non-zero.
+- **test_pack_missing_required_files_aborts**: Verifies that running `kinnoo pack` on an agent directory missing required files (like entrypoint) fails as expected (prepares for next task).
+
+Manifest entries for these tests:
+- **test41**: kinnoo pack aborts if manifest is invalid or missing
+- **test42**: kinnoo pack aborts if required files are missing
+
+## Test Results
+To run the tests:
+```
+python3 -m pytest tests/test_pack.py -v
+```
+**Results:**
+- All 4 tests in `test_pack.py` passed, including the new manifest validation tests.
+
+## Manifest Validation
+Ran:
+```
+python3 src/validate_project_manifests.py
+```
+- All manifest/test/feature/task links for task24 and its tests are now correct.
+
+## Conclusion
+Task24 is complete and fully tested. The CLI now enforces manifest validation before packaging, providing robust error handling and preventing invalid agents from being distributed. This is a key step for reliable agent packaging and distribution.
+
+# Task25 Summary: kinnoo pack required file checks
+
+## Overview
+Task25 implements required file checks for the `kinnoo pack` command. After manifest validation, the CLI now checks for the presence of `kinnoo.yaml`, the entrypoint file (as specified in the manifest), and `requirements.txt`. If any are missing, it prints a clear error and aborts, preventing packaging of incomplete agents.
+
+## Implementation Details
+- After manifest validation, the CLI parses `kinnoo.yaml` to get the entrypoint filename.
+- Checks for the existence of:
+  - `kinnoo.yaml` (already checked)
+  - Entrypoint file (e.g., `run.py`)
+  - `requirements.txt`
+- Prints a clear error and exits non-zero if any required file is missing.
+
+## Tests
+Automated tests in `tests/test_pack.py`:
+- **test_pack_missing_required_files_aborts**: Verifies that running `kinnoo pack` on an agent directory missing the entrypoint or requirements.txt fails with a clear error and non-zero exit code.
+- All other kinnoo pack tests continue to pass, confirming no regressions.
+
+Manifest entry:
+- **test42**: kinnoo pack aborts if required files are missing
+
+## Test Results
+To run the tests:
+```
+python3 -m pytest tests/test_pack.py -v
+```
+**Results:**
+- All 4 tests in `test_pack.py` passed, including the required file checks.
+
+## Conclusion
+Task25 is complete and fully tested. The CLI now enforces the presence of all required files before packaging, providing robust error handling and preventing incomplete agents from being distributed.
