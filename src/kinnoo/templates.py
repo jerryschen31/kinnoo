@@ -51,7 +51,7 @@ async def main(input_text):
     sys.exit(1)
   client = openai.AsyncOpenAI(api_key=api_key)
   response = await client.chat.completions.create(
-    model="gpt-3.5-turbo",
+    model="gpt-5-nano",
     messages=[{"role": "user", "content": input_text}]
   )
   print(response.choices[0].message.content)
@@ -89,7 +89,7 @@ async def main(input_text):
     sys.exit(1)
   client = anthropic.AsyncAnthropic(api_key=api_key)
   response = await client.messages.create(
-    model="claude-3-opus-20240229",
+    model="claude-sonnet-4-20250514",
     max_tokens=256,
     messages=[{"role": "user", "content": input_text}]
   )
