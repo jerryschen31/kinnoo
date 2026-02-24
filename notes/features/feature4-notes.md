@@ -273,3 +273,34 @@ Yes, it would be harder. cli.py is the main entrypoint and handles multiple comm
 **Next Steps:**
 - Task20 is ready for review and integration.
 - All framework template and error handling requirements are fully tested.
+
+
+## Task21 Summary: Allow Underscores in Agent Names
+
+**Date:** 2026-02-23
+
+### Implementation
+- Updated NAME_PATTERN in schema.py and validation logic to allow underscores (_) in agent names, in addition to lowercase letters, digits, and hyphens.
+- Updated error messages to mention underscores are allowed.
+- Updated documentation/comments to reflect new rule.
+- Added test to verify agent names with underscores are accepted and pass validation.
+- Added test38 entry to TESTS.txt for manifest completeness.
+
+### Unit Tests
+- Added/verified test for agent name with underscore:
+  - kinnoo init agent_with_underscore creates agent, manifest passes validation, entrypoint runs.
+- All tests passed:
+
+```
+============================== 16 passed in 1.09s ==============================
+```
+
+### Coding Standards & Notes
+- Followed project modularity, error handling, and naming conventions.
+- Used temporary directories for test isolation.
+- Summary and results logged for traceability.
+
+---
+**Next Steps:**
+- Task21 is ready for review and integration.
+- Proceed to next task or feature as needed.

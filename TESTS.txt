@@ -599,3 +599,17 @@ tests:
       - task: task18
     automated: true
     automation_path: tests/test_init.py::test_generated_manifest_passes_validation
+
+  - id: test38
+    title: Agent name with underscore is accepted
+    type: unit
+    preconditions: kinnoo CLI installed
+    steps:
+      - step1: Run kinnoo init agent_with_underscore
+      - step2: Validate kinnoo.yaml using validator
+    expected: kinnoo.yaml passes validation (no errors)
+    pass_criteria: is_valid is True and errors is empty
+    covers:
+      - task: task21
+    automated: true
+    automation_path: tests/test_init.py::test_agent_name_with_underscore_is_accepted

@@ -228,3 +228,22 @@ def test_init_vanilla_agent(tmp_path):
     # run.py should be the hello-world template
     runpy = (agent_dir / "run.py").read_text()
     assert "Hello, world!" in runpy
+
+
+def test_agent_name_with_underscore_is_accepted(tmp_path):
+    agent_name = "agent_with_underscore"
+    code, out, err = run_cli(["init", agent_name], cwd=tmp_path)
+    assert code == 0 or code is None
+    agent_dir = tmp_path / agent_name
+    assert agent_dir.exists() and agent_dir.is_dir()
+    # Manifest passes validation
+    from kinnoo.validator import validate
+    manifest_path = agent_dir / "kinnoo.yaml"
+    is_valid, errors = validate(str(manifest_path))
+    assert is_valid
+    assert not errors
+    # Entrypoint runs successfully
+    run_py = agent_dir / "run.py"
+    result = subprocess.run([sys.executable, str(run_py), "test"], capture_output=True, text=True)
+    assert result.returncode == 0
+    assert "Hello, world!" in result.stdout
