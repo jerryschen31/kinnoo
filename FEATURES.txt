@@ -213,7 +213,7 @@ features:
       into a distributable archive with the `.kno` extension. The archive contains all files needed to run the agent,
       including kinnoo.yaml, entrypoint, requirements.txt, and any additional files declared in the manifest.
       This enables easy sharing and distribution of agents.
-    tasks: [task23]
+    tasks: [task23, task24, task25, task26, task27, task28, task29]
     acceptance_criteria:
       - id: AC1
         description: "Running `kinnoo pack <agent-dir>` creates a `.kno` archive containing all required files."
