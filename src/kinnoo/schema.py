@@ -48,5 +48,5 @@ SEMVER_PATTERN: str = (
 )
 
 # Valid package name: lowercase alphanumeric, starting with a letter or digit,
-# hyphens allowed between characters.
-NAME_PATTERN: str = r"^[a-z0-9][a-z0-9-]*$"
+# hyphens and underscores allowed between characters.
+NAME_PATTERN: str = r"^[a-z0-9][a-z0-9-_]*$"
