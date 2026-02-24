@@ -482,7 +482,7 @@ tasks:
       - Tests pass for new template
     notes:
       - This ensures compatibility with free-tier accounts and avoids deprecated package warnings
-    status: not-started
+    status: completed
 
   - id: task23
     title: kinnoo pack CLI argument parsing and error handling
@@ -498,7 +498,7 @@ tasks:
       - step4: Print clear error if agent directory does not exist
     dependencies: []
     tests: [test40]
-    status: not-started
+    status: in-progress
 
   - id: task24
     title: Manifest validation before packaging
