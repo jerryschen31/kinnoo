@@ -1,39 +1,41 @@
-def test_framework_templates_generate_correct_files():
+import pytest
+
+@pytest.mark.parametrize("framework,dep,envvar,run_example,model_hint,test_id", [
+    ("gemini", "google-generativeai", "GOOGLE_API_KEY", "Hello Gemini!", "gemini-pro", "test29"),
+    ("chatgpt", "openai", "OPENAI_API_KEY", "Hello ChatGPT!", "gpt-3.5-turbo", "test30"),
+    ("claude-chat", "anthropic", "ANTHROPIC_API_KEY", "Hello Claude!", "claude-3-opus-20240229", "test31"),
+])
+def test_framework_templates_generate_correct_files(framework, dep, envvar, run_example, model_hint, test_id):
     import tempfile
     from pathlib import Path
-    frameworks = [
-        ("gemini", "google-generativeai", "GOOGLE_API_KEY", "Hello Gemini!", "gemini-pro"),
-        ("chatgpt", "openai", "OPENAI_API_KEY", "Hello ChatGPT!", "gpt-3.5-turbo"),
-        ("claude-chat", "anthropic", "ANTHROPIC_API_KEY", "Hello Claude!", "claude-3-opus-20240229"),
-    ]
-    for fw, dep, envvar, run_example, model_hint in frameworks:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            agent_name = f"test_{fw}"
-            cwd = os.getcwd()
-            os.chdir(tmpdir)
-            try:
-                result = run_kinnoo_init([agent_name, "--framework", fw])
-            finally:
-                os.chdir(cwd)
-            assert result.returncode == 0, f"Framework {fw} should succeed"
-            agent_dir = Path(tmpdir) / agent_name
-            # Directory and files
-            assert agent_dir.exists()
-            for fname in ["kinnoo.yaml", "run.py", "requirements.txt", "README.md"]:
-                assert (agent_dir / fname).exists(), f"{fname} missing for {fw}"
-            # requirements.txt
-            reqs = (agent_dir / "requirements.txt").read_text()
-            assert dep in reqs, f"Dependency {dep} missing in requirements.txt for {fw}"
-            # README.md
-            readme = (agent_dir / "README.md").read_text()
-            assert envvar in readme, f"API key env var {envvar} missing in README for {fw}"
-            assert run_example in readme, f"Run example missing in README for {fw}"
-            # run.py
-            runpy = (agent_dir / "run.py").read_text()
-            assert model_hint in runpy, f"Model hint {model_hint} missing in run.py for {fw}"
-            # tools/ and prompts/
-            assert (agent_dir / "tools").is_dir()
-            assert (agent_dir / "prompts").is_dir()
+    import os
+    agent_name = f"test_{framework}"
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cwd = os.getcwd()
+        os.chdir(tmpdir)
+        try:
+            result = run_kinnoo_init([agent_name, "--framework", framework])
+        finally:
+            os.chdir(cwd)
+        assert result.returncode == 0, f"Framework {framework} should succeed"
+        agent_dir = Path(tmpdir) / agent_name
+        # Directory and files
+        assert agent_dir.exists()
+        for fname in ["kinnoo.yaml", "run.py", "requirements.txt", "README.md"]:
+            assert (agent_dir / fname).exists(), f"{fname} missing for {framework}"
+        # requirements.txt
+        reqs = (agent_dir / "requirements.txt").read_text()
+        assert dep in reqs, f"Dependency {dep} missing in requirements.txt for {framework}"
+        # README.md
+        readme = (agent_dir / "README.md").read_text()
+        assert envvar in readme, f"API key env var {envvar} missing in README for {framework}"
+        assert run_example in readme, f"Run example missing in README for {framework}"
+        # run.py
+        runpy = (agent_dir / "run.py").read_text()
+        assert model_hint in runpy, f"Model hint {model_hint} missing in run.py for {framework}"
+        # tools/ and prompts/
+        assert (agent_dir / "tools").is_dir()
+        assert (agent_dir / "prompts").is_dir()
 import os
 import shutil
 import subprocess
@@ -95,8 +97,14 @@ def run_cli(args, cwd=None):
     return proc.returncode, out, err
 
 
-def test_init_missing_name_prints_usage(tmp_path):
-    code, out, err = run_cli(["init"], cwd=tmp_path)
+import pytest
+
+@pytest.mark.parametrize("test_id,cli_args", [
+    ("test7", ["init"]),
+    ("test33", ["init"]),
+])
+def test_init_missing_name_prints_usage(tmp_path, test_id, cli_args):
+    code, out, err = run_cli(cli_args, cwd=tmp_path)
     assert code != 0
     assert "Usage" in err
     assert "<agent-name>" in err
@@ -129,8 +137,13 @@ def test_init_creates_directory_structure(tmp_path):
     assert (agent_dir / "prompts").is_dir()
 
 
-def test_generated_manifest_passes_validation(tmp_path):
-    agent_name = "test-agent"
+import pytest
+
+@pytest.mark.parametrize("test_id,agent_name", [
+    ("test10", "test-agent"),
+    ("test37", "test-agent"),
+])
+def test_generated_manifest_passes_validation(tmp_path, test_id, agent_name):
     run_cli(["init", agent_name], cwd=tmp_path)
     from kinnoo.validator import validate
     manifest_path = tmp_path / agent_name / "kinnoo.yaml"
@@ -157,8 +170,13 @@ def test_generated_entrypoint_has_asyncio(tmp_path):
     assert "async def" in contents
 
 
-def test_init_existing_directory_fails(tmp_path):
-    agent_name = "test-agent"
+import pytest
+
+@pytest.mark.parametrize("test_id,agent_name", [
+    ("test13", "test-agent"),
+    ("test34", "test-agent"),
+])
+def test_init_existing_directory_fails(tmp_path, test_id, agent_name):
     agent_dir = tmp_path / agent_name
     agent_dir.mkdir()
     code, out, err = run_cli(["init", agent_name], cwd=tmp_path)
@@ -192,25 +210,31 @@ def test_init_full_workflow(tmp_path):
     assert "Hello, world!" in result.stdout
 
 
-def test_framework_manifests_pass_validation():
+import pytest
+
+@pytest.mark.parametrize("framework,test_id", [
+    ("gemini", "test32"),
+    ("chatgpt", "test32"),
+    ("claude-chat", "test32"),
+])
+def test_framework_manifests_pass_validation(framework, test_id):
     import tempfile
     from pathlib import Path
     from kinnoo.validator import validate
-    frameworks = ["gemini", "chatgpt", "claude-chat"]
-    for fw in frameworks:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            agent_name = f"validate-{fw}"
-            cwd = os.getcwd()
-            os.chdir(tmpdir)
-            try:
-                result = run_kinnoo_init([agent_name, "--framework", fw])
-                assert result.returncode == 0, f"Framework {fw} should succeed"
-                manifest_path = Path(tmpdir) / agent_name / "kinnoo.yaml"
-                is_valid, errors = validate(str(manifest_path))
-                assert is_valid, f"Manifest for {fw} should be valid, got errors: {errors}"
-                assert not errors, f"Manifest for {fw} should have no errors, got: {errors}"
-            finally:
-                os.chdir(cwd)
+    import os
+    agent_name = f"validate-{framework}"
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cwd = os.getcwd()
+        os.chdir(tmpdir)
+        try:
+            result = run_kinnoo_init([agent_name, "--framework", framework])
+            assert result.returncode == 0, f"Framework {framework} should succeed"
+            manifest_path = Path(tmpdir) / agent_name / "kinnoo.yaml"
+            is_valid, errors = validate(str(manifest_path))
+            assert is_valid, f"Manifest for {framework} should be valid, got errors: {errors}"
+            assert not errors, f"Manifest for {framework} should have no errors, got: {errors}"
+        finally:
+            os.chdir(cwd)
 
 
 def test_init_vanilla_agent(tmp_path):
