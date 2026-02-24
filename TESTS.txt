@@ -28,68 +28,6 @@
 #     pass_criteria: buffer non-empty and capture recorded within 200ms of tap
 #     automated: false
 #     automation_path: null
-
-tests:
-  - id: test40
-    title: kinnoo pack prints usage when argument missing
-    type: unit
-    preconditions: kinnoo CLI installed
-    steps:
-      - step1: Run kinnoo pack with no arguments
-    expected: Prints usage message and exits non-zero
-    pass_criteria: Output contains usage message; exit code non-zero
-    covers:
-      - feature: feature5
-        ac: AC5
-      - task: task23
-    automated: true
-    automation_path: tests/test_pack.py::test_pack_missing_argument_prints_usage
-
-  - id: test49
-    title: kinnoo pack run from inside agent directory prints error and aborts
-    type: unit
-    preconditions: kinnoo CLI installed, agent directory present
-    steps:
-      - step1: cd into agent directory
-      - step2: Run kinnoo pack .
-    expected: "Prints error: 'Do not run kinnoo pack from inside the agent directory. Please navigate outside and run: kinnoo pack <agent-dir>' and aborts"
-    pass_criteria: Output contains specific error message; process exits non-zero; no archive created
-    covers:
-      - feature: feature5
-        ac: AC8
-      - task: task23
-    automated: true
-    automation_path: tests/test_pack.py::test_pack_inside_agent_dir_prints_error
-# This file contains a list of the test cases written by SWE agents - numbered test0, test1, etc.
-# Each new test case should just increment the test number.
-#
-# Template (YAML):
-# tests:
-#   - id: testX
-#     title: One-line title
-#     type: unit|integration|e2e|manual
-#     preconditions: e.g., iPhone 12, iOS 15, camera permission granted
-#     steps:
-#       - Step 1
-#       - Step 2
-#     expected: Short expected result
-#     pass_criteria: Measurable pass criteria
-#     automated: true|false
-#     automation_path: path/to/test (if automated)
-#
-# Example:
-# tests:
-#   - id: test0
-#     title: Capture action stores image in buffer
-#     type: integration
-#     preconditions: App running on iPhone 12 (iOS 15), camera permission granted
-#     steps:
-#       - step1: Open the camera view
-#       - step2: Tap the white capture button
-#     expected: An image is captured and stored in the temporary buffer
-#     pass_criteria: buffer non-empty and capture recorded within 200ms of tap
-#     automated: false
-#     automation_path: null
 #
 #   - id: test1
 #     title: Capture button visible bottom-center
