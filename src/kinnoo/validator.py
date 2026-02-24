@@ -134,7 +134,7 @@ def validate(manifest_path: str) -> tuple[bool, list[str]]:
         if not re.fullmatch(NAME_PATTERN, name_value):
             errors.append(
                 f"Field 'name' has an invalid value: '{name_value}'. "
-                "Only lowercase alphanumeric characters and hyphens are allowed, "
+                "Only lowercase alphanumeric characters, hyphens, and underscores are allowed, "
                 "and it must start with a letter or digit."
             )
 
