@@ -338,7 +338,7 @@ tasks:
       - src/kinnoo/init_command.py
     steps:
       - step1: Add --framework flag to kinnoo init CLI argument parser
-      - step2: Validate framework value; supported: gemini, chatgpt, claude-chat
+      - step2: "Validate framework value; supported: gemini, chatgpt, claude-chat"
       - step3: Print error and usage if unsupported value; exit without creating files
     dependencies: [task4]
     tests: [test28]
