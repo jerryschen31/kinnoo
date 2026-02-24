@@ -211,3 +211,36 @@ Yes, it would be harder. cli.py is the main entrypoint and handles multiple comm
 - Followed project modularity, error handling, and naming conventions.
 - Used temporary directories for test isolation.
 - Summary and results logged for traceability.
+
+
+## Task19 Summary: General Usage and Error Handling
+
+**Date:** 2026-02-23
+
+### Implementation
+- Confirmed and tested:
+  - Usage message is printed if kinnoo init is run without agent name.
+  - Error is printed and no overwrite occurs if agent directory already exists.
+  - If --framework is omitted, a vanilla agent is generated (empty requirements.txt, no API key in README, hello-world run.py).
+- All edge cases and error handling requirements are covered.
+
+### Unit Tests
+- Added/verified tests for:
+  - Usage message for missing agent name.
+  - Error and no overwrite for existing directory.
+  - Vanilla agent generation when --framework is omitted.
+- All tests passed:
+
+```
+============================== 15 passed in 0.97s ==============================
+```
+
+### Coding Standards & Notes
+- Followed project modularity, error handling, and naming conventions.
+- Used temporary directories for test isolation.
+- Summary and results logged for traceability.
+
+---
+**Next Steps:**
+- Task19 is ready for review and integration.
+- Proceed to next task or address manifest linkage issues as needed.
