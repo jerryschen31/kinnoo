@@ -109,7 +109,7 @@ features:
       - id: AC2
         description: "The generated kinnoo.yaml passes validation (feature1 validator returns True with no errors)."
       - id: AC3
-        description: "The generated run.py is executable and prints output when run with `python run.py \"test input\"`."
+        description: "The generated run.py is executable and prints output when run with `python run.py 'test input'`."
       - id: AC4
         description: "The entrypoint includes asyncio.run() boilerplate for compatibility with async-first frameworks (AutoGen, OpenAI SDK)."
       - id: AC5
@@ -237,7 +237,7 @@ features:
       - "Manifest validation uses feature1 validator."
       - "Packing aborts on missing files or invalid manifest."
       - "No Docker or remote install support in MVP; deferred to V1.1/V2."
-      - "AC4 (agent is runnable after install) should be tested with an integration or end-to-end test. Recommended steps: (1) Prepare a valid .kno archive of an agent. (2) Run 'kinnoo install <archive.kno>' to install the agent to a new directory. (3) Immediately run 'kinnoo run <agent-dir> "test input"' on the installed agent directory. (4) Verify the entrypoint executes, produces expected output, and no manual setup is required between install and run."
+      - "AC4 (agent is runnable after install) should be tested with an integration or end-to-end test. Recommended steps: (1) Prepare a valid .kno archive of an agent. (2) Run 'kinnoo install <archive.kno>' to install the agent to a new directory. (3) Immediately run 'kinnoo run <agent-dir> 'test input' on the installed agent directory. (4) Verify the entrypoint executes, produces expected output, and no manual setup is required between install and run."
     owner: techlead-agent
     dependencies: [feature3]
     status: not-started
