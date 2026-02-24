@@ -154,3 +154,34 @@ Yes, it would be harder. cli.py is the main entrypoint and handles multiple comm
 **Next Steps:**
 - Task16 is ready for review and integration.
 - Manifest parsing error in FEATURES.txt should be addressed separately.
+
+## Task17 Summary: Framework-Specific Template Generation
+
+**Date:** 2026-02-23
+
+### Implementation
+- Added framework-specific templates for `gemini`, `chatgpt`, and `claude-chat` to `templates.py`.
+- Updated `init_command.py` to generate the correct `run.py`, `requirements.txt`, and `README.md` for each framework when `--framework` is specified.
+- All other files/directories (kinnoo.yaml, tools/, prompts/) remain as before.
+
+### Unit Tests
+- Added tests to verify:
+  - Directory structure and file contents for each framework.
+  - `requirements.txt` lists correct dependency.
+  - `README.md` includes API key setup and run instructions.
+  - `run.py` contains correct model hints.
+- Used temporary directories for test isolation.
+- All tests passed:
+
+```
+============================== 13 passed in 0.81s ==============================
+```
+
+### Manifest Validation
+- Ran manifest validator after changes.
+- Manifest parsing error detected in FEATURES.txt (unrelated to task17).
+
+### Coding Standards & Notes
+- Followed project modularity, error handling, and naming conventions.
+- Inline comments and clear error messages for user feedback.
+- Summary and results logged for traceability.
