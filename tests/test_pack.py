@@ -131,3 +131,58 @@ outputs:
         assert wheel_files, "No wheel files found in archive"
         # Optionally, check that the wheel for 'wheel' is present
         assert any("wheel" in wf for wf in wheel_files), f"Expected 'wheel' wheel file, found: {wheel_files}"
+
+def test_pack_creates_correct_archive_structure(tmp_path):
+    """
+    Test that kinnoo pack creates a .kno archive with the correct structure:
+    - kinnoo.yaml
+    - entrypoint (run.py)
+    - requirements.txt
+    - wheels/ (with at least one wheel file)
+    """
+    d = tmp_path / "archiveagent"
+    d.mkdir()
+    (d / "kinnoo.yaml").write_text("""
+name: archiveagent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+""")
+    (d / "run.py").write_text("print('archive test')\n")
+    (d / "requirements.txt").write_text("wheel\n")
+
+    env = os.environ.copy()
+    project_root = str(Path(__file__).parent.parent)
+    env["PYTHONPATH"] = project_root + os.pathsep + env.get("PYTHONPATH", "")
+
+    result = subprocess.run(
+        KINNOO_CLI + ["pack", str(d)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env
+    )
+    assert result.returncode == 0, f"kinnoo pack failed: {result.stderr}"
+
+    archive = None
+    for f in tmp_path.iterdir():
+        if f.suffix == ".kno":
+            archive = f
+            break
+    assert archive is not None, "No .kno archive produced"
+
+    with zipfile.ZipFile(archive, "r") as z:
+        names = set(z.namelist())
+        assert "kinnoo.yaml" in names, "kinnoo.yaml missing from archive"
+        assert "run.py" in names, "run.py missing from archive"
+        assert "requirements.txt" in names, "requirements.txt missing from archive"
+        wheel_files = [n for n in names if n.startswith("wheels/") and n.endswith(".whl")]
+        assert wheel_files, "No wheel files in wheels/ directory"
