@@ -222,7 +222,7 @@ features:
       - id: AC3
         description: "Archive includes pre-built wheel files for all dependencies listed in requirements.txt."
       - id: AC4
-        description: "Archive format is zip with `.kno` extension and can be inspected with standard zip tools."
+        description: "Archive format is zip (.tar.gz) with `.kno` extension and can be inspected with standard zip tools for extracting .tar.gz archives."
       - id: AC5
         description: "Running `kinnoo pack` without arguments prints usage: `Usage: kinnoo pack <agent-dir>`."
       - id: AC6
