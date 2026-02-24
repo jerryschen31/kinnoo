@@ -1,3 +1,39 @@
+def test_framework_templates_generate_correct_files():
+    import tempfile
+    from pathlib import Path
+    frameworks = [
+        ("gemini", "google-generativeai", "GOOGLE_API_KEY", "Hello Gemini!", "gemini-pro"),
+        ("chatgpt", "openai", "OPENAI_API_KEY", "Hello ChatGPT!", "gpt-3.5-turbo"),
+        ("claude-chat", "anthropic", "ANTHROPIC_API_KEY", "Hello Claude!", "claude-3-opus-20240229"),
+    ]
+    for fw, dep, envvar, run_example, model_hint in frameworks:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent_name = f"test_{fw}"
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                result = run_kinnoo_init([agent_name, "--framework", fw])
+            finally:
+                os.chdir(cwd)
+            assert result.returncode == 0, f"Framework {fw} should succeed"
+            agent_dir = Path(tmpdir) / agent_name
+            # Directory and files
+            assert agent_dir.exists()
+            for fname in ["kinnoo.yaml", "run.py", "requirements.txt", "README.md"]:
+                assert (agent_dir / fname).exists(), f"{fname} missing for {fw}"
+            # requirements.txt
+            reqs = (agent_dir / "requirements.txt").read_text()
+            assert dep in reqs, f"Dependency {dep} missing in requirements.txt for {fw}"
+            # README.md
+            readme = (agent_dir / "README.md").read_text()
+            assert envvar in readme, f"API key env var {envvar} missing in README for {fw}"
+            assert run_example in readme, f"Run example missing in README for {fw}"
+            # run.py
+            runpy = (agent_dir / "run.py").read_text()
+            assert model_hint in runpy, f"Model hint {model_hint} missing in run.py for {fw}"
+            # tools/ and prompts/
+            assert (agent_dir / "tools").is_dir()
+            assert (agent_dir / "prompts").is_dir()
 import os
 import shutil
 import subprocess
