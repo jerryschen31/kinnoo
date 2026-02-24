@@ -190,3 +190,24 @@ def test_init_full_workflow(tmp_path):
     result = subprocess.run([sys.executable, str(run_py), "test"], capture_output=True, text=True)
     assert result.returncode == 0
     assert "Hello, world!" in result.stdout
+
+
+def test_framework_manifests_pass_validation():
+    import tempfile
+    from pathlib import Path
+    from kinnoo.validator import validate
+    frameworks = ["gemini", "chatgpt", "claude-chat"]
+    for fw in frameworks:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent_name = f"validate-{fw}"
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                result = run_kinnoo_init([agent_name, "--framework", fw])
+                assert result.returncode == 0, f"Framework {fw} should succeed"
+                manifest_path = Path(tmpdir) / agent_name / "kinnoo.yaml"
+                is_valid, errors = validate(str(manifest_path))
+                assert is_valid, f"Manifest for {fw} should be valid, got errors: {errors}"
+                assert not errors, f"Manifest for {fw} should have no errors, got: {errors}"
+            finally:
+                os.chdir(cwd)

@@ -185,3 +185,29 @@ Yes, it would be harder. cli.py is the main entrypoint and handles multiple comm
 - Followed project modularity, error handling, and naming conventions.
 - Inline comments and clear error messages for user feedback.
 - Summary and results logged for traceability.
+
+
+## Task18 Summary: Manifest Validation for Generated Agents
+
+**Date:** 2026-02-23
+
+### Implementation
+- Added a test to verify that kinnoo.yaml generated for each framework (`gemini`, `chatgpt`, `claude-chat`) passes validation using the feature1 validator.
+- Ensured agent names use hyphens (not underscores) to conform to manifest requirements.
+- Confirmed that entry point and manifest fields are correct for all templates.
+
+### Unit Tests
+- Added test to:
+  - Generate an agent for each framework.
+  - Validate the generated kinnoo.yaml using the validator.
+  - Assert that validation passes (no errors).
+- All tests passed:
+
+```
+============================== 14 passed in 0.91s ==============================
+```
+
+### Coding Standards & Notes
+- Followed project modularity, error handling, and naming conventions.
+- Used temporary directories for test isolation.
+- Summary and results logged for traceability.
