@@ -348,7 +348,7 @@ tasks:
     notes:
       - Error message: "Unsupported framework. The supported frameworks are: gemini, chatgpt, claude-chat."
       - Usage message matches existing CLI convention
-    status: not-started
+    status: completed
 
   - id: task17
     title: Framework-Specific Template Generation
@@ -370,7 +370,7 @@ tasks:
       - README.md includes API key setup and run instructions
     notes:
       - Templates must be minimal but runnable (hello-world for each LLM)
-    status: not-started
+    status: completed
 
   - id: task18
     title: Manifest Validation for Generated Agents
@@ -390,7 +390,7 @@ tasks:
       - kinnoo.yaml passes validation (no errors)
     notes:
       - Use validator from src/kinnoo/validator.py
-    status: not-started
+    status: completed
 
   - id: task19
     title: General Usage and Error Handling
@@ -411,7 +411,7 @@ tasks:
       - No files are overwritten or created in error cases
     notes:
       - Follows safety-first conventions from previous features
-    status: not-started
+    status: completed
 
   - id: task20
     title: Unit Tests for Framework Templates and Error Cases
@@ -433,7 +433,7 @@ tasks:
     notes:
       - Reference acceptance criteria in FEATURES.txt for completeness
       - Update documentation if CLI usage changes
-    status: not-started
+    status: completed
 
   - id: task21
     title: Allow underscores in agent names
@@ -456,4 +456,30 @@ tasks:
       - All related tests pass
     notes:
       - This change is part of feature4 and should be reflected in documentation and error messages
+    status: completed
+
+  - id: task22
+    title: Update Gemini agent template to use google-genai and gemini-2.5-flash-lite
+    type: task
+    description: |
+      Update the Gemini agent template to:
+        - Use the google-genai package instead of google-generativeai (update import, usage, and requirements.txt)
+        - Use the model name "gemini-2.5-flash-lite" instead of "gemini-pro" for dev/testing
+        - Update README.md instructions accordingly
+    files:
+      - src/kinnoo/templates.py
+      - tests/test_init.py
+    steps:
+      - step1: Update GEMINI_RUN_PY template to use google-genai and gemini-2.5-flash-lite
+      - step2: Update GEMINI_REQUIREMENTS to require google-genai
+      - step3: Update GEMINI_README to reflect new package and model
+      - step4: Update or add tests to verify correct template output
+    dependencies: [task20]
+    tests: [test39]
+    acceptance_criteria:
+      - Gemini agent template uses google-genai and gemini-2.5-flash-lite
+      - requirements.txt and README.md are correct
+      - Tests pass for new template
+    notes:
+      - This ensures compatibility with free-tier accounts and avoids deprecated package warnings
     status: not-started

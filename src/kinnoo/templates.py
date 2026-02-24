@@ -2,7 +2,7 @@
 
 GEMINI_RUN_PY = '''import sys
 import asyncio
-import google.generativeai as genai
+from google import genai
 import os
 
 async def main(input_text):
@@ -10,9 +10,12 @@ async def main(input_text):
   if not api_key:
     print("Missing GOOGLE_API_KEY environment variable.")
     sys.exit(1)
-  genai.configure(api_key=api_key)
-  model = genai.GenerativeModel("gemini-pro")
-  response = await asyncio.to_thread(model.generate_content, input_text)
+  client = genai.Client(api_key=api_key)
+  response = await asyncio.to_thread(
+    client.models.generate_content,
+    model="gemini-2.5-flash-lite",
+    contents=input_text
+  )
   print(response.text)
 
 if __name__ == '__main__':
@@ -20,11 +23,11 @@ if __name__ == '__main__':
   asyncio.run(main(input_text))
 '''
 
-GEMINI_REQUIREMENTS = "google-generativeai\n"
+GEMINI_REQUIREMENTS = "google-genai\n"
 
 GEMINI_README = '''# {name}
 
-This agent uses Google Gemini Pro via the `google-generativeai` library.
+This agent uses Google Gemini (Flash Lite) via the `google-genai` library.
 
 ## Setup
 - Install dependencies: `pip install -r requirements.txt`
