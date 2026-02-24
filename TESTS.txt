@@ -630,3 +630,169 @@ tests:
     automated: true
     automation_path: tests/test_init.py::test_gemini_template_uses_genai_and_flash_lite
 
+  - id: test40
+    title: kinnoo pack prints usage when argument missing
+    type: unit
+    preconditions: kinnoo CLI installed
+    steps:
+      - step1: Run kinnoo pack with no arguments
+    expected: Prints usage message and exits non-zero
+    pass_criteria: Output contains usage message; exit code non-zero
+    covers:
+      - feature: feature5
+        ac: AC5
+      - task: task23
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_missing_argument_prints_usage
+
+  - id: test41
+    title: kinnoo pack aborts if manifest is invalid or missing
+    type: unit
+    preconditions: kinnoo CLI installed, agent directory with invalid or missing kinnoo.yaml
+    steps:
+      - step1: Run kinnoo pack on agent directory with invalid or missing kinnoo.yaml
+    expected: Prints validation errors and aborts execution
+    pass_criteria: Output contains error messages; process exits non-zero
+    covers:
+      - feature: feature5
+        ac: AC6
+      - task: task24
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_invalid_manifest_aborts
+
+  - id: test42
+    title: kinnoo pack aborts if required files are missing
+    type: unit
+    preconditions: kinnoo CLI installed, agent directory with missing entrypoint or required files
+    steps:
+      - step1: Run kinnoo pack on agent directory with missing entrypoint or required files
+    expected: Prints error and aborts execution
+    pass_criteria: Output contains error message; process exits non-zero
+    covers:
+      - feature: feature5
+        ac: AC6
+      - task: task25
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_missing_required_files_aborts
+
+  - id: test43
+    title: kinnoo pack includes wheel files for all dependencies
+    type: unit
+    preconditions: kinnoo CLI installed, requirements.txt with dependencies
+    steps:
+      - step1: Run kinnoo pack on agent directory with requirements.txt listing dependencies
+      - step2: Inspect archive for wheel files
+    expected: Archive contains wheel files for all dependencies
+    pass_criteria: All wheels present in archive
+    covers:
+      - feature: feature5
+        ac: AC3
+      - task: task26
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_includes_wheel_files
+
+  - id: test44
+    title: kinnoo pack creates .kno archive with correct structure
+    type: unit
+    preconditions: kinnoo CLI installed, valid agent directory
+    steps:
+      - step1: Run kinnoo pack on valid agent directory
+      - step2: Inspect .kno archive structure
+    expected: Archive contains kinnoo.yaml, entrypoint, requirements.txt, additional files, wheel files
+    pass_criteria: All required files present; archive is inspectable with standard tools
+    covers:
+      - feature: feature5
+        ac: AC1
+      - feature: feature5
+        ac: AC2
+      - feature: feature5
+        ac: AC4
+      - task: task27
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_creates_correct_archive_structure
+
+  - id: test45
+    title: kinnoo install accepts archive produced by kinnoo pack
+    type: integration
+    preconditions: kinnoo CLI installed, archive produced by kinnoo pack
+    steps:
+      - step1: Run kinnoo install on archive produced by kinnoo pack
+      - step2: Run kinnoo run on installed agent directory
+    expected: Agent runs successfully after install
+    pass_criteria: kinnoo install completes; kinnoo run executes entrypoint and prints output
+    covers:
+      - feature: feature5
+        ac: AC7
+      - task: task28
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_install_compatibility
+
+  - id: test46
+    title: kinnoo pack unit tests cover positive cases
+    type: unit
+    preconditions: kinnoo CLI installed, valid agent directory
+    steps:
+      - step1: Run kinnoo pack on valid agent directory
+      - step2: Verify archive contents and structure
+    expected: All positive cases pass
+    pass_criteria: Archive contains all required files; wheels present; no errors
+    covers:
+      - feature: feature5
+        ac: AC1
+      - feature: feature5
+        ac: AC2
+      - feature: feature5
+        ac: AC3
+      - feature: feature5
+        ac: AC4
+      - task: task29
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_positive_cases
+
+  - id: test47
+    title: kinnoo pack unit tests cover negative/error cases
+    type: unit
+    preconditions: kinnoo CLI installed, agent directory with missing/invalid files
+    steps:
+      - step1: Run kinnoo pack on agent directory with missing/invalid files
+      - step2: Verify error handling and output
+    expected: All negative/error cases handled gracefully
+    pass_criteria: Errors printed; process exits non-zero; no files created in error cases
+    covers:
+      - feature: feature5
+        ac: AC6
+      - task: task29
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_negative_cases
+
+  - id: test48
+    title: kinnoo pack integration tests cover install and run workflow
+    type: integration
+    preconditions: kinnoo CLI installed, archive produced by kinnoo pack
+    steps:
+      - step1: Run kinnoo install on archive
+      - step2: Run kinnoo run on installed agent directory
+    expected: Agent installs and runs successfully
+    pass_criteria: kinnoo install completes; kinnoo run executes entrypoint and prints output
+    covers:
+      - feature: feature5
+        ac: AC7
+      - task: task29
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_integration_workflow
+
+  - id: test49
+    title: kinnoo pack run from inside agent directory prints error and aborts
+    type: unit
+    preconditions: kinnoo CLI installed, agent directory present
+    steps:
+      - step1: cd into agent directory
+      - step2: Run kinnoo pack .
+    expected: Prints error: 'Do not run kinnoo pack from inside the agent directory. Please navigate outside and run: kinnoo pack <agent-dir>' and aborts
+    pass_criteria: Output contains specific error message; process exits non-zero; no archive created
+    covers:
+      - feature: feature5
+        ac: AC8
+      - task: task23
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_inside_agent_dir_prints_error
