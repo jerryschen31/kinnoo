@@ -3,6 +3,7 @@ import subprocess
 import tempfile
 import zipfile
 import pytest
+from pathlib import Path  # <-- Add this import
 
 KINNOO_CLI = ["python3", "-m", "src.kinnoo.cli"]
 
@@ -78,3 +79,55 @@ outputs:
     result = subprocess.run(KINNOO_CLI + ["pack", str(d)], cwd=tmp_path, capture_output=True, text=True)
     # This will fail at the next step (task25), so for now just check that pack does not succeed
     assert result.returncode != 0
+
+def test_pack_includes_wheel_files(tmp_path):
+    # Create agent dir with requirements.txt listing a simple dependency
+    d = tmp_path / "wheelagent"
+    d.mkdir()
+    (d / "kinnoo.yaml").write_text("""
+name: wheelagent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+""")
+    (d / "run.py").write_text("print('hello')\n")
+    # Use a tiny, always-available package for test (e.g., 'wheel')
+    (d / "requirements.txt").write_text("wheel\n")
+
+    # Set PYTHONPATH to project root so src.kinnoo.cli is importable
+    env = os.environ.copy()
+    project_root = str(Path(__file__).parent.parent)
+    env["PYTHONPATH"] = project_root + os.pathsep + env.get("PYTHONPATH", "")
+
+    # Run kinnoo pack
+    result = subprocess.run(
+        KINNOO_CLI + ["pack", str(d)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env
+    )
+    assert result.returncode == 0, f"kinnoo pack failed: {result.stderr}"
+
+    # Find the .kno archive
+    archive = None
+    for f in tmp_path.iterdir():
+        if f.suffix == ".kno":
+            archive = f
+            break
+    assert archive is not None, "No .kno archive produced"
+
+    # Inspect archive for wheel files
+    with zipfile.ZipFile(archive, "r") as z:
+        wheel_files = [name for name in z.namelist() if name.endswith(".whl")]
+        assert wheel_files, "No wheel files found in archive"
+        # Optionally, check that the wheel for 'wheel' is present
+        assert any("wheel" in wf for wf in wheel_files), f"Expected 'wheel' wheel file, found: {wheel_files}"
