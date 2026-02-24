@@ -434,3 +434,26 @@ tasks:
       - Reference acceptance criteria in FEATURES.txt for completeness
       - Update documentation if CLI usage changes
     status: not-started
+
+  - id: task21
+    title: Allow underscores in agent names
+    type: task
+    description: |
+      Update agent name validation rules to allow underscores (_) in addition to lowercase letters, digits, and hyphens. Update NAME_PATTERN in schema.py and all related validation logic and tests. This should be part of feature4.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+      - src/kinnoo/init_command.py
+      - tests/test_init.py
+    steps:
+      - step1: Update NAME_PATTERN regex to allow underscores
+      - step2: Update validator and CLI to use new pattern
+      - step3: Add/modify tests to cover agent names with underscores
+    dependencies: [task16]
+    tests: [test38]
+    acceptance_criteria:
+      - Agent names with underscores are accepted and pass validation
+      - All related tests pass
+    notes:
+      - This change is part of feature4 and should be reflected in documentation and error messages
+    status: not-started
