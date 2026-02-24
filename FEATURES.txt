@@ -204,7 +204,7 @@ features:
         description: "Generated Claude Chat agent is runnable with `kinnoo run` and produces Claude LLM responses to input."
     owner: techlead-agent
     dependencies: [feature2]
-    status: in-progress
+    status: completed
   
   - id: feature5
     title: "kinnoo pack — Agent packaging"
@@ -213,7 +213,7 @@ features:
       into a distributable archive with the `.kno` extension. The archive contains all files needed to run the agent,
       including kinnoo.yaml, entrypoint, requirements.txt, and any additional files declared in the manifest.
       This enables easy sharing and distribution of agents.
-    tasks: []
+    tasks: [task23, task24, task25, task26, task27, task28, task29]
     acceptance_criteria:
       - id: AC1
         description: "Running `kinnoo pack <agent-dir>` creates a `.kno` archive containing all required files."
@@ -240,7 +240,7 @@ features:
       - "AC4 (agent is runnable after install) should be tested with an integration or end-to-end test. Recommended steps: (1) Prepare a valid .kno archive of an agent. (2) Run 'kinnoo install <archive.kno>' to install the agent to a new directory. (3) Immediately run 'kinnoo run <agent-dir> 'test input' on the installed agent directory. (4) Verify the entrypoint executes, produces expected output, and no manual setup is required between install and run."
     owner: techlead-agent
     dependencies: [feature3]
-    status: not-started
+    status: in-progress
 
   - id: feature6
     title: "kinnoo install — Agent installation from archive"
