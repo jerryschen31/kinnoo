@@ -20,6 +20,11 @@ def main():
     # init subcommand
     init_parser = subparsers.add_parser("init", help="Scaffold a new kinnoo agent")
     init_parser.add_argument("agent_name", nargs="?", help="Name of the agent to create")
+    init_parser.add_argument(
+        "--framework",
+        choices=["gemini", "chatgpt", "claude-chat"],
+        help="(Optional) Pre-populate agent with LLM framework template (gemini, chatgpt, claude-chat)"
+    )
 
     # Add 'run' subcommand
     run_parser = subparsers.add_parser("run", help="Run a kinnoo agent")
