@@ -28,3 +28,53 @@ def test_pack_inside_agent_dir_prints_error(agent_dir):
     assert result.returncode != 0
     # No .kno archive should be created
     assert not any(f.suffix == ".kno" for f in agent_dir.iterdir())
+
+def test_pack_invalid_manifest_aborts(tmp_path):
+    # Create agent dir with invalid kinnoo.yaml (missing required field)
+    d = tmp_path / "badagent"
+    d.mkdir()
+    # Missing 'entrypoint' field
+    (d / "kinnoo.yaml").write_text("""
+name: badagent
+version: 0.1.0
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+""")
+    (d / "run.py").write_text("print('hello')\n")
+    (d / "requirements.txt").write_text("")
+    result = subprocess.run(KINNOO_CLI + ["pack", str(d)], cwd=tmp_path, capture_output=True, text=True)
+    assert "Manifest validation failed" in result.stdout or result.stderr
+    assert "entrypoint" in result.stdout or result.stderr
+    assert result.returncode != 0
+
+
+def test_pack_missing_required_files_aborts(tmp_path):
+    # Create agent dir with valid kinnoo.yaml but missing run.py
+    d = tmp_path / "missingfile"
+    d.mkdir()
+    (d / "kinnoo.yaml").write_text("""
+name: missingfile
+version: 0.1.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+""")
+    (d / "requirements.txt").write_text("")
+    # Do NOT create run.py
+    result = subprocess.run(KINNOO_CLI + ["pack", str(d)], cwd=tmp_path, capture_output=True, text=True)
+    # This will fail at the next step (task25), so for now just check that pack does not succeed
+    assert result.returncode != 0

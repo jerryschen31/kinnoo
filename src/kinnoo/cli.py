@@ -6,6 +6,7 @@ import argparse
 import sys
 import re
 from pathlib import Path
+import traceback
 
 try:
     from kinnoo.schema import NAME_PATTERN
@@ -173,6 +174,28 @@ def main():
         if not os.path.isdir(abs_agent_dir):
             print(f"Error: Agent directory '{agent_dir}' does not exist.")
             sys.exit(1)
+
+        # --- Task24: Manifest validation before packaging ---
+        kinnoo_yaml_path = os.path.join(abs_agent_dir, "kinnoo.yaml")
+        if not os.path.isfile(kinnoo_yaml_path):
+            print(f"Error: kinnoo.yaml not found in {agent_dir}", file=sys.stderr)
+            sys.exit(1)
+        try:
+            from kinnoo.validator import validate
+        except ImportError:
+            from .validator import validate
+        try:
+            is_valid, errors = validate(kinnoo_yaml_path)
+        except Exception as e:
+            print(f"Error: Failed to validate kinnoo.yaml: {e}", file=sys.stderr)
+            traceback.print_exc()
+            sys.exit(1)
+        if not is_valid:
+            print("Manifest validation failed:", file=sys.stderr)
+            for err in errors:
+                print(f"  - {err}", file=sys.stderr)
+            sys.exit(1)
+
         print(f"[kinnoo pack] Packaging agent directory: {agent_dir}")
         return
 
