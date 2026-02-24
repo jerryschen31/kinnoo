@@ -1109,3 +1109,23 @@ This sequence covers the core agent sharing workflow.
 3. **Fail fast with helpful errors** — Preflight checks before running
 4. **One framework first** — Prove the model before expanding
 5. **User has Node.js** — Acceptable prerequisite for V2 (can bundle in V3)
+
+---
+
+## Model Selection Flag Exploration (2026-02-24)
+
+- Consider allowing developers to specify a model when initializing an agent via a `--model` flag (e.g., `kinnoo init --framework chatgpt --model gpt-5-nano`).
+- This would provide more flexibility for advanced users and future-proof the CLI as new models are released.
+- Needs design discussion: Should the flag be required for some frameworks? How to validate model names? How to surface available models?
+- Action: Explore feasibility and user experience impact in future planning sessions.
+
+---
+
+## CLI Help Command & Model Discovery (2026-02-24)
+
+- Explore adding an explicit `kinnoo help` command for detailed help, including listing available models and framework-specific info.
+- Default usage prompt should highlight that `kinnoo help` provides detailed help (e.g., `kinnoo help --framework gemini` to list Gemini models).
+- Consider supporting subcommands/flags for command-specific and framework/model-specific help (e.g., `kinnoo help init`, `kinnoo help gemini models`).
+- Optionally, reserve `kinnoo info` for future project/agent metadata queries.
+- Implementation should dynamically surface available models/frameworks from a registry/config for up-to-date info.
+- Action: Track this for future CLI/UX improvements and discuss design in planning sessions.
