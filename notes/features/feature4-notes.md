@@ -304,3 +304,18 @@ Yes, it would be harder. cli.py is the main entrypoint and handles multiple comm
 **Next Steps:**
 - Task21 is ready for review and integration.
 - Proceed to next task or feature as needed.
+
+
+---
+## Hotfixes for kinnoo init --framework (Feb 23, 2026)
+
+### Hotfix 1: Add --framework argument to CLI parser
+- Added --framework argument to the init subcommand's argument parser in src/kinnoo/cli.py.
+- Ensures --framework appears in help output and is parsed correctly.
+
+### Hotfix 2: Pass framework argument from CLI to init_agent
+- Updated src/kinnoo/cli.py to pass the parsed --framework argument to init_agent.
+- Ensures kinnoo init --framework <framework> generates the correct framework-specific templates (run.py, requirements.txt, README.md) for Gemini, ChatGPT, and Claude-Chat agents.
+- Fixes issue where framework-specific files were not being created despite the flag being parsed.
+
+---
