@@ -2,6 +2,7 @@
 CLI entry point for kinnoo.
 Handles argument parsing and dispatches subcommands.
 """
+
 import argparse
 import sys
 import re
@@ -70,7 +71,6 @@ def main():
         requirements = agent_dir / "requirements.txt"
         kinnoo_yaml = agent_dir / "kinnoo.yaml"
         import subprocess
-        import yaml
 
         if not hasattr(args, "agent_dir") or args.agent_dir is None or args.input is None:
             print("Usage: kinnoo run <agent-dir> '<input>'", file=sys.stderr)
@@ -215,6 +215,34 @@ def main():
         # kinnoo.yaml already checked above
 
         print(f"[kinnoo pack] Packaging agent directory: {agent_dir}")
+
+        # --- Task26: Build wheel files for dependencies ---
+        from kinnoo.pack_command import build_wheels, WheelBuildError
+        import tempfile
+        import zipfile
+        wheels_dir = tempfile.TemporaryDirectory(prefix="kinnoo_wheels_")
+        try:
+            wheel_files = build_wheels(Path(requirements_path), Path(wheels_dir.name))
+        except WheelBuildError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            wheels_dir.cleanup()
+            sys.exit(1)
+
+        # --- Task27: Create .kno archive with all contents ---
+        archive_name = os.path.basename(abs_agent_dir.rstrip(os.sep)) + ".kno"
+        archive_path = os.path.join(os.path.dirname(abs_agent_dir), archive_name)
+        with zipfile.ZipFile(archive_path, "w", zipfile.ZIP_DEFLATED) as z:
+            # Add kinnoo.yaml
+            z.write(kinnoo_yaml_path, arcname="kinnoo.yaml")
+            # Add entrypoint
+            z.write(entrypoint_path, arcname=os.path.basename(entrypoint_path))
+            # Add requirements.txt
+            z.write(requirements_path, arcname="requirements.txt")
+            # Add wheel files
+            for wf in wheel_files:
+                z.write(wf, arcname=f"wheels/{os.path.basename(wf)}")
+        print(f"[kinnoo pack] Archive created: {archive_path}")
+        wheels_dir.cleanup()
         return
 
 if __name__ == "__main__":
