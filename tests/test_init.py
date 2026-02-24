@@ -211,3 +211,20 @@ def test_framework_manifests_pass_validation():
                 assert not errors, f"Manifest for {fw} should have no errors, got: {errors}"
             finally:
                 os.chdir(cwd)
+
+
+def test_init_vanilla_agent(tmp_path):
+    agent_name = "vanilla-agent"
+    code, out, err = run_cli(["init", agent_name], cwd=tmp_path)
+    assert code == 0 or code is None
+    agent_dir = tmp_path / agent_name
+    assert agent_dir.exists() and agent_dir.is_dir()
+    # requirements.txt should be empty (vanilla agent)
+    reqs = (agent_dir / "requirements.txt").read_text()
+    assert reqs.strip() == ""
+    # README.md should not mention any API key
+    readme = (agent_dir / "README.md").read_text()
+    assert "API key" not in readme
+    # run.py should be the hello-world template
+    runpy = (agent_dir / "run.py").read_text()
+    assert "Hello, world!" in runpy
