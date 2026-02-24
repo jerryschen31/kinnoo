@@ -244,3 +244,32 @@ Yes, it would be harder. cli.py is the main entrypoint and handles multiple comm
 **Next Steps:**
 - Task19 is ready for review and integration.
 - Proceed to next task or address manifest linkage issues as needed.
+
+## Task20 Summary: Unit Tests for Framework Templates and Error Cases
+
+**Date:** 2026-02-23
+
+### Implementation
+- Reviewed and confirmed all acceptance criteria are covered by existing tests:
+  - Each framework template (directory structure, file contents, requirements, README).
+  - Invalid framework values (error and usage message).
+  - Manifest validation for generated agents.
+  - Vanilla agent and error cases.
+- All edge cases and negative/positive scenarios are tested.
+
+### Unit Tests
+- All tests passed:
+
+```
+============================== 15 passed in 0.97s ==============================
+```
+
+### Coding Standards & Notes
+- Followed project modularity, error handling, and naming conventions.
+- Used temporary directories for test isolation.
+- Summary and results logged for traceability.
+
+---
+**Next Steps:**
+- Task20 is ready for review and integration.
+- All framework template and error handling requirements are fully tested.
