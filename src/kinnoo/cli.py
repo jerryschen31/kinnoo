@@ -14,6 +14,7 @@ except ImportError:
     from .schema import NAME_PATTERN
 
 def main():
+    import os
     parser = argparse.ArgumentParser(prog="kinnoo", description="Kinnoo CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -30,6 +31,10 @@ def main():
     run_parser = subparsers.add_parser("run", help="Run a kinnoo agent")
     run_parser.add_argument("agent_dir", nargs="?", help="Path to agent directory")
     run_parser.add_argument("input", nargs="?", help="Input string to pass to the agent entrypoint")
+
+    # Add 'pack' subcommand
+    pack_parser = subparsers.add_parser("pack", help="Package an agent directory into a .kno archive")
+    pack_parser.add_argument("agent_dir", nargs="?", help="Path to agent directory to package")
 
     # Pre-parse sys.argv for missing args to print custom usage before argparse error
     if len(sys.argv) > 1 and sys.argv[1] == "run":
@@ -55,10 +60,9 @@ def main():
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
 
+
     elif args.command == "run":
-        if not hasattr(args, "agent_dir") or args.agent_dir is None or args.input is None:
-            print("Usage: kinnoo run <agent-dir> '<input>'", file=sys.stderr)
-            sys.exit(1)
+        # ...existing run logic...
         agent_dir = Path(args.agent_dir).resolve()
         venv_dir = agent_dir / ".venv"
         requirements = agent_dir / "requirements.txt"
@@ -66,6 +70,10 @@ def main():
         import subprocess
         import yaml
 
+        if not hasattr(args, "agent_dir") or args.agent_dir is None or args.input is None:
+            print("Usage: kinnoo run <agent-dir> '<input>'", file=sys.stderr)
+            sys.exit(1)
+        
         # Ensure .venv exists (task8, assumed done)
         if not venv_dir.exists():
             import venv
@@ -78,7 +86,6 @@ def main():
                 print(f"Error: Failed to create .venv in {agent_dir}: {e}", file=sys.stderr)
                 sys.exit(1)
 
-        # Install requirements.txt packages into venv
         if requirements.exists() and requirements.read_text().strip():
             pip_exe = venv_dir / "bin" / "pip"
             if not pip_exe.exists():
@@ -88,7 +95,6 @@ def main():
                 sys.exit(1)
             print("[kinnoo] installing requirements for running agent...")
             try:
-                # Suppress pip output by redirecting stdout and stderr to DEVNULL
                 result = subprocess.run(
                     [str(pip_exe), "install", "-r", str(requirements)],
                     stdout=subprocess.DEVNULL,
@@ -145,7 +151,6 @@ def main():
         # Prepare input argument
         input_arg = args.input if args.input is not None else ""
 
-        # Run entrypoint with input as sys.argv[1], streaming stdout and stderr
         process = subprocess.Popen(
             [str(python_exe), str(entrypoint_path), input_arg],
             cwd=agent_dir,
@@ -154,6 +159,22 @@ def main():
         )
         process.communicate()
         sys.exit(process.returncode)
+
+    elif args.command == "pack":
+        agent_dir = args.agent_dir
+        if agent_dir is None:
+            print("Usage: kinnoo pack <agent-dir>")
+            sys.exit(1)
+        abs_agent_dir = os.path.abspath(agent_dir)
+        cwd = os.path.abspath(os.getcwd())
+        if abs_agent_dir == cwd or os.path.samefile(abs_agent_dir, cwd):
+            print("Do not run kinnoo pack from inside the agent directory. Please navigate outside and run: kinnoo pack <agent-dir>")
+            sys.exit(1)
+        if not os.path.isdir(abs_agent_dir):
+            print(f"Error: Agent directory '{agent_dir}' does not exist.")
+            sys.exit(1)
+        print(f"[kinnoo pack] Packaging agent directory: {agent_dir}")
+        return
 
 if __name__ == "__main__":
     main()
