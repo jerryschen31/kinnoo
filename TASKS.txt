@@ -498,7 +498,7 @@ tasks:
       - step4: Print clear error if agent directory does not exist
     dependencies: []
     tests: [test40]
-    status: in-progress
+    status: completed
 
   - id: task24
     title: Manifest validation before packaging
@@ -513,7 +513,7 @@ tasks:
       - step2: Call validator; if invalid, print errors and exit
     dependencies: [task23]
     tests: [test41]
-    status: not-started
+    status: completed
 
   - id: task25
     title: Gather required files for packaging
