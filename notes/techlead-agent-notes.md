@@ -1080,15 +1080,15 @@ openai
 - The **LangChain template** includes a structured `src/` directory, agent/tool definitions, and LangChain-specific dependencies and code patterns.
 - V2 reduces friction for new users and helps ensure agents are built correctly for their framework.
 
-### Phase1 Features 4 and 5
+### Phase1 Features 5 and 6
 
-After feature3 (`kinnoo run`), the next natural steps are:
+After feature3 (`kinnoo run`) and feature4 (add support for LLM APIs), the next natural steps are:
 
-1. **feature4: `kinnoo pack`**
+1. **feature5: `kinnoo pack`**
     - Packages the agent project (code, manifest, dependencies) into a distributable archive (like a `.kno` or `.whl` file).
     - This makes it easy to share the agent with others.
 
-2. **feature5: `kinnoo install`**
+2. **feature6: `kinnoo install`**
     - Lets another developer install the packaged agent on their own machine from the archive.
     - Sets up the environment and dependencies so they can immediately use `kinnoo run`.
 
