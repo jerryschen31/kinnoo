@@ -186,7 +186,7 @@ features:
       - When `--framework chatgpt` is specified, generate `run.py` with OpenAI ChatGPT API call boilerplate and add `openai` to requirements.txt.
       - When `--framework claude-chat` is specified, generate `run.py` with Anthropic Claude API call boilerplate and add `anthropic` to requirements.txt.
       - README.md should include instructions for setting up API keys and running the agent.
-    tasks: []
+    tasks: [task16, task17, task18, task19, task20]
     acceptance_criteria:
       - id: AC1
         description: "Running `kinnoo init my-agent --framework gemini` creates a directory with Gemini Pro boilerplate and correct requirements."

@@ -1,3 +1,41 @@
+import os
+import shutil
+import subprocess
+import tempfile
+import sys
+
+KINNOO_INIT_PATH = os.path.join(os.path.dirname(__file__), '../src/kinnoo/init_command.py')
+
+def run_kinnoo_init(args):
+    cmd = [sys.executable, KINNOO_INIT_PATH] + args
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    return result
+
+def test_framework_valid():
+    # Should not error for supported frameworks (no file creation yet)
+    import tempfile
+    for fw in ["gemini", "chatgpt", "claude-chat"]:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent_name = f"myagent_{fw}"
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            result = run_kinnoo_init([agent_name, "--framework", fw])
+            os.chdir(cwd)
+            assert result.returncode == 0, f"Valid framework {fw} should not error"
+
+def test_framework_invalid():
+    # Should error for unsupported frameworks
+    for fw in ["langgraph", "pigglypoo", "openai"]:
+        result = run_kinnoo_init(["myagent", "--framework", fw])
+        assert result.returncode != 0, f"Invalid framework {fw} should error"
+        assert b"Unsupported framework" in result.stderr, f"Error message missing for {fw}"
+        assert b"Usage: kinnoo init" in result.stderr, f"Usage message missing for {fw}"
+
+def test_missing_agent_name():
+    # Should error and print usage if agent_name is missing
+    result = run_kinnoo_init(["--framework", "gemini"])
+    assert result.returncode != 0, "Missing agent_name should error"
+    assert b"Usage: kinnoo init" in result.stderr, "Usage message missing for missing agent_name"
 import subprocess
 import sys
 import re
