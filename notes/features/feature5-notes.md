@@ -113,3 +113,47 @@ python3 -m pytest tests/test_pack.py -v
 
 ## Conclusion
 Task25 is complete and fully tested. The CLI now enforces the presence of all required files before packaging, providing robust error handling and preventing incomplete agents from being distributed.
+
+## Task26: Build wheel files for dependencies (kinnoo pack)
+
+**Summary:**
+- Implemented wheel-building logic in `pack_command.py` using `pip wheel` to build/download wheels for all dependencies in `requirements.txt`.
+- Integrated this logic into the `kinnoo pack` CLI: after manifest and file checks, wheels are built and included in the `.kno` archive.
+- The archive now contains `kinnoo.yaml`, entrypoint, `requirements.txt`, and all wheel files under `wheels/`.
+- Error handling: If any dependency cannot be built/downloaded, packaging aborts with a clear error message.
+
+**Test Results:**
+- Added `test_pack_includes_wheel_files` to `tests/test_pack.py` to verify that wheel files are included in the archive.
+- All tests for kinnoo pack, including argument checks, manifest validation, required file checks, and wheel file inclusion, are passing:
+    - `test_pack_missing_argument_prints_usage` — PASSED
+    - `test_pack_inside_agent_dir_prints_error` — PASSED
+    - `test_pack_invalid_manifest_aborts` — PASSED
+    - `test_pack_missing_required_files_aborts` — PASSED
+    - `test_pack_includes_wheel_files` — PASSED
+
+**Status:**
+- Task26 is complete and fully tested. The kinnoo pack CLI now builds and packages wheel files for all dependencies as required by the feature spec.
+
+## Task27: Create .kno archive with all contents (kinnoo pack)
+
+**Summary:**
+- Implemented archive creation in the kinnoo pack CLI: after building wheels, the CLI creates a .kno archive (zip) containing:
+  - kinnoo.yaml
+  - entrypoint (run.py)
+  - requirements.txt
+  - wheels/ directory with all dependency wheel files
+- The archive structure is designed to be inspectable with standard tools and compatible with future kinnoo install workflows.
+- Error handling ensures the archive is only created if all required files and wheels are present.
+
+**Test Results:**
+- Added `test_pack_creates_correct_archive_structure` to `tests/test_pack.py` to verify the .kno archive contains all required files and the wheels/ directory.
+- All kinnoo pack tests, including the new archive structure test, are passing:
+    - `test_pack_missing_argument_prints_usage` — PASSED
+    - `test_pack_inside_agent_dir_prints_error` — PASSED
+    - `test_pack_invalid_manifest_aborts` — PASSED
+    - `test_pack_missing_required_files_aborts` — PASSED
+    - `test_pack_includes_wheel_files` — PASSED
+    - `test_pack_creates_correct_archive_structure` — PASSED
+
+**Status:**
+- Task27 is complete and fully tested. The kinnoo pack CLI now produces a distributable .kno archive with the correct structure, ready for installation and distribution.
