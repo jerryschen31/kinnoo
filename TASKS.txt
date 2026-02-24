@@ -484,109 +484,109 @@ tasks:
       - This ensures compatibility with free-tier accounts and avoids deprecated package warnings
     status: not-started
 
-    - id: task23
-      title: kinnoo pack CLI argument parsing and error handling
-      type: task
-      description: |
-        Implement the kinnoo pack subcommand in the CLI. Parse the agent directory argument, print usage if missing, and handle error cases (e.g., running from inside agent dir).
-      files:
-        - src/kinnoo/cli.py
-      steps:
-        - step1: Add pack subcommand to CLI parser
-        - step2: Parse <agent-dir> argument; print usage if missing
-        - step3: Detect if running from inside agent directory; print error and abort if so
-        - step4: Print clear error if agent directory does not exist
-      dependencies: []
-      tests: [test40]
-      status: not-started
+  - id: task23
+    title: kinnoo pack CLI argument parsing and error handling
+    type: task
+    description: |
+      Implement the kinnoo pack subcommand in the CLI. Parse the agent directory argument, print usage if missing, and handle error cases (e.g., running from inside agent dir).
+    files:
+      - src/kinnoo/cli.py
+    steps:
+      - step1: Add pack subcommand to CLI parser
+      - step2: Parse <agent-dir> argument; print usage if missing
+      - step3: Detect if running from inside agent directory; print error and abort if so
+      - step4: Print clear error if agent directory does not exist
+    dependencies: []
+    tests: [test40]
+    status: not-started
 
-    - id: task24
-      title: Manifest validation before packaging
-      type: task
-      description: |
-        Load and validate kinnoo.yaml in the agent directory using the feature1 validator. Abort and print errors if invalid or missing.
-      files:
-        - src/kinnoo/cli.py
-        - src/kinnoo/validator.py
-      steps:
-        - step1: Load kinnoo.yaml from agent directory
-        - step2: Call validator; if invalid, print errors and exit
-      dependencies: [task23]
-      tests: [test41]
-      status: not-started
+  - id: task24
+    title: Manifest validation before packaging
+    type: task
+    description: |
+      Load and validate kinnoo.yaml in the agent directory using the feature1 validator. Abort and print errors if invalid or missing.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/validator.py
+    steps:
+      - step1: Load kinnoo.yaml from agent directory
+      - step2: Call validator; if invalid, print errors and exit
+    dependencies: [task23]
+    tests: [test41]
+    status: not-started
 
-    - id: task25
-      title: Gather required files for packaging
-      type: task
-      description: |
-        Collect kinnoo.yaml, entrypoint, requirements.txt, and any additional files declared in the manifest for inclusion in the archive.
-      files:
-        - src/kinnoo/cli.py
-        - src/kinnoo/pack_command.py
-      steps:
-        - step1: Parse manifest for entrypoint and additional files
-        - step2: Check existence of all required files; abort with error if any are missing
-      dependencies: [task24]
-      tests: [test42]
-      status: not-started
+  - id: task25
+    title: Gather required files for packaging
+    type: task
+    description: |
+      Collect kinnoo.yaml, entrypoint, requirements.txt, and any additional files declared in the manifest for inclusion in the archive.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/pack_command.py
+    steps:
+      - step1: Parse manifest for entrypoint and additional files
+      - step2: Check existence of all required files; abort with error if any are missing
+    dependencies: [task24]
+    tests: [test42]
+    status: not-started
 
-    - id: task26
-      title: Build wheel files for dependencies
-      type: task
-      description: |
-        Use pip wheel or pip download to build/download wheel files for all dependencies listed in requirements.txt, storing them in a temp directory for packaging.
-      files:
-        - src/kinnoo/pack_command.py
-      steps:
-        - step1: Read requirements.txt
-        - step2: Use pip to build/download wheels for all dependencies
-        - step3: Store wheels in a temp directory for inclusion in the archive
-        - step4: Abort with error if any dependency cannot be built/downloaded
-      dependencies: [task25]
-      tests: [test43]
-      status: not-started
+  - id: task26
+    title: Build wheel files for dependencies
+    type: task
+    description: |
+      Use pip wheel or pip download to build/download wheel files for all dependencies listed in requirements.txt, storing them in a temp directory for packaging.
+    files:
+      - src/kinnoo/pack_command.py
+    steps:
+      - step1: Read requirements.txt
+      - step2: Use pip to build/download wheels for all dependencies
+      - step3: Store wheels in a temp directory for inclusion in the archive
+      - step4: Abort with error if any dependency cannot be built/downloaded
+    dependencies: [task25]
+    tests: [test43]
+    status: not-started
 
-    - id: task27
-      title: Create .kno archive with all contents
-      type: task
-      description: |
-        Bundle kinnoo.yaml, entrypoint, requirements.txt, additional files, and wheel files into a zip/tar.gz archive with a .kno extension.
-      files:
-        - src/kinnoo/pack_command.py
-      steps:
-        - step1: Create archive with correct structure and .kno extension
-        - step2: Add all required files and wheels to the archive
-        - step3: Ensure archive is inspectable with standard tools
-      dependencies: [task26]
-      tests: [test44]
-      status: not-started
+  - id: task27
+    title: Create .kno archive with all contents
+    type: task
+    description: |
+      Bundle kinnoo.yaml, entrypoint, requirements.txt, additional files, and wheel files into a zip/tar.gz archive with a .kno extension.
+    files:
+      - src/kinnoo/pack_command.py
+    steps:
+      - step1: Create archive with correct structure and .kno extension
+      - step2: Add all required files and wheels to the archive
+      - step3: Ensure archive is inspectable with standard tools
+    dependencies: [task26]
+    tests: [test44]
+    status: not-started
 
-    - id: task28
-      title: Integration with kinnoo install (forward compatibility)
-      type: task
-      description: |
-        Ensure the produced .kno archive is accepted by kinnoo install for installation and immediate execution.
-      files:
-        - src/kinnoo/pack_command.py
-        - src/kinnoo/install_command.py
-      steps:
-        - step1: Test produced archive with kinnoo install
-        - step2: Fix any incompatibilities in archive structure or contents
-      dependencies: [task27]
-      tests: [test45]
-      status: not-started
+  - id: task28
+    title: Integration with kinnoo install (forward compatibility)
+    type: task
+    description: |
+      Ensure the produced .kno archive is accepted by kinnoo install for installation and immediate execution.
+    files:
+      - src/kinnoo/pack_command.py
+      - src/kinnoo/install_command.py
+    steps:
+      - step1: Test produced archive with kinnoo install
+      - step2: Fix any incompatibilities in archive structure or contents
+    dependencies: [task27]
+    tests: [test45]
+    status: not-started
 
-    - id: task29
-      title: Unit and integration tests for kinnoo pack
-      type: task
-      description: |
-        Write tests covering all positive and negative cases for kinnoo pack, including usage, error handling, file inclusion, and archive structure.
-      files:
-        - tests/test_pack.py
-      steps:
-        - step1: Test kinnoo pack with valid agent directory
-        - step2: Test missing arguments, missing files, invalid manifest, and error cases
-        - step3: Test archive contents and compatibility with kinnoo install
-      dependencies: [task28]
-      tests: [test46, test47, test48]
-      status: not-started
+  - id: task29
+    title: Unit and integration tests for kinnoo pack
+    type: task
+    description: |
+      Write tests covering all positive and negative cases for kinnoo pack, including usage, error handling, file inclusion, and archive structure.
+    files:
+      - tests/test_pack.py
+    steps:
+      - step1: Test kinnoo pack with valid agent directory
+      - step2: Test missing arguments, missing files, invalid manifest, and error cases
+      - step3: Test archive contents and compatibility with kinnoo install
+    dependencies: [task28]
+    tests: [test46, test47, test48]
+    status: not-started
