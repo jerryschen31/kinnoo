@@ -13,6 +13,7 @@ Feature6 implements the `kinnoo install` CLI command for installing packaged age
 - task35: Prevent overwrites unless --force flag is provided
 
 ## Implementation Guidance
+<<<<<<< Updated upstream
 - Follow modular coding standards: each task should be implemented in a dedicated function or module.
 - Use clear error messages and handle all edge cases (missing arguments, directory collisions, invalid manifest, missing files, etc.).
 - Reference the validator from feature1 for manifest validation (do not duplicate validation logic).
@@ -20,14 +21,32 @@ Feature6 implements the `kinnoo install` CLI command for installing packaged age
 - Ensure all dependencies are installed from wheel files included in the archive.
 - The install command should not overwrite directories unless --force is specified.
 - After install, the agent must be runnable with `kinnoo run <agent-dir> "<input>"`.
+=======
+- Implement each task as a modular function or class method for maintainability.
+- Use clear, actionable error messages for all user-facing errors (missing arguments, directory collisions, invalid manifest, missing files, etc.).
+- Reference the feature1 validator for manifest validation; do not duplicate validation logic.
+- Use Python's standard library for venv creation and file extraction (tar/gzip).
+- Install dependencies from wheel files included in the archive; do not use pip install from requirements.txt.
+- The install command must not overwrite directories unless --force is specified.
+- After install, the agent must be runnable with `kinnoo run <agent-dir> "<input>"`.
+- Handle all edge cases gracefully and document any design decisions or exceptions.
+>>>>>>> Stashed changes
 
 ## Testing
 - Each task is linked to a test case (test51–test57) in TESTS.txt. Implement unit and integration tests as specified.
 - Run `python3 src/validate_project_manifests.py` after changes to ensure manifest integrity.
+<<<<<<< Updated upstream
 
 ## Manifest and Documentation
 - Update TASKS.txt and TESTS.txt as you implement and test each task.
 - Document any design decisions or edge case handling in this file for future reference.
+=======
+- Use pytest for automated tests and verify all acceptance criteria are covered.
+
+## Manifest and Documentation
+- Update TASKS.txt and TESTS.txt as you implement and test each task.
+- Document any design decisions, edge case handling, or deviations from the plan in this file for future reference.
+>>>>>>> Stashed changes
 
 ## Questions or Issues
 - If you encounter ambiguous requirements or edge cases, document them here and notify the TechLead agent for clarification.
@@ -64,7 +83,11 @@ Handoff prepared by TechLead Agent, 2026-02-24.
 - Continue to follow modular coding standards and robust error handling.
 
 ---
+<<<<<<< Updated upstream
 # kinnoo install command (task29) implementation summary
+=======
+# kinnoo install command (task28) implementation summary
+>>>>>>> Stashed changes
 
 ## Implementation
 - Added `kinnoo install` command block to src/kinnoo/cli.py.
@@ -104,4 +127,8 @@ Handoff prepared by TechLead Agent, 2026-02-24.
 - Modular CLI design and robust error handling are key for maintainability.
 
 ---
+<<<<<<< Updated upstream
 SWE agent implementation complete for task289
+=======
+SWE agent implementation complete for task29.
+>>>>>>> Stashed changes
