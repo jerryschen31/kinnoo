@@ -8,7 +8,7 @@
 # This file contains the project features as YAML entries. Each feature should
 # be represented as an item in the top-level `features` list. Use the template
 # below and the example to add new features. The validator script
-# `scripts/validate_manifest.py` enforces unique IDs and cross-file links.
+# `src/validate_project_manifests.py` enforces unique IDs and cross-file links.
 #
 # Template (YAML):
 # features:
@@ -39,4 +39,238 @@
 #     owner: swe-agent
 #     dependencies: []
 #     status: not-started
+#
+features:
+  - id: feature1
+    title: Manifest schema and validation
+    description: |
+      Define the kinnoo.yaml manifest schema and implement a validator that parses
+      and validates manifest files against it. The validator returns clear, actionable
+      error messages and is usable as a library function for other commands (pack, run, etc.).
 
+      Schema definition:
+      | Field              | Required | Type         | Constraints                                      |
+      |--------------------|----------|--------------|--------------------------------------------------|
+      | name               | yes      | string       | non-empty, valid package name (alphanumeric, -)  |
+      | version            | yes      | string       | valid semver (e.g., "0.1.0", "1.2.3")            |
+      | entrypoint         | yes      | string       | non-empty file path                              |
+      | runtime.language   | yes      | string       | e.g., "python"                                   |
+      | runtime.version    | yes      | string       | version constraint (e.g., ">=3.10")              |
+      | runtime.type       | yes      | string       | e.g., "one-shot"                                 |
+      | dependencies       | yes      | list[string] | can be empty list                                |
+      | inputs.type        | yes      | string       | e.g., "text"                                     |
+      | outputs.type       | yes      | string       | e.g., "text"                                     |
+      | framework          | no       | string       | optional, e.g., "langchain"                      |
+    tasks: [task0, task1, task2, task3]
+    acceptance_criteria:
+      - id: AC1
+        description: A kinnoo.yaml with all required fields and valid values passes validation without errors.
+      - id: AC2
+        description: Missing any required field (name, version, entrypoint, runtime.language, runtime.version, runtime.type, dependencies, inputs.type, outputs.type) produces a specific error naming the missing field.
+      - id: AC3
+        description: Invalid field types (e.g., version as number, dependencies as string) produce a specific error describing the type mismatch.
+      - id: AC4
+        description: Invalid semver format in version field produces a descriptive error.
+      - id: AC5
+        description: "The validator is callable as a Python function that returns (is_valid: bool, errors: list[str])."
+      - id: AC6
+        description: Optional field 'framework' is accepted when present, ignored when absent.
+      - id: AC7
+        description: runtime.type set to any value other than "one-shot" produces a descriptive error stating it is not supported in this version.
+    owner: techlead-agent
+    dependencies: []
+    status: completed
+
+  - id: feature2
+    title: "kinnoo init — Project scaffolding"
+    description: |
+      Implement the `kinnoo init` CLI command that generates a template agent directory
+      with the canonical kinnoo structure. Creates a working hello-world agent that
+      passes validation and can be run immediately with `kinnoo run`.
+
+      Creates `<agent-name>/` directory in the current working directory.
+
+      Generated structure:
+      ```
+      <agent-name>/
+        kinnoo.yaml        # Pre-filled manifest with user-provided name
+        run.py             # Hello-world entrypoint with asyncio boilerplate
+        requirements.txt   # Empty for MVP, but file should exist
+        README.md          # Basic documentation template
+        tools/             # Empty directory for future tools
+        prompts/           # Empty directory for prompt templates
+      ```
+
+      The command accepts an agent name as argument: `kinnoo init my-agent`
+    tasks: [task4, task5, task6]
+    acceptance_criteria:
+      - id: AC1
+        description: "Running `kinnoo init my-agent` creates a directory named `my-agent/` with all expected files and subdirectories."
+      - id: AC2
+        description: "The generated kinnoo.yaml passes validation (feature1 validator returns True with no errors)."
+      - id: AC3
+        description: "The generated run.py is executable and prints output when run with `python run.py 'test input'`."
+      - id: AC4
+        description: "The entrypoint includes asyncio.run() boilerplate for compatibility with async-first frameworks (AutoGen, OpenAI SDK)."
+      - id: AC5
+        description: "Running `kinnoo init` without an agent name prints a usage error with example: `Usage: kinnoo init <agent-name>`."
+      - id: AC6
+        description: "Running `kinnoo init my-agent` when `my-agent/` already exists prints an error and does not overwrite."
+      - id: AC7
+        description: "Agent name validation matches manifest rules (lowercase alphanumeric with hyphens, must start with lowercase letter or digit)."
+    notes:
+      - "Asyncio boilerplate included by default for AutoGen/OpenAI SDK compatibility — harmless for sync agents"
+      - "Name validation reuses manifest NAME_PATTERN from schema.py for consistency"
+      - "No --force flag in MVP to overwrite existing directories — safety first"
+      - "tools/ and prompts/ directories are empty placeholders for future use"
+      - "Framework-specific templates (--framework=langchain) deferred to V2 per framework strategy decision"
+    owner: techlead-agent
+    dependencies: [feature1]
+    status: completed
+
+  - id: feature3
+    title: "kinnoo run (local) — Agent execution from source"
+    description: |
+      Implement the `kinnoo run` CLI command that executes an agent from a local
+      directory. This is the core runtime contract: validate manifest, set up
+      environment, install dependencies, and execute the entrypoint.
+
+      Execution flow:
+      1. Validate kinnoo.yaml using feature1 validator
+      2. Create Python virtual environment (if not exists)
+      3. Install dependencies from requirements.txt
+      4. Execute entrypoint with user-provided input: `python run.py "<input>"`
+      5. Stream stdout/stderr to terminal
+      6. Return exit code from entrypoint
+
+      Usage: `kinnoo run <path> "<input>"`
+      Example: `kinnoo run ./my-agent "Hello, agent!"`
+    tasks: [task7, task8, task9, task10, task11, task12, task13, task14]
+    acceptance_criteria:
+      - id: AC1
+        description: "Running `kinnoo run ./my-agent \"test\"` on a valid agent directory executes the entrypoint and prints output."
+      - id: AC2
+        description: "Invalid or missing kinnoo.yaml produces clear validation errors from feature1 validator before execution."
+      - id: AC3
+        description: "A Python venv is created in `<agent-dir>/.venv/` if it does not exist."
+      - id: AC4
+        description: "Dependencies from requirements.txt are installed into the venv before execution."
+      - id: AC5
+        description: "The entrypoint receives the input string as the first CLI argument (sys.argv[1])."
+      - id: AC6
+        description: "Stdout and stderr from the entrypoint are streamed to the terminal in real-time."
+      - id: AC7
+        description: "Non-zero exit codes from the entrypoint are propagated to the kinnoo process exit code."
+      - id: AC8
+        description: "Running `kinnoo run` without arguments prints usage: `Usage: kinnoo run <path> \"<input>\"`."
+      - id: AC9
+        description: "Missing entrypoint file (as declared in manifest) produces a clear error before execution."
+    notes:
+      - "Uses feature1 validator — reuse existing validation, single source of truth"
+      - "Venv created inside agent directory (.venv/) for isolation without Docker overhead"
+      - "Real-time streaming provides developer-friendly UX during agent execution"
+      - "Exit code propagation enables composability with shell scripts and CI pipelines"
+      - "Fail-fast on missing entrypoint — check before venv setup to save time"
+      - "Framework-agnostic execution: blindly runs entrypoint per MVP black-box philosophy"
+      - "No --docker or --remote flags in MVP — escape hatches deferred to V1.1/V2"
+      - "Preflight checks (tools, services, GPU) deferred to future feature per roadmap"
+    owner: techlead-agent
+    dependencies: [feature1]
+    status: completed
+
+  - id: feature4
+    title: "kinnoo init --framework flag for LLM agent templates"
+    description: |
+      Add a `--framework` flag to the `kinnoo init` CLI command to generate agent directories pre-populated with boilerplate for popular LLM APIs. Supported values: `gemini`, `chatgpt`, `claude-chat`.
+      - When `--framework gemini` is specified, generate `run.py` with Gemini Pro API call boilerplate and add `google-generativeai` to requirements.txt.
+      - When `--framework chatgpt` is specified, generate `run.py` with OpenAI ChatGPT API call boilerplate and add `openai` to requirements.txt.
+      - When `--framework claude-chat` is specified, generate `run.py` with Anthropic Claude API call boilerplate and add `anthropic` to requirements.txt.
+      - README.md should include instructions for setting up API keys and running the agent.
+    tasks: [task16, task17, task18, task19, task20, task21]
+    acceptance_criteria:
+      - id: AC1
+        description: "Running `kinnoo init my-agent --framework gemini` creates a directory with Gemini Pro boilerplate and correct requirements."
+      - id: AC2
+        description: "Running `kinnoo init my-agent --framework chatgpt` creates a directory with ChatGPT boilerplate and correct requirements."
+      - id: AC3
+        description: "Running `kinnoo init my-agent --framework claude-chat` creates a directory with Claude Chat boilerplate and correct requirements."
+      - id: AC4
+        description: "README.md includes API key setup instructions for each framework."
+      - id: AC5
+        description: "Generated Gemini agent is runnable with `kinnoo run` and produces Gemini LLM responses to input."
+      - id: AC6
+        description: "Generated ChatGPT agent is runnable with `kinnoo run` and produces ChatGPT LLM responses to input."
+      - id: AC7
+        description: "Generated Claude Chat agent is runnable with `kinnoo run` and produces Claude LLM responses to input."
+    owner: techlead-agent
+    dependencies: [feature2]
+    status: completed
+  
+  - id: feature5
+    title: "kinnoo pack — Agent packaging"
+    description: |
+      Implement the `kinnoo pack` CLI command that packages an agent project (code, manifest, dependencies)
+      into a distributable archive with the `.kno` extension. The archive contains all files needed to run the agent,
+      including kinnoo.yaml, entrypoint, requirements.txt, and any additional files declared in the manifest.
+      This enables easy sharing and distribution of agents.
+    tasks: [task23, task24, task25, task26, task27, task28]
+    acceptance_criteria:
+      - id: AC1
+        description: "Running `kinnoo pack <agent-dir>` creates a `.kno` archive containing all required files."
+      - id: AC2
+        description: "Archive includes kinnoo.yaml, entrypoint, requirements.txt, and all files listed in the manifest."
+      - id: AC3
+        description: "Archive includes pre-built wheel files for all dependencies listed in requirements.txt."
+      - id: AC4
+        description: "Archive format is zip (.tar.gz) with `.kno` extension and can be inspected with standard zip tools for extracting .tar.gz archives."
+      - id: AC5
+        description: "Running `kinnoo pack` without arguments prints usage: `Usage: kinnoo pack <agent-dir>`."
+      - id: AC6
+        description: "Packing fails with a clear error if manifest is invalid or required files are missing."
+      - id: AC7
+        description: "Archive produced by `kinnoo pack` is accepted by `kinnoo install` for installation."
+      - id: AC8
+        description: "If `kinnoo pack` is run from inside the agent directory (with `.` or no argument), the CLI prints a clear error: 'Do not run kinnoo pack from inside the agent directory. Please navigate outside and run: kinnoo pack <agent-dir>'."
+    notes:
+      - "Archive format is zip with `.kno` extension for MVP."
+      - "Pre-built wheels ensure offline installation and reproducibility."
+      - "Manifest validation uses feature1 validator."
+      - "Packing aborts on missing files or invalid manifest."
+      - "No Docker or remote install support in MVP; deferred to V1.1/V2."
+    owner: techlead-agent
+    dependencies: [feature3]
+    status: completed
+
+  - id: feature6
+    title: "kinnoo install — Agent installation from archive"
+    description: |
+      Implement the `kinnoo install` CLI command that installs a packaged agent archive with the `.kno` extension
+      onto the user's machine. Sets up the agent directory, environment, and dependencies so the agent can be run
+      immediately with `kinnoo run`. Handles manifest validation, file extraction, venv creation, and dependency installation.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "Running `kinnoo install <archive.kno>` extracts agent files to a new directory <archive>/ (e.g., myagent.kno extracts into myagent/). If <archive>/ directory exists, use <archive>_1/. If <archive>_1 exists, use <archive>_2, etc."
+      - id: AC2
+        description: "Manifest is validated before installation; errors abort install with a clear message."
+      - id: AC3
+        description: "A Python venv is created in the agent directory and dependencies are installed from wheel files in the archive."
+      - id: AC4
+        description: "Agent is runnable immediately with `kinnoo run <agent-dir> \"<input>\"` after install."
+      - id: AC5
+        description: "Running `kinnoo install` without arguments prints usage: `Usage: kinnoo install <archive.kno>`."
+      - id: AC6
+        description: "Installation fails with a clear error if archive is invalid or required files are missing."
+      - id: AC7
+        description: "Installation does not overwrite existing directories unless a `--force` flag is provided. Unless forced, kinnoo install should output an appropriate error message that directory already exists."
+      - id: AC8
+        description: "Final review of phase1 features complete and additional tasks and tests complete. All tests up to this point pass."
+    notes:
+      - "Installation is offline-capable if archive contains wheel files."
+      - "Manifest validation uses feature1 validator."
+      - "No remote install or Docker support in MVP; deferred to V1.1/V2."
+      - "Safety-first: no overwrites unless explicitly allowed."
+      - "kinnoo install extraction should just run tar -xzf under the hood, since .kno is currently just an alias for .tar.gz"
+    owner: techlead-agent
+    dependencies: [feature4, feature5]
+    status: completed

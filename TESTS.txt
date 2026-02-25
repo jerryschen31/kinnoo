@@ -40,3 +40,943 @@
 #     pass_criteria: visible on iPhone12/13/14 portrait
 #     automated: false
 #     automation_path: null
+
+tests:
+  - id: test0
+    title: Valid manifest passes validation
+    type: unit
+    preconditions: validator module available, PyYAML installed
+    steps:
+      - step1: Create a kinnoo.yaml with all required fields and valid values
+      - step2: Call validate(path)
+    expected: Returns (True, [])
+    pass_criteria: is_valid is True and errors list is empty
+    covers:
+      - feature: feature1
+        ac: AC1
+    automated: true
+    automation_path: tests/test_validator.py::test_valid_manifest_passes
+
+  - id: test1
+    title: Missing required field produces specific error
+    type: unit
+    preconditions: validator module available, PyYAML installed
+    steps:
+      - step1: Create a kinnoo.yaml missing the 'entrypoint' field
+      - step2: Call validate(path)
+    expected: Returns (False, [...]) with error message naming 'entrypoint'
+    pass_criteria: is_valid is False; errors list contains a string mentioning 'entrypoint'
+    covers:
+      - feature: feature1
+        ac: AC2
+    automated: true
+    automation_path: tests/test_validator.py::test_missing_required_field
+
+  - id: test2
+    title: Invalid field type produces specific error
+    type: unit
+    preconditions: validator module available, PyYAML installed
+    steps:
+      - step1: Create a kinnoo.yaml with 'dependencies' set to a string instead of a list
+      - step2: Call validate(path)
+    expected: Returns (False, [...]) with error describing type mismatch
+    pass_criteria: is_valid is False; errors list contains a string mentioning 'dependencies' and 'list'
+    covers:
+      - feature: feature1
+        ac: AC3
+    automated: true
+    automation_path: tests/test_validator.py::test_invalid_field_type
+
+  - id: test3
+    title: Invalid semver format produces descriptive error
+    type: unit
+    preconditions: validator module available, PyYAML installed
+    steps:
+      - step1: Create a kinnoo.yaml with version set to "1.0" (missing patch segment)
+      - step2: Call validate(path)
+    expected: Returns (False, [...]) with error describing invalid semver
+    pass_criteria: is_valid is False; errors list contains a string mentioning 'version' and 'semver'
+    covers:
+      - feature: feature1
+        ac: AC4
+    automated: true
+    automation_path: tests/test_validator.py::test_invalid_semver_format
+
+  - id: test4
+    title: Validator function returns correct type signature
+    type: unit
+    preconditions: validator module available
+    steps:
+      - step1: Call validate(path) on any manifest file
+      - step2: Inspect the return value
+    expected: Returns a tuple of (bool, list[str])
+    pass_criteria: Return type is tuple; first element is bool; second element is a list
+    covers:
+      - feature: feature1
+        ac: AC5
+    automated: true
+    automation_path: tests/test_validator.py::test_validator_return_type
+
+  - id: test5
+    title: Optional framework field is accepted with and without value
+    type: unit
+    preconditions: validator module available, PyYAML installed
+    steps:
+      - step1: Create a valid kinnoo.yaml without the framework field; call validate(path)
+      - step2: Create a valid kinnoo.yaml with framework set to "langchain"; call validate(path)
+    expected: Both return (True, [])
+    pass_criteria: Both manifests pass validation with no errors
+    covers:
+      - feature: feature1
+        ac: AC6
+    automated: true
+    automation_path: tests/test_validator.py::test_framework_optional
+
+  - id: test6
+    title: runtime.type not "one-shot" produces descriptive error
+    type: unit
+    preconditions: validator module available, PyYAML installed
+    steps:
+      - step1: Create a kinnoo.yaml with runtime.type set to "server"
+      - step2: Call validate(path)
+    expected: Returns (False, [...]) with error stating "one-shot" is the only supported value
+    pass_criteria: is_valid is False; errors list contains a string mentioning 'runtime.type' and 'one-shot'
+    covers:
+      - feature: feature1
+        ac: AC7
+    automated: true
+    automation_path: tests/test_validator.py::test_invalid_runtime_type
+
+  - id: test7
+    title: Missing agent name prints usage error
+    type: unit
+    preconditions: kinnoo CLI installed
+    steps:
+      - step1: Run `kinnoo init` without any arguments
+    expected: "Prints usage error: 'Usage: kinnoo init <agent-name>' and exits with non-zero code"
+    pass_criteria: Exit code is non-zero; output contains 'Usage' and '<agent-name>'
+    covers:
+      - feature: feature2
+        ac: AC5
+    automated: true
+    automation_path: tests/test_init.py::test_init_missing_name_prints_usage
+
+  - id: test8
+    title: Invalid agent name prints validation error
+    type: unit
+    preconditions: kinnoo CLI installed
+    steps:
+      - step1: Run `kinnoo init _invalid-name` (starts with underscore)
+      - step2: Run `kinnoo init "My Agent"` (contains space)
+      - step3: Run `kinnoo init MyAgent` (uppercase letters)
+    expected: All three print error about invalid agent name format
+    pass_criteria: Exit code non-zero for each; output mentions invalid name format
+    covers:
+      - feature: feature2
+        ac: AC7
+    automated: true
+    automation_path: tests/test_init.py::test_init_invalid_name_rejected
+
+  - id: test9
+    title: Init creates directory with expected structure
+    type: integration
+    preconditions: kinnoo CLI installed, tmp directory available
+    steps:
+      - step1: Run `kinnoo init test-agent` in a temp directory
+      - step2: List contents of test-agent/
+      - step3: Verify tools/ and prompts/ are directories (not files)
+    expected: Directory contains kinnoo.yaml, run.py, requirements.txt, README.md, tools/, prompts/
+    pass_criteria: All 6 items exist; tools/ and prompts/ are directories; README.md is non-empty
+    covers:
+      - feature: feature2
+        ac: AC1
+    automated: true
+    automation_path: tests/test_init.py::test_init_creates_directory_structure
+
+  - id: test10
+    title: Generated kinnoo.yaml passes validation
+    type: integration
+    preconditions: kinnoo CLI installed, validator module available
+    steps:
+      - step1: Run `kinnoo init test-agent` in a temp directory
+      - step2: Call validate("test-agent/kinnoo.yaml")
+    expected: Returns (True, [])
+    pass_criteria: is_valid is True; errors list is empty
+    covers:
+      - feature: feature2
+        ac: AC2
+    automated: true
+    automation_path: tests/test_init.py::test_generated_manifest_passes_validation
+
+  - id: test11
+    title: Generated run.py executes and prints output
+    type: integration
+    preconditions: kinnoo CLI installed, Python available
+    steps:
+      - step1: Run `kinnoo init test-agent` in a temp directory
+      - step2: Run `python test-agent/run.py "hello"`
+    expected: Process exits 0 and prints output to stdout
+    pass_criteria: Exit code is 0; stdout is non-empty
+    covers:
+      - feature: feature2
+        ac: AC3
+    automated: true
+    automation_path: tests/test_init.py::test_generated_entrypoint_executes
+
+  - id: test12
+    title: Generated run.py includes asyncio boilerplate
+    type: unit
+    preconditions: kinnoo CLI installed
+    steps:
+      - step1: Run `kinnoo init test-agent` in a temp directory
+      - step2: Read contents of test-agent/run.py
+    expected: File contains "asyncio.run" and "async def"
+    pass_criteria: Both strings present in file contents
+    covers:
+      - feature: feature2
+        ac: AC4
+    automated: true
+    automation_path: tests/test_init.py::test_generated_entrypoint_has_asyncio
+
+  - id: test13
+    title: Init on existing directory prints error
+    type: integration
+    preconditions: kinnoo CLI installed, tmp directory available
+    steps:
+      - step1: Create a directory named "test-agent"
+      - step2: Run `kinnoo init test-agent`
+    expected: Prints error about directory already existing; does not modify contents
+    pass_criteria: Exit code non-zero; output mentions "already exists"; original directory unchanged
+    covers:
+      - feature: feature2
+        ac: AC6
+    automated: true
+    automation_path: tests/test_init.py::test_init_existing_directory_fails
+
+  - id: test14
+    title: Full init workflow integration test
+    type: e2e
+    preconditions: kinnoo CLI installed, tmp directory available, validator available
+    steps:
+      - step1: Run `kinnoo init my-first-agent` in temp directory
+      - step2: Verify directory and all files exist
+      - step3: Verify kinnoo.yaml passes validation
+      - step4: Run `python my-first-agent/run.py "test"` and verify output
+    expected: All steps pass
+    pass_criteria: Directory created; manifest valid; entrypoint runs successfully
+    covers:
+      - feature: feature2
+        ac: AC1
+      - feature: feature2
+        ac: AC2
+      - feature: feature2
+        ac: AC3
+    automated: true
+    automation_path: tests/test_init.py::test_init_full_workflow
+
+  - id: test15
+    title: CLI is installable and runnable
+    type: integration
+    preconditions: pyproject.toml with console script entry point exists
+    steps:
+      - step1: Run `pip install -e .` in the project root
+      - step2: Run `kinnoo --help`
+    expected: pip install succeeds; kinnoo --help prints usage information and exits 0
+    pass_criteria: Exit code 0 for both commands; kinnoo --help output contains 'init'
+    covers: []
+    automated: true
+    automation_path: tests/test_cli.py::test_cli_installable_and_runnable
+
+  - id: test16
+    title: kinnoo run with invalid/missing kinnoo.yaml prints validation errors and aborts
+    type: unit
+    preconditions: kinnoo CLI installed, invalid or missing kinnoo.yaml
+    steps:
+      - step1: Run kinnoo run on a directory with invalid or missing kinnoo.yaml
+    expected: Prints validation errors and aborts execution
+    pass_criteria: Output contains error messages; process exits non-zero
+    covers:
+      - feature: feature3
+        ac: AC2
+    automated: true
+    automation_path: tests/test_cli.py::test_run_invalid_manifest
+
+  - id: test17
+    title: kinnoo run creates .venv/ if missing; skips if present
+    type: unit
+    preconditions: kinnoo CLI installed, agent directory without .venv/
+    steps:
+      - step1: Run kinnoo run on agent directory without .venv/
+      - step2: Run kinnoo run again with .venv/ present
+    expected: .venv/ is created if missing; not recreated if present
+    pass_criteria: .venv/ exists after first run; no error on second run
+    covers:
+      - feature: feature3
+        ac: AC3
+    automated: true
+    automation_path: tests/test_cli.py::test_run_creates_venv
+
+  - id: test18
+    title: kinnoo run installs requirements.txt packages into .venv/
+    type: unit
+    preconditions: kinnoo CLI installed, requirements.txt with packages
+    steps:
+      - step1: Add a package to requirements.txt
+      - step2: Run kinnoo run and check .venv/ for installed package
+    expected: Package is installed in .venv/
+    pass_criteria: Package importable in .venv/ after run
+    covers:
+      - feature: feature3
+        ac: AC4
+    automated: true
+    automation_path: tests/test_cli.py::test_run_installs_requirements
+
+  - id: test19
+    title: kinnoo run executes entrypoint with input; sys.argv[1] matches user input
+    type: integration
+    preconditions: kinnoo CLI installed, valid agent directory
+    steps:
+      - step1: Run kinnoo run <agent-dir> "test input"
+      - step2: Check entrypoint receives input as sys.argv[1]
+    expected: Entry point prints output based on input
+    pass_criteria: Output matches expected; sys.argv[1] is "test input"
+    covers:
+      - feature: feature3
+        ac: AC1
+      - feature: feature3
+        ac: AC5
+    automated: true
+    automation_path: tests/test_cli.py::test_run_entrypoint_input
+
+  - id: test20
+    title: kinnoo run streams stdout/stderr in real-time during agent execution
+    type: integration
+    preconditions: kinnoo CLI installed, agent entrypoint with both stdout and stderr
+    steps:
+      - step1: Run kinnoo run on agent with entrypoint that prints to stdout and stderr
+    expected: Both stdout and stderr are streamed to terminal in real-time
+    pass_criteria: Output appears as produced; no buffering delay
+    covers:
+      - feature: feature3
+        ac: AC6
+    automated: true
+    automation_path: tests/test_cli.py::test_run_streams_output
+
+  - id: test21
+    title: kinnoo run returns entrypoint exit code; non-zero codes propagate
+    type: unit
+    preconditions: kinnoo CLI installed, entrypoint with non-zero exit
+    steps:
+      - step1: Run kinnoo run on agent with entrypoint that exits non-zero
+    expected: kinnoo run exits with same code
+    pass_criteria: kinnoo run exit code matches entrypoint
+    covers:
+      - feature: feature3
+        ac: AC7
+    automated: true
+    automation_path: tests/test_cli.py::test_run_exit_code
+
+  - id: test22
+    title: kinnoo run with missing args prints usage error
+    type: unit
+    preconditions: kinnoo CLI installed
+    steps:
+      - step1: Run kinnoo run with no arguments
+    expected: Prints usage error and exits non-zero
+    pass_criteria: Output contains usage message; exit code non-zero
+    covers:
+      - feature: feature3
+        ac: AC8
+    automated: true
+    automation_path: tests/test_cli.py::test_run_missing_args
+
+  - id: test23
+    title: kinnoo run with missing entrypoint file prints error and aborts
+    type: unit
+    preconditions: kinnoo CLI installed, kinnoo.yaml with missing entrypoint file
+    steps:
+      - step1: Run kinnoo run on agent directory with missing entrypoint file
+    expected: Prints error and aborts execution
+    pass_criteria: Output contains error message; process exits non-zero
+    covers:
+      - feature: feature3
+        ac: AC9
+    automated: true
+    automation_path: tests/test_cli.py::test_run_missing_entrypoint
+
+  - id: test24
+    title: kinnoo run handles corrupted kinnoo.yaml gracefully
+    type: unit
+    preconditions: kinnoo CLI installed, kinnoo.yaml with invalid YAML syntax
+    steps:
+      - step1: Run kinnoo run on agent directory with corrupted kinnoo.yaml
+    expected: Prints clear error about manifest corruption; does not crash
+    pass_criteria: Output contains error message; process exits non-zero; no traceback or crash
+    covers:
+      - feature: feature3
+        ac: AC2
+      - task: task15
+    automated: true
+    automation_path: tests/test_cli.py::test_run_corrupted_manifest
+
+  - id: test25
+    title: kinnoo run handles permission errors with clear messages
+    type: unit
+    preconditions: kinnoo CLI installed, agent directory with restricted permissions
+    steps:
+      - step1: Run kinnoo run on agent directory where .venv cannot be created or files cannot be written
+    expected: Prints clear error about permission issue; does not crash
+    pass_criteria: Output contains permission error message; process exits non-zero; no traceback or crash
+    covers:
+      - feature: feature3
+        ac: AC3
+      - task: task15
+    automated: true
+    automation_path: tests/test_cli.py::test_run_permission_error
+
+  - id: test26
+    title: kinnoo run always uses validator for manifest checks
+    type: unit
+    preconditions: kinnoo CLI installed, kinnoo.yaml present
+    steps:
+      - step1: Run kinnoo run and verify manifest validation is performed only via validator module
+    expected: Manifest validation logic is centralized in validator; no duplicate validation code in CLI
+    pass_criteria: CLI calls validator for manifest checks; no duplicate validation logic found
+    covers:
+      - feature: feature3
+        ac: AC2
+      - task: task15
+    automated: false
+    automation_path: null
+
+  - id: test27
+    title: kinnoo run does not modify files outside agent directory
+    type: unit
+    preconditions: kinnoo CLI installed, agent directory present, other files outside agent directory
+    steps:
+      - step1: Run kinnoo run and monitor file operations
+    expected: No files outside agent directory are modified
+    pass_criteria: Only files within agent directory are changed; no external modifications
+    covers:
+      - feature: feature3
+        ac: AC5
+      - task: task15
+    automated: false
+    automation_path: null
+
+  - id: test28
+    title: CLI --framework flag validation
+    type: unit
+    preconditions: kinnoo CLI installed
+    steps:
+      - step1: Run kinnoo init with --framework set to an invalid value (e.g., langgraph)
+    expected: Prints error message listing supported frameworks and usage, exits non-zero
+    pass_criteria: Error message and usage shown, no files created
+    covers:
+      - task: task16
+    automated: true
+    automation_path: tests/test_init.py::test_framework_invalid
+
+  - id: test29
+    title: Gemini agent template generation
+    type: unit
+    preconditions: kinnoo CLI installed
+    steps:
+      - step1: Run kinnoo init <name> --framework gemini
+      - step2: Inspect generated files
+    expected: run.py uses google-generativeai, requirements.txt lists google-generativeai, README.md has GOOGLE_API_KEY instructions
+    pass_criteria: All files present and correct for Gemini
+    covers:
+      - task: task17
+    automated: true
+    automation_path: tests/test_init.py::test_framework_templates_generate_correct_files
+
+  - id: test30
+    title: ChatGPT agent template generation
+    type: unit
+    preconditions: kinnoo CLI installed
+    steps:
+      - step1: Run kinnoo init <name> --framework chatgpt
+      - step2: Inspect generated files
+    expected: run.py uses openai, requirements.txt lists openai, README.md has OPENAI_API_KEY instructions
+    pass_criteria: All files present and correct for ChatGPT
+    covers:
+      - task: task17
+    automated: true
+    automation_path: tests/test_init.py::test_framework_templates_generate_correct_files
+
+  - id: test31
+    title: Claude agent template generation
+    type: unit
+    preconditions: kinnoo CLI installed
+    steps:
+      - step1: Run kinnoo init <name> --framework claude-chat
+      - step2: Inspect generated files
+    expected: run.py uses anthropic, requirements.txt lists anthropic, README.md has ANTHROPIC_API_KEY instructions
+    pass_criteria: All files present and correct for Claude
+    covers:
+      - task: task17
+    automated: true
+    automation_path: tests/test_init.py::test_framework_templates_generate_correct_files
+
+  - id: test32
+    title: Framework agent manifest validation
+    type: unit
+    preconditions: kinnoo CLI installed
+    steps:
+      - step1: Run kinnoo init <name> --framework <fw> for each supported framework
+      - step2: Validate kinnoo.yaml using validator
+    expected: kinnoo.yaml passes validation (no errors)
+    pass_criteria: is_valid is True and errors is empty for all frameworks
+    covers:
+      - task: task18
+    automated: true
+    automation_path: tests/test_init.py::test_framework_manifests_pass_validation
+
+  - id: test33
+    title: Usage message for missing agent name
+    type: unit
+    preconditions: kinnoo CLI installed
+    steps:
+      - step1: Run kinnoo init with no agent name
+    expected: Prints usage message and exits non-zero
+    pass_criteria: Usage message shown, no files created
+    covers:
+      - task: task19
+    automated: true
+    automation_path: tests/test_init.py::test_init_missing_name_prints_usage
+
+  - id: test34
+    title: Error and no overwrite for existing directory
+    type: unit
+    preconditions: kinnoo CLI installed, agent directory exists
+    steps:
+      - step1: Run kinnoo init <name> where <name> directory already exists
+    expected: Prints error and does not overwrite directory
+    pass_criteria: Error message shown, directory unchanged
+    covers:
+      - task: task19
+    automated: true
+    automation_path: tests/test_init.py::test_init_existing_directory_fails
+
+  - id: test35
+    title: Vanilla agent generation (no framework)
+    type: unit
+    preconditions: kinnoo CLI installed
+    steps:
+      - step1: Run kinnoo init <name> with no --framework
+      - step2: Inspect generated files
+    expected: requirements.txt is empty, README.md has no API key, run.py is hello-world
+    pass_criteria: All vanilla agent files present and correct
+    covers:
+      - task: task19
+    automated: true
+    automation_path: tests/test_init.py::test_init_vanilla_agent
+
+  - id: test36
+    title: Valid framework values accepted
+    type: unit
+    preconditions: kinnoo CLI installed
+    steps:
+      - step1: Run kinnoo init <name> --framework <fw> for each supported framework
+    expected: Succeeds and generates correct files
+    pass_criteria: Exit code 0, files created for each framework
+    covers:
+      - task: task16
+    automated: true
+    automation_path: tests/test_init.py::test_framework_valid
+
+  - id: test37
+    title: Manifest validation for vanilla agent
+    type: unit
+    preconditions: kinnoo CLI installed
+    steps:
+      - step1: Run kinnoo init <name> with no --framework
+      - step2: Validate kinnoo.yaml using validator
+    expected: kinnoo.yaml passes validation (no errors)
+    pass_criteria: is_valid is True and errors is empty
+    covers:
+      - task: task18
+    automated: true
+    automation_path: tests/test_init.py::test_generated_manifest_passes_validation
+
+  - id: test38
+    title: Agent name with underscore is accepted
+    type: unit
+    preconditions: kinnoo CLI installed
+    steps:
+      - step1: Run kinnoo init agent_with_underscore
+      - step2: Validate kinnoo.yaml using validator
+    expected: kinnoo.yaml passes validation (no errors)
+    pass_criteria: is_valid is True and errors is empty
+    covers:
+      - task: task21
+    automated: true
+    automation_path: tests/test_init.py::test_agent_name_with_underscore_is_accepted
+
+  - id: test39
+    title: Gemini agent template uses google-genai and gemini-2.5-flash-lite
+    type: unit
+    preconditions: kinnoo CLI installed
+    steps:
+      - step1: Run `kinnoo init <name> --framework gemini`
+      - step2: Inspect generated run.py, requirements.txt, and README.md
+    expected: run.py imports google.genai and uses model "gemini-2.5-flash-lite"; requirements.txt lists google-genai; README.md mentions google-genai and correct model
+    pass_criteria: All files present and correct for updated Gemini template
+    covers:
+      - feature: feature4
+        ac: AC5
+      - task: task22
+    automated: true
+    automation_path: tests/test_init.py::test_gemini_template_uses_genai_and_flash_lite
+
+  - id: test40
+    title: kinnoo pack prints usage when argument missing
+    type: unit
+    preconditions: kinnoo CLI installed
+    steps:
+      - step1: Run kinnoo pack with no arguments
+    expected: Prints usage message and exits non-zero
+    pass_criteria: Output contains usage message; exit code non-zero
+    covers:
+      - feature: feature5
+        ac: AC5
+      - task: task23
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_missing_argument_prints_usage
+
+  - id: test41
+    title: kinnoo pack aborts if manifest is invalid or missing
+    type: unit
+    preconditions: kinnoo CLI installed, agent directory with invalid or missing kinnoo.yaml
+    steps:
+      - step1: Run kinnoo pack on agent directory with invalid or missing kinnoo.yaml
+    expected: Prints validation errors and aborts execution
+    pass_criteria: Output contains error messages; process exits non-zero
+    covers:
+      - feature: feature5
+        ac: AC6
+      - task: task24
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_invalid_manifest_aborts
+
+  - id: test42
+    title: kinnoo pack aborts if required files are missing
+    type: unit
+    preconditions: kinnoo CLI installed, agent directory with missing entrypoint or required files
+    steps:
+      - step1: Run kinnoo pack on agent directory with missing entrypoint or required files
+    expected: Prints error and aborts execution
+    pass_criteria: Output contains error message; process exits non-zero
+    covers:
+      - feature: feature5
+        ac: AC6
+      - task: task25
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_missing_required_files_aborts
+
+  - id: test43
+    title: kinnoo pack includes wheel files for all dependencies
+    type: unit
+    preconditions: kinnoo CLI installed, requirements.txt with dependencies
+    steps:
+      - step1: Run kinnoo pack on agent directory with requirements.txt listing dependencies
+      - step2: Inspect archive for wheel files
+    expected: Archive contains wheel files for all dependencies
+    pass_criteria: All wheels present in archive
+    covers:
+      - feature: feature5
+        ac: AC3
+      - task: task26
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_includes_wheel_files
+
+  - id: test44
+    title: kinnoo pack creates .kno archive with correct structure
+    type: unit
+    preconditions: kinnoo CLI installed, valid agent directory
+    steps:
+      - step1: Run kinnoo pack on valid agent directory
+      - step2: Inspect .kno archive structure
+    expected: Archive contains kinnoo.yaml, entrypoint, requirements.txt, additional files, wheel files
+    pass_criteria: All required files present; archive is inspectable with standard tools
+    covers:
+      - feature: feature5
+        ac: AC1
+      - feature: feature5
+        ac: AC2
+      - feature: feature5
+        ac: AC4
+      - task: task27
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_creates_correct_archive_structure
+
+  - id: test45
+    title: kinnoo install accepts archive produced by kinnoo pack
+    type: deprecated
+    preconditions: kinnoo CLI installed, archive produced by kinnoo pack
+    steps:
+      - step1: Run kinnoo install on archive produced by kinnoo pack
+      - step2: Run kinnoo run on installed agent directory
+    expected: Agent runs successfully after install
+    pass_criteria: kinnoo install completes; kinnoo run executes entrypoint and prints output
+    covers:
+      - feature: feature5
+        ac: AC7
+      - task: task28
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_install_compatibility
+    notes: This test is deprecated; kinnoo install will be tested as part of feature5 integration.
+
+  - id: test46
+    title: kinnoo pack unit tests cover positive cases
+    type: unit
+    preconditions: kinnoo CLI installed, valid agent directory
+    steps:
+      - step1: Run kinnoo pack on valid agent directory
+      - step2: Verify archive contents and structure
+    expected: All positive cases pass
+    pass_criteria: Archive contains all required files; wheels present; no errors
+    covers:
+      - feature: feature5
+        ac: AC1
+      - feature: feature5
+        ac: AC2
+      - feature: feature5
+        ac: AC3
+      - feature: feature5
+        ac: AC4
+      - task: task29
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_positive_cases
+
+  - id: test47
+    title: kinnoo pack unit tests cover negative/error cases
+    type: unit
+    preconditions: kinnoo CLI installed, agent directory with missing/invalid files
+    steps:
+      - step1: Run kinnoo pack on agent directory with missing/invalid files
+      - step2: Verify error handling and output
+    expected: All negative/error cases handled gracefully
+    pass_criteria: Errors printed; process exits non-zero; no files created in error cases
+    covers:
+      - feature: feature5
+        ac: AC6
+      - task: task29
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_negative_cases
+
+  - id: test48
+    title: kinnoo pack integration tests cover manual extraction and run workflow
+    type: integration
+    preconditions: kinnoo CLI installed, archive produced by kinnoo pack
+    steps:
+      - step1: Manually extract .kno archive using tar/gzip command-line tool
+      - step2: Run kinnoo run on extracted agent directory
+    expected: Agent runs successfully after manual extraction
+    pass_criteria: Manual extraction completes; kinnoo run executes entrypoint and prints output
+    covers:
+      - feature: feature5
+        ac: AC7
+      - task: task29
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_integration_workflow
+
+  - id: test49
+    title: kinnoo pack run from inside agent directory prints error and aborts
+    type: unit
+    preconditions: kinnoo CLI installed, agent directory present
+    steps:
+      - step1: cd into agent directory
+      - step2: Run kinnoo pack .
+    expected: "Prints error: 'Do not run kinnoo pack from inside the agent directory. Please navigate outside and run: kinnoo pack <agent-dir>' and aborts"
+    pass_criteria: Output contains specific error message; process exits non-zero; no archive created
+    covers:
+      - feature: feature5
+        ac: AC8
+      - task: task23
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_inside_agent_dir_prints_error
+
+  - id: test50
+    title: Manual extraction of .kno archive verifies required files
+    type: unit
+    preconditions: kinnoo pack produces .kno archive; tar/gzip extraction tool available
+    steps:
+      - step1: Extract .kno archive using tar/gzip command-line tool
+      - step2: Check agent-dir for requirements.txt, run.py, kinnoo.yaml, and any files listed in manifest
+      - step3: If any are missing, throw error
+    expected: All required files are present after extraction
+    pass_criteria: requirements.txt, run.py, kinnoo.yaml, and manifest-listed files exist in agent-dir
+    covers:
+      - feature: feature5
+        ac: AC1
+      - feature: feature5
+        ac: AC2
+      - feature: feature5
+        ac: AC4
+      - task: task28
+    automated: true
+    automation_path: tests/test_pack.py::test_manual_extraction_verifies_files
+
+  - id: test51
+    title: kinnoo install prints usage when argument missing
+    type: unit
+    preconditions: kinnoo CLI installed
+    steps:
+      - step1: Run kinnoo install with no arguments
+    expected: Prints usage message and exits non-zero
+    pass_criteria: Output contains usage message; exit code non-zero
+    automated: true
+    automation_path: tests/test_install.py::test_install_missing_argument_prints_usage
+    covers:
+      - feature: feature6
+        ac: AC5
+      - task: task29
+
+  - id: test52
+    title: kinnoo install extracts archive to new directory with collision handling
+    type: integration
+    preconditions: kinnoo CLI installed, .kno archive present
+    steps:
+      - step1: Run kinnoo install <archive.kno>
+      - step2: If <archive>/ exists, verify <archive>_1/ is created
+    expected: Archive is extracted to new directory; collisions handled with suffixes
+    pass_criteria: Directory created; files extracted; collisions handled
+    automated: true
+    automation_path: tests/test_install.py::test_install_extracts_with_collision_handling
+    covers:
+      - feature: feature6
+        ac: AC1
+      - task: task30
+
+  - id: test53
+    title: kinnoo install validates manifest before installation
+    type: unit
+    preconditions: kinnoo CLI installed, .kno archive with invalid kinnoo.yaml
+    steps:
+      - step1: Run kinnoo install on archive with invalid manifest
+    expected: Prints validation errors and aborts installation
+    pass_criteria: Output contains error messages; process exits non-zero
+    automated: true
+    automation_path: tests/test_install.py::test_install_invalid_manifest_aborts
+    covers:
+      - feature: feature6
+        ac: AC2
+      - task: task31
+
+  - id: test54
+    title: kinnoo install creates venv and installs dependencies from wheels
+    type: integration
+    preconditions: kinnoo CLI installed, .kno archive with wheel files
+    steps:
+      - step1: Run kinnoo install <archive.kno>
+      - step2: Verify .venv/ is created and dependencies installed
+    expected: .venv/ exists; dependencies importable
+    pass_criteria: .venv/ created; dependencies installed; no errors
+    automated: true
+    automation_path: tests/test_install.py::test_install_creates_venv_and_installs_deps
+    covers:
+      - feature: feature6
+        ac: AC3
+      - task: task32
+
+  - id: test55
+    title: kinnoo install makes agent runnable with kinnoo run
+    type: integration
+    preconditions: kinnoo CLI installed, agent installed from .kno archive
+    steps:
+      - step1: Run kinnoo install <archive.kno>
+      - step2: Run kinnoo run <agent-dir> "test input"
+    expected: Agent runs successfully and prints output
+    pass_criteria: kinnoo run executes entrypoint; output is printed
+    automated: true
+    automation_path: tests/test_install.py::test_install_agent_runnable
+    covers:
+      - feature: feature6
+        ac: AC4
+      - task: task33
+
+  - id: test56
+    title: kinnoo install handles invalid archive or missing files gracefully
+    type: unit
+    preconditions: kinnoo CLI installed, invalid .kno archive or missing files
+    steps:
+      - step1: Run kinnoo install on invalid archive or archive missing required files
+    expected: Prints descriptive error and aborts installation
+    pass_criteria: Output contains error message; process exits non-zero; no files created
+    automated: true
+    automation_path: tests/test_install.py::test_install_invalid_archive_or_missing_files
+    covers:
+      - feature: feature6
+        ac: AC6
+      - task: task34
+
+  - id: test57
+    title: kinnoo install prevents overwrites unless --force flag is provided
+    type: paused
+    preconditions: kinnoo CLI installed, target directory exists
+    steps:
+      - step1: Run kinnoo install <archive.kno> when target directory exists
+      - step2: Run kinnoo install <archive.kno> --force
+    expected: Without --force, prints error and aborts; with --force, overwrites directory
+    pass_criteria: Error message shown; directory not overwritten unless --force is used
+    automated: true
+    automation_path: tests/test_install.py::test_install_prevents_overwrite_unless_force
+    covers:
+      - feature: feature6
+        ac: AC7
+      - task: task35
+
+  - id: test58
+    title: kinnoo install extracts archive to user-specified directory
+    type: integration
+    preconditions: kinnoo CLI installed, .kno archive present
+    steps:
+      - step1: Run kinnoo install <archive.kno> myagent_dir
+      - step2: Verify archive is extracted to myagent_dir
+      - step3: Run kinnoo install <archive.kno> myagent_dir when directory exists (without --force)
+      - step4: Run kinnoo install <archive.kno> myagent_dir --force
+    expected: Archive is extracted to specified directory; error if directory exists unless --force is used; with --force, directory is overwritten.
+    pass_criteria: Directory created as specified; error and overwrite behavior matches requirements.
+    automated: true
+    automation_path: tests/test_install.py::test_install_extracts_to_user_specified_directory
+    covers:
+      - feature: feature6
+        ac: AC1
+      - task: task36
+
+  - id: test59
+    title: Manifest loader injects defaults for missing dependencies, inputs, outputs
+    type: unit
+    preconditions: kinnoo.yaml missing dependencies, inputs, or outputs fields
+    steps:
+      - Load kinnoo.yaml with missing fields
+      - Call manifest loader
+      - Check that manifest contains dependencies: [], inputs: {type: string}, outputs: {type: string}
+    expected: Manifest dict has injected defaults
+    pass_criteria: All missing fields are filled with defaults
+    automated: true
+    automation_path: tests/test_validator.py
+    covers:
+      - feature: feature6
+        ac: AC8
+      - task: task37
+  
+  - id: test60
+    title: Manifest loader normalizes "type" field to list
+    type: unit
+    preconditions: kinnoo.yaml inputs/outputs type field is string, flow-style list, or block-style list
+    steps:
+      - Load kinnoo.yaml with type: string
+      - Load kinnoo.yaml with type: [string, file, json]
+      - Load kinnoo.yaml with block-style type list
+      - Call manifest loader
+      - Check that manifest inputs/outputs type is always a list
+    expected: Manifest dict has inputs/outputs type as list
+    pass_criteria: All variations normalized to list
+    automated: true
+    automation_path: tests/test_validator.py
+      - feature: feature6
+        ac: AC8
+      - task: task38    
