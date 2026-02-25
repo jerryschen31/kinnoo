@@ -159,3 +159,86 @@ SWE agent implementation complete for task29.
 - Provide clear, actionable error messages for users.
 
 ---
+
+---
+### Why dependencies are installed from wheels instead of requirements.txt
+
+Installing dependencies from wheels (.whl files) instead of requirements.txt provides several key advantages for agent packaging and deployment:
+
+1. **Reproducibility:** Wheels are pre-built binaries, ensuring exact versions and builds are installed. This avoids surprises from source builds or dependency resolution changes that can occur with requirements.txt.
+2. **Offline/air-gapped installs:** All wheels can be bundled in the .kno archive, so installation does not require internet access. requirements.txt would require pip to fetch/build packages, which may fail if offline or if dependencies change upstream.
+3. **Speed:** Installing from wheels is much faster than building from source, especially for packages with C extensions.
+4. **Atomicity:** Shipping all wheels guarantees all dependencies are present and compatible, reducing the risk of partial or failed installs due to missing/incompatible packages.
+
+**Summary:** Wheels provide a portable, reliable, and fast way to install dependencies, which is critical for agent deployment and reproducibility. This is a best practice for distributing Python applications or agents that need to work reliably across environments.
+
+## Task32 Implementation Summary (2026-02-25)
+
+### Overview
+- Implemented venv creation and wheel installation in kinnoo install (task32).
+- After manifest validation, creates a Python venv in the agent directory.
+- Installs all .whl files from wheels/ directory into the venv using pip.
+- Prints clear errors and performs atomic cleanup on failure.
+
+### Test Coverage
+- Added test54 (tests/test_cli_install_wheels.py):
+	- Creates a .kno archive with a valid manifest and a dummy wheel file.
+	- Runs kinnoo install and verifies venv creation, wheel install attempt, and cleanup on failure.
+
+### Test Results
+- Test54 passed:
+	- venv is created and wheel install is attempted.
+	- Directory is cleaned up on install failure (atomic install).
+
+### Best Practices & Teaching Notes
+- Always install dependencies from wheels for reproducibility and offline support.
+- Perform atomic installs: clean up on any failure to avoid partial state.
+- Provide clear, actionable error messages for users.
+
+---
+## Task31 Implementation Summary (2026-02-25)
+
+### Overview
+- Implemented manifest validation after extraction in kinnoo install (task31).
+- Uses the existing validator to check kinnoo.yaml in the extracted directory.
+- If the manifest is invalid, prints errors, cleans up the extracted directory, and aborts installation.
+
+### Test Coverage
+- Added test53 (tests/test_cli_install_manifest.py):
+	- Creates a .kno archive with an invalid manifest.
+	- Runs kinnoo install and verifies that validation errors are printed and the directory is cleaned up.
+
+### Test Results
+- Test53 passed:
+	- Validation errors are printed for invalid manifest (e.g., missing entrypoint).
+	- Extracted directory is removed on failure.
+
+### Best Practices & Teaching Notes
+- Always clean up after a failed install to avoid leaving partial state.
+- Use modular validation logic for maintainability and testability.
+- Provide clear, actionable error messages for users.
+
+---
+
+## Task33 Implementation Summary (2026-02-25)
+
+### Overview
+- Implemented and tested that an agent installed with kinnoo install is immediately runnable with kinnoo run (task33, test55).
+- Ensured .kno archive structure matches extraction logic: kinnoo.yaml and run.py must be at the root of the archive.
+- Test creates a minimal agent, packages it, installs it, and runs it with kinnoo run, verifying expected output.
+
+### Test Coverage
+- Added tests/test_cli_install_runnable.py for test55:
+	- Builds a .kno archive with kinnoo.yaml and run.py at the root.
+	- Installs the agent using kinnoo install.
+	- Runs the agent using kinnoo run and checks for correct output.
+
+### Test Results
+- Test55 passed:
+	- kinnoo install extracts the agent and validates the manifest.
+	- kinnoo run executes the entrypoint and prints the expected output.
+
+### Lessons & Best Practices
+- Archive structure must match extraction logic: files at the root, not nested.
+- Always verify install/run workflows with integration tests.
+- Clear error messages and atomic install logic are critical for reliability.
