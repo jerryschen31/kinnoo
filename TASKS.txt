@@ -586,7 +586,7 @@ tasks:
         Print usage: 'Usage: kinnoo install <archive.kno>' if no argument is given.
     dependencies: []
     tests: [test51]
-    status: not-started
+    status: completed
 
   - id: task30
     title: Extract .kno archive to new directory with collision handling
