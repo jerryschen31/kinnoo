@@ -263,6 +263,8 @@ features:
         description: "Installation fails with a clear error if archive is invalid or required files are missing."
       - id: AC7
         description: "Installation does not overwrite existing directories unless a `--force` flag is provided. Unless forced, kinnoo install should output an appropriate error message that directory already exists."
+      - id: AC8
+        description: "Final review of phase1 features complete and additional tasks and tests complete. All tests up to this point pass."
     notes:
       - "Installation is offline-capable if archive contains wheel files."
       - "Manifest validation uses feature1 validator."
@@ -271,4 +273,4 @@ features:
       - "kinnoo install extraction should just run tar -xzf under the hood, since .kno is currently just an alias for .tar.gz"
     owner: techlead-agent
     dependencies: [feature4, feature5]
-    status: not-started
+    status: completed

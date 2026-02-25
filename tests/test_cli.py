@@ -43,7 +43,7 @@ import sys\nprint('Hello from run.py')\n""")
         (agent_dir / "prompts").mkdir()
 
         # 2. Run kinnoo run on that directory
-        result = subprocess.run([sys.executable, "-m", "kinnoo.cli", "run", str(agent_dir)], capture_output=True, text=True)
+        result = subprocess.run([sys.executable, "-m", "kinnoo.cli", "run", str(agent_dir), "test input"], capture_output=True, text=True)
         assert result.returncode == 0, f"kinnoo run failed: {result.stderr}"
 
         # 3. Verify requests is importable in the venv
@@ -127,7 +127,7 @@ outputs:
 
     # Run kinnoo run and capture output
     result = subprocess.run(
-        [sys.executable, "-m", "kinnoo.cli", "run", str(agent_dir)],
+        [sys.executable, "-m", "kinnoo.cli", "run", str(agent_dir), "test input"],
         capture_output=True, text=True
     )
     # Both outputs should appear in either stdout or stderr
@@ -167,7 +167,7 @@ outputs:
 
     # Run kinnoo run and check exit code
     result = subprocess.run(
-        [sys.executable, "-m", "kinnoo.cli", "run", str(agent_dir)],
+        [sys.executable, "-m", "kinnoo.cli", "run", str(agent_dir), "test input"],
         capture_output=True, text=True
     )
     assert result.returncode == 42, f"Expected exit code 42, got {result.returncode}"

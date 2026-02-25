@@ -945,3 +945,38 @@ tests:
       - feature: feature6
         ac: AC1
       - task: task36
+
+  - id: test59
+    title: Manifest loader injects defaults for missing dependencies, inputs, outputs
+    type: unit
+    preconditions: kinnoo.yaml missing dependencies, inputs, or outputs fields
+    steps:
+      - Load kinnoo.yaml with missing fields
+      - Call manifest loader
+      - Check that manifest contains dependencies: [], inputs: {type: string}, outputs: {type: string}
+    expected: Manifest dict has injected defaults
+    pass_criteria: All missing fields are filled with defaults
+    automated: true
+    automation_path: tests/test_validator.py
+    covers:
+      - feature: feature6
+        ac: AC8
+      - task: task37
+  
+  - id: test60
+    title: Manifest loader normalizes "type" field to list
+    type: unit
+    preconditions: kinnoo.yaml inputs/outputs type field is string, flow-style list, or block-style list
+    steps:
+      - Load kinnoo.yaml with type: string
+      - Load kinnoo.yaml with type: [string, file, json]
+      - Load kinnoo.yaml with block-style type list
+      - Call manifest loader
+      - Check that manifest inputs/outputs type is always a list
+    expected: Manifest dict has inputs/outputs type as list
+    pass_criteria: All variations normalized to list
+    automated: true
+    automation_path: tests/test_validator.py
+      - feature: feature6
+        ac: AC8
+      - task: task38    

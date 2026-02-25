@@ -1,10 +1,38 @@
+from __future__ import annotations
+# ---------------------------------------------------------------------------
+# Manifest normalization: inject defaults for missing fields
+# ---------------------------------------------------------------------------
+def normalize_manifest_defaults(manifest: dict) -> dict:
+    """Inject defaults for dependencies, inputs, outputs if missing."""
+    m = dict(manifest)  # shallow copy
+    if "dependencies" not in m:
+        m["dependencies"] = []
+    if "inputs" not in m:
+        m["inputs"] = {"type": "string"}
+    elif "type" not in m["inputs"]:
+        m["inputs"]["type"] = "string"
+    if "outputs" not in m:
+        m["outputs"] = {"type": "string"}
+    elif "type" not in m["outputs"]:
+        m["outputs"]["type"] = "string"
+    return m
+
+# ---------------------------------------------------------------------------
+# Normalize 'type' field in inputs/outputs to always be a list
+# ---------------------------------------------------------------------------
+def normalize_type_field(io_dict: dict) -> None:
+    """Normalize the 'type' field in an IO dict to always be a list."""
+    t = io_dict.get('type')
+    if isinstance(t, str):
+        io_dict['type'] = [t]
+    elif isinstance(t, list):
+        io_dict['type'] = t
+    # else: leave as-is (should not happen if defaults are injected)
 """Schema constants for kinnoo.yaml manifest validation.
 
 Required fields and their expected Python types.  Nested fields use dot
 notation (e.g., ``runtime.language``).
 """
-
-from __future__ import annotations
 
 # Fields that MUST be present in every kinnoo.yaml manifest.
 # Dot-separated paths represent nested dicts (e.g. "runtime.language"
@@ -31,8 +59,8 @@ FIELD_TYPES: dict[str, type] = {
     "runtime.version": str,
     "runtime.type": str,
     "dependencies": list,
-    "inputs.type": str,
-    "outputs.type": str,
+    "inputs.type": list,
+    "outputs.type": list,
 }
 
 # The only supported runtime type in this version of kinnoo.
