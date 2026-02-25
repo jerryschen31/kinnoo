@@ -620,7 +620,7 @@ tasks:
       - Install dependencies from wheel files using pip.
     dependencies: [task31]
     tests: [test54]
-    status: not-started
+    status: completed
 
   - id: task33
     title: Ensure agent is runnable with kinnoo run after install
@@ -631,7 +631,7 @@ tasks:
       - Check for successful execution and output.
     dependencies: [task32]
     tests: [test55]
-    status: not-started
+    status: completed
 
   - id: task34
     title: Error handling for invalid archive or missing files
@@ -642,7 +642,7 @@ tasks:
       - Print descriptive error and abort install.
     dependencies: [task29]
     tests: [test56]
-    status: not-started
+    status: completed
 
   - id: task35
     title: Prevent overwrites unless --force flag is provided
@@ -653,4 +653,4 @@ tasks:
       - Abort and print error unless --force flag is present.
     dependencies: [task30]
     tests: [test57]
-    status: not-started    
+    status: paused
