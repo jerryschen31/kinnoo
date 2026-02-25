@@ -927,3 +927,21 @@ tests:
       - feature: feature6
         ac: AC7
       - task: task35
+
+  - id: test58
+    title: kinnoo install extracts archive to user-specified directory
+    type: integration
+    preconditions: kinnoo CLI installed, .kno archive present
+    steps:
+      - step1: Run kinnoo install <archive.kno> myagent_dir
+      - step2: Verify archive is extracted to myagent_dir
+      - step3: Run kinnoo install <archive.kno> myagent_dir when directory exists (without --force)
+      - step4: Run kinnoo install <archive.kno> myagent_dir --force
+    expected: Archive is extracted to specified directory; error if directory exists unless --force is used; with --force, directory is overwritten.
+    pass_criteria: Directory created as specified; error and overwrite behavior matches requirements.
+    automated: true
+    automation_path: tests/test_install.py::test_install_extracts_to_user_specified_directory
+    covers:
+      - feature: feature6
+        ac: AC1
+      - task: task36
