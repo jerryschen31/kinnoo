@@ -298,3 +298,85 @@ Installing dependencies from wheels (.whl files) instead of requirements.txt pro
 
 ---
 Task36 and test58 are fully implemented and verified. CLI install is robust and user-friendly.
+
+---
+Feature6 Review — kinnoo install
+
+Here’s a review of all tasks and tests for feature6 (“kinnoo install — Agent installation from archive”) for completeness, gaps, inconsistencies, and improvements:
+
+---
+
+## Tasks for feature6 (TASKS.txt)
+
+- **task29:** CLI argument parsing and usage error for kinnoo install
+- **task30:** Extract .kno archive to new directory with collision handling
+- **task31:** Validate manifest before installation
+- **task32:** Create Python venv and install dependencies from wheels
+- **task33:** Ensure agent is runnable with kinnoo run after install
+- **task34:** Error handling for invalid archive or missing files
+- **task35:** Prevent overwrites unless --force flag is provided
+- **task36:** Allow user-specified extraction directory for kinnoo install
+
+**Coverage:**  
+- All major steps of the install workflow are covered: argument parsing, extraction, validation, environment setup, dependency install, runnability, error handling, overwrite protection, and user-specified directory.
+
+---
+
+## Tests for feature6 (TESTS.txt)
+
+- **test51:** Usage error for missing archive argument
+- **test52:** Extraction to new directory with collision handling
+- **test53:** Manifest validation before installation
+- **test54:** venv creation and wheel install
+- **test55:** Agent is runnable after install
+- **test56:** Error handling for invalid archive or missing files
+- **test57:** Prevent overwrites unless --force flag is provided
+- **test58:** Extraction to user-specified directory
+
+**Coverage:**  
+- Each task has a corresponding test, covering both positive and negative cases, including edge cases (missing args, collisions, invalid manifest, missing files, overwrite, custom directory).
+
+---
+
+## Completeness
+
+- **All acceptance criteria from FEATURES.txt are covered** by tasks and tests.
+- **Edge cases** (missing arguments, directory collisions, invalid manifest, missing files, overwrite protection, custom directory) are explicitly tested.
+- **Atomicity and cleanup** are handled (failed installs clean up partial state).
+- **Offline reproducibility** (installing from wheels) is covered and explained.
+
+---
+
+## Gaps & Improvements
+
+- **Traceability:** Some tests may lack explicit feature/task linkage in the covers field. For full traceability, ensure each test’s covers field references both feature6 and the relevant task.
+- **Acceptance Criteria:** If you want granular coverage, add ac: ACx to covers for each test, mapping to the specific acceptance criterion.
+- **Documentation:** Ensure README and CLI help are updated to reflect new features (user-specified directory, --force flag).
+- **Integration:** Consider an end-to-end test that covers the full install workflow, from archive to runnable agent, including all error paths.
+- **Error Messages:** Review all error messages for clarity and user guidance.
+- **Cleanup:** Confirm that cleanup logic is robust for all failure modes (invalid manifest, wheel install failure, etc.).
+
+---
+
+## Inconsistencies
+
+- **Validator warnings:** “covers unknown feature None” indicates missing or incorrect covers fields in TESTS.txt. Fix by referencing feature6 and task IDs.
+- **Task status:** Ensure all tasks are marked as completed or needs-review as appropriate.
+
+---
+
+## Recommendations
+
+- Add or update covers fields in TESTS.txt for full traceability.
+- Add/expand documentation for new CLI options and behaviors.
+- Review and polish error handling and user feedback.
+- Consider adding a comprehensive integration test for the full install workflow.
+
+---
+
+**Summary:**  
+Feature6 implementation is robust and covers all critical paths. Minor improvements in traceability, documentation, and integration testing will further strengthen the feature. Let me know if you want help automating any of these improvements!
+
+---
+
+feature6 reviewed by TechLead Agent
