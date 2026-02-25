@@ -35,6 +35,10 @@ def main():
     run_parser.add_argument("agent_dir", nargs="?", help="Path to agent directory")
     run_parser.add_argument("input", nargs="?", help="Input string to pass to the agent entrypoint")
 
+    # Add 'install' subcommand
+    install_parser = subparsers.add_parser("install", help="Install a kinnoo agent archive (.kno)")
+    install_parser.add_argument("archive_path", nargs="?", help="Path to .kno archive to install")
+
     # Add 'pack' subcommand
     pack_parser = subparsers.add_parser("pack", help="Package an agent directory into a .kno archive")
     pack_parser.add_argument("agent_dir", nargs="?", help="Path to agent directory to package")
@@ -161,6 +165,15 @@ def main():
         )
         process.communicate()
         sys.exit(process.returncode)
+
+    elif args.command == "install":
+        # Task29: Argument parsing and usage error for kinnoo install
+        # The install subcommand expects a .kno archive path as argument
+        archive_path = getattr(args, "archive_path", None)
+        if archive_path is None:
+            print("Usage: kinnoo install <archive-path>", file=sys.stderr)
+            sys.exit(1)
+        # ...next tasks will implement extraction, validation, etc...
 
     elif args.command == "pack":
         agent_dir = args.agent_dir
