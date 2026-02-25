@@ -202,6 +202,38 @@ def main():
 
         print(f"[kinnoo install] Extracted '{archive_path.name}' to '{target_dir}'")
 
+        # --- Task31: Validate manifest before installation ---
+        kinnoo_yaml_path = target_dir / "kinnoo.yaml"
+        if not kinnoo_yaml_path.exists():
+            print(f"Error: kinnoo.yaml not found in extracted directory '{target_dir}'. Aborting install.", file=sys.stderr)
+            # Clean up extracted directory
+            import shutil
+            shutil.rmtree(target_dir, ignore_errors=True)
+            sys.exit(1)
+        try:
+            from kinnoo.validator import validate
+        except ImportError:
+            from .validator import validate
+        try:
+            is_valid, errors = validate(str(kinnoo_yaml_path))
+        except Exception as e:
+            print(f"Error: Failed to validate kinnoo.yaml: {e}", file=sys.stderr)
+            import traceback
+            traceback.print_exc()
+            # Clean up extracted directory
+            import shutil
+            shutil.rmtree(target_dir, ignore_errors=True)
+            sys.exit(1)
+        if not is_valid:
+            print("Manifest validation failed:", file=sys.stderr)
+            for err in errors:
+                print(f"  - {err}", file=sys.stderr)
+            # Clean up extracted directory
+            import shutil
+            shutil.rmtree(target_dir, ignore_errors=True)
+            sys.exit(1)
+        print(f"[kinnoo install] Manifest validated successfully.")
+
     elif args.command == "pack":
         agent_dir = args.agent_dir
         if agent_dir is None:
