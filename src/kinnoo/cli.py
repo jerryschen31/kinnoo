@@ -38,6 +38,7 @@ def main():
     # Add 'install' subcommand
     install_parser = subparsers.add_parser("install", help="Install a kinnoo agent archive (.kno)")
     install_parser.add_argument("archive_path", nargs="?", help="Path to .kno archive to install")
+    install_parser.add_argument("target_dir", nargs="?", help="(Optional) Directory to extract agent to")
 
     # Add 'pack' subcommand
     pack_parser = subparsers.add_parser("pack", help="Package an agent directory into a .kno archive")
@@ -170,8 +171,9 @@ def main():
         # Task29: Argument parsing and usage error for kinnoo install
         # The install subcommand expects a .kno archive path as argument
         archive_path = getattr(args, "archive_path", None)
+        target_dir_arg = getattr(args, "target_dir", None)
         if archive_path is None:
-            print("Usage: kinnoo install <archive-path>", file=sys.stderr)
+            print("Usage: kinnoo install <archive-path> [target-dir]", file=sys.stderr)
             sys.exit(1)
         # --- Task30: Extract .kno archive to new directory with collision handling ---
         import zipfile
@@ -183,11 +185,35 @@ def main():
             print(f"Error: Archive '{archive_path}' is not a .kno file.", file=sys.stderr)
             sys.exit(1)
 
-        # Target directory is archive name without .kno extension
-        target_dir = archive_path.with_suffix("")
-        if target_dir.exists():
+        # Determine target directory
+        if target_dir_arg:
+            target_dir = Path(target_dir_arg).resolve()
+        else:
+            target_dir = archive_path.with_suffix("")
+
+        # Validate target directory name (basic check: must not be empty or root)
+        if not str(target_dir) or str(target_dir) in ["/", "", "."]:
+            print(f"Error: Invalid target directory '{target_dir}'.", file=sys.stderr)
+            sys.exit(1)
+
+        # Handle collision unless --force is used
+        force = False
+        if hasattr(args, "force"):
+            force = args.force
+        # Check for --force in sys.argv (argparse doesn't handle optional flags after positional args well)
+        if "--force" in sys.argv:
+            force = True
+
+        if target_dir.exists() and not force:
             print(f"Error: Target directory '{target_dir}' already exists. Aborting to prevent overwrite.", file=sys.stderr)
             sys.exit(1)
+        elif target_dir.exists() and force:
+            import shutil
+            try:
+                shutil.rmtree(target_dir)
+            except Exception as e:
+                print(f"Error: Failed to remove existing directory '{target_dir}': {e}", file=sys.stderr)
+                sys.exit(1)
 
         # Extract archive
         try:
