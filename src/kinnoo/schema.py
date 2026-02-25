@@ -16,6 +16,18 @@ def normalize_manifest_defaults(manifest: dict) -> dict:
     elif "type" not in m["outputs"]:
         m["outputs"]["type"] = "string"
     return m
+
+# ---------------------------------------------------------------------------
+# Normalize 'type' field in inputs/outputs to always be a list
+# ---------------------------------------------------------------------------
+def normalize_type_field(io_dict: dict) -> None:
+    """Normalize the 'type' field in an IO dict to always be a list."""
+    t = io_dict.get('type')
+    if isinstance(t, str):
+        io_dict['type'] = [t]
+    elif isinstance(t, list):
+        io_dict['type'] = t
+    # else: leave as-is (should not happen if defaults are injected)
 """Schema constants for kinnoo.yaml manifest validation.
 
 Required fields and their expected Python types.  Nested fields use dot
@@ -47,8 +59,8 @@ FIELD_TYPES: dict[str, type] = {
     "runtime.version": str,
     "runtime.type": str,
     "dependencies": list,
-    "inputs.type": str,
-    "outputs.type": str,
+    "inputs.type": list,
+    "outputs.type": list,
 }
 
 # The only supported runtime type in this version of kinnoo.

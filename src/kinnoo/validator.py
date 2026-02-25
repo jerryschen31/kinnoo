@@ -33,11 +33,20 @@ from .schema import (
     SUPPORTED_RUNTIME_TYPES,
 )
 
-from .schema import normalize_manifest_defaults
+from .schema import normalize_manifest_defaults, normalize_type_field
 
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+def _normalize_types(manifest: dict) -> dict:
+    """Normalize 'type' fields in inputs/outputs to always be lists."""
+    m = dict(manifest)
+    if 'inputs' in m and isinstance(m['inputs'], dict):
+        normalize_type_field(m['inputs'])
+    if 'outputs' in m and isinstance(m['outputs'], dict):
+        normalize_type_field(m['outputs'])
+    return m
 
 def _get_nested(data: dict[str, Any], dotted_key: str) -> tuple[bool, Any]:
     """Retrieve a value from a nested dict using a dot-separated key path.
@@ -93,8 +102,11 @@ def validate(manifest_path: str) -> tuple[bool, list[str]]:
         errors.append("Manifest must be a YAML mapping (dict) at the top level.")
         return False, errors
 
+
     # Inject defaults for dependencies, inputs, outputs if missing
     data = normalize_manifest_defaults(data)
+    # Normalize type fields in inputs/outputs to always be lists
+    data = _normalize_types(data)
 
     # ------------------------------------------------------------------
     # 2. Required fields — presence check

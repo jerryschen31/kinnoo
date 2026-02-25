@@ -958,7 +958,11 @@ tests:
     pass_criteria: All missing fields are filled with defaults
     automated: true
     automation_path: tests/test_validator.py
-
+    covers:
+      - feature: feature6
+        ac: AC8
+      - task: task37
+  
   - id: test60
     title: Manifest loader normalizes "type" field to list
     type: unit
@@ -973,3 +977,6 @@ tests:
     pass_criteria: All variations normalized to list
     automated: true
     automation_path: tests/test_validator.py
+      - feature: feature6
+        ac: AC8
+      - task: task38    

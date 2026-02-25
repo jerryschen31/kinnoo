@@ -13,7 +13,7 @@ def agent_dir(tmp_path):
     # Create a minimal valid agent directory for testing
     d = tmp_path / "myagent"
     d.mkdir()
-    (d / "kinnoo.yaml").write_text("name: myagent\nversion: 0.1.0\nentrypoint: run.py\nruntime:\n  language: python\n  version: '>=3.10'\n  type: one-shot\ndependencies: []\ninputs:\n  type: text\noutputs:\n  type: text\n")
+    (d / "kinnoo.yaml").write_text("name: myagent\nversion: 1.0.0\nentrypoint: run.py\nruntime:\n  language: python\n  version: '>=3.10'\n  type: one-shot\ndependencies: []\ninputs:\n  type: text\noutputs:\n  type: text\n")
     (d / "run.py").write_text("print('hello')\n")
     (d / "requirements.txt").write_text("")
     return d
@@ -38,7 +38,7 @@ def test_pack_invalid_manifest_aborts(tmp_path):
     # Missing 'entrypoint' field
     (d / "kinnoo.yaml").write_text("""
 name: badagent
-version: 0.1.0
+version: 1.0.0
 runtime:
   language: python
   version: '>=3.10'
@@ -63,7 +63,7 @@ def test_pack_missing_required_files_aborts(tmp_path):
     d.mkdir()
     (d / "kinnoo.yaml").write_text("""
 name: missingfile
-version: 0.1.0
+version: 1.0.0
 entrypoint: run.py
 runtime:
   language: python
@@ -87,7 +87,7 @@ def test_pack_includes_wheel_files(tmp_path):
     d.mkdir()
     (d / "kinnoo.yaml").write_text("""
 name: wheelagent
-version: 0.1.0
+version: 1.0.0
 entrypoint: run.py
 runtime:
   language: python
@@ -145,7 +145,7 @@ def test_pack_creates_correct_archive_structure(tmp_path):
     d.mkdir()
     (d / "kinnoo.yaml").write_text("""
 name: archiveagent
-version: 0.1.0
+version: 1.0.0
 entrypoint: run.py
 runtime:
   language: python
@@ -201,7 +201,7 @@ def test_manual_extraction_verifies_files(tmp_path):
     # Minimal valid manifest
     manifest = (
       "name: extractagent\n"
-      "version: 0.1.0\n"
+      "version: 1.0.0\n"
       "entrypoint: run.py\n"
       "runtime:\n"
       "  language: python\n"
@@ -265,7 +265,7 @@ def test_manual_extraction_verifies_files(tmp_path):
     # Minimal valid manifest
     manifest = (
         "name: extractagent\n"
-        "version: 0.1.0\n"
+        "version: 1.0.0\n"
         "entrypoint: run.py\n"
         "runtime:\n"
         "  language: python\n"

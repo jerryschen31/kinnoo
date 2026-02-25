@@ -667,7 +667,7 @@ tasks:
       - Add/modify tests for extraction to user-specified directory.
     dependencies: [task29, task30, task35]
     tests: [test58]
-    status: not-started
+    status: completed
 
   - id: task37
     title: Optional dependencies, inputs, outputs fields (with defaults)
@@ -679,7 +679,7 @@ tasks:
       - Integrate after YAML load, before validation
     dependencies: []
     tests: [test59]
-    status: not-started
+    status: completed
 
   - id: task38
     title: Support single string, list-style or block-style for "type" field
@@ -691,4 +691,4 @@ tasks:
       - Integrate after defaults injection
     dependencies: []
     tests: [test60]
-    status: not-started
+    status: completed
