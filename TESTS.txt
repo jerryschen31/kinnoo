@@ -818,3 +818,130 @@ tests:
       - task: task28
     automated: true
     automation_path: tests/test_pack.py::test_manual_extraction_verifies_files
+
+  - id: test51
+    title: kinnoo install prints usage when argument missing
+    type: unit
+    preconditions: kinnoo CLI installed
+    steps:
+      - step1: Run kinnoo install with no arguments
+    expected: Prints usage message and exits non-zero
+    pass_criteria: Output contains usage message; exit code non-zero
+    automated: true
+    automation_path: tests/test_install.py::test_install_missing_argument_prints_usage
+    covers:
+      - feature: feature6
+        ac: AC5
+      - task: task29
+
+  - id: test52
+    title: kinnoo install extracts archive to new directory with collision handling
+    type: integration
+    preconditions: kinnoo CLI installed, .kno archive present
+    steps:
+      - step1: Run kinnoo install <archive.kno>
+      - step2: If <archive>/ exists, verify <archive>_1/ is created
+    expected: Archive is extracted to new directory; collisions handled with suffixes
+    pass_criteria: Directory created; files extracted; collisions handled
+    automated: true
+    automation_path: tests/test_install.py::test_install_extracts_with_collision_handling
+    covers:
+      - feature: feature6
+        ac: AC1
+      - task: task30
+
+  - id: test53
+    title: kinnoo install validates manifest before installation
+    type: unit
+    preconditions: kinnoo CLI installed, .kno archive with invalid kinnoo.yaml
+    steps:
+      - step1: Run kinnoo install on archive with invalid manifest
+    expected: Prints validation errors and aborts installation
+    pass_criteria: Output contains error messages; process exits non-zero
+    automated: true
+    automation_path: tests/test_install.py::test_install_invalid_manifest_aborts
+    covers:
+      - feature: feature6
+        ac: AC2
+      - task: task31
+
+  - id: test54
+    title: kinnoo install creates venv and installs dependencies from wheels
+    type: integration
+    preconditions: kinnoo CLI installed, .kno archive with wheel files
+    steps:
+      - step1: Run kinnoo install <archive.kno>
+      - step2: Verify .venv/ is created and dependencies installed
+    expected: .venv/ exists; dependencies importable
+    pass_criteria: .venv/ created; dependencies installed; no errors
+    automated: true
+    automation_path: tests/test_install.py::test_install_creates_venv_and_installs_deps
+    covers:
+      - feature: feature6
+        ac: AC3
+      - task: task32
+
+  - id: test55
+    title: kinnoo install makes agent runnable with kinnoo run
+    type: integration
+    preconditions: kinnoo CLI installed, agent installed from .kno archive
+    steps:
+      - step1: Run kinnoo install <archive.kno>
+      - step2: Run kinnoo run <agent-dir> "test input"
+    expected: Agent runs successfully and prints output
+    pass_criteria: kinnoo run executes entrypoint; output is printed
+    automated: true
+    automation_path: tests/test_install.py::test_install_agent_runnable
+    covers:
+      - feature: feature6
+        ac: AC4
+      - task: task33
+
+  - id: test56
+    title: kinnoo install handles invalid archive or missing files gracefully
+    type: unit
+    preconditions: kinnoo CLI installed, invalid .kno archive or missing files
+    steps:
+      - step1: Run kinnoo install on invalid archive or archive missing required files
+    expected: Prints descriptive error and aborts installation
+    pass_criteria: Output contains error message; process exits non-zero; no files created
+    automated: true
+    automation_path: tests/test_install.py::test_install_invalid_archive_or_missing_files
+    covers:
+      - feature: feature6
+        ac: AC6
+      - task: task34
+
+  - id: test57
+    title: kinnoo install prevents overwrites unless --force flag is provided
+    type: paused
+    preconditions: kinnoo CLI installed, target directory exists
+    steps:
+      - step1: Run kinnoo install <archive.kno> when target directory exists
+      - step2: Run kinnoo install <archive.kno> --force
+    expected: Without --force, prints error and aborts; with --force, overwrites directory
+    pass_criteria: Error message shown; directory not overwritten unless --force is used
+    automated: true
+    automation_path: tests/test_install.py::test_install_prevents_overwrite_unless_force
+    covers:
+      - feature: feature6
+        ac: AC7
+      - task: task35
+
+  - id: test58
+    title: kinnoo install extracts archive to user-specified directory
+    type: integration
+    preconditions: kinnoo CLI installed, .kno archive present
+    steps:
+      - step1: Run kinnoo install <archive.kno> myagent_dir
+      - step2: Verify archive is extracted to myagent_dir
+      - step3: Run kinnoo install <archive.kno> myagent_dir when directory exists (without --force)
+      - step4: Run kinnoo install <archive.kno> myagent_dir --force
+    expected: Archive is extracted to specified directory; error if directory exists unless --force is used; with --force, directory is overwritten.
+    pass_criteria: Directory created as specified; error and overwrite behavior matches requirements.
+    automated: true
+    automation_path: tests/test_install.py::test_install_extracts_to_user_specified_directory
+    covers:
+      - feature: feature6
+        ac: AC1
+      - task: task36

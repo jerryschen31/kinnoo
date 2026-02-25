@@ -1,3 +1,14 @@
+
+---
+
+## V2 Fallback for Missing Wheels (2026-02-25)
+
+To improve robustness and developer experience in V2:
+
+1. If "kinnoo pack" cannot create or download a wheel for a dependency, it should issue a warning (not an error) and record the missing dependency somewhere—ideally as a "notes" field in kinnoo.yaml.
+2. If "kinnoo install" does not find a wheel for a dependency listed in requirements.txt, it should warn the user and attempt to install that dependency from requirements.txt (i.e., from source or PyPI), rather than failing outright.
+
+This fallback approach allows packaging and installation to proceed even if some dependencies cannot be built as wheels, while still alerting users to potential reproducibility or offline install issues.
 # Running notes for the Tech Lead Agent (techlead.agent.md)
 
 ## feature1 — Manifest schema and validation (COMPLETED)
