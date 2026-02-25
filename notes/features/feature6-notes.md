@@ -242,3 +242,27 @@ Installing dependencies from wheels (.whl files) instead of requirements.txt pro
 - Archive structure must match extraction logic: files at the root, not nested.
 - Always verify install/run workflows with integration tests.
 - Clear error messages and atomic install logic are critical for reliability.
+
+## Task34 Implementation Summary (2026-02-25)
+
+### Overview
+- Implemented robust error handling in kinnoo install for invalid .kno archives and missing required files (task34, test56).
+- Ensured that kinnoo install aborts with a clear error if the archive is not a valid zip or if kinnoo.yaml is missing after extraction.
+- The install command cleans up any partially created directories on failure.
+
+### Test Coverage
+- Added tests/test_cli_install_invalid.py for test56:
+	- Parametrized test covers both invalid zip archive and missing kinnoo.yaml scenarios.
+	- Verifies that kinnoo install fails with the correct error message and does not leave partial directories.
+
+### Test Results
+- Test56 passed:
+	- kinnoo install prints a clear error for invalid zip archives.
+	- kinnoo install prints a clear error for missing kinnoo.yaml and cleans up the directory.
+
+### Lessons & Best Practices
+- Always validate archive format before extraction.
+- Check for required files after extraction and abort with a clear message if missing.
+- Clean up any partial state on failure to avoid confusion or leftover files.
+
+---
