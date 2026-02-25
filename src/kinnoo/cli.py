@@ -2,10 +2,13 @@
 CLI entry point for kinnoo.
 Handles argument parsing and dispatches subcommands.
 """
+
 import argparse
 import sys
 import re
 from pathlib import Path
+import traceback
+import yaml
 
 try:
     from kinnoo.schema import NAME_PATTERN
@@ -14,6 +17,7 @@ except ImportError:
     from .schema import NAME_PATTERN
 
 def main():
+    import os
     parser = argparse.ArgumentParser(prog="kinnoo", description="Kinnoo CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -30,6 +34,10 @@ def main():
     run_parser = subparsers.add_parser("run", help="Run a kinnoo agent")
     run_parser.add_argument("agent_dir", nargs="?", help="Path to agent directory")
     run_parser.add_argument("input", nargs="?", help="Input string to pass to the agent entrypoint")
+
+    # Add 'pack' subcommand
+    pack_parser = subparsers.add_parser("pack", help="Package an agent directory into a .kno archive")
+    pack_parser.add_argument("agent_dir", nargs="?", help="Path to agent directory to package")
 
     # Pre-parse sys.argv for missing args to print custom usage before argparse error
     if len(sys.argv) > 1 and sys.argv[1] == "run":
@@ -55,17 +63,19 @@ def main():
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
 
+
     elif args.command == "run":
-        if not hasattr(args, "agent_dir") or args.agent_dir is None or args.input is None:
-            print("Usage: kinnoo run <agent-dir> '<input>'", file=sys.stderr)
-            sys.exit(1)
+        # ...existing run logic...
         agent_dir = Path(args.agent_dir).resolve()
         venv_dir = agent_dir / ".venv"
         requirements = agent_dir / "requirements.txt"
         kinnoo_yaml = agent_dir / "kinnoo.yaml"
         import subprocess
-        import yaml
 
+        if not hasattr(args, "agent_dir") or args.agent_dir is None or args.input is None:
+            print("Usage: kinnoo run <agent-dir> '<input>'", file=sys.stderr)
+            sys.exit(1)
+        
         # Ensure .venv exists (task8, assumed done)
         if not venv_dir.exists():
             import venv
@@ -78,7 +88,6 @@ def main():
                 print(f"Error: Failed to create .venv in {agent_dir}: {e}", file=sys.stderr)
                 sys.exit(1)
 
-        # Install requirements.txt packages into venv
         if requirements.exists() and requirements.read_text().strip():
             pip_exe = venv_dir / "bin" / "pip"
             if not pip_exe.exists():
@@ -86,8 +95,13 @@ def main():
             if not pip_exe.exists():
                 print(f"Error: pip not found in venv at {pip_exe}", file=sys.stderr)
                 sys.exit(1)
+            print("[kinnoo] installing requirements for running agent...")
             try:
-                result = subprocess.run([str(pip_exe), "install", "-r", str(requirements)], capture_output=True, text=True)
+                result = subprocess.run(
+                    [str(pip_exe), "install", "-r", str(requirements)],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
             except PermissionError as e:
                 print(f"Error: Permission denied while installing requirements in {agent_dir}: {e}", file=sys.stderr)
                 sys.exit(1)
@@ -95,10 +109,8 @@ def main():
                 print(f"Error: Failed to install requirements in {agent_dir}: {e}", file=sys.stderr)
                 sys.exit(1)
             if result.returncode != 0:
-                print(f"Error installing requirements:\n{result.stderr}", file=sys.stderr)
+                print("Error: Failed to install requirements for running agent. Please check your requirements.txt and try again.", file=sys.stderr)
                 sys.exit(result.returncode)
-            else:
-                print(result.stdout)
 
         # Validate kinnoo.yaml manifest (task7, assumed done)
         if not kinnoo_yaml.exists():
@@ -141,7 +153,6 @@ def main():
         # Prepare input argument
         input_arg = args.input if args.input is not None else ""
 
-        # Run entrypoint with input as sys.argv[1], streaming stdout and stderr
         process = subprocess.Popen(
             [str(python_exe), str(entrypoint_path), input_arg],
             cwd=agent_dir,
@@ -150,6 +161,89 @@ def main():
         )
         process.communicate()
         sys.exit(process.returncode)
+
+    elif args.command == "pack":
+        agent_dir = args.agent_dir
+        if agent_dir is None:
+            print("Usage: kinnoo pack <agent-dir>")
+            sys.exit(1)
+        abs_agent_dir = os.path.abspath(agent_dir)
+        cwd = os.path.abspath(os.getcwd())
+        if abs_agent_dir == cwd or os.path.samefile(abs_agent_dir, cwd):
+            print("Do not run kinnoo pack from inside the agent directory. Please navigate outside and run: kinnoo pack <agent-dir>")
+            sys.exit(1)
+        if not os.path.isdir(abs_agent_dir):
+            print(f"Error: Agent directory '{agent_dir}' does not exist.")
+            sys.exit(1)
+
+        # --- Task24: Manifest validation before packaging ---
+        kinnoo_yaml_path = os.path.join(abs_agent_dir, "kinnoo.yaml")
+        if not os.path.isfile(kinnoo_yaml_path):
+            print(f"Error: kinnoo.yaml not found in {agent_dir}", file=sys.stderr)
+            sys.exit(1)
+        try:
+            from kinnoo.validator import validate
+        except ImportError:
+            from .validator import validate
+        try:
+            is_valid, errors = validate(kinnoo_yaml_path)
+        except Exception as e:
+            print(f"Error: Failed to validate kinnoo.yaml: {e}", file=sys.stderr)
+            traceback.print_exc()
+            sys.exit(1)
+        if not is_valid:
+            print("Manifest validation failed:", file=sys.stderr)
+            for err in errors:
+                print(f"  - {err}", file=sys.stderr)
+            sys.exit(1)
+
+        # --- Task25: Gather required files for packaging ---
+        with open(kinnoo_yaml_path, "r") as f:
+            manifest = yaml.safe_load(f)
+        entrypoint = manifest.get("entrypoint")
+        if not entrypoint:
+            print("Error: 'entrypoint' not specified in kinnoo.yaml", file=sys.stderr)
+            sys.exit(1)
+        entrypoint_path = os.path.join(abs_agent_dir, entrypoint)
+        if not os.path.isfile(entrypoint_path):
+            print(f"Error: Entrypoint file '{entrypoint}' not found in {agent_dir}", file=sys.stderr)
+            sys.exit(1)
+        requirements_path = os.path.join(abs_agent_dir, "requirements.txt")
+        if not os.path.isfile(requirements_path):
+            print(f"Error: requirements.txt not found in {agent_dir}", file=sys.stderr)
+            sys.exit(1)
+        # kinnoo.yaml already checked above
+
+        print(f"[kinnoo pack] Packaging agent directory: {agent_dir}")
+
+        # --- Task26: Build wheel files for dependencies ---
+        from kinnoo.pack_command import build_wheels, WheelBuildError
+        import tempfile
+        import zipfile
+        wheels_dir = tempfile.TemporaryDirectory(prefix="kinnoo_wheels_")
+        try:
+            wheel_files = build_wheels(Path(requirements_path), Path(wheels_dir.name))
+        except WheelBuildError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            wheels_dir.cleanup()
+            sys.exit(1)
+
+        # --- Task27: Create .kno archive with all contents ---
+        archive_name = os.path.basename(abs_agent_dir.rstrip(os.sep)) + ".kno"
+        archive_path = os.path.join(os.path.dirname(abs_agent_dir), archive_name)
+        with zipfile.ZipFile(archive_path, "w", zipfile.ZIP_DEFLATED) as z:
+            # Add kinnoo.yaml
+            z.write(kinnoo_yaml_path, arcname="kinnoo.yaml")
+            # Add entrypoint
+            z.write(entrypoint_path, arcname=os.path.basename(entrypoint_path))
+            # Add requirements.txt
+            z.write(requirements_path, arcname="requirements.txt")
+            # Add wheel files
+            for wf in wheel_files:
+                z.write(wf, arcname=f"wheels/{os.path.basename(wf)}")
+        print(f"[kinnoo pack] Archive created: {archive_path}")
+        wheels_dir.cleanup()
+        return
 
 if __name__ == "__main__":
     main()

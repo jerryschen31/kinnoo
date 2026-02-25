@@ -19,9 +19,9 @@ def test_gemini_template_uses_genai_and_flash_lite(tmp_path):
 import pytest
 
 @pytest.mark.parametrize("framework,dep,envvar,run_example,model_hint,test_id", [
-    ("gemini", "google-generativeai", "GOOGLE_API_KEY", "Hello Gemini!", "gemini-pro", "test29"),
-    ("chatgpt", "openai", "OPENAI_API_KEY", "Hello ChatGPT!", "gpt-3.5-turbo", "test30"),
-    ("claude-chat", "anthropic", "ANTHROPIC_API_KEY", "Hello Claude!", "claude-3-opus-20240229", "test31"),
+    ("gemini", "google-genai", "GOOGLE_API_KEY", "Hello Gemini!", "gemini-2.5-flash-lite", "test29"),
+    ("chatgpt", "openai", "OPENAI_API_KEY", "Hello ChatGPT!", "gpt-5-nano", "test30"),
+    ("claude-chat", "anthropic", "ANTHROPIC_API_KEY", "Hello Claude!", "claude-sonnet-4-20250514", "test31"),
 ])
 def test_framework_templates_generate_correct_files(framework, dep, envvar, run_example, model_hint, test_id):
     import tempfile
