@@ -1,10 +1,26 @@
+from __future__ import annotations
+# ---------------------------------------------------------------------------
+# Manifest normalization: inject defaults for missing fields
+# ---------------------------------------------------------------------------
+def normalize_manifest_defaults(manifest: dict) -> dict:
+    """Inject defaults for dependencies, inputs, outputs if missing."""
+    m = dict(manifest)  # shallow copy
+    if "dependencies" not in m:
+        m["dependencies"] = []
+    if "inputs" not in m:
+        m["inputs"] = {"type": "string"}
+    elif "type" not in m["inputs"]:
+        m["inputs"]["type"] = "string"
+    if "outputs" not in m:
+        m["outputs"] = {"type": "string"}
+    elif "type" not in m["outputs"]:
+        m["outputs"]["type"] = "string"
+    return m
 """Schema constants for kinnoo.yaml manifest validation.
 
 Required fields and their expected Python types.  Nested fields use dot
 notation (e.g., ``runtime.language``).
 """
-
-from __future__ import annotations
 
 # Fields that MUST be present in every kinnoo.yaml manifest.
 # Dot-separated paths represent nested dicts (e.g. "runtime.language"
