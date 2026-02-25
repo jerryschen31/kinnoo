@@ -597,7 +597,7 @@ tasks:
       - If target directory exists, create <archive>_1, <archive>_2, etc.
     dependencies: [task29]
     tests: [test52]
-    status: not-started
+    status: completed
 
   - id: task31
     title: Validate manifest before installation
@@ -609,7 +609,7 @@ tasks:
       - Abort install and print error if manifest is invalid.
     dependencies: [task30]
     tests: [test53]
-    status: not-started
+    status: completed
 
   - id: task32
     title: Create Python venv and install dependencies from wheels
