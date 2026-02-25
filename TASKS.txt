@@ -528,7 +528,7 @@ tasks:
       - step2: Check existence of all required files; abort with error if any are missing
     dependencies: [task24]
     tests: [test42]
-    status: not-started
+    status: completed
 
   - id: task26
     title: Build wheel files for dependencies
@@ -544,7 +544,7 @@ tasks:
       - step4: Abort with error if any dependency cannot be built/downloaded
     dependencies: [task25]
     tests: [test43]
-    status: not-started
+    status: completed
 
   - id: task27
     title: Create .kno archive with all contents
@@ -559,7 +559,7 @@ tasks:
       - step3: Ensure archive is inspectable with standard tools
     dependencies: [task26]
     tests: [test44]
-    status: not-started
+    status: completed
 
   - id: task28
     title: Unit and integration tests for kinnoo pack
@@ -574,4 +574,83 @@ tasks:
       - step3: Test manual extraction of .kno archive (extract .tar.gz with command-line tool), confirm requirements.txt, run.py, kinnoo.yaml, and other expected files are present in agent-dir; throw error if any are missing
     dependencies: [task28]
     tests: [test46, test47, test48, test50]
+    status: completed
+  
+  - id: task29
+    title: CLI argument parsing and usage error for kinnoo install
+    description: Implement argument parsing for kinnoo install command. Print usage error if no archive argument is provided.
+    files: [src/kinnoo/cli.py]
+    steps:
+      - Parse CLI arguments for kinnoo install.
+      - |
+        Print usage: 'Usage: kinnoo install <archive.kno>' if no argument is given.
+    dependencies: []
+    tests: [test51]
     status: not-started
+
+  - id: task30
+    title: Extract .kno archive to new directory with collision handling
+    description: Extract the .kno archive to a new directory, handling name collisions by incrementing suffixes (_1, _2, etc.).
+    files: [src/kinnoo/install_command.py]
+    steps:
+      - Extract .kno archive using tar -xzf.
+      - If target directory exists, create <archive>_1, <archive>_2, etc.
+    dependencies: [task29]
+    tests: [test52]
+    status: not-started
+
+  - id: task31
+    title: Validate manifest before installation
+    description: Validate kinnoo.yaml manifest before proceeding with installation. Abort and print error if invalid.
+    files: [src/kinnoo/install_command.py, src/kinnoo/validator.py]
+    steps:
+      - Locate kinnoo.yaml in extracted directory.
+      - Run feature1 validator.
+      - Abort install and print error if manifest is invalid.
+    dependencies: [task30]
+    tests: [test53]
+    status: not-started
+
+  - id: task32
+    title: Create Python venv and install dependencies from wheels
+    description: Create Python virtual environment in agent directory and install dependencies from wheel files in archive.
+    files: [src/kinnoo/install_command.py]
+    steps:
+      - Create .venv in agent directory.
+      - Install dependencies from wheel files using pip.
+    dependencies: [task31]
+    tests: [test54]
+    status: not-started
+
+  - id: task33
+    title: Ensure agent is runnable with kinnoo run after install
+    description: Verify that the installed agent can be run immediately with kinnoo run and produces expected output.
+    files: [src/kinnoo/install_command.py]
+    steps:
+      - Run kinnoo run <agent-dir> "<input>" after install.
+      - Check for successful execution and output.
+    dependencies: [task32]
+    tests: [test55]
+    status: not-started
+
+  - id: task34
+    title: Error handling for invalid archive or missing files
+    description: Implement error handling for invalid .kno archive or missing required files. Print clear error messages.
+    files: [src/kinnoo/install_command.py]
+    steps:
+      - Detect invalid archive format or missing files.
+      - Print descriptive error and abort install.
+    dependencies: [task29]
+    tests: [test56]
+    status: not-started
+
+  - id: task35
+    title: Prevent overwrites unless --force flag is provided
+    description: Prevent overwriting existing directories unless --force flag is specified. Print error if directory exists and --force is not used.
+    files: [src/kinnoo/install_command.py]
+    steps:
+      - Check if target directory exists.
+      - Abort and print error unless --force flag is present.
+    dependencies: [task30]
+    tests: [test57]
+    status: not-started    
