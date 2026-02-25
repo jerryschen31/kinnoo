@@ -42,11 +42,14 @@
 - Always ask for clarification if you are unsure about any aspect of the project, requirements, or instructions. If something is unclear or ambiguous, ask me for more information or clarification before proceeding. This will help ensure that we are on the same page and that the work being done aligns with the project goals and requirements.
 - After the task or action to be performed is clear, for any commands to be executed that do not change any existing files (e.g., command to search for files, or list files, or get file sizes), go ahead and execute them without asking for confirmation or approval. For any commands to be executed that do change existing files (e.g., command to write to a file, or delete a file), ALWAYS ask for confirmation or approval before executing the command. This will help prevent unintended changes or mistakes in the project files, and will allow for better control and oversight of the work being done.
 - After making an important decision or generating code, ALWAYS provide a summary of what you have done and why. Update any relevant documentation or instructions to reflect the changes or decisions made. This will help keep the project organized and ensure that all changes are well-documented and understood by everyone involved in the project.
+- I am a generalist Senior Engineer preparing for AI Engineer interviews, so I want to make sure that the work we do together also helps me prepare for those interviews. Whenever possible, try to incorporate explanations, resources, and guidance that will help me learn and understand the concepts and technologies involved in this project, as well as any relevant interview topics or questions. This will help me not only contribute to this project, but also grow and prepare for my future career as an AI engineer.
 
 ## Agent Workflow and Project Management
-- Tech-Lead agent (techlead.agent.md) is primarily responsible for the technical direction of the project, managing features, and creating tasks that are handoff to SWE agents for implementation. 
+- Tech-Lead agent (techlead.agent.md) is primarily responsible for the technical direction of the project, managing features, and creating tasks that are handed off to SWE agents for implementation.
+- **The Tech-Lead agent MUST NOT implement tasks or write code.** Its role is planning, task definition, delegation, and review — never implementation. Violating this rule is a failure of the Tech-Lead agent.
+- When a feature is ready for implementation, the Tech-Lead agent produces a written handoff brief for the SWE agent covering: which tasks to implement, their order/dependencies, any design decisions or constraints, and the files to create or modify. A single SWE agent may handle multiple tasks in one session when they are straightforward and logically related.
 - Tech-Lead agent is also responsible for reviewing and approving features and tasks completed by SWE agents.
-- The SWE agent (swe.agent.md) is primarily responsible for managing tasks and tests.
+- The SWE agent (swe.agent.md) is primarily responsible for implementing tasks and writing tests.
 - The Tech-Lead and SWE agents should collaborate and communicate effectively to ensure that features, tasks, and tests are properly linked and organized in the project.
 - The Git agent (git.agent.md) is responsible for managing the git workflow, including creating branches, committing changes, and creating pull requests. The Git agent should work closely with the Tech-Lead and SWE agents to ensure that all code changes are properly tracked and organized in the git repository. Git agent should also ensure review commits, to ensure all commits are well-documented and follow the project's coding standards and guidelines.
 - Agents work on features, tasks, and tests (see git.agent.md). The hierarchy is feature -> task(s) -> test(s)
@@ -62,11 +65,13 @@
     - in-progress -> needs-review
     - needs-review -> in-progress
     - needs-review -> completed
-- To prevent conflicts, SWE agent updates tasks/tests, and can review tasks; Tech-Lead agent updates features and reviews/approves tasks and features; Git agent should review commits.
+- To prevent conflicts: SWE agent writes code, updates task/test statuses (to `in-progress` and then `needs-review` when done); Tech-Lead agent updates feature statuses and reviews/approves tasks and features (advancing status to `completed`); Git agent reviews commits.
+- The Tech-Lead agent must NEVER set a task or feature status to `completed` on its own — status advances to `needs-review` after SWE implementation, and to `completed` only after Tech-Lead review and human approval via pull request.
+- No tasks or features should be marked as completed without proper review and approval through a pull request. This will help ensure that all work is properly vetted and meets the project's standards and requirements before being marked as completed.
 
 ## Manifest Update Checklist (agents MUST follow)
 1. Create test entry in TESTS.txt (increment ID).
 2. Create/update task entry in TASKS.txt; add test ID to `tests` list.
 3. Create/update feature entry in FEATURES.txt; add task ID to `tasks`.
-4. Run `python3 scripts/validate_manifest.py` — fix any errors before committing.
+4. Run `python3 src/validate_project_manifests.py` — fix any errors before committing.
 5. Commit manifest changes in the same branch/PR as the code.

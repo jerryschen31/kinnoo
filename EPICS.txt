@@ -1,0 +1,102 @@
+# This file contains a list of epics for the project - numbered E1, E2, E3, etc.
+# An epic represents a large body of work that will be implemented through one or more features.
+# These epics are for reference / planning only. 
+# There is no formal linkage of epics to features or tasks, although features CAN reference an epic if desired.
+# A project manager (human or agent) can use this file for planning and management.
+#
+epics:
+  - id: E1
+    title: Define the manifest schema (kinnoo.yaml)
+    description: |
+      The foundation everything else depends on. Define the YAML schema with the required fields: 
+      name, version, entrypoint, runtime (language, version), dependencies, framework (optional), 
+      inputs.type, outputs.type. Build a schema validator.
+    steps: []
+    priority: P0
+
+  - id: E2
+    title: kinnoo init — Project scaffolding
+    description: |
+      Generates a template agent directory with the canonical structure:
+      my-agent/ with kinnoo.yaml (pre-filled template), run.py (hello-world entrypoint), 
+      requirements.txt, tools/, prompts/, README.md
+    steps: []
+    priority: P0
+
+  - id: E3
+    title: kinnoo pack — Package creation
+    description: |
+      Validates the manifest and directory structure, then compresses the directory into a .kno 
+      archive (tar.gz with renamed extension). Must fail fast with clear errors on invalid 
+      manifests or missing entrypoints.
+    steps: []
+    priority: P0
+
+  - id: E4
+    title: kinnoo inspect — Package metadata viewer
+    description: |
+      Reads a .kno archive (or local agent directory) and displays the manifest metadata 
+      (name, version, dependencies, entrypoint, etc.) in a human-readable format. 
+      Low complexity, high utility for debugging the pack step.
+    steps: []
+    priority: P1
+
+  - id: E5
+    title: kinnoo run (local) — Agent execution from source directory
+    description: |
+      Runs an agent from a local directory: auto-creates a Python virtual environment, 
+      installs dependencies from requirements.txt, then executes the entrypoint with 
+      user-provided input. This is the core runtime contract: python run.py "<input>". 
+      Includes the MVP security warning for untrusted agents.
+    steps: []
+    priority: P0
+
+  - id: E6
+    title: kinnoo run (from installed package) — Agent execution from kinnoo archive
+    description: |
+      Extends the run command to unpack and execute a kinnoo archive, not just a local directory. 
+      Reuses the same venv/dependency/execution logic from E5.
+    steps: []
+    priority: P0
+
+  - id: E7
+    title: Local registry storage
+    description: |
+      A simple local directory-based registry (e.g., ~/.kinnoo/registry/) that stores 
+      installed kinnoo packages and their extracted contents. This is the backend for 
+      install/publish-local operations. Tracks installed package versions.
+    steps: []
+    priority: P1
+
+  - id: E8
+    title: kinnoo install — Install from local kinnoo file or registry
+    description: |
+      Installs a kinnoo package into the local registry. Displays dependencies and requires 
+      explicit confirmation (MVP security model). Sets up the environment so 
+      kinnoo run <agent-name> works by name without specifying a path.
+    steps: []
+    priority: P1
+
+  - id: E9
+    title: kinnoo publish (local) — Publish to local registry
+    description: |
+      Copies a packed kinnoo artifact into the local registry with version metadata. 
+      This completes the full local loop: init → pack → publish → install → run.
+    steps: []
+    priority: P1
+
+  - id: E10
+    title: kinnoo publish (remote) — Publish to remote registry
+    description: |
+      Extends publish to push packages to a remote registry (simple HTTP-based storage — 
+      could be a lightweight server or S3-backed). This enables sharing between machines/developers.
+    steps: []
+    priority: P2
+
+  - id: E11
+    title: kinnoo install (remote) — Install from remote registry
+    description: |
+      Extends install to fetch packages by name from the remote registry. 
+      This completes the cross-machine sharing loop.
+    steps: []
+    priority: P2
