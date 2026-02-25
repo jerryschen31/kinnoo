@@ -11,8 +11,22 @@ def make_kno_archive(tmp_path, agent_name="testagent"):
     """Helper to create a minimal .kno archive for testing extraction."""
     agent_dir = tmp_path / agent_name
     agent_dir.mkdir()
-    # Add a dummy file
-    (agent_dir / "kinnoo.yaml").write_text("entrypoint: run.py\n")
+    # Write a fully valid kinnoo.yaml manifest
+    manifest = (
+        "name: test-agent\n"
+        "version: 1.0.0\n"
+        "entrypoint: run.py\n"
+        "runtime:\n"
+        "  type: one-shot\n"
+        "  language: python\n"
+        "  version: \"3.10\"\n"
+        "dependencies: []\n"
+        "inputs:\n"
+        "  type: string\n"
+        "outputs:\n"
+        "  type: string\n"
+    )
+    (agent_dir / "kinnoo.yaml").write_text(manifest)
     (agent_dir / "run.py").write_text("print('hello')\n")
     archive_path = tmp_path / f"{agent_name}.kno"
     with zipfile.ZipFile(archive_path, "w") as z:

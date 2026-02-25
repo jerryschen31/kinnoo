@@ -380,3 +380,75 @@ Feature6 implementation is robust and covers all critical paths. Minor improveme
 ---
 
 feature6 reviewed by TechLead Agent
+
+# SWE Handoff Notes: Manifest Flexibility
+
+## Task37: Optional dependencies, inputs, outputs fields (with defaults)
+
+- If any of these fields are missing in kinnoo.yaml, inject defaults:
+  - dependencies: []
+  - inputs: {type: string}
+  - outputs: {type: string}
+- Add a function (e.g., normalize_manifest_defaults(manifest_dict)) in src/kinnoo/schema.py:
+
+```python
+def normalize_manifest_defaults(manifest):
+    if 'dependencies' not in manifest:
+        manifest['dependencies'] = []
+    if 'inputs' not in manifest:
+        manifest['inputs'] = {'type': 'string'}
+    if 'outputs' not in manifest:
+        manifest['outputs'] = {'type': 'string'}
+    return manifest
+```
+- Call this function after loading kinnoo.yaml, before parsing/validation.
+
+## Task38: Support single string, list-style or block-style for "type" field
+
+- Accept:
+  - type: string
+  - type: [string, file, json]
+  - type:
+      - string
+      - file
+      - json
+- Add a function (e.g., normalize_type_field(io_dict)) in src/kinnoo/schema.py:
+
+```python
+def normalize_type_field(io_dict):
+    t = io_dict.get('type')
+    if isinstance(t, str):
+        io_dict['type'] = [t]
+    elif isinstance(t, list):
+        io_dict['type'] = t
+    else:
+        io_dict['type'] = ['string']  # fallback default
+    return io_dict
+```
+- Call normalize_type_field(manifest['inputs']) and normalize_type_field(manifest['outputs']) after defaults are injected.
+
+## Integration Summary
+- Add/modify functions in src/kinnoo/schema.py
+- Integrate after YAML load, before validation.
+- Always normalize to lists internally for downstream code.
+
+---
+
+**These changes ensure robust, user-friendly manifest parsing while maintaining internal consistency.**
+
+
+## Manifest Normalization & Test Alignment (2026-02-25)
+
+### Summary
+- Implemented manifest normalization logic to inject defaults for missing `dependencies`, `inputs`, `outputs`, and their nested `type` fields in `kinnoo.yaml`.
+- Updated the validator to apply normalization before validation, making manifests more flexible and user-friendly.
+- Updated the test suite (especially `test_missing_required_field_all`) to expect passing validation for manifests missing these fields, reflecting the new default-injection behavior.
+- Reran all validator tests to confirm alignment; all tests now pass, confirming robust manifest handling and test coverage.
+
+**Key Takeaways:**
+- Manifest loader is now resilient to missing fields, reducing user friction.
+- Test suite accurately reflects new manifest logic, ensuring future changes are caught.
+
+## Update to v1.0.0
+- All tests passed successfully after updating the version from 0.1.0 to 1.0.0. There are only minor warnings about an unregistered pytest mark ("integration"), which do not affect test results.
+- Your codebase remains fully validated and robust after the version update. If you need a summary or want to address the warnings, let me know!
