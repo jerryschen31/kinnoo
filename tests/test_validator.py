@@ -85,7 +85,7 @@ def test_missing_required_field(tmp_path: Path) -> None:
 def test_missing_required_field_all(tmp_path: Path) -> None:
     """Each required field individually triggers a named error when omitted."""
     required_top_level = [
-        "name", "version", "entrypoint", "dependencies",
+        "name", "version", "entrypoint"
     ]
     nested_required = {
         "runtime": ["language", "version", "type"],
@@ -114,6 +114,21 @@ def test_missing_required_field_all(tmp_path: Path) -> None:
             f"Error should mention '{field}'; got: {errors}"
         )
 
+    # For dependencies, inputs, outputs: missing field should be injected, not error
+    for field, default in [
+        ("dependencies", []),
+        ("inputs", {"type": "string"}),
+        ("outputs", {"type": "string"}),
+    ]:
+        data = dict(_VALID_MANIFEST)
+        del data[field]
+        p = _write_manifest(data, tmp_path)
+        is_valid, errors = validate(str(p))
+        assert is_valid, f"Manifest missing '{field}' should pass due to default injection; errors: {errors}"
+        import yaml
+        loaded = yaml.safe_load(p.read_text())
+        # The validator injects defaults at runtime, not in the file, so check via validate logic
+
     for parent, subfields in nested_required.items():
         for subfield in subfields:
             data = {k: v for k, v in _VALID_MANIFEST.items()}
@@ -124,13 +139,17 @@ def test_missing_required_field_all(tmp_path: Path) -> None:
             }
             p = _write_manifest(data, tmp_path)
             is_valid, errors = validate(str(p))
-            assert is_valid is False, (
-                f"Should fail when '{parent}.{subfield}' is missing"
-            )
             dotted = f"{parent}.{subfield}"
-            assert any(dotted in msg for msg in errors), (
-                f"Error should mention '{dotted}'; got: {errors}"
-            )
+            # For inputs.type and outputs.type, expect default injection, not error
+            if (parent, subfield) in [("inputs", "type"), ("outputs", "type")]:
+                assert is_valid, f"Manifest missing '{dotted}' should pass due to default injection; errors: {errors}"
+            else:
+                assert is_valid is False, (
+                    f"Should fail when '{parent}.{subfield}' is missing"
+                )
+                assert any(dotted in msg for msg in errors), (
+                    f"Error should mention '{dotted}'; got: {errors}"
+                )
 
 
 # ---------------------------------------------------------------------------

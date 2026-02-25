@@ -380,3 +380,16 @@ Feature6 implementation is robust and covers all critical paths. Minor improveme
 ---
 
 feature6 reviewed by TechLead Agent
+
+## Manifest Normalization & Test Alignment (2026-02-25)
+
+### Summary
+- Implemented manifest normalization logic to inject defaults for missing `dependencies`, `inputs`, `outputs`, and their nested `type` fields in `kinnoo.yaml`.
+- Updated the validator to apply normalization before validation, making manifests more flexible and user-friendly.
+- Updated the test suite (especially `test_missing_required_field_all`) to expect passing validation for manifests missing these fields, reflecting the new default-injection behavior.
+- Reran all validator tests to confirm alignment; all tests now pass, confirming robust manifest handling and test coverage.
+
+**Key Takeaways:**
+- Manifest loader is now resilient to missing fields, reducing user friction.
+- Test suite accurately reflects new manifest logic, ensuring future changes are caught.
+

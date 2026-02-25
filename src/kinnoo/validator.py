@@ -33,6 +33,7 @@ from .schema import (
     SUPPORTED_RUNTIME_TYPES,
 )
 
+from .schema import normalize_manifest_defaults
 
 # ---------------------------------------------------------------------------
 # Internal helpers
@@ -91,6 +92,9 @@ def validate(manifest_path: str) -> tuple[bool, list[str]]:
     if not isinstance(data, dict):
         errors.append("Manifest must be a YAML mapping (dict) at the top level.")
         return False, errors
+
+    # Inject defaults for dependencies, inputs, outputs if missing
+    data = normalize_manifest_defaults(data)
 
     # ------------------------------------------------------------------
     # 2. Required fields — presence check
