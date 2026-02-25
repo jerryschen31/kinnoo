@@ -135,3 +135,27 @@ SWE agent implementation complete for task29.
 - Always validate archive existence and type before extraction.
 - Modularize extraction logic for maintainability and testability.
 - Use clear, actionable error messages for all user-facing errors.
+
+## Task31 Implementation Summary (2026-02-25)
+
+### Overview
+- Implemented manifest validation after extraction in kinnoo install (task31).
+- Uses the existing validator to check kinnoo.yaml in the extracted directory.
+- If the manifest is invalid, prints errors, cleans up the extracted directory, and aborts installation.
+
+### Test Coverage
+- Added test53 (tests/test_cli_install_manifest.py):
+	- Creates a .kno archive with an invalid manifest.
+	- Runs kinnoo install and verifies that validation errors are printed and the directory is cleaned up.
+
+### Test Results
+- Test53 passed:
+	- Validation errors are printed for invalid manifest (e.g., missing entrypoint).
+	- Extracted directory is removed on failure.
+
+### Best Practices & Teaching Notes
+- Always clean up after a failed install to avoid leaving partial state.
+- Use modular validation logic for maintainability and testability.
+- Provide clear, actionable error messages for users.
+
+---
