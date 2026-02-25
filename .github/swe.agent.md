@@ -18,3 +18,39 @@
 - Always run tests with "python3 -m pytest" to ensure that all tests are executed in a consistent and reliable manner. This will help us catch any issues or errors in our code and ensure that our implementation is working as expected. Make sure to review the test results carefully and address any failures or issues that arise during testing to maintain the quality and integrity of our project.
 - Follow all Python coding best practices, including PEP 8 style guidelines, to ensure that our code is clean, readable, and maintainable. For example, imports should be at the top of a file, unless there is a valid reason to nest it within a function. Always make sure you have proper indents for code blocks. Always review your code for adherence to these standards before finalizing any implementation.
 - Python tests should invoke the CLI using the script path (e.g., python src/kinnoo/cli.py) instead of python -m kinnoo.This matches the approach used in other CLI tests in the project. This is important to ensure that the CLI is tested in a way that closely resembles how it will be used in production, and to avoid any issues that may arise from using the module entry point for testing. Always make sure to follow this approach whenever possible when writing tests for our CLI to maintain consistency and reliability in our testing process.
+
+## Required kinnoo.yaml Manifest Fields and Structure
+
+All kinnoo agent manifests (kinnoo.yaml) must include the following fields with correct types and values:
+
+- name: Alphanumeric with hyphens only (matches NAME_PATTERN)
+- version: Valid semver string (e.g., "1.0.0")
+- entrypoint: Path to the agent's main script (e.g., "run.py")
+- runtime:
+		- type: Must be "one-shot"
+		- language: Python version (e.g., "python")
+		- version: Python version string (e.g., "3.10") — must be quoted as a string
+- dependencies: List of package names (can be empty, e.g., [])
+- inputs:
+		- type: Input type (e.g., "string")
+- outputs:
+		- type: Output type (e.g., "string")
+
+Example minimal valid manifest:
+
+```yaml
+name: test-agent
+version: 1.0.0
+entrypoint: run.py
+runtime:
+	type: one-shot
+	language: python
+	version: "3.10"
+dependencies: []
+inputs:
+	type: string
+outputs:
+	type: string
+```
+
+Manifests missing any required fields or with incorrect types will fail validation and abort install. Always quote runtime.version to ensure it is a string.

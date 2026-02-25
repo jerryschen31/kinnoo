@@ -654,3 +654,17 @@ tasks:
     dependencies: [task30]
     tests: [test57]
     status: paused
+
+  - id: task36
+    title: Allow user-specified extraction directory for kinnoo install
+    description: Add support for an optional target directory argument to kinnoo install. If provided, extract the archive to the specified directory; otherwise, use default collision-handling logic.
+    files: [src/kinnoo/cli.py, src/kinnoo/install_command.py]
+    steps:
+      - Update CLI argument parsing to accept an optional [target-dir] argument.
+      - If target-dir is provided, extract archive to that directory.
+      - Validate directory name and handle conflicts (unless --force is used).
+      - Update usage/help message and documentation.
+      - Add/modify tests for extraction to user-specified directory.
+    dependencies: [task29, task30, task35]
+    tests: [test58]
+    status: not-started
