@@ -1,0 +1,694 @@
+# This file contains a list of the tasks implemented by SWE agents - numbered task0, task1, task2, etc.
+# Each new task should just increment the task number.
+# The current task types are: 
+#   - task: any general task to be implemented with code or through command(s)
+#   - issue: anything that needs to be resolved - e.g., bug
+#   - decision: any decision that needs to be made - e.g., choosing a model
+#
+# This file contains the project tasks as YAML entries. Use the top-level `tasks` list.
+# Each task should reference its parent feature and list any test IDs it owns.
+# The validator script `src/validate_project_manifests.py` will enforce unique IDs and references.
+#
+# Important Note: dependencies field can be other tasks, OR external packages, libraries, frameworks - with the version - that need to be installed in order to complete the task 
+#
+# Template (YAML):
+# tasks:
+#   - id: taskX
+#     title: Short title
+#     type: Task type (defaults to "task" if omitted)
+#     description: Short description of the work
+#     files: [path/to/file1, path/to/file2]
+#     steps:
+#       - Step 1 description
+#       - Step 2 description
+#     dependencies: [taskZ, boto3]
+#     tests: [test0, test1]
+#     status: not-started / in-progress / etc
+#
+# A decision task has different fields:
+#
+# Template for decision tasks (YAML):
+# tasks:
+#   - id: taskX
+#     title: Short title
+#     type: decision
+#     description: Description of the decision to be made. Can include some initial choices, if available.
+#     options: Potential choices for the decision (e.g., choice of model), as a YAML style list. Populated once these are available.
+#           - option1: overview/pros/cons/artifacts
+#           - option2: overview/pros/cons/artifacts
+#     criteria: list of measurable evaluation criteria (latency, accuracy, size, license)
+#     selected_option: option id (set when status: approved)
+#     rationale: short reasoning for selection.
+#     approvals: list of approvers: human name / agent ID (optional)
+#     status: not-started / in-progress / etc
+#
+# Examples:
+# tasks:
+#   - id: task0
+#     title: Add capture button to camera view
+#     type: task
+#     description: Add a white capture button centered at the bottom of the camera view and wire it to the capture action.
+#     files: [Sources/Views/CameraView.swift]
+#     steps:
+#       - step1: Add SwiftUI button centered at the bottom of the camera view
+#       - step2: Wire button action to `CameraViewModel.capturePhoto()`
+#       - step3: Add unit/UI test verifying the button triggers the capture action
+#     dependencies: []
+#     tests: [test0]
+#     status: not-started
+#
+#   - id: task10
+#     title: Select CoreML model for waste classification
+#     type: decision
+#     description: Evaluate candidate CoreML models for on-device inference and choose one.
+#     options:
+#       - id: option1
+#         name: MobileNetV2-quant
+#         summary: Lightweight MobileNetV2 quantized
+#         pros: [small size, fast inference]
+#         cons: [lower accuracy on electronics class]
+#         artifacts: [s3://models/mobilenetv2-quant.mlmodel]
+#       - id: option2
+#         name: EfficientNet-lite
+#         summary: Better accuracy, slightly larger
+#         pros: [higher accuracy]
+#         cons: [bigger binary]
+#         artifacts: [s3://models/efficientnet-lite.mlmodel]
+#     criteria:
+#       - latency_ms: "<=200"
+#       - accuracy_top1: ">=0.80"
+#       - size_mb: "<=20"
+#     selected_option: option1
+#     rationale: smaller size and faster inference time
+#     approvals: []
+#     status: completed
+
+tasks:
+  - id: task0
+    title: Project structure and schema definition
+    type: task
+    description: |
+      Create the kinnoo Python package structure and define the manifest schema
+      as constants. Create the validate() function stub with the correct signature
+      (is_valid: bool, errors: list[str]).
+    files:
+      - src/kinnoo/__init__.py
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+    steps:
+      - step1: Create src/kinnoo/ package with __init__.py
+      - step2: In schema.py, define REQUIRED_FIELDS list and FIELD_TYPES dict
+      - step3: "In validator.py, create validate(manifest_path: str) -> tuple[bool, list[str]] stub"
+      - step4: Add PyYAML to requirements.txt
+    dependencies: []
+    tests: [test4]
+    status: completed
+
+  - id: task1
+    title: Required field and type validation
+    type: task
+    description: |
+      Implement YAML parsing and validation for required fields and correct types.
+      Return specific error messages naming the missing field or describing type mismatch.
+    files:
+      - src/kinnoo/validator.py
+    steps:
+      - step1: Parse YAML file using PyYAML
+      - step2: Check each required field exists; collect errors for missing ones
+      - step3: Check each field has correct type; collect errors for mismatches
+      - step4: Return (False, errors) if any errors, (True, []) otherwise
+    dependencies: [task0]
+    tests: [test1, test2]
+    status: completed
+
+  - id: task2
+    title: Semantic validation (semver, runtime.type, name format)
+    type: task
+    description: |
+      Implement semantic validation: semver format for the version field,
+      runtime.type must be "one-shot", name must be alphanumeric with hyphens only.
+    files:
+      - src/kinnoo/validator.py
+    steps:
+      - step1: Add semver regex validation for version field
+      - step2: Add check that runtime.type == "one-shot"; error if not
+      - step3: Add package name format validation (^[a-z0-9][a-z0-9-]*$)
+      - step4: Collect errors with descriptive messages for each violation
+    dependencies: [task1]
+    tests: [test3, test6]
+    status: completed
+
+  - id: task3
+    title: Optional fields and integration
+    type: task
+    description: |
+      Handle optional framework field (accept if present, ignore if absent).
+      Ensure a fully valid manifest passes with no errors. Add docstrings and type hints.
+    files:
+      - src/kinnoo/validator.py
+    steps:
+      - step1: Ensure framework field does not trigger "missing field" error
+      - step2: Ensure framework field with valid string value passes
+      - step3: Verify complete valid manifest returns (True, [])
+      - step4: Add docstrings and type hints to public API
+    dependencies: [task2]
+    tests: [test0, test5]
+    status: completed
+
+  - id: task4
+    title: CLI entry point and argument parsing
+    type: task
+    description: |
+      Create the kinnoo CLI entry point with argparse. Implement the `init` subcommand
+      that parses the agent name argument. Handle missing arguments with clear usage message.
+      Validate agent name format using NAME_PATTERN from schema.py.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/__init__.py
+    steps:
+      - step1: Create src/kinnoo/cli.py with argparse-based CLI structure
+      - step2: Add `init` subcommand that accepts a positional `agent-name` argument
+      - step3: "Print usage error if agent name is missing: 'Usage: kinnoo init <agent-name>'"
+      - step4: Import NAME_PATTERN from schema.py and validate agent name; print error if invalid
+      - step5: Add `kinnoo` console script entry point to pyproject.toml (create pyproject.toml if needed)
+    dependencies: [task0]
+    tests: [test7, test8, test15]
+    status: completed
+
+  - id: task5
+    title: Template files and directory generation
+    type: task
+    description: |
+      Create the scaffolding module that generates the agent directory structure
+      with all template files. The generated kinnoo.yaml must pass feature1 validation.
+      The run.py must include asyncio.run() boilerplate.
+    files:
+      - src/kinnoo/templates.py
+      - src/kinnoo/init_command.py
+    steps:
+      - step1: Create src/kinnoo/templates.py with string templates for kinnoo.yaml, run.py, requirements.txt, README.md. requirements.txt template should be an empty file for MVP (no dependencies for hello-world agent)
+      - step2: "kinnoo.yaml template: use agent name, version 0.1.0, entrypoint run.py, runtime python/>=3.10/one-shot, empty deps, inputs/outputs text"
+      - step3: "run.py template: include asyncio.run() boilerplate with main(input_text) async function, print hello-world output"
+      - step4: Create src/kinnoo/init_command.py with init_agent(name, target_dir) function
+      - step5: Generate directory structure with tools/, prompts/ subdirectories
+      - step6: Write all template files to the created directory
+    dependencies: [task4]
+    tests: [test9, test10, test11, test12]
+    status: completed
+
+  - id: task6
+    title: Directory collision detection and CLI integration
+    type: task
+    description: |
+      Add check for existing directory before scaffolding. Print error if directory
+      already exists. Wire up init_command to CLI. Add integration test.
+    files:
+      - src/kinnoo/init_command.py
+      - src/kinnoo/cli.py
+    steps:
+      - step1: In init_command.py, check if target directory exists before creating
+      - step2: "If exists, raise error or return failure: 'Error: Directory <name>/ already exists. Will not overwrite.'"
+      - step3: Wire init_command.init_agent() into cli.py init subcommand handler
+      - step4: Add integration test that runs full `kinnoo init` and verifies generated manifest passes validation
+    dependencies: [task5]
+    tests: [test13, test14]
+    status: completed
+  
+  - id: task7
+    title: Manifest validation in kinnoo run
+    type: task
+    description: Validate kinnoo.yaml manifest before execution using the feature1 validator. Print clear errors and abort if invalid or missing.
+    files: [src/kinnoo/cli.py, src/kinnoo/validator.py]
+    steps:
+      - step1: Load kinnoo.yaml from agent directory
+      - step2: Call validator; if invalid, print errors and exit
+    dependencies: [task3]
+    tests: [test16]
+    status: completed
+
+  - id: task8
+    title: Create Python venv in agent directory
+    type: task
+    description: Ensure .venv/ is created in the agent directory if it does not exist, using standard Python venv tools.
+    files: [src/kinnoo/cli.py]
+    steps:
+      - step1: Check for .venv/ in agent directory
+      - step2: If missing, create venv using Python's venv module
+    dependencies: []
+    tests: [test17]
+    status: completed
+
+  - id: task9
+    title: Install dependencies from requirements.txt
+    type: task
+    description: Install all dependencies listed in requirements.txt into the agent’s venv before running the entrypoint.
+    files: [src/kinnoo/cli.py]
+    steps:
+      - step1: Read requirements.txt from agent directory
+      - step2: Install packages into .venv/ using pip
+    dependencies: [task8]
+    tests: [test18]
+    status: completed
+
+  - id: task10
+    title: Execute entrypoint with user input
+    type: task
+    description: Run the entrypoint script (as specified in kinnoo.yaml) with the input string as the first CLI argument (sys.argv[1]).
+    files: [src/kinnoo/cli.py]
+    steps:
+      - step1: Parse entrypoint from kinnoo.yaml
+      - step2: Run entrypoint with input as sys.argv[1]
+    dependencies: [task7, task9]
+    tests: [test19]
+    status: completed
+
+  - id: task11
+    title: Stream stdout and stderr from entrypoint
+    type: task
+    description: Stream both stdout and stderr from the entrypoint process to the terminal as output is produced.
+    files: [src/kinnoo/cli.py]
+    steps:
+      - step1: Capture stdout and stderr from entrypoint process
+      - step2: Stream output to terminal in real-time
+    dependencies: [task10]
+    tests: [test20]
+    status: completed
+
+  - id: task12
+    title: Propagate entrypoint exit code
+    type: task
+    description: Ensure that the exit code from the entrypoint script is returned as the kinnoo process exit code.
+    files: [src/kinnoo/cli.py]
+    steps:
+      - step1: Capture exit code from entrypoint process
+      - step2: Return exit code from kinnoo run
+    dependencies: [task10]
+    tests: [test21]
+    status: completed
+
+  - id: task13
+    title: Print usage error when arguments are missing
+    type: task
+    description: If kinnoo run is called without required arguments, print a usage error with example. The usage/help message should show the input argument in single quotes, e.g., kinnoo run myagent 'hello world'.
+    files: [src/kinnoo/cli.py]
+    steps:
+      - step1: Check for required arguments
+      - step2: If missing, print usage error and exit non-zero
+    dependencies: []
+    tests: [test22]
+    status: completed
+
+  - id: task14
+    title: Handle missing entrypoint file gracefully
+    type: task
+    description: If the entrypoint file (as declared in kinnoo.yaml) is missing, print a clear error and abort before execution.
+    files: [src/kinnoo/cli.py]
+    steps:
+      - step1: Check if entrypoint file exists before running
+      - step2: If missing, print error and exit non-zero
+    dependencies: [task7]
+    tests: [test23]
+    status: completed
+
+  - id: task15
+    title: feature3 review - checks
+    type: task
+    description: |
+      Comprehensive review of kinnoo run implementation for edge case handling, manifest validation consistency, and safety. Ensure the CLI handles corrupted/unreadable kinnoo.yaml and permission errors gracefully, always uses the validator for manifest checks, and does not modify files outside the agent directory.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/validator.py
+      - tests/test_cli.py
+    steps:
+      - step1: Test CLI handling of corrupted or unreadable kinnoo.yaml (prints clear error, does not crash)
+      - step2: Test CLI handling of permission errors (cannot create .venv or write files) with clear messages
+      - step3: Confirm validator is always used for manifest checks; no duplicate validation logic
+      - step4: Ensure kinnoo run does not overwrite or modify files outside the agent directory
+    dependencies: [task7, task8, task9, task10, task11, task12, task13, task14]
+    tests: [test24, test25, test26, test27]
+    status: completed    
+
+  - id: task16
+    title: CLI Argument Parsing and Validation for --framework
+    type: task
+    description: |
+      Update kinnoo init CLI to accept an optional --framework flag. Validate the value of --framework. If an unsupported value is provided (e.g., langgraph, pigglypoo), print an error message listing supported frameworks and the general usage message. Exit without creating files or directories.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/init_command.py
+    steps:
+      - step1: Add --framework flag to kinnoo init CLI argument parser
+      - step2: "Validate framework value; supported: gemini, chatgpt, claude-chat"
+      - step3: Print error and usage if unsupported value; exit without creating files
+    dependencies: [task4]
+    tests: [test28]
+    acceptance_criteria:
+      - CLI accepts --framework flag and validates value
+      - Invalid values print error and usage, no files created
+    notes:
+      - Error message: "Unsupported framework. The supported frameworks are: gemini, chatgpt, claude-chat."
+      - Usage message matches existing CLI convention
+    status: completed
+
+  - id: task17
+    title: Framework-Specific Template Generation
+    type: task
+    description: |
+      For each supported framework, generate run.py with LLM API call boilerplate, requirements.txt with correct dependency, and README.md with API key setup instructions and run example. All other files/directories remain as before.
+    files:
+      - src/kinnoo/templates.py
+      - src/kinnoo/init_command.py
+    steps:
+      - step1: Add templates for gemini, chatgpt, claude-chat to templates.py
+      - step2: Generate run.py, requirements.txt, README.md for each framework
+      - step3: Ensure tools/ and prompts/ directories are created as before
+    dependencies: [task16]
+    tests: [test29, test30, test31]
+    acceptance_criteria:
+      - Directory contains correct files for each framework
+      - requirements.txt lists correct dependency
+      - README.md includes API key setup and run instructions
+    notes:
+      - Templates must be minimal but runnable (hello-world for each LLM)
+    status: completed
+
+  - id: task18
+    title: Manifest Validation for Generated Agents
+    type: task
+    description: |
+      Ensure generated kinnoo.yaml passes validation using feature1 validator. Entry point and fields must be correct for each template.
+    files:
+      - src/kinnoo/init_command.py
+      - src/kinnoo/templates.py
+    steps:
+      - step1: Generate kinnoo.yaml for each framework template
+      - step2: Validate manifest using feature1 validator
+      - step3: Fix template fields as needed to pass validation
+    dependencies: [task17]
+    tests: [test32]
+    acceptance_criteria:
+      - kinnoo.yaml passes validation (no errors)
+    notes:
+      - Use validator from src/kinnoo/validator.py
+    status: completed
+
+  - id: task19
+    title: General Usage and Error Handling
+    type: task
+    description: |
+      If kinnoo init is run without agent name, print usage message. If agent directory already exists, print error and do not overwrite. If --framework is omitted, generate vanilla agent as before.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/init_command.py
+    steps:
+      - step1: Check for agent name argument; print usage if missing
+      - step2: Check for existing directory; print error and do not overwrite
+      - step3: If --framework omitted, generate vanilla agent
+    dependencies: [task16]
+    tests: [test33, test34]
+    acceptance_criteria:
+      - Usage and error messages are clear and actionable
+      - No files are overwritten or created in error cases
+    notes:
+      - Follows safety-first conventions from previous features
+    status: completed
+
+  - id: task20
+    title: Unit Tests for Framework Templates and Error Cases
+    type: task
+    description: |
+      Add unit tests for each framework template (directory structure, file contents, requirements, README), invalid framework values (error and usage message), and manifest validation for generated agents.
+    files:
+      - tests/test_init.py
+      - src/kinnoo/init_command.py
+      - src/kinnoo/templates.py
+    steps:
+      - step1: Add tests for gemini, chatgpt, claude-chat templates
+      - step2: Add tests for invalid framework values
+      - step3: Add tests for manifest validation
+    dependencies: [task17, task18, task19]
+    tests: [test35, test36, test37]
+    acceptance_criteria:
+      - All tests pass, covering positive and negative cases
+    notes:
+      - Reference acceptance criteria in FEATURES.txt for completeness
+      - Update documentation if CLI usage changes
+    status: completed
+
+  - id: task21
+    title: Allow underscores in agent names
+    type: task
+    description: |
+      Update agent name validation rules to allow underscores (_) in addition to lowercase letters, digits, and hyphens. Update NAME_PATTERN in schema.py and all related validation logic and tests. This should be part of feature4.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+      - src/kinnoo/init_command.py
+      - tests/test_init.py
+    steps:
+      - step1: Update NAME_PATTERN regex to allow underscores
+      - step2: Update validator and CLI to use new pattern
+      - step3: Add/modify tests to cover agent names with underscores
+    dependencies: [task16]
+    tests: [test38]
+    acceptance_criteria:
+      - Agent names with underscores are accepted and pass validation
+      - All related tests pass
+    notes:
+      - This change is part of feature4 and should be reflected in documentation and error messages
+    status: completed
+
+  - id: task22
+    title: Update Gemini agent template to use google-genai and gemini-2.5-flash-lite
+    type: task
+    description: |
+      Update the Gemini agent template to:
+        - Use the google-genai package instead of google-generativeai (update import, usage, and requirements.txt)
+        - Use the model name "gemini-2.5-flash-lite" instead of "gemini-pro" for dev/testing
+        - Update README.md instructions accordingly
+    files:
+      - src/kinnoo/templates.py
+      - tests/test_init.py
+    steps:
+      - step1: Update GEMINI_RUN_PY template to use google-genai and gemini-2.5-flash-lite
+      - step2: Update GEMINI_REQUIREMENTS to require google-genai
+      - step3: Update GEMINI_README to reflect new package and model
+      - step4: Update or add tests to verify correct template output
+    dependencies: [task20]
+    tests: [test39]
+    acceptance_criteria:
+      - Gemini agent template uses google-genai and gemini-2.5-flash-lite
+      - requirements.txt and README.md are correct
+      - Tests pass for new template
+    notes:
+      - This ensures compatibility with free-tier accounts and avoids deprecated package warnings
+    status: completed
+
+  - id: task23
+    title: kinnoo pack CLI argument parsing and error handling
+    type: task
+    description: |
+      Implement the kinnoo pack subcommand in the CLI. Parse the agent directory argument, print usage if missing, and handle error cases (e.g., running from inside agent dir).
+    files:
+      - src/kinnoo/cli.py
+    steps:
+      - step1: Add pack subcommand to CLI parser
+      - step2: Parse <agent-dir> argument; print usage if missing
+      - step3: Detect if running from inside agent directory; print error and abort if so
+      - step4: Print clear error if agent directory does not exist
+    dependencies: []
+    tests: [test40]
+    status: completed
+
+  - id: task24
+    title: Manifest validation before packaging
+    type: task
+    description: |
+      Load and validate kinnoo.yaml in the agent directory using the feature1 validator. Abort and print errors if invalid or missing.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/validator.py
+    steps:
+      - step1: Load kinnoo.yaml from agent directory
+      - step2: Call validator; if invalid, print errors and exit
+    dependencies: [task23]
+    tests: [test41]
+    status: completed
+
+  - id: task25
+    title: Gather required files for packaging
+    type: task
+    description: |
+      Collect kinnoo.yaml, entrypoint, requirements.txt, and any additional files declared in the manifest for inclusion in the archive.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/pack_command.py
+    steps:
+      - step1: Parse manifest for entrypoint and additional files
+      - step2: Check existence of all required files; abort with error if any are missing
+    dependencies: [task24]
+    tests: [test42]
+    status: completed
+
+  - id: task26
+    title: Build wheel files for dependencies
+    type: task
+    description: |
+      Use pip wheel or pip download to build/download wheel files for all dependencies listed in requirements.txt, storing them in a temp directory for packaging.
+    files:
+      - src/kinnoo/pack_command.py
+    steps:
+      - step1: Read requirements.txt
+      - step2: Use pip to build/download wheels for all dependencies
+      - step3: Store wheels in a temp directory for inclusion in the archive
+      - step4: Abort with error if any dependency cannot be built/downloaded
+    dependencies: [task25]
+    tests: [test43]
+    status: completed
+
+  - id: task27
+    title: Create .kno archive with all contents
+    type: task
+    description: |
+      Bundle kinnoo.yaml, entrypoint, requirements.txt, additional files, and wheel files into a zip/tar.gz archive with a .kno extension.
+    files:
+      - src/kinnoo/pack_command.py
+    steps:
+      - step1: Create archive with correct structure and .kno extension
+      - step2: Add all required files and wheels to the archive
+      - step3: Ensure archive is inspectable with standard tools
+    dependencies: [task26]
+    tests: [test44]
+    status: completed
+
+  - id: task28
+    title: Unit and integration tests for kinnoo pack
+    type: task
+    description: |
+      Write tests covering all positive and negative cases for kinnoo pack, including usage, error handling, file inclusion, and archive structure.
+    files:
+      - tests/test_pack.py
+    steps:
+      - step1: Test kinnoo pack with valid agent directory
+      - step2: Test missing arguments, missing files, invalid manifest, and error cases
+      - step3: Test manual extraction of .kno archive (extract .tar.gz with command-line tool), confirm requirements.txt, run.py, kinnoo.yaml, and other expected files are present in agent-dir; throw error if any are missing
+    dependencies: [task28]
+    tests: [test46, test47, test48, test50]
+    status: completed
+  
+  - id: task29
+    title: CLI argument parsing and usage error for kinnoo install
+    description: Implement argument parsing for kinnoo install command. Print usage error if no archive argument is provided.
+    files: [src/kinnoo/cli.py]
+    steps:
+      - Parse CLI arguments for kinnoo install.
+      - |
+        Print usage: 'Usage: kinnoo install <archive.kno>' if no argument is given.
+    dependencies: []
+    tests: [test51]
+    status: completed
+
+  - id: task30
+    title: Extract .kno archive to new directory with collision handling
+    description: Extract the .kno archive to a new directory, handling name collisions by incrementing suffixes (_1, _2, etc.).
+    files: [src/kinnoo/install_command.py]
+    steps:
+      - Extract .kno archive using tar -xzf.
+      - If target directory exists, create <archive>_1, <archive>_2, etc.
+    dependencies: [task29]
+    tests: [test52]
+    status: completed
+
+  - id: task31
+    title: Validate manifest before installation
+    description: Validate kinnoo.yaml manifest before proceeding with installation. Abort and print error if invalid.
+    files: [src/kinnoo/install_command.py, src/kinnoo/validator.py]
+    steps:
+      - Locate kinnoo.yaml in extracted directory.
+      - Run feature1 validator.
+      - Abort install and print error if manifest is invalid.
+    dependencies: [task30]
+    tests: [test53]
+    status: completed
+
+  - id: task32
+    title: Create Python venv and install dependencies from wheels
+    description: Create Python virtual environment in agent directory and install dependencies from wheel files in archive.
+    files: [src/kinnoo/install_command.py]
+    steps:
+      - Create .venv in agent directory.
+      - Install dependencies from wheel files using pip.
+    dependencies: [task31]
+    tests: [test54]
+    status: completed
+
+  - id: task33
+    title: Ensure agent is runnable with kinnoo run after install
+    description: Verify that the installed agent can be run immediately with kinnoo run and produces expected output.
+    files: [src/kinnoo/install_command.py]
+    steps:
+      - Run kinnoo run <agent-dir> "<input>" after install.
+      - Check for successful execution and output.
+    dependencies: [task32]
+    tests: [test55]
+    status: completed
+
+  - id: task34
+    title: Error handling for invalid archive or missing files
+    description: Implement error handling for invalid .kno archive or missing required files. Print clear error messages.
+    files: [src/kinnoo/install_command.py]
+    steps:
+      - Detect invalid archive format or missing files.
+      - Print descriptive error and abort install.
+    dependencies: [task29]
+    tests: [test56]
+    status: completed
+
+  - id: task35
+    title: Prevent overwrites unless --force flag is provided
+    description: Prevent overwriting existing directories unless --force flag is specified. Print error if directory exists and --force is not used.
+    files: [src/kinnoo/install_command.py]
+    steps:
+      - Check if target directory exists.
+      - Abort and print error unless --force flag is present.
+    dependencies: [task30]
+    tests: [test57]
+    status: paused
+
+  - id: task36
+    title: Allow user-specified extraction directory for kinnoo install
+    description: Add support for an optional target directory argument to kinnoo install. If provided, extract the archive to the specified directory; otherwise, use default collision-handling logic.
+    files: [src/kinnoo/cli.py, src/kinnoo/install_command.py]
+    steps:
+      - Update CLI argument parsing to accept an optional [target-dir] argument.
+      - If target-dir is provided, extract archive to that directory.
+      - Validate directory name and handle conflicts (unless --force is used).
+      - Update usage/help message and documentation.
+      - Add/modify tests for extraction to user-specified directory.
+    dependencies: [task29, task30, task35]
+    tests: [test58]
+    status: completed
+
+  - id: task37
+    title: Optional dependencies, inputs, outputs fields (with defaults)
+    type: task
+    description: Implement manifest loader logic to inject defaults for dependencies, inputs, outputs if missing in kinnoo.yaml.
+    files: [src/kinnoo/schema.py, notes/swe-handoff.md]
+    steps:
+      - Add normalize_manifest_defaults function to src/kinnoo/schema.py
+      - Integrate after YAML load, before validation
+    dependencies: []
+    tests: [test59]
+    status: completed
+
+  - id: task38
+    title: Support single string, list-style or block-style for "type" field
+    type: task
+    description: Update manifest parsing to accept and normalize "type" field as string, flow-style list, or block-style list.
+    files: [src/kinnoo/schema.py, notes/swe-handoff.md]
+    steps:
+      - Add normalize_type_field function to src/kinnoo/schema.py
+      - Integrate after defaults injection
+    dependencies: []
+    tests: [test60]
+    status: completed
