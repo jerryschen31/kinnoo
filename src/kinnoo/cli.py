@@ -173,7 +173,34 @@ def main():
         if archive_path is None:
             print("Usage: kinnoo install <archive-path>", file=sys.stderr)
             sys.exit(1)
-        # ...next tasks will implement extraction, validation, etc...
+        # --- Task30: Extract .kno archive to new directory with collision handling ---
+        import zipfile
+        archive_path = Path(archive_path)
+        if not archive_path.exists() or not archive_path.is_file():
+            print(f"Error: Archive '{archive_path}' does not exist or is not a file.", file=sys.stderr)
+            sys.exit(1)
+        if not str(archive_path).endswith(".kno"):
+            print(f"Error: Archive '{archive_path}' is not a .kno file.", file=sys.stderr)
+            sys.exit(1)
+
+        # Target directory is archive name without .kno extension
+        target_dir = archive_path.with_suffix("")
+        if target_dir.exists():
+            print(f"Error: Target directory '{target_dir}' already exists. Aborting to prevent overwrite.", file=sys.stderr)
+            sys.exit(1)
+
+        # Extract archive
+        try:
+            with zipfile.ZipFile(archive_path, "r") as z:
+                z.extractall(target_dir)
+        except zipfile.BadZipFile:
+            print(f"Error: Archive '{archive_path}' is not a valid .kno (zip) archive.", file=sys.stderr)
+            sys.exit(1)
+        except Exception as e:
+            print(f"Error: Failed to extract archive: {e}", file=sys.stderr)
+            sys.exit(1)
+
+        print(f"[kinnoo install] Extracted '{archive_path.name}' to '{target_dir}'")
 
     elif args.command == "pack":
         agent_dir = args.agent_dir
