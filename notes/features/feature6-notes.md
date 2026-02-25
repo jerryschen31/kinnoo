@@ -266,3 +266,35 @@ Installing dependencies from wheels (.whl files) instead of requirements.txt pro
 - Clean up any partial state on failure to avoid confusion or leftover files.
 
 ---
+
+## Task35
+
+- Deferred to V2
+
+## Task36 & Test58 Summary (2026-02-25)
+
+### Implementation
+- Updated kinnoo install CLI to accept an optional target directory argument.
+- Extraction logic now supports user-specified directory, with robust error handling for directory conflicts.
+- If the directory already exists, install aborts with a clear error (no overwrite, no --force).
+
+### Test Coverage
+- Added tests/test_install.py for test58:
+	- Step1: Installs agent archive to user-specified directory.
+	- Step2: Errors if directory exists (no overwrite).
+	- Step3: --force step skipped (feature paused).
+- Test uses a fully valid kinnoo.yaml manifest matching validator requirements.
+
+### Test Results
+- All steps pass:
+	- Directory is created as specified.
+	- Error is raised if directory exists.
+	- No overwrite or --force logic tested (feature deferred).
+
+### Lessons & Best Practices
+- Always validate manifest fields and types (e.g., quote runtime.version).
+- Modular CLI design and robust error handling are key for maintainability.
+- Test all edge cases, including directory conflicts and manifest validation.
+
+---
+Task36 and test58 are fully implemented and verified. CLI install is robust and user-friendly.
