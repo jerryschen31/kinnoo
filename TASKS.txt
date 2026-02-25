@@ -668,3 +668,27 @@ tasks:
     dependencies: [task29, task30, task35]
     tests: [test58]
     status: not-started
+
+  - id: task37
+    title: Optional dependencies, inputs, outputs fields (with defaults)
+    type: task
+    description: Implement manifest loader logic to inject defaults for dependencies, inputs, outputs if missing in kinnoo.yaml.
+    files: [src/kinnoo/schema.py, notes/swe-handoff.md]
+    steps:
+      - Add normalize_manifest_defaults function to src/kinnoo/schema.py
+      - Integrate after YAML load, before validation
+    dependencies: []
+    tests: [test59]
+    status: not-started
+
+  - id: task38
+    title: Support single string, list-style or block-style for "type" field
+    type: task
+    description: Update manifest parsing to accept and normalize "type" field as string, flow-style list, or block-style list.
+    files: [src/kinnoo/schema.py, notes/swe-handoff.md]
+    steps:
+      - Add normalize_type_field function to src/kinnoo/schema.py
+      - Integrate after defaults injection
+    dependencies: []
+    tests: [test60]
+    status: not-started
