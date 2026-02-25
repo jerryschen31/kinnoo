@@ -234,6 +234,57 @@ def main():
             sys.exit(1)
         print(f"[kinnoo install] Manifest validated successfully.")
 
+        # --- Task32: Create Python venv and install dependencies from wheels ---
+        import venv
+        import sys as pysys
+        wheels_dir = target_dir / "wheels"
+        venv_dir = target_dir / ".venv"
+        # Create venv if not present
+        if not venv_dir.exists():
+            try:
+                venv.create(venv_dir, with_pip=True)
+            except Exception as e:
+                print(f"Error: Failed to create venv in '{venv_dir}': {e}", file=sys.stderr)
+                import shutil
+                shutil.rmtree(target_dir, ignore_errors=True)
+                sys.exit(1)
+        # Install wheels if wheels/ exists and contains .whl files
+        if wheels_dir.exists() and wheels_dir.is_dir():
+            wheel_files = list(wheels_dir.glob("*.whl"))
+            if wheel_files:
+                # Find pip executable in venv
+                pip_exe = venv_dir / "bin" / "pip"
+                if not pip_exe.exists():
+                    pip_exe = venv_dir / "Scripts" / "pip.exe"  # Windows fallback
+                if not pip_exe.exists():
+                    print(f"Error: pip not found in venv at {pip_exe}", file=sys.stderr)
+                    import shutil
+                    shutil.rmtree(target_dir, ignore_errors=True)
+                    sys.exit(1)
+                # Install all wheels
+                for wheel in wheel_files:
+                    print(f"[kinnoo install] Installing wheel: {wheel.name}")
+                    try:
+                        import subprocess
+                        result = subprocess.run([
+                            str(pip_exe), "install", str(wheel)
+                        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    except Exception as e:
+                        print(f"Error: Failed to install wheel {wheel.name}: {e}", file=sys.stderr)
+                        import shutil
+                        shutil.rmtree(target_dir, ignore_errors=True)
+                        sys.exit(1)
+                    if result.returncode != 0:
+                        print(f"Error: pip install failed for {wheel.name}", file=sys.stderr)
+                        import shutil
+                        shutil.rmtree(target_dir, ignore_errors=True)
+                        sys.exit(result.returncode)
+                print(f"[kinnoo install] All wheels installed successfully.")
+            else:
+                print(f"[kinnoo install] No wheel files found in wheels/ directory. Skipping dependency install.")
+        else:
+            print(f"[kinnoo install] No wheels/ directory found. Skipping dependency install.")
+
     elif args.command == "pack":
         agent_dir = args.agent_dir
         if agent_dir is None:
