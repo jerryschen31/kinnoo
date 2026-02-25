@@ -71,3 +71,11 @@ If kinnoo only supports running single agents (but can package multi-agent syste
 **Summary:**
 Kinnoo would still provide real value for reproducibility, sharing, and onboarding in the single-agent space, but would be seen as incomplete for the most advanced and collaborative agent use cases.
 
+### V2 thoughts
+
+- V2 should support specifying an available model (e.g. gpt-4o-mini, gpt-5-nano, etc) in addition to the platform (framework) when initializing an agent
+- V2 should support tools that interact with commonly available MCP servers - i.e., speciying the MCP servers as "plugins"
+- V2 should support interactive mode with "kinnoo run"
+- V2 should support secure MCP server for interacting with filesystem (Filesystem MCP server)
+- need to decide on a direction for V3+. Do I support more "scaffolding" and focus on init (building an agent), or focus more on runtime capabilities (kinnoo run), or just focus on the registry aspect, or something else? Need some good ideas and guidance here
+
