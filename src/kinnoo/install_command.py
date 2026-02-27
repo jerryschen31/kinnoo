@@ -6,6 +6,7 @@ import sys
 import venv
 import zipfile
 import re
+import os
 from pathlib import Path
 
 try:
@@ -33,6 +34,15 @@ def _requirement_name(requirement_line: str) -> str:
 
 def _wheel_distribution_name(wheel_filename: str) -> str:
     return wheel_filename.split("-", 1)[0].lower().replace("_", "-")
+
+
+def _is_offline_mode_enabled() -> bool:
+    # [agent] Offline mode is intentionally controlled by env vars so tests can
+    # enforce deterministic no-network behavior without relying on host firewall state.
+    offline_values = {"1", "true", "yes", "on"}
+    kinnoo_offline = os.environ.get("KINNOO_OFFLINE", "").strip().lower()
+    pip_no_index = os.environ.get("PIP_NO_INDEX", "").strip().lower()
+    return kinnoo_offline in offline_values or pip_no_index in offline_values
 
 
 def install_agent(archive_path: str, target_dir_arg: str | None = None, force: bool = False) -> int:
@@ -142,6 +152,8 @@ def install_agent(archive_path: str, target_dir_arg: str | None = None, force: b
             print("[kinnoo install] No dependencies listed in requirements.txt. Skipping dependency install.")
         return 0
 
+    offline_mode_enabled = _is_offline_mode_enabled()
+
     expected_distributions = {_requirement_name(item) for item in requirements}
     available_distributions = {_wheel_distribution_name(wheel.name) for wheel in wheel_files}
     missing_distributions = sorted(expected_distributions - available_distributions)
@@ -183,6 +195,23 @@ def install_agent(archive_path: str, target_dir_arg: str | None = None, force: b
             file=sys.stderr,
         )
 
+    if needs_pypi_fallback and offline_mode_enabled:
+        if missing_distributions:
+            print(
+                "Error: Offline install requested, but packaged wheels are missing for: "
+                f"{', '.join(missing_distributions)}. "
+                "Rebuild the archive with complete wheels or disable offline mode.",
+                file=sys.stderr,
+            )
+        else:
+            print(
+                "Error: Offline install requested, and bundled wheel-only installation failed. "
+                "Rebuild the archive with complete compatible wheels or disable offline mode.",
+                file=sys.stderr,
+            )
+        shutil.rmtree(target_dir, ignore_errors=True)
+        return 1
+
     if needs_pypi_fallback:
         fallback_install = subprocess.run(
             [str(pip_exe), "install", "-r", str(requirements_path)],
@@ -201,5 +230,6 @@ def install_agent(archive_path: str, target_dir_arg: str | None = None, force: b
         print("[kinnoo install] Dependencies installed via PyPI fallback.")
     elif local_install_attempted:
         print("[kinnoo install] Dependencies installed successfully from bundled wheels.")
+        print("[kinnoo install] Offline-ready install path used (no network fallback required).")
 
     return 0
