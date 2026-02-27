@@ -36,6 +36,20 @@ def _read_requirements(requirements_path: Path) -> list[str]:
     return requirements
 
 
+def _is_platform_specific_wheel(wheel_filename: str) -> bool:
+    """Return True when wheel platform tag is not universal (`any`)."""
+    if not wheel_filename.endswith(".whl"):
+        return False
+
+    stem = wheel_filename[:-4]
+    parts = stem.rsplit("-", 3)
+    if len(parts) != 4:
+        return False
+
+    platform_tag = parts[3]
+    return platform_tag != "any"
+
+
 def build_wheels(requirements_path: Path, wheels_dir: Path):
     """
     Build/download wheel files for dependencies in requirements.txt using per-dependency
@@ -135,6 +149,14 @@ def pack_agent(agent_dir: str) -> int:
     wheels_dir = tempfile.TemporaryDirectory(prefix="kinnoo_wheels_")
 
     wheel_files, failed_requirements = build_wheels(Path(requirements_path), Path(wheels_dir.name))
+
+    platform_specific_wheels = [wheel.name for wheel in wheel_files if _is_platform_specific_wheel(wheel.name)]
+    if platform_specific_wheels:
+        print(
+            "Warning: Platform-specific wheels detected; bundled wheels may not be portable across operating systems: "
+            f"{', '.join(sorted(platform_specific_wheels))}",
+            file=sys.stderr,
+        )
 
     missing_wheels_report_path: str | None = None
     if failed_requirements:
