@@ -303,7 +303,7 @@ features:
       Fix transitive dependency bundling in `kinnoo pack` (currently uses --no-deps which omits
       transitive dependencies). Canonicalize archive format as zip. Implement fallback behavior
       for missing or failed wheel builds. Add cross-platform wheel detection with user-visible warnings.
-    tasks: []
+    tasks: [task42, task43, task44, task45, task46, task47]
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo pack` includes transitive dependencies (not just direct), so pip install in an offline venv succeeds."
