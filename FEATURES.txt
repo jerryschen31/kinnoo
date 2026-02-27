@@ -328,7 +328,7 @@ features:
       license (string), and env_vars (list of strings declaring required environment variable names).
       All additions are non-breaking — existing V1 manifests remain valid. runtime.type stays as
       a single string with only "one-shot" valid in V2; list support deferred to V3.
-    tasks: []
+    tasks: [task48, task49, task50, task51, task52]
     acceptance_criteria:
       - id: AC1
         description: "description (string), author (string), and license (string) are accepted as optional fields; absence is valid."
