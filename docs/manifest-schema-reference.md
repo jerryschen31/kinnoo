@@ -160,3 +160,17 @@ Notice that both examples look nearly identical from the CLI's perspective — `
 | inputs.type      | yes      | string       | e.g., "text"                                    |
 | outputs.type     | yes      | string       | e.g., "text"                                    |
 | framework        | no       | string       | optional, e.g., "langchain", "crewai"           |
+
+---
+
+## Manifest Cross-File Rule (TESTS.txt and TASKS.txt)
+
+For project manifest consistency:
+
+- In `TESTS.txt`, each item in `covers` must reference acceptance criteria only, using:
+  - `feature: featureX`
+  - `ac: ACY`
+- Do not place `task: taskX` entries inside `TESTS.txt` `covers`.
+- Task-to-test linkage belongs in `TASKS.txt` via each task's `tests: [testA, testB]` list.
+
+This matches the manifest validator behavior in `src/validate_project_manifests.py`.
