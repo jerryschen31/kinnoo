@@ -274,6 +274,7 @@ features:
     owner: techlead-agent
     dependencies: [feature4, feature5]
     status: completed
+  
   - id: feature7
     title: "CLI Refactor & Modular Architecture"
     description: |
