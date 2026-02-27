@@ -1125,7 +1125,7 @@ tests:
     expected: Offline installation and execution succeed using bundled wheels only
     pass_criteria: Install and run exit 0 with network disabled and no PyPI fallback warning
     automated: true
-    automation_path: tests/test_cli_install.py::test_offline_install_succeeds_with_complete_transitive_wheels
+    automation_path: tests/test_cli_install.py::test_install_offline_succeeds_with_complete_wheels
     covers:
       - feature: feature8
         ac: AC5
@@ -1147,3 +1147,109 @@ tests:
     covers:
       - feature: feature8
         ac: AC6
+
+  - id: test71
+    title: Optional metadata fields are accepted when present or absent
+    type: unit
+    preconditions: validator module available; manifest fixtures with and without description/author/license
+    steps:
+      - step1: Validate a V2 manifest containing description, author, and license as strings
+      - step2: Validate a manifest omitting those optional fields entirely
+    expected: Both manifests validate successfully
+    pass_criteria: validate() returns is_valid=True with no errors for both fixtures
+    automated: true
+    automation_path: tests/test_validator.py::test_feature9_optional_string_fields_are_accepted
+    covers:
+      - feature: feature9
+        ac: AC1
+
+  - id: test72
+    title: env_vars optional list of strings is accepted
+    type: unit
+    preconditions: validator module available; manifest fixture with env_vars as list[str]
+    steps:
+      - step1: Create manifest with env_vars populated as a list of valid variable names
+      - step2: Run validator on the manifest
+    expected: Manifest validates successfully when env_vars is list[str]
+    pass_criteria: validate() returns is_valid=True and errors=[] for valid env_vars list
+    automated: true
+    automation_path: tests/test_validator.py::test_feature9_env_vars_list_of_strings_is_accepted
+    covers:
+      - feature: feature9
+        ac: AC2
+
+  - id: test73
+    title: Existing V1 manifests remain valid under V2 extensions
+    type: unit
+    preconditions: validator module available; V1 fixture manifest with no new feature9 fields
+    steps:
+      - step1: Validate a V1 manifest that does not include description/author/license/env_vars
+      - step2: Inspect validator result
+    expected: V1 manifest still passes validation unchanged
+    pass_criteria: validate() returns is_valid=True and no feature9-related errors
+    automated: true
+    automation_path: tests/test_validator.py::test_feature9_v1_manifest_compatibility
+    covers:
+      - feature: feature9
+        ac: AC3
+
+  - id: test74
+    title: Invalid optional field types produce specific field-level errors
+    type: unit
+    preconditions: validator module available; fixtures with invalid description/author/license/env_vars types
+    steps:
+      - step1: Validate manifest where description is non-string and env_vars is non-list
+      - step2: Validate manifest where env_vars contains non-string items
+      - step3: Inspect collected error messages
+    expected: Validation fails with specific errors naming each invalid field and expected type
+    pass_criteria: validate() returns is_valid=False and errors mention field names with expected type requirements
+    automated: true
+    automation_path: tests/test_validator.py::test_feature9_invalid_optional_field_types_are_rejected
+    covers:
+      - feature: feature9
+        ac: AC4
+
+  - id: test75
+    title: Init-generated manifest includes description and author placeholders
+    type: integration
+    preconditions: kinnoo CLI installed; init template generation enabled
+    steps:
+      - step1: Run kinnoo init for a new agent directory
+      - step2: Open generated kinnoo.yaml
+      - step3: Verify description and author placeholder fields are present
+    expected: Generated manifest includes description and author placeholder entries
+    pass_criteria: kinnoo.yaml contains both fields with non-empty placeholder values
+    automated: true
+    automation_path: tests/test_init.py::test_feature9_init_manifest_includes_description_and_author
+    covers:
+      - feature: feature9
+        ac: AC5
+
+  - id: test76
+    title: env_vars entries must be non-empty strings
+    type: unit
+    preconditions: validator module available; manifest fixture with empty string in env_vars list
+    steps:
+      - step1: Validate manifest with env_vars containing at least one empty string item
+      - step2: Inspect validation output
+    expected: Validator rejects manifest and reports env_vars item constraint violation
+    pass_criteria: validate() returns is_valid=False and errors include env_vars non-empty string requirement
+    automated: true
+    automation_path: tests/test_validator.py::test_feature9_env_vars_items_must_be_non_empty_strings
+    covers:
+      - feature: feature9
+        ac: AC6
+
+  - id: test77
+    title: Manifest schema docs include feature9 optional fields and env_vars constraints
+    type: unit
+    preconditions: documentation files exist and are readable
+    steps:
+      - step1: Inspect docs/manifest-schema-reference.md for description, author, license, and env_vars
+      - step2: Verify env_vars list[string] and non-empty item constraints are documented
+      - step3: Verify docs state V1 manifests remain valid
+    expected: Documentation reflects implemented feature9 schema semantics
+    pass_criteria: Required field descriptions and compatibility notes are present in schema docs
+    automated: true
+    automation_path: tests/test_docs.py::test_feature9_schema_docs_cover_optional_fields_and_constraints
+    covers: []

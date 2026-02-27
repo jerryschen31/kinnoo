@@ -308,7 +308,7 @@ features:
       - id: AC1
         description: "`kinnoo pack` includes transitive dependencies (not just direct), so pip install in an offline venv succeeds."
       - id: AC2
-        description: "Archive format is zip with .kno extension; all docs, code, and notes reference zip consistently."
+        description: "Archive format is zip with .kno extension; code, tests, and authoritative packaging docs (README + docs/manifest-schema-reference.md) reference zip consistently."
       - id: AC3
         description: "If a wheel build fails for a dependency, `kinnoo pack` warns but continues (does not abort the entire pack)."
       - id: AC4
@@ -319,7 +319,7 @@ features:
         description: "If platform-specific wheels are detected during packing, a warning is printed: 'Archive contains platform-specific wheels that may not install on other operating systems'."
     owner: techlead-agent
     dependencies: []
-    status: not-started
+    status: in-progress
 
   - id: feature9
     title: "Manifest Schema V2 Extensions"
@@ -328,7 +328,7 @@ features:
       license (string), and env_vars (list of strings declaring required environment variable names).
       All additions are non-breaking — existing V1 manifests remain valid. runtime.type stays as
       a single string with only "one-shot" valid in V2; list support deferred to V3.
-    tasks: []
+    tasks: [task48, task49, task50, task51, task52]
     acceptance_criteria:
       - id: AC1
         description: "description (string), author (string), and license (string) are accepted as optional fields; absence is valid."
