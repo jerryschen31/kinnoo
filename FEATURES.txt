@@ -274,13 +274,14 @@ features:
     owner: techlead-agent
     dependencies: [feature4, feature5]
     status: completed
+  
   - id: feature7
     title: "CLI Refactor & Modular Architecture"
     description: |
       Extract install logic from monolithic cli.py into a dedicated install_command.py module,
       matching the existing pattern of init_command.py and pack_command.py. Add a --version flag
       to the CLI. Clean up any duplicate test functions in the test suite.
-    tasks: []
+    tasks: [task39, task40, task41]
     acceptance_criteria:
       - id: AC1
         description: "Install logic lives in src/kinnoo/install_command.py, not inline in cli.py."
@@ -294,7 +295,7 @@ features:
         description: "All existing V1 tests continue to pass after refactor."
     owner: techlead-agent
     dependencies: []
-    status: not-started
+    status: completed
 
   - id: feature8
     title: "Packaging Robustness"
