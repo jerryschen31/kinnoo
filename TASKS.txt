@@ -846,7 +846,7 @@ tasks:
       - step4: Structure logic so future offline integration tests can deterministically validate both success and failure branches
     dependencies: [task42, task45]
     tests: [test69]
-    status: not-started
+    status: needs-review
 
   - id: task47
     title: Detect platform-specific wheels and warn users

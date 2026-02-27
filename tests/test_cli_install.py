@@ -1,6 +1,7 @@
 import subprocess
 import sys
 import zipfile
+import os
 from pathlib import Path
 
 # Test51: kinnoo install usage error
@@ -144,3 +145,75 @@ def test_install_falls_back_to_pypi_when_wheel_missing(tmp_path):
     )
     assert import_check.returncode == 0, import_check.stderr
     assert "2.31.0" in import_check.stdout
+
+
+def _create_packed_archive_with_complete_transitive_wheels(tmp_path: Path, agent_name: str = "offline-ready-agent") -> Path:
+    agent_dir = tmp_path / agent_name
+    agent_dir.mkdir()
+
+    (agent_dir / "kinnoo.yaml").write_text(
+        f"""
+name: {agent_name}
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  type: one-shot
+  language: python
+  version: "3.10"
+dependencies: []
+inputs:
+  type: string
+outputs:
+  type: string
+""".strip()
+        + "\n"
+    )
+    (agent_dir / "run.py").write_text("print('offline-ready-ok')\n")
+    (agent_dir / "requirements.txt").write_text("requests==2.31.0\nhttpx==0.27.0\n")
+
+    pack_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "pack", str(agent_dir)],
+        capture_output=True,
+        text=True,
+    )
+    assert pack_result.returncode == 0, (
+        "Expected pack to succeed for offline-ready fixture. "
+        f"STDOUT:\n{pack_result.stdout}\nSTDERR:\n{pack_result.stderr}"
+    )
+
+    return tmp_path / f"{agent_name}.kno"
+
+
+def test_install_offline_succeeds_with_complete_wheels(tmp_path):
+    # [agent] test69 validates AC5: complete bundled wheel sets should install
+    # without network fallback when offline mode is explicitly enabled.
+    archive_path = _create_packed_archive_with_complete_transitive_wheels(tmp_path)
+    target_dir = tmp_path / "installed-offline-ready-agent"
+
+    offline_env = dict(os.environ)
+    offline_env["PIP_NO_INDEX"] = "1"
+    offline_env["KINNOO_OFFLINE"] = "1"
+
+    install_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "install", str(archive_path), str(target_dir)],
+        capture_output=True,
+        text=True,
+        env=offline_env,
+    )
+    assert install_result.returncode == 0, (
+        "Expected offline install to succeed with complete wheels. "
+        f"STDOUT:\n{install_result.stdout}\nSTDERR:\n{install_result.stderr}"
+    )
+    assert "Falling back to PyPI" not in install_result.stderr
+
+    python_exe = target_dir / ".venv" / "bin" / "python"
+    if not python_exe.exists():
+        python_exe = target_dir / ".venv" / "Scripts" / "python.exe"
+
+    dependency_check = subprocess.run(
+        [str(python_exe), "-c", "import requests, httpx; print('ok')"],
+        capture_output=True,
+        text=True,
+    )
+    assert dependency_check.returncode == 0, dependency_check.stderr
+    assert dependency_check.stdout.strip() == "ok"
