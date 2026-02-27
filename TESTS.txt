@@ -953,7 +953,7 @@ tests:
     steps:
       - Load kinnoo.yaml with missing fields
       - Call manifest loader
-      - Check that manifest contains dependencies: [], inputs: {type: string}, outputs: {type: string}
+      - "Check that manifest contains dependencies: [], inputs: {type: string}, outputs: {type: string}"
     expected: Manifest dict has injected defaults
     pass_criteria: All missing fields are filled with defaults
     automated: true
@@ -977,6 +977,7 @@ tests:
     pass_criteria: All variations normalized to list
     automated: true
     automation_path: tests/test_validator.py
+    covers:
       - feature: feature6
         ac: AC8
-      - task: task38    
+      - task: task38
