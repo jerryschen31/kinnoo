@@ -62,3 +62,59 @@ Task39 implementation is complete and validated.
 - `cli.py` delegates install operations cleanly.
 - test61 added and passing.
 - Broader install regressions pass.
+
+# SWE Refactoring Notes (GPT Codex 5.3)
+
+Date: 2026-02-27
+
+## Refactor Summary (Run + Pack)
+
+### Pack modularization
+- Extracted `pack` execution logic from `src/kinnoo/cli.py` into `src/kinnoo/pack_command.py`.
+- Added `pack_agent(agent_dir: str) -> int` to own the full pack flow:
+  - agent-dir safety checks (including inside-agent-dir guard)
+  - manifest presence and validation
+  - required file checks (`entrypoint`, `requirements.txt`)
+  - wheel build orchestration via existing `build_wheels(...)`
+  - `.kno` archive creation and output messages
+- Updated `cli.py` to keep only argument/usage handling and delegate pack execution to `pack_agent`.
+
+### Run modularization
+- Created `src/kinnoo/run_command.py` with `run_agent(agent_dir_arg: str, input_arg: str) -> int`.
+- Moved run flow out of `cli.py` into `run_command.py`:
+  - `.venv` creation and error handling
+  - conditional `requirements.txt` install
+  - `kinnoo.yaml` parse/validation for entrypoint retrieval
+  - entrypoint existence checks
+  - venv Python resolution and subprocess execution
+  - propagated exit code from agent process
+- Updated `cli.py` to delegate run execution to `run_agent` after usage checks.
+
+### Init analysis
+- Reviewed `init` command split between `cli.py` and `init_command.py`.
+- Conclusion: current split is acceptable; `cli.py` handles lightweight CLI gating, and `init_command.py` owns scaffolding behavior.
+- No additional `init` extraction was required for this pass.
+
+## Regression Testing
+
+### Stepwise checks
+- After pack extraction:
+  - `python3 -m pytest tests/test_pack.py`
+  - Result: `7 passed`
+- After run extraction:
+  - `python3 -m pytest tests/test_cli.py tests/test_cli_install_runnable.py`
+  - Result: `10 passed`
+- After init analysis:
+  - `python3 -m pytest tests/test_init.py`
+  - Result: `24 passed`
+
+### Final combined sweep (all three areas)
+- Command:
+  - `python3 -m pytest tests/test_pack.py tests/test_cli.py tests/test_cli_install_runnable.py tests/test_init.py`
+- Result:
+  - `41 passed`
+
+## Outcome
+- `pack` and `run` command paths are now modularized similarly to install.
+- `cli.py` is thinner and focused on parsing + delegation.
+- No regressions detected in pack/run/init scopes, including final combined sweep.
