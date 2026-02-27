@@ -1,122 +1,43 @@
-# SWE Handoff — Feature8 Packaging Robustness (Tests)
+# SWE Handoff — Feature9 (Manifest Schema V2 Extensions)
 
 ## Scope
-This handoff is for implementing the new Feature8 tests already defined in `TESTS.txt`:
+Implement feature9 across tasks `task48`–`task52` and tests `test71`–`test77`.
 
-- `test65` → AC1 (transitive dependency wheels included)
-- `test66` → AC2 (canonical `.kno` zip format)
-- `test67` → AC3 (wheel build failure is non-fatal with warning)
-- `test68` → AC4 (install fallback to PyPI for missing wheels)
-- `test69` → AC5 (offline install succeeds when wheel set is complete)
-- `test70` → AC6 (platform-specific wheel warning)
+## Ordered implementation plan
+1. `task48` — Extend schema for optional V2 fields (`description`, `author`, `license`, `env_vars`).
+2. `task49` — Add validator checks for optional-field types and `env_vars` list/non-empty string rules.
+3. `task50` — Ensure V1 manifest compatibility remains unchanged.
+4. `task51` — Update `kinnoo init` templates to include `description` + `author` placeholders.
+5. `task52` — Update schema docs and README for feature9 field semantics.
 
-Related tasks in `TASKS.txt`:
+## Task → tests mapping
+- `task48`: `test71`, `test72`
+- `task49`: `test72`, `test74`, `test76`
+- `task50`: `test73`
+- `task51`: `test75`
+- `task52`: `test77`
 
-- `task42` → `test65`
-- `task43` → `test66`
-- `task44` → `test67`
-- `task45` → `test68`
-- `task46` → `test69`
-- `task47` → `test70`
+## Files expected to change
+- `src/kinnoo/schema.py`
+- `src/kinnoo/validator.py`
+- `src/kinnoo/templates.py`
+- `src/kinnoo/init_command.py`
+- `docs/manifest-schema-reference.md`
+- `README.md`
+- `tests/test_validator.py`
+- `tests/test_init.py`
+- `tests/test_docs.py` (if not present, create)
 
-## Test Design Principles (must follow)
-1. Use pinned dependency versions for deterministic behavior.
-2. Validate true dependency resolution behavior (direct + transitive), not only superficial command success.
-3. Prefer small, realistic fixtures over mocks for archive/wheel/install workflows.
-4. Keep tests independent and hermetic (`tmp_path`, isolated env vars, explicit cleanup).
-5. Assert user-facing warnings/messages that are part of ACs.
+## Design constraints
+- New fields are optional only; do not break V1 manifests.
+- Keep validator error strings stable and specific (tests assert text).
+- `env_vars` must validate as `list[str]` with non-empty items.
+- No changes to runtime behavior in this feature; schema + validation + templates + docs only.
 
-## Recommended Fixture Dependencies (Pinned)
-
-### Primary transitive fixture (for AC1/AC5)
-Use these in generated fixture `requirements.txt`:
-
-```txt
-requests==2.31.0
-httpx==0.27.0
-```
-
-Why:
-- `requests` pulls transitives like `urllib3`, `certifi`, `charset-normalizer`, `idna`.
-- `httpx` pulls `httpcore`, `anyio`, and related transitives.
-- Both are common, stable, and exercise meaningful dependency trees.
-
-### Platform-specific wheel fixture (for AC6)
-Use:
-
-```txt
-orjson==3.10.6
-```
-
-Why:
-- Commonly provides platform-tagged wheels, suitable for portability warning detection.
-
-## Proposed Test Module Layout
-Create or extend:
-
-- `tests/test_pack_robustness.py` (for test65, test66, test67, test70)
-- `tests/test_cli_install.py` (for test68, test69)
-
-Keep helper utilities local to the test module or `tests/conftest.py` only if reused by multiple files.
-
-## Implementation Notes by Test
-
-### test65 — transitive wheels included
-- Build a fixture agent with pinned dependencies above.
-- Run `kinnoo pack`.
-- Inspect `.kno` archive wheel entries.
-- Assert direct wheels and representative transitives are present.
-- Prefer asserting a meaningful subset (e.g., `requests`, `httpx`, `urllib3`, `certifi`, `httpcore`, `anyio`) rather than every wheel to reduce brittleness.
-
-### test66 — zip canonicalization
-- Run `kinnoo pack` and verify resulting `.kno` is zip-structured.
-- Avoid extension-only checks; verify archive type via zip inspection behavior.
-- Run `kinnoo install` with produced archive and assert success.
-
-### test67 — non-fatal wheel failure
-- Use one valid pinned dependency plus one intentionally invalid package name.
-- Assert:
-	- pack still exits successfully,
-	- archive is created,
-	- warning names failed dependency.
-- Ensure this test validates warning semantics, not just command output existence.
-
-### test68 — PyPI fallback for missing wheel
-- Start with a valid packed archive.
-- Remove one required wheel from archive contents before install.
-- Install with network enabled.
-- Assert warning is printed and installation still succeeds.
-- Verify installed environment can import/use the previously missing dependency.
-
-### test69 — offline install with complete wheel set
-- Use complete transitive wheel archive from pinned fixture.
-- Run install in a no-network context (monkeypatch network calls or enforce pip flags/env so network access is disallowed in test environment).
-- Assert install and run succeed without fallback warning.
-- This is the critical correctness test for AC5.
-
-### test70 — platform-specific wheel warning
-- Pack fixture containing `orjson==3.10.6`.
-- Assert portability warning text is present.
-- Assert archive creation still succeeds.
-
-## Suggested Helper Utilities
-- `create_fixture_agent(tmp_path, requirements_lines)`
-- `run_kinnoo_pack(agent_dir)`
-- `list_archive_wheels(kno_path)`
-- `remove_wheel_from_archive(kno_path, wheel_predicate)`
-- `run_kinnoo_install(kno_path, target_dir=None, env=None)`
-
-Keep helper names descriptive and avoid hidden global state.
-
-## Risk Areas / Pitfalls
-- Over-asserting exact full wheel set may create flaky tests across packaging tool updates; assert required subset + behavior.
-- Offline test strategy must be deterministic; do not rely on machine-level firewall state.
-- Warning text assertions should target stable substrings required by ACs.
-- Ensure tests do not leak caches or environment state between runs.
-
-## Definition of Done for SWE implementation
-1. Add/implement tests for `test65`–`test70` in the specified automation paths.
-2. Keep dependency versions pinned exactly as declared above unless TechLead approves changes.
-3. Run targeted tests first, then broader regression scope.
-4. Update task statuses to `in-progress` then `needs-review` when complete.
-5. Ensure no secrets or sensitive values are logged in test output.
+## SWE completion checklist
+- Implement tasks in order and keep changes scoped.
+- Add/implement `test71`–`test77` exactly per automation paths in `TESTS.txt`.
+- Run:
+	- `python3 -m pytest tests/test_validator.py tests/test_init.py tests/test_docs.py`
+	- `python3 src/validate_project_manifests.py`
+- Update task statuses to `in-progress` then `needs-review` when ready for TechLead review.
