@@ -153,7 +153,11 @@ def pack_agent(agent_dir: str) -> int:
     platform_specific_wheels = [wheel.name for wheel in wheel_files if _is_platform_specific_wheel(wheel.name)]
     if platform_specific_wheels:
         print(
-            "Warning: Platform-specific wheels detected; bundled wheels may not be portable across operating systems: "
+            "Warning: Archive contains platform-specific wheels that may not install on other operating systems.",
+            file=sys.stderr,
+        )
+        print(
+            "Warning: Platform-specific wheel files: "
             f"{', '.join(sorted(platform_specific_wheels))}",
             file=sys.stderr,
         )
