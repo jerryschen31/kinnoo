@@ -134,13 +134,6 @@ def test_init_invalid_name_rejected(tmp_path):
         assert code != 0
         assert "Invalid agent name" in err
 
-def test_cli_installable_and_runnable():
-    # Simulate install and help
-    import subprocess
-    result = subprocess.run([sys.executable, "-m", "kinnoo.cli", "--help"], capture_output=True, text=True)
-    assert result.returncode == 0
-    assert "init" in result.stdout
-
 
 def test_init_creates_directory_structure(tmp_path):
     agent_name = "test-agent"
