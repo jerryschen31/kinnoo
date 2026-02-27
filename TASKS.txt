@@ -826,7 +826,7 @@ tasks:
       - step4: Keep exit-code and error semantics stable so fallback/non-fallback paths can be tested independently
     dependencies: [task32, task44]
     tests: [test68]
-    status: not-started
+    status: needs-review
 
   - id: task46
     title: Harden offline install behavior and messaging
