@@ -981,3 +981,70 @@ tests:
       - feature: feature6
         ac: AC8
       - task: task38
+
+  - id: test61
+    title: Install command is modularized and delegated from CLI
+    type: unit
+    preconditions: Kinnoo source tree contains cli.py and install_command.py
+    steps:
+      - step1: Inspect src/kinnoo/install_command.py and confirm install command entry function exists
+      - step2: Inspect src/kinnoo/cli.py and confirm install path delegates to install_command module instead of inline install logic
+      - step3: Run kinnoo install on a valid archive and verify behavior remains consistent
+    expected: Install flow is implemented in install_command.py and invoked by cli.py delegation
+    pass_criteria: No inline duplicated install flow remains in cli.py; install behavior still succeeds for valid archive
+    automated: true
+    automation_path: tests/test_cli_install.py::test_install_delegates_to_install_command
+    covers:
+      - feature: feature7
+        ac: AC1
+      - feature: feature7
+        ac: AC2
+      - task: task39
+
+  - id: test62
+    title: Global --version prints package version and exits successfully
+    type: unit
+    preconditions: kinnoo CLI installed and importable in active environment
+    steps:
+      - step1: Run kinnoo --version
+      - step2: Capture stdout and process exit code
+    expected: CLI prints package version and exits with code 0
+    pass_criteria: Output contains semantic version string and process exit code is 0
+    automated: true
+    automation_path: tests/test_cli.py::test_cli_version_flag
+    covers:
+      - feature: feature7
+        ac: AC3
+      - task: task40
+
+  - id: test63
+    title: Test suite contains no duplicate test function names
+    type: unit
+    preconditions: Test files are present under tests/
+    steps:
+      - step1: Collect pytest tests from tests/ directory
+      - step2: Detect duplicate test function names and duplicate collected node ids
+    expected: No duplicate function names or duplicate collection targets are present
+    pass_criteria: Duplicate detection returns zero duplicates
+    automated: true
+    automation_path: tests/test_suite_integrity.py::test_no_duplicate_test_functions
+    covers:
+      - feature: feature7
+        ac: AC4
+      - task: task41
+
+  - id: test64
+    title: V1 regression suite passes after CLI modular refactor
+    type: integration
+    preconditions: Project dependencies installed and test environment available
+    steps:
+      - step1: Run python3 -m pytest for V1-related test modules
+      - step2: Review failures and confirm no regressions introduced by feature7 changes
+    expected: Existing V1 tests pass after refactor and CLI version flag additions
+    pass_criteria: pytest exits with code 0 for V1 test scope
+    automated: true
+    automation_path: tests/test_regression_v1.py::test_v1_suite_passes_after_feature7
+    covers:
+      - feature: feature7
+        ac: AC5
+      - task: task41
