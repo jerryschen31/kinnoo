@@ -711,7 +711,7 @@ tasks:
       - step4: Verify all install paths still propagate exit codes and surface actionable errors for future unit/integration tests
     dependencies: [task29, task30, task31, task32, task33, task34, task36]
     tests: [test61]
-    status: not-started
+    status: completed
 
   - id: task40
     title: Add global CLI version flag support
@@ -730,7 +730,7 @@ tasks:
       - step4: Keep output stable and minimal so it can be asserted by upcoming unit tests
     dependencies: [task4]
     tests: [test62]
-    status: needs-review
+    status: completed
 
   - id: task41
     title: Remove duplicate test functions across suite
@@ -751,4 +751,4 @@ tasks:
       - step4: Confirm suite remains runnable and produces stable collection counts to support future regression checks
     dependencies: [task39, task40]
     tests: [test63, test64]
-    status: needs-review
+    status: completed
