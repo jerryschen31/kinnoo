@@ -790,7 +790,7 @@ tasks:
       - step4: Keep behavior backward-safe where feasible and structure code paths for clear future regression tests
     dependencies: [task27, task30]
     tests: [test66]
-    status: needs-review
+    status: completed
 
   - id: task44
     title: Add non-fatal wheel build fallback warnings
@@ -808,7 +808,7 @@ tasks:
       - step4: Preserve package success criteria and output shape for future assertions in automated tests
     dependencies: [task42]
     tests: [test67]
-    status: not-started
+    status: needs-review
 
   - id: task45
     title: Add install fallback to PyPI for missing wheels
