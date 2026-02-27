@@ -126,3 +126,53 @@ outputs:
     )
     assert (install_target / "kinnoo.yaml").exists()
     assert (install_target / "run.py").exists()
+
+
+def test_pack_continues_on_per_dependency_wheel_failure(tmp_path):
+        agent_dir = tmp_path / "partial-wheel-agent"
+        agent_dir.mkdir()
+
+        (agent_dir / "kinnoo.yaml").write_text(
+                """
+name: partial-wheel-agent
+version: 1.0.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: '>=3.10'
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+""".strip()
+                + "\n"
+        )
+        (agent_dir / "run.py").write_text("print('partial wheel ok')\n")
+        (agent_dir / "requirements.txt").write_text(
+                "requests==2.31.0\n"
+                "nonexist-pkg-kinnoo-test==0.0.1\n"
+        )
+
+        result = subprocess.run(
+                [sys.executable, "src/kinnoo/cli.py", "pack", str(agent_dir)],
+                capture_output=True,
+                text=True,
+        )
+
+        assert result.returncode == 0, (
+                "Expected pack to continue despite one failed dependency wheel build. "
+                f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+        )
+
+        kno_path = tmp_path / "partial-wheel-agent.kno"
+        assert kno_path.exists(), "Expected .kno archive to be created"
+
+        warning_text = f"Could not build wheel for dependency 'nonexist-pkg-kinnoo-test==0.0.1'"
+        assert warning_text in result.stderr
+
+        with zipfile.ZipFile(kno_path, "r") as archive:
+                assert "wheels/missing_wheels.txt" in archive.namelist()
+                missing_wheels = archive.read("wheels/missing_wheels.txt").decode("utf-8")
+                assert "nonexist-pkg-kinnoo-test==0.0.1" in missing_wheels
