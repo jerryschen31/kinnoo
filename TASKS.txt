@@ -769,7 +769,7 @@ tasks:
       - step4: Keep implementation deterministic so future unit/integration tests can assert artifact contents reliably
     dependencies: [task26, task27]
     tests: [test65]
-    status: not-started
+    status: needs-review
 
   - id: task43
     title: Canonicalize .kno archive format as zip
