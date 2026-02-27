@@ -2,6 +2,8 @@
 
 This document explains the fields in the `kinnoo.yaml` manifest — the heart of every Kinnoo agent package. It covers what each field specifies and provides concrete examples.
 
+Archive note: Kinnoo package files use the `.kno` extension and are stored as ZIP archives.
+
 ---
 
 ## Field Definitions

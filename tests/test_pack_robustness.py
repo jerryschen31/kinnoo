@@ -74,3 +74,55 @@ def test_pack_includes_transitive_wheels_for_pinned_deps(tmp_path):
         "Expected direct + transitive dependency wheels in archive. "
         f"Missing: {sorted(missing)}. Found: {sorted(distributions)}"
     )
+
+
+def test_kno_zip_format_is_canonical(tmp_path):
+    # [agent] test66 should run for archive format or install/extract flow changes.
+    # It enforces that `.kno` artifacts are true zip archives and installable.
+    agent_dir = tmp_path / "zip-canonical-agent"
+    agent_dir.mkdir()
+
+    (agent_dir / "kinnoo.yaml").write_text(
+        """
+name: zip-canonical-agent
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+""".strip()
+        + "\n"
+    )
+    (agent_dir / "run.py").write_text("print('zip canonical ok')\n")
+    (agent_dir / "requirements.txt").write_text("")
+
+    pack_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "pack", str(agent_dir)],
+        capture_output=True,
+        text=True,
+    )
+    assert pack_result.returncode == 0, (
+        f"kinnoo pack failed\nSTDOUT:\n{pack_result.stdout}\nSTDERR:\n{pack_result.stderr}"
+    )
+
+    kno_path = tmp_path / "zip-canonical-agent.kno"
+    assert kno_path.exists(), "Expected .kno archive to be created"
+    assert zipfile.is_zipfile(kno_path), "Expected .kno archive to be a valid zip file"
+
+    install_target = tmp_path / "installed-zip-canonical-agent"
+    install_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "install", str(kno_path), str(install_target)],
+        capture_output=True,
+        text=True,
+    )
+    assert install_result.returncode == 0, (
+        f"kinnoo install failed\nSTDOUT:\n{install_result.stdout}\nSTDERR:\n{install_result.stderr}"
+    )
+    assert (install_target / "kinnoo.yaml").exists()
+    assert (install_target / "run.py").exists()
