@@ -730,7 +730,7 @@ tasks:
       - step4: Keep output stable and minimal so it can be asserted by upcoming unit tests
     dependencies: [task4]
     tests: [test62]
-    status: not-started
+    status: needs-review
 
   - id: task41
     title: Remove duplicate test functions across suite
