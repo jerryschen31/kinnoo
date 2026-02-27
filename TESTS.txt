@@ -1125,7 +1125,7 @@ tests:
     expected: Offline installation and execution succeed using bundled wheels only
     pass_criteria: Install and run exit 0 with network disabled and no PyPI fallback warning
     automated: true
-    automation_path: tests/test_cli_install.py::test_offline_install_succeeds_with_complete_transitive_wheels
+    automation_path: tests/test_cli_install.py::test_install_offline_succeeds_with_complete_wheels
     covers:
       - feature: feature8
         ac: AC5
