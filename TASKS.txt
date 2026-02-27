@@ -751,4 +751,4 @@ tasks:
       - step4: Confirm suite remains runnable and produces stable collection counts to support future regression checks
     dependencies: [task39, task40]
     tests: [test63, test64]
-    status: not-started
+    status: needs-review

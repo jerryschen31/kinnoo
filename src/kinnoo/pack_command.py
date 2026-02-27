@@ -12,6 +12,20 @@ import yaml
 class WheelBuildError(Exception):
     pass
 
+
+def _collect_additional_files(manifest: dict) -> list[str]:
+    additional: list[str] = []
+
+    files_field = manifest.get("files", [])
+    if isinstance(files_field, list):
+        additional.extend(str(path) for path in files_field)
+
+    extra_file = manifest.get("extra_file")
+    if isinstance(extra_file, str):
+        additional.append(extra_file)
+
+    return additional
+
 def build_wheels(requirements_path: Path, wheels_dir: Path):
     """
     Build/download wheel files for all dependencies in requirements.txt using pip wheel.
@@ -84,6 +98,18 @@ def pack_agent(agent_dir: str) -> int:
         print(f"Error: requirements.txt not found in {agent_dir}", file=sys.stderr)
         return 1
 
+    additional_files = _collect_additional_files(manifest)
+    safe_additional_paths: list[tuple[str, str]] = []
+    for relative_path in additional_files:
+        candidate_path = os.path.abspath(os.path.join(abs_agent_dir, relative_path))
+        if not candidate_path.startswith(abs_agent_dir + os.sep):
+            print(f"Error: Additional file path '{relative_path}' escapes agent directory.", file=sys.stderr)
+            return 1
+        if not os.path.isfile(candidate_path):
+            print(f"Error: Additional file '{relative_path}' not found in {agent_dir}", file=sys.stderr)
+            return 1
+        safe_additional_paths.append((relative_path, candidate_path))
+
     print(f"[kinnoo pack] Packaging agent directory: {agent_dir}")
     wheels_dir = tempfile.TemporaryDirectory(prefix="kinnoo_wheels_")
 
@@ -101,6 +127,8 @@ def pack_agent(agent_dir: str) -> int:
         archive_file.write(kinnoo_yaml_path, arcname="kinnoo.yaml")
         archive_file.write(entrypoint_path, arcname=os.path.basename(entrypoint_path))
         archive_file.write(requirements_path, arcname="requirements.txt")
+        for relative_path, absolute_path in safe_additional_paths:
+            archive_file.write(absolute_path, arcname=relative_path)
         for wheel_path in wheel_files:
             archive_file.write(wheel_path, arcname=f"wheels/{os.path.basename(wheel_path)}")
 
