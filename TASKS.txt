@@ -692,3 +692,63 @@ tasks:
     dependencies: []
     tests: [test60]
     status: completed
+
+  - id: task39
+    title: Extract install flow into install_command module
+    type: task
+    description: |
+      Refactor CLI structure so install behavior is implemented in a dedicated
+      src/kinnoo/install_command.py module and invoked from cli.py, matching the
+      existing modular pattern used by init_command.py and pack_command.py.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/install_command.py
+      - src/kinnoo/__init__.py
+    steps:
+      - step1: Define clear install command entry function signature in install_command.py for reuse by CLI handlers
+      - step2: Move install-specific logic from cli.py into install_command.py while preserving current behavior and error messaging
+      - step3: Update cli.py to delegate install command handling to install_command.py
+      - step4: Verify all install paths still propagate exit codes and surface actionable errors for future unit/integration tests
+    dependencies: [task29, task30, task31, task32, task33, task34, task36]
+    tests: [test61]
+    status: completed
+
+  - id: task40
+    title: Add global CLI version flag support
+    type: task
+    description: |
+      Add --version support to the top-level kinnoo CLI so users can retrieve
+      the installed package version quickly and reliably.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/__init__.py
+      - pyproject.toml
+    steps:
+      - step1: Add parser-level --version flag that works without requiring a subcommand
+      - step2: Source version from a single canonical package location and avoid hardcoded duplication
+      - step3: Ensure --version prints version text and exits with code 0 with no side effects
+      - step4: Keep output stable and minimal so it can be asserted by upcoming unit tests
+    dependencies: [task4]
+    tests: [test62]
+    status: completed
+
+  - id: task41
+    title: Remove duplicate test functions across suite
+    type: task
+    description: |
+      Audit and remove duplicate test function definitions in the current test
+      suite to keep coverage deterministic and avoid ambiguous pytest collection.
+    files:
+      - tests/test_cli.py
+      - tests/test_init.py
+      - tests/test_pack.py
+      - tests/test_install.py
+      - tests/test_validator.py
+    steps:
+      - step1: Identify duplicate test function names and overlapping duplicate scenarios across test files
+      - step2: Consolidate duplicates into single canonical tests while preserving intent and coverage breadth
+      - step3: Normalize test naming to keep one unique test function per scenario for clean pytest discovery
+      - step4: Confirm suite remains runnable and produces stable collection counts to support future regression checks
+    dependencies: [task39, task40]
+    tests: [test63, test64]
+    status: completed
