@@ -10,13 +10,16 @@ from pathlib import Path
 
 try:
     from kinnoo.schema import NAME_PATTERN
+    from kinnoo import __version__ as KINNOO_VERSION
 except ImportError:
     # fallback for direct script execution
     from .schema import NAME_PATTERN
+    from . import __version__ as KINNOO_VERSION
 
 def main():
     import os
     parser = argparse.ArgumentParser(prog="kinnoo", description="Kinnoo CLI")
+    parser.add_argument("--version", action="version", version=KINNOO_VERSION)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # init subcommand
