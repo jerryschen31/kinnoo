@@ -176,3 +176,49 @@ outputs:
                 assert "wheels/missing_wheels.txt" in archive.namelist()
                 missing_wheels = archive.read("wheels/missing_wheels.txt").decode("utf-8")
                 assert "nonexist-pkg-kinnoo-test==0.0.1" in missing_wheels
+
+
+def test_pack_warns_on_platform_specific_wheels(tmp_path):
+        # [agent] test70 should run for packaging changes that may affect wheel tag
+        # parsing, warning messaging, or portability checks.
+        agent_dir = tmp_path / "platform-wheel-agent"
+        agent_dir.mkdir()
+
+        (agent_dir / "kinnoo.yaml").write_text(
+                """
+name: platform-wheel-agent
+version: 1.0.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: '>=3.10'
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+""".strip()
+                + "\n"
+        )
+        (agent_dir / "run.py").write_text("print('platform wheel ok')\n")
+        (agent_dir / "requirements.txt").write_text(
+            "orjson==3.10.6\n"
+            "psutil==7.0.0\n"
+        )
+
+        result = subprocess.run(
+                [sys.executable, "src/kinnoo/cli.py", "pack", str(agent_dir)],
+                capture_output=True,
+                text=True,
+        )
+
+        assert result.returncode == 0, (
+                "Expected pack to succeed while warning about portability risk. "
+                f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+        )
+        assert "Platform-specific wheels detected" in result.stderr
+        assert "may not be portable across operating systems" in result.stderr
+
+        kno_path = tmp_path / "platform-wheel-agent.kno"
+        assert kno_path.exists(), "Expected .kno archive to be created"
