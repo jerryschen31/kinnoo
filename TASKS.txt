@@ -752,3 +752,116 @@ tasks:
     dependencies: [task39, task40]
     tests: [test63, test64]
     status: completed
+
+  - id: task42
+    title: Include transitive dependencies in pack artifacts
+    type: task
+    description: |
+      Update packaging dependency resolution so `kinnoo pack` bundles wheels for
+      both direct and transitive dependencies required for offline installation.
+    files:
+      - src/kinnoo/pack_command.py
+      - src/kinnoo/cli.py
+    steps:
+      - step1: Remove any dependency-resolution behavior that limits wheel collection to direct dependencies only
+      - step2: Ensure wheel build/download flow resolves and collects full dependency closure compatible with requirements constraints
+      - step3: Preserve clear user-facing output that reports dependency collection progress and actionable failures
+      - step4: Keep implementation deterministic so future unit/integration tests can assert artifact contents reliably
+    dependencies: [task26, task27]
+    tests: [test65]
+    status: not-started
+
+  - id: task43
+    title: Canonicalize .kno archive format as zip
+    type: task
+    description: |
+      Standardize `.kno` packaging format to zip and align implementation,
+      command behavior, and documentation references to use zip consistently.
+    files:
+      - src/kinnoo/pack_command.py
+      - src/kinnoo/install_command.py
+      - src/kinnoo/cli.py
+      - README.md
+      - docs/manifest-schema-reference.md
+    steps:
+      - step1: Update pack/install archive handling so `.kno` is treated as a zip-based artifact consistently
+      - step2: Remove or replace conflicting tar.gz assumptions in runtime logic and error/help messages
+      - step3: Align project documentation and user guidance text to reference zip semantics only
+      - step4: Keep behavior backward-safe where feasible and structure code paths for clear future regression tests
+    dependencies: [task27, task30]
+    tests: [test66]
+    status: not-started
+
+  - id: task44
+    title: Add non-fatal wheel build fallback warnings
+    type: task
+    description: |
+      Make wheel build failures non-fatal during `kinnoo pack`: emit warnings,
+      continue packaging, and record which dependencies are missing wheels.
+    files:
+      - src/kinnoo/pack_command.py
+      - src/kinnoo/cli.py
+    steps:
+      - step1: Wrap per-dependency wheel build/download operations so individual failures do not abort full pack
+      - step2: Track missing/failed wheel dependencies in a structured list for downstream install handling
+      - step3: Print concise warning messages with dependency names and next-step guidance
+      - step4: Preserve package success criteria and output shape for future assertions in automated tests
+    dependencies: [task42]
+    tests: [test67]
+    status: not-started
+
+  - id: task45
+    title: Add install fallback to PyPI for missing wheels
+    type: task
+    description: |
+      Update `kinnoo install` to detect missing wheel artifacts and fall back to
+      network installation from PyPI with explicit user-visible warnings.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/cli.py
+    steps:
+      - step1: Detect dependency gaps between requirements and bundled wheel artifacts at install time
+      - step2: Attempt local-wheel install first, then install unresolved dependencies from PyPI
+      - step3: Emit clear warning output when fallback occurs, including that internet access is required
+      - step4: Keep exit-code and error semantics stable so fallback/non-fallback paths can be tested independently
+    dependencies: [task32, task44]
+    tests: [test68]
+    status: not-started
+
+  - id: task46
+    title: Harden offline install behavior and messaging
+    type: task
+    description: |
+      Ensure installations remain fully offline when all required wheels are
+      bundled, and provide actionable failure messaging when offline install is
+      impossible due to missing artifacts.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/pack_command.py
+      - src/kinnoo/cli.py
+    steps:
+      - step1: Keep install path strictly local when wheel set is complete (no implicit network operations)
+      - step2: If required wheels are missing and fallback cannot run, fail with a clear message that names missing dependencies
+      - step3: Ensure pack/install outputs make offline readiness visible for operators before runtime failures
+      - step4: Structure logic so future offline integration tests can deterministically validate both success and failure branches
+    dependencies: [task42, task45]
+    tests: [test69]
+    status: not-started
+
+  - id: task47
+    title: Detect platform-specific wheels and warn users
+    type: task
+    description: |
+      Add platform-compatibility checks during packaging and display warnings when
+      bundled wheels may not be portable across operating systems.
+    files:
+      - src/kinnoo/pack_command.py
+      - src/kinnoo/cli.py
+    steps:
+      - step1: Parse wheel filenames/tags to identify platform-specific artifacts during pack
+      - step2: Emit the specified portability warning when non-universal wheels are detected
+      - step3: Keep warnings user-focused and non-blocking while preserving successful archive creation
+      - step4: Keep detection output stable and explicit for future unit tests that assert warning conditions
+    dependencies: [task42]
+    tests: [test70]
+    status: not-started
