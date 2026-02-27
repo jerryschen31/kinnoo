@@ -38,8 +38,7 @@ def build_wheels(requirements_path: Path, wheels_dir: Path):
     cmd = [
         "python3", "-m", "pip", "wheel",
         "-r", str(requirements_path),
-        "--wheel-dir", str(wheels_dir),
-        "--no-deps"
+        "--wheel-dir", str(wheels_dir)
     ]
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
