@@ -1,13 +1,13 @@
-"""
-pack_command.py: Implements packaging logic for kinnoo pack (task26).
-- Builds/downloads wheel files for dependencies in requirements.txt.
-- Stores wheels in a temp directory for packaging.
-- Aborts with error if any dependency cannot be built/downloaded.
-"""
-import subprocess
-import tempfile
+"""Packaging command implementation for `kinnoo pack`."""
+
 import os
+import subprocess
+import sys
+import tempfile
+import zipfile
 from pathlib import Path
+
+import yaml
 
 class WheelBuildError(Exception):
     pass
@@ -32,3 +32,78 @@ def build_wheels(requirements_path: Path, wheels_dir: Path):
         raise WheelBuildError(f"Failed to build wheels:\n{result.stderr}")
     # Return list of wheel files
     return list(wheels_dir.glob("*.whl"))
+
+
+def pack_agent(agent_dir: str) -> int:
+    abs_agent_dir = os.path.abspath(agent_dir)
+    cwd = os.path.abspath(os.getcwd())
+    if abs_agent_dir == cwd or os.path.samefile(abs_agent_dir, cwd):
+        print("Do not run kinnoo pack from inside the agent directory. Please navigate outside and run: kinnoo pack <agent-dir>")
+        return 1
+    if not os.path.isdir(abs_agent_dir):
+        print(f"Error: Agent directory '{agent_dir}' does not exist.")
+        return 1
+
+    kinnoo_yaml_path = os.path.join(abs_agent_dir, "kinnoo.yaml")
+    if not os.path.isfile(kinnoo_yaml_path):
+        print(f"Error: kinnoo.yaml not found in {agent_dir}", file=sys.stderr)
+        return 1
+
+    try:
+        from kinnoo.validator import validate
+    except ImportError:
+        from .validator import validate
+
+    try:
+        is_valid, errors = validate(kinnoo_yaml_path)
+    except Exception as error:
+        print(f"Error: Failed to validate kinnoo.yaml: {error}", file=sys.stderr)
+        return 1
+
+    if not is_valid:
+        print("Manifest validation failed:", file=sys.stderr)
+        for error in errors:
+            print(f"  - {error}", file=sys.stderr)
+        return 1
+
+    with open(kinnoo_yaml_path, "r") as manifest_file:
+        manifest = yaml.safe_load(manifest_file)
+
+    entrypoint = manifest.get("entrypoint")
+    if not entrypoint:
+        print("Error: 'entrypoint' not specified in kinnoo.yaml", file=sys.stderr)
+        return 1
+
+    entrypoint_path = os.path.join(abs_agent_dir, entrypoint)
+    if not os.path.isfile(entrypoint_path):
+        print(f"Error: Entrypoint file '{entrypoint}' not found in {agent_dir}", file=sys.stderr)
+        return 1
+
+    requirements_path = os.path.join(abs_agent_dir, "requirements.txt")
+    if not os.path.isfile(requirements_path):
+        print(f"Error: requirements.txt not found in {agent_dir}", file=sys.stderr)
+        return 1
+
+    print(f"[kinnoo pack] Packaging agent directory: {agent_dir}")
+    wheels_dir = tempfile.TemporaryDirectory(prefix="kinnoo_wheels_")
+
+    try:
+        wheel_files = build_wheels(Path(requirements_path), Path(wheels_dir.name))
+    except WheelBuildError as error:
+        print(f"Error: {error}", file=sys.stderr)
+        wheels_dir.cleanup()
+        return 1
+
+    archive_name = os.path.basename(abs_agent_dir.rstrip(os.sep)) + ".kno"
+    archive_path = os.path.join(os.path.dirname(abs_agent_dir), archive_name)
+
+    with zipfile.ZipFile(archive_path, "w", zipfile.ZIP_DEFLATED) as archive_file:
+        archive_file.write(kinnoo_yaml_path, arcname="kinnoo.yaml")
+        archive_file.write(entrypoint_path, arcname=os.path.basename(entrypoint_path))
+        archive_file.write(requirements_path, arcname="requirements.txt")
+        for wheel_path in wheel_files:
+            archive_file.write(wheel_path, arcname=f"wheels/{os.path.basename(wheel_path)}")
+
+    print(f"[kinnoo pack] Archive created: {archive_path}")
+    wheels_dir.cleanup()
+    return 0
