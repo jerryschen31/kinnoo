@@ -26,26 +26,61 @@ def _collect_additional_files(manifest: dict) -> list[str]:
 
     return additional
 
+def _read_requirements(requirements_path: Path) -> list[str]:
+    requirements: list[str] = []
+    for raw_line in requirements_path.read_text().splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        requirements.append(line)
+    return requirements
+
+
+def _is_platform_specific_wheel(wheel_filename: str) -> bool:
+    """Return True when wheel platform tag is not universal (`any`)."""
+    if not wheel_filename.endswith(".whl"):
+        return False
+
+    stem = wheel_filename[:-4]
+    parts = stem.rsplit("-", 3)
+    if len(parts) != 4:
+        return False
+
+    platform_tag = parts[3]
+    return platform_tag != "any"
+
+
 def build_wheels(requirements_path: Path, wheels_dir: Path):
     """
-    Build/download wheel files for all dependencies in requirements.txt using pip wheel.
-    Wheels are stored in wheels_dir. Raises WheelBuildError on failure.
+    Build/download wheel files for dependencies in requirements.txt using per-dependency
+    pip wheel calls so individual failures can be non-fatal.
     """
     if not requirements_path.exists() or not requirements_path.read_text().strip():
         # No requirements or empty file: nothing to do
-        return []
+        return [], []
+
+    requirements = _read_requirements(requirements_path)
+    if not requirements:
+        return [], []
+
     wheels_dir.mkdir(parents=True, exist_ok=True)
-    cmd = [
-        "python3", "-m", "pip", "wheel",
-        "-r", str(requirements_path),
-        "--wheel-dir", str(wheels_dir),
-        "--no-deps"
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        raise WheelBuildError(f"Failed to build wheels:\n{result.stderr}")
-    # Return list of wheel files
-    return list(wheels_dir.glob("*.whl"))
+    failed_requirements: list[str] = []
+    for requirement in requirements:
+        cmd = [
+            "python3", "-m", "pip", "wheel",
+            requirement,
+            "--wheel-dir", str(wheels_dir),
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            failed_requirements.append(requirement)
+            print(
+                f"Warning: Could not build wheel for dependency '{requirement}'. "
+                "Packaging will continue and install may require PyPI fallback.",
+                file=sys.stderr,
+            )
+
+    return list(wheels_dir.glob("*.whl")), failed_requirements
 
 
 def pack_agent(agent_dir: str) -> int:
@@ -113,12 +148,26 @@ def pack_agent(agent_dir: str) -> int:
     print(f"[kinnoo pack] Packaging agent directory: {agent_dir}")
     wheels_dir = tempfile.TemporaryDirectory(prefix="kinnoo_wheels_")
 
-    try:
-        wheel_files = build_wheels(Path(requirements_path), Path(wheels_dir.name))
-    except WheelBuildError as error:
-        print(f"Error: {error}", file=sys.stderr)
-        wheels_dir.cleanup()
-        return 1
+    wheel_files, failed_requirements = build_wheels(Path(requirements_path), Path(wheels_dir.name))
+
+    platform_specific_wheels = [wheel.name for wheel in wheel_files if _is_platform_specific_wheel(wheel.name)]
+    if platform_specific_wheels:
+        print(
+            "Warning: Platform-specific wheels detected; bundled wheels may not be portable across operating systems: "
+            f"{', '.join(sorted(platform_specific_wheels))}",
+            file=sys.stderr,
+        )
+
+    missing_wheels_report_path: str | None = None
+    if failed_requirements:
+        missing_wheels_report_path = os.path.join(wheels_dir.name, "missing_wheels.txt")
+        with open(missing_wheels_report_path, "w", encoding="utf-8") as report_file:
+            report_file.write("\n".join(failed_requirements) + "\n")
+        print(
+            "Warning: Some dependency wheels could not be bundled: "
+            f"{', '.join(failed_requirements)}",
+            file=sys.stderr,
+        )
 
     archive_name = os.path.basename(abs_agent_dir.rstrip(os.sep)) + ".kno"
     archive_path = os.path.join(os.path.dirname(abs_agent_dir), archive_name)
@@ -131,6 +180,8 @@ def pack_agent(agent_dir: str) -> int:
             archive_file.write(absolute_path, arcname=relative_path)
         for wheel_path in wheel_files:
             archive_file.write(wheel_path, arcname=f"wheels/{os.path.basename(wheel_path)}")
+        if missing_wheels_report_path is not None:
+            archive_file.write(missing_wheels_report_path, arcname="wheels/missing_wheels.txt")
 
     print(f"[kinnoo pack] Archive created: {archive_path}")
     wheels_dir.cleanup()
