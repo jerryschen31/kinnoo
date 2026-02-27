@@ -769,7 +769,7 @@ tasks:
       - step4: Keep implementation deterministic so future unit/integration tests can assert artifact contents reliably
     dependencies: [task26, task27]
     tests: [test65]
-    status: needs-review
+    status: completed
 
   - id: task43
     title: Canonicalize .kno archive format as zip
@@ -790,7 +790,7 @@ tasks:
       - step4: Keep behavior backward-safe where feasible and structure code paths for clear future regression tests
     dependencies: [task27, task30]
     tests: [test66]
-    status: not-started
+    status: needs-review
 
   - id: task44
     title: Add non-fatal wheel build fallback warnings
