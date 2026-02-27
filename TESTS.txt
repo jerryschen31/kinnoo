@@ -415,7 +415,6 @@ tests:
     covers:
       - feature: feature3
         ac: AC2
-      - task: task15
     automated: true
     automation_path: tests/test_cli.py::test_run_corrupted_manifest
 
@@ -430,7 +429,6 @@ tests:
     covers:
       - feature: feature3
         ac: AC3
-      - task: task15
     automated: true
     automation_path: tests/test_cli.py::test_run_permission_error
 
@@ -445,7 +443,6 @@ tests:
     covers:
       - feature: feature3
         ac: AC2
-      - task: task15
     automated: false
     automation_path: null
 
@@ -460,7 +457,6 @@ tests:
     covers:
       - feature: feature3
         ac: AC5
-      - task: task15
     automated: false
     automation_path: null
 
@@ -473,7 +469,8 @@ tests:
     expected: Prints error message listing supported frameworks and usage, exits non-zero
     pass_criteria: Error message and usage shown, no files created
     covers:
-      - task: task16
+      - feature: feature4
+        ac: AC1
     automated: true
     automation_path: tests/test_init.py::test_framework_invalid
 
@@ -487,7 +484,8 @@ tests:
     expected: run.py uses google-generativeai, requirements.txt lists google-generativeai, README.md has GOOGLE_API_KEY instructions
     pass_criteria: All files present and correct for Gemini
     covers:
-      - task: task17
+      - feature: feature4
+        ac: AC1
     automated: true
     automation_path: tests/test_init.py::test_framework_templates_generate_correct_files
 
@@ -501,7 +499,8 @@ tests:
     expected: run.py uses openai, requirements.txt lists openai, README.md has OPENAI_API_KEY instructions
     pass_criteria: All files present and correct for ChatGPT
     covers:
-      - task: task17
+      - feature: feature4
+        ac: AC2
     automated: true
     automation_path: tests/test_init.py::test_framework_templates_generate_correct_files
 
@@ -515,7 +514,8 @@ tests:
     expected: run.py uses anthropic, requirements.txt lists anthropic, README.md has ANTHROPIC_API_KEY instructions
     pass_criteria: All files present and correct for Claude
     covers:
-      - task: task17
+      - feature: feature4
+        ac: AC3
     automated: true
     automation_path: tests/test_init.py::test_framework_templates_generate_correct_files
 
@@ -529,7 +529,12 @@ tests:
     expected: kinnoo.yaml passes validation (no errors)
     pass_criteria: is_valid is True and errors is empty for all frameworks
     covers:
-      - task: task18
+      - feature: feature4
+        ac: AC1
+      - feature: feature4
+        ac: AC2
+      - feature: feature4
+        ac: AC3
     automated: true
     automation_path: tests/test_init.py::test_framework_manifests_pass_validation
 
@@ -542,7 +547,8 @@ tests:
     expected: Prints usage message and exits non-zero
     pass_criteria: Usage message shown, no files created
     covers:
-      - task: task19
+      - feature: feature2
+        ac: AC5
     automated: true
     automation_path: tests/test_init.py::test_init_missing_name_prints_usage
 
@@ -555,7 +561,8 @@ tests:
     expected: Prints error and does not overwrite directory
     pass_criteria: Error message shown, directory unchanged
     covers:
-      - task: task19
+      - feature: feature2
+        ac: AC6
     automated: true
     automation_path: tests/test_init.py::test_init_existing_directory_fails
 
@@ -569,7 +576,8 @@ tests:
     expected: requirements.txt is empty, README.md has no API key, run.py is hello-world
     pass_criteria: All vanilla agent files present and correct
     covers:
-      - task: task19
+      - feature: feature2
+        ac: AC1
     automated: true
     automation_path: tests/test_init.py::test_init_vanilla_agent
 
@@ -582,7 +590,12 @@ tests:
     expected: Succeeds and generates correct files
     pass_criteria: Exit code 0, files created for each framework
     covers:
-      - task: task16
+      - feature: feature4
+        ac: AC1
+      - feature: feature4
+        ac: AC2
+      - feature: feature4
+        ac: AC3
     automated: true
     automation_path: tests/test_init.py::test_framework_valid
 
@@ -596,7 +609,8 @@ tests:
     expected: kinnoo.yaml passes validation (no errors)
     pass_criteria: is_valid is True and errors is empty
     covers:
-      - task: task18
+      - feature: feature2
+        ac: AC2
     automated: true
     automation_path: tests/test_init.py::test_generated_manifest_passes_validation
 
@@ -610,7 +624,8 @@ tests:
     expected: kinnoo.yaml passes validation (no errors)
     pass_criteria: is_valid is True and errors is empty
     covers:
-      - task: task21
+      - feature: feature4
+        ac: AC1
     automated: true
     automation_path: tests/test_init.py::test_agent_name_with_underscore_is_accepted
 
@@ -626,7 +641,6 @@ tests:
     covers:
       - feature: feature4
         ac: AC5
-      - task: task22
     automated: true
     automation_path: tests/test_init.py::test_gemini_template_uses_genai_and_flash_lite
 
@@ -641,7 +655,6 @@ tests:
     covers:
       - feature: feature5
         ac: AC5
-      - task: task23
     automated: true
     automation_path: tests/test_pack.py::test_pack_missing_argument_prints_usage
 
@@ -656,7 +669,6 @@ tests:
     covers:
       - feature: feature5
         ac: AC6
-      - task: task24
     automated: true
     automation_path: tests/test_pack.py::test_pack_invalid_manifest_aborts
 
@@ -671,7 +683,6 @@ tests:
     covers:
       - feature: feature5
         ac: AC6
-      - task: task25
     automated: true
     automation_path: tests/test_pack.py::test_pack_missing_required_files_aborts
 
@@ -687,7 +698,6 @@ tests:
     covers:
       - feature: feature5
         ac: AC3
-      - task: task26
     automated: true
     automation_path: tests/test_pack.py::test_pack_includes_wheel_files
 
@@ -707,7 +717,6 @@ tests:
         ac: AC2
       - feature: feature5
         ac: AC4
-      - task: task27
     automated: true
     automation_path: tests/test_pack.py::test_pack_creates_correct_archive_structure
 
@@ -723,7 +732,6 @@ tests:
     covers:
       - feature: feature5
         ac: AC7
-      - task: task28
     automated: true
     automation_path: tests/test_pack.py::test_pack_install_compatibility
     notes: This test is deprecated; kinnoo install will be tested as part of feature5 integration.
@@ -746,7 +754,6 @@ tests:
         ac: AC3
       - feature: feature5
         ac: AC4
-      - task: task29
     automated: true
     automation_path: tests/test_pack.py::test_pack_positive_cases
 
@@ -762,7 +769,6 @@ tests:
     covers:
       - feature: feature5
         ac: AC6
-      - task: task29
     automated: true
     automation_path: tests/test_pack.py::test_pack_negative_cases
 
@@ -778,7 +784,6 @@ tests:
     covers:
       - feature: feature5
         ac: AC7
-      - task: task29
     automated: true
     automation_path: tests/test_pack.py::test_pack_integration_workflow
 
@@ -794,7 +799,6 @@ tests:
     covers:
       - feature: feature5
         ac: AC8
-      - task: task23
     automated: true
     automation_path: tests/test_pack.py::test_pack_inside_agent_dir_prints_error
 
@@ -815,7 +819,6 @@ tests:
         ac: AC2
       - feature: feature5
         ac: AC4
-      - task: task28
     automated: true
     automation_path: tests/test_pack.py::test_manual_extraction_verifies_files
 
@@ -832,7 +835,6 @@ tests:
     covers:
       - feature: feature6
         ac: AC5
-      - task: task29
 
   - id: test52
     title: kinnoo install extracts archive to new directory with collision handling
@@ -848,7 +850,6 @@ tests:
     covers:
       - feature: feature6
         ac: AC1
-      - task: task30
 
   - id: test53
     title: kinnoo install validates manifest before installation
@@ -863,7 +864,6 @@ tests:
     covers:
       - feature: feature6
         ac: AC2
-      - task: task31
 
   - id: test54
     title: kinnoo install creates venv and installs dependencies from wheels
@@ -879,7 +879,6 @@ tests:
     covers:
       - feature: feature6
         ac: AC3
-      - task: task32
 
   - id: test55
     title: kinnoo install makes agent runnable with kinnoo run
@@ -895,7 +894,6 @@ tests:
     covers:
       - feature: feature6
         ac: AC4
-      - task: task33
 
   - id: test56
     title: kinnoo install handles invalid archive or missing files gracefully
@@ -910,7 +908,6 @@ tests:
     covers:
       - feature: feature6
         ac: AC6
-      - task: task34
 
   - id: test57
     title: kinnoo install prevents overwrites unless --force flag is provided
@@ -926,7 +923,6 @@ tests:
     covers:
       - feature: feature6
         ac: AC7
-      - task: task35
 
   - id: test58
     title: kinnoo install extracts archive to user-specified directory
@@ -944,7 +940,6 @@ tests:
     covers:
       - feature: feature6
         ac: AC1
-      - task: task36
 
   - id: test59
     title: Manifest loader injects defaults for missing dependencies, inputs, outputs
@@ -961,7 +956,6 @@ tests:
     covers:
       - feature: feature6
         ac: AC8
-      - task: task37
   
   - id: test60
     title: Manifest loader normalizes "type" field to list
@@ -980,7 +974,6 @@ tests:
     covers:
       - feature: feature6
         ac: AC8
-      - task: task38
 
   - id: test61
     title: Install command is modularized and delegated from CLI
@@ -999,7 +992,6 @@ tests:
         ac: AC1
       - feature: feature7
         ac: AC2
-      - task: task39
 
   - id: test62
     title: Global --version prints package version and exits successfully
@@ -1015,7 +1007,6 @@ tests:
     covers:
       - feature: feature7
         ac: AC3
-      - task: task40
 
   - id: test63
     title: Test suite contains no duplicate test function names
@@ -1031,7 +1022,6 @@ tests:
     covers:
       - feature: feature7
         ac: AC4
-      - task: task41
 
   - id: test64
     title: V1 regression suite passes after CLI modular refactor
@@ -1047,4 +1037,3 @@ tests:
     covers:
       - feature: feature7
         ac: AC5
-      - task: task41
