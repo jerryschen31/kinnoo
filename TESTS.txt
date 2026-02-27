@@ -1037,3 +1037,113 @@ tests:
     covers:
       - feature: feature7
         ac: AC5
+
+  - id: test65
+    title: Pack bundles transitive dependency wheels from pinned requirements
+    type: integration
+    preconditions: |
+      Agent fixture requirements.txt includes pinned direct dependencies with transitive trees:
+      requests==2.31.0
+      httpx==0.27.0
+    steps:
+      - step1: Run kinnoo pack on the fixture agent
+      - step2: Inspect the .kno archive wheel directory contents
+      - step3: Verify wheels exist for direct dependencies and representative transitives (e.g., urllib3, certifi, httpcore, anyio)
+    expected: Archive contains wheel artifacts for both direct and transitive dependencies required for offline install
+    pass_criteria: Wheel set includes transitive dependencies and offline install does not require network for this fixture
+    automated: true
+    automation_path: tests/test_pack_robustness.py::test_pack_includes_transitive_wheels_for_pinned_deps
+    covers:
+      - feature: feature8
+        ac: AC1
+
+  - id: test66
+    title: .kno artifacts use zip format consistently across pack and install
+    type: integration
+    preconditions: Valid agent fixture with pinned requirements and kinnoo CLI available
+    steps:
+      - step1: Run kinnoo pack and verify produced .kno file is a zip archive
+      - step2: Run kinnoo install on the produced archive and verify extraction/install succeeds
+      - step3: Confirm CLI/help/docs references for archive behavior are zip-consistent in tested paths
+    expected: Pack/install behavior and user-visible references are aligned to zip-based .kno format
+    pass_criteria: Archive magic/type indicates zip and install path succeeds without tar-specific assumptions
+    automated: true
+    automation_path: tests/test_pack_robustness.py::test_kno_zip_format_is_canonical
+    covers:
+      - feature: feature8
+        ac: AC2
+
+  - id: test67
+    title: Pack warns and continues when individual wheel builds fail
+    type: integration
+    preconditions: |
+      Agent fixture requirements.txt includes at least one intentionally problematic pinned dependency alongside valid ones, e.g.:
+      requests==2.31.0
+      nonexist-pkg-kinnoo-test==0.0.1
+    steps:
+      - step1: Run kinnoo pack on the fixture agent
+      - step2: Capture stdout/stderr warnings and resulting archive path
+      - step3: Verify archive is still created and warning identifies failed dependency wheel build
+    expected: Packaging continues with warnings instead of aborting when one dependency wheel cannot be produced
+    pass_criteria: Process exits success for pack, warning is emitted, and output archive exists
+    automated: true
+    automation_path: tests/test_pack_robustness.py::test_pack_continues_on_per_dependency_wheel_failure
+    covers:
+      - feature: feature8
+        ac: AC3
+
+  - id: test68
+    title: Install falls back to PyPI for missing wheels with explicit warning
+    type: integration
+    preconditions: |
+      Archive built from pinned dependency fixture where one required wheel is deliberately removed before install,
+      e.g., requirements include requests==2.31.0 and urllib3 wheel is removed from archive wheel bundle.
+    steps:
+      - step1: Run kinnoo install on the modified archive with network available
+      - step2: Capture install output for fallback warning
+      - step3: Verify missing dependency is installed via PyPI and agent remains runnable
+    expected: Installer warns about missing wheels and successfully resolves missing dependency from PyPI
+    pass_criteria: Warning is printed, install exits 0, and runtime imports for missing dependency succeed
+    automated: true
+    automation_path: tests/test_cli_install.py::test_install_falls_back_to_pypi_when_wheel_missing
+    covers:
+      - feature: feature8
+        ac: AC4
+
+  - id: test69
+    title: Fully offline install succeeds when pinned transitive wheels are complete
+    type: integration
+    preconditions: |
+      Archive produced from fixture with pinned direct dependencies that have transitives:
+      requests==2.31.0
+      httpx==0.27.0
+      and all required wheels bundled.
+    steps:
+      - step1: Run kinnoo install in an isolated environment with network access disabled
+      - step2: Execute kinnoo run against installed agent
+      - step3: Verify no network fallback path is attempted during install
+    expected: Offline installation and execution succeed using bundled wheels only
+    pass_criteria: Install and run exit 0 with network disabled and no PyPI fallback warning
+    automated: true
+    automation_path: tests/test_cli_install.py::test_offline_install_succeeds_with_complete_transitive_wheels
+    covers:
+      - feature: feature8
+        ac: AC5
+
+  - id: test70
+    title: Pack warns when platform-specific wheels are included
+    type: unit
+    preconditions: |
+      Fixture dependency set includes a pinned package that commonly ships platform-specific wheels,
+      e.g., orjson==3.10.6.
+    steps:
+      - step1: Run kinnoo pack for fixture agent
+      - step2: Inspect emitted warnings for platform portability message
+      - step3: Confirm archive creation still succeeds
+    expected: CLI prints the platform-specific wheel portability warning and still completes packaging
+    pass_criteria: Warning text is present and .kno artifact is generated successfully
+    automated: true
+    automation_path: tests/test_pack_robustness.py::test_pack_warns_on_platform_specific_wheels
+    covers:
+      - feature: feature8
+        ac: AC6

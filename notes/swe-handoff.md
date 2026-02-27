@@ -1,137 +1,122 @@
-# SWE Handoff Brief — Feature7 (CLI Refactor & Modular Architecture)
+# SWE Handoff — Feature8 Packaging Robustness (Tests)
 
-## Goal
-Implement `feature7` end-to-end with clean modularization and no regressions:
+## Scope
+This handoff is for implementing the new Feature8 tests already defined in `TESTS.txt`:
 
-- AC1: Install logic lives in `src/kinnoo/install_command.py`.
-- AC2: `cli.py` delegates install operations to `install_command.py`.
-- AC3: `kinnoo --version` prints package version and exits `0`.
-- AC4: No duplicate test functions exist in the test suite.
-- AC5: Existing V1 tests pass after refactor.
+- `test65` → AC1 (transitive dependency wheels included)
+- `test66` → AC2 (canonical `.kno` zip format)
+- `test67` → AC3 (wheel build failure is non-fatal with warning)
+- `test68` → AC4 (install fallback to PyPI for missing wheels)
+- `test69` → AC5 (offline install succeeds when wheel set is complete)
+- `test70` → AC6 (platform-specific wheel warning)
 
-Feature status reference:
-- Feature: `feature7`
-- Tasks: `task39`, `task40`, `task41`
-- Tests: `test61`, `test62`, `test63`, `test64`
+Related tasks in `TASKS.txt`:
 
----
+- `task42` → `test65`
+- `task43` → `test66`
+- `task44` → `test67`
+- `task45` → `test68`
+- `task46` → `test69`
+- `task47` → `test70`
 
-## Current Codebase Context (as of handoff)
+## Test Design Principles (must follow)
+1. Use pinned dependency versions for deterministic behavior.
+2. Validate true dependency resolution behavior (direct + transitive), not only superficial command success.
+3. Prefer small, realistic fixtures over mocks for archive/wheel/install workflows.
+4. Keep tests independent and hermetic (`tmp_path`, isolated env vars, explicit cleanup).
+5. Assert user-facing warnings/messages that are part of ACs.
 
-- `src/kinnoo/install_command.py` does **not** exist yet.
-- Install flow is currently implemented inline in `src/kinnoo/cli.py` under `elif args.command == "install":`.
-- `cli.py` currently has no top-level `--version` flag.
-- Package version is declared in `pyproject.toml` as `1.0.0`.
-- `src/kinnoo/__init__.py` currently exports only `validate`.
+## Recommended Fixture Dependencies (Pinned)
 
-This means `task39` and `task40` are currently unmet and are the first implementation priorities.
+### Primary transitive fixture (for AC1/AC5)
+Use these in generated fixture `requirements.txt`:
 
----
+```txt
+requests==2.31.0
+httpx==0.27.0
+```
 
-## Implementation Scope & Order
+Why:
+- `requests` pulls transitives like `urllib3`, `certifi`, `charset-normalizer`, `idna`.
+- `httpx` pulls `httpcore`, `anyio`, and related transitives.
+- Both are common, stable, and exercise meaningful dependency trees.
 
-### 1) task39 — Extract install flow into module
-Files:
-- `src/kinnoo/install_command.py` (new)
-- `src/kinnoo/cli.py`
-- `src/kinnoo/__init__.py` (only if needed for version/import ergonomics)
+### Platform-specific wheel fixture (for AC6)
+Use:
 
-Required outcome:
-- Move install-specific logic out of `cli.py` into a dedicated function in `install_command.py`.
-- `cli.py` should parse install args, then call the install command function.
-- Preserve behavior and user-facing error semantics unless intentionally improved.
+```txt
+orjson==3.10.6
+```
 
-Suggested function shape:
-- `def install_agent(archive_path: str, target_dir: str | None = None, force: bool = False) -> int:`
+Why:
+- Commonly provides platform-tagged wheels, suitable for portability warning detection.
 
-Guidance:
-- Keep CLI argument parsing in `cli.py`; keep install execution in `install_command.py`.
-- Return exit codes from command functions rather than calling `sys.exit()` deep in helper logic when practical.
-- Handle errors with clear messages; avoid stack traces for expected failures.
+## Proposed Test Module Layout
+Create or extend:
 
-### 2) task40 — Add global `--version`
-Files:
-- `src/kinnoo/cli.py`
-- `src/kinnoo/__init__.py`
-- `pyproject.toml` (only if needed to avoid version duplication)
+- `tests/test_pack_robustness.py` (for test65, test66, test67, test70)
+- `tests/test_cli_install.py` (for test68, test69)
 
-Required outcome:
-- `kinnoo --version` works without subcommands and exits `0`.
-- Version should come from a single canonical source (avoid hardcoded duplicates).
+Keep helper utilities local to the test module or `tests/conftest.py` only if reused by multiple files.
 
-Suggested approach:
-- Add parser-level version action in argparse.
-- Expose `__version__` from package metadata (e.g., `importlib.metadata.version("kinnoo")`) or other single-source strategy.
+## Implementation Notes by Test
 
-### 3) task41 — Remove duplicate test functions
-Files (minimum):
-- `tests/test_cli.py`
-- `tests/test_init.py`
-- `tests/test_pack.py`
-- `tests/test_install.py`
-- `tests/test_validator.py`
-- plus any new test files needed by test entries below.
+### test65 — transitive wheels included
+- Build a fixture agent with pinned dependencies above.
+- Run `kinnoo pack`.
+- Inspect `.kno` archive wheel entries.
+- Assert direct wheels and representative transitives are present.
+- Prefer asserting a meaningful subset (e.g., `requests`, `httpx`, `urllib3`, `certifi`, `httpcore`, `anyio`) rather than every wheel to reduce brittleness.
 
-Required outcome:
-- No duplicate test function names / duplicate collection targets causing ambiguous pytest collection.
-- Keep scenario coverage while consolidating duplicates.
+### test66 — zip canonicalization
+- Run `kinnoo pack` and verify resulting `.kno` is zip-structured.
+- Avoid extension-only checks; verify archive type via zip inspection behavior.
+- Run `kinnoo install` with produced archive and assert success.
 
----
+### test67 — non-fatal wheel failure
+- Use one valid pinned dependency plus one intentionally invalid package name.
+- Assert:
+	- pack still exits successfully,
+	- archive is created,
+	- warning names failed dependency.
+- Ensure this test validates warning semantics, not just command output existence.
 
-## Test Implementation Requirements
+### test68 — PyPI fallback for missing wheel
+- Start with a valid packed archive.
+- Remove one required wheel from archive contents before install.
+- Install with network enabled.
+- Assert warning is printed and installation still succeeds.
+- Verify installed environment can import/use the previously missing dependency.
 
-These test manifest entries already exist and must be implemented/aligned:
+### test69 — offline install with complete wheel set
+- Use complete transitive wheel archive from pinned fixture.
+- Run install in a no-network context (monkeypatch network calls or enforce pip flags/env so network access is disallowed in test environment).
+- Assert install and run succeed without fallback warning.
+- This is the critical correctness test for AC5.
 
-- `test61` → `tests/test_cli_install.py::test_install_delegates_to_install_command`
-- `test62` → `tests/test_cli.py::test_cli_version_flag`
-- `test63` → `tests/test_suite_integrity.py::test_no_duplicate_test_functions`
-- `test64` → `tests/test_regression_v1.py::test_v1_suite_passes_after_feature7`
+### test70 — platform-specific wheel warning
+- Pack fixture containing `orjson==3.10.6`.
+- Assert portability warning text is present.
+- Assert archive creation still succeeds.
 
-Notes:
-- If these files do not exist, create them.
-- Keep tests deterministic and CI-friendly.
-- For CLI tests, follow project guidance to invoke via script path (e.g., `python src/kinnoo/cli.py ...`) where applicable.
+## Suggested Helper Utilities
+- `create_fixture_agent(tmp_path, requirements_lines)`
+- `run_kinnoo_pack(agent_dir)`
+- `list_archive_wheels(kno_path)`
+- `remove_wheel_from_archive(kno_path, wheel_predicate)`
+- `run_kinnoo_install(kno_path, target_dir=None, env=None)`
 
----
+Keep helper names descriptive and avoid hidden global state.
 
-## Validation Checklist (must run before handback)
+## Risk Areas / Pitfalls
+- Over-asserting exact full wheel set may create flaky tests across packaging tool updates; assert required subset + behavior.
+- Offline test strategy must be deterministic; do not rely on machine-level firewall state.
+- Warning text assertions should target stable substrings required by ACs.
+- Ensure tests do not leak caches or environment state between runs.
 
-1. Run targeted tests for feature7 additions:
-	- `python3 -m pytest tests/test_cli_install.py tests/test_cli.py tests/test_suite_integrity.py tests/test_regression_v1.py`
-2. Run broader regression as needed for confidence:
-	- `python3 -m pytest`
-3. Validate manifests after any TASKS/TESTS edits:
-	- `python3 src/validate_project_manifests.py`
-
-Expected result:
-- Feature7 tests pass.
-- V1 regression pass condition for AC5 is demonstrated.
-- Manifest validator passes.
-
----
-
-## Constraints / Non-Goals
-
-- Do not implement new product features beyond feature7.
-- Do not change manifest schema semantics.
-- Preserve security hygiene (no secret values in logs/output).
-- Keep changes minimal and modular; avoid broad CLI rewrites unrelated to feature7.
-
----
-
-## Status Update Protocol
-
-When work starts/completes:
-- Set `task39`, `task40`, `task41` to `in-progress` during implementation.
-- Set to `needs-review` when code + tests are complete and validated.
-- Do not mark these tasks `completed` in SWE handoff; completion occurs after TechLead review.
-
----
-
-## Handoff Deliverables
-
-Please hand back:
-- Code changes implementing task39–41.
-- New/updated tests satisfying test61–64.
-- Test run outputs summary.
-- Confirmation that manifest validation passes.
+## Definition of Done for SWE implementation
+1. Add/implement tests for `test65`–`test70` in the specified automation paths.
+2. Keep dependency versions pinned exactly as declared above unless TechLead approves changes.
+3. Run targeted tests first, then broader regression scope.
+4. Update task statuses to `in-progress` then `needs-review` when complete.
+5. Ensure no secrets or sensitive values are logged in test output.

@@ -1,0 +1,224 @@
+import subprocess
+import sys
+import zipfile
+from pathlib import Path
+
+
+def _create_agent_with_pinned_transitive_requirements(tmp_path: Path, agent_name: str = "robust-agent") -> Path:
+    agent_dir = tmp_path / agent_name
+    agent_dir.mkdir()
+
+    (agent_dir / "kinnoo.yaml").write_text(
+        """
+name: robust-agent
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+""".strip()
+        + "\n"
+    )
+    (agent_dir / "run.py").write_text("print('ok')\n")
+    (agent_dir / "requirements.txt").write_text("requests==2.31.0\nhttpx==0.27.0\n")
+
+    return agent_dir
+
+
+def _collect_wheel_distribution_names(kno_path: Path) -> set[str]:
+    distributions: set[str] = set()
+    with zipfile.ZipFile(kno_path, "r") as archive:
+        for name in archive.namelist():
+            if not name.startswith("wheels/") or not name.endswith(".whl"):
+                continue
+            wheel_filename = Path(name).name
+            distribution = wheel_filename.split("-", 1)[0].lower()
+            distributions.add(distribution)
+    return distributions
+
+
+def test_pack_includes_transitive_wheels_for_pinned_deps(tmp_path):
+    # [agent] test65 should be run for packaging changes that might impact dependency
+    # closure behavior (resolver flags, wheel build strategy, or archive assembly).
+    agent_dir = _create_agent_with_pinned_transitive_requirements(tmp_path)
+
+    result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "pack", str(agent_dir)],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, f"kinnoo pack failed:\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+
+    kno_path = tmp_path / f"{agent_dir.name}.kno"
+    assert kno_path.exists(), "Expected .kno archive to be created"
+
+    distributions = _collect_wheel_distribution_names(kno_path)
+
+    expected_subset = {
+        "requests",   # direct
+        "httpx",      # direct
+        "urllib3",    # transitive via requests
+        "certifi",    # transitive via requests/httpx
+        "httpcore",   # transitive via httpx
+        "anyio",      # transitive via httpcore
+    }
+
+    missing = expected_subset - distributions
+    assert not missing, (
+        "Expected direct + transitive dependency wheels in archive. "
+        f"Missing: {sorted(missing)}. Found: {sorted(distributions)}"
+    )
+
+
+def test_kno_zip_format_is_canonical(tmp_path):
+    # [agent] test66 should run for archive format or install/extract flow changes.
+    # It enforces that `.kno` artifacts are true zip archives and installable.
+    agent_dir = tmp_path / "zip-canonical-agent"
+    agent_dir.mkdir()
+
+    (agent_dir / "kinnoo.yaml").write_text(
+        """
+name: zip-canonical-agent
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+""".strip()
+        + "\n"
+    )
+    (agent_dir / "run.py").write_text("print('zip canonical ok')\n")
+    (agent_dir / "requirements.txt").write_text("")
+
+    pack_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "pack", str(agent_dir)],
+        capture_output=True,
+        text=True,
+    )
+    assert pack_result.returncode == 0, (
+        f"kinnoo pack failed\nSTDOUT:\n{pack_result.stdout}\nSTDERR:\n{pack_result.stderr}"
+    )
+
+    kno_path = tmp_path / "zip-canonical-agent.kno"
+    assert kno_path.exists(), "Expected .kno archive to be created"
+    assert zipfile.is_zipfile(kno_path), "Expected .kno archive to be a valid zip file"
+
+    install_target = tmp_path / "installed-zip-canonical-agent"
+    install_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "install", str(kno_path), str(install_target)],
+        capture_output=True,
+        text=True,
+    )
+    assert install_result.returncode == 0, (
+        f"kinnoo install failed\nSTDOUT:\n{install_result.stdout}\nSTDERR:\n{install_result.stderr}"
+    )
+    assert (install_target / "kinnoo.yaml").exists()
+    assert (install_target / "run.py").exists()
+
+
+def test_pack_continues_on_per_dependency_wheel_failure(tmp_path):
+        agent_dir = tmp_path / "partial-wheel-agent"
+        agent_dir.mkdir()
+
+        (agent_dir / "kinnoo.yaml").write_text(
+                """
+name: partial-wheel-agent
+version: 1.0.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: '>=3.10'
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+""".strip()
+                + "\n"
+        )
+        (agent_dir / "run.py").write_text("print('partial wheel ok')\n")
+        (agent_dir / "requirements.txt").write_text(
+                "requests==2.31.0\n"
+                "nonexist-pkg-kinnoo-test==0.0.1\n"
+        )
+
+        result = subprocess.run(
+                [sys.executable, "src/kinnoo/cli.py", "pack", str(agent_dir)],
+                capture_output=True,
+                text=True,
+        )
+
+        assert result.returncode == 0, (
+                "Expected pack to continue despite one failed dependency wheel build. "
+                f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+        )
+
+        kno_path = tmp_path / "partial-wheel-agent.kno"
+        assert kno_path.exists(), "Expected .kno archive to be created"
+
+        warning_text = f"Could not build wheel for dependency 'nonexist-pkg-kinnoo-test==0.0.1'"
+        assert warning_text in result.stderr
+
+        with zipfile.ZipFile(kno_path, "r") as archive:
+                assert "wheels/missing_wheels.txt" in archive.namelist()
+                missing_wheels = archive.read("wheels/missing_wheels.txt").decode("utf-8")
+                assert "nonexist-pkg-kinnoo-test==0.0.1" in missing_wheels
+
+
+def test_pack_warns_on_platform_specific_wheels(tmp_path):
+        # [agent] test70 should run for packaging changes that may affect wheel tag
+        # parsing, warning messaging, or portability checks.
+        agent_dir = tmp_path / "platform-wheel-agent"
+        agent_dir.mkdir()
+
+        (agent_dir / "kinnoo.yaml").write_text(
+                """
+name: platform-wheel-agent
+version: 1.0.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: '>=3.10'
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+""".strip()
+                + "\n"
+        )
+        (agent_dir / "run.py").write_text("print('platform wheel ok')\n")
+        (agent_dir / "requirements.txt").write_text(
+            "orjson==3.10.6\n"
+            "psutil==7.0.0\n"
+        )
+
+        result = subprocess.run(
+                [sys.executable, "src/kinnoo/cli.py", "pack", str(agent_dir)],
+                capture_output=True,
+                text=True,
+        )
+
+        assert result.returncode == 0, (
+                "Expected pack to succeed while warning about portability risk. "
+                f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+        )
+        assert "Platform-specific wheels detected" in result.stderr
+        assert "may not be portable across operating systems" in result.stderr
+
+        kno_path = tmp_path / "platform-wheel-agent.kno"
+        assert kno_path.exists(), "Expected .kno archive to be created"
