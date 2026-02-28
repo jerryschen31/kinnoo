@@ -935,7 +935,7 @@ tasks:
       - step4: Preserve backward compatibility for framework-specific init template generation paths
     dependencies: [task5, task20, task50]
     tests: [test75]
-    status: not-started
+    status: needs-review
 
   - id: task52
     title: Align schema documentation for feature9 fields
