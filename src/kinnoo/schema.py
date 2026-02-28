@@ -28,6 +28,28 @@ def normalize_type_field(io_dict: dict) -> None:
     elif isinstance(t, list):
         io_dict['type'] = t
     # else: leave as-is (should not happen if defaults are injected)
+
+
+def normalize_env_vars(env_vars: object) -> list[str]:
+    """Normalize env_vars to a deterministic list of unique non-empty names.
+
+    This helper is runtime-oriented and intentionally defensive. Validator-level
+    type checks still own strict schema enforcement.
+    """
+    if not isinstance(env_vars, list):
+        return []
+
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for value in env_vars:
+        if not isinstance(value, str):
+            continue
+        name = value.strip()
+        if not name or name in seen:
+            continue
+        normalized.append(name)
+        seen.add(name)
+    return normalized
 """Schema constants for kinnoo.yaml manifest validation.
 
 Required fields and their expected Python types.  Nested fields use dot
