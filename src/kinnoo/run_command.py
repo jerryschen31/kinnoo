@@ -5,6 +5,7 @@ import sys
 import venv
 from pathlib import Path
 import os
+import getpass
 
 import yaml
 
@@ -131,12 +132,26 @@ def run_agent(agent_dir_arg: str, input_arg: str) -> int:
         missing_env_vars.append(env_var_name)
 
     if missing_env_vars:
-        missing_names = ", ".join(missing_env_vars)
-        print(
-            f"Error: Missing required environment variables: {missing_names}",
-            file=sys.stderr,
-        )
-        return 1
+        for env_var_name in missing_env_vars:
+            try:
+                prompted_value = getpass.getpass(
+                    f"Enter value for {env_var_name}: "
+                )
+            except (KeyboardInterrupt, EOFError):
+                print(
+                    f"Error: Missing required environment variable: {env_var_name}",
+                    file=sys.stderr,
+                )
+                return 1
+
+            if not prompted_value:
+                print(
+                    f"Error: Missing required environment variable: {env_var_name}",
+                    file=sys.stderr,
+                )
+                return 1
+
+            resolved_env_vars[env_var_name] = prompted_value
 
     entrypoint_path = agent_dir / entrypoint
     if not entrypoint_path.exists():
