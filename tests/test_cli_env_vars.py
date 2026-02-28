@@ -77,3 +77,29 @@ def test_agents_without_env_vars_unaffected(tmp_path: Path) -> None:
     assert result.returncode == 0, f"Expected unchanged V1 behavior, got stderr: {result.stderr}"
     assert "RUN_OK" in result.stdout
     assert "Missing required environment variables" not in result.stderr
+
+
+def test_env_vars_fallback_to_dotenv(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "dotenv-env-agent"
+    _create_agent(agent_dir, include_env_vars=True)
+
+    (agent_dir / ".env").write_text(
+        "FEATURE10_SECRET_TOKEN=SENTINEL_SECRET_BRAVO_7c21\n",
+        encoding="utf-8",
+    )
+
+    env = os.environ.copy()
+    env.pop("FEATURE10_SECRET_TOKEN", None)
+
+    result = subprocess.run(
+        [sys.executable, "-m", "kinnoo.cli", "run", str(agent_dir), "hello"],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert result.returncode == 0, f"Expected .env fallback success, got stderr: {result.stderr}"
+    assert "FEATURE10_SECRET_TOKEN=set" in result.stdout
+    assert "RUN_OK" in result.stdout
+    assert "SENTINEL_SECRET_BRAVO_7c21" not in result.stdout
+    assert "SENTINEL_SECRET_BRAVO_7c21" not in result.stderr
