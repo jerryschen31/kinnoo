@@ -28,6 +28,7 @@ import yaml
 from .schema import (
     FIELD_TYPES,
     NAME_PATTERN,
+    OPTIONAL_FIELD_TYPES,
     REQUIRED_FIELDS,
     SEMVER_PATTERN,
     SUPPORTED_RUNTIME_TYPES,
@@ -163,6 +164,35 @@ def validate(manifest_path: str) -> tuple[bool, list[str]]:
                 f"Field 'runtime.type' has unsupported value: '{rt_value}'. "
                 f"Only {supported} is supported in this version of kinnoo."
             )
+
+    # 4d. Optional V2 fields (feature9).
+    # Validate optional metadata when present while preserving V1 compatibility.
+    for optional_field, expected_type in OPTIONAL_FIELD_TYPES.items():
+        found, value = _get_nested(data, optional_field)
+        if not found:
+            continue
+
+        if not isinstance(value, expected_type):
+            actual = type(value).__name__
+            expected = expected_type.__name__
+            errors.append(
+                f"Field '{optional_field}' must be of type {expected}, "
+                f"got {actual}."
+            )
+            continue
+
+        if optional_field == "env_vars":
+            for index, env_var in enumerate(value):
+                if not isinstance(env_var, str):
+                    actual = type(env_var).__name__
+                    errors.append(
+                        f"Field 'env_vars[{index}]' must be of type str, got {actual}."
+                    )
+                    continue
+                if env_var.strip() == "":
+                    errors.append(
+                        f"Field 'env_vars[{index}]' must be a non-empty string."
+                    )
 
     # ------------------------------------------------------------------
     # 5. Optional field: framework — accepted if present as a string,

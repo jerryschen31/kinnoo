@@ -865,3 +865,92 @@ tasks:
     dependencies: [task42]
     tests: [test70]
     status: needs-review
+
+  - id: task48
+    title: Extend schema for optional V2 manifest fields
+    type: task
+    description: |
+      Update manifest schema definitions to support optional V2 metadata fields:
+      description, author, license, and env_vars.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+    steps:
+      - step1: Add schema/type definitions for optional fields description, author, license, and env_vars
+      - step2: Ensure optional fields do not become required and preserve V1 compatibility behavior
+      - step3: Keep schema constants and validation hooks explicit and deterministic for upcoming unit tests
+      - step4: Document any new schema constants/interfaces in module-level docs for maintainability
+    dependencies: [task3]
+    tests: [test71, test72]
+    status: needs-review
+
+  - id: task49
+    title: Implement validator type checks for new optional fields
+    type: task
+    description: |
+      Implement validation logic for feature9 optional fields with precise errors,
+      including list[str] enforcement for env_vars.
+    files:
+      - src/kinnoo/validator.py
+    steps:
+      - step1: Validate description, author, and license as strings when present
+      - step2: Validate env_vars as list[str] when present and reject non-list or non-string items
+      - step3: Validate env_vars entries are non-empty strings and emit field-specific errors
+      - step4: Keep error message wording stable and specific so unit tests can assert exact expectations
+    dependencies: [task48]
+    tests: [test72, test74, test76]
+    status: needs-review
+
+  - id: task50
+    title: Preserve V1 manifest compatibility under V2 schema
+    type: task
+    description: |
+      Ensure existing V1 manifests continue to validate unchanged after adding
+      feature9 optional fields.
+    files:
+      - src/kinnoo/validator.py
+      - src/kinnoo/schema.py
+    steps:
+      - step1: Confirm validation flow treats new fields as optional-only with no impact on legacy required fields
+      - step2: Verify absence of new fields does not alter valid/invalid outcomes for existing V1 manifests
+      - step3: Avoid introducing side effects in normalization or parsing paths unrelated to feature9
+      - step4: Keep compatibility logic isolated and readable for future regression unit tests
+    dependencies: [task49]
+    tests: [test73]
+    status: needs-review
+
+  - id: task51
+    title: Update init templates with description and author placeholders
+    type: task
+    description: |
+      Update kinnoo init-generated manifest templates to include optional
+      description and author placeholder fields.
+    files:
+      - src/kinnoo/templates.py
+      - src/kinnoo/init_command.py
+    steps:
+      - step1: Add description and author placeholders to generated kinnoo.yaml templates
+      - step2: Ensure template output remains valid under validator rules and existing init flows
+      - step3: Keep placeholder values clear and stable for deterministic template assertions in unit tests
+      - step4: Preserve backward compatibility for framework-specific init template generation paths
+    dependencies: [task5, task20, task50]
+    tests: [test75]
+    status: needs-review
+
+  - id: task52
+    title: Align schema documentation for feature9 fields
+    type: task
+    description: |
+      Update schema documentation to describe feature9 optional fields and
+      validation constraints, including env_vars formatting rules.
+    files:
+      - docs/manifest-schema-reference.md
+      - README.md
+    steps:
+      - step1: Document optional fields description, author, license, and env_vars with accepted types
+      - step2: Document env_vars non-empty string requirements and example valid/invalid snippets
+      - step3: Ensure docs clearly state V1 manifests remain valid without new fields
+      - step4: Keep examples concise and stable so future documentation tests/checks can validate them
+    dependencies: [task49]
+    tests: [test77]
+    status: needs-review

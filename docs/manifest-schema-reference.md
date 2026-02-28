@@ -78,6 +78,45 @@ The CLI's behavior on `kinnoo run` is determined entirely by this field.
 
 ---
 
+### Feature9 optional fields (`description`, `author`, `license`, `env_vars`)
+
+Feature9 adds optional metadata fields to `kinnoo.yaml`. These fields are optional-only and do not change validity for existing V1 manifests.
+
+- `description` (optional): string
+- `author` (optional): string
+- `license` (optional): string
+- `env_vars` (optional): list[string]
+
+`env_vars` item constraints:
+- each item must be a string
+- each item must be non-empty (empty or whitespace-only values are invalid)
+
+V1 compatibility note:
+- manifests that omit `description`, `author`, `license`, and `env_vars` remain valid
+- legacy validation behavior is unchanged when these fields are absent
+
+Valid example:
+
+```yaml
+description: "Customer support agent"
+author: "Kinnoo Team"
+license: "MIT"
+env_vars:
+  - OPENAI_API_KEY
+  - ANTHROPIC_API_KEY
+```
+
+Invalid `env_vars` example:
+
+```yaml
+env_vars:
+  - OPENAI_API_KEY
+  - ""
+  - "   "
+```
+
+---
+
 ## Concrete Examples
 
 ### Example 1 — Simple LangChain customer support agent
@@ -162,6 +201,10 @@ Notice that both examples look nearly identical from the CLI's perspective — `
 | inputs.type      | yes      | string       | e.g., "text"                                    |
 | outputs.type     | yes      | string       | e.g., "text"                                    |
 | framework        | no       | string       | optional, e.g., "langchain", "crewai"           |
+| description      | no       | string       | optional metadata                                 |
+| author           | no       | string       | optional metadata                                 |
+| license          | no       | string       | optional metadata                                 |
+| env_vars         | no       | list[string] | optional; each item must be a non-empty string    |
 
 ---
 

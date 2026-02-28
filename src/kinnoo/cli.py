@@ -47,7 +47,7 @@ def main():
 
     # Pre-parse sys.argv for missing args to print custom usage before argparse error
     if len(sys.argv) > 1 and sys.argv[1] == "run":
-        if len(sys.argv) < 4:
+        if "-h" not in sys.argv and "--help" not in sys.argv and len(sys.argv) < 4:
             print("Usage: kinnoo run <agent-dir> '<input>'", file=sys.stderr)
             sys.exit(1)
 
