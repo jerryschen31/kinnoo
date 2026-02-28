@@ -121,6 +121,8 @@ Templates for kinnoo agent scaffolding files.
 
 KINNOO_YAML_TEMPLATE = """name: {name}
 version: 0.1.0
+description: "TODO: Add a short agent description"
+author: "TODO: Add author name"
 entrypoint: run.py
 runtime:
   language: python
