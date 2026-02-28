@@ -353,7 +353,7 @@ features:
       and injects the required variables into the subprocess environment. Resolution order:
       current environment -> .env file in agent directory -> interactive masked prompt.
       Secret values must NEVER be displayed, logged, or echoed anywhere in the codebase.
-    tasks: [task53, task54, task55, task56, task57, task58]
+    tasks: [task53, task54, task55, task56, task57, task58, task59, task60, task61]
     acceptance_criteria:
       - id: AC1
         description: "If env_vars declares variables and all are set in the current environment, the agent runs with those vars injected into the subprocess."

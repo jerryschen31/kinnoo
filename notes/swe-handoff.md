@@ -47,3 +47,11 @@ This addendum covers only feature10 security testing for tasks `task53`–`task5
 - Docs must explicitly state secret values are never printed, logged, or persisted.
 - Examples and troubleshooting guidance must reference variable names only.
 
+## Follow-up SWE pointers (test86-test88)
+- Placeholder pytest functions are already added in `tests/test_cli_env_vars.py` with `[agent]` implementation notes:
+	- `test_env_precedence_prefers_process_env_over_dotenv` (implements `test86`)
+	- `test_mixed_source_env_var_resolution_and_injection` (implements `test87`)
+	- `test_secret_sentinels_absent_from_runtime_artifacts` (implements `test88`)
+- Keep these placeholders until full implementations are completed, then remove `@pytest.mark.skip` from each.
+- Preserve the non-disclosure invariant in all assertions: secret values must not appear in stdout, stderr, or inspected artifacts.
+

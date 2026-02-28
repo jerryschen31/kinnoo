@@ -1382,3 +1382,55 @@ tests:
     covers:
       - feature: feature10
         ac: AC7
+
+  - id: test86
+    title: Process environment value wins over .env for same declared variable
+    type: integration
+    preconditions: kinnoo CLI installed; manifest declares env_vars; same variable present in process env and agent-local .env with different sentinel values
+    steps:
+      - step1: Configure declared env var with sentinel A in process environment and sentinel B in .env
+      - step2: Run kinnoo run and inspect subprocess-observed value via test entrypoint
+      - step3: Verify selected value matches process environment and no secret value is echoed in output
+    expected: Runtime resolution order honors process environment before .env for matching declared variable names
+    pass_criteria: Subprocess receives process environment value; fallback .env value is ignored for selection
+    automated: true
+    automation_path: tests/test_cli_env_vars.py::test_env_precedence_prefers_process_env_over_dotenv
+    covers:
+      - feature: feature10
+        ac: AC1
+      - feature: feature10
+        ac: AC2
+
+  - id: test87
+    title: Mixed-source env_vars resolve and inject in one run
+    type: integration
+    preconditions: kinnoo CLI installed; manifest declares multiple env_vars; fixture supports environment + .env + prompt sources
+    steps:
+      - step1: Provide one variable in process env, one in .env, and one via mocked masked prompt
+      - step2: Run kinnoo run and assert subprocess observes all declared variables as resolved
+      - step3: Verify execution succeeds and no secret values appear in stdout/stderr
+    expected: Runtime supports deterministic per-variable mixed-source resolution and injects all resolved values to subprocess
+    pass_criteria: Run exits 0; subprocess confirms all variables; output contains no secret sentinel values
+    automated: true
+    automation_path: tests/test_cli_env_vars.py::test_mixed_source_env_var_resolution_and_injection
+    covers:
+      - feature: feature10
+        ac: AC3
+      - feature: feature10
+        ac: AC4
+
+  - id: test88
+    title: Sentinel secrets do not appear in runtime artifact files
+    type: integration
+    preconditions: kinnoo CLI installed; feature10 env resolution exercised with sentinel secret values; test fixture captures runtime artifact files touched during execution
+    steps:
+      - step1: Execute env/.env/prompt env_vars flows using unique sentinel values
+      - step2: Collect candidate runtime artifact files created or touched by run flow
+      - step3: Assert sentinel values are absent from all inspected artifact file contents and terminal output
+    expected: No secret sentinel value is persisted to runtime artifact files or terminal streams
+    pass_criteria: Negative sentinel checks pass across captured stdout/stderr and inspected runtime files
+    automated: true
+    automation_path: tests/test_cli_env_vars.py::test_secret_sentinels_absent_from_runtime_artifacts
+    covers:
+      - feature: feature10
+        ac: AC7

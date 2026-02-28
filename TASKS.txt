@@ -1044,7 +1044,7 @@ tasks:
       - step4: Define explicit negative test scenarios that fail if any secret value appears in stdout/stderr/log outputs
     dependencies: [task56]
     tests: [test84]
-    status: needs-review
+    status: completed
 
   - id: task58
     title: Document env_vars security contract and operator guidance
@@ -1063,4 +1063,56 @@ tasks:
       - step4: Keep examples and wording stable so documentation checks can validate security messaging in tests
     dependencies: [task53, task54, task55, task56, task57]
     tests: [test85]
-    status: needs-review
+    status: completed
+
+  - id: task59
+    title: Enforce env precedence over .env values
+    type: task
+    description: |
+      Add regression coverage proving process-environment values always take
+      precedence over agent-local .env values for the same declared env var.
+    files:
+      - tests/test_cli_env_vars.py
+    steps:
+      - step1: Create fixture where one declared env var exists in both process environment and .env with different sentinel values
+      - step2: Run kinnoo run and assert subprocess receives the process-environment value
+      - step3: Assert lower-priority .env value is not selected and never appears in user-facing output
+      - step4: Keep assertions deterministic and names-only in diagnostics
+    dependencies: [task54, task56]
+    tests: [test86]
+    status: not-started
+
+  - id: task60
+    title: Add mixed-source env_vars resolution regression
+    type: task
+    description: |
+      Add integration coverage for multi-variable manifests where declared env
+      vars resolve from mixed sources in one run (environment + .env + prompt).
+    files:
+      - tests/test_cli_env_vars.py
+    steps:
+      - step1: Create fixture with multiple declared env vars and deliberately split sources across environment, .env, and prompt fallback
+      - step2: Execute kinnoo run and assert all variables are injected into subprocess successfully
+      - step3: Verify resolution order remains deterministic for each variable name
+      - step4: Ensure test output checks do not expose secret values
+    dependencies: [task53, task54, task55, task56]
+    tests: [test87]
+    status: not-started
+
+  - id: task61
+    title: Add filesystem secret leak sentinel checks
+    type: task
+    description: |
+      Strengthen non-disclosure coverage by asserting sentinel secret values do
+      not appear in runtime-created logs or temp artifacts during env_vars flows.
+    files:
+      - tests/test_cli_env_vars.py
+      - src/kinnoo/run_command.py
+    steps:
+      - step1: Capture candidate runtime artifact paths touched by feature10 execution paths in test fixtures
+      - step2: Execute env/.env/prompt flows with sentinel secrets and inspect touched artifacts for leaks
+      - step3: Assert sentinel values are absent from artifact contents and terminal output
+      - step4: Keep behavior backward compatible for agents without env_vars
+    dependencies: [task57]
+    tests: [test88]
+    status: not-started
