@@ -4,8 +4,11 @@ import subprocess
 import sys
 import venv
 from pathlib import Path
+import os
 
 import yaml
+
+from .schema import normalize_env_vars
 
 
 def run_agent(agent_dir_arg: str, input_arg: str) -> int:
@@ -75,6 +78,24 @@ def run_agent(agent_dir_arg: str, input_arg: str) -> int:
         print("Error: 'entrypoint' not specified in kinnoo.yaml", file=sys.stderr)
         return 1
 
+    declared_env_vars = normalize_env_vars(manifest.get("env_vars"))
+    resolved_env_vars: dict[str, str] = {}
+    missing_env_vars: list[str] = []
+    for env_var_name in declared_env_vars:
+        env_var_value = os.environ.get(env_var_name)
+        if env_var_value is None:
+            missing_env_vars.append(env_var_name)
+            continue
+        resolved_env_vars[env_var_name] = env_var_value
+
+    if missing_env_vars:
+        missing_names = ", ".join(missing_env_vars)
+        print(
+            f"Error: Missing required environment variables: {missing_names}",
+            file=sys.stderr,
+        )
+        return 1
+
     entrypoint_path = agent_dir / entrypoint
     if not entrypoint_path.exists():
         print(f"Error: Entrypoint file '{entrypoint}' not found in {agent_dir}", file=sys.stderr)
@@ -87,11 +108,15 @@ def run_agent(agent_dir_arg: str, input_arg: str) -> int:
         print(f"Error: python not found in venv at {python_exe}", file=sys.stderr)
         return 1
 
+    subprocess_env = os.environ.copy()
+    subprocess_env.update(resolved_env_vars)
+
     process = subprocess.Popen(
         [str(python_exe), str(entrypoint_path), input_arg],
         cwd=agent_dir,
         stdout=sys.stdout,
         stderr=sys.stderr,
+        env=subprocess_env,
     )
     process.communicate()
     return process.returncode
