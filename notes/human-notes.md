@@ -61,6 +61,7 @@ If kinnoo only supports running single agents (but can package multi-agent syste
 - Standardizes agent packaging: Introduces a manifest and packaging convention, reducing “works on my machine” problems for single-agent projects.
 - Lowers onboarding friction: New users can quickly try, run, and modify single-agent projects without manual setup.
 - Lays groundwork for a registry: Even if multi-agent systems can’t be run, they can be published/discovered, encouraging ecosystem growth.
+- Lays groundwork for orchestrating cross-framework multi-agent systems. Regardless of orchestration framework (e.g., Kubernetes), individual agents within a multi-agent system can be run with "kinnoo run", and the individual agents themselves can be written with any supported framework. This greatly simplifies the runtime and management of these multi-agent systems, and prevents having to "lock into" a specific multi-agent framework like CrewAI.
 
 ### Limitations:
 
