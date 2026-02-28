@@ -154,3 +154,94 @@ def test_prompt_cancel_aborts_with_missing_var_name(
 
     assert exit_code != 0
     assert "Error: Missing required environment variable: FEATURE10_SECRET_TOKEN" in captured.err
+
+
+def test_resolved_env_vars_injected_into_subprocess(
+    tmp_path: Path,
+    monkeypatch,
+    capfd,
+) -> None:
+    sentinel_env = "SENTINEL_SECRET_DELTA_1a11"
+    sentinel_dotenv = "SENTINEL_SECRET_ECHO_2b22"
+    sentinel_prompt = "SENTINEL_SECRET_FOXTROT_3c33"
+
+    common_manifest = """
+name: test-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: ">=3.10"
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+env_vars:
+  - FEATURE10_SECRET_TOKEN
+"""
+
+    run_py = (
+        "import os\n"
+        "import sys\n\n"
+        "expected = sys.argv[1]\n"
+        "actual = os.getenv('FEATURE10_SECRET_TOKEN')\n"
+        "if actual == expected:\n"
+        "    print('INJECTED_OK')\n"
+        "else:\n"
+        "    print('INJECTED_MISMATCH')\n"
+        "    sys.exit(2)\n"
+    )
+
+    env_agent = tmp_path / "inject-env-agent"
+    env_agent.mkdir(parents=True, exist_ok=True)
+    (env_agent / "kinnoo.yaml").write_text(common_manifest, encoding="utf-8")
+    (env_agent / "requirements.txt").write_text("", encoding="utf-8")
+    (env_agent / "run.py").write_text(run_py, encoding="utf-8")
+
+    monkeypatch.setenv("FEATURE10_SECRET_TOKEN", sentinel_env)
+    exit_code = run_command.run_agent(str(env_agent), sentinel_env)
+    captured = capfd.readouterr()
+    assert exit_code == 0
+    assert "INJECTED_OK" in captured.out
+    combined_env_output = captured.out + captured.err
+
+    dotenv_agent = tmp_path / "inject-dotenv-agent"
+    dotenv_agent.mkdir(parents=True, exist_ok=True)
+    (dotenv_agent / "kinnoo.yaml").write_text(common_manifest, encoding="utf-8")
+    (dotenv_agent / "requirements.txt").write_text("", encoding="utf-8")
+    (dotenv_agent / "run.py").write_text(run_py, encoding="utf-8")
+    (dotenv_agent / ".env").write_text(
+        f"FEATURE10_SECRET_TOKEN={sentinel_dotenv}\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.delenv("FEATURE10_SECRET_TOKEN", raising=False)
+    exit_code = run_command.run_agent(str(dotenv_agent), sentinel_dotenv)
+    captured = capfd.readouterr()
+    assert exit_code == 0
+    assert "INJECTED_OK" in captured.out
+    combined_dotenv_output = captured.out + captured.err
+
+    prompt_agent = tmp_path / "inject-prompt-agent"
+    prompt_agent.mkdir(parents=True, exist_ok=True)
+    (prompt_agent / "kinnoo.yaml").write_text(common_manifest, encoding="utf-8")
+    (prompt_agent / "requirements.txt").write_text("", encoding="utf-8")
+    (prompt_agent / "run.py").write_text(run_py, encoding="utf-8")
+
+    monkeypatch.delenv("FEATURE10_SECRET_TOKEN", raising=False)
+
+    def _fake_getpass(_prompt: str) -> str:
+        return sentinel_prompt
+
+    monkeypatch.setattr(run_command.getpass, "getpass", _fake_getpass)
+    exit_code = run_command.run_agent(str(prompt_agent), sentinel_prompt)
+    captured = capfd.readouterr()
+    assert exit_code == 0
+    assert "INJECTED_OK" in captured.out
+    combined_prompt_output = captured.out + captured.err
+
+    assert sentinel_env not in combined_env_output
+    assert sentinel_dotenv not in combined_dotenv_output
+    assert sentinel_prompt not in combined_prompt_output

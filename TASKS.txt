@@ -971,7 +971,7 @@ tasks:
       - step4: Ensure all user-facing output references only variable names, never values, to support strict security unit tests
     dependencies: [task49, task50]
     tests: [test78, test83]
-    status: needs-review
+    status: completed
 
   - id: task54
     title: Add secure .env fallback resolution
@@ -990,7 +990,7 @@ tasks:
       - step4: Keep deterministic resolution behavior and messaging so fallback path can be asserted via unit/integration tests
     dependencies: [task53]
     tests: [test79]
-    status: needs-review
+    status: completed
 
   - id: task55
     title: Implement masked prompt fallback and cancel handling
@@ -1007,7 +1007,7 @@ tasks:
       - step4: Structure prompt behavior for deterministic unit tests around masking and cancel flows
     dependencies: [task54]
     tests: [test80, test82]
-    status: needs-review
+    status: completed
 
   - id: task56
     title: Inject resolved env_vars into subprocess execution
@@ -1024,7 +1024,7 @@ tasks:
       - step4: Ensure subprocess injection code paths expose variable names only in diagnostics, never values
     dependencies: [task55]
     tests: [test81]
-    status: not-started
+    status: completed
 
   - id: task57
     title: Enforce secret non-disclosure across output and logs
