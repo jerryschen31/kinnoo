@@ -6,6 +6,12 @@ from pathlib import Path
 from kinnoo import run_command
 
 
+def assert_no_secret_leak(outputs: list[str], sentinels: list[str]) -> None:
+    combined_output = "\n".join(outputs)
+    for sentinel in sentinels:
+        assert sentinel not in combined_output
+
+
 def _create_agent(agent_dir: Path, include_env_vars: bool) -> None:
     agent_dir.mkdir(parents=True, exist_ok=True)
     env_vars_block = ""
@@ -245,3 +251,99 @@ env_vars:
     assert sentinel_env not in combined_env_output
     assert sentinel_dotenv not in combined_dotenv_output
     assert sentinel_prompt not in combined_prompt_output
+
+
+def test_secret_values_never_appear_in_output_or_logs(
+        tmp_path: Path,
+        monkeypatch,
+        capfd,
+) -> None:
+        sentinel_env = "SENTINEL_SECRET_ALPHA_9f3b"
+        sentinel_dotenv = "SENTINEL_SECRET_BRAVO_7c21"
+        sentinel_prompt = "SENTINEL_SECRET_CHARLIE_4a22"
+        sentinels = [sentinel_env, sentinel_dotenv, sentinel_prompt]
+
+        common_manifest = """
+name: test-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+env_vars:
+    - FEATURE10_SECRET_TOKEN
+"""
+
+        run_py = "print('RUN_OK')\n"
+
+        outputs: list[str] = []
+
+        env_agent = tmp_path / "leakcheck-env-agent"
+        env_agent.mkdir(parents=True, exist_ok=True)
+        (env_agent / "kinnoo.yaml").write_text(common_manifest, encoding="utf-8")
+        (env_agent / "requirements.txt").write_text("", encoding="utf-8")
+        (env_agent / "run.py").write_text(run_py, encoding="utf-8")
+
+        monkeypatch.setenv("FEATURE10_SECRET_TOKEN", sentinel_env)
+        exit_code = run_command.run_agent(str(env_agent), "hello")
+        captured = capfd.readouterr()
+        assert exit_code == 0
+        outputs.extend([captured.out, captured.err])
+
+        dotenv_agent = tmp_path / "leakcheck-dotenv-agent"
+        dotenv_agent.mkdir(parents=True, exist_ok=True)
+        (dotenv_agent / "kinnoo.yaml").write_text(common_manifest, encoding="utf-8")
+        (dotenv_agent / "requirements.txt").write_text("", encoding="utf-8")
+        (dotenv_agent / "run.py").write_text(run_py, encoding="utf-8")
+        (dotenv_agent / ".env").write_text(
+                f"FEATURE10_SECRET_TOKEN={sentinel_dotenv}\n",
+                encoding="utf-8",
+        )
+
+        monkeypatch.delenv("FEATURE10_SECRET_TOKEN", raising=False)
+        exit_code = run_command.run_agent(str(dotenv_agent), "hello")
+        captured = capfd.readouterr()
+        assert exit_code == 0
+        outputs.extend([captured.out, captured.err])
+
+        prompt_agent = tmp_path / "leakcheck-prompt-agent"
+        prompt_agent.mkdir(parents=True, exist_ok=True)
+        (prompt_agent / "kinnoo.yaml").write_text(common_manifest, encoding="utf-8")
+        (prompt_agent / "requirements.txt").write_text("", encoding="utf-8")
+        (prompt_agent / "run.py").write_text(run_py, encoding="utf-8")
+
+        monkeypatch.delenv("FEATURE10_SECRET_TOKEN", raising=False)
+
+        def _fake_getpass(_prompt: str) -> str:
+                return sentinel_prompt
+
+        monkeypatch.setattr(run_command.getpass, "getpass", _fake_getpass)
+        exit_code = run_command.run_agent(str(prompt_agent), "hello")
+        captured = capfd.readouterr()
+        assert exit_code == 0
+        outputs.extend([captured.out, captured.err])
+
+        cancel_agent = tmp_path / "leakcheck-cancel-agent"
+        cancel_agent.mkdir(parents=True, exist_ok=True)
+        (cancel_agent / "kinnoo.yaml").write_text(common_manifest, encoding="utf-8")
+        (cancel_agent / "requirements.txt").write_text("", encoding="utf-8")
+        (cancel_agent / "run.py").write_text(run_py, encoding="utf-8")
+
+        monkeypatch.delenv("FEATURE10_SECRET_TOKEN", raising=False)
+
+        def _cancel_getpass(_prompt: str) -> str:
+                raise KeyboardInterrupt
+
+        monkeypatch.setattr(run_command.getpass, "getpass", _cancel_getpass)
+        exit_code = run_command.run_agent(str(cancel_agent), "hello")
+        captured = capfd.readouterr()
+        assert exit_code != 0
+        outputs.extend([captured.out, captured.err])
+
+        assert_no_secret_leak(outputs=outputs, sentinels=sentinels)

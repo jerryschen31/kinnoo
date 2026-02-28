@@ -1044,7 +1044,7 @@ tasks:
       - step4: Define explicit negative test scenarios that fail if any secret value appears in stdout/stderr/log outputs
     dependencies: [task56]
     tests: [test84]
-    status: not-started
+    status: needs-review
 
   - id: task58
     title: Document env_vars security contract and operator guidance
