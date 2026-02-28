@@ -305,3 +305,55 @@ def test_feature9_env_vars_list_of_strings_is_accepted(tmp_path: Path) -> None:
     is_valid, errors = validate(str(p))
     assert is_valid is True, f"Expected env_vars list[str] to pass validation; errors: {errors}"
     assert errors == []
+
+
+def test_feature9_invalid_optional_field_types_are_rejected(tmp_path: Path) -> None:
+    # [agent] test74 validates field-specific type checks for optional V2 fields.
+    invalid_optional_types = dict(_VALID_MANIFEST)
+    invalid_optional_types["description"] = 123
+    invalid_optional_types["author"] = ["Kinnoo Team"]
+    invalid_optional_types["license"] = {"name": "MIT"}
+    invalid_optional_types["env_vars"] = "OPENAI_API_KEY"
+
+    p_invalid_optional_types = _write_manifest(invalid_optional_types, tmp_path)
+    is_valid, errors = validate(str(p_invalid_optional_types))
+    assert is_valid is False, "Expected validation to fail for invalid optional field types"
+    assert any("Field 'description' must be of type str" in msg for msg in errors), (
+        f"Expected description type error; got: {errors}"
+    )
+    assert any("Field 'author' must be of type str" in msg for msg in errors), (
+        f"Expected author type error; got: {errors}"
+    )
+    assert any("Field 'license' must be of type str" in msg for msg in errors), (
+        f"Expected license type error; got: {errors}"
+    )
+    assert any("Field 'env_vars' must be of type list" in msg for msg in errors), (
+        f"Expected env_vars list type error; got: {errors}"
+    )
+
+    invalid_env_var_item_type = dict(_VALID_MANIFEST)
+    invalid_env_var_item_type["env_vars"] = ["OPENAI_API_KEY", 42]
+
+    p_invalid_env_item = tmp_path / "feature9_invalid_env_item.yaml"
+    p_invalid_env_item.write_text(yaml.dump(invalid_env_var_item_type), encoding="utf-8")
+    is_valid, errors = validate(str(p_invalid_env_item))
+    assert is_valid is False, "Expected validation to fail for non-string env_vars item"
+    assert any("Field 'env_vars[1]' must be of type str" in msg for msg in errors), (
+        f"Expected env_vars item type error; got: {errors}"
+    )
+
+
+def test_feature9_env_vars_items_must_be_non_empty_strings(tmp_path: Path) -> None:
+    # [agent] test76 validates env_vars non-empty string item constraints.
+    invalid_env_vars = dict(_VALID_MANIFEST)
+    invalid_env_vars["env_vars"] = ["OPENAI_API_KEY", "", "   "]
+
+    p = _write_manifest(invalid_env_vars, tmp_path)
+    is_valid, errors = validate(str(p))
+    assert is_valid is False, "Expected validation to fail for empty env_vars entries"
+    assert any("Field 'env_vars[1]' must be a non-empty string." in msg for msg in errors), (
+        f"Expected env_vars[1] non-empty string error; got: {errors}"
+    )
+    assert any("Field 'env_vars[2]' must be a non-empty string." in msg for msg in errors), (
+        f"Expected env_vars[2] non-empty string error; got: {errors}"
+    )
