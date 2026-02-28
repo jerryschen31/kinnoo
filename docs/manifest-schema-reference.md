@@ -115,6 +115,25 @@ env_vars:
   - "   "
 ```
 
+### Feature10 env_vars runtime security contract
+
+When `env_vars` is declared, runtime resolution order is:
+
+1. process environment
+2. agent-local `.env`
+3. masked interactive prompt (for unresolved names)
+
+Non-disclosure invariant:
+
+- secret values must never be printed, logged, or persisted
+- diagnostics must reference variable names only
+
+Safe troubleshooting:
+
+- verify that required names are present in `env_vars`
+- confirm those names are set in process environment or `.env`
+- when prompted, enter values interactively without echoing values into logs
+
 ---
 
 ## Concrete Examples
