@@ -3,6 +3,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from kinnoo import run_command
+
 
 def _create_agent(agent_dir: Path, include_env_vars: bool) -> None:
     agent_dir.mkdir(parents=True, exist_ok=True)
@@ -103,3 +105,52 @@ def test_env_vars_fallback_to_dotenv(tmp_path: Path) -> None:
     assert "RUN_OK" in result.stdout
     assert "SENTINEL_SECRET_BRAVO_7c21" not in result.stdout
     assert "SENTINEL_SECRET_BRAVO_7c21" not in result.stderr
+
+
+def test_missing_env_var_uses_masked_prompt(
+    tmp_path: Path,
+    monkeypatch,
+    capfd,
+) -> None:
+    agent_dir = tmp_path / "prompt-env-agent"
+    _create_agent(agent_dir, include_env_vars=True)
+
+    sentinel = "SENTINEL_SECRET_CHARLIE_4a22"
+    monkeypatch.delenv("FEATURE10_SECRET_TOKEN", raising=False)
+
+    def _fake_getpass(prompt: str) -> str:
+        assert "FEATURE10_SECRET_TOKEN" in prompt
+        return sentinel
+
+    monkeypatch.setattr(run_command.getpass, "getpass", _fake_getpass)
+
+    exit_code = run_command.run_agent(str(agent_dir), "hello")
+    captured = capfd.readouterr()
+
+    assert exit_code == 0
+    assert "FEATURE10_SECRET_TOKEN=set" in captured.out
+    assert "RUN_OK" in captured.out
+    assert sentinel not in captured.out
+    assert sentinel not in captured.err
+
+
+def test_prompt_cancel_aborts_with_missing_var_name(
+    tmp_path: Path,
+    monkeypatch,
+    capfd,
+) -> None:
+    agent_dir = tmp_path / "prompt-cancel-agent"
+    _create_agent(agent_dir, include_env_vars=True)
+
+    monkeypatch.delenv("FEATURE10_SECRET_TOKEN", raising=False)
+
+    def _cancel_getpass(_prompt: str) -> str:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(run_command.getpass, "getpass", _cancel_getpass)
+
+    exit_code = run_command.run_agent(str(agent_dir), "hello")
+    captured = capfd.readouterr()
+
+    assert exit_code != 0
+    assert "Error: Missing required environment variable: FEATURE10_SECRET_TOKEN" in captured.err
