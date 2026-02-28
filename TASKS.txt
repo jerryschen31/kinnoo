@@ -899,7 +899,7 @@ tasks:
       - step4: Keep error message wording stable and specific so unit tests can assert exact expectations
     dependencies: [task48]
     tests: [test72, test74, test76]
-    status: not-started
+    status: needs-review
 
   - id: task50
     title: Preserve V1 manifest compatibility under V2 schema
