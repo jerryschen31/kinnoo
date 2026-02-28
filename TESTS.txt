@@ -1252,4 +1252,6 @@ tests:
     pass_criteria: Required field descriptions and compatibility notes are present in schema docs
     automated: true
     automation_path: tests/test_docs.py::test_feature9_schema_docs_cover_optional_fields_and_constraints
-    covers: []
+    covers:
+      - feature: feature9
+        ac: AC2
