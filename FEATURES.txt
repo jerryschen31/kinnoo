@@ -319,7 +319,7 @@ features:
         description: "If platform-specific wheels are detected during packing, a warning is printed: 'Archive contains platform-specific wheels that may not install on other operating systems'."
     owner: techlead-agent
     dependencies: []
-    status: in-progress
+    status: completed
 
   - id: feature9
     title: "Manifest Schema V2 Extensions"
@@ -344,7 +344,7 @@ features:
         description: "env_vars items are validated as non-empty strings (empty string items in the list produce an error)."
     owner: techlead-agent
     dependencies: []
-    status: not-started
+    status: completed
 
   - id: feature10
     title: "Environment Variable / Secret Management (env_vars)"
