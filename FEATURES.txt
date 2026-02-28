@@ -353,7 +353,7 @@ features:
       and injects the required variables into the subprocess environment. Resolution order:
       current environment -> .env file in agent directory -> interactive masked prompt.
       Secret values must NEVER be displayed, logged, or echoed anywhere in the codebase.
-    tasks: []
+    tasks: [task53, task54, task55, task56, task57, task58]
     acceptance_criteria:
       - id: AC1
         description: "If env_vars declares variables and all are set in the current environment, the agent runs with those vars injected into the subprocess."
@@ -371,7 +371,7 @@ features:
         description: "No code path in the codebase ever prints, logs, or displays the VALUE of any env var or secret — only variable NAMES may appear in output or logs."
     owner: techlead-agent
     dependencies: [feature9]
-    status: not-started
+    status: in-progress
 
   - id: feature11
     title: "kinnoo inspect — Manifest inspection command"
