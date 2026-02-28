@@ -990,7 +990,7 @@ tasks:
       - step4: Keep deterministic resolution behavior and messaging so fallback path can be asserted via unit/integration tests
     dependencies: [task53]
     tests: [test79]
-    status: not-started
+    status: needs-review
 
   - id: task55
     title: Implement masked prompt fallback and cancel handling

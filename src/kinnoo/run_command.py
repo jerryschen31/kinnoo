@@ -11,6 +11,41 @@ import yaml
 from .schema import normalize_env_vars
 
 
+def _load_agent_dotenv(dotenv_path: Path) -> dict[str, str]:
+    """Load key/value pairs from an agent-local .env file.
+
+    Parsing is intentionally conservative and tolerant of malformed lines:
+    - blank lines and comment lines are ignored,
+    - `export KEY=VALUE` is supported,
+    - lines without `=` are ignored.
+    """
+    values: dict[str, str] = {}
+    if not dotenv_path.exists():
+        return values
+
+    try:
+        lines = dotenv_path.read_text(encoding="utf-8").splitlines()
+    except Exception:
+        return values
+
+    for raw_line in lines:
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[len("export "):].strip()
+        if "=" not in line:
+            continue
+
+        key, value = line.split("=", 1)
+        key = key.strip()
+        if not key:
+            continue
+        values[key] = value.strip()
+
+    return values
+
+
 def run_agent(agent_dir_arg: str, input_arg: str) -> int:
     agent_dir = Path(agent_dir_arg).resolve()
     venv_dir = agent_dir / ".venv"
@@ -79,14 +114,21 @@ def run_agent(agent_dir_arg: str, input_arg: str) -> int:
         return 1
 
     declared_env_vars = normalize_env_vars(manifest.get("env_vars"))
+    dotenv_values = _load_agent_dotenv(agent_dir / ".env")
     resolved_env_vars: dict[str, str] = {}
     missing_env_vars: list[str] = []
     for env_var_name in declared_env_vars:
         env_var_value = os.environ.get(env_var_name)
-        if env_var_value is None:
-            missing_env_vars.append(env_var_name)
+        if env_var_value is not None:
+            resolved_env_vars[env_var_name] = env_var_value
             continue
-        resolved_env_vars[env_var_name] = env_var_value
+
+        dotenv_value = dotenv_values.get(env_var_name)
+        if dotenv_value is not None:
+            resolved_env_vars[env_var_name] = dotenv_value
+            continue
+
+        missing_env_vars.append(env_var_name)
 
     if missing_env_vars:
         missing_names = ", ".join(missing_env_vars)
