@@ -1007,7 +1007,7 @@ tasks:
       - step4: Structure prompt behavior for deterministic unit tests around masking and cancel flows
     dependencies: [task54]
     tests: [test80, test82]
-    status: not-started
+    status: needs-review
 
   - id: task56
     title: Inject resolved env_vars into subprocess execution
