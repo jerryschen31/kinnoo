@@ -3,6 +3,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 from kinnoo import run_command
 
 
@@ -347,3 +349,21 @@ env_vars:
         outputs.extend([captured.out, captured.err])
 
         assert_no_secret_leak(outputs=outputs, sentinels=sentinels)
+
+
+@pytest.mark.skip(reason="Placeholder for test86 implementation")
+def test_env_precedence_prefers_process_env_over_dotenv() -> None:
+    # [agent] Implement test86 here: assert process environment value wins over agent-local .env for the same declared env var.
+    pass
+
+
+@pytest.mark.skip(reason="Placeholder for test87 implementation")
+def test_mixed_source_env_var_resolution_and_injection() -> None:
+    # [agent] Implement test87 here: validate mixed-source env var resolution (env + .env + prompt) and subprocess injection in a single run.
+    pass
+
+
+@pytest.mark.skip(reason="Placeholder for test88 implementation")
+def test_secret_sentinels_absent_from_runtime_artifacts() -> None:
+    # [agent] Implement test88 here: run sentinel leak checks against stdout/stderr and runtime artifact files to enforce non-disclosure.
+    pass
