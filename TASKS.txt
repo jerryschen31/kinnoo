@@ -971,7 +971,7 @@ tasks:
       - step4: Ensure all user-facing output references only variable names, never values, to support strict security unit tests
     dependencies: [task49, task50]
     tests: [test78, test83]
-    status: not-started
+    status: needs-review
 
   - id: task54
     title: Add secure .env fallback resolution
