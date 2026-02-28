@@ -217,8 +217,7 @@ outputs:
                 "Expected pack to succeed while warning about portability risk. "
                 f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
         )
-        assert "Platform-specific wheels detected" in result.stderr
-        assert "may not be portable across operating systems" in result.stderr
+        assert "Archive contains platform-specific wheels that may not install on other operating systems" in result.stderr
 
         kno_path = tmp_path / "platform-wheel-agent.kno"
         assert kno_path.exists(), "Expected .kno archive to be created"

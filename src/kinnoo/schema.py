@@ -66,6 +66,24 @@ FIELD_TYPES: dict[str, type] = {
 # The only supported runtime type in this version of kinnoo.
 SUPPORTED_RUNTIME_TYPES: list[str] = ["one-shot"]
 
+# Optional V2 manifest metadata fields (feature9).
+# These are intentionally optional and should not be included in REQUIRED_FIELDS.
+OPTIONAL_FIELDS: list[str] = [
+    "description",
+    "author",
+    "license",
+    "env_vars",
+]
+
+# Expected types for optional V2 fields when present.
+# Enforced in a later validation phase to keep feature rollout scoped by task.
+OPTIONAL_FIELD_TYPES: dict[str, type] = {
+    "description": str,
+    "author": str,
+    "license": str,
+    "env_vars": list,
+}
+
 # Regex for a valid semver string: MAJOR.MINOR.PATCH with optional pre-release
 # and build metadata (https://semver.org).
 SEMVER_PATTERN: str = (
