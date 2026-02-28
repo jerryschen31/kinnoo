@@ -917,7 +917,7 @@ tasks:
       - step4: Keep compatibility logic isolated and readable for future regression unit tests
     dependencies: [task49]
     tests: [test73]
-    status: not-started
+    status: needs-review
 
   - id: task51
     title: Update init templates with description and author placeholders

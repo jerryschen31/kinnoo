@@ -307,6 +307,31 @@ def test_feature9_env_vars_list_of_strings_is_accepted(tmp_path: Path) -> None:
     assert errors == []
 
 
+def test_feature9_v1_manifest_compatibility(tmp_path: Path) -> None:
+    # [agent] test73 validates that V1 manifests remain compatible after V2 field additions.
+    v1_manifest = dict(_VALID_MANIFEST)
+    p_v1 = _write_manifest(v1_manifest, tmp_path)
+
+    is_valid, errors = validate(str(p_v1))
+    assert is_valid is True, f"Expected V1 manifest to remain valid; errors: {errors}"
+    assert errors == []
+
+    v1_invalid_manifest = dict(_VALID_MANIFEST)
+    del v1_invalid_manifest["entrypoint"]
+    p_v1_invalid = tmp_path / "feature9_v1_invalid_manifest.yaml"
+    p_v1_invalid.write_text(yaml.dump(v1_invalid_manifest), encoding="utf-8")
+
+    is_valid, errors = validate(str(p_v1_invalid))
+    assert is_valid is False, "Expected invalid V1 manifest to remain invalid for original reasons"
+    assert any("Missing required field: 'entrypoint'" in msg for msg in errors), (
+        f"Expected legacy missing-field error; got: {errors}"
+    )
+    assert all(
+        "description" not in msg and "author" not in msg and "license" not in msg and "env_vars" not in msg
+        for msg in errors
+    ), f"Did not expect feature9 optional-field errors for V1 manifest path; got: {errors}"
+
+
 def test_feature9_invalid_optional_field_types_are_rejected(tmp_path: Path) -> None:
     # [agent] test74 validates field-specific type checks for optional V2 fields.
     invalid_optional_types = dict(_VALID_MANIFEST)
