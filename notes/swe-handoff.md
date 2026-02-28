@@ -42,3 +42,8 @@ This addendum covers only feature10 security testing for tasks `task53`–`task5
 - `python3 -m pytest tests/test_docs.py -k "feature10"`
 - `python3 src/validate_project_manifests.py`
 
+## Feature10 docs contract checklist (task58)
+- README and schema docs must state resolution order: environment -> .env -> masked prompt.
+- Docs must explicitly state secret values are never printed, logged, or persisted.
+- Examples and troubleshooting guidance must reference variable names only.
+
