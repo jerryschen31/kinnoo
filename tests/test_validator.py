@@ -274,3 +274,34 @@ def test_type_field_normalization(tmp_path: Path, io_field, type_value, expected
     # For this test, we can check that the type is a list after validation
     # But since the file is not rewritten, we can't check the file, only the runtime
     # So, for a more robust test, we could expose normalization, but for now, just ensure validation passes
+
+
+def test_feature9_optional_string_fields_are_accepted(tmp_path: Path) -> None:
+    # [agent] test71 validates feature9 task48 optional metadata presence/absence behavior.
+    with_optional = dict(_VALID_MANIFEST)
+    with_optional["description"] = "A demo manifest description"
+    with_optional["author"] = "Kinnoo Team"
+    with_optional["license"] = "MIT"
+
+    p_with_optional = _write_manifest(with_optional, tmp_path)
+    is_valid, errors = validate(str(p_with_optional))
+    assert is_valid is True, f"Expected optional metadata fields to be accepted; errors: {errors}"
+    assert errors == []
+
+    without_optional = dict(_VALID_MANIFEST)
+    p_without_optional = tmp_path / "feature9_without_optional.yaml"
+    p_without_optional.write_text(yaml.dump(without_optional), encoding="utf-8")
+    is_valid, errors = validate(str(p_without_optional))
+    assert is_valid is True, f"Expected manifest without optional metadata fields to remain valid; errors: {errors}"
+    assert errors == []
+
+
+def test_feature9_env_vars_list_of_strings_is_accepted(tmp_path: Path) -> None:
+    # [agent] test72 validates that env_vars list[str] is accepted under task48 schema extension.
+    data = dict(_VALID_MANIFEST)
+    data["env_vars"] = ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "KINNOO_ENV"]
+
+    p = _write_manifest(data, tmp_path)
+    is_valid, errors = validate(str(p))
+    assert is_valid is True, f"Expected env_vars list[str] to pass validation; errors: {errors}"
+    assert errors == []

@@ -28,6 +28,7 @@ import yaml
 from .schema import (
     FIELD_TYPES,
     NAME_PATTERN,
+    OPTIONAL_FIELD_TYPES,
     REQUIRED_FIELDS,
     SEMVER_PATTERN,
     SUPPORTED_RUNTIME_TYPES,
@@ -163,6 +164,12 @@ def validate(manifest_path: str) -> tuple[bool, list[str]]:
                 f"Field 'runtime.type' has unsupported value: '{rt_value}'. "
                 f"Only {supported} is supported in this version of kinnoo."
             )
+
+    # 4d. Optional V2 fields — explicit hook point for feature9 validation.
+    # [agent] Task48 introduces schema/type definitions and deterministic hooks
+    # without enforcing optional field types yet (enforcement is task49 scope).
+    for optional_field in OPTIONAL_FIELD_TYPES:
+        _get_nested(data, optional_field)
 
     # ------------------------------------------------------------------
     # 5. Optional field: framework — accepted if present as a string,
