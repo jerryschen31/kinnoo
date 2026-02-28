@@ -282,3 +282,24 @@ def test_agent_name_with_underscore_is_accepted(tmp_path):
     result = subprocess.run([sys.executable, str(run_py), "test"], capture_output=True, text=True)
     assert result.returncode == 0
     assert "Hello, world!" in result.stdout
+
+
+def test_feature9_init_manifest_includes_description_and_author(tmp_path):
+    """test75: init-generated manifest includes description and author placeholders."""
+    agent_name = "feature9-init-agent"
+    code, out, err = run_cli(["init", agent_name], cwd=tmp_path)
+    assert code == 0 or code is None
+
+    manifest_path = tmp_path / agent_name / "kinnoo.yaml"
+    assert manifest_path.exists()
+
+    import yaml
+
+    manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    assert "description" in manifest
+    assert isinstance(manifest["description"], str)
+    assert manifest["description"].strip() != ""
+
+    assert "author" in manifest
+    assert isinstance(manifest["author"], str)
+    assert manifest["author"].strip() != ""
