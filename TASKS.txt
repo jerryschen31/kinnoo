@@ -882,7 +882,7 @@ tasks:
       - step4: Document any new schema constants/interfaces in module-level docs for maintainability
     dependencies: [task3]
     tests: [test71, test72]
-    status: not-started
+    status: needs-review
 
   - id: task49
     title: Implement validator type checks for new optional fields
