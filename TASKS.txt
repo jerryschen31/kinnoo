@@ -1080,7 +1080,7 @@ tasks:
       - step4: Keep assertions deterministic and names-only in diagnostics
     dependencies: [task54, task56]
     tests: [test86]
-    status: not-started
+    status: needs-review
 
   - id: task60
     title: Add mixed-source env_vars resolution regression
@@ -1115,4 +1115,4 @@ tasks:
       - step4: Keep behavior backward compatible for agents without env_vars
     dependencies: [task57]
     tests: [test88]
-    status: not-started
+    status: paused
