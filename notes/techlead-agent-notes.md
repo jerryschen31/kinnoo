@@ -996,6 +996,52 @@ Semantic Kernel and barebones OpenAI function-calling are also straightforward.
 Choose frameworks with simple, well-documented APIs and minimal external dependencies for the smoothest V2 integration.
 Multi-Agent (LangGraph, CrewAI) is harder
 
+---
+
+## Onboarding Existing Agents — Q&A (2026-03-01)
+
+Great questions. You’re focusing on exactly the right onboarding friction points.
+
+**1) Existing LangChain agent → package with kinnoo pack**
+- Keep your existing project; you do not need to rewrite it for Kinnoo.
+- Ensure there is a single runnable entrypoint that accepts one input argument and prints output.
+- Ensure requirements.txt lists your dependencies.
+- Add kinnoo.yaml (or bootstrap it with kinnoo init and adapt it).
+- Verify locally with kinnoo run path/to/agent "test input".
+- Package with kinnoo pack path/to/agent.
+- Result: a .kno archive that others can install/run.
+
+**2) Do they need to write kinnoo.yaml manually?**
+- Not strictly. Today, easiest path is bootstrap with kinnoo init, then copy in existing code.
+- For required fields and format, developers can use:
+  - `README.md`
+  - `docs/manifest-schema-reference.md`
+- If fields are wrong/missing, runtime/pack validation returns concrete errors, so it is discoverable.
+- Typical values:
+  - name: project slug
+  - version: semantic version like 0.1.0
+  - entrypoint: relative path to your run file
+  - runtime: python, version constraint, type one-shot
+  - dependencies: list from requirements
+  - inputs/outputs: usually text for one-shot agents
+  - env_vars/framework: optional, as needed
+
+**3) “Easy creation” options (current + near-term)**
+- Option A (available now, lowest effort): init-first migration
+  - Run kinnoo init, replace run.py with your existing entrypoint, copy deps, tweak kinnoo.yaml.
+- Option B (available now): copy/paste minimal manifest template from docs + validator-driven fixes.
+- Option C (easy implementation, best UX): add kinnoo import existing-agent-path
+  - Auto-detect entrypoint and requirements, generate kinnoo.yaml, then show interactive confirmation.
+- Option D (easy implementation): add kinnoo wizard
+  - Prompt for each field, validate immediately, and write a correct manifest in one flow.
+- Option E (easy implementation): add kinnoo validate --explain
+  - Same validation, but with fix suggestions and examples for each failing field.
+
+If you want, I can draft a concrete UX spec for Option C (kinnoo import) with command behavior, prompts, and error handling so SWE can implement it quickly.
+
+### Recommendation note
+- Recommended Option C command shape: "kinnoo import <existing-agent-path> <new-agent-dir>"
+
 
 ### Clarification: V1 vs V2 Functionality (LangChain Project Structure)
 
