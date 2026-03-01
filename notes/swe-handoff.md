@@ -1,43 +1,57 @@
-# SWE Handoff — Feature9 (Manifest Schema V2 Extensions)
+# SWE Handoff Addendum — Feature10 Secret Non-Disclosure Test Strategy
 
 ## Scope
-Implement feature9 across tasks `task48`–`task52` and tests `test71`–`test77`.
+This addendum covers only feature10 security testing for tasks `task53`–`task58` and tests `test78`–`test85`, with emphasis on preventing secret-value disclosure.
 
-## Ordered implementation plan
-1. `task48` — Extend schema for optional V2 fields (`description`, `author`, `license`, `env_vars`).
-2. `task49` — Add validator checks for optional-field types and `env_vars` list/non-empty string rules.
-3. `task50` — Ensure V1 manifest compatibility remains unchanged.
-4. `task51` — Update `kinnoo init` templates to include `description` + `author` placeholders.
-5. `task52` — Update schema docs and README for feature9 field semantics.
+## Security invariant (must hold in all paths)
+- Secret/env var **values** must never appear in:
+	- stdout
+	- stderr
+	- logs
+	- exception traces
+	- temp/debug files
+- Only env var **names** may be displayed for diagnostics.
 
-## Task → tests mapping
-- `task48`: `test71`, `test72`
-- `task49`: `test72`, `test74`, `test76`
-- `task50`: `test73`
-- `task51`: `test75`
-- `task52`: `test77`
+## Sentinel-value leak-check pattern (required)
+- Use unique sentinel values that are easy to detect, e.g.:
+	- `SENTINEL_SECRET_ALPHA_9f3b`
+	- `SENTINEL_SECRET_BRAVO_7c21`
+- Inject sentinels via all resolution paths:
+	1. process environment
+	2. `.env` fallback
+	3. masked prompt input
+- After each run, assert sentinels are absent from:
+	- captured stdout/stderr
+	- any runtime logs/files touched by the run
 
-## Files expected to change
-- `src/kinnoo/schema.py`
-- `src/kinnoo/validator.py`
-- `src/kinnoo/templates.py`
-- `src/kinnoo/init_command.py`
-- `docs/manifest-schema-reference.md`
-- `README.md`
-- `tests/test_validator.py`
-- `tests/test_init.py`
-- `tests/test_docs.py` (if not present, create)
+## Test implementation notes
+- For `test80` / `test82`, simulate prompt input/cancel deterministically; never print entered value.
+- For `test84`, add a reusable helper like `assert_no_secret_leak(outputs: list[str], sentinels: list[str])`.
+- Use negative assertions (`not in`) for every sentinel across all captured artifacts.
+- Verify failure messages reference missing variable names only.
 
-## Design constraints
-- New fields are optional only; do not break V1 manifests.
-- Keep validator error strings stable and specific (tests assert text).
-- `env_vars` must validate as `list[str]` with non-empty items.
-- No changes to runtime behavior in this feature; schema + validation + templates + docs only.
+## Task-to-test security focus
+- `task53`/`task54`: verify resolution order correctness without value exposure.
+- `task55`: verify masked prompt + cancel path with no value echo.
+- `task56`: verify subprocess injection works while logs remain value-safe.
+- `task57`: enforce and test non-disclosure guardrails (`test84` is mandatory gate).
+- `task58`: docs must explicitly state non-disclosure invariant and safe troubleshooting guidance.
 
-## SWE completion checklist
-- Implement tasks in order and keep changes scoped.
-- Add/implement `test71`–`test77` exactly per automation paths in `TESTS.txt`.
-- Run:
-	- `python3 -m pytest tests/test_validator.py tests/test_init.py tests/test_docs.py`
-	- `python3 src/validate_project_manifests.py`
-- Update task statuses to `in-progress` then `needs-review` when ready for TechLead review.
+## Minimum SWE validation commands
+- `python3 -m pytest tests/test_cli_env_vars.py -k "feature10 or env_vars or secret"`
+- `python3 -m pytest tests/test_docs.py -k "feature10"`
+- `python3 src/validate_project_manifests.py`
+
+## Feature10 docs contract checklist (task58)
+- README and schema docs must state resolution order: environment -> .env -> masked prompt.
+- Docs must explicitly state secret values are never printed, logged, or persisted.
+- Examples and troubleshooting guidance must reference variable names only.
+
+## Follow-up SWE pointers (test86-test88)
+- Placeholder pytest functions are already added in `tests/test_cli_env_vars.py` with `[agent]` implementation notes:
+	- `test_env_precedence_prefers_process_env_over_dotenv` (implements `test86`)
+	- `test_mixed_source_env_var_resolution_and_injection` (implements `test87`)
+	- `test_secret_sentinels_absent_from_runtime_artifacts` (implements `test88`)
+- Keep these placeholders until full implementations are completed, then remove `@pytest.mark.skip` from each.
+- Preserve the non-disclosure invariant in all assertions: secret values must not appear in stdout, stderr, or inspected artifacts.
+

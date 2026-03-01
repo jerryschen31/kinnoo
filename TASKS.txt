@@ -808,7 +808,7 @@ tasks:
       - step4: Preserve package success criteria and output shape for future assertions in automated tests
     dependencies: [task42]
     tests: [test67]
-    status: needs-review
+    status: completed
 
   - id: task45
     title: Add install fallback to PyPI for missing wheels
@@ -826,7 +826,7 @@ tasks:
       - step4: Keep exit-code and error semantics stable so fallback/non-fallback paths can be tested independently
     dependencies: [task32, task44]
     tests: [test68]
-    status: needs-review
+    status: completed
 
   - id: task46
     title: Harden offline install behavior and messaging
@@ -846,7 +846,7 @@ tasks:
       - step4: Structure logic so future offline integration tests can deterministically validate both success and failure branches
     dependencies: [task42, task45]
     tests: [test69]
-    status: needs-review
+    status: completed
 
   - id: task47
     title: Detect platform-specific wheels and warn users
@@ -864,7 +864,7 @@ tasks:
       - step4: Keep detection output stable and explicit for future unit tests that assert warning conditions
     dependencies: [task42]
     tests: [test70]
-    status: needs-review
+    status: completed
 
   - id: task48
     title: Extend schema for optional V2 manifest fields
@@ -882,7 +882,7 @@ tasks:
       - step4: Document any new schema constants/interfaces in module-level docs for maintainability
     dependencies: [task3]
     tests: [test71, test72]
-    status: needs-review
+    status: completed
 
   - id: task49
     title: Implement validator type checks for new optional fields
@@ -899,7 +899,7 @@ tasks:
       - step4: Keep error message wording stable and specific so unit tests can assert exact expectations
     dependencies: [task48]
     tests: [test72, test74, test76]
-    status: needs-review
+    status: completed
 
   - id: task50
     title: Preserve V1 manifest compatibility under V2 schema
@@ -917,7 +917,7 @@ tasks:
       - step4: Keep compatibility logic isolated and readable for future regression unit tests
     dependencies: [task49]
     tests: [test73]
-    status: needs-review
+    status: completed
 
   - id: task51
     title: Update init templates with description and author placeholders
@@ -935,7 +935,7 @@ tasks:
       - step4: Preserve backward compatibility for framework-specific init template generation paths
     dependencies: [task5, task20, task50]
     tests: [test75]
-    status: needs-review
+    status: completed
 
   - id: task52
     title: Align schema documentation for feature9 fields
@@ -953,4 +953,166 @@ tasks:
       - step4: Keep examples concise and stable so future documentation tests/checks can validate them
     dependencies: [task49]
     tests: [test77]
+    status: completed
+
+  - id: task53
+    title: Resolve declared env_vars from process environment
+    type: task
+    description: |
+      Implement runtime resolution of manifest-declared env_vars from the current
+      process environment as the first resolution source.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/schema.py
+    steps:
+      - step1: Read env_vars from validated manifest and normalize into a deterministic list for runtime checks
+      - step2: Resolve each declared variable from current process environment before any fallback sources
+      - step3: Keep behavior no-op for agents that do not declare env_vars
+      - step4: Ensure all user-facing output references only variable names, never values, to support strict security unit tests
+    dependencies: [task49, task50]
+    tests: [test78, test83]
+    status: completed
+
+  - id: task54
+    title: Add secure .env fallback resolution
+    type: task
+    description: |
+      Add .env-based fallback for unresolved env_vars using agent-directory scope
+      without exposing secret values in logs or terminal output.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/schema.py
+      - README.md
+    steps:
+      - step1: When declared env_vars are missing from process environment, load candidate values from agent-local .env file
+      - step2: Restrict .env lookup to agent directory boundaries and handle malformed lines safely
+      - step3: Merge resolved names into runtime context while preventing any value echo in stdout/stderr
+      - step4: Keep deterministic resolution behavior and messaging so fallback path can be asserted via unit/integration tests
+    dependencies: [task53]
+    tests: [test79]
+    status: completed
+
+  - id: task55
+    title: Implement masked prompt fallback and cancel handling
+    type: task
+    description: |
+      Prompt interactively for unresolved env_vars using masked input and abort
+      safely if user declines or cancels input.
+    files:
+      - src/kinnoo/cli.py
+    steps:
+      - step1: For any still-missing declared env_vars, prompt user with non-echo masked input
+      - step2: Handle interruption/decline paths (e.g., Ctrl+C) with clear error that names missing variable only
+      - step3: Ensure prompt and error paths never display captured secret values
+      - step4: Structure prompt behavior for deterministic unit tests around masking and cancel flows
+    dependencies: [task54]
+    tests: [test80, test82]
+    status: completed
+
+  - id: task56
+    title: Inject resolved env_vars into subprocess execution
+    type: task
+    description: |
+      Inject resolved env_vars into the agent subprocess environment for
+      execution while preserving existing run behavior for non-env_vars agents.
+    files:
+      - src/kinnoo/cli.py
+    steps:
+      - step1: Build subprocess environment by combining base environment with resolved declared env_vars
+      - step2: Pass merged environment to entrypoint process invocation path
+      - step3: Keep run behavior unchanged when manifest has no env_vars declarations
+      - step4: Ensure subprocess injection code paths expose variable names only in diagnostics, never values
+    dependencies: [task55]
+    tests: [test81]
+    status: completed
+
+  - id: task57
+    title: Enforce secret non-disclosure across output and logs
+    type: task
+    description: |
+      Enforce project-wide runtime safeguards so environment variable and secret
+      values are never printed, logged, persisted, or committed in code paths.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/install_command.py
+      - src/kinnoo/pack_command.py
+      - tests/test_cli.py
+    steps:
+      - step1: Audit env-vars and runtime logging/output paths for potential secret-value exposure
+      - step2: Add guardrails/redaction patterns so only variable names can appear in logs and terminal messages
+      - step3: Verify no temporary files, debug output, or exceptions persist secret values to disk
+      - step4: Define explicit negative test scenarios that fail if any secret value appears in stdout/stderr/log outputs
+    dependencies: [task56]
+    tests: [test84]
+    status: completed
+
+  - id: task58
+    title: Document env_vars security contract and operator guidance
+    type: task
+    description: |
+      Update docs with env_vars resolution order, secure usage guidance, and the
+      non-disclosure invariant for secrets.
+    files:
+      - docs/manifest-schema-reference.md
+      - README.md
+      - notes/swe-handoff.md
+    steps:
+      - step1: Document resolution order (environment -> .env -> masked prompt) and expected CLI behavior
+      - step2: Document strict invariant that secret values must never be printed, logged, or persisted
+      - step3: Provide safe troubleshooting guidance that references variable names only
+      - step4: Keep examples and wording stable so documentation checks can validate security messaging in tests
+    dependencies: [task53, task54, task55, task56, task57]
+    tests: [test85]
+    status: completed
+
+  - id: task59
+    title: Enforce env precedence over .env values
+    type: task
+    description: |
+      Add regression coverage proving process-environment values always take
+      precedence over agent-local .env values for the same declared env var.
+    files:
+      - tests/test_cli_env_vars.py
+    steps:
+      - step1: Create fixture where one declared env var exists in both process environment and .env with different sentinel values
+      - step2: Run kinnoo run and assert subprocess receives the process-environment value
+      - step3: Assert lower-priority .env value is not selected and never appears in user-facing output
+      - step4: Keep assertions deterministic and names-only in diagnostics
+    dependencies: [task54, task56]
+    tests: [test86]
     status: needs-review
+
+  - id: task60
+    title: Add mixed-source env_vars resolution regression
+    type: task
+    description: |
+      Add integration coverage for multi-variable manifests where declared env
+      vars resolve from mixed sources in one run (environment + .env + prompt).
+    files:
+      - tests/test_cli_env_vars.py
+    steps:
+      - step1: Create fixture with multiple declared env vars and deliberately split sources across environment, .env, and prompt fallback
+      - step2: Execute kinnoo run and assert all variables are injected into subprocess successfully
+      - step3: Verify resolution order remains deterministic for each variable name
+      - step4: Ensure test output checks do not expose secret values
+    dependencies: [task53, task54, task55, task56]
+    tests: [test87]
+    status: needs-review
+
+  - id: task61
+    title: Add filesystem secret leak sentinel checks
+    type: task
+    description: |
+      Strengthen non-disclosure coverage by asserting sentinel secret values do
+      not appear in runtime-created logs or temp artifacts during env_vars flows.
+    files:
+      - tests/test_cli_env_vars.py
+      - src/kinnoo/run_command.py
+    steps:
+      - step1: Capture candidate runtime artifact paths touched by feature10 execution paths in test fixtures
+      - step2: Execute env/.env/prompt flows with sentinel secrets and inspect touched artifacts for leaks
+      - step3: Assert sentinel values are absent from artifact contents and terminal output
+      - step4: Keep behavior backward compatible for agents without env_vars
+    dependencies: [task57]
+    tests: [test88]
+    status: paused
