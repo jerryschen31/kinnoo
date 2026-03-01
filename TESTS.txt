@@ -1255,3 +1255,182 @@ tests:
     covers:
       - feature: feature9
         ac: AC2
+
+  - id: test78
+    title: Declared env_vars resolve from current environment first
+    type: integration
+    preconditions: kinnoo CLI installed; manifest declares env_vars; required vars set in process environment
+    steps:
+      - step1: Create agent manifest with env_vars list and set matching variables in current environment
+      - step2: Run kinnoo run for the agent
+      - step3: Verify agent subprocess receives declared variables from process environment
+    expected: Agent executes successfully with declared env_vars sourced from current environment
+    pass_criteria: Exit code is 0 and subprocess observes expected env var names as present
+    automated: true
+    automation_path: tests/test_cli_env_vars.py::test_env_vars_resolve_from_process_environment
+    covers:
+      - feature: feature10
+        ac: AC1
+
+  - id: test79
+    title: Missing env_vars fall back to agent .env file
+    type: integration
+    preconditions: kinnoo CLI installed; manifest declares env_vars; env vars absent from process environment; agent has .env file
+    steps:
+      - step1: Create agent with declared env_vars and no matching process environment values
+      - step2: Provide matching values in agent-local .env file
+      - step3: Run kinnoo run and verify declared env var names are resolved
+    expected: Runtime loads missing declared env vars from .env and proceeds
+    pass_criteria: Run succeeds and subprocess receives declared variables resolved from .env
+    automated: true
+    automation_path: tests/test_cli_env_vars.py::test_env_vars_fallback_to_dotenv
+    covers:
+      - feature: feature10
+        ac: AC2
+
+  - id: test80
+    title: Missing env_vars trigger masked interactive prompt
+    type: integration
+    preconditions: kinnoo CLI installed; declared env_vars unresolved in environment and .env; interactive input simulation available
+    steps:
+      - step1: Run kinnoo run where one declared env var remains unresolved after env and .env checks
+      - step2: Simulate interactive input for the missing variable via masked prompt path
+      - step3: Verify execution continues without echoing secret value to terminal output
+    expected: Runtime prompts for missing variable using masked input and continues on provided value
+    pass_criteria: Prompt path is invoked, value is accepted, and no secret value appears in stdout/stderr
+    automated: true
+    automation_path: tests/test_cli_env_vars.py::test_missing_env_var_uses_masked_prompt
+    covers:
+      - feature: feature10
+        ac: AC3
+
+  - id: test81
+    title: Resolved env_vars are injected into entrypoint subprocess environment
+    type: integration
+    preconditions: kinnoo CLI installed; declared env_vars resolved through environment/.env/prompt paths
+    steps:
+      - step1: Run kinnoo run on agent that inspects declared env var names in subprocess
+      - step2: Verify subprocess sees all declared resolved variables
+    expected: Runtime injects resolved env vars into subprocess environment for execution
+    pass_criteria: Entry point confirms presence of declared env var names and exits successfully
+    automated: true
+    automation_path: tests/test_cli_env_vars.py::test_resolved_env_vars_injected_into_subprocess
+    covers:
+      - feature: feature10
+        ac: AC4
+
+  - id: test82
+    title: Prompt cancellation aborts run with missing-variable message
+    type: integration
+    preconditions: kinnoo CLI installed; declared env_vars unresolved after environment and .env checks; interactive cancel simulation available
+    steps:
+      - step1: Run kinnoo run and trigger unresolved env var prompt
+      - step2: Simulate user cancellation (e.g., Ctrl+C / EOF)
+      - step3: Inspect error output
+    expected: Execution aborts with clear message naming missing variable and no secret value disclosure
+    pass_criteria: Non-zero exit code, message includes variable name, and secret value is not present in output
+    automated: true
+    automation_path: tests/test_cli_env_vars.py::test_prompt_cancel_aborts_with_missing_var_name
+    covers:
+      - feature: feature10
+        ac: AC5
+
+  - id: test83
+    title: Agents without env_vars remain unaffected
+    type: integration
+    preconditions: kinnoo CLI installed; manifest omits env_vars
+    steps:
+      - step1: Run kinnoo run on agent manifest without env_vars
+      - step2: Verify no .env loading or prompt logic is invoked
+      - step3: Verify runtime behavior matches baseline V1 flow
+    expected: Agent runs with unchanged behavior and no env-var resolution side effects
+    pass_criteria: Run succeeds without env-var prompts/checks and output matches baseline behavior
+    automated: true
+    automation_path: tests/test_cli_env_vars.py::test_agents_without_env_vars_unaffected
+    covers:
+      - feature: feature10
+        ac: AC6
+
+  - id: test84
+    title: Secret values are never printed or logged in env_vars flows
+    type: integration
+    preconditions: kinnoo CLI installed; test secret sentinel values provided via env/.env/prompt paths
+    steps:
+      - step1: Execute env_vars resolution paths using unique sentinel secret values
+      - step2: Capture stdout/stderr and inspect any runtime log artifacts
+      - step3: Assert only variable names may appear while secret values never appear
+    expected: No code path outputs or logs actual secret values during env_vars handling
+    pass_criteria: Sentinel secret values are absent from terminal output and log files across all env_vars resolution paths
+    automated: true
+    automation_path: tests/test_cli_env_vars.py::test_secret_values_never_appear_in_output_or_logs
+    covers:
+      - feature: feature10
+        ac: AC7
+
+  - id: test85
+    title: Docs describe env_vars security and non-disclosure invariant
+    type: unit
+    preconditions: docs are present and readable
+    steps:
+      - step1: Inspect README and manifest schema docs for env_vars resolution order
+      - step2: Verify docs explicitly state secret values must never be printed or logged
+      - step3: Verify examples reference variable names only
+    expected: Documentation reflects secure env_vars handling contract and operator guidance
+    pass_criteria: Required security guidance and non-disclosure language are present in docs
+    automated: true
+    automation_path: tests/test_docs.py::test_feature10_docs_cover_env_vars_security_contract
+    covers:
+      - feature: feature10
+        ac: AC7
+
+  - id: test86
+    title: Process environment value wins over .env for same declared variable
+    type: integration
+    preconditions: kinnoo CLI installed; manifest declares env_vars; same variable present in process env and agent-local .env with different sentinel values
+    steps:
+      - step1: Configure declared env var with sentinel A in process environment and sentinel B in .env
+      - step2: Run kinnoo run and inspect subprocess-observed value via test entrypoint
+      - step3: Verify selected value matches process environment and no secret value is echoed in output
+    expected: Runtime resolution order honors process environment before .env for matching declared variable names
+    pass_criteria: Subprocess receives process environment value; fallback .env value is ignored for selection
+    automated: true
+    automation_path: tests/test_cli_env_vars.py::test_env_precedence_prefers_process_env_over_dotenv
+    covers:
+      - feature: feature10
+        ac: AC1
+      - feature: feature10
+        ac: AC2
+
+  - id: test87
+    title: Mixed-source env_vars resolve and inject in one run
+    type: integration
+    preconditions: kinnoo CLI installed; manifest declares multiple env_vars; fixture supports environment + .env + prompt sources
+    steps:
+      - step1: Provide one variable in process env, one in .env, and one via mocked masked prompt
+      - step2: Run kinnoo run and assert subprocess observes all declared variables as resolved
+      - step3: Verify execution succeeds and no secret values appear in stdout/stderr
+    expected: Runtime supports deterministic per-variable mixed-source resolution and injects all resolved values to subprocess
+    pass_criteria: Run exits 0; subprocess confirms all variables; output contains no secret sentinel values
+    automated: true
+    automation_path: tests/test_cli_env_vars.py::test_mixed_source_env_var_resolution_and_injection
+    covers:
+      - feature: feature10
+        ac: AC3
+      - feature: feature10
+        ac: AC4
+
+  - id: test88
+    title: Sentinel secrets do not appear in runtime artifact files
+    type: integration
+    preconditions: kinnoo CLI installed; feature10 env resolution exercised with sentinel secret values; test fixture captures runtime artifact files touched during execution
+    steps:
+      - step1: Execute env/.env/prompt env_vars flows using unique sentinel values
+      - step2: Collect candidate runtime artifact files created or touched by run flow
+      - step3: Assert sentinel values are absent from all inspected artifact file contents and terminal output
+    expected: No secret sentinel value is persisted to runtime artifact files or terminal streams
+    pass_criteria: Negative sentinel checks pass across captured stdout/stderr and inspected runtime files
+    automated: true
+    automation_path: tests/test_cli_env_vars.py::test_secret_sentinels_absent_from_runtime_artifacts
+    covers:
+      - feature: feature10
+        ac: AC7
