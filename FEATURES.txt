@@ -521,3 +521,33 @@ features:
     owner: techlead-agent
     dependencies: [feature8]
     status: not-started
+
+  - id: feature17
+    title: "kinnoo import — Onboard existing agents"
+    description: |
+      Add a new command `kinnoo import <existing-agent-path> <new-agent-dir>` to
+      help developers onboard existing agents quickly. The command analyzes an
+      existing project, creates a Kinnoo-compatible scaffold, generates
+      kinnoo.yaml with safe defaults, and copies project artifacts needed for
+      run/pack flows while preserving source project files.
+    tasks: [task62, task63, task64, task65, task66, task67]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo import <existing-agent-path> <new-agent-dir>` validates arguments and prints clear usage/help when arguments are missing."
+      - id: AC2
+        description: "Import creates a new Kinnoo agent directory with required files (`kinnoo.yaml`, `requirements.txt`, entrypoint, README, `tools/`, `prompts/`) and does not modify the original source project."
+      - id: AC3
+        description: "Generated `kinnoo.yaml` includes valid required fields and passes feature1 validator with actionable warnings when fields cannot be inferred confidently."
+      - id: AC4
+        description: "Entrypoint and dependency inference support common existing-agent layouts; unresolved cases produce explicit guidance rather than silent failures."
+      - id: AC5
+        description: "If import fails at any step, partial output in `<new-agent-dir>` is cleaned up (or rolled back) so users are not left with a broken half-created agent."
+      - id: AC6
+        description: "If user interrupts (Ctrl+C/EOF) during interactive confirmation, import exits safely with non-zero status and leaves no partial artifacts."
+      - id: AC7
+        description: "Collision and safety checks prevent overwrites unless an explicit force/confirm path is used; error messages remain clear and actionable."
+      - id: AC8
+        description: "Imported agent can be executed via `kinnoo run <new-agent-dir> \"<input>\"` after standard dependency installation path."
+    owner: techlead-agent
+    dependencies: [feature2, feature3, feature9]
+    status: not-started
