@@ -530,7 +530,7 @@ features:
       existing project, creates a Kinnoo-compatible scaffold, generates
       kinnoo.yaml with safe defaults, and copies project artifacts needed for
       run/pack flows while preserving source project files.
-    tasks: [task62, task63, task64, task65, task66, task67]
+    tasks: []
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo import <existing-agent-path> <new-agent-dir>` validates arguments and prints clear usage/help when arguments are missing."
