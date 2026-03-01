@@ -351,10 +351,33 @@ env_vars:
         assert_no_secret_leak(outputs=outputs, sentinels=sentinels)
 
 
-@pytest.mark.skip(reason="Placeholder for test86 implementation")
-def test_env_precedence_prefers_process_env_over_dotenv() -> None:
-    # [agent] Implement test86 here: assert process environment value wins over agent-local .env for the same declared env var.
-    pass
+def test_env_precedence_prefers_process_env_over_dotenv(
+    tmp_path: Path,
+    monkeypatch,
+    capfd,
+) -> None:
+    sentinel_env = "SENTINEL_SECRET_GOLF_5d44"
+    sentinel_dotenv = "SENTINEL_SECRET_HOTEL_6e55"
+
+    agent_dir = tmp_path / "precedence-agent"
+    _create_agent(agent_dir, include_env_vars=True)
+    (agent_dir / ".env").write_text(
+        f"FEATURE10_SECRET_TOKEN={sentinel_dotenv}\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("FEATURE10_SECRET_TOKEN", sentinel_env)
+
+    exit_code = run_command.run_agent(str(agent_dir), "hello")
+    captured = capfd.readouterr()
+
+    assert exit_code == 0
+    assert "FEATURE10_SECRET_TOKEN=set" in captured.out
+    assert "RUN_OK" in captured.out
+
+    combined_output = captured.out + captured.err
+    assert sentinel_env not in combined_output
+    assert sentinel_dotenv not in combined_output
 
 
 @pytest.mark.skip(reason="Placeholder for test87 implementation")
