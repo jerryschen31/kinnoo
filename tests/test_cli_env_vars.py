@@ -380,10 +380,84 @@ def test_env_precedence_prefers_process_env_over_dotenv(
     assert sentinel_dotenv not in combined_output
 
 
-@pytest.mark.skip(reason="Placeholder for test87 implementation")
-def test_mixed_source_env_var_resolution_and_injection() -> None:
-    # [agent] Implement test87 here: validate mixed-source env var resolution (env + .env + prompt) and subprocess injection in a single run.
-    pass
+def test_mixed_source_env_var_resolution_and_injection(
+        tmp_path: Path,
+        monkeypatch,
+        capfd,
+) -> None:
+        sentinel_env = "SENTINEL_SECRET_INDIA_7f66"
+        sentinel_dotenv = "SENTINEL_SECRET_JULIET_8g77"
+        sentinel_prompt = "SENTINEL_SECRET_KILO_9h88"
+        sentinels = [sentinel_env, sentinel_dotenv, sentinel_prompt]
+
+        manifest = """
+name: test-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+env_vars:
+    - FEATURE10_ENV_SECRET
+    - FEATURE10_DOTENV_SECRET
+    - FEATURE10_PROMPT_SECRET
+"""
+
+        run_py = (
+                "import os\n"
+                "import sys\n\n"
+                "expected = {\n"
+                f"    'FEATURE10_ENV_SECRET': '{sentinel_env}',\n"
+                f"    'FEATURE10_DOTENV_SECRET': '{sentinel_dotenv}',\n"
+                f"    'FEATURE10_PROMPT_SECRET': '{sentinel_prompt}',\n"
+                "}\n"
+                "for name, expected_value in expected.items():\n"
+                "    if os.getenv(name) != expected_value:\n"
+                "        print(f'MISMATCH:{name}')\n"
+                "        sys.exit(2)\n"
+                "print('MIXED_INJECTED_OK')\n"
+        )
+
+        agent_dir = tmp_path / "mixed-source-agent"
+        agent_dir.mkdir(parents=True, exist_ok=True)
+        (agent_dir / "kinnoo.yaml").write_text(manifest, encoding="utf-8")
+        (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+        (agent_dir / "run.py").write_text(run_py, encoding="utf-8")
+        (agent_dir / ".env").write_text(
+                f"FEATURE10_DOTENV_SECRET={sentinel_dotenv}\n",
+                encoding="utf-8",
+        )
+
+        monkeypatch.setenv("FEATURE10_ENV_SECRET", sentinel_env)
+        monkeypatch.delenv("FEATURE10_DOTENV_SECRET", raising=False)
+        monkeypatch.delenv("FEATURE10_PROMPT_SECRET", raising=False)
+
+        prompts: list[str] = []
+
+        def _fake_getpass(prompt: str) -> str:
+                prompts.append(prompt)
+                assert "FEATURE10_PROMPT_SECRET" in prompt
+                return sentinel_prompt
+
+        monkeypatch.setattr(run_command.getpass, "getpass", _fake_getpass)
+
+        exit_code = run_command.run_agent(str(agent_dir), "hello")
+        captured = capfd.readouterr()
+
+        assert exit_code == 0
+        assert len(prompts) == 1
+        assert "MIXED_INJECTED_OK" in captured.out
+
+        assert_no_secret_leak(
+                outputs=[captured.out, captured.err],
+                sentinels=sentinels,
+        )
 
 
 @pytest.mark.skip(reason="Placeholder for test88 implementation")
