@@ -1080,7 +1080,7 @@ tasks:
       - step4: Keep assertions deterministic and names-only in diagnostics
     dependencies: [task54, task56]
     tests: [test86]
-    status: needs-review
+    status: completed
 
   - id: task60
     title: Add mixed-source env_vars resolution regression
@@ -1097,7 +1097,7 @@ tasks:
       - step4: Ensure test output checks do not expose secret values
     dependencies: [task53, task54, task55, task56]
     tests: [test87]
-    status: needs-review
+    status: completed
 
   - id: task61
     title: Add filesystem secret leak sentinel checks
@@ -1132,7 +1132,7 @@ tasks:
       - step4: Keep parser behavior deterministic and structured for future unit tests around valid/invalid argument paths
     dependencies: [task39]
     tests: [test89]
-    status: needs-review
+    status: completed
 
   - id: task63
     title: Implement inspect target detection
@@ -1152,7 +1152,7 @@ tasks:
       - step7: For archive targets, branch to archive-manifest extraction path without full extraction
     dependencies: [task62]
     tests: [test90]
-    status: needs-review
+    status: completed
 
   - id: task64
     title: Read manifest directly from .kno zip
@@ -1170,7 +1170,7 @@ tasks:
       - step4: Structure the archive reader as a reusable helper suitable for focused unit tests
     dependencies: [task63, task43]
     tests: [test91]
-    status: needs-review
+    status: completed
 
   - id: task65
     title: Validate manifest and format inspect output
@@ -1189,7 +1189,7 @@ tasks:
       - step5: Keep output formatting stable for future snapshot-style unit tests
     dependencies: [task63, task64]
     tests: [test92]
-    status: needs-review
+    status: completed
 
   - id: task66
     title: Enforce inspect secret-safe display
@@ -1199,7 +1199,7 @@ tasks:
       only and never printing secret values from any source.
     files:
       - src/kinnoo/inspect_command.py
-      - tests/test_cli.py
+      - tests/test_cli_inspect.py
     steps:
       - step1: Ensure inspect output includes env var names from manifest but never attempts runtime env resolution
       - step2: Audit output/error paths to confirm no environment variable values can be surfaced
@@ -1207,7 +1207,7 @@ tasks:
       - step4: Define deterministic negative/edge scenarios in implementation notes to guide upcoming unit tests
     dependencies: [task65, task57]
     tests: [test93]
-    status: needs-review
+    status: completed
 
   - id: task67
     title: Document inspect command usage and examples
@@ -1227,7 +1227,7 @@ tasks:
       - step6: Keep docs concise and stable so future documentation tests can assert key command semantics
     dependencies: [task65, task66]
     tests: [test94]
-    status: needs-review
+    status: completed
 
   - id: task68
     title: Add inspect guidance templates with maintenance note
@@ -1247,4 +1247,4 @@ tasks:
       - step5: Keep template strings centralized and deterministic to support future unit/snapshot tests
     dependencies: [task63, task65]
     tests: [test95]
-    status: needs-review
+    status: completed
