@@ -1170,7 +1170,7 @@ tasks:
       - step4: Structure the archive reader as a reusable helper suitable for focused unit tests
     dependencies: [task63, task43]
     tests: [test91]
-    status: not-started
+    status: needs-review
 
   - id: task65
     title: Validate manifest and format inspect output
