@@ -1152,7 +1152,7 @@ tasks:
       - step7: For archive targets, branch to archive-manifest extraction path without full extraction
     dependencies: [task62]
     tests: [test90]
-    status: not-started
+    status: needs-review
 
   - id: task64
     title: Read manifest directly from .kno zip
