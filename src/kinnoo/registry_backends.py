@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import shutil
+import json
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from .registry import RegistryRecord
 
@@ -21,22 +22,42 @@ class LocalFilesystemRegistryBackend:
     def registry_version_path(self, *, name: str, version: str) -> Path:
         return self.root / name / version
 
-    def publish(self, *, name: str, version: str, archive_path: Path) -> RegistryRecord:
+    def publish(
+        self,
+        *,
+        name: str,
+        version: str,
+        archive_path: Path,
+        manifest_metadata: Optional[dict[str, Any]] = None,
+    ) -> RegistryRecord:
         source_archive = Path(archive_path)
         if not source_archive.exists():
             raise FileNotFoundError(f"Archive not found: {source_archive}")
 
         target_dir = self.registry_version_path(name=name, version=version)
+        if target_dir.exists():
+            raise FileExistsError(
+                f"Registry already contains published version '{name}=={version}'. "
+                "Refusing to overwrite existing entry."
+            )
+
         target_dir.mkdir(parents=True, exist_ok=True)
         target_archive = target_dir / source_archive.name
 
-        if target_archive.exists():
-            raise FileExistsError(
-                f"Registry already contains '{name}=={version}' at {target_archive}"
-            )
-
         shutil.copy2(source_archive, target_archive)
-        return RegistryRecord(name=name, version=version, archive_path=target_archive)
+
+        metadata_path: Path | None = None
+        if manifest_metadata is not None:
+            metadata_path = target_dir / "manifest-metadata.json"
+            with metadata_path.open("w", encoding="utf-8") as metadata_file:
+                json.dump(manifest_metadata, metadata_file, sort_keys=True, indent=2)
+
+        return RegistryRecord(
+            name=name,
+            version=version,
+            archive_path=target_archive,
+            metadata_path=metadata_path,
+        )
 
     def resolve(self, *, name: str, version: Optional[str] = None) -> Optional[RegistryRecord]:
         if version:
