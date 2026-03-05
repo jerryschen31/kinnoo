@@ -1326,7 +1326,7 @@ tasks:
       - step4: Keep parser and branching logic explicit and stable for future unit tests covering path-vs-registry disambiguation
     dependencies: [task39, task69]
     tests: [test99]
-    status: not-started
+    status: needs-review
 
   - id: task73
     title: Implement registry version resolution rules
