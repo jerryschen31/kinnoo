@@ -1,3 +1,4 @@
+import os
 import subprocess
 import sys
 import zipfile
@@ -176,3 +177,53 @@ outputs:
         assert "Error: Manifest validation failed." in invalid_result.stderr
         assert "Missing required field: 'entrypoint'" in invalid_result.stderr
         assert "Missing required field: 'runtime.type'" in invalid_result.stderr
+
+
+def test_inspect_shows_env_var_names_not_values(tmp_path: Path) -> None:
+        agent_dir = tmp_path / "env-var-agent"
+        agent_dir.mkdir(parents=True, exist_ok=True)
+        (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+        (agent_dir / "kinnoo.yaml").write_text(
+                """
+name: env-var-agent
+version: 1.0.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+env_vars:
+    - OPENAI_API_KEY
+    - ANTHROPIC_API_KEY
+""",
+                encoding="utf-8",
+        )
+
+        env = os.environ.copy()
+        env.update(
+            {
+                "OPENAI_API_KEY": "sk-openai-secret-value",
+                "ANTHROPIC_API_KEY": "sk-anthropic-secret-value",
+            }
+        )
+
+        result = subprocess.run(
+                [sys.executable, "src/kinnoo/cli.py", "inspect", str(agent_dir)],
+                capture_output=True,
+                text=True,
+                env=env,
+        )
+
+        combined_output = f"{result.stdout}\n{result.stderr}"
+
+        assert result.returncode == 0
+        assert "- Env Vars:" in result.stdout
+        assert "  - OPENAI_API_KEY" in result.stdout
+        assert "  - ANTHROPIC_API_KEY" in result.stdout
+        assert "sk-openai-secret-value" not in combined_output
+        assert "sk-anthropic-secret-value" not in combined_output
