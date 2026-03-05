@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import re
 import shutil
 import json
 from pathlib import Path
 from typing import Any, Optional
 
 from .registry import RegistryRecord
+from .schema import SEMVER_PATTERN
 
 
 DEFAULT_LOCAL_REGISTRY_ROOT = Path.home() / ".kinnoo" / "registry"
@@ -60,13 +62,53 @@ class LocalFilesystemRegistryBackend:
         )
 
     def resolve(self, *, name: str, version: Optional[str] = None) -> Optional[RegistryRecord]:
+        record, _ = self.resolve_with_error(name=name, version=version)
+        return record
+
+    def resolve_with_error(
+        self,
+        *,
+        name: str,
+        version: Optional[str] = None,
+    ) -> tuple[Optional[RegistryRecord], Optional[str]]:
+        agent_dir = self.root / name
+        if not agent_dir.exists() or not agent_dir.is_dir():
+            return None, f"Registry agent '{name}' was not found."
+
         if version:
-            return self._resolve_exact(name=name, version=version)
+            record = self._resolve_exact(name=name, version=version)
+            if record is not None:
+                return record, None
+
+            available_versions = self._discover_versions(name)
+            if version not in available_versions:
+                if available_versions:
+                    available = ", ".join(available_versions)
+                    return (
+                        None,
+                        f"Registry version '{name}=={version}' was not found. "
+                        f"Available versions: {available}.",
+                    )
+                return None, f"Registry version '{name}=={version}' was not found."
+
+            return (
+                None,
+                f"Registry version '{name}=={version}' exists but contains no installable .kno archive.",
+            )
 
         versions = self._discover_versions(name)
         if not versions:
-            return None
-        return self._resolve_exact(name=name, version=versions[0])
+            return None, f"Registry agent '{name}' has no published versions."
+
+        for discovered_version in versions:
+            record = self._resolve_exact(name=name, version=discovered_version)
+            if record is not None:
+                return record, None
+
+        return (
+            None,
+            f"Registry agent '{name}' has published versions but no installable .kno archives.",
+        )
 
     def list_entries(self) -> list[RegistryRecord]:
         records: list[RegistryRecord] = []
@@ -113,7 +155,38 @@ class LocalFilesystemRegistryBackend:
 
 
 def _version_sort_key(value: str) -> tuple[int, ...] | tuple[int, str]:
-    parts = value.split(".")
-    if all(part.isdigit() for part in parts):
-        return tuple(int(part) for part in parts)
-    return (0, value)
+    parsed = _parse_semver(value)
+    if parsed is not None:
+        major, minor, patch, prerelease_tokens = parsed
+        is_release = 1 if not prerelease_tokens else 0
+        return (2, major, minor, patch, is_release, prerelease_tokens)
+
+    return (1, value)
+
+
+def _parse_semver(value: str) -> tuple[int, int, int, tuple[tuple[int, int | str], ...]] | None:
+    if not re.fullmatch(SEMVER_PATTERN, value):
+        return None
+
+    without_build = value.split("+", 1)[0]
+    if "-" in without_build:
+        core, prerelease = without_build.split("-", 1)
+    else:
+        core, prerelease = without_build, ""
+
+    major_str, minor_str, patch_str = core.split(".")
+    major, minor, patch = int(major_str), int(minor_str), int(patch_str)
+
+    prerelease_tokens: tuple[tuple[int, int | str], ...]
+    if not prerelease:
+        prerelease_tokens = ()
+    else:
+        normalized_tokens: list[tuple[int, int | str]] = []
+        for token in prerelease.split("."):
+            if token.isdigit():
+                normalized_tokens.append((0, int(token)))
+            else:
+                normalized_tokens.append((1, token))
+        prerelease_tokens = tuple(normalized_tokens)
+
+    return major, minor, patch, prerelease_tokens
