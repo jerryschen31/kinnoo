@@ -1,85 +1,49 @@
-## Feature11 SWE Handoff — `kinnoo inspect` (tasks 62→68)
+# SWE Handoff — Feature12 Local Registry
 
-### Scope
-Implement `kinnoo inspect` to inspect either an agent directory or a `.kno` archive and display human-readable manifest metadata, while enforcing names-only secret safety and clear guidance for missing required files.
+## Scope
+Implement feature12: local registry support for publish/install/list/search with backend abstraction for future remote registry support.
 
-### Recommended implementation order (and why)
+## Implementation Order (recommended)
+1. `task69` — Define registry abstraction and local backend
+2. `task70` — Add publish command parsing and CLI wiring
+3. `task71` — Implement publish metadata extraction and copy flow
+4. `task72` — Parse install registry spec while preserving file install
+5. `task73` — Implement registry version resolution rules
+6. `task74` — Integrate registry resolution into install flow
+7. `task75` — Add local registry list command
+8. `task76` — Add local registry search command
+9. `task77` — Document local registry commands and behavior
 
-1. **task62 — Add inspect CLI command parsing**
-	 - Establish the command surface and argument behavior first.
-	 - This unblocks all downstream inspect behavior behind a stable CLI entrypoint.
+## Task → Test ID Mapping (exact)
+- `task69` → `test96`
+- `task70` → `test97`
+- `task71` → `test98`
+- `task72` → `test99`
+- `task73` → `test100`
+- `task74` → `test101`
+- `task75` → `test102`
+- `task76` → `test103`
+- `task77` → `test104`
 
-2. **task63 — Implement inspect target detection**
-	 - Add target type routing (directory vs archive) plus required-file checks for directory targets.
-	 - Implement graceful guidance exits for missing `kinnoo.yaml` and missing `requirements.txt`.
+## Key Design Constraints
+- Keep publish/resolve/list/search behavior behind a registry backend abstraction (`feature12` AC9).
+- Preserve existing `kinnoo install <file.kno>` behavior while adding `<name>` and `<name>==<version>` selectors (AC8).
+- For version resolution logic, ensure deterministic ordering and test fixtures with multiple versions of the same agent (AC3/AC4).
+- Duplicate publish for same `name+version` must fail clearly with no silent overwrite (AC7).
+- Keep CLI output deterministic where tests assert user-visible messages and listings.
 
-3. **task64 — Read manifest directly from .kno zip**
-	 - Build archive-path manifest loading next so both source types are functional.
-	 - Keep this reusable so future commands can share the same archive-manifest reader.
+## Files Expected to Change
+- `src/kinnoo/cli.py`
+- `src/kinnoo/install_command.py`
+- `src/kinnoo/publish_command.py`
+- `src/kinnoo/list_command.py`
+- `src/kinnoo/search_command.py`
+- `src/kinnoo/registry.py`
+- `src/kinnoo/registry_backends.py`
+- `README.md`
+- `docs/manifest-schema-reference.md`
 
-4. **task65 — Validate manifest and format inspect output**
-	 - After manifests can be loaded from both source types, enforce validator-backed errors and human-readable output formatting.
-	 - Ensure required-field missing errors are surfaced clearly from validator output.
-
-5. **task66 — Enforce inspect secret-safe display**
-	 - Apply safety hardening once output exists.
-	 - Confirm inspect remains metadata-only (names, never values) across all output/error paths.
-
-6. **task68 — Add inspect guidance templates with maintenance note**
-	 - Centralize missing-file guidance strings and minimal `kinnoo.yaml` example in one reusable location.
-	 - Include explicit `[agent]` maintenance note so schema/template changes trigger updates to the minimal example.
-	 - Placing this after core flow reduces rework while still shipping as part of feature11.
-
-7. **task67 — Document inspect command usage and examples**
-	 - Land documentation last so it reflects the final command behavior and exact guidance text.
-
-### Expected file touch points by task
-
-- **task62**
-	- `src/kinnoo/cli.py`
-
-- **task63**
-	- `src/kinnoo/inspect_command.py`
-
-- **task64**
-	- `src/kinnoo/inspect_command.py`
-	- `src/kinnoo/install_command.py` (only if shared archive reader helper is placed/reused here)
-
-- **task65**
-	- `src/kinnoo/inspect_command.py`
-	- `src/kinnoo/validator.py` (only if message plumbing/helper reuse is needed)
-
-- **task66**
-	- `src/kinnoo/inspect_command.py`
-	- `tests/test_cli.py` and/or `tests/test_cli_inspect.py` when implemented
-
-- **task68**
-	- `src/kinnoo/templates.py` (preferred location for reusable minimal manifest text)
-	- `src/kinnoo/inspect_command.py` (consume centralized template/guidance strings)
-
-- **task67**
-	- `README.md`
-	- `docs/manifest-schema-reference.md`
-
-### Implementation constraints and quality guardrails
-
-- Keep inspect output **human-readable**, not raw YAML.
-- Missing optional fields should be **omitted**, not shown as `None`/empty placeholders.
-- For directory targets:
-	- Missing `kinnoo.yaml` ⇒ print stdout guidance + minimal manifest example, then graceful non-zero exit.
-	- Missing `requirements.txt` ⇒ print stdout guidance + robust generation guidance:
-		- `pip install uv`
-		- `uv export --format requirements-txt > requirements.txt`
-- For archive targets:
-	- Read `kinnoo.yaml` directly from zip members without full extraction.
-- Secret safety:
-	- Show env var **names only**; never resolve/print runtime secret values.
-- Keep error messages deterministic and stable to support future unit/integration assertions.
-
-### Suggested SWE grouping
-
-- **Group A (core runtime path):** task62, task63, task64, task65
-- **Group B (security + template centralization):** task66, task68
-- **Group C (docs):** task67
-
-This grouping allows one SWE to complete Group A first for functional inspect behavior, then harden and document without blocking core delivery.
+## Definition of Done
+- Tasks `task69`–`task77` moved to `needs-review` by SWE after implementation.
+- Tests `test96`–`test104` implemented and passing.
+- `python3 src/validate_project_manifests.py` passes after any manifest edits.

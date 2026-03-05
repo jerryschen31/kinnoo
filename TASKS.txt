@@ -1248,3 +1248,180 @@ tasks:
     dependencies: [task63, task65]
     tests: [test95]
     status: completed
+
+  - id: task69
+    title: Define registry abstraction and local backend
+    type: task
+    description: |
+      Introduce a registry abstraction layer for publish/resolve/list/search flows,
+      and implement a local filesystem backend rooted at `~/.kinnoo/registry/`.
+      Structure this so swapping to a remote backend in V3 requires minimal changes.
+    files:
+      - src/kinnoo/registry.py
+      - src/kinnoo/registry_backends.py
+      - src/kinnoo/__init__.py
+    steps:
+      - step1: Define a backend interface/contract for publish, resolve, list, and search operations
+      - step2: Implement a local backend that enforces canonical on-disk layout `~/.kinnoo/registry/<name>/<version>/`
+      - step3: Isolate filesystem concerns behind the backend boundary so CLI command handlers remain backend-agnostic
+      - step4: Keep method signatures and return structures deterministic to support focused unit tests per backend behavior
+    dependencies: [task39, task43]
+    tests: [test96]
+    status: not-started
+
+  - id: task70
+    title: Add publish command parsing and CLI wiring
+    type: task
+    description: |
+      Add `kinnoo publish <archive.kno> [--local]` to the CLI with clear usage and
+      errors, and route execution through the registry abstraction.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/publish_command.py
+    steps:
+      - step1: Add `publish` subcommand with required archive argument and optional `--local` flag
+      - step2: Ensure `--local` is accepted as explicit forward-compatible backend selection without changing local behavior
+      - step3: Print concise usage/help on missing arguments or invalid paths and exit non-zero
+      - step4: Keep parser output and error text stable for upcoming CLI unit tests
+    dependencies: [task69]
+    tests: [test97]
+    status: not-started
+
+  - id: task71
+    title: Implement publish metadata extraction and copy flow
+    type: task
+    description: |
+      Implement publish behavior that reads name/version from archive manifest and
+      stores the archive in the local registry path. Reject duplicate name+version
+      publishes with a clear error.
+    files:
+      - src/kinnoo/publish_command.py
+      - src/kinnoo/inspect_command.py
+      - src/kinnoo/registry_backends.py
+    steps:
+      - step1: Read `kinnoo.yaml` directly from `.kno` and extract `name` and `version` using existing manifest-loading logic
+      - step2: Validate extracted metadata and create destination path `~/.kinnoo/registry/<name>/<version>/`
+      - step3: Copy archive to destination and persist metadata needed for list/search display (for example manifest-derived fields)
+      - step4: Fail fast with explicit duplicate error if the same name+version already exists; never silently overwrite
+      - step5: Keep side effects and error paths deterministic for future unit tests around duplicate publish and invalid archive cases
+    dependencies: [task70]
+    tests: [test98]
+    status: not-started
+
+  - id: task72
+    title: Parse install registry spec while preserving file install
+    type: task
+    description: |
+      Extend install CLI argument handling to accept registry selectors
+      (`<name>` and `<name>==<version>`) while preserving existing
+      `kinnoo install <file.kno>` path-based behavior.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/install_command.py
+      - src/kinnoo/registry.py
+    steps:
+      - step1: Add robust selector parsing that distinguishes filesystem archive paths from registry name selectors
+      - step2: Support `<name>` as latest-version install request and `<name>==<version>` as explicit-version request
+      - step3: Preserve current install behavior for direct archive files with no regression in usage and error messaging
+      - step4: Keep parser and branching logic explicit and stable for future unit tests covering path-vs-registry disambiguation
+    dependencies: [task39, task69]
+    tests: [test99]
+    status: not-started
+
+  - id: task73
+    title: Implement registry version resolution rules
+    type: task
+    description: |
+      Implement local registry resolution for latest and specific versions,
+      including deterministic version ordering and clear not-found errors.
+    files:
+      - src/kinnoo/registry_backends.py
+      - src/kinnoo/registry.py
+    steps:
+      - step1: Implement lookup for `<name>==<version>` that resolves only an exact stored version path
+      - step2: Implement latest-version resolution for `<name>` using deterministic semver-aware ordering when versions are available
+      - step3: Return clear actionable errors when agent name or requested version does not exist
+      - step4: Structure resolution logic to be directly unit-testable with fixtures that include multiple versions of the same agent in the registry
+    dependencies: [task69]
+    tests: [test100]
+    status: not-started
+
+  - id: task74
+    title: Integrate registry resolution into install flow
+    type: task
+    description: |
+      Wire registry-resolved archives into the existing install pipeline so
+      installs by name/version reuse current extraction, validation, and venv/dependency
+      setup behavior.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/registry.py
+      - src/kinnoo/registry_backends.py
+    steps:
+      - step1: Resolve registry selector to a concrete archive path via backend abstraction
+      - step2: Reuse existing install execution path from resolved archive (no duplicate install logic)
+      - step3: Ensure offline behavior for local registry installs and preserve existing exit-code semantics
+      - step4: Keep integration points narrow and deterministic for future unit/integration tests of named installs
+    dependencies: [task72, task73]
+    tests: [test101]
+    status: not-started
+
+  - id: task75
+    title: Add local registry list command
+    type: task
+    description: |
+      Implement `kinnoo list` to display all locally published agents with name,
+      latest version, and description from registry metadata.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/list_command.py
+      - src/kinnoo/registry.py
+      - src/kinnoo/registry_backends.py
+    steps:
+      - step1: Add `list` subcommand and delegate to registry-backed listing logic
+      - step2: Aggregate available versions per agent and compute latest version for display
+      - step3: Display name, latest version, and description in a human-readable stable format
+      - step4: Keep output ordering deterministic to support future snapshot-style CLI unit tests
+    dependencies: [task69, task73]
+    tests: [test102]
+    status: not-started
+
+  - id: task76
+    title: Add local registry search command
+    type: task
+    description: |
+      Implement `kinnoo search <query>` against local registry metadata with
+      case-insensitive substring matching on name and description.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/search_command.py
+      - src/kinnoo/registry.py
+      - src/kinnoo/registry_backends.py
+    steps:
+      - step1: Add `search` subcommand with required query argument and clear usage errors
+      - step2: Implement case-insensitive name/description substring matching over locally published entries
+      - step3: Return stable, human-readable output for both match and no-match cases
+      - step4: Keep filtering semantics explicit and deterministic for future unit tests across mixed registry fixtures
+    dependencies: [task69, task75]
+    tests: [test103]
+    status: not-started
+
+  - id: task77
+    title: Document local registry commands and behavior
+    type: task
+    description: |
+      Update docs for local registry publish/install/list/search flows, including
+      examples for latest and explicit version installs and duplicate publish errors.
+    files:
+      - README.md
+      - docs/manifest-schema-reference.md
+      - notes/swe-handoff.md
+    steps:
+      - step1: Document `kinnoo publish <archive.kno>` and `kinnoo publish <archive.kno> --local` behavior and expected registry path layout
+      - step2: Document install selector behavior for `<name>`, `<name>==<version>`, and `<file.kno>` compatibility
+      - step3: Document `kinnoo list` and `kinnoo search <query>` output semantics and examples
+      - step4: Include examples that demonstrate multiple versions of the same agent and how latest-version resolution works
+      - step5: Keep guidance concise and consistent with future unit/doc tests
+    dependencies: [task71, task74, task75, task76]
+    tests: [test104]
+    status: not-started
