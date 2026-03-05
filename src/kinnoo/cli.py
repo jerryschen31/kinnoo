@@ -56,6 +56,22 @@ def main():
         help="Path to agent directory or .kno archive",
     )
 
+    # Add 'publish' subcommand
+    publish_parser = subparsers.add_parser(
+        "publish",
+        help="Publish a .kno archive to the local registry",
+    )
+    publish_parser.add_argument(
+        "archive_path",
+        nargs="?",
+        help="Path to .kno archive to publish",
+    )
+    publish_parser.add_argument(
+        "--local",
+        action="store_true",
+        help="Explicitly select the local registry backend",
+    )
+
     # Pre-parse sys.argv for missing args to print custom usage before argparse error
     if len(sys.argv) > 1 and sys.argv[1] == "run":
         if "-h" not in sys.argv and "--help" not in sys.argv and len(sys.argv) < 4:
@@ -138,6 +154,22 @@ def main():
             from .inspect_command import inspect_target
 
         exit_code = inspect_target(target)
+        sys.exit(exit_code)
+
+    elif args.command == "publish":
+        archive_path = getattr(args, "archive_path", None)
+        if archive_path is None:
+            print("Usage: kinnoo publish <archive.kno> [--local]", file=sys.stderr)
+            sys.exit(1)
+
+        use_local = bool(getattr(args, "local", False))
+
+        try:
+            from kinnoo.publish_command import publish_archive
+        except ImportError:
+            from .publish_command import publish_archive
+
+        exit_code = publish_archive(archive_path=archive_path, use_local=use_local)
         sys.exit(exit_code)
 
 if __name__ == "__main__":
