@@ -1189,7 +1189,7 @@ tasks:
       - step5: Keep output formatting stable for future snapshot-style unit tests
     dependencies: [task63, task64]
     tests: [test92]
-    status: not-started
+    status: needs-review
 
   - id: task66
     title: Enforce inspect secret-safe display
