@@ -1,5 +1,6 @@
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 
 
@@ -63,3 +64,42 @@ outputs:
         assert "uv export --format requirements-txt > requirements.txt" in result_requirements.stdout
         assert "Traceback" not in result_requirements.stdout
         assert "Traceback" not in result_requirements.stderr
+
+
+def test_inspect_reads_manifest_from_archive_without_extracting(tmp_path: Path) -> None:
+        archive_path = tmp_path / "archive-agent.kno"
+        manifest_content = """
+name: archive-agent
+version: 1.2.3
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+"""
+
+        with zipfile.ZipFile(archive_path, "w") as archive_zip:
+                archive_zip.writestr("kinnoo.yaml", manifest_content)
+                archive_zip.writestr("run.py", "print('hello')\n")
+
+        before_children = {path.name for path in tmp_path.iterdir()}
+
+        result = subprocess.run(
+                [sys.executable, "src/kinnoo/cli.py", "inspect", str(archive_path)],
+                capture_output=True,
+                text=True,
+        )
+
+        after_children = {path.name for path in tmp_path.iterdir()}
+
+        assert result.returncode == 0
+        assert "Inspect target type: archive (.kno)" in result.stdout
+        assert "name: archive-agent" in result.stdout
+        assert "version: 1.2.3" in result.stdout
+        assert before_children == after_children
+        assert (tmp_path / "archive-agent").exists() is False

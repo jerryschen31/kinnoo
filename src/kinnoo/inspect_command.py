@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import sys
+import zipfile
 from pathlib import Path
+
+import yaml
 
 
 def _print_missing_manifest_guidance() -> None:
@@ -30,8 +33,64 @@ def _print_missing_requirements_guidance() -> None:
     print("uv export --format requirements-txt > requirements.txt")
 
 
-def _inspect_archive_target(_archive_path: Path) -> int:
-    print("Archive target detected. Archive manifest inspection is handled in task64.")
+def _read_manifest_from_archive(archive_path: Path) -> dict[str, object] | None:
+    try:
+        with zipfile.ZipFile(archive_path, "r") as archive_zip:
+            manifest_members = [
+                member_name
+                for member_name in archive_zip.namelist()
+                if Path(member_name).name == "kinnoo.yaml"
+            ]
+
+            if not manifest_members:
+                print(
+                    "Error: kinnoo.yaml not found inside archive. Ensure the .kno contains a manifest file.",
+                    file=sys.stderr,
+                )
+                return None
+
+            manifest_member = manifest_members[0]
+            with archive_zip.open(manifest_member) as manifest_file:
+                manifest_bytes = manifest_file.read()
+    except zipfile.BadZipFile:
+        print(
+            f"Error: Archive '{archive_path}' is not a valid zip-based .kno file.",
+            file=sys.stderr,
+        )
+        return None
+    except OSError as error:
+        print(f"Error: Failed reading archive '{archive_path}': {error}", file=sys.stderr)
+        return None
+
+    try:
+        manifest_text = manifest_bytes.decode("utf-8")
+    except UnicodeDecodeError as error:
+        print(f"Error: Unable to decode kinnoo.yaml from archive: {error}", file=sys.stderr)
+        return None
+
+    try:
+        manifest_data = yaml.safe_load(manifest_text)
+    except yaml.YAMLError as error:
+        print(f"Error: Failed to parse kinnoo.yaml from archive: {error}", file=sys.stderr)
+        return None
+
+    if not isinstance(manifest_data, dict):
+        print("Error: kinnoo.yaml inside archive must parse to a mapping/object.", file=sys.stderr)
+        return None
+
+    return manifest_data
+
+
+def _inspect_archive_target(archive_path: Path) -> int:
+    manifest_data = _read_manifest_from_archive(archive_path)
+    if manifest_data is None:
+        return 1
+
+    print("Inspect target type: archive (.kno)")
+    for field_name in ("name", "version", "entrypoint"):
+        if field_name in manifest_data:
+            print(f"{field_name}: {manifest_data[field_name]}")
+
     return 0
 
 
