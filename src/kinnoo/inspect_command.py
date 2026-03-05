@@ -9,9 +9,17 @@ import yaml
 
 try:
     from kinnoo.schema import normalize_manifest_defaults, normalize_type_field
+    from kinnoo.templates import (
+        INSPECT_MINIMAL_KINNOO_YAML_EXAMPLE,
+        INSPECT_MISSING_REQUIREMENTS_GUIDANCE_LINES,
+    )
     from kinnoo.validator import validate_manifest_data
 except ImportError:
     from .schema import normalize_manifest_defaults, normalize_type_field
+    from .templates import (
+        INSPECT_MINIMAL_KINNOO_YAML_EXAMPLE,
+        INSPECT_MISSING_REQUIREMENTS_GUIDANCE_LINES,
+    )
     from .validator import validate_manifest_data
 
 
@@ -19,26 +27,14 @@ def _print_missing_manifest_guidance() -> None:
     print("Error: Missing required file 'kinnoo.yaml' in target directory.")
     print("Create a kinnoo.yaml file before running `kinnoo inspect`.")
     print("Minimal example:")
-    print("name: my-agent")
-    print("version: 0.1.0")
-    print("entrypoint: run.py")
-    print("runtime:")
-    print("  language: python")
-    print("  version: \"3.10\"")
-    print("  type: one-shot")
-    print("dependencies: []")
-    print("inputs:")
-    print("  type: string")
-    print("outputs:")
-    print("  type: string")
+    print(INSPECT_MINIMAL_KINNOO_YAML_EXAMPLE, end="")
 
 
 def _print_missing_requirements_guidance() -> None:
     print("Error: Missing required file 'requirements.txt' in target directory.")
     print("Create requirements.txt before running `kinnoo inspect`.")
-    print("Recommended generation steps:")
-    print("pip install uv")
-    print("uv export --format requirements-txt > requirements.txt")
+    for guidance_line in INSPECT_MISSING_REQUIREMENTS_GUIDANCE_LINES:
+        print(guidance_line)
 
 
 def _read_manifest_from_archive(archive_path: Path) -> dict[str, object] | None:
