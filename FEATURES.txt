@@ -247,7 +247,7 @@ features:
       Implement the `kinnoo install` CLI command that installs a packaged agent archive with the `.kno` extension
       onto the user's machine. Sets up the agent directory, environment, and dependencies so the agent can be run
       immediately with `kinnoo run`. Handles manifest validation, file extraction, venv creation, and dependency installation.
-    tasks: []
+    tasks: [task69, task70, task71, task72, task73, task74, task75, task76, task77]
     acceptance_criteria:
       - id: AC1
         description: "Running `kinnoo install <archive.kno>` extracts agent files to a new directory <archive>/ (e.g., myagent.kno extracts into myagent/). If <archive>/ directory exists, use <archive>_1/. If <archive>_1 exists, use <archive>_2, etc."
