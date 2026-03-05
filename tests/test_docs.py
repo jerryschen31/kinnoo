@@ -45,3 +45,33 @@ def test_feature10_docs_cover_env_vars_security_contract() -> None:
 
     assert "OPENAI_API_KEY" in schema_text
     assert "ANTHROPIC_API_KEY" in schema_text
+
+
+def test_feature11_docs_cover_inspect_usage_and_missing_file_guidance() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    schema_doc = repo_root / "docs" / "manifest-schema-reference.md"
+    readme_doc = repo_root / "README.md"
+
+    schema_text = schema_doc.read_text(encoding="utf-8")
+    readme_text = readme_doc.read_text(encoding="utf-8")
+    combined_text = f"{schema_text}\n{readme_text}"
+
+    assert "kinnoo inspect" in combined_text
+    assert "kinnoo inspect <agent-dir>" in combined_text
+    assert "kinnoo inspect <archive.kno>" in combined_text
+    assert "kinnoo inspect ./my-agent" in combined_text
+    assert "kinnoo inspect ./my-agent.kno" in combined_text
+
+    assert "human-readable" in combined_text
+    assert "missing optional fields" in combined_text
+    assert "env_vars" in combined_text
+    assert "names-only" in combined_text or "names only" in combined_text
+
+    assert "kinnoo.yaml" in combined_text
+    assert "requirements.txt" in combined_text
+    assert "pip install uv" in combined_text
+    assert "uv export --format requirements-txt > requirements.txt" in combined_text
+
+    assert "Usage: kinnoo inspect <target>" in combined_text
+    assert "invalid zip-based `.kno`" in combined_text or "invalid zip-based .kno" in combined_text
+    assert "Error: Manifest validation failed." in combined_text
