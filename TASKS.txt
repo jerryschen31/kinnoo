@@ -1285,7 +1285,7 @@ tasks:
       - step4: Keep parser output and error text stable for upcoming CLI unit tests
     dependencies: [task69]
     tests: [test97]
-    status: not-started
+    status: needs-review
 
   - id: task71
     title: Implement publish metadata extraction and copy flow
