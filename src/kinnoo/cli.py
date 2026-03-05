@@ -45,6 +45,17 @@ def main():
     pack_parser = subparsers.add_parser("pack", help="Package an agent directory into a .kno archive")
     pack_parser.add_argument("agent_dir", nargs="?", help="Path to agent directory to package")
 
+    # Add 'inspect' subcommand
+    inspect_parser = subparsers.add_parser(
+        "inspect",
+        help="Inspect metadata from an agent directory or .kno archive",
+    )
+    inspect_parser.add_argument(
+        "target",
+        nargs="?",
+        help="Path to agent directory or .kno archive",
+    )
+
     # Pre-parse sys.argv for missing args to print custom usage before argparse error
     if len(sys.argv) > 1 and sys.argv[1] == "run":
         if "-h" not in sys.argv and "--help" not in sys.argv and len(sys.argv) < 4:
@@ -113,6 +124,20 @@ def main():
             from .pack_command import pack_agent
 
         exit_code = pack_agent(agent_dir)
+        sys.exit(exit_code)
+
+    elif args.command == "inspect":
+        target = getattr(args, "target", None)
+        if target is None:
+            print("Usage: kinnoo inspect <target>", file=sys.stderr)
+            sys.exit(1)
+
+        try:
+            from kinnoo.inspect_command import inspect_target
+        except ImportError:
+            from .inspect_command import inspect_target
+
+        exit_code = inspect_target(target)
         sys.exit(exit_code)
 
 if __name__ == "__main__":
