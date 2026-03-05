@@ -1344,7 +1344,7 @@ tasks:
       - step4: Structure resolution logic to be directly unit-testable with fixtures that include multiple versions of the same agent in the registry
     dependencies: [task69]
     tests: [test100]
-    status: not-started
+    status: needs-review
 
   - id: task74
     title: Integrate registry resolution into install flow
