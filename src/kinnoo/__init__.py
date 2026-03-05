@@ -3,6 +3,8 @@
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
+from .registry import RegistryBackend, RegistryRecord, RegistryService
+from .registry_backends import LocalFilesystemRegistryBackend
 from .validator import validate
 
 
@@ -22,4 +24,11 @@ def _resolve_version() -> str:
 
 __version__ = _resolve_version()
 
-__all__ = ["validate", "__version__"]
+__all__ = [
+	"validate",
+	"__version__",
+	"RegistryBackend",
+	"RegistryRecord",
+	"RegistryService",
+	"LocalFilesystemRegistryBackend",
+]
