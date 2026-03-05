@@ -238,3 +238,40 @@ For project manifest consistency:
 - Task-to-test linkage belongs in `TASKS.txt` via each task's `tests: [testA, testB]` list.
 
 This matches the manifest validator behavior in `src/validate_project_manifests.py`.
+
+---
+
+## `kinnoo inspect` command (Feature11)
+
+`kinnoo inspect` displays manifest metadata from either a source directory or a packaged `.kno` archive.
+
+Usage:
+
+- `kinnoo inspect <agent-dir>`
+- `kinnoo inspect <archive.kno>`
+
+Examples:
+
+```bash
+kinnoo inspect ./my-agent
+kinnoo inspect ./my-agent.kno
+```
+
+Output semantics:
+
+- human-readable formatted text (not raw YAML)
+- missing optional fields are omitted
+- `env_vars` are names-only (never values)
+
+Directory guidance behavior:
+
+- if `kinnoo.yaml` is missing, inspect prints guidance with a minimal manifest example and exits non-zero
+- if `requirements.txt` is missing, inspect prints guidance with:
+  - `pip install uv`
+  - `uv export --format requirements-txt > requirements.txt`
+
+Common failure cases:
+
+- missing target argument → `Usage: kinnoo inspect <target>`
+- invalid archive format → clear invalid zip-based `.kno` error
+- invalid manifest content → `Error: Manifest validation failed.` plus field-level validator messages
