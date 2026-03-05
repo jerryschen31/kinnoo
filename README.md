@@ -39,3 +39,36 @@ Safe troubleshooting guidance:
 - Verify required variable names are declared in `kinnoo.yaml` under `env_vars`.
 - Check whether each required name exists in your shell environment or agent-local `.env`.
 - If prompted, provide the value interactively; do not paste or print secret values into logs.
+
+## kinnoo inspect (Feature11)
+
+`kinnoo inspect` reads manifest metadata from either an agent directory or a `.kno` archive.
+
+Usage:
+
+- `kinnoo inspect <agent-dir>`
+- `kinnoo inspect <archive.kno>`
+
+Examples:
+
+- `kinnoo inspect ./my-agent`
+- `kinnoo inspect ./my-agent.kno`
+
+Output semantics:
+
+- Output is human-readable formatted text (not a raw YAML dump).
+- Missing optional fields are omitted (not shown as `None` or empty placeholders).
+- `env_vars` are displayed as variable names only; values are never shown.
+
+Directory guidance behavior:
+
+- Missing `kinnoo.yaml`: prints guidance plus a minimal manifest example and exits non-zero.
+- Missing `requirements.txt`: prints guidance and robust generation commands:
+	- `pip install uv`
+	- `uv export --format requirements-txt > requirements.txt`
+
+Common failure cases:
+
+- Missing target argument: `Usage: kinnoo inspect <target>`
+- Invalid archive: archive is not a valid zip-based `.kno` file
+- Invalid manifest: prints `Error: Manifest validation failed.` with validator field-level errors
