@@ -1306,7 +1306,7 @@ tasks:
       - step5: Keep side effects and error paths deterministic for future unit tests around duplicate publish and invalid archive cases
     dependencies: [task70]
     tests: [test98]
-    status: not-started
+    status: needs-review
 
   - id: task72
     title: Parse install registry spec while preserving file install

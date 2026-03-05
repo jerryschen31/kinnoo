@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Protocol, runtime_checkable
+from typing import Any, Optional, Protocol, runtime_checkable
 
 
 @dataclass(frozen=True)
@@ -14,6 +14,7 @@ class RegistryRecord:
     name: str
     version: str
     archive_path: Path
+    metadata_path: Path | None = None
 
 
 @runtime_checkable
@@ -23,7 +24,14 @@ class RegistryBackend(Protocol):
     Backends can be local filesystem or remote in future versions.
     """
 
-    def publish(self, *, name: str, version: str, archive_path: Path) -> RegistryRecord:
+    def publish(
+        self,
+        *,
+        name: str,
+        version: str,
+        archive_path: Path,
+        manifest_metadata: Optional[dict[str, Any]] = None,
+    ) -> RegistryRecord:
         """Publish an archive under a name/version and return stored record."""
 
     def resolve(self, *, name: str, version: Optional[str] = None) -> Optional[RegistryRecord]:
@@ -42,8 +50,20 @@ class RegistryService:
     def __init__(self, backend: RegistryBackend) -> None:
         self._backend = backend
 
-    def publish(self, *, name: str, version: str, archive_path: Path) -> RegistryRecord:
-        return self._backend.publish(name=name, version=version, archive_path=archive_path)
+    def publish(
+        self,
+        *,
+        name: str,
+        version: str,
+        archive_path: Path,
+        manifest_metadata: Optional[dict[str, Any]] = None,
+    ) -> RegistryRecord:
+        return self._backend.publish(
+            name=name,
+            version=version,
+            archive_path=archive_path,
+            manifest_metadata=manifest_metadata,
+        )
 
     def resolve(self, *, name: str, version: Optional[str] = None) -> Optional[RegistryRecord]:
         return self._backend.resolve(name=name, version=version)

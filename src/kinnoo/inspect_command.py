@@ -37,7 +37,7 @@ def _print_missing_requirements_guidance() -> None:
         print(guidance_line)
 
 
-def _read_manifest_from_archive(archive_path: Path) -> dict[str, object] | None:
+def read_manifest_from_kno_archive(archive_path: Path) -> dict[str, object] | None:
     try:
         with zipfile.ZipFile(archive_path, "r") as archive_zip:
             manifest_members = [
@@ -174,7 +174,7 @@ def _print_inspect_output(target_label: str, manifest_data: dict[str, Any]) -> N
 
 
 def _inspect_archive_target(archive_path: Path) -> int:
-    manifest_data = _read_manifest_from_archive(archive_path)
+    manifest_data = read_manifest_from_kno_archive(archive_path)
     if manifest_data is None:
         return 1
 
