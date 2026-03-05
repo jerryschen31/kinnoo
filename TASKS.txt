@@ -1132,7 +1132,7 @@ tasks:
       - step4: Keep parser behavior deterministic and structured for future unit tests around valid/invalid argument paths
     dependencies: [task39]
     tests: [test89]
-    status: not-started
+    status: needs-review
 
   - id: task63
     title: Implement inspect target detection
