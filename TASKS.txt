@@ -1080,7 +1080,7 @@ tasks:
       - step4: Keep assertions deterministic and names-only in diagnostics
     dependencies: [task54, task56]
     tests: [test86]
-    status: needs-review
+    status: completed
 
   - id: task60
     title: Add mixed-source env_vars resolution regression
@@ -1097,7 +1097,7 @@ tasks:
       - step4: Ensure test output checks do not expose secret values
     dependencies: [task53, task54, task55, task56]
     tests: [test87]
-    status: needs-review
+    status: completed
 
   - id: task61
     title: Add filesystem secret leak sentinel checks
@@ -1116,3 +1116,135 @@ tasks:
     dependencies: [task57]
     tests: [test88]
     status: paused
+
+  - id: task62
+    title: Add inspect CLI command parsing
+    type: task
+    description: |
+      Add `kinnoo inspect` command parsing and usage handling so users can
+      inspect either an agent directory or a `.kno` archive path.
+    files:
+      - src/kinnoo/cli.py
+    steps:
+      - step1: Add `inspect` subcommand with positional target argument in the top-level CLI parser
+      - step2: Implement usage/help behavior for missing arguments consistent with existing command patterns
+      - step3: Wire the subcommand handler to a dedicated inspect command module entrypoint
+      - step4: Keep parser behavior deterministic and structured for future unit tests around valid/invalid argument paths
+    dependencies: [task39]
+    tests: [test89]
+    status: completed
+
+  - id: task63
+    title: Implement inspect target detection
+    type: task
+    description: |
+      Implement source detection for inspect targets so the command can read
+      manifests from either agent directories or `.kno` archives.
+    files:
+      - src/kinnoo/inspect_command.py
+    steps:
+      - step1: Detect whether input target is a directory, regular file, or invalid path and emit clear errors
+      - step2: For directory targets, detect presence of `kinnoo.yaml` and `requirements.txt` before manifest load
+      - step3: If `kinnoo.yaml` is missing, print stdout guidance that it must be created and exit gracefully with non-zero status
+      - step4: If `requirements.txt` is missing, print stdout guidance that it must be created and include robust generation guidance (`pip install uv` and `uv export --format requirements-txt > requirements.txt`), then exit gracefully with non-zero status
+      - step5: When both required files exist, load manifest content safely for downstream validation/formatting flow
+      - step6: Keep detection and branching logic isolated and deterministic for upcoming unit tests
+      - step7: For archive targets, branch to archive-manifest extraction path without full extraction
+    dependencies: [task62]
+    tests: [test90]
+    status: completed
+
+  - id: task64
+    title: Read manifest directly from .kno zip
+    type: task
+    description: |
+      Read `kinnoo.yaml` from inside `.kno` archives without extracting full
+      archive contents to disk.
+    files:
+      - src/kinnoo/inspect_command.py
+      - src/kinnoo/install_command.py
+    steps:
+      - step1: Implement zip-based reader that locates and reads `kinnoo.yaml` entry from archive members
+      - step2: Handle missing manifest, invalid zip structure, and read errors with actionable error messages
+      - step3: Ensure archive inspection path does not write extracted files to disk
+      - step4: Structure the archive reader as a reusable helper suitable for focused unit tests
+    dependencies: [task63, task43]
+    tests: [test91]
+    status: completed
+
+  - id: task65
+    title: Validate manifest and format inspect output
+    type: task
+    description: |
+      Validate loaded manifests using the shared validator and render
+      human-readable inspect output with optional-field omission rules.
+    files:
+      - src/kinnoo/inspect_command.py
+      - src/kinnoo/validator.py
+    steps:
+      - step1: Validate loaded manifest with feature1 validator and abort on invalid manifests with clear errors
+      - step2: Ensure missing required-field failures are surfaced with field-by-field clarity from validator output
+      - step3: Render human-readable output for required/optional metadata fields defined in feature11 ACs
+      - step4: Omit missing optional fields from output and avoid raw YAML dumps
+      - step5: Keep output formatting stable for future snapshot-style unit tests
+    dependencies: [task63, task64]
+    tests: [test92]
+    status: completed
+
+  - id: task66
+    title: Enforce inspect secret-safe display
+    type: task
+    description: |
+      Enforce security invariants in inspect output by displaying env var names
+      only and never printing secret values from any source.
+    files:
+      - src/kinnoo/inspect_command.py
+      - tests/test_cli_inspect.py
+    steps:
+      - step1: Ensure inspect output includes env var names from manifest but never attempts runtime env resolution
+      - step2: Audit output/error paths to confirm no environment variable values can be surfaced
+      - step3: Add clear inline guardrails around names-only display behavior for maintainability
+      - step4: Define deterministic negative/edge scenarios in implementation notes to guide upcoming unit tests
+    dependencies: [task65, task57]
+    tests: [test93]
+    status: completed
+
+  - id: task67
+    title: Document inspect command usage and examples
+    type: task
+    description: |
+      Add documentation for `kinnoo inspect` command behavior, examples, and
+      error guidance for directory and archive inspection flows.
+    files:
+      - README.md
+      - docs/manifest-schema-reference.md
+    steps:
+      - step1: Document command usage for directory and `.kno` inputs with example invocations
+      - step2: Document output semantics including optional-field omission and names-only env_vars display
+      - step3: Document missing-file guidance behavior for missing `kinnoo.yaml` and missing `requirements.txt` in directory targets
+      - step4: Document robust requirements generation instructions (`pip install uv` and `uv export --format requirements-txt > requirements.txt`)
+      - step5: Document common failure cases (missing target, invalid archive, invalid manifest) with expected guidance
+      - step6: Keep docs concise and stable so future documentation tests can assert key command semantics
+    dependencies: [task65, task66]
+    tests: [test94]
+    status: completed
+
+  - id: task68
+    title: Add inspect guidance templates with maintenance note
+    type: task
+    description: |
+      Add reusable inspect guidance templates for missing `kinnoo.yaml` and
+      missing `requirements.txt`, including a minimal manifest example kept in
+      code with an explicit `[agent]` maintenance note.
+    files:
+      - src/kinnoo/inspect_command.py
+      - src/kinnoo/templates.py
+    steps:
+      - step1: Define a minimal `kinnoo.yaml` example in a single reusable code location referenced by inspect guidance output
+      - step2: Add an explicit `[agent]` comment near the example stating it must be updated whenever schema/template changes affect minimal required manifest fields
+      - step3: Ensure missing `kinnoo.yaml` guidance prints the reusable minimal example and remains stdout-safe
+      - step4: Ensure missing `requirements.txt` guidance includes the robust `uv export` command path and remains concise
+      - step5: Keep template strings centralized and deterministic to support future unit/snapshot tests
+    dependencies: [task63, task65]
+    tests: [test95]
+    status: completed
