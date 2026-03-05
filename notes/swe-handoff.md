@@ -1,57 +1,85 @@
-# SWE Handoff Addendum — Feature10 Secret Non-Disclosure Test Strategy
+## Feature11 SWE Handoff — `kinnoo inspect` (tasks 62→68)
 
-## Scope
-This addendum covers only feature10 security testing for tasks `task53`–`task58` and tests `test78`–`test85`, with emphasis on preventing secret-value disclosure.
+### Scope
+Implement `kinnoo inspect` to inspect either an agent directory or a `.kno` archive and display human-readable manifest metadata, while enforcing names-only secret safety and clear guidance for missing required files.
 
-## Security invariant (must hold in all paths)
-- Secret/env var **values** must never appear in:
-	- stdout
-	- stderr
-	- logs
-	- exception traces
-	- temp/debug files
-- Only env var **names** may be displayed for diagnostics.
+### Recommended implementation order (and why)
 
-## Sentinel-value leak-check pattern (required)
-- Use unique sentinel values that are easy to detect, e.g.:
-	- `SENTINEL_SECRET_ALPHA_9f3b`
-	- `SENTINEL_SECRET_BRAVO_7c21`
-- Inject sentinels via all resolution paths:
-	1. process environment
-	2. `.env` fallback
-	3. masked prompt input
-- After each run, assert sentinels are absent from:
-	- captured stdout/stderr
-	- any runtime logs/files touched by the run
+1. **task62 — Add inspect CLI command parsing**
+	 - Establish the command surface and argument behavior first.
+	 - This unblocks all downstream inspect behavior behind a stable CLI entrypoint.
 
-## Test implementation notes
-- For `test80` / `test82`, simulate prompt input/cancel deterministically; never print entered value.
-- For `test84`, add a reusable helper like `assert_no_secret_leak(outputs: list[str], sentinels: list[str])`.
-- Use negative assertions (`not in`) for every sentinel across all captured artifacts.
-- Verify failure messages reference missing variable names only.
+2. **task63 — Implement inspect target detection**
+	 - Add target type routing (directory vs archive) plus required-file checks for directory targets.
+	 - Implement graceful guidance exits for missing `kinnoo.yaml` and missing `requirements.txt`.
 
-## Task-to-test security focus
-- `task53`/`task54`: verify resolution order correctness without value exposure.
-- `task55`: verify masked prompt + cancel path with no value echo.
-- `task56`: verify subprocess injection works while logs remain value-safe.
-- `task57`: enforce and test non-disclosure guardrails (`test84` is mandatory gate).
-- `task58`: docs must explicitly state non-disclosure invariant and safe troubleshooting guidance.
+3. **task64 — Read manifest directly from .kno zip**
+	 - Build archive-path manifest loading next so both source types are functional.
+	 - Keep this reusable so future commands can share the same archive-manifest reader.
 
-## Minimum SWE validation commands
-- `python3 -m pytest tests/test_cli_env_vars.py -k "feature10 or env_vars or secret"`
-- `python3 -m pytest tests/test_docs.py -k "feature10"`
-- `python3 src/validate_project_manifests.py`
+4. **task65 — Validate manifest and format inspect output**
+	 - After manifests can be loaded from both source types, enforce validator-backed errors and human-readable output formatting.
+	 - Ensure required-field missing errors are surfaced clearly from validator output.
 
-## Feature10 docs contract checklist (task58)
-- README and schema docs must state resolution order: environment -> .env -> masked prompt.
-- Docs must explicitly state secret values are never printed, logged, or persisted.
-- Examples and troubleshooting guidance must reference variable names only.
+5. **task66 — Enforce inspect secret-safe display**
+	 - Apply safety hardening once output exists.
+	 - Confirm inspect remains metadata-only (names, never values) across all output/error paths.
 
-## Follow-up SWE pointers (test86-test88)
-- Placeholder pytest functions are already added in `tests/test_cli_env_vars.py` with `[agent]` implementation notes:
-	- `test_env_precedence_prefers_process_env_over_dotenv` (implements `test86`)
-	- `test_mixed_source_env_var_resolution_and_injection` (implements `test87`)
-	- `test_secret_sentinels_absent_from_runtime_artifacts` (implements `test88`)
-- Keep these placeholders until full implementations are completed, then remove `@pytest.mark.skip` from each.
-- Preserve the non-disclosure invariant in all assertions: secret values must not appear in stdout, stderr, or inspected artifacts.
+6. **task68 — Add inspect guidance templates with maintenance note**
+	 - Centralize missing-file guidance strings and minimal `kinnoo.yaml` example in one reusable location.
+	 - Include explicit `[agent]` maintenance note so schema/template changes trigger updates to the minimal example.
+	 - Placing this after core flow reduces rework while still shipping as part of feature11.
 
+7. **task67 — Document inspect command usage and examples**
+	 - Land documentation last so it reflects the final command behavior and exact guidance text.
+
+### Expected file touch points by task
+
+- **task62**
+	- `src/kinnoo/cli.py`
+
+- **task63**
+	- `src/kinnoo/inspect_command.py`
+
+- **task64**
+	- `src/kinnoo/inspect_command.py`
+	- `src/kinnoo/install_command.py` (only if shared archive reader helper is placed/reused here)
+
+- **task65**
+	- `src/kinnoo/inspect_command.py`
+	- `src/kinnoo/validator.py` (only if message plumbing/helper reuse is needed)
+
+- **task66**
+	- `src/kinnoo/inspect_command.py`
+	- `tests/test_cli.py` and/or `tests/test_cli_inspect.py` when implemented
+
+- **task68**
+	- `src/kinnoo/templates.py` (preferred location for reusable minimal manifest text)
+	- `src/kinnoo/inspect_command.py` (consume centralized template/guidance strings)
+
+- **task67**
+	- `README.md`
+	- `docs/manifest-schema-reference.md`
+
+### Implementation constraints and quality guardrails
+
+- Keep inspect output **human-readable**, not raw YAML.
+- Missing optional fields should be **omitted**, not shown as `None`/empty placeholders.
+- For directory targets:
+	- Missing `kinnoo.yaml` ⇒ print stdout guidance + minimal manifest example, then graceful non-zero exit.
+	- Missing `requirements.txt` ⇒ print stdout guidance + robust generation guidance:
+		- `pip install uv`
+		- `uv export --format requirements-txt > requirements.txt`
+- For archive targets:
+	- Read `kinnoo.yaml` directly from zip members without full extraction.
+- Secret safety:
+	- Show env var **names only**; never resolve/print runtime secret values.
+- Keep error messages deterministic and stable to support future unit/integration assertions.
+
+### Suggested SWE grouping
+
+- **Group A (core runtime path):** task62, task63, task64, task65
+- **Group B (security + template centralization):** task66, task68
+- **Group C (docs):** task67
+
+This grouping allows one SWE to complete Group A first for functional inspect behavior, then harden and document without blocking core delivery.
