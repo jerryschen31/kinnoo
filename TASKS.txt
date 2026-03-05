@@ -1267,7 +1267,7 @@ tasks:
       - step4: Keep method signatures and return structures deterministic to support focused unit tests per backend behavior
     dependencies: [task39, task43]
     tests: [test96]
-    status: not-started
+    status: needs-review
 
   - id: task70
     title: Add publish command parsing and CLI wiring
