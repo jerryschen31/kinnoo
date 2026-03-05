@@ -371,7 +371,7 @@ features:
         description: "No code path in the codebase ever prints, logs, or displays the VALUE of any env var or secret — only variable NAMES may appear in output or logs."
     owner: techlead-agent
     dependencies: [feature9]
-    status: in-progress
+    status: completed
 
   - id: feature11
     title: "kinnoo inspect — Manifest inspection command"
@@ -379,7 +379,7 @@ features:
       New CLI command that reads and displays manifest metadata from a .kno archive or agent
       directory. Provides transparency into what an agent requires before install or run.
       Displays env_var names (never values), dependencies, runtime type, and other metadata.
-    tasks: []
+    tasks: [task62, task63, task64, task65, task66, task67, task68]
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo inspect <agent-dir>` reads kinnoo.yaml and displays: name, version, description, author, license, dependencies, env_var NAMES (not values), and runtime type."
@@ -393,9 +393,15 @@ features:
         description: "Invalid manifest produces a clear error (reuses feature1 validator)."
       - id: AC6
         description: "`kinnoo inspect` without arguments prints usage help."
+      - id: AC7
+        description: "If an inspected agent directory is missing `kinnoo.yaml`, `kinnoo inspect` prints a stdout guidance message that `kinnoo.yaml` must be created, includes a minimal manifest example, and exits gracefully with non-zero status."
+      - id: AC8
+        description: "If an inspected agent directory is missing `requirements.txt`, `kinnoo inspect` prints a stdout guidance message that `requirements.txt` must be created, includes robust generation guidance (`pip install uv` and `uv export --format requirements-txt > requirements.txt`), and exits gracefully with non-zero status."
+      - id: AC9
+        description: "If `kinnoo.yaml` is present but missing required fields, inspect output clearly names each missing required field using validator-provided messages."
     owner: techlead-agent
     dependencies: [feature7]
-    status: not-started
+    status: in-progress
 
   - id: feature12
     title: "Local Registry (kinnoo publish, kinnoo install <name>, kinnoo list, kinnoo search)"

@@ -1434,3 +1434,124 @@ tests:
     covers:
       - feature: feature10
         ac: AC7
+
+  - id: test89
+    title: kinnoo inspect without target prints usage help
+    type: unit
+    preconditions: kinnoo CLI installed
+    steps:
+      - step1: Run `kinnoo inspect` with no target argument
+      - step2: Capture stdout/stderr and exit code
+    expected: Usage/help guidance is shown and command exits non-zero
+    pass_criteria: Output includes inspect usage text and process exits non-zero
+    automated: true
+    automation_path: tests/test_cli_inspect.py::test_inspect_missing_target_prints_usage
+    covers:
+      - feature: feature11
+        ac: AC6
+
+  - id: test90
+    title: Inspect directory with missing manifest or requirements prints guidance and exits gracefully
+    type: integration
+    preconditions: kinnoo CLI installed; temp agent directories that omit `kinnoo.yaml` or `requirements.txt`
+    steps:
+      - step1: Run `kinnoo inspect <agent-dir>` where `kinnoo.yaml` is missing
+      - step2: Verify stdout guidance mentions creating `kinnoo.yaml` and includes minimal manifest example
+      - step3: Run `kinnoo inspect <agent-dir>` where `requirements.txt` is missing
+      - step4: Verify stdout guidance mentions creating `requirements.txt` and includes `pip install uv` and `uv export --format requirements-txt > requirements.txt`
+    expected: Inspect exits gracefully with clear stdout guidance for each missing-file scenario
+    pass_criteria: Both scenarios return non-zero without traceback and include required guidance content
+    automated: true
+    automation_path: tests/test_cli_inspect.py::test_inspect_missing_required_files_prints_guidance
+    covers:
+      - feature: feature11
+        ac: AC7
+      - feature: feature11
+        ac: AC8
+
+  - id: test91
+    title: Inspect reads manifest from .kno zip without full extraction
+    type: integration
+    preconditions: kinnoo CLI installed; valid `.kno` archive fixture with `kinnoo.yaml`
+    steps:
+      - step1: Run `kinnoo inspect <archive.kno>`
+      - step2: Verify inspect output includes expected manifest metadata fields
+      - step3: Verify no extracted agent directory artifacts are created on disk by inspect flow
+    expected: Manifest metadata is read directly from archive and displayed without full extraction
+    pass_criteria: Inspect exits 0, prints expected metadata, and leaves no full extraction artifacts
+    automated: true
+    automation_path: tests/test_cli_inspect.py::test_inspect_reads_manifest_from_archive_without_extracting
+    covers:
+      - feature: feature11
+        ac: AC2
+
+  - id: test92
+    title: Inspect output is human-readable, omits missing optional fields, and surfaces validator field errors
+    type: integration
+    preconditions: kinnoo CLI installed; fixtures for valid manifest with missing optional fields and invalid manifest missing required fields
+    steps:
+      - step1: Run `kinnoo inspect <agent-dir>` on valid fixture with optional fields omitted
+      - step2: Verify output is formatted human-readable text and excludes omitted optional fields
+      - step3: Run `kinnoo inspect <agent-dir>` on fixture where required fields are missing in `kinnoo.yaml`
+      - step4: Verify error output names missing required fields using validator messages
+    expected: Inspect formatting and validation behavior match feature11 requirements
+    pass_criteria: Human-readable output is produced for valid fixture; invalid fixture exits non-zero with field-specific missing-field errors
+    automated: true
+    automation_path: tests/test_cli_inspect.py::test_inspect_formatting_optional_omission_and_missing_required_field_errors
+    covers:
+      - feature: feature11
+        ac: AC1
+      - feature: feature11
+        ac: AC3
+      - feature: feature11
+        ac: AC4
+      - feature: feature11
+        ac: AC5
+      - feature: feature11
+        ac: AC9
+
+  - id: test93
+    title: Inspect displays env var names only and never secret values
+    type: unit
+    preconditions: kinnoo CLI installed; manifest fixture includes env_vars names and environment contains sentinel secret values
+    steps:
+      - step1: Run `kinnoo inspect <agent-dir>` on manifest declaring env_vars names
+      - step2: Capture output and verify env var names appear as metadata
+      - step3: Verify no environment variable values or sentinel secrets appear in output
+    expected: Inspect remains metadata-only and names-only for env var display
+    pass_criteria: Output includes declared env var names and excludes all env var values
+    automated: true
+    automation_path: tests/test_cli_inspect.py::test_inspect_shows_env_var_names_not_values
+    covers:
+      - feature: feature11
+        ac: AC1
+
+  - id: test94
+    title: Docs cover inspect usage and missing-file guidance
+    type: unit
+    preconditions: README.md and docs/manifest-schema-reference.md are present
+    steps:
+      - step1: Verify docs include `kinnoo inspect` examples for directory and `.kno` archive targets
+      - step2: Verify docs include missing `kinnoo.yaml` and missing `requirements.txt` guidance
+      - step3: Verify docs include robust requirements generation commands with `uv export --format requirements-txt`
+    expected: Documentation reflects inspect command behavior and operator guidance
+    pass_criteria: Required inspect usage and missing-file guidance content appears in docs
+    automated: true
+    automation_path: tests/test_docs.py::test_feature11_docs_cover_inspect_usage_and_missing_file_guidance
+    covers: []
+
+  - id: test95
+    title: Missing-manifest guidance uses centralized minimal template with agent maintenance note
+    type: unit
+    preconditions: inspect/template modules are present and readable
+    steps:
+      - step1: Inspect source to confirm minimal `kinnoo.yaml` guidance template is defined in a single reusable location
+      - step2: Verify source includes explicit `[agent]` maintenance note instructing updates when schema/template changes affect minimal manifest fields
+      - step3: Run missing-`kinnoo.yaml` inspect path and verify guidance renders the centralized minimal template text
+    expected: Missing-manifest guidance remains maintainable and aligned with centralized template source
+    pass_criteria: Single-source template + `[agent]` maintenance note exists and runtime guidance output uses that source
+    automated: true
+    automation_path: tests/test_cli_inspect.py::test_missing_manifest_guidance_uses_centralized_template_with_agent_note
+    covers:
+      - feature: feature11
+        ac: AC7
