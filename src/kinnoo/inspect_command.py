@@ -127,6 +127,19 @@ def _print_manifest_validation_errors(errors: list[str]) -> None:
         print(f"- {error}", file=sys.stderr)
 
 
+def _env_var_names_for_display(manifest_data: dict[str, Any]) -> list[str]:
+    env_vars = manifest_data.get("env_vars")
+    if not isinstance(env_vars, list):
+        return []
+
+    names: list[str] = []
+    for env_var in env_vars:
+        if isinstance(env_var, str) and env_var.strip():
+            names.append(env_var)
+
+    return names
+
+
 def _print_inspect_output(target_label: str, manifest_data: dict[str, Any]) -> None:
     normalized = _normalize_manifest_for_display(manifest_data)
 
@@ -155,12 +168,12 @@ def _print_inspect_output(target_label: str, manifest_data: dict[str, Any]) -> N
             print(f"- {label}: {value}")
 
     if "env_vars" in normalized:
-        env_vars = normalized.get("env_vars")
-        if isinstance(env_vars, list) and env_vars:
+        env_var_names = _env_var_names_for_display(normalized)
+        if env_var_names:
             print("- Env Vars:")
-            for env_var in env_vars:
-                print(f"  - {env_var}")
-        elif isinstance(env_vars, list):
+            for env_var_name in env_var_names:
+                print(f"  - {env_var_name}")
+        else:
             print("- Env Vars: (none)")
 
 

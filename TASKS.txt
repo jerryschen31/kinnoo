@@ -1207,7 +1207,7 @@ tasks:
       - step4: Define deterministic negative/edge scenarios in implementation notes to guide upcoming unit tests
     dependencies: [task65, task57]
     tests: [test93]
-    status: not-started
+    status: needs-review
 
   - id: task67
     title: Document inspect command usage and examples
