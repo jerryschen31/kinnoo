@@ -89,6 +89,24 @@ class RegistryService:
     def search(self, *, query: str) -> list[RegistryRecord]:
         return self._backend.search(query=query)
 
+    def resolve_with_error(
+        self,
+        *,
+        name: str,
+        version: Optional[str] = None,
+    ) -> tuple[Optional[RegistryRecord], Optional[str]]:
+        backend_resolver = getattr(self._backend, "resolve_with_error", None)
+        if callable(backend_resolver):
+            return backend_resolver(name=name, version=version)
+
+        record = self.resolve(name=name, version=version)
+        if record is not None:
+            return record, None
+
+        if version:
+            return None, f"Registry version '{name}=={version}' was not found."
+        return None, f"Registry agent '{name}' was not found."
+
 
 def parse_install_target_spec(target: str) -> InstallTargetSpec:
     """Parse install target into file-path or registry selector forms.
