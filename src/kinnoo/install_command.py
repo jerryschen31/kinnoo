@@ -10,8 +10,10 @@ import os
 from pathlib import Path
 
 try:
+    from kinnoo.registry import parse_install_target_spec
     from kinnoo.validator import validate
 except ImportError:
+    from .registry import parse_install_target_spec
     from .validator import validate
 
 
@@ -46,7 +48,24 @@ def _is_offline_mode_enabled() -> bool:
 
 
 def install_agent(archive_path: str, target_dir_arg: str | None = None, force: bool = False) -> int:
-    archive = Path(archive_path)
+    target_spec = parse_install_target_spec(archive_path)
+    if target_spec.kind == "invalid":
+        print(f"Error: {target_spec.error}", file=sys.stderr)
+        return 1
+
+    if target_spec.kind in {"registry-latest", "registry-exact"}:
+        if target_spec.kind == "registry-exact":
+            selector = f"{target_spec.name}=={target_spec.version}"
+        else:
+            selector = str(target_spec.name)
+        print(
+            "Error: Registry selector installs are not implemented yet for "
+            f"'{selector}'. Use a .kno archive path for now.",
+            file=sys.stderr,
+        )
+        return 1
+
+    archive = target_spec.archive_path or Path(archive_path)
     if not archive.exists() or not archive.is_file():
         print(f"Error: Archive '{archive}' does not exist or is not a file.", file=sys.stderr)
         return 1

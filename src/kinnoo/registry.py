@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from pathlib import Path
-from typing import Any, Optional, Protocol, runtime_checkable
+from typing import Any, Literal, Optional, Protocol, runtime_checkable
+
+from .schema import NAME_PATTERN, SEMVER_PATTERN
 
 
 @dataclass(frozen=True)
@@ -15,6 +18,18 @@ class RegistryRecord:
     version: str
     archive_path: Path
     metadata_path: Path | None = None
+
+
+@dataclass(frozen=True)
+class InstallTargetSpec:
+    """Parsed install target classification for install command routing."""
+
+    kind: Literal["archive-path", "registry-latest", "registry-exact", "invalid"]
+    raw_target: str
+    archive_path: Path | None = None
+    name: str | None = None
+    version: str | None = None
+    error: str | None = None
 
 
 @runtime_checkable
@@ -73,3 +88,98 @@ class RegistryService:
 
     def search(self, *, query: str) -> list[RegistryRecord]:
         return self._backend.search(query=query)
+
+
+def parse_install_target_spec(target: str) -> InstallTargetSpec:
+    """Parse install target into file-path or registry selector forms.
+
+    Supported selector forms:
+    - ``<name>`` (latest)
+    - ``<name>==<version>`` (exact)
+    """
+
+    candidate = target.strip()
+    if not candidate:
+        return InstallTargetSpec(
+            kind="invalid",
+            raw_target=target,
+            error="Install target cannot be empty.",
+        )
+
+    looks_like_path = (
+        "/" in candidate
+        or candidate.startswith(".")
+        or candidate.startswith("~")
+        or candidate.endswith(".kno")
+        or Path(candidate).exists()
+    )
+
+    if looks_like_path:
+        return InstallTargetSpec(
+            kind="archive-path",
+            raw_target=target,
+            archive_path=Path(candidate).expanduser(),
+        )
+
+    separator_count = candidate.count("==")
+    if separator_count > 1:
+        return InstallTargetSpec(
+            kind="invalid",
+            raw_target=target,
+            error=(
+                "Invalid registry selector format. Use '<name>' or "
+                "'<name>==<version>'."
+            ),
+        )
+
+    if separator_count == 1:
+        name_part, version_part = candidate.split("==", 1)
+        name = name_part.strip()
+        version = version_part.strip()
+
+        if not name or not version:
+            return InstallTargetSpec(
+                kind="invalid",
+                raw_target=target,
+                error=(
+                    "Invalid registry selector format. Use '<name>==<version>' "
+                    "with both name and version present."
+                ),
+            )
+
+        if not re.fullmatch(NAME_PATTERN, name):
+            return InstallTargetSpec(
+                kind="invalid",
+                raw_target=target,
+                error=f"Invalid registry agent name '{name}'.",
+            )
+
+        if not re.fullmatch(SEMVER_PATTERN, version):
+            return InstallTargetSpec(
+                kind="invalid",
+                raw_target=target,
+                error=f"Invalid registry version '{version}'. Expected semver.",
+            )
+
+        return InstallTargetSpec(
+            kind="registry-exact",
+            raw_target=target,
+            name=name,
+            version=version,
+        )
+
+    if not re.fullmatch(NAME_PATTERN, candidate):
+        return InstallTargetSpec(
+            kind="invalid",
+            raw_target=target,
+            error=(
+                f"Invalid install target '{candidate}'. Use a .kno file path, "
+                "'<name>', or '<name>==<version>'."
+            ),
+        )
+
+    return InstallTargetSpec(
+        kind="registry-latest",
+        raw_target=target,
+        name=candidate,
+    )
