@@ -68,41 +68,9 @@ def _get_nested(data: dict[str, Any], dotted_key: str) -> tuple[bool, Any]:
 # Public API
 # ---------------------------------------------------------------------------
 
-def validate(manifest_path: str) -> tuple[bool, list[str]]:
-    """Validate a kinnoo.yaml manifest file.
-
-    Parameters
-    ----------
-    manifest_path:
-        Filesystem path to the manifest file (``kinnoo.yaml``).
-
-    Returns
-    -------
-    tuple[bool, list[str]]
-        ``(is_valid, errors)`` where *errors* is an empty list when
-        *is_valid* is ``True``.
-    """
+def _collect_validation_errors(data: dict[str, Any]) -> list[str]:
+    """Collect schema/type/semantic validation errors for a manifest mapping."""
     errors: list[str] = []
-    path = Path(manifest_path)
-
-    # ------------------------------------------------------------------
-    # 1. File existence and YAML parse
-    # ------------------------------------------------------------------
-    if not path.exists():
-        errors.append(f"Manifest file not found: {manifest_path}")
-        return False, errors
-
-    try:
-        with path.open("r", encoding="utf-8") as fh:
-            data = yaml.safe_load(fh)
-    except yaml.YAMLError as exc:
-        errors.append(f"YAML parse error: {exc}")
-        return False, errors
-
-    if not isinstance(data, dict):
-        errors.append("Manifest must be a YAML mapping (dict) at the top level.")
-        return False, errors
-
 
     # Inject defaults for dependencies, inputs, outputs if missing
     data = normalize_manifest_defaults(data)
@@ -194,11 +162,58 @@ def validate(manifest_path: str) -> tuple[bool, list[str]]:
                         f"Field 'env_vars[{index}]' must be a non-empty string."
                     )
 
-    # ------------------------------------------------------------------
-    # 5. Optional field: framework — accepted if present as a string,
-    #    silently ignored if absent.  Already handled by only validating
-    #    required fields above; no action needed here.
-    # ------------------------------------------------------------------
+    return errors
 
-    is_valid = len(errors) == 0
-    return is_valid, errors
+
+def validate_manifest_data(manifest_data: dict[str, Any]) -> tuple[bool, list[str]]:
+    """Validate an in-memory kinnoo manifest mapping.
+
+    Parameters
+    ----------
+    manifest_data:
+        Parsed manifest object expected to be a YAML top-level mapping.
+
+    Returns
+    -------
+    tuple[bool, list[str]]
+        ``(is_valid, errors)`` where *errors* is empty when valid.
+    """
+    if not isinstance(manifest_data, dict):
+        return False, ["Manifest must be a YAML mapping (dict) at the top level."]
+
+    errors = _collect_validation_errors(manifest_data)
+    return len(errors) == 0, errors
+
+
+def validate(manifest_path: str) -> tuple[bool, list[str]]:
+    """Validate a kinnoo.yaml manifest file.
+
+    Parameters
+    ----------
+    manifest_path:
+        Filesystem path to the manifest file (``kinnoo.yaml``).
+
+    Returns
+    -------
+    tuple[bool, list[str]]
+        ``(is_valid, errors)`` where *errors* is an empty list when
+        *is_valid* is ``True``.
+    """
+    path = Path(manifest_path)
+
+    # ------------------------------------------------------------------
+    # 1. File existence and YAML parse
+    # ------------------------------------------------------------------
+    if not path.exists():
+        return False, [f"Manifest file not found: {manifest_path}"]
+
+    try:
+        with path.open("r", encoding="utf-8") as fh:
+            data = yaml.safe_load(fh)
+    except yaml.YAMLError as exc:
+        return False, [f"YAML parse error: {exc}"]
+
+    if not isinstance(data, dict):
+        return False, ["Manifest must be a YAML mapping (dict) at the top level."]
+
+    return validate_manifest_data(data)
