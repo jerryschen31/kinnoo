@@ -301,9 +301,13 @@ def run_preflight(agent_dir_arg: str) -> int:
                 manifest = loaded_manifest
 
     runtime_constraint_ok = False
+    runtime_message = "runtime version check failed: manifest validation prerequisite not met"
     env_vars_ok = False
+    env_vars_message = "env vars check failed: manifest validation prerequisite not met"
     entrypoint_ok = False
+    entrypoint_message = "entrypoint check failed: manifest validation prerequisite not met"
     dependencies_ok = False
+    dependencies_message = "dependency readiness check failed: manifest validation prerequisite not met"
     if manifest_valid and manifest is not None:
         runtime_version_constraint = str(
             manifest.get("runtime", {}).get("version", "")
@@ -311,22 +315,25 @@ def run_preflight(agent_dir_arg: str) -> int:
             else ""
         )
         runtime_constraint_ok, runtime_message = _check_runtime_version_constraint(runtime_version_constraint)
-        _emit_preflight_line(runtime_constraint_ok, runtime_message)
-        if not runtime_constraint_ok:
-            print("  - Action: use a Python interpreter that satisfies runtime.version in kinnoo.yaml")
 
         env_vars_ok, env_vars_message = _check_preflight_env_vars(manifest, agent_dir)
-        _emit_preflight_line(env_vars_ok, env_vars_message)
-        if not env_vars_ok:
-            print("  - Action: set missing env vars in your shell environment or agent-local .env file")
 
         entrypoint_ok, entrypoint_message = _check_preflight_entrypoint(manifest, agent_dir)
-        _emit_preflight_line(entrypoint_ok, entrypoint_message)
-        if not entrypoint_ok:
-            print("  - Action: ensure manifest entrypoint exists and is readable")
 
         dependencies_ok, dependencies_message = _check_preflight_dependencies(manifest, agent_dir)
-        _emit_preflight_line(dependencies_ok, dependencies_message)
+
+    _emit_preflight_line(runtime_constraint_ok, runtime_message)
+    _emit_preflight_line(env_vars_ok, env_vars_message)
+    _emit_preflight_line(entrypoint_ok, entrypoint_message)
+    _emit_preflight_line(dependencies_ok, dependencies_message)
+
+    if manifest_valid and manifest is not None:
+        if not runtime_constraint_ok:
+            print("  - Action: use a Python interpreter that satisfies runtime.version in kinnoo.yaml")
+        if not env_vars_ok:
+            print("  - Action: set missing env vars in your shell environment or agent-local .env file")
+        if not entrypoint_ok:
+            print("  - Action: ensure manifest entrypoint exists and is readable")
         if not dependencies_ok:
             print("  - Action: create agent .venv and install requirements (for example: kinnoo run <agent-dir> '<input>')")
 
@@ -342,8 +349,20 @@ def run_preflight(agent_dir_arg: str) -> int:
         and entrypoint_ok
         and dependencies_ok
     ):
+        print("Ready to run")
         print("Preflight result: PASS")
         return 0
+
+    print("Not ready to run")
+    print("Remediation summary:")
+    if not runtime_constraint_ok:
+        print("- runtime version: use a compatible Python interpreter per runtime.version")
+    if not env_vars_ok:
+        print("- env vars: provide missing names in environment or .env")
+    if not entrypoint_ok:
+        print("- entrypoint: ensure manifest entrypoint exists and is readable")
+    if not dependencies_ok:
+        print("- dependencies: create .venv and install requirements")
 
     print("Preflight result: FAIL")
     return 1

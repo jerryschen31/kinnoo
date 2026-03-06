@@ -312,3 +312,46 @@ def test_preflight_entrypoint_and_dependency_checks(tmp_path: Path) -> None:
     assert "[FAIL] dependency readiness check failed" in dependency_fail_output
     assert "virtual environment not found" in dependency_fail_output
     assert "Action: create agent .venv and install requirements" in dependency_fail_output
+
+
+def test_preflight_checklist_and_ready_summary(tmp_path: Path) -> None:
+    pass_agent = tmp_path / "ready-pass-agent"
+    _create_agent_fixture(pass_agent, with_manifest=True)
+
+    pass_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "run", str(pass_agent), "--preflight"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+    pass_output = f"{pass_result.stdout}\n{pass_result.stderr}"
+
+    assert pass_result.returncode == 0
+    assert "[PASS] runtime version check" in pass_output
+    assert "[PASS] env vars check" in pass_output
+    assert "[PASS] entrypoint check" in pass_output
+    assert "[PASS] dependency readiness check" in pass_output
+    assert "Ready to run" in pass_output
+    assert "Not ready to run" not in pass_output
+
+    fail_agent = tmp_path / "ready-fail-agent"
+    _create_agent_fixture(fail_agent, with_manifest=True)
+    (fail_agent / "requirements.txt").write_text("requests==2.31.0\n", encoding="utf-8")
+
+    fail_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "run", str(fail_agent), "--preflight"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+    fail_output = f"{fail_result.stdout}\n{fail_result.stderr}"
+
+    assert fail_result.returncode != 0
+    assert "[PASS] runtime version check" in fail_output
+    assert "[PASS] env vars check" in fail_output
+    assert "[PASS] entrypoint check" in fail_output
+    assert "[FAIL] dependency readiness check" in fail_output
+    assert "Not ready to run" in fail_output
+    assert "Remediation summary:" in fail_output
+    assert "- dependencies: create .venv and install requirements" in fail_output
+    assert "Ready to run" not in fail_output
