@@ -13,7 +13,7 @@ def test_publish_cli_usage_and_local_flag(tmp_path: Path) -> None:
     )
 
     assert usage_result.returncode != 0
-    assert "Usage: kinnoo publish <archive.kno> [--local]" in usage_result.stderr
+    assert "Usage: kinnoo publish <agent-name> [--local]" in usage_result.stderr
 
     archive_path = tmp_path / "demo-agent.kno"
     with zipfile.ZipFile(archive_path, "w") as archive_zip:
