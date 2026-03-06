@@ -176,6 +176,19 @@ def pack_agent(agent_dir: str) -> int:
     archive_name = os.path.basename(abs_agent_dir.rstrip(os.sep)) + ".kno"
     archive_path = os.path.join(os.path.dirname(abs_agent_dir), archive_name)
 
+    if os.path.exists(archive_path):
+        try:
+            overwrite_response = input(
+                f"({archive_name}) already exists - are you sure you want to overwrite? (y/n): "
+            )
+        except EOFError:
+            overwrite_response = ""
+
+        if overwrite_response.strip().lower() != "y":
+            print("[kinnoo pack] Aborted: existing archive not overwritten.")
+            wheels_dir.cleanup()
+            return 1
+
     with zipfile.ZipFile(archive_path, "w", zipfile.ZIP_DEFLATED) as archive_file:
         archive_file.write(kinnoo_yaml_path, arcname="kinnoo.yaml")
         archive_file.write(entrypoint_path, arcname=os.path.basename(entrypoint_path))

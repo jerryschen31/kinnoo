@@ -1446,7 +1446,7 @@ tasks:
       - step5: Keep prompt/branch behavior deterministic for automated unit tests including stdin-driven confirmation cases
     dependencies: [task23, task27, task43]
     tests: [test105]
-    status: not-started
+    status: needs-review
 
   - id: task79
     title: Add --bump version automation to kinnoo pack
