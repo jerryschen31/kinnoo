@@ -44,6 +44,11 @@ def main():
     # Add 'pack' subcommand
     pack_parser = subparsers.add_parser("pack", help="Package an agent directory into a .kno archive")
     pack_parser.add_argument("agent_dir", nargs="?", help="Path to agent directory to package")
+    pack_parser.add_argument(
+        "--bump",
+        choices=["patch", "minor", "major"],
+        help="(Optional) Increment manifest version before packaging",
+    )
 
     # Add 'inspect' subcommand
     inspect_parser = subparsers.add_parser(
@@ -54,6 +59,39 @@ def main():
         "target",
         nargs="?",
         help="Path to agent directory or .kno archive",
+    )
+
+    # Add 'publish' subcommand
+    publish_parser = subparsers.add_parser(
+        "publish",
+        help="Publish a .kno archive to the local registry",
+    )
+    publish_parser.add_argument(
+        "archive_path",
+        nargs="?",
+        help="Path to .kno archive to publish",
+    )
+    publish_parser.add_argument(
+        "--local",
+        action="store_true",
+        help="Explicitly select the local registry backend",
+    )
+
+    # Add 'list' subcommand
+    subparsers.add_parser(
+        "list",
+        help="List locally published registry agents",
+    )
+
+    # Add 'search' subcommand
+    search_parser = subparsers.add_parser(
+        "search",
+        help="Search locally published registry agents",
+    )
+    search_parser.add_argument(
+        "query",
+        nargs="?",
+        help="Search query to match against agent name and description",
     )
 
     # Pre-parse sys.argv for missing args to print custom usage before argparse error
@@ -123,7 +161,7 @@ def main():
         except ImportError:
             from .pack_command import pack_agent
 
-        exit_code = pack_agent(agent_dir)
+        exit_code = pack_agent(agent_dir, bump=getattr(args, "bump", None))
         sys.exit(exit_code)
 
     elif args.command == "inspect":
@@ -138,6 +176,45 @@ def main():
             from .inspect_command import inspect_target
 
         exit_code = inspect_target(target)
+        sys.exit(exit_code)
+
+    elif args.command == "publish":
+        archive_path = getattr(args, "archive_path", None)
+        if archive_path is None:
+            print("Usage: kinnoo publish <archive.kno> [--local]", file=sys.stderr)
+            sys.exit(1)
+
+        use_local = bool(getattr(args, "local", False))
+
+        try:
+            from kinnoo.publish_command import publish_archive
+        except ImportError:
+            from .publish_command import publish_archive
+
+        exit_code = publish_archive(archive_path=archive_path, use_local=use_local)
+        sys.exit(exit_code)
+
+    elif args.command == "list":
+        try:
+            from kinnoo.list_command import list_agents
+        except ImportError:
+            from .list_command import list_agents
+
+        exit_code = list_agents()
+        sys.exit(exit_code)
+
+    elif args.command == "search":
+        query = getattr(args, "query", None)
+        if query is None:
+            print("Usage: kinnoo search <query>", file=sys.stderr)
+            sys.exit(1)
+
+        try:
+            from kinnoo.search_command import search_agents
+        except ImportError:
+            from .search_command import search_agents
+
+        exit_code = search_agents(query)
         sys.exit(exit_code)
 
 if __name__ == "__main__":

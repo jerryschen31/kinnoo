@@ -1555,3 +1555,405 @@ tests:
     covers:
       - feature: feature11
         ac: AC7
+
+  - id: test96
+    title: Registry abstraction exposes backend contract and local backend layout
+    type: unit
+    preconditions: Registry modules are importable; local filesystem sandbox available
+    steps:
+      - step1: Inspect registry abstraction to confirm publish/resolve/list/search operations are defined behind a backend contract
+      - step2: Initialize local backend with a sandbox root and perform representative no-op or fixture-backed calls
+      - step3: Verify backend path conventions follow `~/.kinnoo/registry/<name>/<version>/` semantics
+    expected: Local registry behavior is mediated by a backend abstraction with canonical local layout
+    pass_criteria: Contract methods exist, local backend conforms to path scheme, and call sites can depend on abstraction instead of concrete filesystem logic
+    automated: true
+    automation_path: tests/test_registry.py::test_registry_backend_contract_and_local_layout
+    covers:
+      - feature: feature12
+        ac: AC9
+
+  - id: test97
+    title: publish CLI accepts --local and enforces usage on invalid invocation
+    type: unit
+    preconditions: kinnoo CLI installed
+    steps:
+      - step1: Run `kinnoo publish` with missing archive argument and capture output/exit code
+      - step2: Run `kinnoo publish <archive.kno> --local` using a valid archive fixture
+      - step3: Verify command routes through local backend path without changing publish semantics
+    expected: CLI prints usage for invalid invocation and treats `--local` as explicit local publish
+    pass_criteria: Missing-argument case exits non-zero with usage text; `--local` publish exits success and stores artifact in local registry
+    automated: true
+    automation_path: tests/test_cli_registry.py::test_publish_cli_usage_and_local_flag
+    covers:
+      - feature: feature12
+        ac: AC2
+
+  - id: test98
+    title: publish extracts name/version and rejects duplicate name+version
+    type: integration
+    preconditions: kinnoo CLI installed; valid `.kno` archive fixture with manifest name/version; local registry sandbox
+    steps:
+      - step1: Run `kinnoo publish <archive.kno>` and verify archive is copied to `<registry>/<name>/<version>/`
+      - step2: Re-run publish for the same archive/version tuple
+      - step3: Capture duplicate publish output and exit code
+    expected: First publish succeeds with correct placement; second publish fails with clear duplicate error
+    pass_criteria: Initial publish writes expected path; duplicate attempt exits non-zero and reports no-silent-overwrite behavior
+    automated: true
+    automation_path: tests/test_cli_registry.py::test_publish_extracts_metadata_and_blocks_duplicate_version
+    covers:
+      - feature: feature12
+        ac: AC1
+      - feature: feature12
+        ac: AC7
+
+  - id: test99
+    title: install selector parsing preserves file-path install behavior
+    type: unit
+    preconditions: kinnoo CLI installed; fixtures include local `.kno` file and registry-like selector strings
+    steps:
+      - step1: Run install with a filesystem archive path and verify file-install path is selected
+      - step2: Run install with `<name>` and `<name>==<version>` selectors and verify registry-selection path is selected
+      - step3: Validate error messaging for ambiguous/invalid selector forms
+    expected: Parser cleanly disambiguates archive file paths from registry selectors while preserving legacy file install behavior
+    pass_criteria: Path input behaves exactly as existing `kinnoo install <file.kno>` flow; selector inputs route to registry logic with clear errors for invalid forms
+    automated: true
+    automation_path: tests/test_cli_registry.py::test_install_selector_parsing_preserves_file_install
+    covers:
+      - feature: feature12
+        ac: AC8
+
+  - id: test100
+    title: Registry resolver selects latest and exact versions across multiple published versions
+    type: integration
+    preconditions: Local registry sandbox contains multiple versions of the same agent (e.g., 1.0.0, 1.1.0, 2.0.0)
+    steps:
+      - step1: Resolve `<name>` and verify resolver returns latest published version
+      - step2: Resolve `<name>==1.1.0` and verify exact version is returned
+      - step3: Resolve unknown name/version and verify clear not-found errors
+    expected: Resolver supports deterministic latest-version and exact-version lookups with actionable failures
+    pass_criteria: Latest resolution consistently picks highest version; exact resolution returns requested version; missing cases fail with clear messages
+    automated: true
+    automation_path: tests/test_registry.py::test_registry_version_resolution_latest_and_exact
+    covers:
+      - feature: feature12
+        ac: AC3
+      - feature: feature12
+        ac: AC4
+
+  - id: test101
+    title: install by registry name/version reuses install pipeline without network
+    type: integration
+    preconditions: Local registry sandbox has published agent versions; network access disabled or blocked for test process
+    steps:
+      - step1: Run `kinnoo install <name>` and verify install succeeds from local registry
+      - step2: Run `kinnoo install <name>==<version>` and verify specific version is installed
+      - step3: Verify installed agent runs successfully via existing run flow
+    expected: Name-based installs use local registry resolution and then reuse existing install pipeline end-to-end
+    pass_criteria: Both latest and explicit-version installs exit 0 without network dependency and produce runnable installed agents
+    automated: true
+    automation_path: tests/test_cli_registry.py::test_install_from_registry_name_and_version_uses_existing_pipeline
+    covers:
+      - feature: feature12
+        ac: AC3
+      - feature: feature12
+        ac: AC4
+
+  - id: test102
+    title: list shows local agents with latest version and description
+    type: integration
+    preconditions: Local registry sandbox contains at least two agent names, and one name has multiple versions
+    steps:
+      - step1: Run `kinnoo list` against populated local registry fixture
+      - step2: Verify each listed agent includes name, latest version, and description
+      - step3: Confirm latest version shown for multi-version agent matches resolver ordering
+    expected: List output provides concise inventory of published local agents with correct latest-version metadata
+    pass_criteria: Output rows include required columns and reflect correct latest version for agents with multiple versions
+    automated: true
+    automation_path: tests/test_cli_registry.py::test_list_shows_name_latest_version_and_description
+    covers:
+      - feature: feature12
+        ac: AC5
+
+  - id: test103
+    title: search filters local registry by name or description substring
+    type: integration
+    preconditions: Local registry sandbox contains agent entries with distinct names and descriptions
+    steps:
+      - step1: Run `kinnoo search <query>` matching a name substring
+      - step2: Run `kinnoo search <query>` matching a description substring
+      - step3: Run `kinnoo search <query>` with no expected matches
+    expected: Search returns matching entries for name/description substring and handles no-match case clearly
+    pass_criteria: Matching queries return only expected entries; no-match query returns empty/no-results guidance without errors
+    automated: true
+    automation_path: tests/test_cli_registry.py::test_search_filters_by_name_and_description_substring
+    covers:
+      - feature: feature12
+        ac: AC6
+
+  - id: test104
+    title: Docs cover local registry commands and versioned install examples
+    type: unit
+    preconditions: README.md and docs/manifest-schema-reference.md are present and readable
+    steps:
+      - step1: Verify docs include `kinnoo publish <archive.kno>` and `kinnoo publish <archive.kno> --local` examples
+      - step2: Verify docs include install selector usage for `<name>`, `<name>==<version>`, and `<file.kno>` compatibility
+      - step3: Verify docs include `kinnoo list` and `kinnoo search <query>` examples, including a multi-version latest-resolution example
+    expected: Documentation describes local registry command surface and version-resolution usage clearly
+    pass_criteria: Required command and example coverage appears in docs with consistent syntax
+    automated: true
+    automation_path: tests/test_docs.py::test_feature12_docs_cover_local_registry_flows
+    covers: []
+
+  - id: test105
+    title: kinnoo pack prompts before overwriting existing archive
+    type: integration
+    preconditions: kinnoo CLI installed; valid agent fixture; existing output `.kno` file at target path
+    steps:
+      - step1: Create or pre-place an existing target archive (e.g., `myagent.kno`)
+      - step2: Run `kinnoo pack <agent-dir>` and provide `n` at prompt
+      - "step3: Verify prompt text matches `(archive.kno) already exists - are you sure you want to overwrite? (y/n): ` format with concrete archive filename"
+      - step4: Verify command exits non-zero and existing archive remains unchanged after `n`
+      - step5: Re-run `kinnoo pack <agent-dir>` and provide `y` at prompt
+      - step6: Verify command exits 0 and existing archive is overwritten after `y`
+    expected: Pack requires explicit confirmation before overwriting existing `.kno`; declines preserve existing file; confirmations allow overwrite
+    pass_criteria: Prompt is shown in overwrite scenario, `n` path aborts without mutation, and `y` path overwrites and succeeds
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_prompts_before_overwrite_existing_archive
+    covers: []
+
+  - id: test106
+    title: kinnoo pack --bump updates manifest version and always prints packed version
+    type: integration
+    preconditions: kinnoo CLI installed; valid agent fixture with semver version in `kinnoo.yaml`
+    steps:
+      - step1: Run `kinnoo pack <agent-dir>` without `--bump` and capture output
+      - "step2: Verify output includes `[kinnoo pack] Agent version: <current-version>` and archive is created"
+      - step3: Run `kinnoo pack <agent-dir> --bump patch` and verify `kinnoo.yaml` version increments patch and output line reflects new version
+      - step4: Run `kinnoo pack <agent-dir> --bump minor` and verify minor increment with patch reset, and output line reflects new version
+      - step5: Run `kinnoo pack <agent-dir> --bump major` and verify major increment with minor/patch reset, and output line reflects new version
+      - step6: Run with invalid bump value and verify command fails with usage/error and no successful pack-version line
+    expected: "`--bump` automates manifest semver increments before packaging, and all successful pack runs print `[kinnoo pack] Agent version: <version #>`"
+    pass_criteria: No-bump and patch/minor/major scenarios produce correct versions and version output line; invalid bump is rejected and does not emit success version line
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_bump_flag_and_version_output_line
+    covers: []
+
+  - id: test107
+    title: pack writes to canonical local archive path and exposes stable storage abstraction
+    type: integration
+    preconditions: kinnoo CLI installed; valid agent fixture; local archive root writable
+    steps:
+      - step1: Run `kinnoo pack <agent-dir>` with manifest name/version
+      - step2: Verify archive exists at `~/.kinnoo/archive/<agent>/<version>/<agent>.kno`
+      - step3: Verify pack output includes archive destination and version line
+      - step4: Verify storage-resolution code path uses abstraction layer suitable for future backend swap
+    expected: Pack archives are written to canonical local archive location with deterministic output and abstraction-backed resolution
+    pass_criteria: Archive path and output contracts match spec; abstraction seam exists and is exercised by command flow
+    automated: true
+    automation_path: tests/test_pack_refactor.py::test_pack_uses_canonical_archive_path_and_storage_abstraction
+    covers:
+      - feature: feature13
+        ac: AC1
+      - feature: feature13
+        ac: AC2
+      - feature: feature13
+        ac: AC9
+
+  - id: test108
+    title: pack prompts on existing canonical archive path and preserves file on decline
+    type: integration
+    preconditions: canonical archive target already exists for fixture agent/version
+    steps:
+      - step1: Run `kinnoo pack <agent-dir>` where target archive path already exists and provide `n`
+      - step2: Verify command exits non-zero and existing archive remains unchanged
+      - step3: Re-run and provide `y`, then verify overwrite succeeds
+    expected: Overwrite confirmation is enforced for canonical archive output path
+    pass_criteria: Decline path preserves existing archive; confirm path overwrites and succeeds
+    automated: true
+    automation_path: tests/test_pack_refactor.py::test_pack_overwrite_confirmation_in_archive_mode
+    covers:
+      - feature: feature13
+        ac: AC3
+
+  - id: test109
+    title: publish by agent name resolves latest local archived version to mock registry target
+    type: integration
+    preconditions: local archive contains multiple versions for same agent; mock registry root writable
+    steps:
+      - step1: Run `kinnoo publish <agent-name>`
+      - step2: Verify latest archived version is selected as publish source
+      - step3: Verify published file lands at `registry-scratch/jerry/<agent>/<version>/<agent>.kno`
+      - step4: Verify publish output includes source archive path and target registry path
+    expected: Publish resolves latest local archive version by name, writes to canonical mock registry path, and reports clear outcome paths
+    pass_criteria: Selected source version equals latest archived version; destination path matches spec; output includes source and target paths
+    automated: true
+    automation_path: tests/test_publish_refactor.py::test_publish_name_resolves_latest_local_archive
+    covers:
+      - feature: feature13
+        ac: AC4
+      - feature: feature13
+        ac: AC5
+
+  - id: test110
+    title: publish existing tagged version rolls old artifact to untagged slot
+    type: integration
+    preconditions: mock registry already has tagged artifact at target version for agent
+    steps:
+      - step1: Publish same agent/version again with new source payload
+      - step2: Verify prior tagged artifact is preserved as `untagged-<n>`
+      - step3: Verify new payload is written to tagged version path
+      - step4: Verify output includes rollover action details
+    expected: Publish never hard-overwrites existing tagged version and uses deterministic untagged rollover behavior
+    pass_criteria: Untagged copy exists, tagged destination contains new payload, and rollout messaging is printed
+    automated: true
+    automation_path: tests/test_publish_refactor.py::test_publish_rolls_existing_tagged_to_untagged
+    covers:
+      - feature: feature13
+        ac: AC6
+      - feature: feature13
+        ac: AC7
+
+  - id: test111
+    title: publish reports clear errors for missing or invalid local archive source
+    type: unit
+    preconditions: mock/local archive fixtures for missing agent, no versions, and invalid metadata
+    steps:
+      - step1: Run `kinnoo publish <agent-name>` where agent has no archived versions
+      - step2: Run publish where resolved archive metadata is invalid/corrupt
+      - step3: Capture error output and exit codes
+    expected: Publish fails fast with explicit actionable error messages for source resolution/metadata failures
+    pass_criteria: Non-zero exits and error output clearly identifies missing versions or metadata validation issues
+    automated: true
+    automation_path: tests/test_publish_refactor.py::test_publish_errors_for_missing_or_invalid_archive_source
+    covers:
+      - feature: feature13
+        ac: AC8
+
+  - id: test112
+    title: install by name resolves latest from mock registry via backend abstraction
+    type: integration
+    preconditions: mock registry contains multiple versions for agent and install fixture environment is ready
+    steps:
+      - step1: Run `kinnoo install <name>`
+      - step2: Verify latest version from mock registry is selected and installed
+      - step3: Verify backend abstraction boundary is used for source resolution
+    expected: Name-based install uses mock registry latest resolution with architecture ready for future remote registry backend
+    pass_criteria: Installed version is latest available in mock registry and resolution flow is abstraction-backed
+    automated: true
+    automation_path: tests/test_install_refactor.py::test_install_name_resolves_latest_from_mock_registry
+    covers:
+      - feature: feature13
+        ac: AC10
+
+  - id: test113
+    title: install name==version resolves exact version from mock registry
+    type: integration
+    preconditions: mock registry contains at least two versions for same agent
+    steps:
+      - step1: Run `kinnoo install <name>==<version>` for known existing version
+      - step2: Verify installed artifact matches requested version exactly
+      - step3: Run with missing version and verify clear error
+    expected: Version-qualified install resolves exact mock registry version and rejects missing versions clearly
+    pass_criteria: Exact version installs successfully; missing version path exits non-zero with actionable message
+    automated: true
+    automation_path: tests/test_install_refactor.py::test_install_name_equals_version_from_mock_registry
+    covers:
+      - feature: feature13
+        ac: AC11
+
+  - id: test114
+    title: list supports default local, --local, and --remote source modes
+    type: integration
+    preconditions: local archive and mock registry each contain at least one agent with metadata
+    steps:
+      - step1: Run `kinnoo list` and verify local archive inventory is shown
+      - step2: Run `kinnoo list --local` and verify output matches default local behavior
+      - step3: Run `kinnoo list --remote` and verify mock registry inventory is shown
+      - step4: Verify each mode outputs name, latest version, and description
+    expected: List command source selection behaves as specified with stable output schema
+    pass_criteria: Default/local/remote modes each return correct source data and required columns
+    automated: true
+    automation_path: tests/test_cli_registry_modes.py::test_list_default_local_and_remote_modes
+    covers:
+      - feature: feature13
+        ac: AC12
+      - feature: feature13
+        ac: AC13
+      - feature: feature13
+        ac: AC14
+
+  - id: test115
+    title: search supports default local, --local, and --remote source modes
+    type: integration
+    preconditions: local archive and mock registry contain searchable names/descriptions
+    steps:
+      - step1: Run `kinnoo search <query>` and verify local archive filtering is used by default
+      - step2: Run `kinnoo search --local <query>` and verify local filtering behavior
+      - step3: Run `kinnoo search --remote <query>` and verify mock registry filtering behavior
+      - step4: Verify name/description substring matching is case-insensitive in all modes
+    expected: Search correctly filters by source mode with consistent substring semantics
+    pass_criteria: Each mode returns only expected matches from the selected source
+    automated: true
+    automation_path: tests/test_cli_registry_modes.py::test_search_default_local_and_remote_modes
+    covers:
+      - feature: feature13
+        ac: AC15
+      - feature: feature13
+        ac: AC16
+      - feature: feature13
+        ac: AC17
+
+  - id: test116
+    title: install file-path mode remains backward compatible
+    type: integration
+    preconditions: valid `.kno` archive file available on filesystem
+    steps:
+      - step1: Run `kinnoo install <file-path/file.kno>`
+      - step2: Verify install succeeds through existing file-path install flow
+      - step3: Verify selector parsing does not misroute file path as registry name
+    expected: V1 file-path install behavior remains unchanged after registry/archive refactor
+    pass_criteria: File-path installation succeeds and matches prior behavior/output expectations
+    automated: true
+    automation_path: tests/test_install_refactor.py::test_install_file_path_mode_preserved
+    covers:
+      - feature: feature13
+        ac: AC18
+
+  - id: test117
+    title: Docs cover archive-first pack, name-based publish, and source-mode install/list/search
+    type: unit
+    preconditions: README.md and docs/manifest-schema-reference.md are present and readable
+    steps:
+      - step1: Verify docs describe canonical local archive destination for pack
+      - step2: Verify docs describe `kinnoo publish <agent-name>` and mock registry target path
+      - step3: Verify docs describe list/search default local mode plus `--local`/`--remote`
+      - step4: Verify docs describe install modes for name, name==version, and file-path input
+    expected: Documentation reflects feature13 responsibility split and command semantics accurately
+    pass_criteria: Required behavior and examples are present and consistent across docs
+    automated: true
+    automation_path: tests/test_docs.py::test_feature13_docs_cover_archive_registry_refactor
+    covers:
+      - feature: feature13
+        ac: AC2
+      - feature: feature13
+        ac: AC4
+      - feature: feature13
+        ac: AC12
+      - feature: feature13
+        ac: AC15
+
+  - id: test118
+    title: source-mode CLI argument validation returns deterministic usage errors
+    type: unit
+    preconditions: kinnoo CLI installed; command parser available
+    steps:
+      - step1: Run invalid flag combinations (for example `kinnoo list --local --remote` and `kinnoo search --local --remote <query>`)
+      - step2: Run missing-input forms (for example `kinnoo search` with no query, malformed install selectors)
+      - step3: Verify commands exit non-zero with clear usage/error output and do not silently choose unintended sources
+    expected: CLI validates new source-mode arguments strictly and returns stable, actionable errors for invalid combinations/forms
+    pass_criteria: Invalid combinations/forms always fail non-zero with deterministic usage/error messaging and no ambiguous fallback behavior
+    automated: true
+    automation_path: tests/test_cli_registry_modes.py::test_source_mode_argument_validation_errors
+    covers:
+      - feature: feature13
+        ac: AC19
