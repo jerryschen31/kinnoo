@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+
+## [v1.2.0] - 2026-03-05
+### Changed
+- Refactored `pack` and `publish` flows in Feature13 to use the registry abstraction and source-mode path consistently.
+- Improved packaging/publishing reliability through shared backend handling and updated test coverage.
+
+### Deprecated
+- Feature12 legacy registry path/tests were deprecated and documented to prevent accidental re-enable.
+
+
 ## [v1.1.0] - 2026-03-05
 ### Added
 - Implemented `kinnoo pack` command for packaging projects.
