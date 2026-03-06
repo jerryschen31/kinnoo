@@ -1613,7 +1613,7 @@ tasks:
       - step4: Keep output schema stable (name, latest version, description) across sources
     dependencies: [task80, task81, task84]
     tests: [test114]
-    status: not-started
+    status: needs-review
 
   - id: task87
     title: Refactor search with default local and source flags
