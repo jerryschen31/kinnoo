@@ -1267,7 +1267,7 @@ tasks:
       - step4: Keep method signatures and return structures deterministic to support focused unit tests per backend behavior
     dependencies: [task39, task43]
     tests: [test96]
-    status: completed
+    status: deprecated
 
   - id: task70
     title: Add publish command parsing and CLI wiring
@@ -1326,7 +1326,7 @@ tasks:
       - step4: Keep parser and branching logic explicit and stable for future unit tests covering path-vs-registry disambiguation
     dependencies: [task39, task69]
     tests: [test99]
-    status: completed
+    status: deprecated
 
   - id: task73
     title: Implement registry version resolution rules
@@ -1344,7 +1344,7 @@ tasks:
       - step4: Structure resolution logic to be directly unit-testable with fixtures that include multiple versions of the same agent in the registry
     dependencies: [task69]
     tests: [test100]
-    status: completed
+    status: deprecated
 
   - id: task74
     title: Integrate registry resolution into install flow
@@ -1364,7 +1364,7 @@ tasks:
       - step4: Keep integration points narrow and deterministic for future unit/integration tests of named installs
     dependencies: [task72, task73]
     tests: [test101]
-    status: completed
+    status: deprecated
 
   - id: task75
     title: Add local registry list command
@@ -1446,7 +1446,7 @@ tasks:
       - step5: Keep prompt/branch behavior deterministic for automated unit tests including stdin-driven confirmation cases
     dependencies: [task23, task27, task43]
     tests: [test105]
-    status: completed
+    status: deprecated
 
   - id: task79
     title: Add --bump version automation to kinnoo pack
@@ -1476,7 +1476,7 @@ tasks:
       - step7: Keep behavior deterministic for tests covering no-bump, patch/minor/major bump, and invalid bump inputs
     dependencies: [task23, task24, task27, task43]
     tests: [test106]
-    status: completed
+    status: deprecated
 
   - id: task80
     title: Define archive and registry storage abstractions
