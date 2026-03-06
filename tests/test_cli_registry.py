@@ -289,3 +289,102 @@ outputs:
         )
         assert exact_run.returncode == 0
         assert "registry-1.0.0:hello" in f"{exact_run.stdout}\n{exact_run.stderr}"
+
+
+def test_list_shows_name_latest_version_and_description(tmp_path: Path) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        cli_path = repo_root / "src" / "kinnoo" / "cli.py"
+
+        registry_root = tmp_path / "registry-sandbox"
+        env = dict(**os.environ, KINNOO_REGISTRY_ROOT=str(registry_root))
+
+        alpha_v1 = tmp_path / "alpha-v1.kno"
+        with zipfile.ZipFile(alpha_v1, "w") as archive_zip:
+                archive_zip.writestr(
+                        "kinnoo.yaml",
+                        """
+name: alpha-agent
+version: 1.0.0
+description: Alpha stable description
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+""",
+                )
+                archive_zip.writestr("run.py", "print('alpha-v1')\n")
+                archive_zip.writestr("requirements.txt", "")
+
+        alpha_v2 = tmp_path / "alpha-v2.kno"
+        with zipfile.ZipFile(alpha_v2, "w") as archive_zip:
+                archive_zip.writestr(
+                        "kinnoo.yaml",
+                        """
+name: alpha-agent
+version: 2.0.0
+description: Alpha latest description
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+""",
+                )
+                archive_zip.writestr("run.py", "print('alpha-v2')\n")
+                archive_zip.writestr("requirements.txt", "")
+
+        beta_v1 = tmp_path / "beta-v1.kno"
+        with zipfile.ZipFile(beta_v1, "w") as archive_zip:
+                archive_zip.writestr(
+                        "kinnoo.yaml",
+                        """
+name: beta-agent
+version: 0.5.0
+description: Beta description
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+""",
+                )
+                archive_zip.writestr("run.py", "print('beta-v1')\n")
+                archive_zip.writestr("requirements.txt", "")
+
+        for archive in (alpha_v1, alpha_v2, beta_v1):
+                publish_result = subprocess.run(
+                        [sys.executable, str(cli_path), "publish", str(archive)],
+                        capture_output=True,
+                        text=True,
+                        env=env,
+                )
+                assert publish_result.returncode == 0
+
+        list_result = subprocess.run(
+                [sys.executable, str(cli_path), "list"],
+                capture_output=True,
+                text=True,
+                env=env,
+        )
+
+        output = f"{list_result.stdout}\n{list_result.stderr}"
+        assert list_result.returncode == 0
+        assert "Local registry agents:" in output
+        assert "alpha-agent | latest: 2.0.0 | description: Alpha latest description" in output
+        assert "beta-agent | latest: 0.5.0 | description: Beta description" in output
