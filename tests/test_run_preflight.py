@@ -74,3 +74,76 @@ def test_preflight_runs_checks_without_entrypoint_execution(tmp_path: Path) -> N
     assert "[FAIL] manifest exists" in fail_output
     assert "Preflight result: FAIL" in fail_output
     assert not (tmp_path / "entrypoint-executed.flag").exists()
+
+
+def test_preflight_runtime_version_check(tmp_path: Path) -> None:
+    runtime_pass_agent = tmp_path / "runtime-pass-agent"
+    _create_agent_fixture(runtime_pass_agent, with_manifest=True)
+    (runtime_pass_agent / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: runtime-pass-agent",
+                "version: 1.0.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.0\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    pass_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "run", str(runtime_pass_agent), "--preflight"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+    pass_output = f"{pass_result.stdout}\n{pass_result.stderr}"
+
+    assert pass_result.returncode == 0
+    assert "[PASS] runtime version check passed" in pass_output
+    assert "satisfies runtime.version '>=3.0'" in pass_output
+
+    runtime_fail_agent = tmp_path / "runtime-fail-agent"
+    _create_agent_fixture(runtime_fail_agent, with_manifest=True)
+    (runtime_fail_agent / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: runtime-fail-agent",
+                "version: 1.0.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=99.0\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    fail_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "run", str(runtime_fail_agent), "--preflight"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+    fail_output = f"{fail_result.stdout}\n{fail_result.stderr}"
+
+    assert fail_result.returncode != 0
+    assert "[FAIL] runtime version check failed" in fail_output
+    assert "does not satisfy runtime.version '>=99.0'" in fail_output
+    assert "Action: use a Python interpreter that satisfies runtime.version in kinnoo.yaml" in fail_output

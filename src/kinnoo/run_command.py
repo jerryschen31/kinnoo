@@ -7,6 +7,7 @@ from pathlib import Path
 import os
 import getpass
 from typing import Iterable
+import re
 
 import yaml
 
@@ -70,6 +71,94 @@ def _emit_preflight_line(passed: bool, message: str) -> None:
     print(f"- [{status}] {message}")
 
 
+def _parse_runtime_version(value: str) -> tuple[int, ...] | None:
+    if not value:
+        return None
+
+    if not re.fullmatch(r"\d+(?:\.\d+)*", value):
+        return None
+
+    return tuple(int(part) for part in value.split("."))
+
+
+def _compare_versions(left: tuple[int, ...], right: tuple[int, ...]) -> int:
+    max_len = max(len(left), len(right))
+    padded_left = left + (0,) * (max_len - len(left))
+    padded_right = right + (0,) * (max_len - len(right))
+    if padded_left < padded_right:
+        return -1
+    if padded_left > padded_right:
+        return 1
+    return 0
+
+
+def _runtime_constraint_satisfied(constraint: str, current_version: tuple[int, ...]) -> bool:
+    normalized_constraint = constraint.strip()
+    if not normalized_constraint:
+        return False
+
+    operator = "=="
+    value = normalized_constraint
+    for candidate in (">=", "<=", "==", ">", "<"):
+        if normalized_constraint.startswith(candidate):
+            operator = candidate
+            value = normalized_constraint[len(candidate):].strip()
+            break
+
+    required_version = _parse_runtime_version(value)
+    if required_version is None:
+        return False
+
+    comparison = _compare_versions(current_version, required_version)
+    if operator == "==":
+        return comparison == 0
+    if operator == ">=":
+        return comparison >= 0
+    if operator == "<=":
+        return comparison <= 0
+    if operator == ">":
+        return comparison > 0
+    if operator == "<":
+        return comparison < 0
+    return False
+
+
+def _check_runtime_version_constraint(runtime_constraint: str) -> tuple[bool, str]:
+    normalized = runtime_constraint.strip()
+    current_version = (sys.version_info.major, sys.version_info.minor, sys.version_info.micro)
+    current_label = ".".join(str(part) for part in current_version)
+
+    if not normalized:
+        return False, "runtime.version constraint is empty"
+
+    constraints = [segment.strip() for segment in normalized.split(",") if segment.strip()]
+    if not constraints:
+        return False, "runtime.version constraint is empty"
+
+    invalid_constraints: list[str] = []
+    for constraint in constraints:
+        if not _runtime_constraint_satisfied(constraint, current_version):
+            invalid_constraints.append(constraint)
+
+    if invalid_constraints:
+        constraint_label = ", ".join(constraints)
+        return (
+            False,
+            (
+                "runtime version check failed: "
+                f"current Python {current_label} does not satisfy runtime.version '{constraint_label}'"
+            ),
+        )
+
+    return (
+        True,
+        (
+            "runtime version check passed: "
+            f"current Python {current_label} satisfies runtime.version '{normalized}'"
+        ),
+    )
+
+
 def run_preflight(agent_dir_arg: str) -> int:
     """Run preflight-only checks without executing the agent entrypoint."""
     agent_dir = Path(agent_dir_arg).resolve()
@@ -84,17 +173,35 @@ def run_preflight(agent_dir_arg: str) -> int:
     _emit_preflight_line(manifest_exists, f"manifest exists: {kinnoo_yaml}")
 
     manifest_valid = False
+    manifest: dict | None = None
     if manifest_exists:
         manifest_valid, manifest_errors = validate(str(kinnoo_yaml))
         _emit_preflight_line(manifest_valid, "manifest validates against kinnoo schema")
         if not manifest_valid:
             for manifest_error in manifest_errors:
                 print(f"  - {manifest_error}")
+        else:
+            with kinnoo_yaml.open("r", encoding="utf-8") as manifest_file:
+                loaded_manifest = yaml.safe_load(manifest_file)
+            if isinstance(loaded_manifest, dict):
+                manifest = loaded_manifest
+
+    runtime_constraint_ok = False
+    if manifest_valid and manifest is not None:
+        runtime_version_constraint = str(
+            manifest.get("runtime", {}).get("version", "")
+            if isinstance(manifest.get("runtime", {}), dict)
+            else ""
+        )
+        runtime_constraint_ok, runtime_message = _check_runtime_version_constraint(runtime_version_constraint)
+        _emit_preflight_line(runtime_constraint_ok, runtime_message)
+        if not runtime_constraint_ok:
+            print("  - Action: use a Python interpreter that satisfies runtime.version in kinnoo.yaml")
 
     skipped_entrypoint = agent_dir_exists and manifest_exists and manifest_valid
     _emit_preflight_line(skipped_entrypoint, "entrypoint execution path skipped in preflight mode")
 
-    if agent_dir_exists and manifest_exists and manifest_valid:
+    if agent_dir_exists and manifest_exists and manifest_valid and runtime_constraint_ok:
         print("Preflight result: PASS")
         return 0
 
