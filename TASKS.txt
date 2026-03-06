@@ -1593,7 +1593,7 @@ tasks:
       - step4: Isolate backend calls so mock backend can be replaced with real remote registry backend later
     dependencies: [task80, task83, task84]
     tests: [test112, test113]
-    status: not-started
+    status: needs-review
 
   - id: task86
     title: Refactor list with default local and source flags
