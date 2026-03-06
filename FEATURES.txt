@@ -531,7 +531,7 @@ features:
       - id: AC1
         description: "`kinnoo install` displays a summary of what the agent requires (env_var NAMES, dependency NAMES, runtime type) before installing and prompts for yes/no confirmation."
       - id: AC2
-        description: "If an agent is installed from a raw .kno file (not from the local registry), a warning is displayed: 'This agent is from an unverified source'."
+        description: "If an agent is installed from a raw .kno file (not from a registry), a warning is displayed: 'This agent is from an unverified source'."
       - id: AC3
         description: "`kinnoo run` logs a trace to ~/.kinnoo/logs/run.log containing ONLY: timestamp, agent name, runtime type, and exit code — no input content, no env var values, no secrets."
       - id: AC4
