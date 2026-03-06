@@ -321,6 +321,9 @@ outputs:
     (agent_dir / "run.py").write_text("print('hello')\n", encoding="utf-8")
     (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
 
+    env = os.environ.copy()
+    env["KINNOO_ARCHIVE_ROOT"] = str(tmp_path / "archive-root")
+
     def run_pack(*extra_args: str, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             cli_cmd + ["pack", str(agent_dir), *extra_args],
@@ -328,6 +331,7 @@ outputs:
             input=input_text,
             capture_output=True,
             text=True,
+        env=env,
         )
 
     first = run_pack()
