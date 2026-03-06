@@ -1,49 +1,33 @@
-# SWE Handoff — Feature12 Local Registry
+# SWE Handoff — Pack Safety + Version Automation (task78, task79)
 
 ## Scope
-Implement feature12: local registry support for publish/install/list/search with backend abstraction for future remote registry support.
+Implement two pack-focused items in order:
+1. `task78` hotfix: prompt before overwriting an existing `.kno` archive.
+2. `task79` enhancement: add `kinnoo pack --bump {patch,minor,major}` and always print packed version on successful pack.
 
-## Implementation Order (recommended)
-1. `task69` — Define registry abstraction and local backend
-2. `task70` — Add publish command parsing and CLI wiring
-3. `task71` — Implement publish metadata extraction and copy flow
-4. `task72` — Parse install registry spec while preserving file install
-5. `task73` — Implement registry version resolution rules
-6. `task74` — Integrate registry resolution into install flow
-7. `task75` — Add local registry list command
-8. `task76` — Add local registry search command
-9. `task77` — Document local registry commands and behavior
+## Recommended Order
+- First complete `task78` (overwrite safety prompt) to lock in safe default behavior.
+- Then complete `task79` (automated bump + version output line) on top of that flow.
 
-## Task → Test ID Mapping (exact)
-- `task69` → `test96`
-- `task70` → `test97`
-- `task71` → `test98`
-- `task72` → `test99`
-- `task73` → `test100`
-- `task74` → `test101`
-- `task75` → `test102`
-- `task76` → `test103`
-- `task77` → `test104`
+## Required Prompt/Output Contracts
+- Overwrite prompt when target exists:
+	- `(archive.kno) already exists - are you sure you want to overwrite? (y/n): `
+	- Use concrete archive filename in place of `archive.kno`.
+- Successful pack output (all success paths, with or without `--bump`):
+	- `[kinnoo pack] Agent version: <version #>`
 
-## Key Design Constraints
-- Keep publish/resolve/list/search behavior behind a registry backend abstraction (`feature12` AC9).
-- Preserve existing `kinnoo install <file.kno>` behavior while adding `<name>` and `<name>==<version>` selectors (AC8).
-- For version resolution logic, ensure deterministic ordering and test fixtures with multiple versions of the same agent (AC3/AC4).
-- Duplicate publish for same `name+version` must fail clearly with no silent overwrite (AC7).
-- Keep CLI output deterministic where tests assert user-visible messages and listings.
+## Tests (exact mapping)
+- `task78` → `test105` (`tests/test_pack.py::test_pack_prompts_before_overwrite_existing_archive`)
+- `task79` → `test106` (`tests/test_pack.py::test_pack_bump_flag_and_version_output_line`)
 
-## Files Expected to Change
-- `src/kinnoo/cli.py`
-- `src/kinnoo/install_command.py`
-- `src/kinnoo/publish_command.py`
-- `src/kinnoo/list_command.py`
-- `src/kinnoo/search_command.py`
-- `src/kinnoo/registry.py`
-- `src/kinnoo/registry_backends.py`
-- `README.md`
-- `docs/manifest-schema-reference.md`
+## Implementation Notes
+- `task78`: `y/Y` proceeds, `n/N` aborts non-zero without archive mutation; treat invalid/empty as safe abort.
+- `task79`: when `--bump` is provided, update `kinnoo.yaml` version before pack; bump rules:
+	- `patch`: `x.y.z -> x.y.(z+1)`
+	- `minor`: `x.y.z -> x.(y+1).0`
+	- `major`: `x.y.z -> (x+1).0.0`
+- Do not print the version-success line on failed pack attempts.
 
-## Definition of Done
-- Tasks `task69`–`task77` moved to `needs-review` by SWE after implementation.
-- Tests `test96`–`test104` implemented and passing.
+## Done Criteria
+- Both tests pass and task statuses can move to `needs-review`.
 - `python3 src/validate_project_manifests.py` passes after any manifest edits.
