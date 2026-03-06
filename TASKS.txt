@@ -1716,3 +1716,115 @@ tasks:
     dependencies: [task84]
     tests: [test119]
     status: needs-review
+
+  - id: task92
+    title: Add --preflight CLI mode wiring
+    type: task
+    description: |
+      Add `--preflight` mode to `kinnoo run` argument parsing and route execution
+      into a preflight-only flow that performs checks and exits without running
+      the agent entrypoint.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/run_command.py
+    steps:
+      - step1: Extend run command parser to accept `--preflight` in a way that is clear and backward compatible
+      - step2: Add explicit preflight execution branch that skips entrypoint invocation and subprocess run
+      - step3: Keep usage/help and error paths deterministic for future unit tests around argument handling
+      - step4: Return non-zero on preflight failures and zero on full preflight pass
+    dependencies: [task39]
+    tests: [test120]
+    status: not-started
+
+  - id: task93
+    title: Implement runtime version preflight check
+    type: task
+    description: |
+      Implement Python runtime compatibility check for preflight mode by
+      validating active interpreter version against manifest `runtime.version`
+      constraints.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/validator.py
+    steps:
+      - step1: Parse `runtime.version` constraint from manifest in preflight flow
+      - step2: Compare active interpreter version against constraint and record pass/fail result
+      - step3: Emit actionable failure guidance when version does not satisfy constraint
+      - step4: Keep check output stable and concise so future tests can assert exact messages
+    dependencies: [task92]
+    tests: [test121]
+    status: not-started
+
+  - id: task94
+    title: Implement env vars preflight resolution check
+    type: task
+    description: |
+      Reuse env_vars resolution logic to verify that declared env vars are
+      resolvable during preflight, while maintaining strict secret non-disclosure.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/cli.py
+      - src/kinnoo/schema.py
+    steps:
+      - step1: Reuse existing env var resolution sources (environment and `.env`) for preflight checks
+      - step2: Record per-variable pass/fail using variable names only, never values
+      - step3: Ensure preflight does not prompt for values in non-interactive contexts unless explicitly intended
+      - step4: Keep failure messaging deterministic and secret-safe for future unit and security regression tests
+    dependencies: [task92, task53, task54, task57]
+    tests: [test122]
+    status: not-started
+
+  - id: task95
+    title: Implement entrypoint and dependency checks
+    type: task
+    description: |
+      Add preflight checks for entrypoint existence and dependency readiness in
+      agent venv without executing agent business logic.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/cli.py
+    steps:
+      - step1: Validate that manifest-declared entrypoint exists and is readable
+      - step2: Check venv/dependency readiness against requirements with clear pass/fail outcomes
+      - step3: Report installability gaps with actionable remediation hints
+      - step4: Keep checks isolated from normal run execution path for testable behavior separation
+    dependencies: [task92, task9, task14]
+    tests: [test123]
+    status: not-started
+
+  - id: task96
+    title: Add checklist output and ready summary
+    type: task
+    description: |
+      Produce structured preflight checklist output with pass/fail status for
+      each check and a final readiness summary.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/cli.py
+    steps:
+      - step1: Define stable checklist sections for runtime version, env vars, entrypoint, and dependencies
+      - step2: Print consistent pass/fail indicators and per-failure actionable guidance
+      - step3: Print `Ready to run` only when all checks pass; otherwise print concise remediation summary
+      - step4: Ensure formatting remains deterministic for future snapshot-style unit tests
+    dependencies: [task93, task94, task95]
+    tests: [test124]
+    status: not-started
+
+  - id: task97
+    title: Document preflight usage and contracts
+    type: task
+    description: |
+      Update docs for `kinnoo run --preflight`, including behavior, examples,
+      security constraints, and expected output semantics for operators.
+    files:
+      - README.md
+      - docs/manifest-schema-reference.md
+      - notes/swe-handoff.md
+    steps:
+      - step1: Add `kinnoo run --preflight` usage examples and expected checklist behavior
+      - step2: Document that preflight validates but does not execute agent entrypoint logic
+      - step3: Document env var name-only disclosure contract in preflight output
+      - step4: Keep wording/output examples stable to support future documentation tests
+    dependencies: [task96]
+    tests: [test125]
+    status: not-started

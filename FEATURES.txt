@@ -500,7 +500,7 @@ features:
       execution. Checks Python version, env vars, entrypoint existence, and dependency
       installation. Reports results as a checklist with actionable guidance on failures,
       without executing the agent.
-    tasks: []
+    tasks: [task92, task93, task94, task95, task96, task97]
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo run <dir> --preflight` runs all checks and reports results without executing the agent."
