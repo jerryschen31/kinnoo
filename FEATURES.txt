@@ -247,7 +247,7 @@ features:
       Implement the `kinnoo install` CLI command that installs a packaged agent archive with the `.kno` extension
       onto the user's machine. Sets up the agent directory, environment, and dependencies so the agent can be run
       immediately with `kinnoo run`. Handles manifest validation, file extraction, venv creation, and dependency installation.
-    tasks: []
+    tasks: [task69, task70, task71, task72, task73, task74, task75, task76, task77]
     acceptance_criteria:
       - id: AC1
         description: "Running `kinnoo install <archive.kno>` extracts agent files to a new directory <archive>/ (e.g., myagent.kno extracts into myagent/). If <archive>/ directory exists, use <archive>_1/. If <archive>_1 exists, use <archive>_2, etc."
@@ -401,7 +401,7 @@ features:
         description: "If `kinnoo.yaml` is present but missing required fields, inspect output clearly names each missing required field using validator-provided messages."
     owner: techlead-agent
     dependencies: [feature7]
-    status: in-progress
+    status: completed
 
   - id: feature12
     title: "Local Registry (kinnoo publish, kinnoo install <name>, kinnoo list, kinnoo search)"
@@ -410,7 +410,7 @@ features:
       name/version and installed by name. Version is extracted from the archive's kinnoo.yaml.
       Publish and resolve logic is structured behind an abstraction so swapping to a remote
       backend in V3 requires minimal changes.
-    tasks: []
+    tasks: [task80, task81, task82, task83, task84, task85, task86, task87, task88, task89]
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo publish <archive.kno>` extracts name and version from the archive's kinnoo.yaml and copies the archive to ~/.kinnoo/registry/<name>/<version>/."
@@ -432,9 +432,68 @@ features:
         description: "Publish/resolve logic is behind an abstraction (e.g., RegistryBackend interface) so swapping local for remote backend is a minimal change."
     owner: techlead-agent
     dependencies: [feature11]
-    status: not-started
+    status: deprecated
 
   - id: feature13
+    title: "Pack/Publish Refactor — Local Archive + Registry Publish Flow"
+    description: |
+      Refactor packaging and publishing responsibilities:
+      - `kinnoo pack <agent-dir>` becomes the default archival mechanism and always stores
+        versioned `.kno` artifacts under `~/.kinnoo/archive/<agent-name>/<version>/<agent-name>.kno`.
+      - `kinnoo publish <agent-name>` becomes a registry publication workflow that reads the
+        latest packaged archive from the local archive and publishes it to a registry target.
+
+      For V1 of registry publishing, mock the online registry in-repo at:
+      `registry-scratch/jerry/<agent-name>/<version>/<agent-name>.kno`
+
+      `kinnoo publish` must prevent hard overwrite of an existing tagged version by
+      archiving old content as `untagged-1`, `untagged-2`, etc., then storing the new
+      payload at the requested tagged version path.
+    tasks: [task78, task79, task80, task81, task82, task83, task84, task85, task86, task87, task88, task89, task90]
+    acceptance_criteria:
+      - id: AC1
+        description: "Running `kinnoo pack <agent-dir>` writes archive output to `~/.kinnoo/archive/<agent-name>/<version>/<agent-name>.kno` by default and no longer relies on ad-hoc output location as the primary path."
+      - id: AC2
+        description: "`kinnoo pack` output clearly prints archive destination path and packaged version (including existing `[kinnoo pack] Agent version: <version #>` message contract)."
+      - id: AC3
+        description: "If the target archive path already exists, `kinnoo pack` uses explicit overwrite confirmation behavior and preserves file on decline."
+      - id: AC4
+        description: "`kinnoo publish <agent-name>` resolves the latest version of `<agent-name>` from `~/.kinnoo/archive/<agent-name>/` and publishes that artifact (no manual archive path required)."
+      - id: AC5
+        description: "V1 publish target is local mock registry path `registry-scratch/jerry/<agent-name>/<version>/<agent-name>.kno` (login deferred)."
+      - id: AC6
+        description: "If the same tagged version already exists in publish target, prior artifact is preserved as `untagged-<n>` and the new artifact is written at the tagged version path."
+      - id: AC7
+        description: "`kinnoo publish` prints clear outcome messages including source archive path, target registry path, and any untagged rollover actions."
+      - id: AC8
+        description: "Clear errors are printed when source archive for `<agent-name>` is missing, when no versions exist, or when archive metadata is invalid."
+      - id: AC9
+        description: "Feature12 local-registry name-based install/list/search behavior is explicitly deprecated or isolated so responsibilities are unambiguous: archive management in pack, registry publication in publish."
+      - id: AC10
+        description: "`kinnoo install <name>` resolves the latest version from the mock registry and installs it; implementation is structured so switching to a real remote registry later is a minimal change."
+      - id: AC11
+        description: "`kinnoo install <name>==<version>` installs a specific version from the mock registry."
+      - id: AC12
+        description: "`kinnoo list` displays by default all locally archived agents with name, latest version, and description."
+      - id: AC13
+        description: "`kinnoo list --local` displays all locally archived agents with name, latest version, and description."
+      - id: AC14
+        description: "`kinnoo list --remote` displays all registry agents with name, latest version, and description, using the mock registry for now."
+      - id: AC15
+        description: "`kinnoo search <query>` filters by default the local archive by name/description substring match."
+      - id: AC16
+        description: "`kinnoo search --local <query>` filters the local archive by name/description substring match."
+      - id: AC17
+        description: "`kinnoo search --remote <query>` filters the remote registry by name/description substring match, using the mock registry for now."
+      - id: AC18
+        description: "`kinnoo install <file-path/file.kno>` (file path) continues to work as before (V1 behavior preserved)."
+      - id: AC19
+        description: "New source-mode CLI arguments (`--local`, `--remote`, selector forms) provide clear usage/help and deterministic errors for invalid combinations (e.g., conflicting flags, missing query/selector), with no ambiguous fallback behavior."
+    owner: techlead-agent
+    dependencies: [feature5, feature8, feature12]
+    status: not-started
+
+  - id: feature14
     title: "Preflight Checks (--preflight flag on kinnoo run)"
     description: |
       Add a --preflight flag to `kinnoo run` that validates the agent's environment before
@@ -461,7 +520,7 @@ features:
     dependencies: [feature10]
     status: not-started
 
-  - id: feature14
+  - id: feature15
     title: "Trust Baseline"
     description: |
       Add transparency and trust features: display dependency/secret name summary on install,
@@ -485,7 +544,7 @@ features:
     dependencies: [feature10]
     status: not-started
 
-  - id: feature15
+  - id: feature16
     title: "Archive Integrity (Checksums)"
     description: |
       Generate and verify SHA256 checksums for .kno archives. Enables detection of tampered
@@ -508,7 +567,7 @@ features:
     dependencies: [feature8]
     status: not-started
 
-  - id: feature16
+  - id: feature17
     title: "Pack Size Reporting & Warnings"
     description: |
       Report archive size after packing and warn when archives are unusually large, which is
@@ -528,7 +587,7 @@ features:
     dependencies: [feature8]
     status: not-started
 
-  - id: feature17
+  - id: feature18
     title: "kinnoo import — Onboard existing agents"
     description: |
       Add a new command `kinnoo import <existing-agent-path> <new-agent-dir>` to

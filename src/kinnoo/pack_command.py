@@ -1,6 +1,7 @@
 """Packaging command implementation for `kinnoo pack`."""
 
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -11,6 +12,26 @@ import yaml
 
 class WheelBuildError(Exception):
     pass
+
+
+_CORE_SEMVER_PATTERN = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
+
+
+def _bump_core_semver(version: str, bump: str) -> str | None:
+    match = _CORE_SEMVER_PATTERN.fullmatch(version.strip())
+    if match is None:
+        return None
+
+    major, minor, patch = (int(part) for part in match.groups())
+
+    if bump == "patch":
+        return f"{major}.{minor}.{patch + 1}"
+    if bump == "minor":
+        return f"{major}.{minor + 1}.0"
+    if bump == "major":
+        return f"{major + 1}.0.0"
+
+    return None
 
 
 def _collect_additional_files(manifest: dict) -> list[str]:
@@ -83,7 +104,7 @@ def build_wheels(requirements_path: Path, wheels_dir: Path):
     return list(wheels_dir.glob("*.whl")), failed_requirements
 
 
-def pack_agent(agent_dir: str) -> int:
+def pack_agent(agent_dir: str, bump: str | None = None) -> int:
     abs_agent_dir = os.path.abspath(agent_dir)
     cwd = os.path.abspath(os.getcwd())
     if abs_agent_dir == cwd or os.path.samefile(abs_agent_dir, cwd):
@@ -117,6 +138,24 @@ def pack_agent(agent_dir: str) -> int:
 
     with open(kinnoo_yaml_path, "r") as manifest_file:
         manifest = yaml.safe_load(manifest_file)
+
+    version = manifest.get("version")
+    if not isinstance(version, str):
+        print("Error: 'version' must be a string in kinnoo.yaml", file=sys.stderr)
+        return 1
+
+    if bump is not None:
+        bumped_version = _bump_core_semver(version, bump)
+        if bumped_version is None:
+            print(
+                "Error: --bump requires a core semver version in format x.y.z",
+                file=sys.stderr,
+            )
+            return 1
+        manifest["version"] = bumped_version
+        version = bumped_version
+        with open(kinnoo_yaml_path, "w", encoding="utf-8") as manifest_file:
+            yaml.safe_dump(manifest, manifest_file, sort_keys=False)
 
     entrypoint = manifest.get("entrypoint")
     if not entrypoint:
@@ -176,6 +215,19 @@ def pack_agent(agent_dir: str) -> int:
     archive_name = os.path.basename(abs_agent_dir.rstrip(os.sep)) + ".kno"
     archive_path = os.path.join(os.path.dirname(abs_agent_dir), archive_name)
 
+    if os.path.exists(archive_path):
+        try:
+            overwrite_response = input(
+                f"({archive_name}) already exists - are you sure you want to overwrite? (y/n): "
+            )
+        except EOFError:
+            overwrite_response = ""
+
+        if overwrite_response.strip().lower() != "y":
+            print("[kinnoo pack] Aborted: existing archive not overwritten.")
+            wheels_dir.cleanup()
+            return 1
+
     with zipfile.ZipFile(archive_path, "w", zipfile.ZIP_DEFLATED) as archive_file:
         archive_file.write(kinnoo_yaml_path, arcname="kinnoo.yaml")
         archive_file.write(entrypoint_path, arcname=os.path.basename(entrypoint_path))
@@ -188,5 +240,6 @@ def pack_agent(agent_dir: str) -> int:
             archive_file.write(missing_wheels_report_path, arcname="wheels/missing_wheels.txt")
 
     print(f"[kinnoo pack] Archive created: {archive_path}")
+    print(f"[kinnoo pack] Agent version: {version}")
     wheels_dir.cleanup()
     return 0

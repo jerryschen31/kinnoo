@@ -1186,3 +1186,30 @@ This sequence covers the core agent sharing workflow.
 - Optionally, reserve `kinnoo info` for future project/agent metadata queries.
 - Implementation should dynamically surface available models/frameworks from a registry/config for up-to-date info.
 - Action: Track this for future CLI/UX improvements and discuss design in planning sessions.
+
+---
+
+## Pack/Publish Responsibility Refactor Feedback (2026-03-05)
+
+### Decision Summary
+- Feedback accepted: `kinnoo pack` should own local versioned artifact archival.
+- `kinnoo publish` should represent publication to an online-style registry flow (mocked locally for now).
+
+### Why this is a better split
+- Clarifies responsibilities:
+  - `pack` = produce + organize local build artifacts for developer workflows.
+  - `publish` = push selected artifact to registry namespace/workspace.
+- Removes ambiguity in “local registry” semantics and aligns with common container/package mental models.
+- Enables future auth (`kinnoo login`) and remote backend swap with minimal CLI behavior changes.
+
+### Agreed behavior targets
+- Local archive root: `~/.kinnoo/archive/<agent>/<version>/<agent>.kno`
+- Publish target (V1 mock): `registry-scratch/jerry/<agent>/<version>/<agent>.kno`
+- Overwrite protection for publish tags via untagged rollover (`untagged-1`, `untagged-2`, ...)
+
+### Recommended implementation improvements
+1. Add reusable path resolver helpers (archive source + publish target) to avoid hardcoded path drift.
+2. Add explicit publish manifest metadata validation before copy (agent name/version consistency checks).
+3. Emit deterministic, parse-friendly output lines for CI and future UX tooling.
+4. Keep untagged rollover logic isolated in a small utility to simplify future remote-registry adapter parity.
+5. Mark old feature12 local-registry install/list/search scope as deprecated or explicitly out-of-scope after refactor to avoid dual-behavior confusion.
