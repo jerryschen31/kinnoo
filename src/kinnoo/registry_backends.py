@@ -164,6 +164,19 @@ class LocalFilesystemRegistryBackend:
 
         return summaries
 
+    def search_agents(self, *, query: str) -> list[RegistryAgentSummary]:
+        query_normalized = query.strip().lower()
+        summaries = self.list_latest_agents()
+        if not query_normalized:
+            return summaries
+
+        return [
+            summary
+            for summary in summaries
+            if query_normalized in summary.name.lower()
+            or query_normalized in summary.description.lower()
+        ]
+
     def _resolve_exact(self, *, name: str, version: str) -> Optional[RegistryRecord]:
         version_path = self.registry_version_path(name=name, version=version)
         if not version_path.exists() or not version_path.is_dir():

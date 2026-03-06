@@ -1404,7 +1404,7 @@ tasks:
       - step4: Keep filtering semantics explicit and deterministic for future unit tests across mixed registry fixtures
     dependencies: [task69, task75]
     tests: [test103]
-    status: not-started
+    status: needs-review
 
   - id: task77
     title: Document local registry commands and behavior
