@@ -1651,7 +1651,7 @@ tasks:
       - step4: Verify backward compatibility with existing install test scenarios
     dependencies: [task85]
     tests: [test116]
-    status: not-started
+    status: needs-review
 
   - id: task89
     title: Document pack/publish/archive/registry refactor
