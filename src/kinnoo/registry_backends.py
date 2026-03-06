@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 from typing import Any, Optional
 
-from .registry import RegistryRecord
+from .registry import RegistryAgentSummary, RegistryRecord
 from .schema import SEMVER_PATTERN
 
 
@@ -134,6 +134,36 @@ class LocalFilesystemRegistryBackend:
             if query_normalized in record.name.lower()
         ]
 
+    def list_latest_agents(self) -> list[RegistryAgentSummary]:
+        summaries: list[RegistryAgentSummary] = []
+        if not self.root.exists():
+            return summaries
+
+        for agent_dir in sorted(path for path in self.root.iterdir() if path.is_dir()):
+            versions = self._discover_versions(agent_dir.name)
+            latest_record: RegistryRecord | None = None
+            for version in versions:
+                latest_record = self._resolve_exact(name=agent_dir.name, version=version)
+                if latest_record is not None:
+                    break
+
+            if latest_record is None:
+                continue
+
+            description = self._read_description(
+                name=latest_record.name,
+                version=latest_record.version,
+            )
+            summaries.append(
+                RegistryAgentSummary(
+                    name=latest_record.name,
+                    latest_version=latest_record.version,
+                    description=description,
+                )
+            )
+
+        return summaries
+
     def _resolve_exact(self, *, name: str, version: str) -> Optional[RegistryRecord]:
         version_path = self.registry_version_path(name=name, version=version)
         if not version_path.exists() or not version_path.is_dir():
@@ -152,6 +182,21 @@ class LocalFilesystemRegistryBackend:
 
         versions = [path.name for path in agent_dir.iterdir() if path.is_dir()]
         return sorted(versions, key=_version_sort_key, reverse=True)
+
+    def _read_description(self, *, name: str, version: str) -> str:
+        metadata_path = self.registry_version_path(name=name, version=version) / "manifest-metadata.json"
+        if not metadata_path.exists() or not metadata_path.is_file():
+            return ""
+
+        try:
+            raw = json.loads(metadata_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return ""
+
+        value = raw.get("description") if isinstance(raw, dict) else None
+        if isinstance(value, str):
+            return value.strip()
+        return ""
 
 
 def _version_sort_key(value: str) -> tuple[int, ...] | tuple[int, str]:

@@ -21,6 +21,15 @@ class RegistryRecord:
 
 
 @dataclass(frozen=True)
+class RegistryAgentSummary:
+    """Latest-version summary used by `kinnoo list` output."""
+
+    name: str
+    latest_version: str
+    description: str
+
+
+@dataclass(frozen=True)
 class InstallTargetSpec:
     """Parsed install target classification for install command routing."""
 
@@ -58,6 +67,9 @@ class RegistryBackend(Protocol):
     def search(self, *, query: str) -> list[RegistryRecord]:
         """Search for records matching a query in deterministic order."""
 
+    def list_latest_agents(self) -> list[RegistryAgentSummary]:
+        """List latest-version summary rows per agent in deterministic order."""
+
 
 class RegistryService:
     """Backend-agnostic service boundary used by command handlers."""
@@ -88,6 +100,22 @@ class RegistryService:
 
     def search(self, *, query: str) -> list[RegistryRecord]:
         return self._backend.search(query=query)
+
+    def list_latest_agents(self) -> list[RegistryAgentSummary]:
+        backend_lister = getattr(self._backend, "list_latest_agents", None)
+        if callable(backend_lister):
+            return backend_lister()
+
+        summaries: dict[str, RegistryAgentSummary] = {}
+        for record in self.list_entries():
+            existing = summaries.get(record.name)
+            if existing is None:
+                summaries[record.name] = RegistryAgentSummary(
+                    name=record.name,
+                    latest_version=record.version,
+                    description="",
+                )
+        return [summaries[name] for name in sorted(summaries)]
 
     def resolve_with_error(
         self,
