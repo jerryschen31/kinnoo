@@ -1671,7 +1671,7 @@ tasks:
       - step5: Document feature12 deprecation context and migration guidance for developers
     dependencies: [task82, task84, task85, task86, task87, task88]
     tests: [test117]
-    status: not-started
+    status: needs-review
 
   - id: task90
     title: Harden source-mode CLI validation and errors

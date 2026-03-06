@@ -73,52 +73,60 @@ Common failure cases:
 - Invalid archive: archive is not a valid zip-based `.kno` file
 - Invalid manifest: prints `Error: Manifest validation failed.` with validator field-level errors
 
-## Local registry commands (Feature12)
+## Pack/Publish Refactor (Feature13)
 
-Kinnoo supports a local agent registry rooted at `~/.kinnoo/registry/`.
+Feature13 shifts command responsibilities to an archive-first source model and a mock-registry publish target.
 
-### Publish
+### Pack (archive-first)
 
-- `kinnoo publish <archive.kno>`
-- `kinnoo publish <archive.kno> --local`
+- `kinnoo pack <agent-dir>` writes by default to:
+	- `~/.kinnoo/archive/<agent>/<version>/<agent>.kno`
+- For tests and custom environments, archive root can be overridden with:
+	- `KINNOO_ARCHIVE_ROOT`
 
-Both commands publish into local registry layout:
+### Publish (name-based source)
 
-- `~/.kinnoo/registry/<name>/<version>/`
+- `kinnoo publish <agent-name>`
+- `kinnoo publish <agent-name> --local`
 
-If the same `<name>==<version>` is published twice, Kinnoo fails with a clear duplicate error and does not overwrite existing content.
+Behavior:
+
+- Source artifact resolves from latest local archive version for `<agent-name>`.
+- Target publishes to mock registry path:
+	- `registry-scratch/jerry/<agent>/<version>/<agent>.kno`
+- If tagged target already exists, previous payload is preserved under:
+	- `registry-scratch/jerry/<agent>/untagged-<n>/`
 
 ### Install selectors
 
-Kinnoo install supports all of the following:
+`kinnoo install` supports all of the following:
 
-- `kinnoo install <file.kno>` (direct archive compatibility path)
-- `kinnoo install <name>` (resolve latest published version from local registry)
-- `kinnoo install <name>==<version>` (resolve an explicit version)
+- `kinnoo install <name>` (latest from mock registry)
+- `kinnoo install <name>==<version>` (exact version from mock registry)
+- `kinnoo install <file-path/file.kno>` (backward-compatible direct archive install)
 
-Versioned behavior example:
+### List source modes
 
-- if `weather-agent` has versions `1.0.0` and `2.0.0` in local registry:
-	- `kinnoo install weather-agent` installs latest (`2.0.0`)
-	- `kinnoo install weather-agent==1.0.0` installs that exact version
+- `kinnoo list` (default local archive)
+- `kinnoo list --local` (same as default)
+- `kinnoo list --remote` (mock registry inventory)
 
-### List
+### Search source modes
 
-- `kinnoo list`
+- `kinnoo search <query>` (default local archive)
+- `kinnoo search --local <query>` (same as default)
+- `kinnoo search --remote <query>` (mock registry inventory)
 
-Output includes one row per agent with:
+Search and list preserve consistent output shape (`name`, `latest`, `description`) and use case-insensitive matching for search name/description filtering.
 
-- name
-- latest version
-- description (from published manifest metadata)
+### Migration notes from Feature12
 
-### Search
+- Old publish form:
+	- `kinnoo publish <archive.kno>`
+- New canonical publish form:
+	- `kinnoo publish <agent-name>`
 
-- `kinnoo search <query>`
-
-Search performs case-insensitive substring matching on agent name and description metadata.
-
-Example:
-
-- `kinnoo search weather`
-- `kinnoo search forecasting`
+- Old registry docs centered on `~/.kinnoo/registry/` as primary source/target.
+- Feature13 split:
+	- source of truth for packaged artifacts: local archive (`~/.kinnoo/archive/...`)
+	- publish target: mock registry (`registry-scratch/jerry/...`)
