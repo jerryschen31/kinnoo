@@ -1808,7 +1808,7 @@ tasks:
       - step4: Ensure formatting remains deterministic for future snapshot-style unit tests
     dependencies: [task93, task94, task95]
     tests: [test124]
-    status: not-started
+    status: needs-review
 
   - id: task97
     title: Document preflight usage and contracts
