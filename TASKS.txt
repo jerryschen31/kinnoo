@@ -1535,7 +1535,7 @@ tasks:
       - step4: Ensure failed pack runs do not emit misleading success/version lines
     dependencies: [task78, task79, task81]
     tests: [test108]
-    status: not-started
+    status: needs-review
 
   - id: task83
     title: Refactor publish CLI to agent-name source
