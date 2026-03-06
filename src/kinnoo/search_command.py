@@ -1,32 +1,59 @@
-"""Search command implementation for local registry inventory."""
+"""Search command implementation for local-archive and remote-registry inventory."""
 
 from __future__ import annotations
 
 import os
 from pathlib import Path
 
+from .archive import LocalArchiveBackend
 from .registry import RegistryService
-from .registry_backends import LocalFilesystemRegistryBackend
+from .registry_backends import MockFilesystemRegistryBackend
 
 
-def search_agents(query: str) -> int:
+def search_agents(query: str, source: str = "local") -> int:
     query_text = query.strip()
     if not query_text:
         print("Error: Search query cannot be empty.")
         return 1
 
-    registry_root = os.environ.get("KINNOO_REGISTRY_ROOT")
-    backend_root = Path(registry_root).expanduser() if registry_root else None
+    query_normalized = query_text.lower()
 
-    backend = LocalFilesystemRegistryBackend(root=backend_root)
-    service = RegistryService(backend=backend)
-    results = service.search_agents(query=query_text)
+    if source == "remote":
+        registry_root = os.environ.get("KINNOO_REGISTRY_ROOT")
+        backend_root = Path(registry_root).expanduser() if registry_root else None
 
-    if not results:
-        print(f"No local registry matches found for query: {query_text}")
+        backend = MockFilesystemRegistryBackend(root=backend_root)
+        service = RegistryService(backend=backend)
+        results = service.search_agents(query=query_text)
+
+        if not results:
+            print(f"No remote registry matches found for query: {query_text}")
+            return 0
+
+        print(f"Remote registry search results for: {query_text}")
+        for summary in results:
+            description = summary.description if summary.description else "(no description)"
+            print(f"- {summary.name} | latest: {summary.latest_version} | description: {description}")
+
         return 0
 
-    print(f"Local registry search results for: {query_text}")
+    archive_root = os.environ.get("KINNOO_ARCHIVE_ROOT")
+    backend_root = Path(archive_root).expanduser() if archive_root else None
+
+    backend = LocalArchiveBackend(root=backend_root)
+    summaries = backend.list_latest_agents()
+    results = [
+        summary
+        for summary in summaries
+        if query_normalized in summary.name.lower()
+        or query_normalized in summary.description.lower()
+    ]
+
+    if not results:
+        print(f"No local archive matches found for query: {query_text}")
+        return 0
+
+    print(f"Local archive search results for: {query_text}")
     for summary in results:
         description = summary.description if summary.description else "(no description)"
         print(f"- {summary.name} | latest: {summary.latest_version} | description: {description}")
