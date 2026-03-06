@@ -1970,3 +1970,20 @@ tests:
     covers:
       - feature: feature13
         ac: AC19
+
+  - id: test119
+    title: publish writes to home-absolute mock registry scratch path
+    type: integration
+    preconditions: local archive contains publishable agent version; HOME is set; mock registry root writable
+    steps:
+      - step1: Run `kinnoo publish <agent-name>` for an agent with archived versions
+      - step2: Verify publish destination path is under `~/kinnoo-mock-registry-scratch/jerry/<agent>/<version>/<agent>.kno`
+      - step3: Verify destination path is absolute and not dependent on current working directory
+      - step4: Verify publish output reports the same absolute target path
+    expected: Publish always targets the home-absolute mock registry scratch path and remains stable regardless of process CWD
+    pass_criteria: Artifact is created at the expected absolute path and command output references that absolute target path
+    automated: true
+    automation_path: tests/test_publish_refactor.py::test_publish_uses_home_absolute_mock_registry_path
+    covers:
+      - feature: feature13
+        ac: AC5

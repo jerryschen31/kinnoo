@@ -95,7 +95,7 @@ def test_feature13_docs_cover_archive_registry_refactor() -> None:
     assert "KINNOO_ARCHIVE_ROOT" in combined_text
 
     assert "kinnoo publish <agent-name>" in combined_text
-    assert "registry-scratch/jerry/<agent>/<version>/<agent>.kno" in combined_text
+    assert "~/kinnoo-mock-registry-scratch/jerry/<agent>/<version>/<agent>.kno" in combined_text
     assert "untagged-<n>" in combined_text
 
     assert "kinnoo list" in combined_text

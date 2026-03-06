@@ -209,3 +209,52 @@ def test_publish_rolls_existing_tagged_to_untagged(tmp_path: Path) -> None:
         f"Rollover archived previous tagged artifact to: {rollover_archive}"
         in combined_output
     )
+
+
+def test_publish_uses_home_absolute_mock_registry_path(tmp_path: Path) -> None:
+    archive_root = tmp_path / "archive-sandbox"
+    simulated_home = tmp_path / "simulated-home"
+    simulated_home.mkdir(parents=True, exist_ok=True)
+
+    source_archive = _write_archive(
+        archive_root,
+        name="absolute-path-agent",
+        version="1.0.0",
+        run_content="print('absolute-path')\n",
+    )
+
+    publish_cwd = tmp_path / "publish-cwd"
+    publish_cwd.mkdir(parents=True, exist_ok=True)
+    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+
+    env = {
+        **os.environ,
+        "KINNOO_ARCHIVE_ROOT": str(archive_root),
+        "HOME": str(simulated_home),
+    }
+    env.pop("KINNOO_REGISTRY_ROOT", None)
+
+    result = subprocess.run(
+        [sys.executable, str(cli_path), "publish", "absolute-path-agent"],
+        cwd=publish_cwd,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    combined_output = f"{result.stdout}\n{result.stderr}"
+    expected_target = (
+        simulated_home
+        / "kinnoo-mock-registry-scratch"
+        / "jerry"
+        / "absolute-path-agent"
+        / "1.0.0"
+        / "absolute-path-agent.kno"
+    )
+
+    assert result.returncode == 0
+    assert expected_target.is_absolute()
+    assert expected_target.exists()
+    assert expected_target.read_bytes() == source_archive.read_bytes()
+    assert f"Target registry path: {expected_target}" in combined_output
+    assert "Target registry path: registry-scratch/jerry/" not in combined_output
