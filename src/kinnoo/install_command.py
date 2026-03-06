@@ -10,10 +10,12 @@ import os
 from pathlib import Path
 
 try:
-    from kinnoo.registry import parse_install_target_spec
+    from kinnoo.registry import RegistryService, parse_install_target_spec
+    from kinnoo.registry_backends import LocalFilesystemRegistryBackend
     from kinnoo.validator import validate
 except ImportError:
-    from .registry import parse_install_target_spec
+    from .registry import RegistryService, parse_install_target_spec
+    from .registry_backends import LocalFilesystemRegistryBackend
     from .validator import validate
 
 
@@ -54,18 +56,55 @@ def install_agent(archive_path: str, target_dir_arg: str | None = None, force: b
         return 1
 
     if target_spec.kind in {"registry-latest", "registry-exact"}:
+        selector = str(target_spec.name)
+        version: str | None = None
         if target_spec.kind == "registry-exact":
+            version = target_spec.version
             selector = f"{target_spec.name}=={target_spec.version}"
-        else:
-            selector = str(target_spec.name)
-        print(
-            "Error: Registry selector installs are not implemented yet for "
-            f"'{selector}'. Use a .kno archive path for now.",
-            file=sys.stderr,
+
+        registry_root = os.environ.get("KINNOO_REGISTRY_ROOT")
+        backend_root = Path(registry_root).expanduser() if registry_root else None
+        backend = LocalFilesystemRegistryBackend(root=backend_root)
+        service = RegistryService(backend=backend)
+
+        resolved_record, resolve_error = service.resolve_with_error(
+            name=str(target_spec.name),
+            version=version,
         )
-        return 1
+        if resolved_record is None:
+            print(f"Error: {resolve_error or 'Registry resolution failed.'}", file=sys.stderr)
+            return 1
+
+        resolved_target_dir_arg = target_dir_arg
+        if resolved_target_dir_arg is None:
+            if version is None:
+                resolved_target_dir_arg = str(Path.cwd() / str(target_spec.name))
+            else:
+                resolved_target_dir_arg = str(Path.cwd() / f"{target_spec.name}-{version}")
+
+        print(
+            f"[kinnoo install] Resolved registry selector '{selector}' to '{resolved_record.archive_path}'"
+        )
+        return _install_from_archive_path(
+            archive_path=str(resolved_record.archive_path),
+            target_dir_arg=resolved_target_dir_arg,
+            force=force,
+        )
 
     archive = target_spec.archive_path or Path(archive_path)
+    return _install_from_archive_path(
+        archive_path=str(archive),
+        target_dir_arg=target_dir_arg,
+        force=force,
+    )
+
+
+def _install_from_archive_path(
+    archive_path: str,
+    target_dir_arg: str | None = None,
+    force: bool = False,
+) -> int:
+    archive = Path(archive_path)
     if not archive.exists() or not archive.is_file():
         print(f"Error: Archive '{archive}' does not exist or is not a file.", file=sys.stderr)
         return 1
