@@ -78,6 +78,17 @@ def main():
         help="List locally published registry agents",
     )
 
+    # Add 'search' subcommand
+    search_parser = subparsers.add_parser(
+        "search",
+        help="Search locally published registry agents",
+    )
+    search_parser.add_argument(
+        "query",
+        nargs="?",
+        help="Search query to match against agent name and description",
+    )
+
     # Pre-parse sys.argv for missing args to print custom usage before argparse error
     if len(sys.argv) > 1 and sys.argv[1] == "run":
         if "-h" not in sys.argv and "--help" not in sys.argv and len(sys.argv) < 4:
@@ -185,6 +196,20 @@ def main():
             from .list_command import list_agents
 
         exit_code = list_agents()
+        sys.exit(exit_code)
+
+    elif args.command == "search":
+        query = getattr(args, "query", None)
+        if query is None:
+            print("Usage: kinnoo search <query>", file=sys.stderr)
+            sys.exit(1)
+
+        try:
+            from kinnoo.search_command import search_agents
+        except ImportError:
+            from .search_command import search_agents
+
+        exit_code = search_agents(query)
         sys.exit(exit_code)
 
 if __name__ == "__main__":
