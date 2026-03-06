@@ -1790,7 +1790,7 @@ tasks:
       - step4: Keep checks isolated from normal run execution path for testable behavior separation
     dependencies: [task92, task9, task14]
     tests: [test123]
-    status: not-started
+    status: needs-review
 
   - id: task96
     title: Add checklist output and ready summary
