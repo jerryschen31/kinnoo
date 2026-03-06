@@ -80,3 +80,35 @@ def test_feature11_docs_cover_inspect_usage_and_missing_file_guidance() -> None:
 # [agent] test deprecated: Feature12 docs wording test is superseded by feature13 docs tests.
 # def test_feature12_docs_cover_local_registry_flows() -> None:
 #     ...
+
+
+def test_feature13_docs_cover_archive_registry_refactor() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    schema_doc = repo_root / "docs" / "manifest-schema-reference.md"
+    readme_doc = repo_root / "README.md"
+
+    schema_text = schema_doc.read_text(encoding="utf-8")
+    readme_text = readme_doc.read_text(encoding="utf-8")
+    combined_text = f"{schema_text}\n{readme_text}"
+
+    assert "~/.kinnoo/archive/<agent>/<version>/<agent>.kno" in combined_text
+    assert "KINNOO_ARCHIVE_ROOT" in combined_text
+
+    assert "kinnoo publish <agent-name>" in combined_text
+    assert "registry-scratch/jerry/<agent>/<version>/<agent>.kno" in combined_text
+    assert "untagged-<n>" in combined_text
+
+    assert "kinnoo list" in combined_text
+    assert "kinnoo list --local" in combined_text
+    assert "kinnoo list --remote" in combined_text
+
+    assert "kinnoo search <query>" in combined_text
+    assert "kinnoo search --local <query>" in combined_text
+    assert "kinnoo search --remote <query>" in combined_text
+
+    assert "kinnoo install <name>" in combined_text
+    assert "kinnoo install <name>==<version>" in combined_text
+    assert "kinnoo install <file-path/file.kno>" in combined_text
+
+    assert "kinnoo publish <archive.kno>" in combined_text
+    assert "Migration" in combined_text or "migration" in combined_text

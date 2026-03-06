@@ -278,49 +278,62 @@ Common failure cases:
 
 ---
 
-## Local registry commands (Feature12)
+## Pack/Publish Refactor commands (Feature13)
 
-Feature12 introduces a local registry at:
+Feature13 refactors command responsibilities to an archive-first packaging source plus mock-registry publishing target.
 
-- `~/.kinnoo/registry/`
+### Pack destination
 
-### Publish commands
+- `kinnoo pack <agent-dir>` writes to local archive by default:
+  - `~/.kinnoo/archive/<agent>/<version>/<agent>.kno`
+- Test/custom override:
+  - `KINNOO_ARCHIVE_ROOT`
 
-- `kinnoo publish <archive.kno>`
-- `kinnoo publish <archive.kno> --local`
+### Publish semantics
 
-Publish stores artifacts in canonical local layout:
+Canonical publish commands:
 
-- `~/.kinnoo/registry/<name>/<version>/`
+- `kinnoo publish <agent-name>`
+- `kinnoo publish <agent-name> --local`
 
-Duplicate safety behavior:
+Behavior:
 
-- publishing the same `<name>==<version>` again fails with a clear error
-- existing published content is never silently overwritten
+- source resolves latest local archive artifact for `<agent-name>`
+- target path in mock registry:
+  - `registry-scratch/jerry/<agent>/<version>/<agent>.kno`
+- if tagged target exists, prior payload rolls to:
+  - `registry-scratch/jerry/<agent>/untagged-<n>/`
 
-### Install selector compatibility
+### Install selectors
 
 Supported forms:
 
-- `kinnoo install <file.kno>` (legacy/direct file install path)
-- `kinnoo install <name>` (latest local version)
-- `kinnoo install <name>==<version>` (specific local version)
+- `kinnoo install <name>` (latest from mock registry)
+- `kinnoo install <name>==<version>` (exact from mock registry)
+- `kinnoo install <file-path/file.kno>` (backward-compatible direct file install)
 
-Multi-version example:
+### List source modes
 
-- published: `research-agent==1.0.0`, `research-agent==1.1.0`, `research-agent==2.0.0`
-- `kinnoo install research-agent` resolves latest (`2.0.0`)
-- `kinnoo install research-agent==1.1.0` resolves exact version (`1.1.0`)
+- `kinnoo list` (default local archive)
+- `kinnoo list --local` (same as default)
+- `kinnoo list --remote` (mock registry)
 
-### List and search
+### Search source modes
 
-- `kinnoo list`
-  - displays agent name, latest version, and description
-- `kinnoo search <query>`
-  - performs case-insensitive substring matching on name and description
+- `kinnoo search <query>` (default local archive)
+- `kinnoo search --local <query>` (same as default)
+- `kinnoo search --remote <query>` (mock registry)
 
-Examples:
+Search behavior remains case-insensitive substring matching across name and description fields.
 
-- `kinnoo list`
-- `kinnoo search support`
-- `kinnoo search summarize`
+### Migration guidance from Feature12
+
+- Previous publish form:
+  - `kinnoo publish <archive.kno>`
+- Feature13 canonical form:
+  - `kinnoo publish <agent-name>`
+
+- Previous docs centered on `~/.kinnoo/registry/` as primary source/target.
+- Feature13 split of responsibilities:
+  - packaging source-of-truth: local archive (`~/.kinnoo/archive/...`)
+  - publish/install remote target: mock registry (`registry-scratch/jerry/...`)
