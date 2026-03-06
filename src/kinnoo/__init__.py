@@ -3,8 +3,9 @@
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
+from .archive import ArchiveBackend, ArchiveRecord, LocalArchiveBackend
 from .registry import RegistryBackend, RegistryRecord, RegistryService
-from .registry_backends import LocalFilesystemRegistryBackend
+from .registry_backends import LocalFilesystemRegistryBackend, MockFilesystemRegistryBackend
 from .validator import validate
 
 
@@ -30,5 +31,9 @@ __all__ = [
 	"RegistryBackend",
 	"RegistryRecord",
 	"RegistryService",
+	"ArchiveBackend",
+	"ArchiveRecord",
+	"LocalArchiveBackend",
 	"LocalFilesystemRegistryBackend",
+	"MockFilesystemRegistryBackend",
 ]

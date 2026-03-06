@@ -77,26 +77,38 @@ def test_feature11_docs_cover_inspect_usage_and_missing_file_guidance() -> None:
     assert "Error: Manifest validation failed." in combined_text
 
 
-    def test_feature12_docs_cover_local_registry_flows() -> None:
-        root = Path(__file__).resolve().parents[1]
-        readme = (root / "README.md").read_text(encoding="utf-8")
-        schema = (root / "docs" / "manifest-schema-reference.md").read_text(encoding="utf-8")
+# [agent] test deprecated: Feature12 docs wording test is superseded by feature13 docs tests.
+# def test_feature12_docs_cover_local_registry_flows() -> None:
+#     ...
 
-        expected = [
-            "kinnoo publish <archive.kno>",
-            "kinnoo publish <archive.kno> --local",
-            "~/.kinnoo/registry/<name>/<version>/",
-            "kinnoo install <name>",
-            "kinnoo install <name>==<version>",
-            "kinnoo install <file.kno>",
-            "kinnoo list",
-            "kinnoo search <query>",
-        ]
-        for token in expected:
-            assert token in readme
-            assert token in schema
 
-        assert "kinnoo install research-agent" in readme
-        assert "kinnoo install research-agent==1.1.0" in readme
-        assert "kinnoo install research-agent" in schema
-        assert "kinnoo install research-agent==1.1.0" in schema
+def test_feature13_docs_cover_archive_registry_refactor() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    schema_doc = repo_root / "docs" / "manifest-schema-reference.md"
+    readme_doc = repo_root / "README.md"
+
+    schema_text = schema_doc.read_text(encoding="utf-8")
+    readme_text = readme_doc.read_text(encoding="utf-8")
+    combined_text = f"{schema_text}\n{readme_text}"
+
+    assert "~/.kinnoo/archive/<agent>/<version>/<agent>.kno" in combined_text
+    assert "KINNOO_ARCHIVE_ROOT" in combined_text
+
+    assert "kinnoo publish <agent-name>" in combined_text
+    assert "registry-scratch/jerry/<agent>/<version>/<agent>.kno" in combined_text
+    assert "untagged-<n>" in combined_text
+
+    assert "kinnoo list" in combined_text
+    assert "kinnoo list --local" in combined_text
+    assert "kinnoo list --remote" in combined_text
+
+    assert "kinnoo search <query>" in combined_text
+    assert "kinnoo search --local <query>" in combined_text
+    assert "kinnoo search --remote <query>" in combined_text
+
+    assert "kinnoo install <name>" in combined_text
+    assert "kinnoo install <name>==<version>" in combined_text
+    assert "kinnoo install <file-path/file.kno>" in combined_text
+
+    assert "kinnoo publish <archive.kno>" in combined_text
+    assert "Migration" in combined_text or "migration" in combined_text

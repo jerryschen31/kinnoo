@@ -171,17 +171,28 @@ outputs:
     (agent_dir / "run.py").write_text("print('offline-ready-ok')\n")
     (agent_dir / "requirements.txt").write_text("requests==2.31.0\nhttpx==0.27.0\n")
 
+    archive_root = tmp_path / "archive-root"
+    pack_env = dict(os.environ)
+    pack_env["KINNOO_ARCHIVE_ROOT"] = str(archive_root)
+
     pack_result = subprocess.run(
         [sys.executable, "src/kinnoo/cli.py", "pack", str(agent_dir)],
         capture_output=True,
         text=True,
+        env=pack_env,
     )
     assert pack_result.returncode == 0, (
         "Expected pack to succeed for offline-ready fixture. "
         f"STDOUT:\n{pack_result.stdout}\nSTDERR:\n{pack_result.stderr}"
     )
 
-    return tmp_path / f"{agent_name}.kno"
+    archive_path = archive_root / agent_name / "1.0.0" / f"{agent_name}.kno"
+    assert archive_path.exists(), (
+        "Expected packed archive at canonical archive path. "
+        f"STDOUT:\n{pack_result.stdout}\nSTDERR:\n{pack_result.stderr}"
+    )
+
+    return archive_path
 
 
 def test_install_offline_succeeds_with_complete_wheels(tmp_path):
