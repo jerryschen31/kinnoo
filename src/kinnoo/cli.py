@@ -78,9 +78,20 @@ def main():
     )
 
     # Add 'list' subcommand
-    subparsers.add_parser(
+    list_parser = subparsers.add_parser(
         "list",
-        help="List locally published registry agents",
+        help="List agents from local archive (default) or remote registry",
+    )
+    list_source_group = list_parser.add_mutually_exclusive_group()
+    list_source_group.add_argument(
+        "--local",
+        action="store_true",
+        help="List agents from local archive source (default)",
+    )
+    list_source_group.add_argument(
+        "--remote",
+        action="store_true",
+        help="List agents from remote mock registry source",
     )
 
     # Add 'search' subcommand
@@ -195,12 +206,14 @@ def main():
         sys.exit(exit_code)
 
     elif args.command == "list":
+        source = "remote" if bool(getattr(args, "remote", False)) else "local"
+
         try:
             from kinnoo.list_command import list_agents
         except ImportError:
             from .list_command import list_agents
 
-        exit_code = list_agents()
+        exit_code = list_agents(source=source)
         sys.exit(exit_code)
 
     elif args.command == "search":
