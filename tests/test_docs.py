@@ -75,3 +75,28 @@ def test_feature11_docs_cover_inspect_usage_and_missing_file_guidance() -> None:
     assert "Usage: kinnoo inspect <target>" in combined_text
     assert "invalid zip-based `.kno`" in combined_text or "invalid zip-based .kno" in combined_text
     assert "Error: Manifest validation failed." in combined_text
+
+
+    def test_feature12_docs_cover_local_registry_flows() -> None:
+        root = Path(__file__).resolve().parents[1]
+        readme = (root / "README.md").read_text(encoding="utf-8")
+        schema = (root / "docs" / "manifest-schema-reference.md").read_text(encoding="utf-8")
+
+        expected = [
+            "kinnoo publish <archive.kno>",
+            "kinnoo publish <archive.kno> --local",
+            "~/.kinnoo/registry/<name>/<version>/",
+            "kinnoo install <name>",
+            "kinnoo install <name>==<version>",
+            "kinnoo install <file.kno>",
+            "kinnoo list",
+            "kinnoo search <query>",
+        ]
+        for token in expected:
+            assert token in readme
+            assert token in schema
+
+        assert "kinnoo install research-agent" in readme
+        assert "kinnoo install research-agent==1.1.0" in readme
+        assert "kinnoo install research-agent" in schema
+        assert "kinnoo install research-agent==1.1.0" in schema
