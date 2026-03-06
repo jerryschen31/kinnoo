@@ -1772,7 +1772,7 @@ tasks:
       - step4: Keep failure messaging deterministic and secret-safe for future unit and security regression tests
     dependencies: [task92, task53, task54, task57]
     tests: [test122]
-    status: not-started
+    status: needs-review
 
   - id: task95
     title: Implement entrypoint and dependency checks

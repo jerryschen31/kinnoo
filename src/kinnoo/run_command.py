@@ -159,6 +159,28 @@ def _check_runtime_version_constraint(runtime_constraint: str) -> tuple[bool, st
     )
 
 
+def _check_preflight_env_vars(manifest: dict, agent_dir: Path) -> tuple[bool, str]:
+    declared_env_vars = normalize_env_vars(manifest.get("env_vars"))
+    if not declared_env_vars:
+        return True, "env vars check passed: no env_vars declared"
+
+    dotenv_values = _load_agent_dotenv(agent_dir / ".env")
+    missing_env_vars: list[str] = []
+    for env_var_name in declared_env_vars:
+        if os.environ.get(env_var_name) is not None:
+            continue
+        if dotenv_values.get(env_var_name) is not None:
+            continue
+        missing_env_vars.append(env_var_name)
+
+    if missing_env_vars:
+        missing_label = ", ".join(missing_env_vars)
+        return False, f"env vars check failed: unresolved env vars [{missing_label}]"
+
+    declared_label = ", ".join(declared_env_vars)
+    return True, f"env vars check passed: resolved env vars [{declared_label}]"
+
+
 def run_preflight(agent_dir_arg: str) -> int:
     """Run preflight-only checks without executing the agent entrypoint."""
     agent_dir = Path(agent_dir_arg).resolve()
@@ -187,6 +209,7 @@ def run_preflight(agent_dir_arg: str) -> int:
                 manifest = loaded_manifest
 
     runtime_constraint_ok = False
+    env_vars_ok = False
     if manifest_valid and manifest is not None:
         runtime_version_constraint = str(
             manifest.get("runtime", {}).get("version", "")
@@ -198,10 +221,15 @@ def run_preflight(agent_dir_arg: str) -> int:
         if not runtime_constraint_ok:
             print("  - Action: use a Python interpreter that satisfies runtime.version in kinnoo.yaml")
 
+        env_vars_ok, env_vars_message = _check_preflight_env_vars(manifest, agent_dir)
+        _emit_preflight_line(env_vars_ok, env_vars_message)
+        if not env_vars_ok:
+            print("  - Action: set missing env vars in your shell environment or agent-local .env file")
+
     skipped_entrypoint = agent_dir_exists and manifest_exists and manifest_valid
     _emit_preflight_line(skipped_entrypoint, "entrypoint execution path skipped in preflight mode")
 
-    if agent_dir_exists and manifest_exists and manifest_valid and runtime_constraint_ok:
+    if agent_dir_exists and manifest_exists and manifest_valid and runtime_constraint_ok and env_vars_ok:
         print("Preflight result: PASS")
         return 0
 
