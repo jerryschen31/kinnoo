@@ -1,33 +1,63 @@
-# SWE Handoff — Pack Safety + Version Automation (task78, task79)
+# SWE Handoff — Feature13 Pack/Publish Refactor
 
 ## Scope
-Implement two pack-focused items in order:
-1. `task78` hotfix: prompt before overwriting an existing `.kno` archive.
-2. `task79` enhancement: add `kinnoo pack --bump {patch,minor,major}` and always print packed version on successful pack.
+Implement feature13 end-to-end with archive-first packaging and mock-registry publishing:
+- `kinnoo pack` writes to `~/.kinnoo/archive/<agent>/<version>/<agent>.kno` by default.
+- `kinnoo publish <agent-name>` resolves latest local archived artifact and publishes to `registry-scratch/jerry/<agent>/<version>/<agent>.kno`.
+- `install`, `list`, `search` support local/remote source behavior as specified in feature13 ACs.
 
-## Recommended Order
-- First complete `task78` (overwrite safety prompt) to lock in safe default behavior.
-- Then complete `task79` (automated bump + version output line) on top of that flow.
+## Recommended Implementation Order
+1. `task78` Prompt before overwriting existing `.kno` archive
+2. `task79` Add `--bump` version automation to `kinnoo pack`
+3. `task80` Define archive and registry storage abstractions
+4. `task81` Refactor pack default archive destination
+5. `task82` Standardize pack output and overwrite confirmation
+6. `task83` Refactor publish CLI to agent-name source
+7. `task84` Implement publish mock registry target and untagged rollover
+8. `task85` Install by registry name/version using mock backend
+9. `task86` Refactor `list` with default local and source flags
+10. `task87` Refactor `search` with default local and source flags
+11. `task88` Preserve file-path install compatibility
+12. `task90` Harden source-mode CLI validation and errors
+13. `task89` Document refactor and migration guidance
 
-## Required Prompt/Output Contracts
-- Overwrite prompt when target exists:
+## Task → Test Mapping (exact)
+- `task78` → `test105`
+- `task79` → `test106`
+- `task80` → `test107`
+- `task81` → `test107`
+- `task82` → `test108`
+- `task83` → `test109`, `test111`
+- `task84` → `test110`
+- `task85` → `test112`, `test113`
+- `task86` → `test114`
+- `task87` → `test115`
+- `task88` → `test116`
+- `task89` → `test117`
+- `task90` → `test118`
+
+## Required Contracts (must not drift)
+- Overwrite prompt format:
 	- `(archive.kno) already exists - are you sure you want to overwrite? (y/n): `
 	- Use concrete archive filename in place of `archive.kno`.
-- Successful pack output (all success paths, with or without `--bump`):
+- Pack success output always includes:
 	- `[kinnoo pack] Agent version: <version #>`
+- Publish source/target semantics:
+	- Source from local archive latest when using `kinnoo publish <agent-name>`
+	- Target path: `registry-scratch/jerry/<agent>/<version>/<agent>.kno`
+	- Existing tagged publish version rolls old artifact to `untagged-<n>`.
+- Source-mode command behavior:
+	- `kinnoo list` defaults to local archive; `--local` same as default; `--remote` uses mock registry.
+	- `kinnoo search` defaults to local archive; `--local` local; `--remote` mock registry.
+	- `kinnoo install <name>` latest from mock registry; `kinnoo install <name>==<version>` exact from mock registry.
+	- `kinnoo install <file-path/file.kno>` remains backward compatible.
 
-## Tests (exact mapping)
-- `task78` → `test105` (`tests/test_pack.py::test_pack_prompts_before_overwrite_existing_archive`)
-- `task79` → `test106` (`tests/test_pack.py::test_pack_bump_flag_and_version_output_line`)
-
-## Implementation Notes
-- `task78`: `y/Y` proceeds, `n/N` aborts non-zero without archive mutation; treat invalid/empty as safe abort.
-- `task79`: when `--bump` is provided, update `kinnoo.yaml` version before pack; bump rules:
-	- `patch`: `x.y.z -> x.y.(z+1)`
-	- `minor`: `x.y.z -> x.(y+1).0`
-	- `major`: `x.y.z -> (x+1).0.0`
-- Do not print the version-success line on failed pack attempts.
+## CLI Validation Requirements
+- Reject invalid/ambiguous argument combinations with deterministic non-zero errors.
+- Enforce mutual exclusivity for `--local` and `--remote` where applicable.
+- No silent fallback to unintended source when input is invalid.
 
 ## Done Criteria
-- Both tests pass and task statuses can move to `needs-review`.
-- `python3 src/validate_project_manifests.py` passes after any manifest edits.
+- Tasks `task78`–`task90` implemented and marked `needs-review`.
+- Tests `test105`–`test118` implemented and passing.
+- `python3 src/validate_project_manifests.py` passes.
