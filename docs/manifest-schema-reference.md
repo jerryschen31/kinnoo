@@ -300,9 +300,9 @@ Behavior:
 
 - source resolves latest local archive artifact for `<agent-name>`
 - target path in mock registry:
-  - `registry-scratch/jerry/<agent>/<version>/<agent>.kno`
+  - `~/kinnoo-mock-registry-scratch/jerry/<agent>/<version>/<agent>.kno`
 - if tagged target exists, prior payload rolls to:
-  - `registry-scratch/jerry/<agent>/untagged-<n>/`
+  - `~/kinnoo-mock-registry-scratch/jerry/<agent>/untagged-<n>/`
 
 ### Install selectors
 
@@ -336,4 +336,4 @@ Search behavior remains case-insensitive substring matching across name and desc
 - Previous docs centered on `~/.kinnoo/registry/` as primary source/target.
 - Feature13 split of responsibilities:
   - packaging source-of-truth: local archive (`~/.kinnoo/archive/...`)
-  - publish/install remote target: mock registry (`registry-scratch/jerry/...`)
+  - publish/install remote target: mock registry (`~/kinnoo-mock-registry-scratch/jerry/...`)
