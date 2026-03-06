@@ -70,6 +70,9 @@ class RegistryBackend(Protocol):
     def list_latest_agents(self) -> list[RegistryAgentSummary]:
         """List latest-version summary rows per agent in deterministic order."""
 
+    def search_agents(self, *, query: str) -> list[RegistryAgentSummary]:
+        """Search latest-version agent summaries by query in deterministic order."""
+
 
 class RegistryService:
     """Backend-agnostic service boundary used by command handlers."""
@@ -116,6 +119,22 @@ class RegistryService:
                     description="",
                 )
         return [summaries[name] for name in sorted(summaries)]
+
+    def search_agents(self, *, query: str) -> list[RegistryAgentSummary]:
+        backend_searcher = getattr(self._backend, "search_agents", None)
+        if callable(backend_searcher):
+            return backend_searcher(query=query)
+
+        query_normalized = query.strip().lower()
+        if not query_normalized:
+            return self.list_latest_agents()
+
+        return [
+            summary
+            for summary in self.list_latest_agents()
+            if query_normalized in summary.name.lower()
+            or query_normalized in summary.description.lower()
+        ]
 
     def resolve_with_error(
         self,

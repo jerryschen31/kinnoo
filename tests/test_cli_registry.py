@@ -388,3 +388,98 @@ outputs:
         assert "Local registry agents:" in output
         assert "alpha-agent | latest: 2.0.0 | description: Alpha latest description" in output
         assert "beta-agent | latest: 0.5.0 | description: Beta description" in output
+
+
+def test_search_filters_by_name_and_description_substring(tmp_path: Path) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        cli_path = repo_root / "src" / "kinnoo" / "cli.py"
+
+        registry_root = tmp_path / "registry-sandbox"
+        env = dict(**os.environ, KINNOO_REGISTRY_ROOT=str(registry_root))
+
+        alpha_archive = tmp_path / "alpha-search.kno"
+        with zipfile.ZipFile(alpha_archive, "w") as archive_zip:
+            archive_zip.writestr(
+                "kinnoo.yaml",
+                """
+    name: alpha-agent
+    version: 1.0.0
+    description: Handles finance forecasting workflows
+    entrypoint: run.py
+    runtime:
+        language: python
+        version: ">=3.10"
+        type: one-shot
+    dependencies: []
+    inputs:
+        type: text
+    outputs:
+        type: text
+    """,
+            )
+            archive_zip.writestr("run.py", "print('alpha')\n")
+            archive_zip.writestr("requirements.txt", "")
+
+        beta_archive = tmp_path / "beta-search.kno"
+        with zipfile.ZipFile(beta_archive, "w") as archive_zip:
+            archive_zip.writestr(
+                "kinnoo.yaml",
+                """
+    name: data-helper
+    version: 1.2.0
+    description: General analytics assistant
+    entrypoint: run.py
+    runtime:
+        language: python
+        version: ">=3.10"
+        type: one-shot
+    dependencies: []
+    inputs:
+        type: text
+    outputs:
+        type: text
+    """,
+            )
+            archive_zip.writestr("run.py", "print('beta')\n")
+            archive_zip.writestr("requirements.txt", "")
+
+        for archive in (alpha_archive, beta_archive):
+            publish_result = subprocess.run(
+                [sys.executable, str(cli_path), "publish", str(archive)],
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+            assert publish_result.returncode == 0
+
+        name_search = subprocess.run(
+            [sys.executable, str(cli_path), "search", "alpha"],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        name_output = f"{name_search.stdout}\n{name_search.stderr}"
+        assert name_search.returncode == 0
+        assert "alpha-agent | latest: 1.0.0" in name_output
+        assert "data-helper" not in name_output
+
+        description_search = subprocess.run(
+            [sys.executable, str(cli_path), "search", "analytics"],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        description_output = f"{description_search.stdout}\n{description_search.stderr}"
+        assert description_search.returncode == 0
+        assert "data-helper | latest: 1.2.0" in description_output
+        assert "alpha-agent | latest: 1.0.0" not in description_output
+
+        no_match_search = subprocess.run(
+            [sys.executable, str(cli_path), "search", "no-such-registry-agent"],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        no_match_output = f"{no_match_search.stdout}\n{no_match_search.stderr}"
+        assert no_match_search.returncode == 0
+        assert "No local registry matches found for query: no-such-registry-agent" in no_match_output
