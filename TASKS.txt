@@ -1515,7 +1515,7 @@ tasks:
       - step4: Keep behavior stable for deterministic path assertions in tests
     dependencies: [task24, task80]
     tests: [test107]
-    status: not-started
+    status: needs-review
 
   - id: task82
     title: Standardize pack output and overwrite confirmation
