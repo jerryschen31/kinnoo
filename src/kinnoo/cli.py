@@ -44,6 +44,11 @@ def main():
     # Add 'pack' subcommand
     pack_parser = subparsers.add_parser("pack", help="Package an agent directory into a .kno archive")
     pack_parser.add_argument("agent_dir", nargs="?", help="Path to agent directory to package")
+    pack_parser.add_argument(
+        "--bump",
+        choices=["patch", "minor", "major"],
+        help="(Optional) Increment manifest version before packaging",
+    )
 
     # Add 'inspect' subcommand
     inspect_parser = subparsers.add_parser(
@@ -156,7 +161,7 @@ def main():
         except ImportError:
             from .pack_command import pack_agent
 
-        exit_code = pack_agent(agent_dir)
+        exit_code = pack_agent(agent_dir, bump=getattr(args, "bump", None))
         sys.exit(exit_code)
 
     elif args.command == "inspect":

@@ -1476,4 +1476,4 @@ tasks:
       - step7: Keep behavior deterministic for tests covering no-bump, patch/minor/major bump, and invalid bump inputs
     dependencies: [task23, task24, task27, task43]
     tests: [test106]
-    status: not-started
+    status: needs-review
