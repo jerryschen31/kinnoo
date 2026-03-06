@@ -1703,3 +1703,37 @@ tests:
     automated: true
     automation_path: tests/test_docs.py::test_feature12_docs_cover_local_registry_flows
     covers: []
+
+  - id: test105
+    title: kinnoo pack prompts before overwriting existing archive
+    type: integration
+    preconditions: kinnoo CLI installed; valid agent fixture; existing output `.kno` file at target path
+    steps:
+      - step1: Create or pre-place an existing target archive (e.g., `myagent.kno`)
+      - step2: Run `kinnoo pack <agent-dir>` and provide `n` at prompt
+      - "step3: Verify prompt text matches `(archive.kno) already exists - are you sure you want to overwrite? (y/n): ` format with concrete archive filename"
+      - step4: Verify command exits non-zero and existing archive remains unchanged after `n`
+      - step5: Re-run `kinnoo pack <agent-dir>` and provide `y` at prompt
+      - step6: Verify command exits 0 and existing archive is overwritten after `y`
+    expected: Pack requires explicit confirmation before overwriting existing `.kno`; declines preserve existing file; confirmations allow overwrite
+    pass_criteria: Prompt is shown in overwrite scenario, `n` path aborts without mutation, and `y` path overwrites and succeeds
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_prompts_before_overwrite_existing_archive
+    covers: []
+
+  - id: test106
+    title: kinnoo pack --bump updates manifest version and always prints packed version
+    type: integration
+    preconditions: kinnoo CLI installed; valid agent fixture with semver version in `kinnoo.yaml`
+    steps:
+      - step1: Run `kinnoo pack <agent-dir>` without `--bump` and capture output
+      - "step2: Verify output includes `[kinnoo pack] Agent version: <current-version>` and archive is created"
+      - step3: Run `kinnoo pack <agent-dir> --bump patch` and verify `kinnoo.yaml` version increments patch and output line reflects new version
+      - step4: Run `kinnoo pack <agent-dir> --bump minor` and verify minor increment with patch reset, and output line reflects new version
+      - step5: Run `kinnoo pack <agent-dir> --bump major` and verify major increment with minor/patch reset, and output line reflects new version
+      - step6: Run with invalid bump value and verify command fails with usage/error and no successful pack-version line
+    expected: "`--bump` automates manifest semver increments before packaging, and all successful pack runs print `[kinnoo pack] Agent version: <version #>`"
+    pass_criteria: No-bump and patch/minor/major scenarios produce correct versions and version output line; invalid bump is rejected and does not emit success version line
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_bump_flag_and_version_output_line
+    covers: []
