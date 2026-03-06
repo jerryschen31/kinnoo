@@ -35,6 +35,11 @@ def main():
     run_parser = subparsers.add_parser("run", help="Run a kinnoo agent")
     run_parser.add_argument("agent_dir", nargs="?", help="Path to agent directory")
     run_parser.add_argument("input", nargs="?", help="Input string to pass to the agent entrypoint")
+    run_parser.add_argument(
+        "--preflight",
+        action="store_true",
+        help="Run readiness checks only; do not execute the agent entrypoint",
+    )
 
     # Add 'install' subcommand
     install_parser = subparsers.add_parser("install", help="Install a kinnoo agent archive (.kno)")
@@ -118,7 +123,12 @@ def main():
 
     # Pre-parse sys.argv for missing args to print custom usage before argparse error
     if len(sys.argv) > 1 and sys.argv[1] == "run":
-        if "-h" not in sys.argv and "--help" not in sys.argv and len(sys.argv) < 4:
+        if (
+            "-h" not in sys.argv
+            and "--help" not in sys.argv
+            and "--preflight" not in sys.argv
+            and len(sys.argv) < 4
+        ):
             print("Usage: kinnoo run <agent-dir> '<input>'", file=sys.stderr)
             sys.exit(1)
 
@@ -142,7 +152,15 @@ def main():
 
 
     elif args.command == "run":
-        if not hasattr(args, "agent_dir") or args.agent_dir is None or args.input is None:
+        preflight_mode = bool(getattr(args, "preflight", False))
+        if not hasattr(args, "agent_dir") or args.agent_dir is None:
+            if preflight_mode:
+                print("Usage: kinnoo run <agent-dir> --preflight", file=sys.stderr)
+            else:
+                print("Usage: kinnoo run <agent-dir> '<input>'", file=sys.stderr)
+            sys.exit(1)
+
+        if not preflight_mode and args.input is None:
             print("Usage: kinnoo run <agent-dir> '<input>'", file=sys.stderr)
             sys.exit(1)
 
@@ -151,7 +169,11 @@ def main():
         except ImportError:
             from .run_command import run_agent
 
-        exit_code = run_agent(agent_dir_arg=args.agent_dir, input_arg=args.input)
+        exit_code = run_agent(
+            agent_dir_arg=args.agent_dir,
+            input_arg=args.input,
+            preflight=preflight_mode,
+        )
         sys.exit(exit_code)
 
     elif args.command == "install":
