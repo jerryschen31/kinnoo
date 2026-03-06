@@ -251,3 +251,43 @@ def test_manual_extraction_verifies_files(tmp_path):
     for fname in required_files:
       fpath = extract_dir / fname
       assert fpath.exists(), f"Required file {fname} missing after extraction"
+
+
+def test_pack_prompts_before_overwrite_existing_archive(agent_dir):
+    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_cmd = ["python3", str(cli_script)]
+    archive_name = f"{agent_dir.name}.kno"
+    archive_path = agent_dir.parent / archive_name
+    original_bytes = b"DO_NOT_OVERWRITE"
+    archive_path.write_bytes(original_bytes)
+
+    prompt = (
+        f"({archive_name}) already exists - are you sure you want to overwrite? (y/n): "
+    )
+
+    decline_result = subprocess.run(
+        cli_cmd + ["pack", str(agent_dir)],
+        cwd=agent_dir.parent,
+        input="n\n",
+        capture_output=True,
+        text=True,
+    )
+    decline_output = f"{decline_result.stdout}\n{decline_result.stderr}"
+    assert prompt in decline_output
+    assert decline_result.returncode != 0
+    assert archive_path.read_bytes() == original_bytes
+
+    confirm_result = subprocess.run(
+        cli_cmd + ["pack", str(agent_dir)],
+        cwd=agent_dir.parent,
+        input="y\n",
+        capture_output=True,
+        text=True,
+    )
+    confirm_output = f"{confirm_result.stdout}\n{confirm_result.stderr}"
+    assert prompt in confirm_output
+    assert confirm_result.returncode == 0
+    assert archive_path.read_bytes() != original_bytes
+
+    with zipfile.ZipFile(archive_path, "r") as archive_file:
+        assert "kinnoo.yaml" in archive_file.namelist()
