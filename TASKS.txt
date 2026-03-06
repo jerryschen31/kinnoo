@@ -1633,7 +1633,7 @@ tasks:
       - step4: Keep case-insensitive name/description matching semantics stable across sources
     dependencies: [task80, task81, task84, task86]
     tests: [test115]
-    status: not-started
+    status: needs-review
 
   - id: task88
     title: Preserve file-path install compatibility

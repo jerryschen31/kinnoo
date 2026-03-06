@@ -97,7 +97,18 @@ def main():
     # Add 'search' subcommand
     search_parser = subparsers.add_parser(
         "search",
-        help="Search locally published registry agents",
+        help="Search agents from local archive (default) or remote registry",
+    )
+    search_source_group = search_parser.add_mutually_exclusive_group()
+    search_source_group.add_argument(
+        "--local",
+        action="store_true",
+        help="Search agents from local archive source (default)",
+    )
+    search_source_group.add_argument(
+        "--remote",
+        action="store_true",
+        help="Search agents from remote mock registry source",
     )
     search_parser.add_argument(
         "query",
@@ -219,15 +230,17 @@ def main():
     elif args.command == "search":
         query = getattr(args, "query", None)
         if query is None:
-            print("Usage: kinnoo search <query>", file=sys.stderr)
+            print("Usage: kinnoo search [--local | --remote] <query>", file=sys.stderr)
             sys.exit(1)
+
+        source = "remote" if bool(getattr(args, "remote", False)) else "local"
 
         try:
             from kinnoo.search_command import search_agents
         except ImportError:
             from .search_command import search_agents
 
-        exit_code = search_agents(query)
+        exit_code = search_agents(query=query, source=source)
         sys.exit(exit_code)
 
 if __name__ == "__main__":
