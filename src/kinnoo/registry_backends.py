@@ -219,6 +219,62 @@ class MockFilesystemRegistryBackend(LocalFilesystemRegistryBackend):
     def __init__(self, root: Optional[Path] = None) -> None:
         super().__init__(root=(root or DEFAULT_MOCK_REGISTRY_ROOT))
 
+    def publish(
+        self,
+        *,
+        name: str,
+        version: str,
+        archive_path: Path,
+        manifest_metadata: Optional[dict[str, Any]] = None,
+    ) -> RegistryRecord:
+        source_archive = Path(archive_path)
+        if not source_archive.exists():
+            raise FileNotFoundError(f"Archive not found: {source_archive}")
+
+        target_dir = self.registry_version_path(name=name, version=version)
+        target_dir.mkdir(parents=True, exist_ok=True)
+        target_archive = target_dir / f"{name}.kno"
+        metadata_path = target_dir / "manifest-metadata.json"
+
+        if target_archive.exists():
+            rollover_dir = self._next_untagged_dir(name=name)
+            rollover_dir.mkdir(parents=True, exist_ok=True)
+
+            rollover_archive = rollover_dir / f"{name}.kno"
+            shutil.copy2(target_archive, rollover_archive)
+
+            if metadata_path.exists() and metadata_path.is_file():
+                rollover_metadata = rollover_dir / "manifest-metadata.json"
+                shutil.copy2(metadata_path, rollover_metadata)
+
+        shutil.copy2(source_archive, target_archive)
+
+        resolved_metadata_path: Path | None = None
+        if manifest_metadata is not None:
+            with metadata_path.open("w", encoding="utf-8") as metadata_file:
+                json.dump(manifest_metadata, metadata_file, sort_keys=True, indent=2)
+            resolved_metadata_path = metadata_path
+
+        return RegistryRecord(
+            name=name,
+            version=version,
+            archive_path=target_archive,
+            metadata_path=resolved_metadata_path,
+        )
+
+    def _next_untagged_dir(self, *, name: str) -> Path:
+        agent_root = self.root / name
+        next_slot = 1
+
+        for child in agent_root.iterdir() if agent_root.exists() else []:
+            if not child.is_dir() or not child.name.startswith("untagged-"):
+                continue
+            suffix = child.name.split("untagged-", 1)[1]
+            if suffix.isdigit():
+                next_slot = max(next_slot, int(suffix) + 1)
+
+        return agent_root / f"untagged-{next_slot}"
+
 
 def _version_sort_key(value: str) -> tuple[int, ...] | tuple[int, str]:
     parsed = _parse_semver(value)
