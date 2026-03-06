@@ -47,6 +47,43 @@ def _write_archive(
     return archive_path
 
 
+def _write_archive_at_path(
+    archive_path: Path,
+    *,
+    name: str,
+    version: str,
+    run_content: str,
+) -> Path:
+    archive_path.parent.mkdir(parents=True, exist_ok=True)
+
+    manifest_text = (
+        "\n".join(
+            [
+                f"name: {name}",
+                f"version: {version}",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.10\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n"
+    )
+
+    with zipfile.ZipFile(archive_path, "w") as archive_zip:
+        archive_zip.writestr("kinnoo.yaml", manifest_text)
+        archive_zip.writestr("run.py", run_content)
+        archive_zip.writestr("requirements.txt", "")
+
+    return archive_path
+
+
 def _publish_from_local_archive(
     *,
     agent_name: str,
@@ -218,3 +255,61 @@ def test_install_name_equals_version_from_mock_registry(tmp_path: Path) -> None:
     missing_exact_output = f"{missing_exact.stdout}\n{missing_exact.stderr}"
     assert missing_exact.returncode != 0
     assert "Registry version 'versioned-install==9.9.9' was not found." in missing_exact_output
+
+
+def test_install_file_path_mode_preserved(tmp_path: Path) -> None:
+    registry_root = tmp_path / "registry-sandbox"
+
+    archive_path = _write_archive_at_path(
+        tmp_path / "file-path-install.kno",
+        name="file-path-install",
+        version="1.0.0",
+        run_content="import sys\nprint('from-file-path:' + (sys.argv[1] if len(sys.argv) > 1 else ''))\n",
+    )
+
+    _write_archive(
+        registry_root,
+        name="file-path-install",
+        version="9.9.9",
+        run_content="import sys\nprint('from-registry:' + (sys.argv[1] if len(sys.argv) > 1 else ''))\n",
+    )
+
+    env = {
+        **os.environ,
+        "KINNOO_REGISTRY_ROOT": str(registry_root),
+    }
+
+    install_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "install", "file-path-install.kno"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    install_output = f"{install_result.stdout}\n{install_result.stderr}"
+
+    assert install_result.returncode == 0
+    assert "Resolved registry selector" not in install_output
+    assert "Extracted 'file-path-install.kno'" in install_output
+
+    installed_dir = archive_path.with_suffix("")
+    assert installed_dir.exists()
+
+    run_result = subprocess.run(
+        [
+            sys.executable,
+            str(CLI_PATH),
+            "run",
+            str(installed_dir),
+            "hello",
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    run_output = f"{run_result.stdout}\n{run_result.stderr}"
+
+    assert run_result.returncode == 0
+    assert "from-file-path:hello" in run_output
+    assert "from-registry" not in run_output
