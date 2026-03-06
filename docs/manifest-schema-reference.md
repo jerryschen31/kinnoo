@@ -275,3 +275,52 @@ Common failure cases:
 - missing target argument → `Usage: kinnoo inspect <target>`
 - invalid archive format → clear invalid zip-based `.kno` error
 - invalid manifest content → `Error: Manifest validation failed.` plus field-level validator messages
+
+---
+
+## Local registry commands (Feature12)
+
+Feature12 introduces a local registry at:
+
+- `~/.kinnoo/registry/`
+
+### Publish commands
+
+- `kinnoo publish <archive.kno>`
+- `kinnoo publish <archive.kno> --local`
+
+Publish stores artifacts in canonical local layout:
+
+- `~/.kinnoo/registry/<name>/<version>/`
+
+Duplicate safety behavior:
+
+- publishing the same `<name>==<version>` again fails with a clear error
+- existing published content is never silently overwritten
+
+### Install selector compatibility
+
+Supported forms:
+
+- `kinnoo install <file.kno>` (legacy/direct file install path)
+- `kinnoo install <name>` (latest local version)
+- `kinnoo install <name>==<version>` (specific local version)
+
+Multi-version example:
+
+- published: `research-agent==1.0.0`, `research-agent==1.1.0`, `research-agent==2.0.0`
+- `kinnoo install research-agent` resolves latest (`2.0.0`)
+- `kinnoo install research-agent==1.1.0` resolves exact version (`1.1.0`)
+
+### List and search
+
+- `kinnoo list`
+  - displays agent name, latest version, and description
+- `kinnoo search <query>`
+  - performs case-insensitive substring matching on name and description
+
+Examples:
+
+- `kinnoo list`
+- `kinnoo search support`
+- `kinnoo search summarize`
