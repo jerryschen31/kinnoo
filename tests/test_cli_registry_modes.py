@@ -173,3 +173,79 @@ def test_list_default_local_and_remote_modes(tmp_path: Path) -> None:
     assert "Remote registry agents:" in remote_output
     assert "remote-agent | latest: 9.0.0 | description: Remote inventory" in remote_output
     assert "alpha-agent" not in remote_output
+
+
+def test_search_default_local_and_remote_modes(tmp_path: Path) -> None:
+    archive_root = tmp_path / "archive-sandbox"
+    registry_root = tmp_path / "registry-sandbox"
+
+    _write_archive(
+        archive_root,
+        name="alpha-agent",
+        version="1.2.0",
+        description="Alpha ARCHIVE entry",
+    )
+    _write_archive(
+        archive_root,
+        name="beta-agent",
+        version="2.0.0",
+        description="Different local description",
+    )
+
+    _write_remote_registry_entry(
+        registry_root,
+        name="remote-alpha",
+        version="3.0.0",
+        description="alpha in remote metadata",
+    )
+    _write_remote_registry_entry(
+        registry_root,
+        name="remote-beta",
+        version="4.0.0",
+        description="no local match",
+    )
+
+    env = {
+        **os.environ,
+        "KINNOO_ARCHIVE_ROOT": str(archive_root),
+        "KINNOO_REGISTRY_ROOT": str(registry_root),
+    }
+
+    default_local = subprocess.run(
+        [sys.executable, str(CLI_PATH), "search", "ALPHA"],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    local_flag = subprocess.run(
+        [sys.executable, str(CLI_PATH), "search", "--local", "ALPHA"],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    remote_flag = subprocess.run(
+        [sys.executable, str(CLI_PATH), "search", "--remote", "ALPHA"],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    default_output = f"{default_local.stdout}\n{default_local.stderr}"
+    local_output = f"{local_flag.stdout}\n{local_flag.stderr}"
+    remote_output = f"{remote_flag.stdout}\n{remote_flag.stderr}"
+
+    assert default_local.returncode == 0
+    assert local_flag.returncode == 0
+    assert remote_flag.returncode == 0
+
+    assert "Local archive search results for: ALPHA" in default_output
+    assert "alpha-agent | latest: 1.2.0 | description: Alpha ARCHIVE entry" in default_output
+    assert "beta-agent" not in default_output
+    assert "remote-alpha" not in default_output
+
+    assert default_output == local_output
+
+    assert "Remote registry search results for: ALPHA" in remote_output
+    assert "remote-alpha | latest: 3.0.0 | description: alpha in remote metadata" in remote_output
+    assert "remote-beta" not in remote_output
+    assert "alpha-agent" not in remote_output
