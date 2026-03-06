@@ -56,6 +56,14 @@ def _publish_validated_archive(
     backend = MockFilesystemRegistryBackend(root=backend_root)
     service = RegistryService(backend=backend)
 
+    target_archive_path = backend.registry_version_path(name=name, version=version) / f"{name}.kno"
+    tagged_exists_before_publish = target_archive_path.exists()
+    existing_untagged_dirs_before = {
+        path.name
+        for path in (backend.root / name).iterdir()
+        if path.is_dir() and path.name.startswith("untagged-")
+    } if (backend.root / name).exists() else set()
+
     metadata_payload = {
         "name": name,
         "version": version,
@@ -82,6 +90,28 @@ def _publish_validated_archive(
     print(f"Published {record.name}=={record.version} ({backend_label})")
     print(f"Source archive: {archive}")
     print(f"Target registry path: {record.archive_path}")
+
+    if tagged_exists_before_publish:
+        untagged_root = backend.root / name
+        new_untagged_dirs = []
+        if untagged_root.exists():
+            new_untagged_dirs = sorted(
+                [
+                    path
+                    for path in untagged_root.iterdir()
+                    if path.is_dir()
+                    and path.name.startswith("untagged-")
+                    and path.name not in existing_untagged_dirs_before
+                ],
+                key=lambda path: int(path.name.split("untagged-", 1)[1])
+                if path.name.split("untagged-", 1)[1].isdigit()
+                else 0,
+            )
+
+        if new_untagged_dirs:
+            rollover_archive = new_untagged_dirs[-1] / f"{name}.kno"
+            print(f"Rollover archived previous tagged artifact to: {rollover_archive}")
+
     return 0
 
 

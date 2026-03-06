@@ -1573,7 +1573,7 @@ tasks:
       - step4: Keep rollover numbering deterministic for repeatable tests
     dependencies: [task83]
     tests: [test110]
-    status: not-started
+    status: needs-review
 
   - id: task85
     title: Install by registry name/version using mock backend
