@@ -10,6 +10,8 @@ from pathlib import Path
 
 import yaml
 
+from .archive import LocalArchiveBackend
+
 class WheelBuildError(Exception):
     pass
 
@@ -139,6 +141,12 @@ def pack_agent(agent_dir: str, bump: str | None = None) -> int:
     with open(kinnoo_yaml_path, "r") as manifest_file:
         manifest = yaml.safe_load(manifest_file)
 
+    name = manifest.get("name")
+    if not isinstance(name, str) or not name.strip():
+        print("Error: 'name' must be a non-empty string in kinnoo.yaml", file=sys.stderr)
+        return 1
+    name = name.strip()
+
     version = manifest.get("version")
     if not isinstance(version, str):
         print("Error: 'version' must be a string in kinnoo.yaml", file=sys.stderr)
@@ -212,10 +220,14 @@ def pack_agent(agent_dir: str, bump: str | None = None) -> int:
             file=sys.stderr,
         )
 
-    archive_name = os.path.basename(abs_agent_dir.rstrip(os.sep)) + ".kno"
-    archive_path = os.path.join(os.path.dirname(abs_agent_dir), archive_name)
+    archive_root = os.environ.get("KINNOO_ARCHIVE_ROOT")
+    archive_backend = LocalArchiveBackend(
+        root=Path(archive_root).expanduser() if archive_root else None
+    )
+    archive_path = archive_backend.archive_path_for(name=name, version=version)
+    archive_name = archive_path.name
 
-    if os.path.exists(archive_path):
+    if archive_path.exists():
         try:
             overwrite_response = input(
                 f"({archive_name}) already exists - are you sure you want to overwrite? (y/n): "
@@ -228,7 +240,8 @@ def pack_agent(agent_dir: str, bump: str | None = None) -> int:
             wheels_dir.cleanup()
             return 1
 
-    with zipfile.ZipFile(archive_path, "w", zipfile.ZIP_DEFLATED) as archive_file:
+    staged_archive_path = Path(wheels_dir.name) / archive_name
+    with zipfile.ZipFile(staged_archive_path, "w", zipfile.ZIP_DEFLATED) as archive_file:
         archive_file.write(kinnoo_yaml_path, arcname="kinnoo.yaml")
         archive_file.write(entrypoint_path, arcname=os.path.basename(entrypoint_path))
         archive_file.write(requirements_path, arcname="requirements.txt")
@@ -239,7 +252,14 @@ def pack_agent(agent_dir: str, bump: str | None = None) -> int:
         if missing_wheels_report_path is not None:
             archive_file.write(missing_wheels_report_path, arcname="wheels/missing_wheels.txt")
 
-    print(f"[kinnoo pack] Archive created: {archive_path}")
+    stored_record = archive_backend.store(
+        name=name,
+        version=version,
+        source_archive=staged_archive_path,
+        overwrite=True,
+    )
+
+    print(f"[kinnoo pack] Archive created: {stored_record.archive_path}")
     print(f"[kinnoo pack] Agent version: {version}")
     wheels_dir.cleanup()
     return 0

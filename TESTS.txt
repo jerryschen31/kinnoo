@@ -1558,7 +1558,7 @@ tests:
 
   - id: test96
     title: Registry abstraction exposes backend contract and local backend layout
-    type: unit
+    type: deprecated
     preconditions: Registry modules are importable; local filesystem sandbox available
     steps:
       - step1: Inspect registry abstraction to confirm publish/resolve/list/search operations are defined behind a backend contract
@@ -1566,6 +1566,7 @@ tests:
       - step3: Verify backend path conventions follow `~/.kinnoo/registry/<name>/<version>/` semantics
     expected: Local registry behavior is mediated by a backend abstraction with canonical local layout
     pass_criteria: Contract methods exist, local backend conforms to path scheme, and call sites can depend on abstraction instead of concrete filesystem logic
+    notes: "[agent] test deprecated: Superseded by feature13 archive/registry abstraction coverage in test107."
     automated: true
     automation_path: tests/test_registry.py::test_registry_backend_contract_and_local_layout
     covers:
@@ -1574,7 +1575,7 @@ tests:
 
   - id: test97
     title: publish CLI accepts --local and enforces usage on invalid invocation
-    type: unit
+    type: deprecated
     preconditions: kinnoo CLI installed
     steps:
       - step1: Run `kinnoo publish` with missing archive argument and capture output/exit code
@@ -1582,6 +1583,7 @@ tests:
       - step3: Verify command routes through local backend path without changing publish semantics
     expected: CLI prints usage for invalid invocation and treats `--local` as explicit local publish
     pass_criteria: Missing-argument case exits non-zero with usage text; `--local` publish exits success and stores artifact in local registry
+    notes: "[agent] test deprecated: Superseded by feature13 publish + CLI validation coverage in test109, test111, and test118."
     automated: true
     automation_path: tests/test_cli_registry.py::test_publish_cli_usage_and_local_flag
     covers:
@@ -1590,7 +1592,7 @@ tests:
 
   - id: test98
     title: publish extracts name/version and rejects duplicate name+version
-    type: integration
+    type: deprecated
     preconditions: kinnoo CLI installed; valid `.kno` archive fixture with manifest name/version; local registry sandbox
     steps:
       - step1: Run `kinnoo publish <archive.kno>` and verify archive is copied to `<registry>/<name>/<version>/`
@@ -1598,6 +1600,7 @@ tests:
       - step3: Capture duplicate publish output and exit code
     expected: First publish succeeds with correct placement; second publish fails with clear duplicate error
     pass_criteria: Initial publish writes expected path; duplicate attempt exits non-zero and reports no-silent-overwrite behavior
+    notes: "[agent] test deprecated: Superseded by feature13 publish source/target and rollover coverage in test109 and test110."
     automated: true
     automation_path: tests/test_cli_registry.py::test_publish_extracts_metadata_and_blocks_duplicate_version
     covers:
@@ -1608,7 +1611,7 @@ tests:
 
   - id: test99
     title: install selector parsing preserves file-path install behavior
-    type: unit
+    type: deprecated
     preconditions: kinnoo CLI installed; fixtures include local `.kno` file and registry-like selector strings
     steps:
       - step1: Run install with a filesystem archive path and verify file-install path is selected
@@ -1616,6 +1619,7 @@ tests:
       - step3: Validate error messaging for ambiguous/invalid selector forms
     expected: Parser cleanly disambiguates archive file paths from registry selectors while preserving legacy file install behavior
     pass_criteria: Path input behaves exactly as existing `kinnoo install <file.kno>` flow; selector inputs route to registry logic with clear errors for invalid forms
+    notes: "[agent] test deprecated: Superseded by feature13 install selector and compatibility coverage in test112, test113, test116, and test118."
     automated: true
     automation_path: tests/test_cli_registry.py::test_install_selector_parsing_preserves_file_install
     covers:
@@ -1624,7 +1628,7 @@ tests:
 
   - id: test100
     title: Registry resolver selects latest and exact versions across multiple published versions
-    type: integration
+    type: deprecated
     preconditions: Local registry sandbox contains multiple versions of the same agent (e.g., 1.0.0, 1.1.0, 2.0.0)
     steps:
       - step1: Resolve `<name>` and verify resolver returns latest published version
@@ -1632,6 +1636,7 @@ tests:
       - step3: Resolve unknown name/version and verify clear not-found errors
     expected: Resolver supports deterministic latest-version and exact-version lookups with actionable failures
     pass_criteria: Latest resolution consistently picks highest version; exact resolution returns requested version; missing cases fail with clear messages
+    notes: "[agent] test deprecated: Superseded by feature13 install resolution coverage in test112 and test113."
     automated: true
     automation_path: tests/test_registry.py::test_registry_version_resolution_latest_and_exact
     covers:
@@ -1642,7 +1647,7 @@ tests:
 
   - id: test101
     title: install by registry name/version reuses install pipeline without network
-    type: integration
+    type: deprecated
     preconditions: Local registry sandbox has published agent versions; network access disabled or blocked for test process
     steps:
       - step1: Run `kinnoo install <name>` and verify install succeeds from local registry
@@ -1650,6 +1655,7 @@ tests:
       - step3: Verify installed agent runs successfully via existing run flow
     expected: Name-based installs use local registry resolution and then reuse existing install pipeline end-to-end
     pass_criteria: Both latest and explicit-version installs exit 0 without network dependency and produce runnable installed agents
+    notes: "[agent] test deprecated: Superseded by feature13 install flow coverage in test112, test113, and test116."
     automated: true
     automation_path: tests/test_cli_registry.py::test_install_from_registry_name_and_version_uses_existing_pipeline
     covers:
@@ -1660,7 +1666,7 @@ tests:
 
   - id: test102
     title: list shows local agents with latest version and description
-    type: integration
+    type: deprecated
     preconditions: Local registry sandbox contains at least two agent names, and one name has multiple versions
     steps:
       - step1: Run `kinnoo list` against populated local registry fixture
@@ -1668,6 +1674,7 @@ tests:
       - step3: Confirm latest version shown for multi-version agent matches resolver ordering
     expected: List output provides concise inventory of published local agents with correct latest-version metadata
     pass_criteria: Output rows include required columns and reflect correct latest version for agents with multiple versions
+    notes: "[agent] test deprecated: Superseded by feature13 local/remote list mode coverage in test114."
     automated: true
     automation_path: tests/test_cli_registry.py::test_list_shows_name_latest_version_and_description
     covers:
@@ -1676,7 +1683,7 @@ tests:
 
   - id: test103
     title: search filters local registry by name or description substring
-    type: integration
+    type: deprecated
     preconditions: Local registry sandbox contains agent entries with distinct names and descriptions
     steps:
       - step1: Run `kinnoo search <query>` matching a name substring
@@ -1684,6 +1691,7 @@ tests:
       - step3: Run `kinnoo search <query>` with no expected matches
     expected: Search returns matching entries for name/description substring and handles no-match case clearly
     pass_criteria: Matching queries return only expected entries; no-match query returns empty/no-results guidance without errors
+    notes: "[agent] test deprecated: Superseded by feature13 local/remote search mode coverage in test115."
     automated: true
     automation_path: tests/test_cli_registry.py::test_search_filters_by_name_and_description_substring
     covers:
@@ -1692,7 +1700,7 @@ tests:
 
   - id: test104
     title: Docs cover local registry commands and versioned install examples
-    type: unit
+    type: deprecated
     preconditions: README.md and docs/manifest-schema-reference.md are present and readable
     steps:
       - step1: Verify docs include `kinnoo publish <archive.kno>` and `kinnoo publish <archive.kno> --local` examples
@@ -1700,6 +1708,7 @@ tests:
       - step3: Verify docs include `kinnoo list` and `kinnoo search <query>` examples, including a multi-version latest-resolution example
     expected: Documentation describes local registry command surface and version-resolution usage clearly
     pass_criteria: Required command and example coverage appears in docs with consistent syntax
+    notes: "[agent] test deprecated: Superseded by feature13 documentation coverage in test117."
     automated: true
     automation_path: tests/test_docs.py::test_feature12_docs_cover_local_registry_flows
     covers: []
@@ -1719,7 +1728,9 @@ tests:
     pass_criteria: Prompt is shown in overwrite scenario, `n` path aborts without mutation, and `y` path overwrites and succeeds
     automated: true
     automation_path: tests/test_pack.py::test_pack_prompts_before_overwrite_existing_archive
-    covers: []
+    covers:
+      - feature: feature13
+        ac: AC3
 
   - id: test106
     title: kinnoo pack --bump updates manifest version and always prints packed version
@@ -1736,7 +1747,9 @@ tests:
     pass_criteria: No-bump and patch/minor/major scenarios produce correct versions and version output line; invalid bump is rejected and does not emit success version line
     automated: true
     automation_path: tests/test_pack.py::test_pack_bump_flag_and_version_output_line
-    covers: []
+    covers:
+      - feature: feature13
+        ac: AC2
 
   - id: test107
     title: pack writes to canonical local archive path and exposes stable storage abstraction

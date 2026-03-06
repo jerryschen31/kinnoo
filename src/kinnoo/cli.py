@@ -64,12 +64,12 @@ def main():
     # Add 'publish' subcommand
     publish_parser = subparsers.add_parser(
         "publish",
-        help="Publish a .kno archive to the local registry",
+        help="Publish latest archived agent artifact to the registry",
     )
     publish_parser.add_argument(
-        "archive_path",
+        "agent_name",
         nargs="?",
-        help="Path to .kno archive to publish",
+        help="Agent name to publish from local archive source",
     )
     publish_parser.add_argument(
         "--local",
@@ -78,15 +78,37 @@ def main():
     )
 
     # Add 'list' subcommand
-    subparsers.add_parser(
+    list_parser = subparsers.add_parser(
         "list",
-        help="List locally published registry agents",
+        help="List agents from local archive (default) or remote registry",
+    )
+    list_source_group = list_parser.add_mutually_exclusive_group()
+    list_source_group.add_argument(
+        "--local",
+        action="store_true",
+        help="List agents from local archive source (default)",
+    )
+    list_source_group.add_argument(
+        "--remote",
+        action="store_true",
+        help="List agents from remote mock registry source",
     )
 
     # Add 'search' subcommand
     search_parser = subparsers.add_parser(
         "search",
-        help="Search locally published registry agents",
+        help="Search agents from local archive (default) or remote registry",
+    )
+    search_source_group = search_parser.add_mutually_exclusive_group()
+    search_source_group.add_argument(
+        "--local",
+        action="store_true",
+        help="Search agents from local archive source (default)",
+    )
+    search_source_group.add_argument(
+        "--remote",
+        action="store_true",
+        help="Search agents from remote mock registry source",
     )
     search_parser.add_argument(
         "query",
@@ -179,42 +201,46 @@ def main():
         sys.exit(exit_code)
 
     elif args.command == "publish":
-        archive_path = getattr(args, "archive_path", None)
-        if archive_path is None:
-            print("Usage: kinnoo publish <archive.kno> [--local]", file=sys.stderr)
+        agent_name = getattr(args, "agent_name", None)
+        if agent_name is None:
+            print("Usage: kinnoo publish <agent-name> [--local]", file=sys.stderr)
             sys.exit(1)
 
         use_local = bool(getattr(args, "local", False))
 
         try:
-            from kinnoo.publish_command import publish_archive
+            from kinnoo.publish_command import publish_agent
         except ImportError:
-            from .publish_command import publish_archive
+            from .publish_command import publish_agent
 
-        exit_code = publish_archive(archive_path=archive_path, use_local=use_local)
+        exit_code = publish_agent(agent_name=agent_name, use_local=use_local)
         sys.exit(exit_code)
 
     elif args.command == "list":
+        source = "remote" if bool(getattr(args, "remote", False)) else "local"
+
         try:
             from kinnoo.list_command import list_agents
         except ImportError:
             from .list_command import list_agents
 
-        exit_code = list_agents()
+        exit_code = list_agents(source=source)
         sys.exit(exit_code)
 
     elif args.command == "search":
         query = getattr(args, "query", None)
         if query is None:
-            print("Usage: kinnoo search <query>", file=sys.stderr)
+            print("Usage: kinnoo search [--local | --remote] <query>", file=sys.stderr)
             sys.exit(1)
+
+        source = "remote" if bool(getattr(args, "remote", False)) else "local"
 
         try:
             from kinnoo.search_command import search_agents
         except ImportError:
             from .search_command import search_agents
 
-        exit_code = search_agents(query)
+        exit_code = search_agents(query=query, source=source)
         sys.exit(exit_code)
 
 if __name__ == "__main__":
