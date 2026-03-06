@@ -64,12 +64,12 @@ def main():
     # Add 'publish' subcommand
     publish_parser = subparsers.add_parser(
         "publish",
-        help="Publish a .kno archive to the local registry",
+        help="Publish latest archived agent artifact to the registry",
     )
     publish_parser.add_argument(
-        "archive_path",
+        "agent_name",
         nargs="?",
-        help="Path to .kno archive to publish",
+        help="Agent name to publish from local archive source",
     )
     publish_parser.add_argument(
         "--local",
@@ -179,19 +179,19 @@ def main():
         sys.exit(exit_code)
 
     elif args.command == "publish":
-        archive_path = getattr(args, "archive_path", None)
-        if archive_path is None:
-            print("Usage: kinnoo publish <archive.kno> [--local]", file=sys.stderr)
+        agent_name = getattr(args, "agent_name", None)
+        if agent_name is None:
+            print("Usage: kinnoo publish <agent-name> [--local]", file=sys.stderr)
             sys.exit(1)
 
         use_local = bool(getattr(args, "local", False))
 
         try:
-            from kinnoo.publish_command import publish_archive
+            from kinnoo.publish_command import publish_agent
         except ImportError:
-            from .publish_command import publish_archive
+            from .publish_command import publish_agent
 
-        exit_code = publish_archive(archive_path=archive_path, use_local=use_local)
+        exit_code = publish_agent(agent_name=agent_name, use_local=use_local)
         sys.exit(exit_code)
 
     elif args.command == "list":
