@@ -5,8 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 import re
 import shutil
+import zipfile
 from pathlib import Path
 from typing import Optional, Protocol, runtime_checkable
+
+import yaml
 
 from .schema import SEMVER_PATTERN
 
@@ -21,6 +24,15 @@ class ArchiveRecord:
     name: str
     version: str
     archive_path: Path
+
+
+@dataclass(frozen=True)
+class ArchiveAgentSummary:
+    """Latest-version summary used by archive source listing flows."""
+
+    name: str
+    latest_version: str
+    description: str
 
 
 @runtime_checkable
@@ -97,6 +109,27 @@ class LocalArchiveBackend:
             return None
         return ArchiveRecord(name=name, version=version, archive_path=archive_path)
 
+    def list_latest_agents(self) -> list[ArchiveAgentSummary]:
+        summaries: list[ArchiveAgentSummary] = []
+        if not self.root.exists():
+            return summaries
+
+        for agent_dir in sorted(path for path in self.root.iterdir() if path.is_dir()):
+            latest_record = self.resolve_latest(name=agent_dir.name)
+            if latest_record is None:
+                continue
+
+            description = self._read_description_from_archive(latest_record.archive_path)
+            summaries.append(
+                ArchiveAgentSummary(
+                    name=latest_record.name,
+                    latest_version=latest_record.version,
+                    description=description,
+                )
+            )
+
+        return summaries
+
     def _discover_versions(self, name: str) -> list[str]:
         agent_dir = self.root / name
         if not agent_dir.exists() or not agent_dir.is_dir():
@@ -104,6 +137,35 @@ class LocalArchiveBackend:
 
         versions = [path.name for path in agent_dir.iterdir() if path.is_dir()]
         return sorted(versions, key=_version_sort_key, reverse=True)
+
+    def _read_description_from_archive(self, archive_path: Path) -> str:
+        try:
+            with zipfile.ZipFile(archive_path, "r") as archive_zip:
+                manifest_members = [
+                    member_name
+                    for member_name in archive_zip.namelist()
+                    if Path(member_name).name == "kinnoo.yaml"
+                ]
+                if not manifest_members:
+                    return ""
+
+                with archive_zip.open(manifest_members[0]) as manifest_file:
+                    manifest_text = manifest_file.read().decode("utf-8")
+        except (OSError, zipfile.BadZipFile, UnicodeDecodeError):
+            return ""
+
+        try:
+            manifest_data = yaml.safe_load(manifest_text)
+        except yaml.YAMLError:
+            return ""
+
+        if not isinstance(manifest_data, dict):
+            return ""
+
+        value = manifest_data.get("description")
+        if isinstance(value, str):
+            return value.strip()
+        return ""
 
 
 def _version_sort_key(value: str) -> tuple[int, ...] | tuple[int, str]:
