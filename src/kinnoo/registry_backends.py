@@ -13,7 +13,7 @@ from .schema import SEMVER_PATTERN
 
 
 DEFAULT_LOCAL_REGISTRY_ROOT = Path.home() / ".kinnoo" / "registry"
-DEFAULT_MOCK_REGISTRY_ROOT = Path("registry-scratch") / "jerry"
+DEFAULT_MOCK_REGISTRY_ROOT = Path.home() / "kinnoo-mock-registry-scratch" / "jerry"
 
 
 class LocalFilesystemRegistryBackend:
@@ -214,7 +214,7 @@ class LocalFilesystemRegistryBackend:
 
 
 class MockFilesystemRegistryBackend(LocalFilesystemRegistryBackend):
-    """Mock registry backend rooted at registry-scratch/jerry by default."""
+    """Mock registry backend rooted at ~/kinnoo-mock-registry-scratch/jerry by default."""
 
     def __init__(self, root: Optional[Path] = None) -> None:
         super().__init__(root=(root or DEFAULT_MOCK_REGISTRY_ROOT))

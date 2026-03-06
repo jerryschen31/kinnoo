@@ -1693,3 +1693,26 @@ tasks:
     dependencies: [task83, task85, task86, task87]
     tests: [test118]
     status: needs-review
+
+  - id: task91
+    title: Use absolute mock registry scratch path
+    type: task
+    description: |
+      Update publish/mock-registry path resolution to use an absolute home-based
+      root `~/kinnoo-mock-registry-scratch/...` instead of the current
+      working-directory-relative `registry-scratch/...` path.
+    files:
+      - src/kinnoo/registry_backends.py
+      - src/kinnoo/publish_command.py
+      - tests/test_publish_refactor.py
+      - README.md
+      - docs/manifest-schema-reference.md
+    steps:
+      - step1: Replace relative mock registry root with home-expanded absolute root `~/kinnoo-mock-registry-scratch`
+      - step2: Ensure publish target path renders as `<home>/kinnoo-mock-registry-scratch/jerry/<agent>/<version>/<agent>.kno`
+      - step3: Preserve rollover behavior and publish output clarity with the new absolute path
+      - step4: Update/refactor tests that currently assert `registry-scratch/...` to assert the absolute home path
+      - step5: Update docs/examples that reference `registry-scratch/...` to `~/kinnoo-mock-registry-scratch/...`
+    dependencies: [task84]
+    tests: [test119]
+    status: needs-review

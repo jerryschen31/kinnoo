@@ -93,9 +93,9 @@ Behavior:
 
 - Source artifact resolves from latest local archive version for `<agent-name>`.
 - Target publishes to mock registry path:
-	- `registry-scratch/jerry/<agent>/<version>/<agent>.kno`
+	- `~/kinnoo-mock-registry-scratch/jerry/<agent>/<version>/<agent>.kno`
 - If tagged target already exists, previous payload is preserved under:
-	- `registry-scratch/jerry/<agent>/untagged-<n>/`
+	- `~/kinnoo-mock-registry-scratch/jerry/<agent>/untagged-<n>/`
 
 ### Install selectors
 
@@ -129,4 +129,4 @@ Search and list preserve consistent output shape (`name`, `latest`, `description
 - Old registry docs centered on `~/.kinnoo/registry/` as primary source/target.
 - Feature13 split:
 	- source of truth for packaged artifacts: local archive (`~/.kinnoo/archive/...`)
-	- publish target: mock registry (`registry-scratch/jerry/...`)
+	- publish target: mock registry (`~/kinnoo-mock-registry-scratch/jerry/...`)
