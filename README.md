@@ -73,6 +73,28 @@ Common failure cases:
 - Invalid archive: archive is not a valid zip-based `.kno` file
 - Invalid manifest: prints `Error: Manifest validation failed.` with validator field-level errors
 
+## kinnoo run --preflight (Feature14)
+
+`kinnoo run --preflight` performs readiness validation only and does not execute agent logic.
+
+Usage:
+
+- `kinnoo run <agent-dir> --preflight`
+- `kinnoo run ./my-agent --preflight`
+
+Checklist behavior:
+
+- Preflight always prints a deterministic checklist with pass/fail lines.
+- Checklist sections include runtime version, env vars, entrypoint, and dependencies.
+- If every check passes, output includes `Ready to run`.
+- If any check fails, output includes `Not ready to run` and a remediation summary.
+- Preflight confirms that entrypoint execution is skipped in preflight mode.
+
+Security contract:
+
+- Preflight output is names-only for environment variables.
+- Preflight may list unresolved env var names, but it never prints env var values.
+
 ## Pack/Publish Refactor (Feature13)
 
 Feature13 shifts command responsibilities to an archive-first source model and a mock-registry publish target.

@@ -278,6 +278,31 @@ Common failure cases:
 
 ---
 
+## `kinnoo run --preflight` command (Feature14)
+
+`kinnoo run --preflight` performs run-readiness checks without executing agent entrypoint logic.
+
+Usage:
+
+- `kinnoo run <agent-dir> --preflight`
+- `kinnoo run ./my-agent --preflight`
+
+Preflight checklist semantics:
+
+- output is checklist-style with deterministic pass/fail lines
+- required checklist sections include runtime version, env vars, entrypoint, and dependencies
+- all checks pass: output includes `Ready to run`
+- one or more checks fail: output includes `Not ready to run` and `Remediation summary`
+- preflight validates only and does not execute agent entrypoint logic
+
+Preflight env var security semantics:
+
+- output is names-only for env vars
+- unresolved env var names may be listed for operator action
+- env var values are never printed, logged, or persisted
+
+---
+
 ## Pack/Publish Refactor commands (Feature13)
 
 Feature13 refactors command responsibilities to an archive-first packaging source plus mock-registry publishing target.
