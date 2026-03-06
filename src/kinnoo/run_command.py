@@ -11,6 +11,7 @@ from typing import Iterable
 import yaml
 
 from .schema import normalize_env_vars
+from .validator import validate
 
 
 def _redact_secrets(text: str, secret_values: Iterable[str]) -> str:
@@ -64,7 +65,51 @@ def _load_agent_dotenv(dotenv_path: Path) -> dict[str, str]:
     return values
 
 
-def run_agent(agent_dir_arg: str, input_arg: str) -> int:
+def _emit_preflight_line(passed: bool, message: str) -> None:
+    status = "PASS" if passed else "FAIL"
+    print(f"- [{status}] {message}")
+
+
+def run_preflight(agent_dir_arg: str) -> int:
+    """Run preflight-only checks without executing the agent entrypoint."""
+    agent_dir = Path(agent_dir_arg).resolve()
+    kinnoo_yaml = agent_dir / "kinnoo.yaml"
+
+    print("Preflight checklist:")
+
+    agent_dir_exists = agent_dir.exists() and agent_dir.is_dir()
+    _emit_preflight_line(agent_dir_exists, f"agent directory exists: {agent_dir}")
+
+    manifest_exists = kinnoo_yaml.exists()
+    _emit_preflight_line(manifest_exists, f"manifest exists: {kinnoo_yaml}")
+
+    manifest_valid = False
+    if manifest_exists:
+        manifest_valid, manifest_errors = validate(str(kinnoo_yaml))
+        _emit_preflight_line(manifest_valid, "manifest validates against kinnoo schema")
+        if not manifest_valid:
+            for manifest_error in manifest_errors:
+                print(f"  - {manifest_error}")
+
+    skipped_entrypoint = agent_dir_exists and manifest_exists and manifest_valid
+    _emit_preflight_line(skipped_entrypoint, "entrypoint execution path skipped in preflight mode")
+
+    if agent_dir_exists and manifest_exists and manifest_valid:
+        print("Preflight result: PASS")
+        return 0
+
+    print("Preflight result: FAIL")
+    return 1
+
+
+def run_agent(agent_dir_arg: str, input_arg: str | None, preflight: bool = False) -> int:
+    if preflight:
+        return run_preflight(agent_dir_arg)
+
+    if input_arg is None:
+        _print_safe_error("Error: input is required for kinnoo run unless --preflight is used")
+        return 1
+
     agent_dir = Path(agent_dir_arg).resolve()
     venv_dir = agent_dir / ".venv"
     requirements = agent_dir / "requirements.txt"

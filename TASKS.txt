@@ -1734,7 +1734,7 @@ tasks:
       - step4: Return non-zero on preflight failures and zero on full preflight pass
     dependencies: [task39]
     tests: [test120]
-    status: not-started
+    status: needs-review
 
   - id: task93
     title: Implement runtime version preflight check
