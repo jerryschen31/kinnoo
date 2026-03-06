@@ -1496,7 +1496,7 @@ tasks:
       - step4: Keep method signatures deterministic and decoupled from CLI specifics for future remote backend swap
     dependencies: [task69]
     tests: [test107]
-    status: needs-review
+    status: completed
 
   - id: task81
     title: Refactor pack default archive destination
@@ -1515,7 +1515,7 @@ tasks:
       - step4: Keep behavior stable for deterministic path assertions in tests
     dependencies: [task24, task80]
     tests: [test107]
-    status: needs-review
+    status: completed
 
   - id: task82
     title: Standardize pack output and overwrite confirmation
@@ -1535,7 +1535,7 @@ tasks:
       - step4: Ensure failed pack runs do not emit misleading success/version lines
     dependencies: [task78, task79, task81]
     tests: [test108]
-    status: needs-review
+    status: completed
 
   - id: task83
     title: Refactor publish CLI to agent-name source
@@ -1554,7 +1554,7 @@ tasks:
       - step4: Keep clear non-zero errors when agent/archive/version cannot be resolved
     dependencies: [task80, task81]
     tests: [test109, test111]
-    status: needs-review
+    status: completed
 
   - id: task84
     title: Implement publish mock registry target and rollover
@@ -1573,7 +1573,7 @@ tasks:
       - step4: Keep rollover numbering deterministic for repeatable tests
     dependencies: [task83]
     tests: [test110]
-    status: needs-review
+    status: completed
 
   - id: task85
     title: Install by registry name/version using mock backend
@@ -1593,7 +1593,7 @@ tasks:
       - step4: Isolate backend calls so mock backend can be replaced with real remote registry backend later
     dependencies: [task80, task83, task84]
     tests: [test112, test113]
-    status: needs-review
+    status: completed
 
   - id: task86
     title: Refactor list with default local and source flags
@@ -1613,7 +1613,7 @@ tasks:
       - step4: Keep output schema stable (name, latest version, description) across sources
     dependencies: [task80, task81, task84]
     tests: [test114]
-    status: needs-review
+    status: completed
 
   - id: task87
     title: Refactor search with default local and source flags
@@ -1633,7 +1633,7 @@ tasks:
       - step4: Keep case-insensitive name/description matching semantics stable across sources
     dependencies: [task80, task81, task84, task86]
     tests: [test115]
-    status: needs-review
+    status: completed
 
   - id: task88
     title: Preserve file-path install compatibility
@@ -1651,7 +1651,7 @@ tasks:
       - step4: Verify backward compatibility with existing install test scenarios
     dependencies: [task85]
     tests: [test116]
-    status: needs-review
+    status: completed
 
   - id: task89
     title: Document pack/publish/archive/registry refactor
@@ -1671,7 +1671,7 @@ tasks:
       - step5: Document feature12 deprecation context and migration guidance for developers
     dependencies: [task82, task84, task85, task86, task87, task88]
     tests: [test117]
-    status: needs-review
+    status: completed
 
   - id: task90
     title: Harden source-mode CLI validation and errors
@@ -1692,7 +1692,7 @@ tasks:
       - step4: Keep error messages stable and concise for deterministic CLI unit tests
     dependencies: [task83, task85, task86, task87]
     tests: [test118]
-    status: needs-review
+    status: completed
 
   - id: task91
     title: Use absolute mock registry scratch path
@@ -1715,7 +1715,7 @@ tasks:
       - step5: Update docs/examples that reference `registry-scratch/...` to `~/kinnoo-mock-registry-scratch/...`
     dependencies: [task84]
     tests: [test119]
-    status: needs-review
+    status: completed
 
   - id: task92
     title: Add --preflight CLI mode wiring

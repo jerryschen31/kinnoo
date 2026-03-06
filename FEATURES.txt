@@ -518,7 +518,7 @@ features:
         description: "If all checks pass, prints 'Ready to run'; if any fail, prints actionable guidance per failed check."
     owner: techlead-agent
     dependencies: [feature10]
-    status: not-started
+    status: needs-review
 
   - id: feature15
     title: "Trust Baseline"
