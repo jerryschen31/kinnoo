@@ -181,6 +181,98 @@ def _check_preflight_env_vars(manifest: dict, agent_dir: Path) -> tuple[bool, st
     return True, f"env vars check passed: resolved env vars [{declared_label}]"
 
 
+def _extract_dependency_names(requirements_path: Path) -> list[str]:
+    if not requirements_path.exists():
+        return []
+
+    dependency_names: list[str] = []
+    for raw_line in requirements_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith(("-", "--")):
+            continue
+        normalized = line.split(";", 1)[0].strip()
+        if not normalized:
+            continue
+        if "@" in normalized:
+            normalized = normalized.split("@", 1)[0].strip()
+
+        package_name = re.split(r"[<>=!~\[\s]", normalized, maxsplit=1)[0].strip()
+        if package_name:
+            dependency_names.append(package_name)
+
+    unique_dependency_names: list[str] = []
+    seen: set[str] = set()
+    for dependency_name in dependency_names:
+        key = dependency_name.lower()
+        if key in seen:
+            continue
+        unique_dependency_names.append(dependency_name)
+        seen.add(key)
+    return unique_dependency_names
+
+
+def _check_preflight_entrypoint(manifest: dict, agent_dir: Path) -> tuple[bool, str]:
+    entrypoint = manifest.get("entrypoint")
+    if not isinstance(entrypoint, str) or not entrypoint.strip():
+        return False, "entrypoint check failed: manifest entrypoint is missing or empty"
+
+    entrypoint_path = agent_dir / entrypoint
+    if not entrypoint_path.exists():
+        return False, f"entrypoint check failed: entrypoint file not found: {entrypoint_path}"
+    if not entrypoint_path.is_file():
+        return False, f"entrypoint check failed: entrypoint path is not a file: {entrypoint_path}"
+    if not os.access(entrypoint_path, os.R_OK):
+        return False, f"entrypoint check failed: entrypoint file is not readable: {entrypoint_path}"
+
+    return True, f"entrypoint check passed: readable entrypoint file {entrypoint_path}"
+
+
+def _resolve_venv_pip(venv_dir: Path) -> Path | None:
+    pip_candidates = [
+        venv_dir / "bin" / "pip",
+        venv_dir / "Scripts" / "pip.exe",
+    ]
+    for pip_candidate in pip_candidates:
+        if pip_candidate.exists():
+            return pip_candidate
+    return None
+
+
+def _check_preflight_dependencies(manifest: dict, agent_dir: Path) -> tuple[bool, str]:
+    del manifest
+    requirements_path = agent_dir / "requirements.txt"
+    dependency_names = _extract_dependency_names(requirements_path)
+    if not dependency_names:
+        return True, "dependency readiness check passed: no installable dependencies declared"
+
+    venv_dir = agent_dir / ".venv"
+    if not venv_dir.exists() or not venv_dir.is_dir():
+        return False, f"dependency readiness check failed: virtual environment not found at {venv_dir}"
+
+    pip_exe = _resolve_venv_pip(venv_dir)
+    if pip_exe is None:
+        return False, f"dependency readiness check failed: pip executable not found in {venv_dir}"
+
+    missing_dependencies: list[str] = []
+    for dependency_name in dependency_names:
+        result = subprocess.run(
+            [str(pip_exe), "show", dependency_name],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        if result.returncode != 0:
+            missing_dependencies.append(dependency_name)
+
+    if missing_dependencies:
+        missing_label = ", ".join(missing_dependencies)
+        return False, f"dependency readiness check failed: missing packages [{missing_label}]"
+
+    dependency_label = ", ".join(dependency_names)
+    return True, f"dependency readiness check passed: installed packages [{dependency_label}]"
+
+
 def run_preflight(agent_dir_arg: str) -> int:
     """Run preflight-only checks without executing the agent entrypoint."""
     agent_dir = Path(agent_dir_arg).resolve()
@@ -210,6 +302,8 @@ def run_preflight(agent_dir_arg: str) -> int:
 
     runtime_constraint_ok = False
     env_vars_ok = False
+    entrypoint_ok = False
+    dependencies_ok = False
     if manifest_valid and manifest is not None:
         runtime_version_constraint = str(
             manifest.get("runtime", {}).get("version", "")
@@ -226,10 +320,28 @@ def run_preflight(agent_dir_arg: str) -> int:
         if not env_vars_ok:
             print("  - Action: set missing env vars in your shell environment or agent-local .env file")
 
+        entrypoint_ok, entrypoint_message = _check_preflight_entrypoint(manifest, agent_dir)
+        _emit_preflight_line(entrypoint_ok, entrypoint_message)
+        if not entrypoint_ok:
+            print("  - Action: ensure manifest entrypoint exists and is readable")
+
+        dependencies_ok, dependencies_message = _check_preflight_dependencies(manifest, agent_dir)
+        _emit_preflight_line(dependencies_ok, dependencies_message)
+        if not dependencies_ok:
+            print("  - Action: create agent .venv and install requirements (for example: kinnoo run <agent-dir> '<input>')")
+
     skipped_entrypoint = agent_dir_exists and manifest_exists and manifest_valid
     _emit_preflight_line(skipped_entrypoint, "entrypoint execution path skipped in preflight mode")
 
-    if agent_dir_exists and manifest_exists and manifest_valid and runtime_constraint_ok and env_vars_ok:
+    if (
+        agent_dir_exists
+        and manifest_exists
+        and manifest_valid
+        and runtime_constraint_ok
+        and env_vars_ok
+        and entrypoint_ok
+        and dependencies_ok
+    ):
         print("Preflight result: PASS")
         return 0
 

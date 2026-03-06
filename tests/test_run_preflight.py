@@ -237,3 +237,78 @@ def test_preflight_env_vars_resolution_and_secret_safety(tmp_path: Path) -> None
     assert "[FAIL] env vars check failed" in fail_output
     assert "unresolved env vars [MISSING_TOKEN]" in fail_output
     assert "Action: set missing env vars in your shell environment or agent-local .env file" in fail_output
+
+
+def test_preflight_entrypoint_and_dependency_checks(tmp_path: Path) -> None:
+    missing_entrypoint_agent = tmp_path / "missing-entrypoint-agent"
+    _create_agent_fixture(missing_entrypoint_agent, with_manifest=True)
+    (missing_entrypoint_agent / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: missing-entrypoint-agent",
+                "version: 1.0.0",
+                "entrypoint: does-not-exist.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.0\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    missing_entrypoint_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "run", str(missing_entrypoint_agent), "--preflight"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+    missing_entrypoint_output = f"{missing_entrypoint_result.stdout}\n{missing_entrypoint_result.stderr}"
+
+    assert missing_entrypoint_result.returncode != 0
+    assert "[FAIL] entrypoint check failed" in missing_entrypoint_output
+    assert "does-not-exist.py" in missing_entrypoint_output
+    assert "Action: ensure manifest entrypoint exists and is readable" in missing_entrypoint_output
+
+    dependency_fail_agent = tmp_path / "dependency-fail-agent"
+    _create_agent_fixture(dependency_fail_agent, with_manifest=True)
+    (dependency_fail_agent / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: dependency-fail-agent",
+                "version: 1.0.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.0\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (dependency_fail_agent / "requirements.txt").write_text("requests==2.31.0\n", encoding="utf-8")
+
+    dependency_fail_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "run", str(dependency_fail_agent), "--preflight"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+    dependency_fail_output = f"{dependency_fail_result.stdout}\n{dependency_fail_result.stderr}"
+
+    assert dependency_fail_result.returncode != 0
+    assert "[FAIL] dependency readiness check failed" in dependency_fail_output
+    assert "virtual environment not found" in dependency_fail_output
+    assert "Action: create agent .venv and install requirements" in dependency_fail_output
