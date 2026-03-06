@@ -1,6 +1,7 @@
 import subprocess
 import sys
 from pathlib import Path
+import os
 
 
 CLI_PATH = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
@@ -147,3 +148,92 @@ def test_preflight_runtime_version_check(tmp_path: Path) -> None:
     assert "[FAIL] runtime version check failed" in fail_output
     assert "does not satisfy runtime.version '>=99.0'" in fail_output
     assert "Action: use a Python interpreter that satisfies runtime.version in kinnoo.yaml" in fail_output
+
+
+def test_preflight_env_vars_resolution_and_secret_safety(tmp_path: Path) -> None:
+    env_pass_agent = tmp_path / "env-pass-agent"
+    _create_agent_fixture(env_pass_agent, with_manifest=True)
+    (env_pass_agent / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: env-pass-agent",
+                "version: 1.0.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.0\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "env_vars:",
+                "  - API_TOKEN",
+                "  - DB_KEY",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (env_pass_agent / ".env").write_text("DB_KEY=dotenv-secret-db-value\n", encoding="utf-8")
+
+    env = {
+        **os.environ,
+        "API_TOKEN": "env-secret-api-token-value",
+    }
+    pass_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "run", str(env_pass_agent), "--preflight"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    pass_output = f"{pass_result.stdout}\n{pass_result.stderr}"
+
+    assert pass_result.returncode == 0
+    assert "[PASS] env vars check passed" in pass_output
+    assert "resolved env vars [API_TOKEN, DB_KEY]" in pass_output
+    assert "env-secret-api-token-value" not in pass_output
+    assert "dotenv-secret-db-value" not in pass_output
+
+    env_fail_agent = tmp_path / "env-fail-agent"
+    _create_agent_fixture(env_fail_agent, with_manifest=True)
+    (env_fail_agent / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: env-fail-agent",
+                "version: 1.0.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.0\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "env_vars:",
+                "  - MISSING_TOKEN",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    fail_env = dict(os.environ)
+    fail_env.pop("MISSING_TOKEN", None)
+    fail_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "run", str(env_fail_agent), "--preflight"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=fail_env,
+    )
+    fail_output = f"{fail_result.stdout}\n{fail_result.stderr}"
+
+    assert fail_result.returncode != 0
+    assert "[FAIL] env vars check failed" in fail_output
+    assert "unresolved env vars [MISSING_TOKEN]" in fail_output
+    assert "Action: set missing env vars in your shell environment or agent-local .env file" in fail_output
