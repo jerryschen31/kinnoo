@@ -1364,7 +1364,7 @@ tasks:
       - step4: Keep integration points narrow and deterministic for future unit/integration tests of named installs
     dependencies: [task72, task73]
     tests: [test101]
-    status: not-started
+    status: needs-review
 
   - id: task75
     title: Add local registry list command

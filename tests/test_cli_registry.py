@@ -162,8 +162,7 @@ outputs:
     )
     latest_output = f"{registry_latest_result.stdout}\n{registry_latest_result.stderr}"
     assert registry_latest_result.returncode != 0
-    assert "Registry selector installs are not implemented yet" in latest_output
-    assert "sample-agent" in latest_output
+    assert "Registry agent 'sample-agent' was not found" in latest_output
 
     registry_exact_result = subprocess.run(
         [sys.executable, "src/kinnoo/cli.py", "install", "sample-agent==1.2.3"],
@@ -172,8 +171,7 @@ outputs:
     )
     exact_output = f"{registry_exact_result.stdout}\n{registry_exact_result.stderr}"
     assert registry_exact_result.returncode != 0
-    assert "Registry selector installs are not implemented yet" in exact_output
-    assert "sample-agent==1.2.3" in exact_output
+    assert "Registry agent 'sample-agent' was not found" in exact_output
 
     invalid_selector_result = subprocess.run(
         [sys.executable, "src/kinnoo/cli.py", "install", "sample-agent=="],
@@ -183,3 +181,111 @@ outputs:
     invalid_output = f"{invalid_selector_result.stdout}\n{invalid_selector_result.stderr}"
     assert invalid_selector_result.returncode != 0
     assert "Invalid registry selector format" in invalid_output
+
+
+def test_install_from_registry_name_and_version_uses_existing_pipeline(tmp_path: Path) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        cli_path = repo_root / "src" / "kinnoo" / "cli.py"
+
+        registry_root = tmp_path / "registry-sandbox"
+        env = dict(**os.environ, KINNOO_REGISTRY_ROOT=str(registry_root))
+
+        archive_v1 = tmp_path / "registry-agent-v1.kno"
+        with zipfile.ZipFile(archive_v1, "w") as archive_zip:
+                archive_zip.writestr(
+                        "kinnoo.yaml",
+                        """
+name: registry-agent
+version: 1.0.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+""",
+                )
+                archive_zip.writestr("run.py", "import sys\nprint('registry-1.0.0:' + (sys.argv[1] if len(sys.argv) > 1 else ''))\n")
+                archive_zip.writestr("requirements.txt", "")
+
+        archive_v2 = tmp_path / "registry-agent-v2.kno"
+        with zipfile.ZipFile(archive_v2, "w") as archive_zip:
+                archive_zip.writestr(
+                        "kinnoo.yaml",
+                        """
+name: registry-agent
+version: 2.0.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+""",
+                )
+                archive_zip.writestr("run.py", "import sys\nprint('registry-2.0.0:' + (sys.argv[1] if len(sys.argv) > 1 else ''))\n")
+                archive_zip.writestr("requirements.txt", "")
+
+        publish_v1 = subprocess.run(
+                [sys.executable, str(cli_path), "publish", str(archive_v1)],
+                capture_output=True,
+                text=True,
+                env=env,
+        )
+        assert publish_v1.returncode == 0
+
+        publish_v2 = subprocess.run(
+                [sys.executable, str(cli_path), "publish", str(archive_v2)],
+                capture_output=True,
+                text=True,
+                env=env,
+        )
+        assert publish_v2.returncode == 0
+
+        latest_install = subprocess.run(
+                [sys.executable, str(cli_path), "install", "registry-agent"],
+                capture_output=True,
+                text=True,
+                env=env,
+                cwd=tmp_path,
+        )
+        assert latest_install.returncode == 0
+        assert "Resolved registry selector 'registry-agent'" in latest_install.stdout
+
+        latest_run = subprocess.run(
+                [sys.executable, str(cli_path), "run", str(tmp_path / "registry-agent"), "hello"],
+                capture_output=True,
+                text=True,
+                env=env,
+                cwd=tmp_path,
+        )
+        assert latest_run.returncode == 0
+        assert "registry-2.0.0:hello" in f"{latest_run.stdout}\n{latest_run.stderr}"
+
+        exact_install = subprocess.run(
+                [sys.executable, str(cli_path), "install", "registry-agent==1.0.0"],
+                capture_output=True,
+                text=True,
+                env=env,
+                cwd=tmp_path,
+        )
+        assert exact_install.returncode == 0
+        assert "Resolved registry selector 'registry-agent==1.0.0'" in exact_install.stdout
+
+        exact_run = subprocess.run(
+                [sys.executable, str(cli_path), "run", str(tmp_path / "registry-agent-1.0.0"), "hello"],
+                capture_output=True,
+                text=True,
+                env=env,
+                cwd=tmp_path,
+        )
+        assert exact_run.returncode == 0
+        assert "registry-1.0.0:hello" in f"{exact_run.stdout}\n{exact_run.stderr}"
