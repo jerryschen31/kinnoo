@@ -1425,3 +1425,55 @@ tasks:
     dependencies: [task71, task74, task75, task76]
     tests: [test104]
     status: needs-review
+
+  - id: task78
+    title: Prompt before overwriting existing .kno archive
+    type: issue
+    description: |
+      Hotfix `kinnoo pack` so it does not silently overwrite an existing output
+      archive. If the target `.kno` already exists, prompt the user with:
+      `(archive.kno) already exists - are you sure you want to overwrite? (y/n): `
+      and proceed only on explicit confirmation.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/pack_command.py
+      - tests/test_pack.py
+    steps:
+      - step1: Detect existing target archive path before writing output in pack flow
+      - "step2: Print exact confirmation prompt format `(archive.kno) already exists - are you sure you want to overwrite? (y/n): ` with the concrete archive filename substituted for `archive.kno`"
+      - step3: If user responds `y` or `Y`, overwrite existing archive and continue success flow
+      - step4: If user responds `n` or `N` (or provides invalid/empty response), abort pack safely with non-zero exit and no archive mutation
+      - step5: Keep prompt/branch behavior deterministic for automated unit tests including stdin-driven confirmation cases
+    dependencies: [task23, task27, task43]
+    tests: [test105]
+    status: not-started
+
+  - id: task79
+    title: Add --bump version automation to kinnoo pack
+    type: task
+    description: |
+      Add a `--bump` flag to `kinnoo pack` to automatically increment the agent
+      version in `kinnoo.yaml` before packaging. Supported bump types are
+      `patch`, `minor`, and `major`.
+
+      Also ensure that after every successful `kinnoo pack` run (with or without
+      `--bump`), CLI output includes:
+      `[kinnoo pack] Agent version: <version #>`
+      where `<version #>` is the packaged manifest version.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/pack_command.py
+      - src/kinnoo/validator.py
+      - tests/test_pack.py
+      - README.md
+    steps:
+      - step1: Extend `kinnoo pack` CLI parsing to accept optional `--bump {patch,minor,major}` with clear usage errors for invalid values
+      - step2: Load and validate `kinnoo.yaml`, parse current semver, and compute incremented version based on selected bump type
+      - step3: Persist updated version to `kinnoo.yaml` before archive creation when `--bump` is provided, preserving existing manifest formatting conventions as much as practical
+      - step4: Continue normal pack flow using the effective version (original when no bump is provided, incremented when bump is provided)
+      - "step5: Print `[kinnoo pack] Agent version: <version #>` after successful pack in all cases"
+      - step6: Ensure failures before pack completion do not print a misleading version-success line
+      - step7: Keep behavior deterministic for tests covering no-bump, patch/minor/major bump, and invalid bump inputs
+    dependencies: [task23, task24, task27, task43]
+    tests: [test106]
+    status: not-started
