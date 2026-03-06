@@ -1285,7 +1285,7 @@ tasks:
       - step4: Keep parser output and error text stable for upcoming CLI unit tests
     dependencies: [task69]
     tests: [test97]
-    status: completed
+    status: deprecated
 
   - id: task71
     title: Implement publish metadata extraction and copy flow
@@ -1306,7 +1306,7 @@ tasks:
       - step5: Keep side effects and error paths deterministic for future unit tests around duplicate publish and invalid archive cases
     dependencies: [task70]
     tests: [test98]
-    status: completed
+    status: deprecated
 
   - id: task72
     title: Parse install registry spec while preserving file install
@@ -1384,7 +1384,7 @@ tasks:
       - step4: Keep output ordering deterministic to support future snapshot-style CLI unit tests
     dependencies: [task69, task73]
     tests: [test102]
-    status: completed
+    status: deprecated
 
   - id: task76
     title: Add local registry search command
@@ -1404,7 +1404,7 @@ tasks:
       - step4: Keep filtering semantics explicit and deterministic for future unit tests across mixed registry fixtures
     dependencies: [task69, task75]
     tests: [test103]
-    status: completed
+    status: deprecated
 
   - id: task77
     title: Document local registry commands and behavior
@@ -1424,7 +1424,7 @@ tasks:
       - step5: Keep guidance concise and consistent with future unit/doc tests
     dependencies: [task71, task74, task75, task76]
     tests: [test104]
-    status: needs-review
+    status: deprecated
 
   - id: task78
     title: Prompt before overwriting existing .kno archive
@@ -1554,7 +1554,7 @@ tasks:
       - step4: Keep clear non-zero errors when agent/archive/version cannot be resolved
     dependencies: [task80, task81]
     tests: [test109, test111]
-    status: not-started
+    status: needs-review
 
   - id: task84
     title: Implement publish mock registry target and rollover
