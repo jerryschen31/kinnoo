@@ -152,3 +152,60 @@ def test_publish_errors_for_missing_or_invalid_archive_source(tmp_path: Path) ->
     assert invalid_metadata_result.returncode != 0
     assert "Manifest validation failed for resolved local archive source." in invalid_metadata_output
     assert "version" in invalid_metadata_output
+
+
+def test_publish_rolls_existing_tagged_to_untagged(tmp_path: Path) -> None:
+    archive_root = tmp_path / "archive-sandbox"
+    registry_root = tmp_path / "registry-sandbox"
+    env = dict(
+        **os.environ,
+        KINNOO_ARCHIVE_ROOT=str(archive_root),
+        KINNOO_REGISTRY_ROOT=str(registry_root),
+    )
+
+    source_archive_v1 = _write_archive(
+        archive_root,
+        name="rollover-agent",
+        version="1.0.0",
+        run_content="print('payload-v1')\n",
+    )
+    first_publish = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "publish", "rollover-agent"],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert first_publish.returncode == 0
+
+    target_archive = registry_root / "rollover-agent" / "1.0.0" / "rollover-agent.kno"
+    assert target_archive.exists()
+    published_v1_bytes = target_archive.read_bytes()
+    assert published_v1_bytes == source_archive_v1.read_bytes()
+
+    source_archive_v2 = _write_archive(
+        archive_root,
+        name="rollover-agent",
+        version="1.0.0",
+        run_content="print('payload-v2')\n",
+    )
+    second_publish = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "publish", "rollover-agent"],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    combined_output = f"{second_publish.stdout}\n{second_publish.stderr}"
+    assert second_publish.returncode == 0
+    assert f"Target registry path: {target_archive}" in combined_output
+
+    rollover_archive = registry_root / "rollover-agent" / "untagged-1" / "rollover-agent.kno"
+    assert rollover_archive.exists()
+    assert rollover_archive.read_bytes() == published_v1_bytes
+
+    assert target_archive.read_bytes() == source_archive_v2.read_bytes()
+    assert target_archive.read_bytes() != published_v1_bytes
+    assert (
+        f"Rollover archived previous tagged artifact to: {rollover_archive}"
+        in combined_output
+    )
