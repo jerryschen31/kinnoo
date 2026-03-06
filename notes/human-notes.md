@@ -80,6 +80,11 @@ Kinnoo would still provide real value for reproducibility, sharing, and onboardi
 - V2 should support secure MCP server for interacting with filesystem (Filesystem MCP server)
 - need to decide on a direction for V3+. Do I support more "scaffolding" and focus on init (building an agent), or focus more on runtime capabilities (kinnoo run), or just focus on the registry aspect, or something else? Need some good ideas and guidance here
 
+### v1.1.0 notes
+
+- currently kinnoo pack overwrites an existing .kno archive without warning. We should have kinnoo pack prompt for a warning: "(archive.kno) already exists - are you sure you want to overwrite? (y/n): "
+- currently the agent version is controlled by the version number within kinnoo.yaml of the agent. We need to think of a more automated way for versioning to happen, instead of the developer always needing to manually update the version in kinnoo.yaml. Help me think of a clean, easy way to update agent versions.
+
 ### kinnoo import tasks (for later)
 
 
