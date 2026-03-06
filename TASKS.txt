@@ -1283,7 +1283,7 @@ tasks:
       - step2: Ensure `--local` is accepted as explicit forward-compatible backend selection without changing local behavior
       - step3: Print concise usage/help on missing arguments or invalid paths and exit non-zero
       - step4: Keep parser output and error text stable for upcoming CLI unit tests
-    dependencies: [task69]
+    dependencies: [task39, task43]
     tests: [test97]
     status: deprecated
 

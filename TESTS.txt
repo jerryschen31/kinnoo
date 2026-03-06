@@ -1728,7 +1728,9 @@ tests:
     pass_criteria: Prompt is shown in overwrite scenario, `n` path aborts without mutation, and `y` path overwrites and succeeds
     automated: true
     automation_path: tests/test_pack.py::test_pack_prompts_before_overwrite_existing_archive
-    covers: []
+    covers:
+      - feature: feature13
+        ac: AC3
 
   - id: test106
     title: kinnoo pack --bump updates manifest version and always prints packed version
@@ -1745,7 +1747,9 @@ tests:
     pass_criteria: No-bump and patch/minor/major scenarios produce correct versions and version output line; invalid bump is rejected and does not emit success version line
     automated: true
     automation_path: tests/test_pack.py::test_pack_bump_flag_and_version_output_line
-    covers: []
+    covers:
+      - feature: feature13
+        ac: AC2
 
   - id: test107
     title: pack writes to canonical local archive path and exposes stable storage abstraction
