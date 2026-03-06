@@ -1753,7 +1753,7 @@ tasks:
       - step4: Keep check output stable and concise so future tests can assert exact messages
     dependencies: [task92]
     tests: [test121]
-    status: not-started
+    status: needs-review
 
   - id: task94
     title: Implement env vars preflight resolution check
