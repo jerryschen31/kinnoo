@@ -291,3 +291,70 @@ def test_pack_prompts_before_overwrite_existing_archive(agent_dir):
 
     with zipfile.ZipFile(archive_path, "r") as archive_file:
         assert "kinnoo.yaml" in archive_file.namelist()
+
+
+def test_pack_bump_flag_and_version_output_line(tmp_path):
+    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_cmd = ["python3", str(cli_script)]
+
+    agent_dir = tmp_path / "bump-agent"
+    agent_dir.mkdir()
+    manifest_path = agent_dir / "kinnoo.yaml"
+    manifest_path.write_text(
+        """
+name: bump-agent
+version: 1.2.3
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "run.py").write_text("print('hello')\n", encoding="utf-8")
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+
+    def run_pack(*extra_args: str, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            cli_cmd + ["pack", str(agent_dir), *extra_args],
+            cwd=tmp_path,
+            input=input_text,
+            capture_output=True,
+            text=True,
+        )
+
+    first = run_pack()
+    first_output = f"{first.stdout}\n{first.stderr}"
+    assert first.returncode == 0
+    assert "[kinnoo pack] Agent version: 1.2.3" in first_output
+    assert "version: 1.2.3" in manifest_path.read_text(encoding="utf-8")
+
+    patch = run_pack("--bump", "patch", input_text="y\n")
+    patch_output = f"{patch.stdout}\n{patch.stderr}"
+    assert patch.returncode == 0
+    assert "[kinnoo pack] Agent version: 1.2.4" in patch_output
+    assert "version: 1.2.4" in manifest_path.read_text(encoding="utf-8")
+
+    minor = run_pack("--bump", "minor", input_text="y\n")
+    minor_output = f"{minor.stdout}\n{minor.stderr}"
+    assert minor.returncode == 0
+    assert "[kinnoo pack] Agent version: 1.3.0" in minor_output
+    assert "version: 1.3.0" in manifest_path.read_text(encoding="utf-8")
+
+    major = run_pack("--bump", "major", input_text="y\n")
+    major_output = f"{major.stdout}\n{major.stderr}"
+    assert major.returncode == 0
+    assert "[kinnoo pack] Agent version: 2.0.0" in major_output
+    assert "version: 2.0.0" in manifest_path.read_text(encoding="utf-8")
+
+    invalid = run_pack("--bump", "banana")
+    invalid_output = f"{invalid.stdout}\n{invalid.stderr}"
+    assert invalid.returncode != 0
+    assert "[kinnoo pack] Agent version:" not in invalid_output
