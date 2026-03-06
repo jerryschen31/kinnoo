@@ -249,3 +249,56 @@ def test_search_default_local_and_remote_modes(tmp_path: Path) -> None:
     assert "remote-alpha | latest: 3.0.0 | description: alpha in remote metadata" in remote_output
     assert "remote-beta" not in remote_output
     assert "alpha-agent" not in remote_output
+
+
+def test_source_mode_argument_validation_errors(tmp_path: Path) -> None:
+    archive_root = tmp_path / "archive-sandbox"
+    registry_root = tmp_path / "registry-sandbox"
+
+    env = {
+        **os.environ,
+        "KINNOO_ARCHIVE_ROOT": str(archive_root),
+        "KINNOO_REGISTRY_ROOT": str(registry_root),
+    }
+
+    list_conflict = subprocess.run(
+        [sys.executable, str(CLI_PATH), "list", "--local", "--remote"],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    search_conflict = subprocess.run(
+        [sys.executable, str(CLI_PATH), "search", "--local", "--remote", "alpha"],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    search_missing_query = subprocess.run(
+        [sys.executable, str(CLI_PATH), "search"],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    install_bad_selector = subprocess.run(
+        [sys.executable, str(CLI_PATH), "install", "bad-agent==invalid"],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    list_conflict_output = f"{list_conflict.stdout}\n{list_conflict.stderr}"
+    search_conflict_output = f"{search_conflict.stdout}\n{search_conflict.stderr}"
+    search_missing_query_output = f"{search_missing_query.stdout}\n{search_missing_query.stderr}"
+    install_bad_selector_output = f"{install_bad_selector.stdout}\n{install_bad_selector.stderr}"
+
+    assert list_conflict.returncode != 0
+    assert "not allowed with argument" in list_conflict_output
+
+    assert search_conflict.returncode != 0
+    assert "not allowed with argument" in search_conflict_output
+
+    assert search_missing_query.returncode != 0
+    assert "Usage: kinnoo search [--local | --remote] <query>" in search_missing_query_output
+
+    assert install_bad_selector.returncode != 0
+    assert "Invalid registry version 'invalid'. Expected semver." in install_bad_selector_output
