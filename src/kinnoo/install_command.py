@@ -11,11 +11,11 @@ from pathlib import Path
 
 try:
     from kinnoo.registry import RegistryService, parse_install_target_spec
-    from kinnoo.registry_backends import LocalFilesystemRegistryBackend
+    from kinnoo.registry_backends import MockFilesystemRegistryBackend
     from kinnoo.validator import validate
 except ImportError:
     from .registry import RegistryService, parse_install_target_spec
-    from .registry_backends import LocalFilesystemRegistryBackend
+    from .registry_backends import MockFilesystemRegistryBackend
     from .validator import validate
 
 
@@ -64,7 +64,7 @@ def install_agent(archive_path: str, target_dir_arg: str | None = None, force: b
 
         registry_root = os.environ.get("KINNOO_REGISTRY_ROOT")
         backend_root = Path(registry_root).expanduser() if registry_root else None
-        backend = LocalFilesystemRegistryBackend(root=backend_root)
+        backend = MockFilesystemRegistryBackend(root=backend_root)
         service = RegistryService(backend=backend)
 
         resolved_record, resolve_error = service.resolve_with_error(
