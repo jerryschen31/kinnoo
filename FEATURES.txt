@@ -500,7 +500,7 @@ features:
       execution. Checks Python version, env vars, entrypoint existence, and dependency
       installation. Reports results as a checklist with actionable guidance on failures,
       without executing the agent.
-    tasks: []
+    tasks: [task92, task93, task94, task95, task96, task97]
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo run <dir> --preflight` runs all checks and reports results without executing the agent."
@@ -518,7 +518,7 @@ features:
         description: "If all checks pass, prints 'Ready to run'; if any fail, prints actionable guidance per failed check."
     owner: techlead-agent
     dependencies: [feature10]
-    status: not-started
+    status: needs-review
 
   - id: feature15
     title: "Trust Baseline"
@@ -531,7 +531,7 @@ features:
       - id: AC1
         description: "`kinnoo install` displays a summary of what the agent requires (env_var NAMES, dependency NAMES, runtime type) before installing and prompts for yes/no confirmation."
       - id: AC2
-        description: "If an agent is installed from a raw .kno file (not from the local registry), a warning is displayed: 'This agent is from an unverified source'."
+        description: "If an agent is installed from a raw .kno file (not from a registry), a warning is displayed: 'This agent is from an unverified source'."
       - id: AC3
         description: "`kinnoo run` logs a trace to ~/.kinnoo/logs/run.log containing ONLY: timestamp, agent name, runtime type, and exit code — no input content, no env var values, no secrets."
       - id: AC4

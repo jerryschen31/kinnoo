@@ -95,7 +95,7 @@ def test_feature13_docs_cover_archive_registry_refactor() -> None:
     assert "KINNOO_ARCHIVE_ROOT" in combined_text
 
     assert "kinnoo publish <agent-name>" in combined_text
-    assert "registry-scratch/jerry/<agent>/<version>/<agent>.kno" in combined_text
+    assert "~/kinnoo-mock-registry-scratch/jerry/<agent>/<version>/<agent>.kno" in combined_text
     assert "untagged-<n>" in combined_text
 
     assert "kinnoo list" in combined_text
@@ -112,3 +112,33 @@ def test_feature13_docs_cover_archive_registry_refactor() -> None:
 
     assert "kinnoo publish <archive.kno>" in combined_text
     assert "Migration" in combined_text or "migration" in combined_text
+
+
+def test_feature14_docs_cover_preflight_contract() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    schema_doc = repo_root / "docs" / "manifest-schema-reference.md"
+    readme_doc = repo_root / "README.md"
+
+    schema_text = schema_doc.read_text(encoding="utf-8")
+    readme_text = readme_doc.read_text(encoding="utf-8")
+    combined_text = f"{schema_text}\n{readme_text}"
+    combined_lower = combined_text.lower()
+
+    assert "kinnoo run <agent-dir> --preflight" in combined_text
+    assert "kinnoo run ./my-agent --preflight" in combined_text
+
+    assert "checklist" in combined_lower
+    assert "runtime version" in combined_lower
+    assert "env vars" in combined_lower
+    assert "entrypoint" in combined_lower
+    assert "dependencies" in combined_lower
+
+    assert "Ready to run" in combined_text
+    assert "Not ready to run" in combined_text
+    assert "Remediation summary" in combined_text
+
+    assert "without executing" in combined_lower
+    assert "does not execute agent entrypoint logic" in combined_lower
+
+    assert "names-only" in combined_lower or "names only" in combined_lower
+    assert "never prints env var values" in combined_lower

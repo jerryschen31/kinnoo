@@ -1496,7 +1496,7 @@ tasks:
       - step4: Keep method signatures deterministic and decoupled from CLI specifics for future remote backend swap
     dependencies: [task69]
     tests: [test107]
-    status: needs-review
+    status: completed
 
   - id: task81
     title: Refactor pack default archive destination
@@ -1515,7 +1515,7 @@ tasks:
       - step4: Keep behavior stable for deterministic path assertions in tests
     dependencies: [task24, task80]
     tests: [test107]
-    status: needs-review
+    status: completed
 
   - id: task82
     title: Standardize pack output and overwrite confirmation
@@ -1535,7 +1535,7 @@ tasks:
       - step4: Ensure failed pack runs do not emit misleading success/version lines
     dependencies: [task78, task79, task81]
     tests: [test108]
-    status: needs-review
+    status: completed
 
   - id: task83
     title: Refactor publish CLI to agent-name source
@@ -1554,7 +1554,7 @@ tasks:
       - step4: Keep clear non-zero errors when agent/archive/version cannot be resolved
     dependencies: [task80, task81]
     tests: [test109, test111]
-    status: needs-review
+    status: completed
 
   - id: task84
     title: Implement publish mock registry target and rollover
@@ -1573,7 +1573,7 @@ tasks:
       - step4: Keep rollover numbering deterministic for repeatable tests
     dependencies: [task83]
     tests: [test110]
-    status: needs-review
+    status: completed
 
   - id: task85
     title: Install by registry name/version using mock backend
@@ -1593,7 +1593,7 @@ tasks:
       - step4: Isolate backend calls so mock backend can be replaced with real remote registry backend later
     dependencies: [task80, task83, task84]
     tests: [test112, test113]
-    status: needs-review
+    status: completed
 
   - id: task86
     title: Refactor list with default local and source flags
@@ -1613,7 +1613,7 @@ tasks:
       - step4: Keep output schema stable (name, latest version, description) across sources
     dependencies: [task80, task81, task84]
     tests: [test114]
-    status: needs-review
+    status: completed
 
   - id: task87
     title: Refactor search with default local and source flags
@@ -1633,7 +1633,7 @@ tasks:
       - step4: Keep case-insensitive name/description matching semantics stable across sources
     dependencies: [task80, task81, task84, task86]
     tests: [test115]
-    status: needs-review
+    status: completed
 
   - id: task88
     title: Preserve file-path install compatibility
@@ -1651,7 +1651,7 @@ tasks:
       - step4: Verify backward compatibility with existing install test scenarios
     dependencies: [task85]
     tests: [test116]
-    status: needs-review
+    status: completed
 
   - id: task89
     title: Document pack/publish/archive/registry refactor
@@ -1671,7 +1671,7 @@ tasks:
       - step5: Document feature12 deprecation context and migration guidance for developers
     dependencies: [task82, task84, task85, task86, task87, task88]
     tests: [test117]
-    status: needs-review
+    status: completed
 
   - id: task90
     title: Harden source-mode CLI validation and errors
@@ -1692,4 +1692,139 @@ tasks:
       - step4: Keep error messages stable and concise for deterministic CLI unit tests
     dependencies: [task83, task85, task86, task87]
     tests: [test118]
+    status: completed
+
+  - id: task91
+    title: Use absolute mock registry scratch path
+    type: task
+    description: |
+      Update publish/mock-registry path resolution to use an absolute home-based
+      root `~/kinnoo-mock-registry-scratch/...` instead of the current
+      working-directory-relative `registry-scratch/...` path.
+    files:
+      - src/kinnoo/registry_backends.py
+      - src/kinnoo/publish_command.py
+      - tests/test_publish_refactor.py
+      - README.md
+      - docs/manifest-schema-reference.md
+    steps:
+      - step1: Replace relative mock registry root with home-expanded absolute root `~/kinnoo-mock-registry-scratch`
+      - step2: Ensure publish target path renders as `<home>/kinnoo-mock-registry-scratch/jerry/<agent>/<version>/<agent>.kno`
+      - step3: Preserve rollover behavior and publish output clarity with the new absolute path
+      - step4: Update/refactor tests that currently assert `registry-scratch/...` to assert the absolute home path
+      - step5: Update docs/examples that reference `registry-scratch/...` to `~/kinnoo-mock-registry-scratch/...`
+    dependencies: [task84]
+    tests: [test119]
+    status: completed
+
+  - id: task92
+    title: Add --preflight CLI mode wiring
+    type: task
+    description: |
+      Add `--preflight` mode to `kinnoo run` argument parsing and route execution
+      into a preflight-only flow that performs checks and exits without running
+      the agent entrypoint.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/run_command.py
+    steps:
+      - step1: Extend run command parser to accept `--preflight` in a way that is clear and backward compatible
+      - step2: Add explicit preflight execution branch that skips entrypoint invocation and subprocess run
+      - step3: Keep usage/help and error paths deterministic for future unit tests around argument handling
+      - step4: Return non-zero on preflight failures and zero on full preflight pass
+    dependencies: [task39]
+    tests: [test120]
+    status: needs-review
+
+  - id: task93
+    title: Implement runtime version preflight check
+    type: task
+    description: |
+      Implement Python runtime compatibility check for preflight mode by
+      validating active interpreter version against manifest `runtime.version`
+      constraints.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/validator.py
+    steps:
+      - step1: Parse `runtime.version` constraint from manifest in preflight flow
+      - step2: Compare active interpreter version against constraint and record pass/fail result
+      - step3: Emit actionable failure guidance when version does not satisfy constraint
+      - step4: Keep check output stable and concise so future tests can assert exact messages
+    dependencies: [task92]
+    tests: [test121]
+    status: needs-review
+
+  - id: task94
+    title: Implement env vars preflight resolution check
+    type: task
+    description: |
+      Reuse env_vars resolution logic to verify that declared env vars are
+      resolvable during preflight, while maintaining strict secret non-disclosure.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/cli.py
+      - src/kinnoo/schema.py
+    steps:
+      - step1: Reuse existing env var resolution sources (environment and `.env`) for preflight checks
+      - step2: Record per-variable pass/fail using variable names only, never values
+      - step3: Ensure preflight does not prompt for values in non-interactive contexts unless explicitly intended
+      - step4: Keep failure messaging deterministic and secret-safe for future unit and security regression tests
+    dependencies: [task92, task53, task54, task57]
+    tests: [test122]
+    status: needs-review
+
+  - id: task95
+    title: Implement entrypoint and dependency checks
+    type: task
+    description: |
+      Add preflight checks for entrypoint existence and dependency readiness in
+      agent venv without executing agent business logic.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/cli.py
+    steps:
+      - step1: Validate that manifest-declared entrypoint exists and is readable
+      - step2: Check venv/dependency readiness against requirements with clear pass/fail outcomes
+      - step3: Report installability gaps with actionable remediation hints
+      - step4: Keep checks isolated from normal run execution path for testable behavior separation
+    dependencies: [task92, task9, task14]
+    tests: [test123]
+    status: needs-review
+
+  - id: task96
+    title: Add checklist output and ready summary
+    type: task
+    description: |
+      Produce structured preflight checklist output with pass/fail status for
+      each check and a final readiness summary.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/cli.py
+    steps:
+      - step1: Define stable checklist sections for runtime version, env vars, entrypoint, and dependencies
+      - step2: Print consistent pass/fail indicators and per-failure actionable guidance
+      - step3: Print `Ready to run` only when all checks pass; otherwise print concise remediation summary
+      - step4: Ensure formatting remains deterministic for future snapshot-style unit tests
+    dependencies: [task93, task94, task95]
+    tests: [test124]
+    status: needs-review
+
+  - id: task97
+    title: Document preflight usage and contracts
+    type: task
+    description: |
+      Update docs for `kinnoo run --preflight`, including behavior, examples,
+      security constraints, and expected output semantics for operators.
+    files:
+      - README.md
+      - docs/manifest-schema-reference.md
+      - notes/swe-handoff.md
+    steps:
+      - step1: Add `kinnoo run --preflight` usage examples and expected checklist behavior
+      - step2: Document that preflight validates but does not execute agent entrypoint logic
+      - step3: Document env var name-only disclosure contract in preflight output
+      - step4: Keep wording/output examples stable to support future documentation tests
+    dependencies: [task96]
+    tests: [test125]
     status: needs-review

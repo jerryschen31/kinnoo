@@ -278,6 +278,31 @@ Common failure cases:
 
 ---
 
+## `kinnoo run --preflight` command (Feature14)
+
+`kinnoo run --preflight` performs run-readiness checks without executing agent entrypoint logic.
+
+Usage:
+
+- `kinnoo run <agent-dir> --preflight`
+- `kinnoo run ./my-agent --preflight`
+
+Preflight checklist semantics:
+
+- output is checklist-style with deterministic pass/fail lines
+- required checklist sections include runtime version, env vars, entrypoint, and dependencies
+- all checks pass: output includes `Ready to run`
+- one or more checks fail: output includes `Not ready to run` and `Remediation summary`
+- preflight validates only and does not execute agent entrypoint logic
+
+Preflight env var security semantics:
+
+- output is names-only for env vars
+- unresolved env var names may be listed for operator action
+- env var values are never printed, logged, or persisted
+
+---
+
 ## Pack/Publish Refactor commands (Feature13)
 
 Feature13 refactors command responsibilities to an archive-first packaging source plus mock-registry publishing target.
@@ -300,9 +325,9 @@ Behavior:
 
 - source resolves latest local archive artifact for `<agent-name>`
 - target path in mock registry:
-  - `registry-scratch/jerry/<agent>/<version>/<agent>.kno`
+  - `~/kinnoo-mock-registry-scratch/jerry/<agent>/<version>/<agent>.kno`
 - if tagged target exists, prior payload rolls to:
-  - `registry-scratch/jerry/<agent>/untagged-<n>/`
+  - `~/kinnoo-mock-registry-scratch/jerry/<agent>/untagged-<n>/`
 
 ### Install selectors
 
@@ -336,4 +361,4 @@ Search behavior remains case-insensitive substring matching across name and desc
 - Previous docs centered on `~/.kinnoo/registry/` as primary source/target.
 - Feature13 split of responsibilities:
   - packaging source-of-truth: local archive (`~/.kinnoo/archive/...`)
-  - publish/install remote target: mock registry (`registry-scratch/jerry/...`)
+  - publish/install remote target: mock registry (`~/kinnoo-mock-registry-scratch/jerry/...`)

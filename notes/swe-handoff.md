@@ -1,63 +1,48 @@
-# SWE Handoff — Feature13 Pack/Publish Refactor
+# Feature14 SWE Handoff — Preflight Checks (`kinnoo run --preflight`)
 
 ## Scope
-Implement feature13 end-to-end with archive-first packaging and mock-registry publishing:
-- `kinnoo pack` writes to `~/.kinnoo/archive/<agent>/<version>/<agent>.kno` by default.
-- `kinnoo publish <agent-name>` resolves latest local archived artifact and publishes to `registry-scratch/jerry/<agent>/<version>/<agent>.kno`.
-- `install`, `list`, `search` support local/remote source behavior as specified in feature13 ACs.
+Implement feature14 through tasks `task92` to `task97` in order. The goal is to add a preflight-only validation mode to `kinnoo run` that checks runtime readiness without executing agent logic.
 
-## Recommended Implementation Order
-1. `task78` Prompt before overwriting existing `.kno` archive
-2. `task79` Add `--bump` version automation to `kinnoo pack`
-3. `task80` Define archive and registry storage abstractions
-4. `task81` Refactor pack default archive destination
-5. `task82` Standardize pack output and overwrite confirmation
-6. `task83` Refactor publish CLI to agent-name source
-7. `task84` Implement publish mock registry target and untagged rollover
-8. `task85` Install by registry name/version using mock backend
-9. `task86` Refactor `list` with default local and source flags
-10. `task87` Refactor `search` with default local and source flags
-11. `task88` Preserve file-path install compatibility
-12. `task90` Harden source-mode CLI validation and errors
-13. `task89` Document refactor and migration guidance
+## Task execution order and dependencies
+1. `task92` — Add `--preflight` CLI mode wiring
+2. `task93` — Implement runtime version preflight check (depends on `task92`)
+3. `task94` — Implement env vars preflight resolution check (depends on `task92`, and reuses feature10 env/security behavior)
+4. `task95` — Implement entrypoint and dependency checks (depends on `task92`)
+5. `task96` — Add checklist output and ready summary (depends on `task93`, `task94`, `task95`)
+6. `task97` — Document preflight usage and contracts (depends on `task96`)
 
-## Task → Test Mapping (exact)
-- `task78` → `test105`
-- `task79` → `test106`
-- `task80` → `test107`
-- `task81` → `test107`
-- `task82` → `test108`
-- `task83` → `test109`, `test111`
-- `task84` → `test110`
-- `task85` → `test112`, `test113`
-- `task86` → `test114`
-- `task87` → `test115`
-- `task88` → `test116`
-- `task89` → `test117`
-- `task90` → `test118`
+Single SWE agent can implement all six tasks in one pass because these are tightly coupled and sequential.
 
-## Required Contracts (must not drift)
-- Overwrite prompt format:
-	- `(archive.kno) already exists - are you sure you want to overwrite? (y/n): `
-	- Use concrete archive filename in place of `archive.kno`.
-- Pack success output always includes:
-	- `[kinnoo pack] Agent version: <version #>`
-- Publish source/target semantics:
-	- Source from local archive latest when using `kinnoo publish <agent-name>`
-	- Target path: `registry-scratch/jerry/<agent>/<version>/<agent>.kno`
-	- Existing tagged publish version rolls old artifact to `untagged-<n>`.
-- Source-mode command behavior:
-	- `kinnoo list` defaults to local archive; `--local` same as default; `--remote` uses mock registry.
-	- `kinnoo search` defaults to local archive; `--local` local; `--remote` mock registry.
-	- `kinnoo install <name>` latest from mock registry; `kinnoo install <name>==<version>` exact from mock registry.
-	- `kinnoo install <file-path/file.kno>` remains backward compatible.
+## Tests to implement (already declared in TESTS.txt)
+- `task92` -> `test120`
+- `task93` -> `test121`
+- `task94` -> `test122`
+- `task95` -> `test123`
+- `task96` -> `test124`
+- `task97` -> `test125`
 
-## CLI Validation Requirements
-- Reject invalid/ambiguous argument combinations with deterministic non-zero errors.
-- Enforce mutual exclusivity for `--local` and `--remote` where applicable.
-- No silent fallback to unintended source when input is invalid.
+Feature14 AC coverage mapping:
+- `AC1`: `test120` (+ docs assertion in `test125`)
+- `AC2`: `test121`
+- `AC3`: `test122`
+- `AC4` + `AC5`: `test123`
+- `AC6` + `AC7`: `test124`
 
-## Done Criteria
-- Tasks `task78`–`task90` implemented and marked `needs-review`.
-- Tests `test105`–`test118` implemented and passing.
-- `python3 src/validate_project_manifests.py` passes.
+## Design constraints (must follow)
+- `--preflight` must **never execute** the agent entrypoint.
+- Output must be checklist-style and deterministic for stable assertions.
+- Secret safety is mandatory: env var **names only**, never values.
+- Reuse existing manifest/env resolution logic where possible; avoid duplicate logic.
+- Keep normal `kinnoo run` behavior unchanged when `--preflight` is not used.
+
+## Files expected to change
+- Code: `src/kinnoo/cli.py`, `src/kinnoo/run_command.py`, optionally `src/kinnoo/validator.py`/`src/kinnoo/schema.py` if needed for reusable check helpers.
+- Tests: add/extend `tests/test_run_preflight.py`; update `tests/test_docs.py` for docs coverage.
+- Docs: `README.md`, `docs/manifest-schema-reference.md`.
+
+## SWE completion checklist
+- Implement tasks `task92`..`task97` in order.
+- Implement tests `test120`..`test125` and ensure they pass.
+- Run `python3 -m pytest` (or targeted preflight/doc tests first, then full suite as needed).
+- Update task statuses to `needs-review` when complete.
+- Run `python3 src/validate_project_manifests.py` before handoff.
