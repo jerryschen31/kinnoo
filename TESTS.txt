@@ -1987,3 +1987,104 @@ tests:
     covers:
       - feature: feature13
         ac: AC5
+
+  - id: test120
+    title: preflight mode runs checks without executing entrypoint
+    type: integration
+    preconditions: kinnoo CLI installed; valid agent fixture with observable entrypoint side effect
+    steps:
+      - step1: Run `kinnoo run <agent-dir> --preflight`
+      - step2: Verify preflight checklist output is shown
+      - step3: Verify entrypoint side effect is absent (entrypoint was not executed)
+    expected: Preflight performs validation checks only and does not execute agent logic
+    pass_criteria: Command prints checklist output, exits based on check results, and does not invoke entrypoint execution path
+    automated: true
+    automation_path: tests/test_run_preflight.py::test_preflight_runs_checks_without_entrypoint_execution
+    covers:
+      - feature: feature14
+        ac: AC1
+
+  - id: test121
+    title: preflight validates runtime version against manifest constraint
+    type: unit
+    preconditions: preflight runtime check helper available; fixtures for matching and non-matching `runtime.version`
+    steps:
+      - step1: Run preflight on fixture where interpreter satisfies `runtime.version`
+      - step2: Run preflight on fixture where interpreter violates `runtime.version`
+      - step3: Verify pass/fail output and failure guidance for mismatch
+    expected: Runtime version check correctly enforces manifest constraint semantics
+    pass_criteria: Matching fixture reports pass; mismatch reports fail with actionable version guidance
+    automated: true
+    automation_path: tests/test_run_preflight.py::test_preflight_runtime_version_check
+    covers:
+      - feature: feature14
+        ac: AC2
+
+  - id: test122
+    title: preflight checks env_vars resolvability without exposing values
+    type: integration
+    preconditions: manifest declares env_vars; fixtures for resolved and unresolved variables using environment and `.env`
+    steps:
+      - step1: Run preflight where all declared env_vars are resolvable
+      - step2: Run preflight where one declared env_var is unresolved
+      - step3: Verify output references env var names only and no secret values
+    expected: Preflight reports env_var resolvability accurately and remains names-only for security
+    pass_criteria: Resolved case passes, unresolved case fails, and outputs include names without secret values
+    automated: true
+    automation_path: tests/test_run_preflight.py::test_preflight_env_vars_resolution_and_secret_safety
+    covers:
+      - feature: feature14
+        ac: AC3
+
+  - id: test123
+    title: preflight checks entrypoint existence and dependency readiness
+    type: integration
+    preconditions: fixtures covering existing/missing entrypoint and dependency-ready/dependency-missing states
+    steps:
+      - step1: Run preflight on fixture with missing entrypoint file
+      - step2: Run preflight on fixture with dependency readiness failure
+      - step3: Verify failures are reported separately with actionable guidance
+    expected: Preflight validates entrypoint and dependency checks independently with clear outcomes
+    pass_criteria: Missing entrypoint and dependency readiness failures are both detected and surfaced with clear remediation hints
+    automated: true
+    automation_path: tests/test_run_preflight.py::test_preflight_entrypoint_and_dependency_checks
+    covers:
+      - feature: feature14
+        ac: AC4
+      - feature: feature14
+        ac: AC5
+
+  - id: test124
+    title: preflight checklist output includes pass fail statuses and readiness summary
+    type: integration
+    preconditions: fixtures for all-checks-pass and one-or-more-checks-fail scenarios
+    steps:
+      - step1: Run preflight on passing fixture and capture output
+      - step2: Run preflight on failing fixture and capture output
+      - step3: Verify checklist includes pass/fail status for runtime, env vars, entrypoint, and dependencies
+      - step4: Verify pass scenario prints `Ready to run`, fail scenario prints actionable guidance
+    expected: Preflight checklist and final readiness summary follow stable operator-facing semantics
+    pass_criteria: Checklist sections and statuses are present; `Ready to run` appears only on full pass; failing run includes guidance
+    automated: true
+    automation_path: tests/test_run_preflight.py::test_preflight_checklist_and_ready_summary
+    covers:
+      - feature: feature14
+        ac: AC6
+      - feature: feature14
+        ac: AC7
+
+  - id: test125
+    title: docs cover preflight usage behavior and security contract
+    type: unit
+    preconditions: README.md and docs/manifest-schema-reference.md are present and readable
+    steps:
+      - step1: Verify docs include `kinnoo run <dir> --preflight` usage and checklist behavior
+      - step2: Verify docs state preflight validates without executing entrypoint logic
+      - step3: Verify docs include names-only env var disclosure contract in preflight output
+    expected: Documentation describes preflight command semantics and security expectations clearly
+    pass_criteria: Required preflight usage/behavior/security statements are present and consistent across docs
+    automated: true
+    automation_path: tests/test_docs.py::test_feature14_docs_cover_preflight_contract
+    covers:
+      - feature: feature14
+        ac: AC1
