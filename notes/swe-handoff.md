@@ -1,48 +1,111 @@
-# Feature14 SWE Handoff — Preflight Checks (`kinnoo run --preflight`)
+# Feature15 SWE Handoff — Trust Baseline
 
 ## Scope
-Implement feature14 through tasks `task92` to `task97` in order. The goal is to add a preflight-only validation mode to `kinnoo run` that checks runtime readiness without executing agent logic.
+Implement feature15 through tasks `task98` to `task104` in order. The goal is to add transparency and trust features to kinnoo: install-time summary with consent gate, unverified source warning, run trace logging, code-level security invariant comments, and a heuristic env var exposure sweep in inspect/pack.
+
+**Critical security rule:** No env var or secret VALUES may ever appear in output, logs, or code paths — ONLY names. This is the single most important invariant in this feature.
 
 ## Task execution order and dependencies
-1. `task92` — Add `--preflight` CLI mode wiring
-2. `task93` — Implement runtime version preflight check (depends on `task92`)
-3. `task94` — Implement env vars preflight resolution check (depends on `task92`, and reuses feature10 env/security behavior)
-4. `task95` — Implement entrypoint and dependency checks (depends on `task92`)
-5. `task96` — Add checklist output and ready summary (depends on `task93`, `task94`, `task95`)
-6. `task97` — Document preflight usage and contracts (depends on `task96`)
 
-Single SWE agent can implement all six tasks in one pass because these are tightly coupled and sequential.
+### Group 1 — Install trust (can be done first)
+1. `task98` — Install summary display + yes/no prompt + `--yes`/`-y` flag (AC1)
+2. `task99` — Unverified source confirmation prompt (AC2, depends on task98)
+
+### Group 2 — Run trace logging (independent of Group 1)
+3. `task100` — Run trace logging to `~/.kinnoo/logs/` (AC3)
+4. `task101` — Log file secret-safety enforcement (AC4, depends on task100)
+
+### Group 3 — Code quality + sweep (depends on Groups 1 and 2)
+5. `task102` — Inline no-secret-values comments on all trust code (AC5, depends on task98 + task100)
+6. `task103` — Env var exposure heuristic sweep in inspect + pack (AC6)
+
+### Group 4 — Documentation (depends on all above)
+7. `task104` — Docs for all trust baseline features (depends on task98, task99, task100, task103)
+
+A single SWE agent can implement all seven tasks in one pass. Groups 1 and 2 are independent and can be done in parallel or either-first. Group 3 depends on both. Group 4 is last.
 
 ## Tests to implement (already declared in TESTS.txt)
-- `task92` -> `test120`
-- `task93` -> `test121`
-- `task94` -> `test122`
-- `task95` -> `test123`
-- `task96` -> `test124`
-- `task97` -> `test125`
+- `task98` -> `test126`, `test127`
+- `task99` -> `test128`
+- `task100` -> `test129`, `test130`
+- `task101` -> `test130`
+- `task102` -> `test131`
+- `task103` -> `test132`, `test133`
+- `task104` -> `test134`
 
-Feature14 AC coverage mapping:
-- `AC1`: `test120` (+ docs assertion in `test125`)
-- `AC2`: `test121`
-- `AC3`: `test122`
-- `AC4` + `AC5`: `test123`
-- `AC6` + `AC7`: `test124`
+## Feature15 AC coverage mapping
+- `AC1`: `test126` (summary + prompt), `test127` (--yes bypass), `test134` (docs)
+- `AC2`: `test128` (unverified source), `test134` (docs)
+- `AC3`: `test129` (trace log safe fields), `test134` (docs)
+- `AC4`: `test130` (no secret values in log)
+- `AC5`: `test131` (inline comments audit), `test134` (docs)
+- `AC6`: `test132` (inspect sweep), `test133` (pack sweep), `test134` (docs)
 
 ## Design constraints (must follow)
-- `--preflight` must **never execute** the agent entrypoint.
-- Output must be checklist-style and deterministic for stable assertions.
-- Secret safety is mandatory: env var **names only**, never values.
-- Reuse existing manifest/env resolution logic where possible; avoid duplicate logic.
-- Keep normal `kinnoo run` behavior unchanged when `--preflight` is not used.
+
+### Install summary (task98, task99)
+- Extract manifest from .kno archive using existing `read_manifest_from_kno_archive()` in `inspect_command.py`.
+- Display env_var NAMES (use `normalize_env_vars()` from `schema.py`), dependency names (from `requirements.txt` inside archive), and runtime type.
+- Prompt format: `"Continue with install? [y/N]:"` — default is No.
+- `--yes`/`-y` flag: show summary but skip prompt.
+- Unverified source check: look for `<archive_path>.sha256` file on filesystem. If missing → warn + prompt. If present → skip warning (don't verify hash — that's feature16).
+
+### Run trace logging (task100, task101)
+- Log file location: `~/.kinnoo/logs/run.<ISO_TIMESTAMP>.log`
+  - Example: `~/.kinnoo/logs/run.2026-03-08T14-30-00.log`
+- Log format (plain text, one line each):
+  ```
+  timestamp: 2026-03-08T14:30:00
+  agent: my-agent
+  runtime_type: one-shot
+  exit_code: 0
+  ```
+- **Never log:** input content, env var values, secrets, stdout, stderr.
+- Create `~/.kinnoo/logs/` if it does not exist. If creation fails, print a warning to stderr but do not crash — logging is best-effort.
+- Write the log after `run_agent()` completes (or fails), not before.
+
+### Security invariant comments (task102)
+- Pattern: `# [agent] SECURITY INVARIANT: only env var NAMES, never values`
+- Place on or near every line that displays, logs, or formats env var or secret-related data.
+- Applies to: install summary display, run trace log write, inspect env var output, preflight env var output, code sweep output.
+
+### Env var exposure sweep (task103)
+- New file: `src/kinnoo/code_sweep.py`
+- Function: `sweep_env_var_exposure(agent_dir: Path, declared_env_vars: list[str]) -> list[str]`
+- Scans all `.py` files under `agent_dir`, excluding `.venv/` directories.
+- Regex patterns to match:
+  ```python
+  EXPOSURE_PATTERNS = [
+      (r'print\s*\(.*os\.environ',   "print() with os.environ access"),
+      (r'print\s*\(.*os\.getenv',     "print() with os.getenv() access"),
+      (r'log\w*\.\w+\(.*os\.environ', "logging with os.environ access"),
+      (r'log\w*\.\w+\(.*os\.getenv',  "logging with os.getenv() access"),
+      (r'\.write\s*\(.*os\.environ',  "file write with os.environ access"),
+      (r'\.write\s*\(.*os\.getenv',   "file write with os.getenv() access"),
+  ]
+  ```
+- Returns warnings as `["<file>:<line>: <description>", ...]`
+- Integration points:
+  - `kinnoo inspect`: add "Security sweep:" section at bottom of output. Clean → `"Security sweep: no env var exposure patterns detected (heuristic)"`. Dirty → print each warning.
+  - `kinnoo pack`: run sweep before archiving. Print warnings to stderr. Do NOT abort pack.
+- Always print disclaimer: `"(heuristic scan — may produce false positives; not a substitute for code review)"`
 
 ## Files expected to change
-- Code: `src/kinnoo/cli.py`, `src/kinnoo/run_command.py`, optionally `src/kinnoo/validator.py`/`src/kinnoo/schema.py` if needed for reusable check helpers.
-- Tests: add/extend `tests/test_run_preflight.py`; update `tests/test_docs.py` for docs coverage.
-- Docs: `README.md`, `docs/manifest-schema-reference.md`.
+- New file: `src/kinnoo/code_sweep.py`
+- Modify: `src/kinnoo/cli.py` (--yes flag on install subparser)
+- Modify: `src/kinnoo/install_command.py` (summary display, prompts)
+- Modify: `src/kinnoo/run_command.py` (trace logging after execution)
+- Modify: `src/kinnoo/inspect_command.py` (security sweep section)
+- Modify: `src/kinnoo/pack_command.py` (security sweep warning)
+- New test file: `tests/test_trust_baseline.py`
+- Modify: `tests/test_docs.py` (add feature15 docs test)
+- Modify: `README.md`, `docs/manifest-schema-reference.md` (documentation)
 
 ## SWE completion checklist
-- Implement tasks `task92`..`task97` in order.
-- Implement tests `test120`..`test125` and ensure they pass.
-- Run `python3 -m pytest` (or targeted preflight/doc tests first, then full suite as needed).
-- Update task statuses to `needs-review` when complete.
-- Run `python3 src/validate_project_manifests.py` before handoff.
+- [ ] Implement tasks `task98`..`task104` in order (following group dependencies).
+- [ ] Implement tests `test126`..`test134` and ensure they pass.
+- [ ] Run `python3 -m pytest tests/test_trust_baseline.py tests/test_docs.py -q` first, then full suite.
+- [ ] Verify no env var values, secrets, or input content appear in ANY output or log path.
+- [ ] Run `python3 src/validate_project_manifests.py` before handoff.
+- [ ] Update task statuses to `needs-review` when complete.
+- [ ] Write task notes in `notes/tasks/task98-notes.md` .. `notes/tasks/task104-notes.md`.

@@ -1734,7 +1734,7 @@ tasks:
       - step4: Return non-zero on preflight failures and zero on full preflight pass
     dependencies: [task39]
     tests: [test120]
-    status: needs-review
+    status: completed
 
   - id: task93
     title: Implement runtime version preflight check
@@ -1753,7 +1753,7 @@ tasks:
       - step4: Keep check output stable and concise so future tests can assert exact messages
     dependencies: [task92]
     tests: [test121]
-    status: needs-review
+    status: completed
 
   - id: task94
     title: Implement env vars preflight resolution check
@@ -1772,7 +1772,7 @@ tasks:
       - step4: Keep failure messaging deterministic and secret-safe for future unit and security regression tests
     dependencies: [task92, task53, task54, task57]
     tests: [test122]
-    status: needs-review
+    status: completed
 
   - id: task95
     title: Implement entrypoint and dependency checks
@@ -1790,7 +1790,7 @@ tasks:
       - step4: Keep checks isolated from normal run execution path for testable behavior separation
     dependencies: [task92, task9, task14]
     tests: [test123]
-    status: needs-review
+    status: completed
 
   - id: task96
     title: Add checklist output and ready summary
@@ -1808,7 +1808,7 @@ tasks:
       - step4: Ensure formatting remains deterministic for future snapshot-style unit tests
     dependencies: [task93, task94, task95]
     tests: [test124]
-    status: needs-review
+    status: completed
 
   - id: task97
     title: Document preflight usage and contracts
@@ -1827,4 +1827,150 @@ tasks:
       - step4: Keep wording/output examples stable to support future documentation tests
     dependencies: [task96]
     tests: [test125]
-    status: needs-review
+    status: completed
+
+  - id: task98
+    title: Install summary display and confirmation prompt with --yes flag
+    type: task
+    description: |
+      Update `kinnoo install` to extract env_var NAMES, dependency NAMES, and runtime type
+      from the manifest inside the .kno archive, display them in a readable summary, and
+      prompt the user for yes/no confirmation before proceeding with installation.
+      Add a `--yes` (`-y`) CLI flag that skips the confirmation prompt for CI/automation.
+      Summary must NEVER display env var or secret VALUES — only names.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/install_command.py
+    steps:
+      - step1: Add --yes/-y flag to the install subparser in cli.py
+      - step2: After .kno extraction of manifest, extract env_var names, dependency names, and runtime type
+      - step3: Print formatted summary (agent name, version, runtime, dependencies, env var names)
+      - step4: If --yes not set, prompt "Continue with install? [y/N]" — abort on 'n' or empty
+      - step5: If --yes is set, skip prompt and proceed directly
+      - step6: Add inline comment documenting the no-secret-values invariant on the summary display code
+    dependencies: [task69, task53]
+    tests: [test126, test127]
+    status: not-started
+
+  - id: task99
+    title: Unverified source confirmation prompt
+    type: task
+    description: |
+      When installing a .kno file that does not have an accompanying .kno.sha256 checksum file,
+      display a warning: "This agent is from an unverified source." and prompt for confirmation.
+      The --yes/-y flag from task98 also bypasses this prompt. If the .kno.sha256 file exists
+      (even if not yet verified — that is feature16's job), skip this warning.
+    files:
+      - src/kinnoo/install_command.py
+    steps:
+      - step1: Before extraction, check if <archive>.sha256 file exists alongside the .kno file
+      - step2: If missing, print warning and prompt "This agent is from an unverified source. Continue? (y/n)"
+      - step3: Abort on 'n' or empty; proceed on 'y'
+      - step4: If --yes is set, print warning but skip prompt
+    dependencies: [task98]
+    tests: [test128]
+    status: not-started
+
+  - id: task100
+    title: Run trace logging to ~/.kinnoo/logs/
+    type: task
+    description: |
+      After each `kinnoo run` execution, write a trace log to ~/.kinnoo/logs/run.<TIMESTAMP>.log.
+      The log must contain ONLY: ISO timestamp, agent name (from manifest), runtime type, and
+      exit code. It must NEVER contain input content, env var values, secrets, or stdout/stderr.
+      Create the ~/.kinnoo/logs/ directory if it does not exist.
+    files:
+      - src/kinnoo/run_command.py
+    steps:
+      - step1: After agent execution completes (or fails), create ~/.kinnoo/logs/ if needed
+      - step2: Write trace log file with timestamp, agent name, runtime type, exit code
+      - step3: Add inline comment on the log write call documenting the no-secret-values invariant
+      - step4: Ensure graceful failure if log directory creation fails (warn, don't crash)
+    dependencies: [task39]
+    tests: [test129, test130]
+    status: not-started
+
+  - id: task101
+    title: Log file secret-safety enforcement
+    type: task
+    description: |
+      Add a dedicated test and code-level guard ensuring the run trace log file never contains
+      env var values, secret values, or user input content. This is a critical security invariant
+      for the trust baseline. The guard is both a runtime check (what gets written) and a test
+      assertion (what the file contains after a run with known secrets in scope).
+    files:
+      - src/kinnoo/run_command.py
+      - tests/test_trust_baseline.py
+    steps:
+      - step1: In the log writing code, explicitly construct the log line from only safe fields (timestamp, name, type, exit code)
+      - step2: Add test that runs an agent with known env var values and verifies the log file does not contain those values
+      - step3: Add test that runs an agent with known input and verifies the log file does not contain the input text
+    dependencies: [task100]
+    tests: [test130]
+    status: not-started
+
+  - id: task102
+    title: Inline no-secret-values comments on trust code
+    type: task
+    description: |
+      Review all trust-related display and logging code paths (install summary, run trace log,
+      inspect env var display, preflight env var display) and ensure each includes an inline
+      comment documenting the "no secret values" invariant. This is a code-quality and
+      auditability requirement — future contributors must see the invariant at each sensitive site.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/run_command.py
+      - src/kinnoo/inspect_command.py
+    steps:
+      - step1: Identify all code sites that display or log env var / secret-related data
+      - 'step2: Add "[agent] SECURITY INVARIANT: only env var NAMES, never values" comments at each site'
+      - step3: Verify no existing code path accidentally leaks values
+    dependencies: [task98, task100]
+    tests: [test131]
+    status: not-started
+
+  - id: task103
+    title: Env var exposure heuristic sweep in inspect and pack
+    type: task
+    description: |
+      Implement a regex-based heuristic scanner that detects patterns where env var values
+      may be printed, logged, or written to files in agent Python source code. Scan all .py
+      files in the agent directory excluding .venv/. Integrate into `kinnoo inspect` as a
+      "Security sweep:" section and into `kinnoo pack` as a non-blocking warning.
+      Patterns to detect: print(os.environ/os.getenv), logging with os.environ/os.getenv,
+      file.write(os.environ/os.getenv). Include disclaimer about false positives.
+    files:
+      - src/kinnoo/code_sweep.py
+      - src/kinnoo/inspect_command.py
+      - src/kinnoo/pack_command.py
+    steps:
+      - step1: Create src/kinnoo/code_sweep.py with sweep_env_var_exposure(agent_dir, declared_env_vars) function
+      - step2: Implement regex patterns for print/log/write with os.environ/os.getenv
+      - step3: Return list of warnings with file path and line number
+      - 'step4: Integrate into inspect_command.py — add "Security sweep:" section to inspect output'
+      - step5: Integrate into pack_command.py — run sweep before archiving, print warnings as non-blocking
+      - 'step6: If no warnings, print "Security sweep: no env var exposure patterns detected (heuristic)"'
+      - 'step7: Add disclaimer "(heuristic scan — may produce false positives; not a substitute for code review)"'
+    dependencies: [task62, task23]
+    tests: [test132, test133]
+    status: not-started
+
+  - id: task104
+    title: Documentation for trust baseline features
+    type: task
+    description: |
+      Update README.md and docs/ to document all trust baseline features: install summary
+      and confirmation prompt, --yes flag, unverified source warning, run trace logging,
+      security sweep in inspect/pack, and the no-secret-values invariant.
+    files:
+      - README.md
+      - docs/manifest-schema-reference.md
+    steps:
+      - step1: Document install summary prompt behavior and --yes/-y flag
+      - step2: Document unverified source warning behavior
+      - 'step3: Document run trace log location, format, and what it does/does not contain'
+      - 'step4: Document security sweep in inspect/pack — what it checks, limitations, disclaimer'
+      - step5: Document the no-secret-values invariant as a project-wide security contract
+    dependencies: [task98, task99, task100, task103]
+    tests: [test134]
+    status: not-started
