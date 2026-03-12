@@ -212,3 +212,30 @@ def test_install_aborts_on_checksum_mismatch(tmp_path: Path) -> None:
         in output
     )
     assert not target_dir.exists()
+
+
+def test_install_warns_when_checksum_missing(tmp_path: Path) -> None:
+    archive_path = tmp_path / "missing-checksum-agent.kno"
+    _create_minimal_archive(archive_path, name="missing-checksum-agent", version="1.0.0")
+
+    target_dir = tmp_path / "installed-missing-checksum-agent"
+    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(cli_script),
+            "install",
+            str(archive_path),
+            str(target_dir),
+            "--yes",
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, output
+    assert "No checksum file found — archive integrity not verified" in output
+    assert target_dir.exists()
+    assert (target_dir / "kinnoo.yaml").exists()

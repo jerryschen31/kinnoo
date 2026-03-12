@@ -2048,7 +2048,7 @@ tasks:
       - step3: Continue with normal install behavior and unchanged exit semantics
     dependencies: [task107]
     tests: [test140]
-    status: not-started
+    status: needs-review
 
   - id: task109
     title: Show checksum in inspect output
