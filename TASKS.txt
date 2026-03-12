@@ -2032,7 +2032,7 @@ tasks:
       - step4: Preserve existing extraction/install flow on successful verification
     dependencies: [task106]
     tests: [test138, test139]
-    status: not-started
+    status: needs-review
 
   - id: task108
     title: Missing checksum warning on install

@@ -3,12 +3,15 @@ import os
 import re
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 
 from kinnoo.checksum import (
+    checksum_sidecar_path_for_archive,
     compute_file_sha256,
     format_checksum_sidecar_line,
     parse_checksum_sidecar_text,
+    write_checksum_sidecar_for_archive,
     verify_archive_checksum,
 )
 
@@ -35,6 +38,27 @@ outputs:
     )
     (agent_dir / "run.py").write_text("print('hello')\n", encoding="utf-8")
     (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+
+
+def _create_minimal_archive(archive_path: Path, name: str, version: str) -> None:
+    manifest_text = (
+        f"name: {name}\n"
+        f"version: {version}\n"
+        "entrypoint: run.py\n"
+        "runtime:\n"
+        "  language: python\n"
+        "  version: '>=3.10'\n"
+        "  type: one-shot\n"
+        "dependencies: []\n"
+        "inputs:\n"
+        "  type: text\n"
+        "outputs:\n"
+        "  type: text\n"
+    )
+    with zipfile.ZipFile(archive_path, "w", zipfile.ZIP_DEFLATED) as archive_zip:
+        archive_zip.writestr("kinnoo.yaml", manifest_text)
+        archive_zip.writestr("run.py", "print('installed')\n")
+        archive_zip.writestr("requirements.txt", "")
 
 
 def _sha256_of(file_path: Path) -> str:
@@ -125,3 +149,66 @@ def test_pack_stores_checksum_with_local_archive(tmp_path: Path) -> None:
     assert filename_token == archive_path.name
     assert f"[kinnoo pack] Archive created: {archive_path}" in output
     assert f"[kinnoo pack] Checksum sidecar written: {checksum_path}" in output
+
+
+def test_install_verifies_checksum_when_present(tmp_path: Path) -> None:
+    archive_path = tmp_path / "verified-agent.kno"
+    _create_minimal_archive(archive_path, name="verified-agent", version="1.0.0")
+    write_checksum_sidecar_for_archive(archive_path)
+
+    target_dir = tmp_path / "installed-verified-agent"
+    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(cli_script),
+            "install",
+            str(archive_path),
+            str(target_dir),
+            "--yes",
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, output
+    assert "[kinnoo install] Archive checksum verified." in output
+    assert target_dir.exists()
+    assert (target_dir / "kinnoo.yaml").exists()
+
+
+def test_install_aborts_on_checksum_mismatch(tmp_path: Path) -> None:
+    archive_path = tmp_path / "tampered-agent.kno"
+    _create_minimal_archive(archive_path, name="tampered-agent", version="1.0.0")
+
+    sidecar_path = checksum_sidecar_path_for_archive(archive_path)
+    sidecar_path.write_text(
+        format_checksum_sidecar_line("0" * 64, archive_path.name),
+        encoding="utf-8",
+    )
+
+    target_dir = tmp_path / "installed-tampered-agent"
+    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(cli_script),
+            "install",
+            str(archive_path),
+            str(target_dir),
+            "--yes",
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode != 0
+    assert (
+        "Archive integrity check failed — the file may be corrupted or tampered with"
+        in output
+    )
+    assert not target_dir.exists()
