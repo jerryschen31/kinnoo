@@ -265,3 +265,45 @@ def test_inspect_displays_checksum_for_archive_with_sidecar(tmp_path: Path) -> N
     assert result.returncode == 0, output
     assert "Inspect target type: archive (.kno)" in result.stdout
     assert f"- Checksum (SHA256): {expected_digest}" in result.stdout
+
+
+def test_publish_copies_checksum_sidecar_when_present(tmp_path: Path) -> None:
+    archive_root = tmp_path / "archive-root"
+    registry_root = tmp_path / "registry-root"
+
+    archive_path = archive_root / "publish-checksum-agent" / "1.0.0" / "publish-checksum-agent.kno"
+    archive_path.parent.mkdir(parents=True, exist_ok=True)
+    _create_minimal_archive(archive_path, name="publish-checksum-agent", version="1.0.0")
+    source_sidecar_path = write_checksum_sidecar_for_archive(archive_path)
+
+    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    env = os.environ.copy()
+    env["KINNOO_ARCHIVE_ROOT"] = str(archive_root)
+    env["KINNOO_REGISTRY_ROOT"] = str(registry_root)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(cli_script),
+            "publish",
+            "publish-checksum-agent",
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, output
+
+    published_archive = (
+        registry_root / "publish-checksum-agent" / "1.0.0" / "publish-checksum-agent.kno"
+    )
+    published_sidecar = published_archive.with_name(f"{published_archive.name}.sha256")
+    assert published_archive.exists()
+    assert published_sidecar.exists()
+    assert published_sidecar.read_text(encoding="utf-8") == source_sidecar_path.read_text(
+        encoding="utf-8"
+    )
+    assert f"Published checksum sidecar: {published_sidecar}" in output
