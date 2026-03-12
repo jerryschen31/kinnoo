@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.4.0] - 2026-03-11
+### Added
+- Implemented Feature16 "Archive Integrity (Checksums)" across pack/install/inspect/publish workflows.
+- Added checksum sidecar generation during pack using sibling `.kno.sha256` files with stable `<sha256>  <archive-filename>` format.
+- Added install-time checksum verification for file-path installs when sidecar exists, with explicit archive integrity failure behavior on mismatch.
+- Added install warning-only fallback when checksum sidecar is missing: `No checksum file found — archive integrity not verified`.
+- Added archive checksum visibility in `kinnoo inspect` and checksum sidecar propagation in `kinnoo publish` when source sidecar is present.
+
+### Security
+- Strengthened artifact provenance and tamper detection by validating archive digests before extraction side effects.
+
+
 ## [v1.3.0] - 2026-03-11
 ### Added
 - Implemented Feature15 "Trust Baseline" across install, run, inspect, and pack flows.

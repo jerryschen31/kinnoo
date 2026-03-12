@@ -2367,7 +2367,7 @@ tests:
     expected: Inspect output includes archive integrity checksum metadata
     pass_criteria: Inspect output contains checksum label and digest matching sidecar
     automated: true
-    automation_path: tests/test_archive_integrity.py::test_inspect_displays_checksum
+    automation_path: tests/test_archive_integrity.py::test_inspect_displays_checksum_for_archive_with_sidecar
     covers:
       - feature: feature16
         ac: AC6
@@ -2383,7 +2383,7 @@ tests:
     expected: Publish propagates checksum sidecar with archive when available
     pass_criteria: Registry destination contains both archive and sidecar for published version
     automated: true
-    automation_path: tests/test_archive_integrity.py::test_publish_copies_checksum_sidecar
+    automation_path: tests/test_archive_integrity.py::test_publish_copies_checksum_sidecar_when_present
     covers:
       - feature: feature16
         ac: AC7
@@ -2399,5 +2399,5 @@ tests:
     expected: Documentation reflects feature16 checksum lifecycle across key commands
     pass_criteria: Required checksum lifecycle statements are present and consistent across docs
     automated: true
-    automation_path: tests/test_docs.py::test_feature16_docs_cover_archive_integrity
+    automation_path: tests/test_docs.py::test_feature16_docs_cover_checksum_lifecycle
     covers:
