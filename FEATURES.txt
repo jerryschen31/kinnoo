@@ -554,7 +554,7 @@ features:
     description: |
       Generate and verify SHA256 checksums for .kno archives. Enables detection of tampered
       or corrupted archives during install. kinnoo publish stores checksums in the registry.
-    tasks: []
+    tasks: [task105, task106, task107, task108, task109, task110, task111]
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo pack` generates a .kno.sha256 checksum file alongside the .kno archive."
@@ -568,7 +568,7 @@ features:
         description: "`kinnoo pack` stores the SHA256 checksum alongside the .kno file in the local archive."
       - id: AC6
         description: "`kinnoo inspect` displays the archive checksum if available."
-      - ID: AC7
+      - id: AC7
         description: "`kinnoo publish` publishes the .kno file along with associated .kno.sha256 file, if present."
     owner: techlead-agent
     dependencies: [feature8]

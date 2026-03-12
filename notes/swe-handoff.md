@@ -1,116 +1,189 @@
-# Feature15 SWE Handoff — Trust Baseline
+# Feature16 SWE Handoff — Archive Integrity (Checksums)
 
 ## Scope
-Implement feature15 through tasks `task98` to `task104` in order. The goal is to add transparency and trust features to kinnoo: install-time summary with consent gate, unverified source warning, run trace logging, code-level security invariant comments, and a heuristic env var exposure sweep in inspect/pack.
+Implement feature16 through tasks `task105` to `task111` in order. The goal is to add checksum generation, verification, and propagation across pack/install/inspect/publish to detect tampered or corrupted archives.
 
-**Critical security rule:** No env var or secret VALUES may ever appear in output, logs, or code paths — ONLY names. This is the single most important invariant in this feature.
+Core contract: checksum verification must be deterministic, user-facing errors must be clear, and install behavior must distinguish between **mismatch (hard fail)** and **missing checksum (warning + proceed)**.
 
 ## Task execution order and dependencies
 
-### Group 1 — Install trust (can be done first)
-1. `task98` — Install summary display + yes/no prompt + `--yes`/`-y` flag (AC1)
-2. `task99` — Unverified source confirmation prompt (AC2, depends on task98)
+### Group 1 — Checksum foundation
+1. `task105` — Generate `.kno.sha256` during pack and alongside local archive artifacts (AC1, AC5)
+2. `task106` — Add shared checksum helpers for compute/parse/verify (internal foundation)
 
-### Group 2 — Run trace logging (independent of Group 1)
-3. `task100` — Run trace logging to `~/.kinnoo/logs/` (AC3)
-4. `task101` — Log file secret-safety enforcement (AC4, depends on task100)
+### Group 2 — Install integrity enforcement
+3. `task107` — Verify checksum on file-path install when sidecar exists (AC2, AC3)
+4. `task108` — Missing checksum warning path that continues install (AC4)
 
-### Group 3 — Code quality + sweep (depends on Groups 1 and 2)
-5. `task102` — Inline no-secret-values comments on all trust code (AC5, depends on task98 + task100)
-6. `task103` — Env var exposure heuristic sweep in inspect + pack (AC6)
+### Group 3 — Visibility and registry propagation
+5. `task109` — Display checksum in inspect output for archives (AC6)
+6. `task110` — Publish `.kno.sha256` alongside `.kno` when present (AC7)
 
-### Group 4 — Documentation (depends on all above)
-7. `task104` — Docs for all trust baseline features (depends on task98, task99, task100, task103)
+### Group 4 — Documentation finish
+7. `task111` — Docs coverage for pack/install/inspect/publish checksum lifecycle
 
-A single SWE agent can implement all seven tasks in one pass. Groups 1 and 2 are independent and can be done in parallel or either-first. Group 3 depends on both. Group 4 is last.
+A single SWE agent can implement all tasks in one sequence. Group 1 should land first, Group 2 second, Group 3 third, Group 4 last.
 
 ## Tests to implement (already declared in TESTS.txt)
-- `task98` -> `test126`, `test127`
-- `task99` -> `test128`
-- `task100` -> `test129`, `test130`
-- `task101` -> `test130`
-- `task102` -> `test131`
-- `task103` -> `test132`, `test133`
-- `task104` -> `test134`
+- `task105` -> `test135`, `test136`
+- `task106` -> `test137`
+- `task107` -> `test138`, `test139`
+- `task108` -> `test140`
+- `task109` -> `test141`
+- `task110` -> `test142`
+- `task111` -> `test143`
 
-## Feature15 AC coverage mapping
-- `AC1`: `test126` (summary + prompt), `test127` (--yes bypass), `test134` (docs)
-- `AC2`: `test128` (unverified source), `test134` (docs)
-- `AC3`: `test129` (trace log safe fields), `test134` (docs)
-- `AC4`: `test130` (no secret values in log)
-- `AC5`: `test131` (inline comments audit), `test134` (docs)
-- `AC6`: `test132` (inspect sweep), `test133` (pack sweep), `test134` (docs)
+## Feature16 AC coverage mapping
+- `AC1`: `test135`
+- `AC2`: `test138`
+- `AC3`: `test139`
+- `AC4`: `test140`
+- `AC5`: `test136`
+- `AC6`: `test141`
+- `AC7`: `test142`
+
+`test143` validates docs completeness for the full checksum lifecycle.
 
 ## Design constraints (must follow)
 
-### Install summary (task98, task99)
-- Extract manifest from .kno archive using existing `read_manifest_from_kno_archive()` in `inspect_command.py`.
-- Display env_var NAMES (use `normalize_env_vars()` from `schema.py`), dependency names (from `requirements.txt` inside archive), and runtime type.
-- Prompt format: `"Continue with install? [y/N]:"` — default is No.
-- `--yes`/`-y` flag: show summary but skip prompt.
-- Unverified source check: look for `<archive_path>.sha256` file on filesystem. If missing → warn + prompt. If present → skip warning (don't verify hash — that's feature16).
+### Checksum file format and naming
+- Sidecar path format must be sibling to archive: `<archive>.kno.sha256`.
+- Content format must be stable and parseable: `<sha256>  <archive-filename>`.
+- SHA256 digest must be lowercase hex and computed from archive bytes only.
 
-### Run trace logging (task100, task101)
-- Log file location: `~/.kinnoo/logs/run.<TIMESTAMP>.log`
-  - Filename timestamp must be UTC only.
-  - Example: `~/.kinnoo/logs/run.2026-03-11T18-42-13Z.log`
-- Log format: single JSON object with exact safe fields:
-  ```json
-  {
-    "timestamp": "2026-03-11T18:42:13Z",
-    "agent_name": "my-agent",
-    "agent-version": "1.2.0",
-    "runtime_type": "one-shot",
-    "exit_code": 0
-  }
-  ```
-- JSON `timestamp` must be UTC only.
-- **Never log:** input content, env var values, secrets, stdout, stderr.
-- Create `~/.kinnoo/logs/` if it does not exist. If creation fails, print a warning to stderr but do not crash — logging is best-effort.
-- Write the log after `run_agent()` completes (or fails), not before.
+### Install verification semantics
+- For `kinnoo install <file.kno>`:
+  - If sidecar exists and hash matches -> proceed.
+  - If sidecar exists and hash mismatches -> abort with exact error:  
+    `Archive integrity check failed — the file may be corrupted or tampered with`
+  - If sidecar missing -> print warning and proceed:  
+    `No checksum file found — archive integrity not verified`
+- Verification must happen before extraction/write operations.
 
-### Security invariant comments (task102)
-- Pattern: `# [agent] SECURITY INVARIANT: only env var NAMES, never values`
-- Place on or near every line that displays, logs, or formats env var or secret-related data.
-- Applies to: install summary display, run trace log write, inspect env var output, preflight env var output, code sweep output.
+### Publish and inspect behavior
+- Publish should copy checksum sidecar iff source sidecar exists; absence is non-fatal.
+- Inspect should display checksum for archive targets when available from sidecar (or deterministic helper path).
+- Do not break existing inspect/list/publish output contracts beyond additive checksum information.
 
-### Env var exposure sweep (task103)
-- New file: `src/kinnoo/code_sweep.py`
-- Function: `sweep_env_var_exposure(agent_dir: Path, declared_env_vars: list[str]) -> list[str]`
-- Scans all `.py` files under `agent_dir`, excluding `.venv/` directories.
-- Regex patterns to match:
-  ```python
-  EXPOSURE_PATTERNS = [
-      (r'print\s*\(.*os\.environ',   "print() with os.environ access"),
-      (r'print\s*\(.*os\.getenv',     "print() with os.getenv() access"),
-      (r'log\w*\.\w+\(.*os\.environ', "logging with os.environ access"),
-      (r'log\w*\.\w+\(.*os\.getenv',  "logging with os.getenv() access"),
-      (r'\.write\s*\(.*os\.environ',  "file write with os.environ access"),
-      (r'\.write\s*\(.*os\.getenv',   "file write with os.getenv() access"),
-  ]
-  ```
-- Returns warnings as `["<file>:<line>: <description>", ...]`
-- Integration points:
-  - `kinnoo inspect`: add "Security sweep:" section at bottom of output. Clean → `"Security sweep: no env var exposure patterns detected (heuristic)"`. Dirty → print each warning.
-  - `kinnoo pack`: run sweep before archiving. Print warnings to stderr. Do NOT abort pack.
-- Always print disclaimer: `"(heuristic scan — may produce false positives; not a substitute for code review)"`
+### Security and reliability
+- Never include secret/env var values in checksum-related logs or errors.
+- File I/O errors should produce actionable messages with non-ambiguous failure causes.
+- Reuse shared helpers to avoid duplicate hashing/parsing logic across commands.
 
 ## Files expected to change
-- New file: `src/kinnoo/code_sweep.py`
-- Modify: `src/kinnoo/cli.py` (--yes flag on install subparser)
-- Modify: `src/kinnoo/install_command.py` (summary display, prompts)
-- Modify: `src/kinnoo/run_command.py` (trace logging after execution)
-- Modify: `src/kinnoo/inspect_command.py` (security sweep section)
-- Modify: `src/kinnoo/pack_command.py` (security sweep warning)
-- New test file: `tests/test_trust_baseline.py`
-- Modify: `tests/test_docs.py` (add feature15 docs test)
-- Modify: `README.md`, `docs/manifest-schema-reference.md` (documentation)
+- New file: `src/kinnoo/checksum.py`
+- Modify: `src/kinnoo/pack_command.py`
+- Modify: `src/kinnoo/install_command.py`
+- Modify: `src/kinnoo/inspect_command.py`
+- Modify: `src/kinnoo/publish_command.py`
+- New tests: `tests/test_archive_integrity.py`
+- Modify: `tests/test_docs.py`
+- Modify docs: `README.md`, `docs/manifest-schema-reference.md`
+
+## SWE implementation guidance
+- Implement checksum helper APIs first (compute, parse sidecar, verify pair), then integrate command-by-command.
+- Keep error strings stable so tests can assert exact behavior.
+- Ensure feature15 trust warning behavior for unverified source remains coherent with feature16 checksum verification (feature16 adds verification, not conflicting prompts).
+- Use temporary files/fixtures in tests to cover both match and mismatch hash cases deterministically.
 
 ## SWE completion checklist
-- [ ] Implement tasks `task98`..`task104` in order (following group dependencies).
-- [ ] Implement tests `test126`..`test134` and ensure they pass.
-- [ ] Run `python3 -m pytest tests/test_trust_baseline.py tests/test_docs.py -q` first, then full suite.
-- [ ] Verify no env var values, secrets, or input content appear in ANY output or log path.
-- [ ] Run `python3 src/validate_project_manifests.py` before handoff.
-- [ ] Update task statuses to `needs-review` when complete.
-- [ ] Write task notes in `notes/tasks/task98-notes.md` .. `notes/tasks/task104-notes.md`.
+- [ ] Implement `task105`..`task111` in dependency order.
+- [ ] Implement `test135`..`test143` with deterministic fixtures.
+- [ ] Run focused tests: `python3 -m pytest tests/test_archive_integrity.py tests/test_docs.py -q`.
+- [ ] Run manifest validation: `python3 src/validate_project_manifests.py`.
+- [ ] Update task statuses `not-started -> in-progress -> needs-review`.
+- [ ] Add implementation notes for each task under `notes/tasks/task105-notes.md` .. `notes/tasks/task111-notes.md`.
+
+## Per-Task Handoff Notes
+
+### task105 — Generate checksum sidecar during pack
+**Objective**
+- Ensure every successful `kinnoo pack` run emits `<archive>.kno.sha256` next to the produced archive.
+
+**Implementation notes**
+- Hook checksum generation after final archive write succeeds.
+- Use a stable sidecar format: `<sha256>  <archive-filename>`.
+- Ensure this works for both explicit output paths and archive-first local paths.
+
+**Definition of done**
+- `test135` and `test136` pass.
+- Pack output clearly indicates where checksum sidecar is written.
+
+### task106 — Add checksum utility helpers
+**Objective**
+- Centralize checksum compute/parse/verify logic so install/inspect/publish share the same behavior.
+
+**Implementation notes**
+- Create `src/kinnoo/checksum.py` with small, composable functions.
+- Helper API should cover file hash compute, sidecar parse/read, and expected-vs-actual verify.
+- Keep parsing strict enough to avoid ambiguous sidecar interpretation.
+
+**Definition of done**
+- `test137` passes.
+- No duplicate checksum/parsing logic remains in command modules.
+
+### task107 — Enforce checksum verification on install
+**Objective**
+- Verify integrity before extraction when sidecar exists for `kinnoo install <file.kno>`.
+
+**Implementation notes**
+- Resolve sidecar path deterministically from archive path.
+- Run verify step before any extraction or venv setup side effects.
+- On mismatch, fail with exact message:
+  - `Archive integrity check failed — the file may be corrupted or tampered with`
+
+**Definition of done**
+- `test138` and `test139` pass.
+- Mismatch case exits non-zero with exact expected message.
+
+### task108 — Missing checksum warning on install
+**Objective**
+- Preserve install usability when sidecar is absent, while making integrity status explicit.
+
+**Implementation notes**
+- When no sidecar exists, emit warning and continue install path unchanged.
+- Warning text must remain stable:
+  - `No checksum file found — archive integrity not verified`
+
+**Definition of done**
+- `test140` passes.
+- Missing-sidecar path remains warning-only (no false failure).
+
+### task109 — Show checksum in inspect output
+**Objective**
+- Improve operator visibility by surfacing archive checksum in `kinnoo inspect` output.
+
+**Implementation notes**
+- For `.kno` target inspection, read checksum sidecar if available.
+- Render checksum as additive metadata field without breaking existing formatting.
+- Keep behavior deterministic for tests (avoid non-deterministic formatting).
+
+**Definition of done**
+- `test141` passes.
+- Inspect output includes checksum field/value when available.
+
+### task110 — Publish checksum sidecar with archive
+**Objective**
+- Keep published artifact and checksum paired so downstream install can verify integrity.
+
+**Implementation notes**
+- During publish, if source sidecar exists, copy it to destination alongside `.kno`.
+- Sidecar absence must not block publish success.
+- Add clear publish output indicating whether sidecar was published.
+
+**Definition of done**
+- `test142` passes.
+- Registry destination contains both files when sidecar is present upstream.
+
+### task111 — Docs and regression coverage for checksums
+**Objective**
+- Ensure docs and tests communicate the full checksum lifecycle to users and maintainers.
+
+**Implementation notes**
+- Update `README.md` and `docs/manifest-schema-reference.md` for pack/install/inspect/publish checksum behavior.
+- Add/update docs test to assert required checksum statements are present.
+- Keep examples aligned with exact CLI behavior and warning/error strings.
+
+**Definition of done**
+- `test143` passes.
+- Docs reflect AC1-AC7 behaviors consistently.
