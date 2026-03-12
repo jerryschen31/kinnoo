@@ -11,6 +11,7 @@ from pathlib import Path
 import yaml
 
 from .archive import LocalArchiveBackend
+from .checksum import write_checksum_sidecar_for_archive
 from .code_sweep import sweep_env_var_exposure
 from .schema import normalize_env_vars
 
@@ -273,7 +274,15 @@ def pack_agent(agent_dir: str, bump: str | None = None) -> int:
         overwrite=True,
     )
 
+    try:
+        checksum_sidecar_path = write_checksum_sidecar_for_archive(stored_record.archive_path)
+    except OSError as error:
+        print(f"Error: Failed to write checksum sidecar: {error}", file=sys.stderr)
+        wheels_dir.cleanup()
+        return 1
+
     print(f"[kinnoo pack] Archive created: {stored_record.archive_path}")
+    print(f"[kinnoo pack] Checksum sidecar written: {checksum_sidecar_path}")
     print(f"[kinnoo pack] Agent version: {version}")
     wheels_dir.cleanup()
     return 0
