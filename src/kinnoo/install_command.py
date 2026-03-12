@@ -194,6 +194,7 @@ def _install_from_archive_path(
 
     source_is_unverified = not checksum_path.exists()
     if source_is_unverified:
+        print("No checksum file found — archive integrity not verified", file=sys.stderr)
         warning_message = "This agent is from an unverified source."
         print(warning_message, file=sys.stderr)
         if not assume_yes:
