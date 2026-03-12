@@ -1850,7 +1850,7 @@ tasks:
       - step6: Add inline comment documenting the no-secret-values invariant on the summary display code
     dependencies: [task69, task53]
     tests: [test126, test127]
-    status: needs-review
+    status: completed
 
   - id: task99
     title: Unverified source confirmation prompt
@@ -1869,7 +1869,7 @@ tasks:
       - step4: If --yes is set, print warning but skip prompt
     dependencies: [task98]
     tests: [test128]
-    status: needs-review
+    status: completed
 
   - id: task100
     title: Run trace logging to ~/.kinnoo/logs/
@@ -1891,7 +1891,7 @@ tasks:
       - step5: Ensure graceful failure if log directory creation fails (warn, don't crash)
     dependencies: [task39]
     tests: [test129, test130]
-    status: needs-review
+    status: completed
 
   - id: task101
     title: Log file secret-safety enforcement
@@ -1910,7 +1910,7 @@ tasks:
       - step3: Add test that runs an agent with known input and verifies the log file does not contain the input text
     dependencies: [task100]
     tests: [test130]
-    status: needs-review
+    status: completed
 
   - id: task102
     title: Inline no-secret-values comments on trust code
@@ -1930,7 +1930,7 @@ tasks:
       - step3: Verify no existing code path accidentally leaks values
     dependencies: [task98, task100]
     tests: [test131]
-    status: needs-review
+    status: completed
 
   - id: task103
     title: Env var exposure heuristic sweep in inspect and pack
@@ -1956,7 +1956,7 @@ tasks:
       - 'step7: Add disclaimer "(heuristic scan — may produce false positives; not a substitute for code review)"'
     dependencies: [task62, task23]
     tests: [test132, test133]
-    status: needs-review
+    status: completed
 
   - id: task104
     title: Documentation for trust baseline features
@@ -1976,7 +1976,7 @@ tasks:
       - step5: Document the no-secret-values invariant as a project-wide security contract
     dependencies: [task98, task99, task100, task103]
     tests: [test134]
-    status: needs-review
+    status: completed
 
   - id: task105
     title: Generate checksum sidecar during pack
@@ -1994,7 +1994,7 @@ tasks:
       - step4: Print a clear message indicating checksum file location
     dependencies: [task27, task83]
     tests: [test135, test136]
-    status: needs-review
+    status: completed
 
   - id: task106
     title: Add checksum utility helpers
@@ -2015,7 +2015,7 @@ tasks:
       - step4: Integrate helpers in command modules without duplicating checksum logic
     dependencies: [task105]
     tests: [test137]
-    status: needs-review
+    status: completed
 
   - id: task107
     title: Enforce checksum verification on install
@@ -2032,7 +2032,7 @@ tasks:
       - step4: Preserve existing extraction/install flow on successful verification
     dependencies: [task106]
     tests: [test138, test139]
-    status: needs-review
+    status: completed
 
   - id: task108
     title: Missing checksum warning on install
@@ -2048,7 +2048,7 @@ tasks:
       - step3: Continue with normal install behavior and unchanged exit semantics
     dependencies: [task107]
     tests: [test140]
-    status: needs-review
+    status: completed
 
   - id: task109
     title: Show checksum in inspect output
@@ -2064,7 +2064,7 @@ tasks:
       - step3: Keep output deterministic and avoid exposing unrelated file contents
     dependencies: [task106]
     tests: [test141]
-    status: needs-review
+    status: completed
 
   - id: task110
     title: Publish checksum sidecar with archive
@@ -2081,7 +2081,7 @@ tasks:
       - step4: Include checksum sidecar status in publish output messaging
     dependencies: [task106, task84]
     tests: [test142]
-    status: needs-review
+    status: completed
 
   - id: task111
     title: Docs and regression coverage for checksums
@@ -2100,7 +2100,7 @@ tasks:
       - step4: Add docs test asserting feature16 coverage statements remain present
     dependencies: [task105, task107, task108, task109, task110]
     tests: [test143]
-    status: needs-review
+    status: completed
 
   - id: task112
     title: Pack archive size reporting and large-archive warning
@@ -2117,7 +2117,7 @@ tasks:
       - step4: Add test-friendly threshold control (for example env-var override) to avoid generating >100 MB fixtures in CI
     dependencies: [task83]
     tests: [test144, test145]
-    status: not-started
+    status: needs-review
 
   - id: task113
     title: Inspect displays archive size metadata
