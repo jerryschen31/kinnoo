@@ -5,6 +5,13 @@ import subprocess
 import sys
 from pathlib import Path
 
+from kinnoo.checksum import (
+    compute_file_sha256,
+    format_checksum_sidecar_line,
+    parse_checksum_sidecar_text,
+    verify_archive_checksum,
+)
+
 
 def _create_minimal_agent(agent_dir: Path, name: str, version: str) -> None:
     agent_dir.mkdir(parents=True, exist_ok=True)
@@ -32,6 +39,23 @@ outputs:
 
 def _sha256_of(file_path: Path) -> str:
     return hashlib.sha256(file_path.read_bytes()).hexdigest()
+
+
+def test_checksum_helpers_compute_and_parse(tmp_path: Path) -> None:
+    archive_path = tmp_path / "fixture.kno"
+    archive_path.write_bytes(b"deterministic-archive-bytes")
+
+    computed_digest = compute_file_sha256(archive_path)
+    assert computed_digest == _sha256_of(archive_path)
+
+    sidecar_line = format_checksum_sidecar_line(computed_digest, archive_path.name)
+    parsed_digest, parsed_filename = parse_checksum_sidecar_text(sidecar_line)
+    assert parsed_digest == computed_digest
+    assert parsed_filename == archive_path.name
+
+    is_match, actual_digest = verify_archive_checksum(archive_path, parsed_digest)
+    assert is_match is True
+    assert actual_digest == computed_digest
 
 
 def test_pack_generates_checksum_sidecar(tmp_path: Path) -> None:

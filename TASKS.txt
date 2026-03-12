@@ -2015,7 +2015,7 @@ tasks:
       - step4: Integrate helpers in command modules without duplicating checksum logic
     dependencies: [task105]
     tests: [test137]
-    status: not-started
+    status: needs-review
 
   - id: task107
     title: Enforce checksum verification on install
