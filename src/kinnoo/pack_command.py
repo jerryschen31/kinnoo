@@ -14,12 +14,29 @@ from .archive import LocalArchiveBackend
 from .checksum import write_checksum_sidecar_for_archive
 from .code_sweep import sweep_env_var_exposure
 from .schema import normalize_env_vars
+from .size_format import format_size_human_readable, size_in_megabytes
 
 class WheelBuildError(Exception):
     pass
 
 
 _CORE_SEMVER_PATTERN = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
+_DEFAULT_WARN_THRESHOLD_MB = 100.0
+
+
+def _warning_threshold_mb_from_env() -> float:
+    raw_value = os.environ.get("KINNOO_PACK_WARN_THRESHOLD_MB")
+    if raw_value is None:
+        return _DEFAULT_WARN_THRESHOLD_MB
+
+    try:
+        parsed = float(raw_value)
+    except ValueError:
+        return _DEFAULT_WARN_THRESHOLD_MB
+
+    if parsed <= 0:
+        return _DEFAULT_WARN_THRESHOLD_MB
+    return parsed
 
 
 def _bump_core_semver(version: str, bump: str) -> str | None:
@@ -283,6 +300,19 @@ def pack_agent(agent_dir: str, bump: str | None = None) -> int:
 
     print(f"[kinnoo pack] Archive created: {stored_record.archive_path}")
     print(f"[kinnoo pack] Checksum sidecar written: {checksum_sidecar_path}")
+    archive_size_bytes = stored_record.archive_path.stat().st_size
+    archive_size_human = format_size_human_readable(archive_size_bytes)
+    print(f"[kinnoo pack] Archive size: {archive_size_human}")
+
+    warning_threshold_mb = _warning_threshold_mb_from_env()
+    archive_size_mb = size_in_megabytes(archive_size_bytes)
+    if archive_size_mb > warning_threshold_mb:
+        # Keep warning text stable for docs/tests and operator guidance.
+        print(
+            "Warning: archive is large "
+            f"({archive_size_mb:.1f} MB). Consider whether all dependencies are necessary.",
+            file=sys.stderr,
+        )
     print(f"[kinnoo pack] Agent version: {version}")
     wheels_dir.cleanup()
     return 0
