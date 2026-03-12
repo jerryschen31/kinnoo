@@ -3,6 +3,7 @@ import sys
 import zipfile
 import json
 import re
+import os
 from pathlib import Path
 
 
@@ -364,3 +365,113 @@ def test_trust_code_has_security_invariant_comments() -> None:
     )
     _assert_anchor_has_invariant_comment(run_file, "log_file.write_text(serialized_payload, encoding=\"utf-8\")")
     _assert_anchor_has_invariant_comment(inspect_file, 'print("- Env Vars:")')
+
+
+def _create_security_sweep_agent(tmp_path: Path, agent_name: str, dirty: bool) -> Path:
+    agent_dir = tmp_path / agent_name
+    agent_dir.mkdir()
+
+    (agent_dir / "kinnoo.yaml").write_text(
+        (
+            f"name: {agent_name}\n"
+            "version: 1.0.0\n"
+            "entrypoint: run.py\n"
+            "runtime:\n"
+            "  type: one-shot\n"
+            "  language: python\n"
+            "  version: \"3.10\"\n"
+            "dependencies: []\n"
+            "env_vars:\n"
+            "  - API_KEY\n"
+            "inputs:\n"
+            "  type: string\n"
+            "outputs:\n"
+            "  type: string\n"
+        ),
+        encoding="utf-8",
+    )
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+
+    if dirty:
+        run_py = (
+            "import os\n"
+            "print(os.environ.get('API_KEY'))\n"
+        )
+    else:
+        run_py = "print('safe')\n"
+
+    (agent_dir / "run.py").write_text(run_py, encoding="utf-8")
+
+    venv_dir = agent_dir / ".venv"
+    venv_dir.mkdir()
+    (venv_dir / "ignored.py").write_text(
+        "import os\nprint(os.environ.get('SHOULD_NOT_APPEAR'))\n",
+        encoding="utf-8",
+    )
+
+    return agent_dir
+
+
+def test_inspect_security_sweep(tmp_path: Path) -> None:
+    clean_agent = _create_security_sweep_agent(tmp_path, "inspect-clean-agent", dirty=False)
+    clean_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "inspect", str(clean_agent)],
+        capture_output=True,
+        text=True,
+    )
+
+    clean_output = f"{clean_result.stdout}\n{clean_result.stderr}"
+    assert clean_result.returncode == 0, clean_output
+    assert "Security sweep: no env var exposure patterns detected (heuristic)" in clean_output
+    assert "(heuristic scan — may produce false positives; not a substitute for code review)" in clean_output
+    assert "ignored.py" not in clean_output
+
+    dirty_agent = _create_security_sweep_agent(tmp_path, "inspect-dirty-agent", dirty=True)
+    dirty_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "inspect", str(dirty_agent)],
+        capture_output=True,
+        text=True,
+    )
+
+    dirty_output = f"{dirty_result.stdout}\n{dirty_result.stderr}"
+    assert dirty_result.returncode == 0, dirty_output
+    assert "Security sweep:" in dirty_output
+    assert "run.py:" in dirty_output
+    assert "print() with os.environ access" in dirty_output
+    assert "(heuristic scan — may produce false positives; not a substitute for code review)" in dirty_output
+    assert "ignored.py" not in dirty_output
+
+
+def test_pack_security_sweep_non_blocking(tmp_path: Path) -> None:
+    dirty_agent = _create_security_sweep_agent(tmp_path, "pack-dirty-agent", dirty=True)
+    dirty_env = os.environ.copy()
+    dirty_env["KINNOO_ARCHIVE_ROOT"] = str(tmp_path / "archives")
+    dirty_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "pack", str(dirty_agent)],
+        capture_output=True,
+        text=True,
+        env=dirty_env,
+    )
+
+    dirty_output = f"{dirty_result.stdout}\n{dirty_result.stderr}"
+    assert dirty_result.returncode == 0, dirty_output
+    assert "Security sweep warnings:" in dirty_output
+    assert "run.py:" in dirty_output
+    assert "print() with os.environ access" in dirty_output
+    assert "(heuristic scan — may produce false positives; not a substitute for code review)" in dirty_output
+    assert "[kinnoo pack] Archive created:" in dirty_output
+
+    clean_agent = _create_security_sweep_agent(tmp_path, "pack-clean-agent", dirty=False)
+    clean_env = os.environ.copy()
+    clean_env["KINNOO_ARCHIVE_ROOT"] = str(tmp_path / "archives")
+    clean_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "pack", str(clean_agent)],
+        capture_output=True,
+        text=True,
+        env=clean_env,
+    )
+
+    clean_output = f"{clean_result.stdout}\n{clean_result.stderr}"
+    assert clean_result.returncode == 0, clean_output
+    assert "Security sweep warnings:" not in clean_output
+    assert "[kinnoo pack] Archive created:" in clean_output

@@ -11,6 +11,8 @@ from pathlib import Path
 import yaml
 
 from .archive import LocalArchiveBackend
+from .code_sweep import sweep_env_var_exposure
+from .schema import normalize_env_vars
 
 class WheelBuildError(Exception):
     pass
@@ -140,6 +142,18 @@ def pack_agent(agent_dir: str, bump: str | None = None) -> int:
 
     with open(kinnoo_yaml_path, "r") as manifest_file:
         manifest = yaml.safe_load(manifest_file)
+
+    declared_env_vars = normalize_env_vars(manifest.get("env_vars") if isinstance(manifest, dict) else None)
+    sweep_warnings = sweep_env_var_exposure(Path(abs_agent_dir), declared_env_vars)
+    if sweep_warnings:
+        print("Security sweep warnings:", file=sys.stderr)
+        # [agent] SECURITY INVARIANT: only env var NAMES, never values
+        for warning in sweep_warnings:
+            print(f"- {warning}", file=sys.stderr)
+        print(
+            "(heuristic scan — may produce false positives; not a substitute for code review)",
+            file=sys.stderr,
+        )
 
     name = manifest.get("name")
     if not isinstance(name, str) or not name.strip():
