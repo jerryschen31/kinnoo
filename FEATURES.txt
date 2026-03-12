@@ -580,7 +580,7 @@ features:
       Report archive size after packing and warn when archives are unusually large, which is
       common with heavy dependency trees (e.g., LangChain). Display size in kinnoo inspect
       and kinnoo list for visibility before install.
-    tasks: []
+    tasks: [task112, task113, task114, task115]
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo pack` prints the final archive size in human-readable format (e.g., 'Archive size: 45.2 MB') after packing completes."

@@ -2401,3 +2401,82 @@ tests:
     automated: true
     automation_path: tests/test_docs.py::test_feature16_docs_cover_checksum_lifecycle
     covers:
+
+  - id: test144
+    title: pack prints final archive size in human-readable form
+    type: integration
+    preconditions: valid agent directory and runnable `kinnoo pack`
+    steps:
+      - step1: Run `kinnoo pack <agent-dir>`
+      - step2: Capture command output
+      - 'step3: Verify output contains `Archive size: <value>` with B/KB/MB units'
+    expected: Pack always reports final archive size in human-readable format
+    pass_criteria: Output includes archive size line with deterministic unit formatting
+    automated: true
+    automation_path: tests/test_pack_size_reporting.py::test_pack_prints_archive_size
+    covers:
+      - feature: feature17
+        ac: AC1
+
+  - id: test145
+    title: pack warns when archive size exceeds warning threshold
+    type: integration
+    preconditions: threshold override supported for tests; fixture can produce archive over override threshold
+    steps:
+      - step1: Set test threshold override (for example `KINNOO_PACK_WARN_THRESHOLD_MB=1`)
+      - step2: Create fixture with incompressible payload large enough to exceed override threshold
+      - step3: Run `kinnoo pack <agent-dir>` and capture output
+      - 'step4: Verify warning `Warning: archive is large (X MB). Consider whether all dependencies are necessary.` is printed'
+    expected: Warning branch is triggered when final archive size exceeds threshold
+    pass_criteria: Pack output includes large-archive warning with computed MB value
+    automated: true
+    automation_path: tests/test_pack_size_reporting.py::test_pack_warns_when_archive_large
+    covers:
+      - feature: feature17
+        ac: AC2
+
+  - id: test146
+    title: inspect displays archive size for .kno target
+    type: integration
+    preconditions: valid `.kno` archive available for inspect
+    steps:
+      - step1: Run `kinnoo inspect <archive.kno>`
+      - step2: Verify output contains archive size metadata line
+      - step3: Verify reported size matches archive byte size converted to display format
+    expected: Inspect output includes archive size visibility for packaged artifacts
+    pass_criteria: "`- Archive Size: <value>` appears and is consistent with archive file size"
+    automated: true
+    automation_path: tests/test_pack_size_reporting.py::test_inspect_displays_archive_size
+    covers:
+      - feature: feature17
+        ac: AC3
+
+  - id: test147
+    title: list includes archive size in local and remote modes
+    type: integration
+    preconditions: local archive and mock registry include at least one agent artifact with known size
+    steps:
+      - step1: Run `kinnoo list` and `kinnoo list --local`; verify size field appears
+      - step2: Run `kinnoo list --remote`; verify size field appears for remote rows
+      - step3: Verify size values are human-readable and stable across modes
+    expected: List output exposes archive size for install-time visibility in all supported modes
+    pass_criteria: Local and remote list outputs both include archive size column/field with valid values
+    automated: true
+    automation_path: tests/test_pack_size_reporting.py::test_list_includes_archive_size
+    covers:
+      - feature: feature17
+        ac: AC4
+
+  - id: test148
+    title: docs cover pack size reporting and large-archive warnings
+    type: unit
+    preconditions: README.md and docs/manifest-schema-reference.md are present and readable
+    steps:
+      - 'step1: Verify docs describe `Archive size: <value>` output from pack'
+      - step2: Verify docs describe >100 MB warning behavior and message
+      - step3: Verify docs describe inspect/list archive size visibility
+    expected: Documentation reflects feature17 size-reporting behavior end-to-end
+    pass_criteria: Required feature17 size-reporting statements are present and consistent across docs
+    automated: true
+    automation_path: tests/test_docs.py::test_feature17_docs_cover_pack_size_reporting
+    covers:

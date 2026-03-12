@@ -2101,3 +2101,72 @@ tasks:
     dependencies: [task105, task107, task108, task109, task110]
     tests: [test143]
     status: needs-review
+
+  - id: task112
+    title: Pack archive size reporting and large-archive warning
+    type: task
+    description: |
+      Add archive size reporting to `kinnoo pack` output and emit a warning when final
+      archive size exceeds 100 MB. Keep output human-readable and deterministic.
+    files:
+      - src/kinnoo/pack_command.py
+    steps:
+      - step1: Compute final archive file size after archive is stored
+      - 'step2: Print `Archive size: <human-readable>` after pack completion'
+      - 'step3: If size exceeds 100 MB, print warning `Warning: archive is large (X MB). Consider whether all dependencies are necessary.`'
+      - step4: Add test-friendly threshold control (for example env-var override) to avoid generating >100 MB fixtures in CI
+    dependencies: [task83]
+    tests: [test144, test145]
+    status: not-started
+
+  - id: task113
+    title: Inspect displays archive size metadata
+    type: task
+    description: |
+      Extend `kinnoo inspect <archive.kno>` output to include archive size in human-readable
+      form so users can assess package footprint before installation.
+    files:
+      - src/kinnoo/inspect_command.py
+    steps:
+      - step1: Resolve archive byte size for `.kno` inspection targets
+      - 'step2: Print `- Archive Size: <human-readable>` in archive inspect output'
+      - step3: Keep output additive and non-breaking for existing inspect fields
+    dependencies: [task112]
+    tests: [test146]
+    status: not-started
+
+  - id: task114
+    title: List output includes archive size
+    type: task
+    description: |
+      Update `kinnoo list` output to include archive size for local archive and remote
+      registry listings, preserving existing list behavior and deterministic columns.
+    files:
+      - src/kinnoo/list_command.py
+      - src/kinnoo/archive.py
+      - src/kinnoo/registry_backends.py
+    steps:
+      - step1: Extend list data model to carry archive size per version/artifact
+      - step2: Add archive-size column/field to `kinnoo list`, `kinnoo list --local`, and `kinnoo list --remote`
+      - step3: Preserve backward-compatible output ordering while adding size visibility
+    dependencies: [task112, task87]
+    tests: [test147]
+    status: not-started
+
+  - id: task115
+    title: Docs and regression coverage for feature17
+    type: task
+    description: |
+      Document pack size reporting/warnings and size visibility in inspect/list, and add
+      docs regression assertions for feature17 command behavior.
+    files:
+      - README.md
+      - docs/manifest-schema-reference.md
+      - tests/test_docs.py
+    steps:
+      - 'step1: Document `Archive size: <value>` output and >100 MB warning semantics'
+      - step2: Document inspect archive size metadata and list size visibility
+      - step3: Add docs test asserting feature17 coverage statements remain present
+    dependencies: [task112, task113, task114]
+    tests: [test148]
+    status: not-started

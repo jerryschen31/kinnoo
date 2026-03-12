@@ -1,189 +1,128 @@
-# Feature16 SWE Handoff — Archive Integrity (Checksums)
+# Feature17 SWE Handoff — Pack Size Reporting & Warnings
 
 ## Scope
-Implement feature16 through tasks `task105` to `task111` in order. The goal is to add checksum generation, verification, and propagation across pack/install/inspect/publish to detect tampered or corrupted archives.
-
-Core contract: checksum verification must be deterministic, user-facing errors must be clear, and install behavior must distinguish between **mismatch (hard fail)** and **missing checksum (warning + proceed)**.
+Implement feature17 through tasks `task112` to `task115`. Goal: improve package footprint visibility by reporting archive size at pack time, warning on large artifacts, and surfacing size in inspect/list.
 
 ## Task execution order and dependencies
 
-### Group 1 — Checksum foundation
-1. `task105` — Generate `.kno.sha256` during pack and alongside local archive artifacts (AC1, AC5)
-2. `task106` — Add shared checksum helpers for compute/parse/verify (internal foundation)
+### Group 1 — Pack size foundation
+1. `task112` — Pack archive size reporting + >100MB warning
 
-### Group 2 — Install integrity enforcement
-3. `task107` — Verify checksum on file-path install when sidecar exists (AC2, AC3)
-4. `task108` — Missing checksum warning path that continues install (AC4)
+### Group 2 — Consumer visibility
+2. `task113` — Inspect displays archive size metadata
+3. `task114` — List includes archive size in local and remote modes
 
-### Group 3 — Visibility and registry propagation
-5. `task109` — Display checksum in inspect output for archives (AC6)
-6. `task110` — Publish `.kno.sha256` alongside `.kno` when present (AC7)
+### Group 3 — Docs and regression
+4. `task115` — Docs + docs regression coverage for feature17
 
-### Group 4 — Documentation finish
-7. `task111` — Docs coverage for pack/install/inspect/publish checksum lifecycle
+Recommended order: `task112` -> (`task113`, `task114`) -> `task115`.
 
-A single SWE agent can implement all tasks in one sequence. Group 1 should land first, Group 2 second, Group 3 third, Group 4 last.
+## Tests to implement (already declared)
+- `task112` -> `test144`, `test145`
+- `task113` -> `test146`
+- `task114` -> `test147`
+- `task115` -> `test148`
 
-## Tests to implement (already declared in TESTS.txt)
-- `task105` -> `test135`, `test136`
-- `task106` -> `test137`
-- `task107` -> `test138`, `test139`
-- `task108` -> `test140`
-- `task109` -> `test141`
-- `task110` -> `test142`
-- `task111` -> `test143`
+## AC coverage mapping
+- `AC1`: `test144`
+- `AC2`: `test145`
+- `AC3`: `test146`
+- `AC4`: `test147`
 
-## Feature16 AC coverage mapping
-- `AC1`: `test135`
-- `AC2`: `test138`
-- `AC3`: `test139`
-- `AC4`: `test140`
-- `AC5`: `test136`
-- `AC6`: `test141`
-- `AC7`: `test142`
+## Design constraints
 
-`test143` validates docs completeness for the full checksum lifecycle.
+### Size formatting and consistency
+- Use one shared formatting function for human-readable sizes across pack/inspect/list.
+- Keep unit labels stable (B, KB, MB, GB) and deterministic decimal formatting.
 
-## Design constraints (must follow)
+### Large archive warning contract
+- Warning condition: final archive size strictly greater than 100 MB.
+- Warning message contract:
+  - `Warning: archive is large (X MB). Consider whether all dependencies are necessary.`
 
-### Checksum file format and naming
-- Sidecar path format must be sibling to archive: `<archive>.kno.sha256`.
-- Content format must be stable and parseable: `<sha256>  <archive-filename>`.
-- SHA256 digest must be lowercase hex and computed from archive bytes only.
+### Testability requirement for >100MB branch
+- Do not force CI to generate true 100+ MB archives for normal test runs.
+- Add a test-only threshold override path (for example env var `KINNOO_PACK_WARN_THRESHOLD_MB`) so integration tests can validate warning logic with small fixtures.
+- Keep production default threshold at 100 MB.
 
-### Install verification semantics
-- For `kinnoo install <file.kno>`:
-  - If sidecar exists and hash matches -> proceed.
-  - If sidecar exists and hash mismatches -> abort with exact error:  
-    `Archive integrity check failed — the file may be corrupted or tampered with`
-  - If sidecar missing -> print warning and proceed:  
-    `No checksum file found — archive integrity not verified`
-- Verification must happen before extraction/write operations.
+## How to test the >100MB warning (requested detail)
 
-### Publish and inspect behavior
-- Publish should copy checksum sidecar iff source sidecar exists; absence is non-fatal.
-- Inspect should display checksum for archive targets when available from sidecar (or deterministic helper path).
-- Do not break existing inspect/list/publish output contracts beyond additive checksum information.
+Use this two-layer strategy:
 
-### Security and reliability
-- Never include secret/env var values in checksum-related logs or errors.
-- File I/O errors should produce actionable messages with non-ambiguous failure causes.
-- Reuse shared helpers to avoid duplicate hashing/parsing logic across commands.
+1. **Branch-validation integration test (primary):**
+	- Set threshold override to `1` MB.
+	- Create archive fixture with incompressible payload slightly above 1 MB.
+	- Run `kinnoo pack` and assert warning is printed.
+	- This validates real command behavior without heavy test artifacts.
+
+2. **Optional true-threshold smoke test (non-default / manual):**
+	- Build a larger fixture >100 MB (incompressible bytes), run pack, verify warning.
+	- Keep out of default CI due to runtime/storage cost.
+
+This gives high confidence in warning behavior while keeping test suite fast and reliable.
 
 ## Files expected to change
-- New file: `src/kinnoo/checksum.py`
-- Modify: `src/kinnoo/pack_command.py`
-- Modify: `src/kinnoo/install_command.py`
-- Modify: `src/kinnoo/inspect_command.py`
-- Modify: `src/kinnoo/publish_command.py`
-- New tests: `tests/test_archive_integrity.py`
-- Modify: `tests/test_docs.py`
-- Modify docs: `README.md`, `docs/manifest-schema-reference.md`
-
-## SWE implementation guidance
-- Implement checksum helper APIs first (compute, parse sidecar, verify pair), then integrate command-by-command.
-- Keep error strings stable so tests can assert exact behavior.
-- Ensure feature15 trust warning behavior for unverified source remains coherent with feature16 checksum verification (feature16 adds verification, not conflicting prompts).
-- Use temporary files/fixtures in tests to cover both match and mismatch hash cases deterministically.
-
-## SWE completion checklist
-- [ ] Implement `task105`..`task111` in dependency order.
-- [ ] Implement `test135`..`test143` with deterministic fixtures.
-- [ ] Run focused tests: `python3 -m pytest tests/test_archive_integrity.py tests/test_docs.py -q`.
-- [ ] Run manifest validation: `python3 src/validate_project_manifests.py`.
-- [ ] Update task statuses `not-started -> in-progress -> needs-review`.
-- [ ] Add implementation notes for each task under `notes/tasks/task105-notes.md` .. `notes/tasks/task111-notes.md`.
+- `src/kinnoo/pack_command.py`
+- `src/kinnoo/inspect_command.py`
+- `src/kinnoo/list_command.py`
+- `src/kinnoo/archive.py`
+- `src/kinnoo/registry_backends.py`
+- `tests/test_pack_size_reporting.py` (new)
+- `tests/test_docs.py`
+- `README.md`
+- `docs/manifest-schema-reference.md`
 
 ## Per-Task Handoff Notes
 
-### task105 — Generate checksum sidecar during pack
+### task112 — Pack archive size reporting and large-archive warning
 **Objective**
-- Ensure every successful `kinnoo pack` run emits `<archive>.kno.sha256` next to the produced archive.
+- Print final archive size after pack and emit warning when size exceeds 100 MB.
 
 **Implementation notes**
-- Hook checksum generation after final archive write succeeds.
-- Use a stable sidecar format: `<sha256>  <archive-filename>`.
-- Ensure this works for both explicit output paths and archive-first local paths.
+- Compute size from the final stored archive path, not temp staging path.
+- Add threshold override hook for tests while preserving 100 MB default.
+- Ensure message text exactly matches AC contract for warning.
 
 **Definition of done**
-- `test135` and `test136` pass.
-- Pack output clearly indicates where checksum sidecar is written.
+- `test144`, `test145` pass.
 
-### task106 — Add checksum utility helpers
+### task113 — Inspect displays archive size metadata
 **Objective**
-- Centralize checksum compute/parse/verify logic so install/inspect/publish share the same behavior.
+- Show archive size in `kinnoo inspect <archive.kno>` output.
 
 **Implementation notes**
-- Create `src/kinnoo/checksum.py` with small, composable functions.
-- Helper API should cover file hash compute, sidecar parse/read, and expected-vs-actual verify.
-- Keep parsing strict enough to avoid ambiguous sidecar interpretation.
+- Add additive metadata line (no breaking output changes).
+- Reuse shared size formatter to avoid drift.
 
 **Definition of done**
-- `test137` passes.
-- No duplicate checksum/parsing logic remains in command modules.
+- `test146` passes.
 
-### task107 — Enforce checksum verification on install
+### task114 — List output includes archive size
 **Objective**
-- Verify integrity before extraction when sidecar exists for `kinnoo install <file.kno>`.
+- Include archive size for local and remote list modes.
 
 **Implementation notes**
-- Resolve sidecar path deterministically from archive path.
-- Run verify step before any extraction or venv setup side effects.
-- On mismatch, fail with exact message:
-  - `Archive integrity check failed — the file may be corrupted or tampered with`
+- Extend list row model to carry size metadata.
+- Maintain existing list behavior while adding size field/column.
 
 **Definition of done**
-- `test138` and `test139` pass.
-- Mismatch case exits non-zero with exact expected message.
+- `test147` passes.
 
-### task108 — Missing checksum warning on install
+### task115 — Docs and regression coverage for feature17
 **Objective**
-- Preserve install usability when sidecar is absent, while making integrity status explicit.
+- Document size reporting/warning behavior and lock it with docs tests.
 
 **Implementation notes**
-- When no sidecar exists, emit warning and continue install path unchanged.
-- Warning text must remain stable:
-  - `No checksum file found — archive integrity not verified`
+- Document pack output line + >100 MB warning semantics.
+- Document inspect/list size visibility.
+- Add docs assertion test for feature17.
 
 **Definition of done**
-- `test140` passes.
-- Missing-sidecar path remains warning-only (no false failure).
+- `test148` passes.
 
-### task109 — Show checksum in inspect output
-**Objective**
-- Improve operator visibility by surfacing archive checksum in `kinnoo inspect` output.
-
-**Implementation notes**
-- For `.kno` target inspection, read checksum sidecar if available.
-- Render checksum as additive metadata field without breaking existing formatting.
-- Keep behavior deterministic for tests (avoid non-deterministic formatting).
-
-**Definition of done**
-- `test141` passes.
-- Inspect output includes checksum field/value when available.
-
-### task110 — Publish checksum sidecar with archive
-**Objective**
-- Keep published artifact and checksum paired so downstream install can verify integrity.
-
-**Implementation notes**
-- During publish, if source sidecar exists, copy it to destination alongside `.kno`.
-- Sidecar absence must not block publish success.
-- Add clear publish output indicating whether sidecar was published.
-
-**Definition of done**
-- `test142` passes.
-- Registry destination contains both files when sidecar is present upstream.
-
-### task111 — Docs and regression coverage for checksums
-**Objective**
-- Ensure docs and tests communicate the full checksum lifecycle to users and maintainers.
-
-**Implementation notes**
-- Update `README.md` and `docs/manifest-schema-reference.md` for pack/install/inspect/publish checksum behavior.
-- Add/update docs test to assert required checksum statements are present.
-- Keep examples aligned with exact CLI behavior and warning/error strings.
-
-**Definition of done**
-- `test143` passes.
-- Docs reflect AC1-AC7 behaviors consistently.
+## SWE completion checklist
+- [ ] Implement tasks `task112`..`task115` in order.
+- [ ] Implement tests `test144`..`test148`.
+- [ ] Run focused tests: `python3 -m pytest tests/test_pack_size_reporting.py tests/test_docs.py -q`.
+- [ ] Run manifest validator: `python3 src/validate_project_manifests.py`.
+- [ ] Move task statuses to `in-progress` then `needs-review` when complete.
