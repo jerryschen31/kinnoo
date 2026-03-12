@@ -547,7 +547,7 @@ features:
       - "--yes/-y flag on install follows apt/brew convention for CI automation."
     owner: techlead-agent
     dependencies: [feature10]
-    status: in-progress
+    status: completed
 
   - id: feature16
     title: "Archive Integrity (Checksums)"
@@ -572,7 +572,7 @@ features:
         description: "`kinnoo publish` publishes the .kno file along with associated .kno.sha256 file, if present."
     owner: techlead-agent
     dependencies: [feature8]
-    status: not-started
+    status: completed
 
   - id: feature17
     title: "Pack Size Reporting & Warnings"
