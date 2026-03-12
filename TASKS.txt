@@ -1994,7 +1994,7 @@ tasks:
       - step4: Print a clear message indicating checksum file location
     dependencies: [task27, task83]
     tests: [test135, test136]
-    status: not-started
+    status: needs-review
 
   - id: task106
     title: Add checksum utility helpers

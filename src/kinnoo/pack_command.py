@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import zipfile
+import hashlib
 from pathlib import Path
 
 import yaml
@@ -73,6 +74,22 @@ def _is_platform_specific_wheel(wheel_filename: str) -> bool:
 
     platform_tag = parts[3]
     return platform_tag != "any"
+
+
+def _compute_sha256(file_path: Path) -> str:
+    digest = hashlib.sha256()
+    with file_path.open("rb") as archive_file:
+        for chunk in iter(lambda: archive_file.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _write_checksum_sidecar(archive_path: Path) -> Path:
+    checksum_value = _compute_sha256(archive_path)
+    sidecar_path = archive_path.with_name(f"{archive_path.name}.sha256")
+    sidecar_contents = f"{checksum_value}  {archive_path.name}\n"
+    sidecar_path.write_text(sidecar_contents, encoding="utf-8")
+    return sidecar_path
 
 
 def build_wheels(requirements_path: Path, wheels_dir: Path):
@@ -273,7 +290,15 @@ def pack_agent(agent_dir: str, bump: str | None = None) -> int:
         overwrite=True,
     )
 
+    try:
+        checksum_sidecar_path = _write_checksum_sidecar(stored_record.archive_path)
+    except OSError as error:
+        print(f"Error: Failed to write checksum sidecar: {error}", file=sys.stderr)
+        wheels_dir.cleanup()
+        return 1
+
     print(f"[kinnoo pack] Archive created: {stored_record.archive_path}")
+    print(f"[kinnoo pack] Checksum sidecar written: {checksum_sidecar_path}")
     print(f"[kinnoo pack] Agent version: {version}")
     wheels_dir.cleanup()
     return 0
