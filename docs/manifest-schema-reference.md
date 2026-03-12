@@ -345,6 +345,45 @@ Project-wide trust invariant:
 
 ---
 
+## Archive integrity checksums (Feature16)
+
+Feature16 introduces checksum sidecars across pack/install/inspect/publish to improve artifact integrity visibility and verification.
+
+Checksum sidecar contract:
+
+- sidecar path is sibling to archive: `<archive>.kno.sha256`
+- sidecar line format is stable: `<sha256>  <archive-filename>`
+- digest is lowercase SHA256 over archive bytes
+
+Pack behavior:
+
+- `kinnoo pack <agent-dir>` writes a checksum sidecar beside the stored archive artifact
+- pack emits:
+  - `[kinnoo pack] Checksum sidecar written: <path>`
+
+Install behavior (`kinnoo install <file.kno>`):
+
+- sidecar exists and checksum matches: install proceeds and prints `[kinnoo install] Archive checksum verified.`
+- sidecar exists and checksum mismatches: install aborts with exact error:
+  - `Archive integrity check failed — the file may be corrupted or tampered with`
+- sidecar is missing: install warns and continues with exact warning:
+  - `No checksum file found — archive integrity not verified`
+
+Inspect behavior:
+
+- `kinnoo inspect <archive.kno>` displays checksum metadata when valid sidecar is available:
+  - `- Checksum (SHA256): <digest>`
+
+Publish behavior:
+
+- `kinnoo publish <agent-name>` copies `.kno.sha256` to registry destination when present at source
+- sidecar absence is non-fatal; publish continues
+- publish emits one of:
+  - `Published checksum sidecar: <path>`
+  - `Published checksum sidecar: (none found at source)`
+
+---
+
 ## Pack/Publish Refactor commands (Feature13)
 
 Feature13 refactors command responsibilities to an archive-first packaging source plus mock-registry publishing target.
