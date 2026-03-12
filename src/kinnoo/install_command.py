@@ -10,12 +10,14 @@ import os
 from pathlib import Path
 
 try:
+    from kinnoo.checksum import checksum_sidecar_path_for_archive
     from kinnoo.registry import RegistryService, parse_install_target_spec
     from kinnoo.registry_backends import MockFilesystemRegistryBackend
     from kinnoo.schema import normalize_env_vars
     from kinnoo.inspect_command import read_manifest_from_kno_archive
     from kinnoo.validator import validate
 except ImportError:
+    from .checksum import checksum_sidecar_path_for_archive
     from .registry import RegistryService, parse_install_target_spec
     from .registry_backends import MockFilesystemRegistryBackend
     from .schema import normalize_env_vars
@@ -81,10 +83,6 @@ def _is_offline_mode_enabled() -> bool:
     kinnoo_offline = os.environ.get("KINNOO_OFFLINE", "").strip().lower()
     pip_no_index = os.environ.get("PIP_NO_INDEX", "").strip().lower()
     return kinnoo_offline in offline_values or pip_no_index in offline_values
-
-
-def _checksum_path_for_archive(archive: Path) -> Path:
-    return Path(f"{archive}.sha256")
 
 
 def install_agent(
@@ -158,7 +156,7 @@ def _install_from_archive_path(
         print(f"Error: Archive '{archive}' is not a .kno file.", file=sys.stderr)
         return 1
 
-    checksum_path = _checksum_path_for_archive(archive)
+    checksum_path = checksum_sidecar_path_for_archive(archive)
     source_is_unverified = not checksum_path.exists()
     if source_is_unverified:
         warning_message = "This agent is from an unverified source."
