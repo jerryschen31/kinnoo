@@ -6,6 +6,8 @@ import re
 import os
 from pathlib import Path
 
+from kinnoo.checksum import write_checksum_sidecar_for_archive
+
 
 def _create_trust_baseline_archive(
     tmp_path: Path,
@@ -37,7 +39,7 @@ def _create_trust_baseline_archive(
         archive.writestr("run.py", "print('ok')\n")
 
     if create_checksum:
-        Path(f"{archive_path}.sha256").write_text("dummy-sha256\n", encoding="utf-8")
+        write_checksum_sidecar_for_archive(archive_path)
 
     return archive_path
 
@@ -191,8 +193,7 @@ def test_install_unverified_source_warning(tmp_path: Path) -> None:
     assert "This agent is from an unverified source. Continue? (y/n):" not in yes_output
     assert target_yes.exists()
 
-    checksum_path = Path(f"{archive_path}.sha256")
-    checksum_path.write_text("dummy-sha256\n", encoding="utf-8")
+    write_checksum_sidecar_for_archive(archive_path)
 
     target_verified = tmp_path / "installed-verified"
     verified_result = subprocess.run(
