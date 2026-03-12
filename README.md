@@ -149,6 +149,46 @@ Project-wide security invariant:
 - No env var or secret values are ever printed, logged, or persisted by Kinnoo trust paths.
 - Diagnostics and trust output are names-only for env vars.
 
+## Archive Integrity (Feature16)
+
+Feature16 adds checksum lifecycle behavior across pack/install/inspect/publish using sidecar files.
+
+Checksum sidecar contract:
+
+- Sidecar naming: `<archive>.kno.sha256` (sibling to archive).
+- Sidecar content format: `<sha256>  <archive-filename>`.
+- SHA256 digest is lowercase hex and computed from archive bytes.
+
+Pack behavior:
+
+- `kinnoo pack` writes checksum sidecar after archive creation.
+- Pack output includes:
+	- `[kinnoo pack] Checksum sidecar written: <path>`
+
+Install behavior (`kinnoo install <file.kno>`):
+
+- Sidecar present + checksum match:
+	- install proceeds,
+	- output includes `[kinnoo install] Archive checksum verified.`
+- Sidecar present + mismatch:
+	- install aborts with exact error:
+	- `Archive integrity check failed — the file may be corrupted or tampered with`
+- Sidecar missing:
+	- warning-only path continues install,
+	- output includes: `No checksum file found — archive integrity not verified`
+
+Inspect behavior:
+
+- `kinnoo inspect <archive.kno>` reads sidecar when valid and displays:
+	- `- Checksum (SHA256): <digest>`
+
+Publish behavior:
+
+- `kinnoo publish <agent-name>` copies sidecar to registry when source sidecar exists.
+- Publish output includes one of:
+	- `Published checksum sidecar: <path>`
+	- `Published checksum sidecar: (none found at source)`
+
 ## Pack/Publish Refactor (Feature13)
 
 Feature13 shifts command responsibilities to an archive-first source model and a mock-registry publish target.
