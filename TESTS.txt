@@ -2259,3 +2259,145 @@ tests:
         ac: AC5
       - feature: feature15
         ac: AC6
+
+  - id: test135
+    title: pack generates sha256 sidecar next to output archive
+    type: integration
+    preconditions: "valid agent directory; `kinnoo pack` command available"
+    steps:
+      - step1: Run `kinnoo pack <agent-dir>`
+      - step2: Verify generated `.kno` archive exists
+      - step3: Verify sibling `.kno.sha256` file exists
+      - step4: Verify sidecar contains a SHA256 digest and archive filename token
+    expected: Packing produces archive and checksum sidecar together
+    pass_criteria: "`.kno` and matching `.kno.sha256` both exist and checksum line format is valid"
+    automated: true
+    automation_path: tests/test_archive_integrity.py::test_pack_generates_checksum_sidecar
+    covers:
+      - feature: feature16
+        ac: AC1
+
+  - id: test136
+    title: pack writes checksum alongside local archive artifact
+    type: integration
+    preconditions: archive-first local pack destination is enabled
+    steps:
+      - step1: Run `kinnoo pack <agent-dir>`
+      - step2: Resolve local archive output path under `~/.kinnoo/archive/<name>/<version>/`
+      - step3: Verify `.kno.sha256` is present next to archived `.kno`
+    expected: Local archive storage includes checksum sidecar alongside archive artifact
+    pass_criteria: Destination directory contains both `<name>.kno` and `<name>.kno.sha256`
+    automated: true
+    automation_path: tests/test_archive_integrity.py::test_pack_stores_checksum_with_local_archive
+    covers:
+      - feature: feature16
+        ac: AC5
+
+  - id: test137
+    title: checksum utility computes and parses stable sha256 values
+    type: unit
+    preconditions: checksum utility module is importable
+    steps:
+      - step1: Create fixture archive file with deterministic bytes
+      - step2: Compute SHA256 using checksum utility
+      - step3: Parse sidecar content using checksum parser helper
+      - step4: Verify parsed expected digest matches computed digest
+    expected: Shared checksum helpers return deterministic and parseable integrity values
+    pass_criteria: Compute/parse helpers produce matching digest outputs for fixture archive
+    automated: true
+    automation_path: tests/test_archive_integrity.py::test_checksum_helpers_compute_and_parse
+    covers:
+
+  - id: test138
+    title: install verifies checksum when sidecar exists
+    type: integration
+    preconditions: "`.kno` archive with matching `.kno.sha256` sidecar exists"
+    steps:
+      - step1: Run `kinnoo install <archive.kno>`
+      - step2: Verify checksum verification step succeeds
+      - step3: Verify extraction/install continues successfully
+    expected: Install validates checksum before extraction and proceeds on match
+    pass_criteria: Install completes successfully and verification output indicates checksum match
+    automated: true
+    automation_path: tests/test_archive_integrity.py::test_install_verifies_checksum_when_present
+    covers:
+      - feature: feature16
+        ac: AC2
+
+  - id: test139
+    title: install aborts on checksum mismatch with integrity error
+    type: integration
+    preconditions: "`.kno` archive and intentionally incorrect `.kno.sha256` sidecar exist"
+    steps:
+      - step1: Run `kinnoo install <archive.kno>`
+      - step2: Capture output and exit code
+      - step3: Verify extraction does not proceed after failed integrity check
+    expected: Install aborts with explicit archive integrity failure message
+    pass_criteria: "Non-zero exit and output contains `Archive integrity check failed — the file may be corrupted or tampered with`"
+    automated: true
+    automation_path: tests/test_archive_integrity.py::test_install_aborts_on_checksum_mismatch
+    covers:
+      - feature: feature16
+        ac: AC3
+
+  - id: test140
+    title: install warns and proceeds when checksum file is absent
+    type: integration
+    preconditions: "`.kno` archive exists without sibling `.kno.sha256` sidecar"
+    steps:
+      - step1: Run `kinnoo install <archive.kno>`
+      - step2: Verify warning about missing checksum is printed
+      - step3: Verify install proceeds through normal extraction path
+    expected: Missing checksum produces warning-only behavior with no hard failure
+    pass_criteria: "Output includes `No checksum file found — archive integrity not verified` and install succeeds"
+    automated: true
+    automation_path: tests/test_archive_integrity.py::test_install_warns_when_checksum_missing
+    covers:
+      - feature: feature16
+        ac: AC4
+
+  - id: test141
+    title: inspect displays archive checksum when available
+    type: integration
+    preconditions: "`.kno` archive has sibling `.kno.sha256` sidecar"
+    steps:
+      - step1: Run `kinnoo inspect <archive.kno>`
+      - step2: Verify output includes checksum field/value
+      - step3: Verify displayed checksum matches sidecar digest
+    expected: Inspect output includes archive integrity checksum metadata
+    pass_criteria: Inspect output contains checksum label and digest matching sidecar
+    automated: true
+    automation_path: tests/test_archive_integrity.py::test_inspect_displays_checksum
+    covers:
+      - feature: feature16
+        ac: AC6
+
+  - id: test142
+    title: publish includes checksum sidecar when present
+    type: integration
+    preconditions: "local archive contains `.kno` with matching `.kno.sha256` sidecar"
+    steps:
+      - step1: Run `kinnoo publish <agent-name>`
+      - step2: Verify published registry target includes `.kno` artifact
+      - step3: Verify matching `.kno.sha256` sidecar is also published
+    expected: Publish propagates checksum sidecar with archive when available
+    pass_criteria: Registry destination contains both archive and sidecar for published version
+    automated: true
+    automation_path: tests/test_archive_integrity.py::test_publish_copies_checksum_sidecar
+    covers:
+      - feature: feature16
+        ac: AC7
+
+  - id: test143
+    title: docs cover archive integrity checksum lifecycle
+    type: unit
+    preconditions: README.md and docs/manifest-schema-reference.md are present and readable
+    steps:
+      - step1: Verify docs describe `.kno.sha256` generation during pack
+      - step2: Verify docs describe install behavior for present, mismatched, and missing checksums
+      - step3: Verify docs describe inspect checksum display and publish sidecar behavior
+    expected: Documentation reflects feature16 checksum lifecycle across key commands
+    pass_criteria: Required checksum lifecycle statements are present and consistent across docs
+    automated: true
+    automation_path: tests/test_docs.py::test_feature16_docs_cover_archive_integrity
+    covers:

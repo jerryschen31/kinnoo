@@ -1977,3 +1977,127 @@ tasks:
     dependencies: [task98, task99, task100, task103]
     tests: [test134]
     status: needs-review
+
+  - id: task105
+    title: Generate checksum sidecar during pack
+    type: task
+    description: |
+      Extend `kinnoo pack` to compute SHA256 for the final `.kno` archive and write a
+      sibling checksum file `<archive>.kno.sha256`. Ensure behavior works both for direct
+      output and archive-first local storage paths.
+    files:
+      - src/kinnoo/pack_command.py
+    steps:
+      - step1: After successful archive creation, compute SHA256 of the `.kno` bytes
+      - step2: Write `<archive>.kno.sha256` next to the archive using stable text format `<sha256>  <filename>`
+      - step3: Ensure checksum sidecar is also present for archives stored in local archive paths
+      - step4: Print a clear message indicating checksum file location
+    dependencies: [task27, task83]
+    tests: [test135, test136]
+    status: not-started
+
+  - id: task106
+    title: Add checksum utility helpers
+    type: task
+    description: |
+      Introduce shared checksum utilities for SHA256 computation, sidecar parsing, and
+      archive integrity verification. Reuse helpers in install, inspect, and publish flows
+      to keep logic consistent and testable.
+    files:
+      - src/kinnoo/checksum.py
+      - src/kinnoo/install_command.py
+      - src/kinnoo/inspect_command.py
+      - src/kinnoo/publish_command.py
+    steps:
+      - step1: Implement helper to compute SHA256 for a file path
+      - step2: Implement helper to read and parse `.kno.sha256` sidecar content
+      - step3: Implement helper to verify expected hash against archive hash
+      - step4: Integrate helpers in command modules without duplicating checksum logic
+    dependencies: [task105]
+    tests: [test137]
+    status: not-started
+
+  - id: task107
+    title: Enforce checksum verification on install
+    type: task
+    description: |
+      For `kinnoo install <file.kno>`, if `<file.kno>.sha256` exists, verify integrity before
+      extraction. Abort installation on mismatch with a clear integrity-failure error.
+    files:
+      - src/kinnoo/install_command.py
+    steps:
+      - step1: Detect sibling `.kno.sha256` file for file-path installs
+      - step2: Verify archive hash before extraction when sidecar exists
+      - step3: Abort install on mismatch with exact user-facing integrity failure message
+      - step4: Preserve existing extraction/install flow on successful verification
+    dependencies: [task106]
+    tests: [test138, test139]
+    status: not-started
+
+  - id: task108
+    title: Missing checksum warning on install
+    type: task
+    description: |
+      If a `.kno.sha256` sidecar is absent for file-path install, continue installation but
+      print a clear warning that archive integrity was not verified.
+    files:
+      - src/kinnoo/install_command.py
+    steps:
+      - step1: Detect absence of expected sidecar path `<archive>.sha256`
+      - step2: Print warning `No checksum file found — archive integrity not verified`
+      - step3: Continue with normal install behavior and unchanged exit semantics
+    dependencies: [task107]
+    tests: [test140]
+    status: not-started
+
+  - id: task109
+    title: Show checksum in inspect output
+    type: task
+    description: |
+      Extend `kinnoo inspect` to display archive checksum when available from a sidecar file
+      or by deterministic computation where appropriate for `.kno` targets.
+    files:
+      - src/kinnoo/inspect_command.py
+    steps:
+      - step1: Resolve checksum availability for `.kno` inspection target
+      - step2: Display checksum in human-readable inspect output under metadata section
+      - step3: Keep output deterministic and avoid exposing unrelated file contents
+    dependencies: [task106]
+    tests: [test141]
+    status: not-started
+
+  - id: task110
+    title: Publish checksum sidecar with archive
+    type: task
+    description: |
+      Update publish flow to copy `.kno.sha256` alongside `.kno` when available, keeping
+      registry artifact and checksum paired for downstream integrity verification.
+    files:
+      - src/kinnoo/publish_command.py
+    steps:
+      - step1: Check whether source archive has sibling `.sha256` file
+      - step2: Copy sidecar into publish destination next to published `.kno`
+      - step3: Keep publish behavior unchanged when sidecar is absent
+      - step4: Include checksum sidecar status in publish output messaging
+    dependencies: [task106, task84]
+    tests: [test142]
+    status: not-started
+
+  - id: task111
+    title: Docs and regression coverage for checksums
+    type: task
+    description: |
+      Document checksum behavior across pack/install/inspect/publish and add focused tests
+      that validate feature16 acceptance criteria end-to-end.
+    files:
+      - README.md
+      - docs/manifest-schema-reference.md
+      - tests/test_docs.py
+    steps:
+      - step1: Document checksum generation in pack and storage in local archive paths
+      - step2: Document install verification behavior for present/missing checksum sidecars
+      - step3: Document inspect checksum visibility and publish sidecar propagation
+      - step4: Add docs test asserting feature16 coverage statements remain present
+    dependencies: [task105, task107, task108, task109, task110]
+    tests: [test143]
+    status: not-started
