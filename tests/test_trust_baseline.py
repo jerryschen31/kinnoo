@@ -327,3 +327,40 @@ def test_run_trace_log_no_secrets(tmp_path: Path) -> None:
     assert secret_value not in log_text
     assert undeclared_secret_value not in log_text
     assert input_text not in log_text
+
+
+def _assert_anchor_has_invariant_comment(file_path: Path, anchor_text: str) -> None:
+    source_lines = file_path.read_text(encoding="utf-8").splitlines()
+    anchor_indices = [index for index, line in enumerate(source_lines) if anchor_text in line]
+    assert anchor_indices, f"Anchor not found in {file_path}: {anchor_text}"
+
+    for anchor_index in anchor_indices:
+        window_start = max(0, anchor_index - 4)
+        context_window = source_lines[window_start:anchor_index + 1]
+        has_invariant_comment = any(
+            "SECURITY INVARIANT: only env var NAMES, never values" in context_line
+            for context_line in context_window
+        )
+        assert has_invariant_comment, (
+            f"Missing security invariant comment near anchor '{anchor_text}' in {file_path}"
+        )
+
+
+def test_trust_code_has_security_invariant_comments() -> None:
+    root_dir = Path(__file__).resolve().parents[1]
+
+    install_file = root_dir / "src" / "kinnoo" / "install_command.py"
+    run_file = root_dir / "src" / "kinnoo" / "run_command.py"
+    inspect_file = root_dir / "src" / "kinnoo" / "inspect_command.py"
+
+    _assert_anchor_has_invariant_comment(install_file, 'print("- Env Vars:")')
+    _assert_anchor_has_invariant_comment(
+        run_file,
+        'return False, f"env vars check failed: unresolved env vars [{missing_label}]"',
+    )
+    _assert_anchor_has_invariant_comment(
+        run_file,
+        'return True, f"env vars check passed: resolved env vars [{declared_label}]"',
+    )
+    _assert_anchor_has_invariant_comment(run_file, "log_file.write_text(serialized_payload, encoding=\"utf-8\")")
+    _assert_anchor_has_invariant_comment(inspect_file, 'print("- Env Vars:")')

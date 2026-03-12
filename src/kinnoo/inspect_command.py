@@ -166,6 +166,7 @@ def _print_inspect_output(target_label: str, manifest_data: dict[str, Any]) -> N
     if "env_vars" in normalized:
         env_var_names = _env_var_names_for_display(normalized)
         if env_var_names:
+            # [agent] SECURITY INVARIANT: only env var NAMES, never values
             print("- Env Vars:")
             for env_var_name in env_var_names:
                 print(f"  - {env_var_name}")
