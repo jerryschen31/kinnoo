@@ -218,6 +218,9 @@ This is a genuine differentiator for kinnoo. No other agent packaging tool (that
 - It has its own test surface
 - It will evolve independently (ML upgrade path)
 
+### Notes
+- for run logging, will add run UUID later
+
 ---
 
 ## Summary of recommendations

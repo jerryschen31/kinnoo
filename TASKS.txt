@@ -1876,16 +1876,19 @@ tasks:
     type: task
     description: |
       After each `kinnoo run` execution, write a trace log to ~/.kinnoo/logs/run.<TIMESTAMP>.log.
-      The log must contain ONLY: ISO timestamp, agent name (from manifest), runtime type, and
-      exit code. It must NEVER contain input content, env var values, secrets, or stdout/stderr.
+      The filename format must be exactly `run.<TIMESTAMP>.log` where `<TIMESTAMP>` is UTC only.
+      The log content must be JSON with this exact shape:
+      {"timestamp": <TIMESTAMP>, "agent_name": <agent-name>, "agent-version": <agent-version>, "runtime_type": <runtime-type>, "exit_code": <exit-code>}.
+      It must NEVER contain input content, env var values, secrets, or stdout/stderr.
       Create the ~/.kinnoo/logs/ directory if it does not exist.
     files:
       - src/kinnoo/run_command.py
     steps:
       - step1: After agent execution completes (or fails), create ~/.kinnoo/logs/ if needed
-      - step2: Write trace log file with timestamp, agent name, runtime type, exit code
-      - step3: Add inline comment on the log write call documenting the no-secret-values invariant
-      - step4: Ensure graceful failure if log directory creation fails (warn, don't crash)
+      - step2: Use UTC timestamps only for both filename and JSON `timestamp` field
+      - step3: Write trace log to ~/.kinnoo/logs/run.<TIMESTAMP>.log as a single JSON object with keys `timestamp`, `agent_name`, `agent-version`, `runtime_type`, `exit_code`
+      - step4: Add inline comment on the log write call documenting the no-secret-values invariant
+      - step5: Ensure graceful failure if log directory creation fails (warn, don't crash)
     dependencies: [task39]
     tests: [test129, test130]
     status: not-started
@@ -1902,7 +1905,7 @@ tasks:
       - src/kinnoo/run_command.py
       - tests/test_trust_baseline.py
     steps:
-      - step1: In the log writing code, explicitly construct the log line from only safe fields (timestamp, name, type, exit code)
+      - step1: In the log writing code, explicitly construct JSON from only safe fields (timestamp, agent_name, agent-version, runtime_type, exit_code)
       - step2: Add test that runs an agent with known env var values and verifies the log file does not contain those values
       - step3: Add test that runs an agent with known input and verifies the log file does not contain the input text
     dependencies: [task100]

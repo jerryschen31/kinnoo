@@ -2150,11 +2150,12 @@ tests:
     steps:
       - step1: Run `kinnoo run <agent-dir> '<input>'` and capture exit code
       - step2: Verify ~/.kinnoo/logs/ directory was created
-      - step3: Find the most recent run.*.log file
-      - step4: Parse log file and verify it contains ISO timestamp, agent name, runtime type, and exit code
-      - step5: Verify log file does NOT contain the input string
-    expected: Trace log file exists with correct safe fields; no input content
-    pass_criteria: Log file present; contains timestamp/name/type/exit code; does not contain input text
+      - step3: Find the most recent `run.<TIMESTAMP>.log` file and verify timestamp segment is UTC format
+      - step4: Parse log file as JSON and verify keys are exactly `timestamp`, `agent_name`, `agent-version`, `runtime_type`, `exit_code`
+      - step5: Verify JSON includes agent name, agent version, runtime type, and exit code values
+      - step6: Verify log file does NOT contain the input string
+    expected: Trace log file exists in UTC timestamped filename format with correct JSON safe fields; no input content
+    pass_criteria: Log filename matches run.<TIMESTAMP>.log (UTC); JSON shape and values are correct including `agent-version`; input text is absent
     automated: true
     automation_path: tests/test_trust_baseline.py::test_run_trace_log_safe_fields
     covers:
@@ -2169,10 +2170,11 @@ tests:
       - step1: Set environment variables with known distinctive values (e.g., "SECRET_VALUE_12345")
       - step2: Run `kinnoo run <agent-dir> '<input>'`
       - step3: Read the resulting log file
-      - step4: Assert the log file does NOT contain any of the known secret values
-      - step5: Assert the log file does NOT contain the user input string
-    expected: Log file is completely free of secret values and user input
-    pass_criteria: None of the known secret values or input content appear anywhere in the log file
+      - step4: Parse JSON and verify only expected keys exist (`timestamp`, `agent_name`, `agent-version`, `runtime_type`, `exit_code`)
+      - step5: Assert the log file does NOT contain any of the known secret values
+      - step6: Assert the log file does NOT contain the user input string
+    expected: Log file JSON remains limited to safe fields and is completely free of secret values and user input
+    pass_criteria: JSON keyset is exact; none of the known secret values or input content appear anywhere in the log file
     automated: true
     automation_path: tests/test_trust_baseline.py::test_run_trace_log_no_secrets
     covers:
