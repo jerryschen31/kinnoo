@@ -142,3 +142,37 @@ def test_feature14_docs_cover_preflight_contract() -> None:
 
     assert "names-only" in combined_lower or "names only" in combined_lower
     assert "never prints env var values" in combined_lower
+
+
+def test_feature15_docs_cover_trust_baseline() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    schema_doc = repo_root / "docs" / "manifest-schema-reference.md"
+    readme_doc = repo_root / "README.md"
+
+    schema_text = schema_doc.read_text(encoding="utf-8")
+    readme_text = readme_doc.read_text(encoding="utf-8")
+    combined_text = f"{schema_text}\n{readme_text}"
+    combined_lower = combined_text.lower()
+
+    assert "Continue with install? [y/N]:" in combined_text
+    assert "--yes" in combined_text or "-y" in combined_text
+
+    assert "This agent is from an unverified source." in combined_text
+    assert "This agent is from an unverified source. Continue? (y/n):" in combined_text
+    assert ".sha256" in combined_text
+
+    assert "~/.kinnoo/logs/run.<TIMESTAMP>.log" in combined_text
+    assert "utc" in combined_lower
+    assert "timestamp" in combined_text
+    assert "agent_name" in combined_text
+    assert "agent-version" in combined_text
+    assert "runtime_type" in combined_text
+    assert "exit_code" in combined_text
+    assert "never includes input text" in combined_lower or "never include input text" in combined_lower
+
+    assert "Security sweep:" in combined_text
+    assert "Security sweep: no env var exposure patterns detected (heuristic)" in combined_text
+    assert "heuristic scan — may produce false positives; not a substitute for code review" in combined_lower
+
+    assert "no env var or secret values" in combined_lower
+    assert "names-only" in combined_lower or "names only" in combined_lower
