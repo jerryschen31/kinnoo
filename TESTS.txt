@@ -2088,3 +2088,174 @@ tests:
     covers:
       - feature: feature14
         ac: AC1
+
+  - id: test126
+    title: install displays summary and prompts for confirmation before installing
+    type: integration
+    preconditions: valid .kno archive with manifest declaring env_vars and dependencies
+    steps:
+      - step1: Run `kinnoo install <archive.kno>` with stdin providing 'y' to proceed
+      - step2: Capture stdout and verify it includes agent name, runtime type, dependency names, and env_var names
+      - step3: Verify confirmation prompt "Continue with install? [y/N]" is displayed
+      - step4: Verify install proceeds after 'y' confirmation
+      - step5: Run again with stdin providing 'n' or empty — verify install aborts
+    expected: Install shows summary with names (never values) and respects y/n prompt
+    pass_criteria: Summary includes all declared names; prompt shown; 'y' proceeds; 'n'/empty aborts with non-zero exit
+    automated: true
+    automation_path: tests/test_trust_baseline.py::test_install_summary_and_confirmation_prompt
+    covers:
+      - feature: feature15
+        ac: AC1
+
+  - id: test127
+    title: install --yes flag bypasses confirmation prompt
+    type: integration
+    preconditions: valid .kno archive with manifest declaring env_vars and dependencies
+    steps:
+      - step1: Run `kinnoo install <archive.kno> --yes` (no stdin)
+      - step2: Verify summary is still displayed (env_var names, dependency names, runtime)
+      - step3: Verify no prompt is shown and install proceeds directly
+      - step4: Run `kinnoo install <archive.kno> -y` and verify same behavior
+    expected: --yes/-y skips confirmation but still shows summary
+    pass_criteria: Summary displayed; no prompt; install completes; both --yes and -y work
+    automated: true
+    automation_path: tests/test_trust_baseline.py::test_install_yes_flag_bypasses_prompt
+    covers:
+      - feature: feature15
+        ac: AC1
+
+  - id: test128
+    title: install warns when .kno.sha256 missing (unverified source)
+    type: integration
+    preconditions: valid .kno archive file WITHOUT accompanying .kno.sha256 file
+    steps:
+      - step1: Run `kinnoo install <archive.kno>` where <archive.kno>.sha256 does not exist
+      - step2: Verify warning "This agent is from an unverified source" is displayed
+      - step3: Verify confirmation prompt "Continue? (y/n)" is shown
+      - step4: Provide 'n' — verify install aborts
+      - step5: Run with --yes — verify warning is shown but prompt is skipped
+      - step6: Run with .kno.sha256 present — verify unverified warning is NOT shown
+    expected: Unverified source warning shown only when .sha256 file is missing; --yes bypasses prompt but not warning
+    pass_criteria: Warning present when .sha256 missing; absent when present; prompt respected; --yes skips prompt
+    automated: true
+    automation_path: tests/test_trust_baseline.py::test_install_unverified_source_warning
+    covers:
+      - feature: feature15
+        ac: AC2
+
+  - id: test129
+    title: kinnoo run writes trace log with safe fields only
+    type: integration
+    preconditions: valid agent directory; kinnoo CLI installed; HOME writable
+    steps:
+      - step1: Run `kinnoo run <agent-dir> '<input>'` and capture exit code
+      - step2: Verify ~/.kinnoo/logs/ directory was created
+      - step3: Find the most recent `run.<TIMESTAMP>.log` file and verify timestamp segment is UTC format
+      - step4: Parse log file as JSON and verify keys are exactly `timestamp`, `agent_name`, `agent-version`, `runtime_type`, `exit_code`
+      - step5: Verify JSON includes agent name, agent version, runtime type, and exit code values
+      - step6: Verify log file does NOT contain the input string
+    expected: Trace log file exists in UTC timestamped filename format with correct JSON safe fields; no input content
+    pass_criteria: Log filename matches run.<TIMESTAMP>.log (UTC); JSON shape and values are correct including `agent-version`; input text is absent
+    automated: true
+    automation_path: tests/test_trust_baseline.py::test_run_trace_log_safe_fields
+    covers:
+      - feature: feature15
+        ac: AC3
+
+  - id: test130
+    title: run trace log never contains env var values or secrets
+    type: integration
+    preconditions: agent with declared env_vars; known secret values set in environment
+    steps:
+      - step1: Set environment variables with known distinctive values (e.g., "SECRET_VALUE_12345")
+      - step2: Run `kinnoo run <agent-dir> '<input>'`
+      - step3: Read the resulting log file
+      - step4: Parse JSON and verify only expected keys exist (`timestamp`, `agent_name`, `agent-version`, `runtime_type`, `exit_code`)
+      - step5: Assert the log file does NOT contain any of the known secret values
+      - step6: Assert the log file does NOT contain the user input string
+    expected: Log file JSON remains limited to safe fields and is completely free of secret values and user input
+    pass_criteria: JSON keyset is exact; none of the known secret values or input content appear anywhere in the log file
+    automated: true
+    automation_path: tests/test_trust_baseline.py::test_run_trace_log_no_secrets
+    covers:
+      - feature: feature15
+        ac: AC4
+
+  - id: test131
+    title: trust code paths include no-secret-values inline comments
+    type: unit
+    preconditions: source files are present and readable
+    steps:
+      - step1: Read all trust-related source files (install_command.py, run_command.py, inspect_command.py, code_sweep.py)
+      - step2: Identify code sites that display or log env var or secret-adjacent data
+      - step3: Verify each site has an inline comment containing "SECURITY INVARIANT" or "no secret values" (case-insensitive)
+    expected: All trust-sensitive code paths are annotated with the no-secret-values invariant
+    pass_criteria: Every trust-sensitive display/log site has an inline security invariant comment
+    automated: true
+    automation_path: tests/test_trust_baseline.py::test_trust_code_has_security_invariant_comments
+    covers:
+      - feature: feature15
+        ac: AC5
+
+  - id: test132
+    title: inspect includes security sweep for env var exposure
+    type: integration
+    preconditions: agent directory with .py files; some files contain print(os.environ) patterns
+    steps:
+      - step1: Create agent fixture with clean source (no exposure patterns)
+      - 'step2: Run kinnoo inspect and verify "Security sweep: no env var exposure patterns detected (heuristic)" message'
+      - step3: Create agent fixture with source containing print(os.environ.get(KEY)) pattern
+      - step4: Run kinnoo inspect and verify warning with file path and line number
+      - step5: Verify .venv/ files are excluded from the sweep
+      - step6: Verify disclaimer about false positives is present
+    expected: Inspect shows security sweep results — clean when no patterns, warnings with detail when patterns found
+    pass_criteria: Clean fixture prints clean message; dirty fixture prints warning with location; .venv excluded; disclaimer shown
+    automated: true
+    automation_path: tests/test_trust_baseline.py::test_inspect_security_sweep
+    covers:
+      - feature: feature15
+        ac: AC6
+
+  - id: test133
+    title: pack runs security sweep as non-blocking warning
+    type: integration
+    preconditions: agent directory with .py files containing exposure patterns; kinnoo pack available
+    steps:
+      - step1: Create agent fixture with source containing env var exposure patterns
+      - step2: Run `kinnoo pack <agent-dir>`
+      - step3: Verify security sweep warnings are printed to stderr or stdout
+      - step4: Verify pack still completes successfully (non-blocking)
+      - step5: Create clean agent fixture and run pack — verify no warnings
+    expected: Pack prints sweep warnings but does not abort; clean agents produce no warnings
+    pass_criteria: Dirty fixture shows warnings but pack succeeds; clean fixture produces no warnings
+    automated: true
+    automation_path: tests/test_trust_baseline.py::test_pack_security_sweep_non_blocking
+    covers:
+      - feature: feature15
+        ac: AC6
+
+  - id: test134
+    title: docs cover trust baseline features and no-secret-values contract
+    type: unit
+    preconditions: README.md and docs/manifest-schema-reference.md are present and readable
+    steps:
+      - step1: Verify docs describe install summary prompt and --yes/-y flag
+      - step2: Verify docs describe unverified source warning
+      - step3: Verify docs describe run trace log location and safe-fields-only policy
+      - step4: Verify docs describe security sweep in inspect/pack
+      - step5: Verify docs state the no-secret-values invariant as a project-wide security contract
+    expected: Documentation covers all trust baseline features and the security invariant
+    pass_criteria: All trust-related behaviors and the no-secret-values contract are documented
+    automated: true
+    automation_path: tests/test_docs.py::test_feature15_docs_cover_trust_baseline
+    covers:
+      - feature: feature15
+        ac: AC1
+      - feature: feature15
+        ac: AC2
+      - feature: feature15
+        ac: AC3
+      - feature: feature15
+        ac: AC5
+      - feature: feature15
+        ac: AC6

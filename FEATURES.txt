@@ -524,25 +524,30 @@ features:
     title: "Trust Baseline"
     description: |
       Add transparency and trust features: display dependency/secret name summary on install,
-      warn when installing agents from unverified sources, and log run traces. Absolute rule:
-      no env var or secret VALUES ever appear in output, logs, or code paths — only names.
-    tasks: []
+      warn when installing agents from unverified sources, log run traces, and perform a
+      heuristic code sweep for env var value exposure. Absolute rule: no env var or secret
+      VALUES ever appear in output, logs, or code paths — only names.
+    tasks: [task98, task99, task100, task101, task102, task103, task104]
     acceptance_criteria:
       - id: AC1
-        description: "`kinnoo install` displays a summary of what the agent requires (env_var NAMES, dependency NAMES, runtime type) before installing and prompts for yes/no confirmation."
+        description: "`kinnoo install` displays a summary of what the agent requires (env_var NAMES, dependency NAMES, runtime type) before installing and prompts for yes/no confirmation. A `--yes` (`-y`) flag skips the confirmation prompt for CI/automation pipelines."
       - id: AC2
-        description: "If an agent is installed from a raw .kno file (not from a registry), a warning is displayed: 'This agent is from an unverified source'."
+        description: "If an agent is installed from a raw .kno file (not from a registry or archive) without an accompanying checksum .kno.sha256 file, a confirmation prompt is asked before proceeding: 'This agent is from an unverified source. Continue? (y/n)'."
       - id: AC3
-        description: "`kinnoo run` logs a trace to ~/.kinnoo/logs/run.log containing ONLY: timestamp, agent name, runtime type, and exit code — no input content, no env var values, no secrets."
+        description: "`kinnoo run` logs a trace in JSON format to ~/.kinnoo/logs/run.<TIMESTAMP>.log containing ONLY: timestamp, agent name, agent version, runtime type, and exit code — no input content, no env var values, no secrets."
       - id: AC4
-        description: "`kinnoo run` displays the agent's declared env_var NAMES and dependency NAMES before first execution (first run only) — never values."
-      - id: AC5
         description: "Log file never contains actual values of environment variables, secrets, or user input."
-      - id: AC6
+      - id: AC5
         description: "All trust-related display and logging code includes inline comments documenting the 'no secret values' invariant."
+      - id: AC6
+        description: "`kinnoo inspect` includes a heuristic security sweep of all .py files in the agent directory (excluding .venv/) that detects patterns where env var values may be printed, logged, or written to files. Warnings are displayed with file path and line number. A clean scan prints 'Security sweep: no env var exposure patterns detected (heuristic)'. The sweep also runs during `kinnoo pack` as a non-blocking warning before archiving."
+    notes:
+      - "Original AC4 (first-run display of env/dep names) was dropped — redundant with kinnoo inspect and kinnoo run --preflight."
+      - "AC6 is a regex-based heuristic, not taint analysis. Output includes a disclaimer about false positives."
+      - "--yes/-y flag on install follows apt/brew convention for CI automation."
     owner: techlead-agent
     dependencies: [feature10]
-    status: not-started
+    status: in-progress
 
   - id: feature16
     title: "Archive Integrity (Checksums)"
@@ -560,9 +565,11 @@ features:
       - id: AC4
         description: "If no .kno.sha256 file is present, install proceeds with a warning: 'No checksum file found — archive integrity not verified'."
       - id: AC5
-        description: "`kinnoo publish` stores the checksum alongside the archive in the local registry."
+        description: "`kinnoo pack` stores the SHA256 checksum alongside the .kno file in the local archive."
       - id: AC6
         description: "`kinnoo inspect` displays the archive checksum if available."
+      - ID: AC7
+        description: "`kinnoo publish` publishes the .kno file along with associated .kno.sha256 file, if present."
     owner: techlead-agent
     dependencies: [feature8]
     status: not-started
@@ -615,4 +622,38 @@ features:
         description: "Imported agent can be executed via `kinnoo run <new-agent-dir> \"<input>\"` after standard dependency installation path."
     owner: techlead-agent
     dependencies: [feature2, feature3, feature9]
+    status: not-started
+
+  - id: feature19
+    title: "Input Safety Guard"
+    description: |
+      Add a pluggable input safety check to `kinnoo run` that inspects user-provided input
+      for common injection patterns (SQL injection, shell command injection, path traversal,
+      SSRF) before passing it to the agent entrypoint. The guard is non-blocking — it warns
+      and prompts for confirmation rather than hard-rejecting input. The architecture uses a
+      Protocol-based design so the V1 regex guard can be swapped for an ML-based classifier
+      in the future without changing callers.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo run` checks user input against injection patterns (SQL injection, shell command injection, path traversal, SSRF) before executing the agent entrypoint."
+      - id: AC2
+        description: "When a pattern match is found, a warning is printed to stderr listing the detected threat(s), and the user is prompted with 'Proceed anyway? [y/N]'. Answering 'n' or empty aborts with non-zero exit. Answering 'y' proceeds normally."
+      - id: AC3
+        description: "A `--no-guard` flag on `kinnoo run` disables the input safety check entirely for CI/automation pipelines where input is controlled."
+      - id: AC4
+        description: "The guard implementation follows a Protocol-based pluggable design (`InputGuard` protocol with `check(str) -> InputGuardResult`) so the regex-based guard can be replaced with an ML-based guard via a single factory function change."
+      - id: AC5
+        description: "Each regex pattern in the V1 guard is individually unit-testable and documented with the threat category it detects."
+      - id: AC6
+        description: "Legitimate agent input that happens to resemble injection (e.g., a database agent receiving SQL) is not hard-blocked — the user can always proceed after the warning."
+    notes:
+      - "V1 uses RegexInputGuard with patterns for SQL injection (UNION SELECT, DROP TABLE, tautology), shell injection (;&| with dangerous commands, command substitution), path traversal (../), and SSRF (file://, gopher://, dict://)."
+      - "Factory function get_default_guard() returns RegexInputGuard. Future ML upgrade: implement MLInputGuard loading a local ONNX classifier, swap in get_default_guard()."
+      - "Integration point: input_guard.py module, called from run_command.py before entrypoint execution."
+      - "The guard is a genuine differentiator — no other agent packaging tool provides input-level safety checks."
+      - "Strong interview talking point for 'defense in depth' and 'secure-by-default' design patterns."
+      - see feature15-notes.md for more code details
+    owner: techlead-agent
+    dependencies: [feature3]
     status: not-started
