@@ -303,6 +303,48 @@ Preflight env var security semantics:
 
 ---
 
+## Trust baseline documentation reference (Feature15)
+
+Feature15 introduces trust and transparency behavior that works alongside manifest-driven execution.
+
+Install trust behavior:
+
+- install summary includes agent/version/runtime/dependencies/env var names
+- install confirmation prompt is `Continue with install? [y/N]:`
+- `--yes` / `-y` keeps summary but bypasses confirmation
+- unverified source warning appears when `<archive>.sha256` is missing
+
+Unverified prompt behavior:
+
+- warning text: `This agent is from an unverified source.`
+- prompt (without `--yes`): `This agent is from an unverified source. Continue? (y/n):`
+
+Run trace log behavior:
+
+- output path: `~/.kinnoo/logs/run.<TIMESTAMP>.log`
+- filename and JSON timestamp are UTC-only
+- log JSON keys are safe-only:
+  - `timestamp`
+  - `agent_name`
+  - `agent-version`
+  - `runtime_type`
+  - `exit_code`
+- trace log never includes input text, secret values, env var values, stdout, or stderr
+
+Inspect/pack heuristic security sweep behavior:
+
+- inspect shows `Security sweep:` output with either clean message or warnings
+- clean message: `Security sweep: no env var exposure patterns detected (heuristic)`
+- pack prints sweep warnings as non-blocking output
+- disclaimer: `(heuristic scan — may produce false positives; not a substitute for code review)`
+
+Project-wide trust invariant:
+
+- no-secret-values contract applies across trust paths
+- env var diagnostics must remain names-only
+
+---
+
 ## Pack/Publish Refactor commands (Feature13)
 
 Feature13 refactors command responsibilities to an archive-first packaging source plus mock-registry publishing target.

@@ -95,6 +95,60 @@ Security contract:
 - Preflight output is names-only for environment variables.
 - Preflight may list unresolved env var names, but it never prints env var values.
 
+## Trust Baseline (Feature15)
+
+Feature15 adds trust-focused behavior to install/run/inspect/pack workflows.
+
+Install-time transparency and consent:
+
+- `kinnoo install` shows a summary before installation, including:
+	- agent name and version,
+	- runtime type,
+	- dependency names,
+	- env var names (never values).
+- Install prompt:
+	- `Continue with install? [y/N]:`
+	- default is No when user presses enter.
+- `--yes` / `-y`:
+	- keeps summary output,
+	- skips confirmation prompt for CI and unattended workflows.
+
+Unverified source warning:
+
+- If `<archive>.sha256` is missing, install prints:
+	- `This agent is from an unverified source.`
+- Without `--yes`, install asks:
+	- `This agent is from an unverified source. Continue? (y/n):`
+- If checksum sidecar exists, unverified warning is skipped.
+
+Run trace logging:
+
+- After `kinnoo run` completes (success or failure), Kinnoo writes:
+	- `~/.kinnoo/logs/run.<TIMESTAMP>.log`
+- Timestamp in filename and JSON is UTC-only.
+- Trace log JSON fields are safe-only:
+	- `timestamp`, `agent_name`, `agent-version`, `runtime_type`, `exit_code`
+- Trace logs never include:
+	- user input content,
+	- env var values,
+	- secret values,
+	- stdout/stderr payloads.
+
+Heuristic security sweep (`inspect` and `pack`):
+
+- `kinnoo inspect <agent-dir>` includes a `Security sweep:` section.
+- Clean scan output:
+	- `Security sweep: no env var exposure patterns detected (heuristic)`
+- Dirty scan output includes warning lines with file and line details.
+- `kinnoo pack <agent-dir>` runs the same sweep and prints warnings as non-blocking output.
+- Disclaimer always applies:
+	- `(heuristic scan — may produce false positives; not a substitute for code review)`
+
+Project-wide security invariant:
+
+- No env var or secret values are ever printed, logged, or persisted by Kinnoo trust paths.
+- Diagnostics and trust output are names-only for env vars.
+
 ## Pack/Publish Refactor (Feature13)
 
 Feature13 shifts command responsibilities to an archive-first source model and a mock-registry publish target.
