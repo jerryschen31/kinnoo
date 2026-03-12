@@ -185,9 +185,11 @@ def _check_preflight_env_vars(manifest: dict, agent_dir: Path) -> tuple[bool, st
         missing_env_vars.append(env_var_name)
 
     if missing_env_vars:
+        # [agent] SECURITY INVARIANT: only env var NAMES, never values
         missing_label = ", ".join(missing_env_vars)
         return False, f"env vars check failed: unresolved env vars [{missing_label}]"
 
+    # [agent] SECURITY INVARIANT: only env var NAMES, never values
     declared_label = ", ".join(declared_env_vars)
     return True, f"env vars check passed: resolved env vars [{declared_label}]"
 
@@ -432,7 +434,7 @@ def _write_run_trace_log(
         return
 
     try:
-        # [agent] SECURITY INVARIANT: only env var NAMES, never values.
+        # [agent] SECURITY INVARIANT: only env var NAMES, never values
         log_file.write_text(serialized_payload, encoding="utf-8")
     except Exception as error:
         _print_safe_error(f"Warning: Failed to write run trace log '{log_file}': {error}")
