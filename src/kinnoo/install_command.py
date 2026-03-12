@@ -12,10 +12,14 @@ from pathlib import Path
 try:
     from kinnoo.registry import RegistryService, parse_install_target_spec
     from kinnoo.registry_backends import MockFilesystemRegistryBackend
+    from kinnoo.schema import normalize_env_vars
+    from kinnoo.inspect_command import read_manifest_from_kno_archive
     from kinnoo.validator import validate
 except ImportError:
     from .registry import RegistryService, parse_install_target_spec
     from .registry_backends import MockFilesystemRegistryBackend
+    from .schema import normalize_env_vars
+    from .inspect_command import read_manifest_from_kno_archive
     from .validator import validate
 
 
@@ -31,9 +35,39 @@ def _read_requirements(requirements_path: Path) -> list[str]:
     return requirements
 
 
+def _read_requirements_from_archive(archive_path: Path) -> list[str]:
+    requirements: list[str] = []
+    try:
+        with zipfile.ZipFile(archive_path, "r") as archive_zip:
+            requirements_members = [
+                member_name
+                for member_name in archive_zip.namelist()
+                if Path(member_name).name == "requirements.txt"
+            ]
+            if not requirements_members:
+                return requirements
+
+            with archive_zip.open(requirements_members[0]) as requirements_file:
+                requirements_text = requirements_file.read().decode("utf-8")
+    except Exception:
+        return requirements
+
+    for raw_line in requirements_text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        requirements.append(line)
+    return requirements
+
+
 def _requirement_name(requirement_line: str) -> str:
     base = re.split(r"[<>=!~\[\s]", requirement_line, maxsplit=1)[0]
     return base.strip().lower().replace("_", "-")
+
+
+def _requirement_display_name(requirement_line: str) -> str:
+    base = re.split(r"[<>=!~\[\s]", requirement_line, maxsplit=1)[0]
+    return base.strip()
 
 
 def _wheel_distribution_name(wheel_filename: str) -> str:
@@ -49,7 +83,12 @@ def _is_offline_mode_enabled() -> bool:
     return kinnoo_offline in offline_values or pip_no_index in offline_values
 
 
-def install_agent(archive_path: str, target_dir_arg: str | None = None, force: bool = False) -> int:
+def install_agent(
+    archive_path: str,
+    target_dir_arg: str | None = None,
+    force: bool = False,
+    assume_yes: bool = False,
+) -> int:
     target_spec = parse_install_target_spec(archive_path)
     if target_spec.kind == "invalid":
         print(f"Error: {target_spec.error}", file=sys.stderr)
@@ -89,6 +128,7 @@ def install_agent(archive_path: str, target_dir_arg: str | None = None, force: b
             archive_path=str(resolved_record.archive_path),
             target_dir_arg=resolved_target_dir_arg,
             force=force,
+            assume_yes=assume_yes,
         )
 
     archive = target_spec.archive_path or Path(archive_path)
@@ -96,6 +136,7 @@ def install_agent(archive_path: str, target_dir_arg: str | None = None, force: b
         archive_path=str(archive),
         target_dir_arg=target_dir_arg,
         force=force,
+        assume_yes=assume_yes,
     )
 
 
@@ -103,6 +144,7 @@ def _install_from_archive_path(
     archive_path: str,
     target_dir_arg: str | None = None,
     force: bool = False,
+    assume_yes: bool = False,
 ) -> int:
     archive = Path(archive_path)
     if not archive.exists() or not archive.is_file():
@@ -111,6 +153,50 @@ def _install_from_archive_path(
     if not str(archive).endswith(".kno"):
         print(f"Error: Archive '{archive}' is not a .kno file.", file=sys.stderr)
         return 1
+
+    manifest_data = read_manifest_from_kno_archive(archive)
+    if manifest_data is None:
+        return 1
+
+    runtime_type = "unknown"
+    runtime = manifest_data.get("runtime")
+    if isinstance(runtime, dict):
+        runtime_type_value = runtime.get("type")
+        if isinstance(runtime_type_value, str) and runtime_type_value.strip():
+            runtime_type = runtime_type_value
+
+    agent_name = str(manifest_data.get("name", "unknown"))
+    agent_version = str(manifest_data.get("version", "unknown"))
+    env_var_names = normalize_env_vars(manifest_data.get("env_vars"))
+    requirement_lines = _read_requirements_from_archive(archive)
+    dependency_names = [_requirement_display_name(line) for line in requirement_lines]
+
+    print("[kinnoo install] Install summary:")
+    print(f"- Agent: {agent_name}")
+    print(f"- Version: {agent_version}")
+    print(f"- Runtime Type: {runtime_type}")
+    if dependency_names:
+        print("- Dependencies:")
+        for dependency_name in dependency_names:
+            print(f"  - {dependency_name}")
+    else:
+        print("- Dependencies: (none)")
+    if env_var_names:
+        print("- Env Vars:")
+        for env_var_name in env_var_names:
+            print(f"  - {env_var_name}")
+    else:
+        print("- Env Vars: (none)")
+
+    if not assume_yes:
+        try:
+            confirmation = input("Continue with install? [y/N]: ").strip().lower()
+        except EOFError:
+            print("Install aborted by user.", file=sys.stderr)
+            return 1
+        if confirmation not in {"y", "yes"}:
+            print("Install aborted by user.", file=sys.stderr)
+            return 1
 
     if target_dir_arg:
         target_dir = Path(target_dir_arg).resolve()

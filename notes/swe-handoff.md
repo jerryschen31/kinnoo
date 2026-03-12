@@ -51,15 +51,20 @@ A single SWE agent can implement all seven tasks in one pass. Groups 1 and 2 are
 - Unverified source check: look for `<archive_path>.sha256` file on filesystem. If missing → warn + prompt. If present → skip warning (don't verify hash — that's feature16).
 
 ### Run trace logging (task100, task101)
-- Log file location: `~/.kinnoo/logs/run.<ISO_TIMESTAMP>.log`
-  - Example: `~/.kinnoo/logs/run.2026-03-08T14-30-00.log`
-- Log format (plain text, one line each):
+- Log file location: `~/.kinnoo/logs/run.<TIMESTAMP>.log`
+  - Filename timestamp must be UTC only.
+  - Example: `~/.kinnoo/logs/run.2026-03-11T18-42-13Z.log`
+- Log format: single JSON object with exact safe fields:
+  ```json
+  {
+    "timestamp": "2026-03-11T18:42:13Z",
+    "agent_name": "my-agent",
+    "agent-version": "1.2.0",
+    "runtime_type": "one-shot",
+    "exit_code": 0
+  }
   ```
-  timestamp: 2026-03-08T14:30:00
-  agent: my-agent
-  runtime_type: one-shot
-  exit_code: 0
-  ```
+- JSON `timestamp` must be UTC only.
 - **Never log:** input content, env var values, secrets, stdout, stderr.
 - Create `~/.kinnoo/logs/` if it does not exist. If creation fails, print a warning to stderr but do not crash — logging is best-effort.
 - Write the log after `run_agent()` completes (or fails), not before.
