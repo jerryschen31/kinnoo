@@ -231,3 +231,104 @@ This is a genuine differentiator for kinnoo. No other agent packaging tool (that
 | AC4 (first-run display) | **Drop** | Redundant with preflight + inspect |
 | Env var exposure sweep | **Add as new AC under feature15** | Regex heuristic in inspect + pack, ~50 lines, high signal |
 | Input injection guard | **Add as separate feature** | Protocol-based `InputGuard` in `input_guard.py`, pluggable for ML later |
+
+# TechLead Review — Feature 15 (Trust Baseline)
+
+Date: 2026-03-12  
+Reviewer: TechLead agent
+
+## Verdict
+
+**Approve for merge to phase2/main**, with non-blocking follow-ups listed below.
+
+## Scope Reviewed
+
+- Feature: `feature15` in `FEATURES.txt`
+- Tasks: `task98`–`task104` in `TASKS.txt`
+- Tests: `test126`–`test134` in `TESTS.txt`
+- Code paths reviewed:
+  - `src/kinnoo/install_command.py`
+  - `src/kinnoo/run_command.py`
+  - `src/kinnoo/inspect_command.py`
+  - `src/kinnoo/pack_command.py`
+  - `src/kinnoo/code_sweep.py`
+  - `src/kinnoo/cli.py`
+- Docs reviewed:
+  - `README.md`
+  - `docs/manifest-schema-reference.md`
+
+## Validation Evidence
+
+Executed in repo root:
+
+1. `python -m pytest tests/test_trust_baseline.py tests/test_docs.py -k "feature15 or trust_baseline"`
+   - Result: **9 passed, 5 deselected**
+
+2. `python src/validate_project_manifests.py`
+   - Result: **Validation passed: manifests are consistent**
+
+## AC Coverage Assessment
+
+### AC1 — Install summary + explicit yes/no confirmation
+
+**Status: Covered**
+
+- Install flow prints summary including runtime type, dependency names, and env var names.
+- Interactive confirmation prompt is present.
+- `--yes` / `-y` path is wired via CLI and install command for non-interactive acceptance.
+
+### AC2 — Unverified-source warning before install
+
+**Status: Covered**
+
+- Missing `.sha256` sidecar triggers explicit warning and confirm-to-proceed behavior.
+- Behavior is bypassable only through explicit user confirmation or `--yes`.
+
+### AC3 — Run trace logging at `~/.kinnoo/logs/run.<TIMESTAMP>.log`
+
+**Status: Covered**
+
+- UTC timestamp formatting implemented for filename and JSON timestamp.
+- JSON payload shape includes: `timestamp`, `agent_name`, `agent-version`, `runtime_type`, `exit_code`.
+- Best-effort write semantics are in place (non-fatal warning on log dir/file write failures).
+
+### AC4 — (Dropped)
+
+**Status: N/A by design**
+
+- Feature definition and task/test mapping are consistent with AC4 removal.
+
+### AC5 — Security invariant comments and value-safety
+
+**Status: Covered**
+
+- Trust-sensitive output/write locations include invariant comments to reinforce “names-only, never values.”
+- Tests include checks to prevent secret value leakage through expected trust-baseline surfaces.
+
+### AC6 — Heuristic security sweep in inspect/pack with disclaimer
+
+**Status: Covered**
+
+- `inspect` runs heuristic sweep and prints findings or clean status.
+- `pack` runs same sweep as non-blocking warnings.
+- Output includes explicit heuristic disclaimer (not a substitute for code review).
+
+## Gaps / Inconsistencies Found
+
+No blocking gaps found against current `feature15` acceptance criteria and linked tests.
+
+## Non-Blocking Improvements (Post-Merge)
+
+1. **Schema naming consistency:** Consider future migration from mixed key naming (`agent-version` vs snake_case fields) to a single convention, with backward-compatible handling.
+2. **Trace metadata:** Consider adding stable run identifiers (e.g., UUID) in a future feature for better correlation across logs and incidents.
+3. **Security sweep UX:** Consider severity labels (`low/medium`) to help prioritize findings when multiple heuristic hits are printed.
+
+## Task Status Recommendation
+
+- `task98`–`task104`: move from `needs-review` to **completed** after human PR approval.
+- `feature15`: move from `in-progress` to **needs-review/completed** per your project workflow gates.
+
+## Final Recommendation
+
+Feature15 implementation is coherent, test-backed, and ready to merge.
+class RegexInputGuard:
