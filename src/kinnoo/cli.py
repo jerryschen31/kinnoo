@@ -45,6 +45,12 @@ def main():
     install_parser = subparsers.add_parser("install", help="Install a kinnoo agent archive (.kno)")
     install_parser.add_argument("archive_path", nargs="?", help="Path to .kno archive to install")
     install_parser.add_argument("target_dir", nargs="?", help="(Optional) Directory to extract agent to")
+    install_parser.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        help="Skip install confirmation prompt (shows summary and proceeds)",
+    )
 
     # Add 'pack' subcommand
     pack_parser = subparsers.add_parser("pack", help="Package an agent directory into a .kno archive")
@@ -187,12 +193,18 @@ def main():
             force = args.force
         if "--force" in sys.argv:
             force = True
+        assume_yes = bool(getattr(args, "yes", False))
         try:
             from kinnoo.install_command import install_agent
         except ImportError:
             from .install_command import install_agent
 
-        exit_code = install_agent(archive_path=archive_path, target_dir_arg=target_dir_arg, force=force)
+        exit_code = install_agent(
+            archive_path=archive_path,
+            target_dir_arg=target_dir_arg,
+            force=force,
+            assume_yes=assume_yes,
+        )
         sys.exit(exit_code)
 
     elif args.command == "pack":

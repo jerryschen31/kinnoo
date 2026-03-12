@@ -51,7 +51,7 @@ def test_install_delegates_to_install_command(tmp_path):
 
     archive_path, expected_dir = _create_valid_archive(tmp_path)
     result = subprocess.run(
-        [sys.executable, "src/kinnoo/cli.py", "install", str(archive_path)],
+        [sys.executable, "src/kinnoo/cli.py", "install", str(archive_path), "--yes"],
         capture_output=True,
         text=True,
     )
@@ -122,7 +122,7 @@ def test_install_falls_back_to_pypi_when_wheel_missing(tmp_path):
     target_dir = tmp_path / "installed-fallback-agent"
 
     result = subprocess.run(
-        [sys.executable, "src/kinnoo/cli.py", "install", str(archive_path), str(target_dir)],
+        [sys.executable, "src/kinnoo/cli.py", "install", str(archive_path), str(target_dir), "--yes"],
         capture_output=True,
         text=True,
     )
@@ -206,7 +206,7 @@ def test_install_offline_succeeds_with_complete_wheels(tmp_path):
     offline_env["KINNOO_OFFLINE"] = "1"
 
     install_result = subprocess.run(
-        [sys.executable, "src/kinnoo/cli.py", "install", str(archive_path), str(target_dir)],
+        [sys.executable, "src/kinnoo/cli.py", "install", str(archive_path), str(target_dir), "--yes"],
         capture_output=True,
         text=True,
         env=offline_env,
