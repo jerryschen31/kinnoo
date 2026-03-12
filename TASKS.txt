@@ -2081,7 +2081,7 @@ tasks:
       - step4: Include checksum sidecar status in publish output messaging
     dependencies: [task106, task84]
     tests: [test142]
-    status: not-started
+    status: needs-review
 
   - id: task111
     title: Docs and regression coverage for checksums
