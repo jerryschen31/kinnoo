@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import re
 import os
+import shutil
 from pathlib import Path
 
 from .archive import LocalArchiveBackend
+from .checksum import checksum_sidecar_path_for_archive
 from .inspect_command import read_manifest_from_kno_archive
 from .registry import RegistryService
 from .registry_backends import MockFilesystemRegistryBackend
@@ -21,6 +23,7 @@ def _publish_validated_archive(
     expected_version: str | None,
     use_local: bool,
 ) -> int:
+    source_sidecar_path = checksum_sidecar_path_for_archive(archive)
     manifest_data = read_manifest_from_kno_archive(archive)
     if manifest_data is None:
         print("Error: Failed to read manifest metadata from resolved local archive source.")
@@ -90,6 +93,17 @@ def _publish_validated_archive(
     print(f"Published {record.name}=={record.version} ({backend_label})")
     print(f"Source archive: {archive}")
     print(f"Target registry path: {record.archive_path}")
+
+    target_sidecar_path = checksum_sidecar_path_for_archive(record.archive_path)
+    if source_sidecar_path.exists() and source_sidecar_path.is_file():
+        try:
+            shutil.copy2(source_sidecar_path, target_sidecar_path)
+        except OSError as error:
+            print(f"Error: Failed to publish checksum sidecar: {error}")
+            return 1
+        print(f"Published checksum sidecar: {target_sidecar_path}")
+    else:
+        print("Published checksum sidecar: (none found at source)")
 
     if tagged_exists_before_publish:
         untagged_root = backend.root / name
