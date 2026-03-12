@@ -1,6 +1,8 @@
 import subprocess
 import sys
 import zipfile
+import json
+import re
 from pathlib import Path
 
 
@@ -209,3 +211,108 @@ def test_install_unverified_source_warning(tmp_path: Path) -> None:
     assert verified_result.returncode == 0, verified_output
     assert "This agent is from an unverified source." not in verified_output
     assert target_verified.exists()
+
+
+def _create_run_trace_agent(tmp_path: Path, agent_name: str) -> Path:
+    agent_dir = tmp_path / agent_name
+    agent_dir.mkdir()
+
+    (agent_dir / "kinnoo.yaml").write_text(
+        (
+            f"name: {agent_name}\n"
+            "version: 1.2.0\n"
+            "entrypoint: run.py\n"
+            "runtime:\n"
+            "  type: one-shot\n"
+            "  language: python\n"
+            "  version: \">=3.10\"\n"
+            "dependencies: []\n"
+            "env_vars:\n"
+            "  - TRACE_SECRET\n"
+            "inputs:\n"
+            "  type: string\n"
+            "outputs:\n"
+            "  type: string\n"
+        ),
+        encoding="utf-8",
+    )
+    (agent_dir / "run.py").write_text(
+        "import sys\n"
+        "print(f'run input: {sys.argv[1] if len(sys.argv) > 1 else ''}')\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    return agent_dir
+
+
+def _latest_run_trace_log(home_dir: Path) -> Path:
+    logs_dir = home_dir / ".kinnoo" / "logs"
+    log_files = sorted(logs_dir.glob("run.*.log"))
+    assert log_files, f"Expected run trace logs in {logs_dir}"
+    return log_files[-1]
+
+
+def test_run_trace_log_safe_fields(tmp_path: Path) -> None:
+    agent_dir = _create_run_trace_agent(tmp_path, "trace-safe-agent")
+    env = dict()
+    env.update({"HOME": str(tmp_path), "TRACE_SECRET": "SAFE_TRACE_SECRET"})
+
+    run_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(agent_dir),
+            "hello-trace",
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert run_result.returncode == 0, f"STDOUT:\n{run_result.stdout}\nSTDERR:\n{run_result.stderr}"
+
+    log_path = _latest_run_trace_log(tmp_path)
+    assert re.fullmatch(r"run\.\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z\.log", log_path.name)
+
+    log_text = log_path.read_text(encoding="utf-8")
+    payload = json.loads(log_text)
+
+    assert set(payload.keys()) == {"timestamp", "agent_name", "agent-version", "runtime_type", "exit_code"}
+    assert payload["agent_name"] == "trace-safe-agent"
+    assert payload["agent-version"] == "1.2.0"
+    assert payload["runtime_type"] == "one-shot"
+    assert payload["exit_code"] == 0
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", payload["timestamp"])
+    assert "hello-trace" not in log_text
+
+
+def test_run_trace_log_no_secrets(tmp_path: Path) -> None:
+    agent_dir = _create_run_trace_agent(tmp_path, "trace-no-secret-agent")
+    secret_value = "SECRET_VALUE_12345"
+    input_text = "SENSITIVE_INPUT_98765"
+    env = dict()
+    env.update({"HOME": str(tmp_path), "TRACE_SECRET": secret_value})
+
+    run_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(agent_dir),
+            input_text,
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert run_result.returncode == 0, f"STDOUT:\n{run_result.stdout}\nSTDERR:\n{run_result.stderr}"
+
+    log_path = _latest_run_trace_log(tmp_path)
+    log_text = log_path.read_text(encoding="utf-8")
+    payload = json.loads(log_text)
+
+    assert set(payload.keys()) == {"timestamp", "agent_name", "agent-version", "runtime_type", "exit_code"}
+    assert secret_value not in log_text
+    assert input_text not in log_text
