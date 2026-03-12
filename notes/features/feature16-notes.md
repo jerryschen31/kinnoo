@@ -187,3 +187,117 @@ A single SWE agent can implement all tasks in one sequence. Group 1 should land 
 **Definition of done**
 - `test143` passes.
 - Docs reflect AC1-AC7 behaviors consistently.
+
+
+# TechLead Review — Feature16 (Archive Integrity / Checksums)
+
+Date: 2026-03-11  
+Reviewer: TechLead agent
+
+## Verdict
+
+**Approved for merge to phase2/main**, with non-blocking follow-ups listed below.
+
+## Scope Reviewed
+
+- Feature: `feature16` in `FEATURES.txt`
+- Tasks: `task105`–`task111` in `TASKS.txt`
+- Tests: `test135`–`test143` in `TESTS.txt`
+- SWE notes reviewed:
+  - `notes/tasks/task105-notes.md` … `notes/tasks/task111-notes.md`
+- Code paths reviewed:
+  - `src/kinnoo/checksum.py`
+  - `src/kinnoo/pack_command.py`
+  - `src/kinnoo/install_command.py`
+  - `src/kinnoo/inspect_command.py`
+  - `src/kinnoo/publish_command.py`
+- Docs reviewed:
+  - `README.md`
+  - `docs/manifest-schema-reference.md`
+
+## Validation Evidence
+
+Executed in repo root:
+
+1. `python3 -m pytest tests/test_archive_integrity.py tests/test_docs.py -k "feature16 or checksum"`
+   - Result: **9 passed, 6 deselected**
+
+2. `python3 src/validate_project_manifests.py`
+   - Result: **Validation passed: manifests are consistent**
+
+## AC Coverage Assessment
+
+### AC1 — pack generates `.kno.sha256` sidecar next to archive
+
+**Status: Covered**
+
+- Implemented via shared checksum sidecar writer called from pack flow.
+- Covered by `test135`.
+
+### AC2 — install verifies checksum when sidecar exists
+
+**Status: Covered**
+
+- Install resolves sidecar, parses, validates filename token, verifies digest before extraction.
+- Covered by `test138`.
+
+### AC3 — install aborts on checksum mismatch with clear error
+
+**Status: Covered**
+
+- Mismatch path aborts pre-extraction with required message:
+  `Archive integrity check failed — the file may be corrupted or tampered with`
+- Covered by `test139`.
+
+### AC4 — install warns and proceeds if no sidecar
+
+**Status: Covered**
+
+- Warning path present and non-blocking:
+  `No checksum file found — archive integrity not verified`
+- Covered by `test140`.
+
+### AC5 — pack stores checksum alongside local archive artifact
+
+**Status: Covered**
+
+- Archive-backend destination includes sibling sidecar after pack store.
+- Covered by `test136`.
+
+### AC6 — inspect displays archive checksum when available
+
+**Status: Covered**
+
+- Inspect archive path displays checksum metadata when valid sidecar exists.
+- Covered by `test141`.
+
+### AC7 — publish propagates sidecar with archive
+
+**Status: Covered**
+
+- Publish copies sidecar when source sidecar exists; emits explicit status line.
+- Covered by `test142`.
+
+## Gaps / Inconsistencies Found
+
+No blocking implementation gaps were found for feature16 acceptance criteria.
+
+Non-blocking inconsistencies:
+
+1. **Workflow status mismatch in manifests:**
+   - `task105`–`task111` are `needs-review`, but `feature16` status is still `not-started`.
+   - Recommendation: move feature16 status to `in-progress`/`needs-review` to reflect actual lifecycle.
+
+2. **Automation path drift in TESTS.txt metadata:**
+   - Some `automation_path` node IDs appear stale compared to actual test function names in `tests/test_archive_integrity.py` / `tests/test_docs.py` (for example `test141`, `test142`, `test143`). FIXED
+   - This does not break runtime validation but reduces manifest-to-test traceability.
+
+## Improvement Suggestions (Post-merge)
+
+1. Add a strict manifest lint check that resolves `automation_path` node IDs against collected pytest tests.
+2. Consider surfacing sidecar parse failures in inspect output as explicit warning metadata (currently checksum display is opportunistic and silent on invalid sidecars).
+3. Consider adding registry-install checksum verification path once registry sidecars are widely present.
+
+## Final Recommendation
+
+Feature16 is implemented correctly, test-backed, and ready to merge.

@@ -176,3 +176,32 @@ def test_feature15_docs_cover_trust_baseline() -> None:
 
     assert "no env var or secret values" in combined_lower
     assert "names-only" in combined_lower or "names only" in combined_lower
+
+
+def test_feature16_docs_cover_checksum_lifecycle() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    schema_doc = repo_root / "docs" / "manifest-schema-reference.md"
+    readme_doc = repo_root / "README.md"
+
+    schema_text = schema_doc.read_text(encoding="utf-8")
+    readme_text = readme_doc.read_text(encoding="utf-8")
+    combined_text = f"{schema_text}\n{readme_text}"
+    combined_lower = combined_text.lower()
+
+    assert "archive integrity" in combined_lower
+    assert ".kno.sha256" in combined_text
+    assert "<sha256>  <archive-filename>" in combined_text
+
+    assert "[kinnoo pack] Checksum sidecar written: <path>" in combined_text
+
+    assert "[kinnoo install] Archive checksum verified." in combined_text
+    assert (
+        "Archive integrity check failed — the file may be corrupted or tampered with"
+        in combined_text
+    )
+    assert "No checksum file found — archive integrity not verified" in combined_text
+
+    assert "- Checksum (SHA256): <digest>" in combined_text
+
+    assert "Published checksum sidecar: <path>" in combined_text
+    assert "Published checksum sidecar: (none found at source)" in combined_text

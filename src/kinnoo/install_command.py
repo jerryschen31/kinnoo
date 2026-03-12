@@ -10,12 +10,24 @@ import os
 from pathlib import Path
 
 try:
+    from kinnoo.checksum import (
+        ChecksumParseError,
+        checksum_sidecar_path_for_archive,
+        read_checksum_sidecar,
+        verify_archive_checksum,
+    )
     from kinnoo.registry import RegistryService, parse_install_target_spec
     from kinnoo.registry_backends import MockFilesystemRegistryBackend
     from kinnoo.schema import normalize_env_vars
     from kinnoo.inspect_command import read_manifest_from_kno_archive
     from kinnoo.validator import validate
 except ImportError:
+    from .checksum import (
+        ChecksumParseError,
+        checksum_sidecar_path_for_archive,
+        read_checksum_sidecar,
+        verify_archive_checksum,
+    )
     from .registry import RegistryService, parse_install_target_spec
     from .registry_backends import MockFilesystemRegistryBackend
     from .schema import normalize_env_vars
@@ -81,10 +93,6 @@ def _is_offline_mode_enabled() -> bool:
     kinnoo_offline = os.environ.get("KINNOO_OFFLINE", "").strip().lower()
     pip_no_index = os.environ.get("PIP_NO_INDEX", "").strip().lower()
     return kinnoo_offline in offline_values or pip_no_index in offline_values
-
-
-def _checksum_path_for_archive(archive: Path) -> Path:
-    return Path(f"{archive}.sha256")
 
 
 def install_agent(
@@ -158,9 +166,35 @@ def _install_from_archive_path(
         print(f"Error: Archive '{archive}' is not a .kno file.", file=sys.stderr)
         return 1
 
-    checksum_path = _checksum_path_for_archive(archive)
+    checksum_path = checksum_sidecar_path_for_archive(archive)
+    if checksum_path.exists():
+        try:
+            expected_checksum, expected_archive_filename = read_checksum_sidecar(checksum_path)
+        except (OSError, ChecksumParseError) as error:
+            print(f"Error: Failed to read checksum sidecar: {error}", file=sys.stderr)
+            return 1
+
+        if expected_archive_filename != archive.name:
+            print(
+                "Error: Checksum sidecar filename does not match archive filename.",
+                file=sys.stderr,
+            )
+            return 1
+
+        # [agent] Integrity verification must occur before extraction/write side effects.
+        checksum_matches, _ = verify_archive_checksum(archive, expected_checksum)
+        if not checksum_matches:
+            print(
+                "Archive integrity check failed — the file may be corrupted or tampered with",
+                file=sys.stderr,
+            )
+            return 1
+
+        print("[kinnoo install] Archive checksum verified.")
+
     source_is_unverified = not checksum_path.exists()
     if source_is_unverified:
+        print("No checksum file found — archive integrity not verified", file=sys.stderr)
         warning_message = "This agent is from an unverified source."
         print(warning_message, file=sys.stderr)
         if not assume_yes:
