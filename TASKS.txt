@@ -1956,7 +1956,7 @@ tasks:
       - 'step7: Add disclaimer "(heuristic scan — may produce false positives; not a substitute for code review)"'
     dependencies: [task62, task23]
     tests: [test132, test133]
-    status: not-started
+    status: needs-review
 
   - id: task104
     title: Documentation for trust baseline features
