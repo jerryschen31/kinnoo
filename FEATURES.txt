@@ -534,7 +534,7 @@ features:
       - id: AC2
         description: "If an agent is installed from a raw .kno file (not from a registry or archive) without an accompanying checksum .kno.sha256 file, a confirmation prompt is asked before proceeding: 'This agent is from an unverified source. Continue? (y/n)'."
       - id: AC3
-        description: "`kinnoo run` logs a trace to ~/.kinnoo/logs/run.<TIMESTAMP>.log containing ONLY: timestamp, agent name, runtime type, and exit code — no input content, no env var values, no secrets."
+        description: "`kinnoo run` logs a trace in JSON format to ~/.kinnoo/logs/run.<TIMESTAMP>.log containing ONLY: timestamp, agent name, agent version, runtime type, and exit code — no input content, no env var values, no secrets."
       - id: AC4
         description: "Log file never contains actual values of environment variables, secrets, or user input."
       - id: AC5
