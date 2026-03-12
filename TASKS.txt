@@ -2064,7 +2064,7 @@ tasks:
       - step3: Keep output deterministic and avoid exposing unrelated file contents
     dependencies: [task106]
     tests: [test141]
-    status: not-started
+    status: needs-review
 
   - id: task110
     title: Publish checksum sidecar with archive
