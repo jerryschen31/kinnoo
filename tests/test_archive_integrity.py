@@ -239,3 +239,29 @@ def test_install_warns_when_checksum_missing(tmp_path: Path) -> None:
     assert "No checksum file found — archive integrity not verified" in output
     assert target_dir.exists()
     assert (target_dir / "kinnoo.yaml").exists()
+
+
+def test_inspect_displays_checksum_for_archive_with_sidecar(tmp_path: Path) -> None:
+    archive_path = tmp_path / "inspect-checksum-agent.kno"
+    _create_minimal_archive(archive_path, name="inspect-checksum-agent", version="1.0.0")
+    write_checksum_sidecar_for_archive(archive_path)
+
+    expected_digest = compute_file_sha256(archive_path)
+
+    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(cli_script),
+            "inspect",
+            str(archive_path),
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, output
+    assert "Inspect target type: archive (.kno)" in result.stdout
+    assert f"- Checksum (SHA256): {expected_digest}" in result.stdout

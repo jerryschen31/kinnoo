@@ -8,6 +8,7 @@ from typing import Any
 import yaml
 
 try:
+    from kinnoo.checksum import ChecksumParseError, read_checksum_sidecar
     from kinnoo.code_sweep import sweep_env_var_exposure
     from kinnoo.schema import normalize_manifest_defaults, normalize_type_field
     from kinnoo.templates import (
@@ -16,6 +17,7 @@ try:
     )
     from kinnoo.validator import validate_manifest_data
 except ImportError:
+    from .checksum import ChecksumParseError, read_checksum_sidecar
     from .code_sweep import sweep_env_var_exposure
     from .schema import normalize_manifest_defaults, normalize_type_field
     from .templates import (
@@ -138,7 +140,27 @@ def _env_var_names_for_display(manifest_data: dict[str, Any]) -> list[str]:
     return names
 
 
-def _print_inspect_output(target_label: str, manifest_data: dict[str, Any]) -> None:
+def _archive_checksum_for_display(archive_path: Path) -> str | None:
+    sidecar_path = archive_path.with_name(f"{archive_path.name}.sha256")
+    if not sidecar_path.exists():
+        return None
+
+    try:
+        expected_checksum, referenced_filename = read_checksum_sidecar(sidecar_path)
+    except (OSError, ChecksumParseError):
+        return None
+
+    if referenced_filename != archive_path.name:
+        return None
+
+    return expected_checksum
+
+
+def _print_inspect_output(
+    target_label: str,
+    manifest_data: dict[str, Any],
+    archive_checksum: str | None = None,
+) -> None:
     normalized = _normalize_manifest_for_display(manifest_data)
 
     print(f"Inspect target type: {target_label}")
@@ -146,6 +168,8 @@ def _print_inspect_output(target_label: str, manifest_data: dict[str, Any]) -> N
     print(f"- Name: {normalized['name']}")
     print(f"- Version: {normalized['version']}")
     print(f"- Runtime Type: {normalized['runtime']['type']}")
+    if archive_checksum is not None:
+        print(f"- Checksum (SHA256): {archive_checksum}")
 
     dependencies = normalized.get("dependencies", [])
     if dependencies:
@@ -186,7 +210,8 @@ def _inspect_archive_target(archive_path: Path) -> int:
         _print_manifest_validation_errors(errors)
         return 1
 
-    _print_inspect_output("archive (.kno)", manifest_data)
+    archive_checksum = _archive_checksum_for_display(archive_path)
+    _print_inspect_output("archive (.kno)", manifest_data, archive_checksum=archive_checksum)
 
     return 0
 
