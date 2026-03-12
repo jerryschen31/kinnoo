@@ -33,6 +33,15 @@ def _print_safe_error(message: str, secret_values: Iterable[str] | None = None) 
     print(output, file=sys.stderr)
 
 
+def _contains_forbidden_value(text: str, forbidden_values: Iterable[str]) -> bool:
+    for forbidden_value in forbidden_values:
+        if not forbidden_value:
+            continue
+        if forbidden_value in text:
+            return True
+    return False
+
+
 def _load_agent_dotenv(dotenv_path: Path) -> dict[str, str]:
     """Load key/value pairs from an agent-local .env file.
 
@@ -370,7 +379,12 @@ def run_preflight(agent_dir_arg: str) -> int:
     return 1
 
 
-def _write_run_trace_log(agent_dir: Path, manifest: dict | None, exit_code: int) -> None:
+def _write_run_trace_log(
+    agent_dir: Path,
+    manifest: dict | None,
+    exit_code: int,
+    forbidden_values: Iterable[str] | None = None,
+) -> None:
     now_utc = datetime.now(timezone.utc)
     timestamp_json = now_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
     timestamp_filename = now_utc.strftime("%Y-%m-%dT%H-%M-%SZ")
@@ -403,6 +417,14 @@ def _write_run_trace_log(agent_dir: Path, manifest: dict | None, exit_code: int)
 
     logs_dir = Path.home() / ".kinnoo" / "logs"
     log_file = logs_dir / f"run.{timestamp_filename}.log"
+
+    serialized_payload = json.dumps(log_payload)
+    if forbidden_values is not None and _contains_forbidden_value(serialized_payload, forbidden_values):
+        _print_safe_error(
+            "Warning: Trace payload included sensitive content; redacting before log write.",
+        )
+        serialized_payload = _redact_secrets(serialized_payload, forbidden_values)
+
     try:
         logs_dir.mkdir(parents=True, exist_ok=True)
     except Exception as error:
@@ -411,7 +433,7 @@ def _write_run_trace_log(agent_dir: Path, manifest: dict | None, exit_code: int)
 
     try:
         # [agent] SECURITY INVARIANT: only env var NAMES, never values.
-        log_file.write_text(json.dumps(log_payload), encoding="utf-8")
+        log_file.write_text(serialized_payload, encoding="utf-8")
     except Exception as error:
         _print_safe_error(f"Warning: Failed to write run trace log '{log_file}': {error}")
         return
@@ -423,9 +445,17 @@ def run_agent(agent_dir_arg: str, input_arg: str | None, preflight: bool = False
 
     agent_dir = Path(agent_dir_arg).resolve()
     trace_manifest: dict | None = None
+    trace_forbidden_values: list[str] = []
+    if input_arg is not None:
+        trace_forbidden_values.append(input_arg)
 
     def finalize(exit_code: int) -> int:
-        _write_run_trace_log(agent_dir=agent_dir, manifest=trace_manifest, exit_code=exit_code)
+        _write_run_trace_log(
+            agent_dir=agent_dir,
+            manifest=trace_manifest,
+            exit_code=exit_code,
+            forbidden_values=trace_forbidden_values,
+        )
         return exit_code
 
     if input_arg is None:
@@ -535,6 +565,8 @@ def run_agent(agent_dir_arg: str, input_arg: str | None, preflight: bool = False
                 return finalize(1)
 
             resolved_env_vars[env_var_name] = prompted_value
+
+    trace_forbidden_values.extend(resolved_env_vars.values())
 
     entrypoint_path = agent_dir / entrypoint
     if not entrypoint_path.exists():

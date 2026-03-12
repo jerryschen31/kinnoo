@@ -290,9 +290,16 @@ def test_run_trace_log_safe_fields(tmp_path: Path) -> None:
 def test_run_trace_log_no_secrets(tmp_path: Path) -> None:
     agent_dir = _create_run_trace_agent(tmp_path, "trace-no-secret-agent")
     secret_value = "SECRET_VALUE_12345"
+    undeclared_secret_value = "UNDECLARED_SECRET_67890"
     input_text = "SENSITIVE_INPUT_98765"
     env = dict()
-    env.update({"HOME": str(tmp_path), "TRACE_SECRET": secret_value})
+    env.update(
+        {
+            "HOME": str(tmp_path),
+            "TRACE_SECRET": secret_value,
+            "OPENAI_API_KEY": undeclared_secret_value,
+        }
+    )
 
     run_result = subprocess.run(
         [
@@ -314,5 +321,9 @@ def test_run_trace_log_no_secrets(tmp_path: Path) -> None:
     payload = json.loads(log_text)
 
     assert set(payload.keys()) == {"timestamp", "agent_name", "agent-version", "runtime_type", "exit_code"}
+    assert payload["agent_name"] == "trace-no-secret-agent"
+    assert payload["agent-version"] == "1.2.0"
+    assert payload["runtime_type"] == "one-shot"
     assert secret_value not in log_text
+    assert undeclared_secret_value not in log_text
     assert input_text not in log_text

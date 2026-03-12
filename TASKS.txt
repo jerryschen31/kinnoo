@@ -1910,7 +1910,7 @@ tasks:
       - step3: Add test that runs an agent with known input and verifies the log file does not contain the input text
     dependencies: [task100]
     tests: [test130]
-    status: not-started
+    status: needs-review
 
   - id: task102
     title: Inline no-secret-values comments on trust code
