@@ -1850,7 +1850,7 @@ tasks:
       - step6: Add inline comment documenting the no-secret-values invariant on the summary display code
     dependencies: [task69, task53]
     tests: [test126, test127]
-    status: not-started
+    status: needs-review
 
   - id: task99
     title: Unverified source confirmation prompt

@@ -37,7 +37,7 @@ def test_install_extracts_to_user_specified_directory(tmp_path):
 
     # Step1: Run kinnoo install <archive.kno> myagent_dir
     result = subprocess.run([
-        "python3", "src/kinnoo/cli.py", "install", str(archive_path), str(target_dir)
+        "python3", "src/kinnoo/cli.py", "install", str(archive_path), str(target_dir), "--yes"
     ], capture_output=True, text=True)
     assert result.returncode == 0, f"Install failed: {result.stderr}"
     assert target_dir.exists(), "Target directory not created"
@@ -46,7 +46,7 @@ def test_install_extracts_to_user_specified_directory(tmp_path):
 
     # Step2: Run kinnoo install <archive.kno> myagent_dir when directory exists (without --force)
     result2 = subprocess.run([
-        "python3", "src/kinnoo/cli.py", "install", str(archive_path), str(target_dir)
+        "python3", "src/kinnoo/cli.py", "install", str(archive_path), str(target_dir), "--yes"
     ], capture_output=True, text=True)
     assert result2.returncode != 0, "Should fail if directory exists and --force not used"
     assert "already exists" in result2.stderr, "Error message missing for existing directory"
