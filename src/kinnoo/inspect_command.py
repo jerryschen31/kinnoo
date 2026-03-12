@@ -8,6 +8,7 @@ from typing import Any
 import yaml
 
 try:
+    from kinnoo.code_sweep import sweep_env_var_exposure
     from kinnoo.schema import normalize_manifest_defaults, normalize_type_field
     from kinnoo.templates import (
         INSPECT_MINIMAL_KINNOO_YAML_EXAMPLE,
@@ -15,6 +16,7 @@ try:
     )
     from kinnoo.validator import validate_manifest_data
 except ImportError:
+    from .code_sweep import sweep_env_var_exposure
     from .schema import normalize_manifest_defaults, normalize_type_field
     from .templates import (
         INSPECT_MINIMAL_KINNOO_YAML_EXAMPLE,
@@ -211,6 +213,18 @@ def _inspect_directory_target(directory_path: Path) -> int:
         return 1
 
     _print_inspect_output("directory", manifest_data)
+
+    declared_env_vars = _env_var_names_for_display(_normalize_manifest_for_display(manifest_data))
+    sweep_warnings = sweep_env_var_exposure(directory_path, declared_env_vars)
+    if sweep_warnings:
+        print("Security sweep:")
+        # [agent] SECURITY INVARIANT: only env var NAMES, never values
+        for warning in sweep_warnings:
+            print(f"- {warning}")
+    else:
+        print("Security sweep: no env var exposure patterns detected (heuristic)")
+    print("(heuristic scan — may produce false positives; not a substitute for code review)")
+
     return 0
 
 
