@@ -1930,7 +1930,7 @@ tasks:
       - step3: Verify no existing code path accidentally leaks values
     dependencies: [task98, task100]
     tests: [test131]
-    status: not-started
+    status: needs-review
 
   - id: task103
     title: Env var exposure heuristic sweep in inspect and pack

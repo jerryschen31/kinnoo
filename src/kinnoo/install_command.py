@@ -203,6 +203,7 @@ def _install_from_archive_path(
     else:
         print("- Dependencies: (none)")
     if env_var_names:
+        # [agent] SECURITY INVARIANT: only env var NAMES, never values
         print("- Env Vars:")
         for env_var_name in env_var_names:
             print(f"  - {env_var_name}")
