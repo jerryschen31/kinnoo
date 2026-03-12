@@ -1891,7 +1891,7 @@ tasks:
       - step5: Ensure graceful failure if log directory creation fails (warn, don't crash)
     dependencies: [task39]
     tests: [test129, test130]
-    status: not-started
+    status: needs-review
 
   - id: task101
     title: Log file secret-safety enforcement

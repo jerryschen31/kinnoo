@@ -8,6 +8,8 @@ import os
 import getpass
 from typing import Iterable
 import re
+import json
+from datetime import datetime, timezone
 
 import yaml
 
@@ -368,15 +370,68 @@ def run_preflight(agent_dir_arg: str) -> int:
     return 1
 
 
+def _write_run_trace_log(agent_dir: Path, manifest: dict | None, exit_code: int) -> None:
+    now_utc = datetime.now(timezone.utc)
+    timestamp_json = now_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+    timestamp_filename = now_utc.strftime("%Y-%m-%dT%H-%M-%SZ")
+
+    agent_name = "unknown"
+    agent_version = "unknown"
+    runtime_type = "unknown"
+    if isinstance(manifest, dict):
+        name_value = manifest.get("name")
+        if isinstance(name_value, str) and name_value.strip():
+            agent_name = name_value
+
+        version_value = manifest.get("version")
+        if isinstance(version_value, str) and version_value.strip():
+            agent_version = version_value
+
+        runtime_value = manifest.get("runtime")
+        if isinstance(runtime_value, dict):
+            runtime_type_value = runtime_value.get("type")
+            if isinstance(runtime_type_value, str) and runtime_type_value.strip():
+                runtime_type = runtime_type_value
+
+    log_payload = {
+        "timestamp": timestamp_json,
+        "agent_name": agent_name,
+        "agent-version": agent_version,
+        "runtime_type": runtime_type,
+        "exit_code": int(exit_code),
+    }
+
+    logs_dir = Path.home() / ".kinnoo" / "logs"
+    log_file = logs_dir / f"run.{timestamp_filename}.log"
+    try:
+        logs_dir.mkdir(parents=True, exist_ok=True)
+    except Exception as error:
+        _print_safe_error(f"Warning: Failed to create run trace log directory '{logs_dir}': {error}")
+        return
+
+    try:
+        # [agent] SECURITY INVARIANT: only env var NAMES, never values.
+        log_file.write_text(json.dumps(log_payload), encoding="utf-8")
+    except Exception as error:
+        _print_safe_error(f"Warning: Failed to write run trace log '{log_file}': {error}")
+        return
+
+
 def run_agent(agent_dir_arg: str, input_arg: str | None, preflight: bool = False) -> int:
     if preflight:
         return run_preflight(agent_dir_arg)
 
+    agent_dir = Path(agent_dir_arg).resolve()
+    trace_manifest: dict | None = None
+
+    def finalize(exit_code: int) -> int:
+        _write_run_trace_log(agent_dir=agent_dir, manifest=trace_manifest, exit_code=exit_code)
+        return exit_code
+
     if input_arg is None:
         _print_safe_error("Error: input is required for kinnoo run unless --preflight is used")
-        return 1
+        return finalize(1)
 
-    agent_dir = Path(agent_dir_arg).resolve()
     venv_dir = agent_dir / ".venv"
     requirements = agent_dir / "requirements.txt"
     kinnoo_yaml = agent_dir / "kinnoo.yaml"
@@ -386,10 +441,10 @@ def run_agent(agent_dir_arg: str, input_arg: str | None, preflight: bool = False
             venv.create(venv_dir, with_pip=True)
         except PermissionError as error:
             _print_safe_error(f"Error: Permission denied while creating .venv in {agent_dir}: {error}")
-            return 1
+            return finalize(1)
         except Exception as error:
             _print_safe_error(f"Error: Failed to create .venv in {agent_dir}: {error}")
-            return 1
+            return finalize(1)
 
     if requirements.exists() and requirements.read_text().strip():
         pip_exe = venv_dir / "bin" / "pip"
@@ -397,7 +452,7 @@ def run_agent(agent_dir_arg: str, input_arg: str | None, preflight: bool = False
             pip_exe = venv_dir / "Scripts" / "pip.exe"
         if not pip_exe.exists():
             _print_safe_error(f"Error: pip not found in venv at {pip_exe}")
-            return 1
+            return finalize(1)
         print("[kinnoo] installing requirements for running agent...")
         try:
             install_result = subprocess.run(
@@ -407,20 +462,20 @@ def run_agent(agent_dir_arg: str, input_arg: str | None, preflight: bool = False
             )
         except PermissionError as error:
             _print_safe_error(f"Error: Permission denied while installing requirements in {agent_dir}: {error}")
-            return 1
+            return finalize(1)
         except Exception as error:
             _print_safe_error(f"Error: Failed to install requirements in {agent_dir}: {error}")
-            return 1
+            return finalize(1)
 
         if install_result.returncode != 0:
             _print_safe_error(
                 "Error: Failed to install requirements for running agent. Please check your requirements.txt and try again.",
             )
-            return install_result.returncode
+            return finalize(install_result.returncode)
 
     if not kinnoo_yaml.exists():
         _print_safe_error(f"Error: kinnoo.yaml not found in {agent_dir}")
-        return 1
+        return finalize(1)
 
     try:
         with open(kinnoo_yaml, "r") as manifest_file:
@@ -428,18 +483,21 @@ def run_agent(agent_dir_arg: str, input_arg: str | None, preflight: bool = False
                 manifest = yaml.safe_load(manifest_file)
             except yaml.YAMLError as error:
                 _print_safe_error(f"Error: kinnoo.yaml is corrupted or invalid YAML: {error}")
-                return 1
+                return finalize(1)
     except PermissionError as error:
         _print_safe_error(f"Error: Permission denied while reading kinnoo.yaml: {error}")
-        return 1
+        return finalize(1)
     except Exception as error:
         _print_safe_error(f"Error parsing kinnoo.yaml: {error}")
-        return 1
+        return finalize(1)
+
+    if isinstance(manifest, dict):
+        trace_manifest = manifest
 
     entrypoint = manifest.get("entrypoint")
     if not entrypoint:
         _print_safe_error("Error: 'entrypoint' not specified in kinnoo.yaml")
-        return 1
+        return finalize(1)
 
     declared_env_vars = normalize_env_vars(manifest.get("env_vars"))
     dotenv_values = _load_agent_dotenv(agent_dir / ".env")
@@ -468,27 +526,27 @@ def run_agent(agent_dir_arg: str, input_arg: str | None, preflight: bool = False
                 _print_safe_error(
                     f"Error: Missing required environment variable: {env_var_name}",
                 )
-                return 1
+                return finalize(1)
 
             if not prompted_value:
                 _print_safe_error(
                     f"Error: Missing required environment variable: {env_var_name}",
                 )
-                return 1
+                return finalize(1)
 
             resolved_env_vars[env_var_name] = prompted_value
 
     entrypoint_path = agent_dir / entrypoint
     if not entrypoint_path.exists():
         _print_safe_error(f"Error: Entrypoint file '{entrypoint}' not found in {agent_dir}")
-        return 1
+        return finalize(1)
 
     python_exe = venv_dir / "bin" / "python"
     if not python_exe.exists():
         python_exe = venv_dir / "Scripts" / "python.exe"
     if not python_exe.exists():
         _print_safe_error(f"Error: python not found in venv at {python_exe}")
-        return 1
+        return finalize(1)
 
     subprocess_env = os.environ.copy()
     subprocess_env.update(resolved_env_vars)
@@ -502,10 +560,10 @@ def run_agent(agent_dir_arg: str, input_arg: str | None, preflight: bool = False
             env=subprocess_env,
         )
         process.communicate()
-        return process.returncode
+        return finalize(process.returncode)
     except Exception as error:
         _print_safe_error(
             f"Error: Failed to launch agent entrypoint process: {error}",
             secret_values=resolved_env_vars.values(),
         )
-        return 1
+        return finalize(1)
