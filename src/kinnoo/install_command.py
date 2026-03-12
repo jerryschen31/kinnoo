@@ -83,6 +83,10 @@ def _is_offline_mode_enabled() -> bool:
     return kinnoo_offline in offline_values or pip_no_index in offline_values
 
 
+def _checksum_path_for_archive(archive: Path) -> Path:
+    return Path(f"{archive}.sha256")
+
+
 def install_agent(
     archive_path: str,
     target_dir_arg: str | None = None,
@@ -153,6 +157,23 @@ def _install_from_archive_path(
     if not str(archive).endswith(".kno"):
         print(f"Error: Archive '{archive}' is not a .kno file.", file=sys.stderr)
         return 1
+
+    checksum_path = _checksum_path_for_archive(archive)
+    source_is_unverified = not checksum_path.exists()
+    if source_is_unverified:
+        warning_message = "This agent is from an unverified source."
+        print(warning_message, file=sys.stderr)
+        if not assume_yes:
+            try:
+                unverified_confirmation = input(
+                    "This agent is from an unverified source. Continue? (y/n): "
+                ).strip().lower()
+            except EOFError:
+                print("Install aborted by user.", file=sys.stderr)
+                return 1
+            if unverified_confirmation not in {"y", "yes"}:
+                print("Install aborted by user.", file=sys.stderr)
+                return 1
 
     manifest_data = read_manifest_from_kno_archive(archive)
     if manifest_data is None:
