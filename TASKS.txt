@@ -1869,7 +1869,7 @@ tasks:
       - step4: If --yes is set, print warning but skip prompt
     dependencies: [task98]
     tests: [test128]
-    status: not-started
+    status: needs-review
 
   - id: task100
     title: Run trace logging to ~/.kinnoo/logs/
