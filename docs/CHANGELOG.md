@@ -3,6 +3,25 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.6.0] - 2026-03-13
+### Added
+- Implemented Feature18 "Input Safety Guard" with pre-entrypoint input threat detection in `kinnoo run`.
+- Added pluggable guard architecture via `InputGuard` protocol and `get_default_guard()` factory for future ML-based guard replacement.
+- Added V1 `RegexInputGuard` coverage for SQL injection, shell command injection, path traversal, SSRF, XSS, and template injection patterns.
+- Added type-aware guard checks for input types (`text`, `string`, `file_path`, `url`, `id`) and aggregated multi-parameter checking via `check_inputs()`.
+- Added `--no-guard` override for trusted CI/automation workflows.
+
+### Changed
+- `kinnoo run` now warns on flagged input and prompts `Proceed anyway? [y/N]` in interactive mode.
+- Non-interactive execution now fails closed on flagged input unless `--no-guard` is provided.
+- Added focused regression coverage in `tests/test_input_guard.py`, `tests/test_input_guard_integration.py`, and docs contract coverage in `tests/test_docs.py` for feature18 behavior.
+
+### Quality
+- TechLead pre-merge validation passed:
+  - Feature18-focused suite: `16 passed`
+  - Full repository suite: `156 passed, 1 skipped`
+
+
 ## [v1.5.0] - 2026-03-12
 ### Added
 - Implemented Feature17 "Pack Size Reporting & Warnings" across pack/inspect/list workflows.
