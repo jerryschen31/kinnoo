@@ -27,6 +27,7 @@ class RegistryAgentSummary:
     name: str
     latest_version: str
     description: str
+    archive_size_bytes: int | None = None
 
 
 @dataclass(frozen=True)
@@ -117,6 +118,7 @@ class RegistryService:
                     name=record.name,
                     latest_version=record.version,
                     description="",
+                    archive_size_bytes=None,
                 )
         return [summaries[name] for name in sorted(summaries)]
 
