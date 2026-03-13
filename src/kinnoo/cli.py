@@ -40,6 +40,11 @@ def main():
         action="store_true",
         help="Run readiness checks only; do not execute the agent entrypoint",
     )
+    run_parser.add_argument(
+        "--no-guard",
+        action="store_true",
+        help="Disable input safety check for CI/automation pipelines",
+    )
 
     # Add 'install' subcommand
     install_parser = subparsers.add_parser(
@@ -145,6 +150,7 @@ def main():
             "-h" not in sys.argv
             and "--help" not in sys.argv
             and "--preflight" not in sys.argv
+            and "--no-guard" not in sys.argv
             and len(sys.argv) < 4
         ):
             print("Usage: kinnoo run <agent-dir> '<input>'", file=sys.stderr)
@@ -191,6 +197,7 @@ def main():
             agent_dir_arg=args.agent_dir,
             input_arg=args.input,
             preflight=preflight_mode,
+            no_guard=bool(getattr(args, "no_guard", False)),
         )
         sys.exit(exit_code)
 
