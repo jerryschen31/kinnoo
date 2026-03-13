@@ -82,3 +82,58 @@ Conclusion: AC1-AC4 are covered by automated tests and corresponding implementat
 Hold merge for now.
 
 Approval can proceed once full-suite failures are resolved or formally dispositioned with owner sign-off.
+
+---
+
+## SWE Addendum (Post-Stabilization)
+
+Date: 2026-03-12
+Author: swe-agent
+
+### What was done to fix the 18 regression failures
+
+1. Stabilized install tests that were unintentionally blocked by the unverified-source prompt flow.
+    - Updated non-interactive install tests to pass `--yes` when prompt behavior was not the test objective.
+    - Files updated:
+       - tests/test_cli_install_extract.py
+       - tests/test_cli_install_invalid.py
+       - tests/test_cli_install_manifest.py
+       - tests/test_cli_install_runnable.py
+       - tests/test_cli_install_wheels.py
+       - tests/test_install_refactor.py
+
+2. Stabilized pack tests for archive-backend destination semantics.
+    - Added per-test `KINNOO_ARCHIVE_ROOT` isolation to prevent cross-test collisions.
+    - Updated assertions to use canonical archive backend path:
+       - `<archive-root>/<name>/<version>/<name>.kno`
+    - Updated overwrite-prompt test to pre-create collision at canonical destination (instead of tmp cwd artifact path).
+    - Files updated:
+       - tests/test_pack.py
+       - tests/test_pack_robustness.py
+
+3. Addressed one wording drift in invalid-archive assertion.
+    - Accepted current invalid-zip message variant (`zip-based .kno file`) in addition to older wording.
+    - File updated:
+       - tests/test_cli_install_invalid.py
+
+### Validation results after fixes
+
+- Targeted cluster rerun:
+   - `python3 -m pytest tests/test_cli_install_extract.py tests/test_cli_install_invalid.py tests/test_cli_install_manifest.py tests/test_cli_install_runnable.py tests/test_cli_install_wheels.py tests/test_install_refactor.py tests/test_pack.py tests/test_pack_robustness.py -q`
+   - Result: `22 passed`
+- Umbrella regression gate:
+   - `python3 -m pytest tests/test_regression_v1.py::test_v1_suite_passes_after_feature7 -q`
+   - Result: `1 passed`
+- Full suite:
+   - `python3 -m pytest -q`
+   - Result: `140 passed, 1 skipped`
+
+### Teaching note
+
+Security-hardening features often introduce new interaction contracts (for example, explicit trust confirmation prompts).
+When that happens, tests should be split intentionally into:
+
+1. Non-interactive flow tests, which must explicitly opt into deterministic behavior (`--yes`) when prompts are not under test.
+2. Prompt-contract tests, which should provide explicit stdin (`y`/`n`) and assert prompt text and outcomes.
+
+This pattern keeps trust UX intact while preventing unrelated regressions in CI.
