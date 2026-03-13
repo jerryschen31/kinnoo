@@ -2332,3 +2332,25 @@ tasks:
     dependencies: [task116, task117, task118]
     tests: [test164]
     status: needs-review
+
+  - id: task120
+    title: "Reduce SQL comment false positives while preserving detection rigor"
+    type: task
+    description: |
+      Refine SQL injection comment-detection heuristics in `RegexInputGuard` so benign
+      text containing symbols like `#` or `--` is less likely to trigger warnings,
+      while preserving strong detection for SQL comment markers in injection-like
+      contexts (for example quote + comment and SQL keyword + comment combinations).
+      This task addresses the Feature18 post-review precision warning and should keep
+      the guard rigorous but less noisy for normal user input.
+    files:
+      - src/kinnoo/input_guard.py
+      - tests/test_input_guard.py
+    steps:
+      - 'step1: Narrow SQL comment pattern matching to require SQL-like context near comment markers (quote/injection indicator and/or SQL statement context)'
+      - 'step2: Add focused false-positive regression tests for benign text with `#` and `--`'
+      - 'step3: Add focused true-positive regression tests to ensure SQL comment injection payloads remain detected'
+      - 'step4: Re-run feature18 tests and full suite to verify precision improvements do not regress category coverage'
+    dependencies: [task117]
+    tests: [test165, test166]
+    status: not-started

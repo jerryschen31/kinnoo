@@ -2776,4 +2776,37 @@ tests:
     covers:
       - feature: feature18
         ac: AC1
+
+  - id: test165
+    title: SQL comment markers in benign text do not trigger warnings
+    type: unit
+    preconditions: input_guard module with RegexInputGuard available
+    steps:
+      - step1: Check benign text containing a hash marker (for example explanatory markdown or tags) and verify safe result
+      - step2: Check benign text containing double-hyphen punctuation and verify safe result
+      - step3: Verify no SQL_INJECTION warning is returned for these benign cases
+    expected: Benign text with `#` or `--` is not over-classified as SQL injection
+    pass_criteria: Guard returns safe=True and no SQL_INJECTION warnings for benign marker-only inputs
+    automated: true
+    automation_path: tests/test_input_guard.py::test_sql_comment_markers_benign_text_not_flagged
     covers:
+      - feature: feature18
+        ac: AC6
+
+  - id: test166
+    title: SQL comment injection context remains detected after precision tuning
+    type: unit
+    preconditions: input_guard module with RegexInputGuard available
+    steps:
+      - step1: Check quote-plus-comment payload (for example username quote followed by SQL comment marker)
+      - step2: Check SQL keyword plus comment payload (for example SELECT/UNION context followed by SQL comment marker)
+      - step3: Verify SQL_INJECTION warning is returned for contextual comment-injection payloads
+    expected: SQL comment injection patterns with SQL-like context are still detected
+    pass_criteria: Guard returns safe=False with SQL_INJECTION warnings for contextual comment-injection inputs
+    automated: true
+    automation_path: tests/test_input_guard.py::test_sql_comment_injection_context_still_detected
+    covers:
+      - feature: feature18
+        ac: AC1
+      - feature: feature18
+        ac: AC5

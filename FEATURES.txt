@@ -611,7 +611,7 @@ features:
       traversal detection, URL inputs emphasize SSRF detection, ID inputs enforce stricter
       injection patterns. A `check_inputs()` multi-value method accepts typed parameters so
       callers can pass all inputs in a single call and receive an aggregated result.
-    tasks: [task116, task117, task118, task119]
+    tasks: [task116, task117, task118, task119, task120]
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo run` checks user input against injection patterns (SQL injection, shell command injection, path traversal, SSRF, XSS, template injection) before executing the agent entrypoint."
