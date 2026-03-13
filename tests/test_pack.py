@@ -8,6 +8,18 @@ import shutil
 
 KINNOO_CLI = ["python3", "-m", "src.kinnoo.cli"]
 
+
+def _pack_env(tmp_path: Path) -> dict[str, str]:
+  env = os.environ.copy()
+  project_root = str(Path(__file__).parent.parent)
+  env["PYTHONPATH"] = project_root + os.pathsep + env.get("PYTHONPATH", "")
+  env["KINNOO_ARCHIVE_ROOT"] = str(tmp_path / "archive-root")
+  return env
+
+
+def _canonical_archive_path(tmp_path: Path, name: str, version: str) -> Path:
+  return tmp_path / "archive-root" / name / version / f"{name}.kno"
+
 @pytest.fixture
 def agent_dir(tmp_path):
     # Create a minimal valid agent directory for testing
@@ -104,9 +116,7 @@ outputs:
     (d / "requirements.txt").write_text("wheel\n")
 
     # Set PYTHONPATH to project root so src.kinnoo.cli is importable
-    env = os.environ.copy()
-    project_root = str(Path(__file__).parent.parent)
-    env["PYTHONPATH"] = project_root + os.pathsep + env.get("PYTHONPATH", "")
+    env = _pack_env(tmp_path)
 
     # Run kinnoo pack
     result = subprocess.run(
@@ -119,12 +129,8 @@ outputs:
     assert result.returncode == 0, f"kinnoo pack failed: {result.stderr}"
 
     # Find the .kno archive
-    archive = None
-    for f in tmp_path.iterdir():
-        if f.suffix == ".kno":
-            archive = f
-            break
-    assert archive is not None, "No .kno archive produced"
+    archive = _canonical_archive_path(tmp_path, "wheelagent", "1.0.0")
+    assert archive.exists(), "No .kno archive produced"
 
     # Inspect archive for wheel files
     with zipfile.ZipFile(archive, "r") as z:
@@ -160,9 +166,7 @@ outputs:
     (d / "run.py").write_text("print('archive test')\n")
     (d / "requirements.txt").write_text("wheel\n")
 
-    env = os.environ.copy()
-    project_root = str(Path(__file__).parent.parent)
-    env["PYTHONPATH"] = project_root + os.pathsep + env.get("PYTHONPATH", "")
+    env = _pack_env(tmp_path)
 
     result = subprocess.run(
         KINNOO_CLI + ["pack", str(d)],
@@ -173,12 +177,8 @@ outputs:
     )
     assert result.returncode == 0, f"kinnoo pack failed: {result.stderr}"
 
-    archive = None
-    for f in tmp_path.iterdir():
-        if f.suffix == ".kno":
-            archive = f
-            break
-    assert archive is not None, "No .kno archive produced"
+    archive = _canonical_archive_path(tmp_path, "archiveagent", "1.0.0")
+    assert archive.exists(), "No .kno archive produced"
 
     with zipfile.ZipFile(archive, "r") as z:
         names = set(z.namelist())
@@ -219,9 +219,7 @@ def test_manual_extraction_verifies_files(tmp_path):
     (d / "requirements.txt").write_text("wheel\n")
     (d / "extra.txt").write_text("extra file contents\n")
 
-    env = os.environ.copy()
-    project_root = str(Path(__file__).parent.parent)
-    env["PYTHONPATH"] = project_root + os.pathsep + env.get("PYTHONPATH", "")
+    env = _pack_env(tmp_path)
 
     # Run kinnoo pack
     result = subprocess.run(
@@ -233,12 +231,8 @@ def test_manual_extraction_verifies_files(tmp_path):
     )
     assert result.returncode == 0, f"kinnoo pack failed: {result.stderr}"
 
-    archive = None
-    for f in tmp_path.iterdir():
-      if f.suffix == ".kno":
-        archive = f
-        break
-    assert archive is not None, "No .kno archive produced"
+    archive = _canonical_archive_path(tmp_path, "extractagent", "1.0.0")
+    assert archive.exists(), "No .kno archive produced"
 
     # Extract archive to a new directory
     extract_dir = tmp_path / "extracted"
@@ -256,8 +250,10 @@ def test_manual_extraction_verifies_files(tmp_path):
 def test_pack_prompts_before_overwrite_existing_archive(agent_dir):
     cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
     cli_cmd = ["python3", str(cli_script)]
+    archive_root = agent_dir.parent / "archive-root"
     archive_name = f"{agent_dir.name}.kno"
-    archive_path = agent_dir.parent / archive_name
+    archive_path = archive_root / agent_dir.name / "1.0.0" / archive_name
+    archive_path.parent.mkdir(parents=True, exist_ok=True)
     original_bytes = b"DO_NOT_OVERWRITE"
     archive_path.write_bytes(original_bytes)
 
@@ -271,6 +267,7 @@ def test_pack_prompts_before_overwrite_existing_archive(agent_dir):
         input="n\n",
         capture_output=True,
         text=True,
+        env={**os.environ, "KINNOO_ARCHIVE_ROOT": str(archive_root)},
     )
     decline_output = f"{decline_result.stdout}\n{decline_result.stderr}"
     assert prompt in decline_output
@@ -283,6 +280,7 @@ def test_pack_prompts_before_overwrite_existing_archive(agent_dir):
         input="y\n",
         capture_output=True,
         text=True,
+        env={**os.environ, "KINNOO_ARCHIVE_ROOT": str(archive_root)},
     )
     confirm_output = f"{confirm_result.stdout}\n{confirm_result.stderr}"
     assert prompt in confirm_output

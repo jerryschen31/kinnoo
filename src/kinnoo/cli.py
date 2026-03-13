@@ -42,8 +42,20 @@ def main():
     )
 
     # Add 'install' subcommand
-    install_parser = subparsers.add_parser("install", help="Install a kinnoo agent archive (.kno)")
-    install_parser.add_argument("archive_path", nargs="?", help="Path to .kno archive to install")
+    install_parser = subparsers.add_parser(
+        "install",
+        help="Install a kinnoo agent from archive (.kno) or registry",
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
+    install_parser.add_argument(
+        "archive_path",
+        nargs="?",
+        metavar="agent[==version]",
+        help=(
+            "agent name from registry (use kinnoo list / search to find available agents)\n"
+            "OR specify a direct path to a local .kno archive"
+        ),
+    )
     install_parser.add_argument("target_dir", nargs="?", help="(Optional) Directory to extract agent to")
     install_parser.add_argument(
         "--yes",
@@ -186,7 +198,10 @@ def main():
         archive_path = getattr(args, "archive_path", None)
         target_dir_arg = getattr(args, "target_dir", None)
         if archive_path is None:
-            print("Usage: kinnoo install <archive-path> [target-dir]", file=sys.stderr)
+            print(
+                "Usage: kinnoo install <archive-path | agent_name[==version]> [target-dir]",
+                file=sys.stderr,
+            )
             sys.exit(1)
         force = False
         if hasattr(args, "force"):

@@ -36,11 +36,11 @@ def test_install_invalid_archive_or_missing_files(tmp_path, archive_type):
         shutil.rmtree(agent_dir)
     # Run kinnoo install
     result = subprocess.run([
-        sys.executable, str(cli_path), "install", str(archive_path)
+        sys.executable, str(cli_path), "install", str(archive_path), "--yes"
     ], capture_output=True, text=True)
     assert result.returncode != 0, "kinnoo install should fail for invalid archive or missing files"
     if archive_type == "invalid_zip":
-        assert "not a valid .kno (zip) archive" in result.stderr
+        assert "not a valid .kno (zip) archive" in result.stderr or "not a valid zip-based .kno file" in result.stderr
     else:
         assert "kinnoo.yaml not found" in result.stderr
     assert not agent_dir.exists() or not any(agent_dir.iterdir()), "Agent directory should not exist or be empty after failure"

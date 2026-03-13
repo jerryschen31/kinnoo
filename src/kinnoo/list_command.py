@@ -8,6 +8,7 @@ from pathlib import Path
 from .archive import LocalArchiveBackend
 from .registry import RegistryService
 from .registry_backends import MockFilesystemRegistryBackend
+from .size_format import format_size_human_readable
 
 
 def list_agents(source: str = "local") -> int:
@@ -26,7 +27,11 @@ def list_agents(source: str = "local") -> int:
         print("Remote registry agents:")
         for summary in summaries:
             description = summary.description if summary.description else "(no description)"
-            print(f"- {summary.name} | latest: {summary.latest_version} | description: {description}")
+            archive_size = _format_archive_size(summary.archive_size_bytes)
+            print(
+                f"- {summary.name} | latest: {summary.latest_version} | "
+                f"description: {description} | size: {archive_size}"
+            )
 
         return 0
 
@@ -43,6 +48,16 @@ def list_agents(source: str = "local") -> int:
     print("Local archive agents:")
     for summary in summaries:
         description = summary.description if summary.description else "(no description)"
-        print(f"- {summary.name} | latest: {summary.latest_version} | description: {description}")
+        archive_size = _format_archive_size(summary.archive_size_bytes)
+        print(
+            f"- {summary.name} | latest: {summary.latest_version} | "
+            f"description: {description} | size: {archive_size}"
+        )
 
     return 0
+
+
+def _format_archive_size(size_bytes: int | None) -> str:
+    if size_bytes is None:
+        return "unknown"
+    return format_size_human_readable(size_bytes)

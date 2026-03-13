@@ -136,7 +136,7 @@ def test_install_name_resolves_latest_from_mock_registry(tmp_path: Path) -> None
     }
 
     install_result = subprocess.run(
-        [sys.executable, str(CLI_PATH), "install", "install-agent"],
+        [sys.executable, str(CLI_PATH), "install", "install-agent", "--yes"],
         cwd=tmp_path,
         capture_output=True,
         text=True,
@@ -217,7 +217,7 @@ def test_install_name_equals_version_from_mock_registry(tmp_path: Path) -> None:
     }
 
     install_exact = subprocess.run(
-        [sys.executable, str(CLI_PATH), "install", "versioned-install==1.0.0"],
+        [sys.executable, str(CLI_PATH), "install", "versioned-install==1.0.0", "--yes"],
         cwd=tmp_path,
         capture_output=True,
         text=True,
@@ -280,7 +280,7 @@ def test_install_file_path_mode_preserved(tmp_path: Path) -> None:
     }
 
     install_result = subprocess.run(
-        [sys.executable, str(CLI_PATH), "install", "file-path-install.kno"],
+        [sys.executable, str(CLI_PATH), "install", "file-path-install.kno", "--yes"],
         cwd=tmp_path,
         capture_output=True,
         text=True,
