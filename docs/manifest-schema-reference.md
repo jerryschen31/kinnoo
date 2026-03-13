@@ -319,6 +319,39 @@ Unverified prompt behavior:
 - warning text: `This agent is from an unverified source.`
 - prompt (without `--yes`): `This agent is from an unverified source. Continue? (y/n):`
 
+---
+
+## Input Safety Guard reference (Feature18)
+
+Feature18 adds an input safety check stage to `kinnoo run` before entrypoint execution.
+
+Behavior contract:
+
+- The guard evaluates user-provided run input and emits warnings when risky patterns are detected.
+- The guard is non-blocking in interactive mode (warn + confirm).
+- In non-interactive execution, flagged input aborts run by default.
+- `--no-guard` is the explicit override for trusted CI/automation workflows.
+
+Threat categories:
+
+- SQL injection
+- shell command injection
+- path traversal
+- SSRF
+- XSS
+- template injection
+
+Type-aware model:
+
+- Guard checks are type-aware and can scope detection by input type (`text`, `string`, `file_path`, `url`, `id`).
+- Unknown input types fall back to full text-style scanning.
+
+Pluggable architecture:
+
+- Runtime integration depends on the `InputGuard` Protocol, not on a concrete implementation.
+- The default implementation is provided via factory (`get_default_guard`).
+- This design allows replacing regex heuristics with an ML guard in future versions without changing call sites.
+
 Run trace log behavior:
 
 - output path: `~/.kinnoo/logs/run.<TIMESTAMP>.log`
