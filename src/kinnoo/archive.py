@@ -33,6 +33,7 @@ class ArchiveAgentSummary:
     name: str
     latest_version: str
     description: str
+    archive_size_bytes: int | None = None
 
 
 @runtime_checkable
@@ -120,11 +121,16 @@ class LocalArchiveBackend:
                 continue
 
             description = self._read_description_from_archive(latest_record.archive_path)
+            try:
+                archive_size_bytes = latest_record.archive_path.stat().st_size
+            except OSError:
+                archive_size_bytes = None
             summaries.append(
                 ArchiveAgentSummary(
                     name=latest_record.name,
                     latest_version=latest_record.version,
                     description=description,
+                    archive_size_bytes=archive_size_bytes,
                 )
             )
 

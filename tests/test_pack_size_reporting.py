@@ -2,6 +2,7 @@ import os
 import re
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 
 
@@ -33,6 +34,96 @@ def _create_agent_for_pack(agent_dir: Path, *, name: str, version: str, with_blo
     if with_blob:
         # Random bytes are intentionally incompressible so archive size stays above warning threshold.
         (agent_dir / "blob.bin").write_bytes(os.urandom(1200 * 1024))
+
+
+def _write_archive_summary_fixture(
+    archive_root: Path,
+    *,
+    name: str,
+    version: str,
+    description: str,
+) -> Path:
+    archive_path = archive_root / name / version / f"{name}.kno"
+    archive_path.parent.mkdir(parents=True, exist_ok=True)
+
+    manifest_text = (
+        "\n".join(
+            [
+                f"name: {name}",
+                f"version: {version}",
+                f"description: {description}",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.10\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n"
+    )
+
+    with zipfile.ZipFile(archive_path, "w") as archive_zip:
+        archive_zip.writestr("kinnoo.yaml", manifest_text)
+        archive_zip.writestr("run.py", "print('list-size')\n")
+        archive_zip.writestr("requirements.txt", "")
+
+    return archive_path
+
+
+def _write_remote_summary_fixture(
+    registry_root: Path,
+    *,
+    name: str,
+    version: str,
+    description: str,
+) -> Path:
+    archive_path = registry_root / name / version / f"{name}.kno"
+    archive_path.parent.mkdir(parents=True, exist_ok=True)
+
+    manifest_text = (
+        "\n".join(
+            [
+                f"name: {name}",
+                f"version: {version}",
+                f"description: {description}",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.10\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n"
+    )
+
+    with zipfile.ZipFile(archive_path, "w") as archive_zip:
+        archive_zip.writestr("kinnoo.yaml", manifest_text)
+        archive_zip.writestr("run.py", "print('remote-list-size')\n")
+        archive_zip.writestr("requirements.txt", "")
+
+    metadata_path = archive_path.parent / "manifest-metadata.json"
+    metadata_path.write_text(
+        (
+            "{\n"
+            f"  \"name\": \"{name}\",\n"
+            f"  \"version\": \"{version}\",\n"
+            f"  \"description\": \"{description}\"\n"
+            "}\n"
+        ),
+        encoding="utf-8",
+    )
+
+    return archive_path
 
 
 def test_pack_prints_human_readable_archive_size(tmp_path: Path) -> None:
@@ -116,3 +207,65 @@ def test_inspect_displays_archive_size_for_archive_target(tmp_path: Path) -> Non
     inspect_output = f"{inspect_result.stdout}\n{inspect_result.stderr}"
     assert inspect_result.returncode == 0, inspect_output
     assert re.search(r"- Archive Size: \d+(?:\.\d)? (?:B|KB|MB|GB)", inspect_output)
+
+
+def test_list_includes_archive_size(tmp_path: Path) -> None:
+    archive_root = tmp_path / "archive-root"
+    registry_root = tmp_path / "registry-root"
+
+    _write_archive_summary_fixture(
+        archive_root,
+        name="list-local-agent",
+        version="1.0.0",
+        description="local list fixture",
+    )
+    _write_remote_summary_fixture(
+        registry_root,
+        name="list-remote-agent",
+        version="2.0.0",
+        description="remote list fixture",
+    )
+
+    env = os.environ.copy()
+    env["KINNOO_ARCHIVE_ROOT"] = str(archive_root)
+    env["KINNOO_REGISTRY_ROOT"] = str(registry_root)
+
+    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    list_default = subprocess.run(
+        [sys.executable, str(cli_script), "list"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    list_local = subprocess.run(
+        [sys.executable, str(cli_script), "list", "--local"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    list_remote = subprocess.run(
+        [sys.executable, str(cli_script), "list", "--remote"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    default_output = f"{list_default.stdout}\n{list_default.stderr}"
+    local_output = f"{list_local.stdout}\n{list_local.stderr}"
+    remote_output = f"{list_remote.stdout}\n{list_remote.stderr}"
+
+    assert list_default.returncode == 0, default_output
+    assert list_local.returncode == 0, local_output
+    assert list_remote.returncode == 0, remote_output
+
+    assert default_output == local_output
+    assert "Local archive agents:" in default_output
+    assert "list-local-agent | latest: 1.0.0 | description: local list fixture | size: " in default_output
+    assert re.search(r"list-local-agent .*\| size: \d+(?:\.\d)? (?:B|KB|MB|GB)", default_output)
+
+    assert "Remote registry agents:" in remote_output
+    assert "list-remote-agent | latest: 2.0.0 | description: remote list fixture | size: " in remote_output
+    assert re.search(r"list-remote-agent .*\| size: \d+(?:\.\d)? (?:B|KB|MB|GB)", remote_output)
