@@ -2117,7 +2117,7 @@ tasks:
       - step4: Add test-friendly threshold control (for example env-var override) to avoid generating >100 MB fixtures in CI
     dependencies: [task83]
     tests: [test144, test145]
-    status: needs-review
+    status: completed
 
   - id: task113
     title: Inspect displays archive size metadata
@@ -2133,7 +2133,7 @@ tasks:
       - step3: Keep output additive and non-breaking for existing inspect fields
     dependencies: [task112]
     tests: [test146]
-    status: not-started
+    status: needs-review
 
   - id: task114
     title: List output includes archive size

@@ -82,3 +82,37 @@ def test_pack_warns_when_archive_exceeds_threshold_override(tmp_path: Path) -> N
         r"Warning: archive is large \([0-9]+\.[0-9] MB\)\. Consider whether all dependencies are necessary\.",
         output,
     )
+
+
+def test_inspect_displays_archive_size_for_archive_target(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "inspect-size-agent"
+    _create_agent_for_pack(agent_dir, name="inspect-size-agent", version="1.0.0", with_blob=False)
+
+    archive_root = tmp_path / "archive-root"
+    env = os.environ.copy()
+    env["KINNOO_ARCHIVE_ROOT"] = str(archive_root)
+
+    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    pack_result = subprocess.run(
+        [sys.executable, str(cli_script), "pack", str(agent_dir)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    pack_output = f"{pack_result.stdout}\n{pack_result.stderr}"
+    assert pack_result.returncode == 0, pack_output
+
+    archives = sorted(archive_root.rglob("*.kno"))
+    assert len(archives) == 1, "expected exactly one packed archive"
+
+    inspect_result = subprocess.run(
+        [sys.executable, str(cli_script), "inspect", str(archives[0])],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    inspect_output = f"{inspect_result.stdout}\n{inspect_result.stderr}"
+    assert inspect_result.returncode == 0, inspect_output
+    assert re.search(r"- Archive Size: \d+(?:\.\d)? (?:B|KB|MB|GB)", inspect_output)

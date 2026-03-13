@@ -11,6 +11,7 @@ try:
     from kinnoo.checksum import ChecksumParseError, read_checksum_sidecar
     from kinnoo.code_sweep import sweep_env_var_exposure
     from kinnoo.schema import normalize_manifest_defaults, normalize_type_field
+    from kinnoo.size_format import format_size_human_readable
     from kinnoo.templates import (
         INSPECT_MINIMAL_KINNOO_YAML_EXAMPLE,
         INSPECT_MISSING_REQUIREMENTS_GUIDANCE_LINES,
@@ -20,6 +21,7 @@ except ImportError:
     from .checksum import ChecksumParseError, read_checksum_sidecar
     from .code_sweep import sweep_env_var_exposure
     from .schema import normalize_manifest_defaults, normalize_type_field
+    from .size_format import format_size_human_readable
     from .templates import (
         INSPECT_MINIMAL_KINNOO_YAML_EXAMPLE,
         INSPECT_MISSING_REQUIREMENTS_GUIDANCE_LINES,
@@ -160,6 +162,7 @@ def _print_inspect_output(
     target_label: str,
     manifest_data: dict[str, Any],
     archive_checksum: str | None = None,
+    archive_size_human: str | None = None,
 ) -> None:
     normalized = _normalize_manifest_for_display(manifest_data)
 
@@ -168,6 +171,8 @@ def _print_inspect_output(
     print(f"- Name: {normalized['name']}")
     print(f"- Version: {normalized['version']}")
     print(f"- Runtime Type: {normalized['runtime']['type']}")
+    if archive_size_human is not None:
+        print(f"- Archive Size: {archive_size_human}")
     if archive_checksum is not None:
         print(f"- Checksum (SHA256): {archive_checksum}")
 
@@ -210,8 +215,14 @@ def _inspect_archive_target(archive_path: Path) -> int:
         _print_manifest_validation_errors(errors)
         return 1
 
+    archive_size_human = format_size_human_readable(archive_path.stat().st_size)
     archive_checksum = _archive_checksum_for_display(archive_path)
-    _print_inspect_output("archive (.kno)", manifest_data, archive_checksum=archive_checksum)
+    _print_inspect_output(
+        "archive (.kno)",
+        manifest_data,
+        archive_checksum=archive_checksum,
+        archive_size_human=archive_size_human,
+    )
 
     return 0
 
