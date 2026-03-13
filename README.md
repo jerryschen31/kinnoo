@@ -189,6 +189,28 @@ Publish behavior:
 	- `Published checksum sidecar: <path>`
 	- `Published checksum sidecar: (none found at source)`
 
+## Pack Size Reporting & Warnings (Feature17)
+
+Feature17 adds package-footprint visibility across pack/inspect/list workflows.
+
+Pack behavior:
+
+- `kinnoo pack` prints final archive size after artifact creation:
+	- `[kinnoo pack] Archive size: <human-readable>`
+- If archive size is strictly greater than 100 MB, pack prints:
+	- `Warning: archive is large (X MB). Consider whether all dependencies are necessary.`
+
+Inspect behavior:
+
+- `kinnoo inspect <archive.kno>` includes archive size metadata:
+	- `- Archive Size: <human-readable>`
+
+List behavior:
+
+- `kinnoo list`, `kinnoo list --local`, and `kinnoo list --remote` include additive size visibility per row:
+	- `| size: <human-readable>`
+- Size formatting is shared across commands and uses stable units (`B`, `KB`, `MB`, `GB`).
+
 ## Pack/Publish Refactor (Feature13)
 
 Feature13 shifts command responsibilities to an archive-first source model and a mock-registry publish target.
