@@ -1,5 +1,25 @@
 
 
+## Feature18 Task Breakdown (2026-03-13)
+
+- Created 4 tasks (task116–task119) and 16 tests (test149–test164) for feature18 "Input Safety Guard".
+- Updated feature18 description and ACs in FEATURES.txt to include:
+  - 6 threat categories (added XSS and template injection beyond original 4)
+  - Type-aware checking for future parameterized inputs (-e, -i, -d, -u)
+  - `check_inputs()` multi-value method for future multi-parameter input mode
+  - Non-interactive TTY fail-safe (auto-abort when stdin is not a TTY)
+  - 8 ACs (expanded from original 6)
+- Task execution order: task116 → task117 → task118 → task119 (strictly sequential)
+- Key design decisions:
+  - Protocol-based `InputGuard` with `check(value, input_type)` and `check_inputs(inputs)` for current + future input models
+  - Break after first pattern match per category per value to avoid warning floods
+  - Type-aware filtering: file_path → path traversal + shell only; url → SSRF + shell only; id → SQL + shell + template only
+  - Non-interactive mode auto-aborts as fail-safe (requires `--no-guard` for CI)
+- SWE handoff written to notes/swe-handoff.md with detailed per-task implementation guidance
+- Manifest validation passed after all changes
+
+---
+
 ## Feature17 Pre-Merge Review (2026-03-12)
 
 - Reviewed tasks task112-task115 against AC1-AC4 with code + tests + docs.

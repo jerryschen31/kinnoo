@@ -196,3 +196,15 @@ Kinnoo would still provide real value for reproducibility, sharing, and onboardi
     dependencies: [task62, task63, task64, task66]
     tests: []
     status: not-started
+
+## feature18 notes from Tech Lead Agent - input injections
+
+### Design rationale — why these decisions matter
+Why 6 threat categories (not the original 4)? XSS and template injection are real attack vectors when agent input gets rendered in web contexts or processed by template engines. Since kinnoo agents can be anything — including web-facing agents — covering these costs little but catches genuine threats.
+
+Why type-aware filtering? When kinnoo adds -d <file-path> and -u <url> flags later, a file path input doesn't need SQL injection checks, and a URL input doesn't need path traversal checks. Filtering by input type reduces false positives and makes the guard more precise. The SWE agent builds this now so no refactoring is needed when parameterized inputs ship.
+
+Why break after first match per category? Without this, a single malicious input like '; DROP TABLE users; DELETE FROM logs; -- would generate 3+ SQL warnings. One warning per category is enough to convey the risk without overwhelming the user.
+
+Why non-interactive fail-safe? In CI/scripts where stdin is piped, prompting would hang or auto-answer empty (which maps to 'n'/abort). Detecting not sys.stdin.isatty() and auto-aborting with a clear message is safer and more predictable than hanging. Teams that trust their input use --no-guard.
+
