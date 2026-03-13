@@ -8,6 +8,18 @@ import shutil
 
 KINNOO_CLI = ["python3", "-m", "src.kinnoo.cli"]
 
+
+def _pack_env(tmp_path: Path) -> dict[str, str]:
+  env = os.environ.copy()
+  project_root = str(Path(__file__).parent.parent)
+  env["PYTHONPATH"] = project_root + os.pathsep + env.get("PYTHONPATH", "")
+  env["KINNOO_ARCHIVE_ROOT"] = str(tmp_path / "archive-root")
+  return env
+
+
+def _canonical_archive_path(tmp_path: Path, name: str, version: str) -> Path:
+  return tmp_path / "archive-root" / name / version / f"{name}.kno"
+
 @pytest.fixture
 def agent_dir(tmp_path):
     # Create a minimal valid agent directory for testing
@@ -104,9 +116,7 @@ outputs:
     (d / "requirements.txt").write_text("wheel\n")
 
     # Set PYTHONPATH to project root so src.kinnoo.cli is importable
-    env = os.environ.copy()
-    project_root = str(Path(__file__).parent.parent)
-    env["PYTHONPATH"] = project_root + os.pathsep + env.get("PYTHONPATH", "")
+    env = _pack_env(tmp_path)
 
     # Run kinnoo pack
     result = subprocess.run(
@@ -119,12 +129,8 @@ outputs:
     assert result.returncode == 0, f"kinnoo pack failed: {result.stderr}"
 
     # Find the .kno archive
-    archive = None
-    for f in tmp_path.iterdir():
-        if f.suffix == ".kno":
-            archive = f
-            break
-    assert archive is not None, "No .kno archive produced"
+    archive = _canonical_archive_path(tmp_path, "wheelagent", "1.0.0")
+    assert archive.exists(), "No .kno archive produced"
 
     # Inspect archive for wheel files
     with zipfile.ZipFile(archive, "r") as z:
@@ -160,9 +166,7 @@ outputs:
     (d / "run.py").write_text("print('archive test')\n")
     (d / "requirements.txt").write_text("wheel\n")
 
-    env = os.environ.copy()
-    project_root = str(Path(__file__).parent.parent)
-    env["PYTHONPATH"] = project_root + os.pathsep + env.get("PYTHONPATH", "")
+    env = _pack_env(tmp_path)
 
     result = subprocess.run(
         KINNOO_CLI + ["pack", str(d)],
@@ -173,12 +177,8 @@ outputs:
     )
     assert result.returncode == 0, f"kinnoo pack failed: {result.stderr}"
 
-    archive = None
-    for f in tmp_path.iterdir():
-        if f.suffix == ".kno":
-            archive = f
-            break
-    assert archive is not None, "No .kno archive produced"
+    archive = _canonical_archive_path(tmp_path, "archiveagent", "1.0.0")
+    assert archive.exists(), "No .kno archive produced"
 
     with zipfile.ZipFile(archive, "r") as z:
         names = set(z.namelist())
@@ -219,9 +219,7 @@ def test_manual_extraction_verifies_files(tmp_path):
     (d / "requirements.txt").write_text("wheel\n")
     (d / "extra.txt").write_text("extra file contents\n")
 
-    env = os.environ.copy()
-    project_root = str(Path(__file__).parent.parent)
-    env["PYTHONPATH"] = project_root + os.pathsep + env.get("PYTHONPATH", "")
+    env = _pack_env(tmp_path)
 
     # Run kinnoo pack
     result = subprocess.run(
@@ -233,12 +231,8 @@ def test_manual_extraction_verifies_files(tmp_path):
     )
     assert result.returncode == 0, f"kinnoo pack failed: {result.stderr}"
 
-    archive = None
-    for f in tmp_path.iterdir():
-      if f.suffix == ".kno":
-        archive = f
-        break
-    assert archive is not None, "No .kno archive produced"
+    archive = _canonical_archive_path(tmp_path, "extractagent", "1.0.0")
+    assert archive.exists(), "No .kno archive produced"
 
     # Extract archive to a new directory
     extract_dir = tmp_path / "extracted"
@@ -252,66 +246,117 @@ def test_manual_extraction_verifies_files(tmp_path):
       fpath = extract_dir / fname
       assert fpath.exists(), f"Required file {fname} missing after extraction"
 
-def test_manual_extraction_verifies_files(tmp_path):
-    """
-    test50: Manual extraction of .kno archive verifies required files
-    Steps:
-      1. Extract .kno archive using zipfile (since kinnoo pack uses zip format)
-      2. Check agent-dir for requirements.txt, run.py, kinnoo.yaml, and any files listed in manifest
-      3. If any are missing, throw error
-    """
-    d = tmp_path / "extractagent"
-    d.mkdir()
-    # Minimal valid manifest
-    manifest = (
-        "name: extractagent\n"
-        "version: 1.0.0\n"
-        "entrypoint: run.py\n"
-        "runtime:\n"
-        "  language: python\n"
-        "  version: '>=3.10'\n"
-        "  type: one-shot\n"
-        "dependencies: []\n"
-        "inputs:\n"
-        "  type: text\n"
-        "outputs:\n"
-        "  type: text\n"
-        "extra_file: extra.txt\n"
+
+def test_pack_prompts_before_overwrite_existing_archive(agent_dir):
+    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_cmd = ["python3", str(cli_script)]
+    archive_root = agent_dir.parent / "archive-root"
+    archive_name = f"{agent_dir.name}.kno"
+    archive_path = archive_root / agent_dir.name / "1.0.0" / archive_name
+    archive_path.parent.mkdir(parents=True, exist_ok=True)
+    original_bytes = b"DO_NOT_OVERWRITE"
+    archive_path.write_bytes(original_bytes)
+
+    prompt = (
+        f"({archive_name}) already exists - are you sure you want to overwrite? (y/n): "
     )
-    (d / "kinnoo.yaml").write_text(manifest)
-    (d / "run.py").write_text("print('extract test')\n")
-    (d / "requirements.txt").write_text("wheel\n")
-    (d / "extra.txt").write_text("extra file contents\n")
 
-    env = os.environ.copy()
-    project_root = str(Path(__file__).parent.parent)
-    env["PYTHONPATH"] = project_root + os.pathsep + env.get("PYTHONPATH", "")
-
-    # Run kinnoo pack
-    result = subprocess.run(
-        KINNOO_CLI + ["pack", str(d)],
-        cwd=tmp_path,
+    decline_result = subprocess.run(
+        cli_cmd + ["pack", str(agent_dir)],
+        cwd=agent_dir.parent,
+        input="n\n",
         capture_output=True,
         text=True,
-        env=env
+        env={**os.environ, "KINNOO_ARCHIVE_ROOT": str(archive_root)},
     )
-    assert result.returncode == 0, f"kinnoo pack failed: {result.stderr}"
+    decline_output = f"{decline_result.stdout}\n{decline_result.stderr}"
+    assert prompt in decline_output
+    assert decline_result.returncode != 0
+    assert archive_path.read_bytes() == original_bytes
 
-    archive = None
-    for f in tmp_path.iterdir():
-        if f.suffix == ".kno":
-            archive = f
-            break
-    assert archive is not None, "No .kno archive produced"
+    confirm_result = subprocess.run(
+        cli_cmd + ["pack", str(agent_dir)],
+        cwd=agent_dir.parent,
+        input="y\n",
+        capture_output=True,
+        text=True,
+        env={**os.environ, "KINNOO_ARCHIVE_ROOT": str(archive_root)},
+    )
+    confirm_output = f"{confirm_result.stdout}\n{confirm_result.stderr}"
+    assert prompt in confirm_output
+    assert confirm_result.returncode == 0
+    assert archive_path.read_bytes() != original_bytes
 
-    # Extract archive to a new directory
-    extract_dir = tmp_path / "extracted"
-    extract_dir.mkdir()
-    with zipfile.ZipFile(archive, "r") as z:
-        z.extractall(extract_dir)
+    with zipfile.ZipFile(archive_path, "r") as archive_file:
+        assert "kinnoo.yaml" in archive_file.namelist()
 
-    # Check for required files
-    required_files = ["kinnoo.yaml", "run.py", "requirements.txt"]
-    for fname in required_files:
-      fpath = extract_dir / fname
-      assert fpath.exists(), f"Required file {fname} missing after extraction"
+
+def test_pack_bump_flag_and_version_output_line(tmp_path):
+    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_cmd = ["python3", str(cli_script)]
+
+    agent_dir = tmp_path / "bump-agent"
+    agent_dir.mkdir()
+    manifest_path = agent_dir / "kinnoo.yaml"
+    manifest_path.write_text(
+        """
+name: bump-agent
+version: 1.2.3
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "run.py").write_text("print('hello')\n", encoding="utf-8")
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = os.environ.copy()
+    env["KINNOO_ARCHIVE_ROOT"] = str(tmp_path / "archive-root")
+
+    def run_pack(*extra_args: str, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            cli_cmd + ["pack", str(agent_dir), *extra_args],
+            cwd=tmp_path,
+            input=input_text,
+            capture_output=True,
+            text=True,
+        env=env,
+        )
+
+    first = run_pack()
+    first_output = f"{first.stdout}\n{first.stderr}"
+    assert first.returncode == 0
+    assert "[kinnoo pack] Agent version: 1.2.3" in first_output
+    assert "version: 1.2.3" in manifest_path.read_text(encoding="utf-8")
+
+    patch = run_pack("--bump", "patch", input_text="y\n")
+    patch_output = f"{patch.stdout}\n{patch.stderr}"
+    assert patch.returncode == 0
+    assert "[kinnoo pack] Agent version: 1.2.4" in patch_output
+    assert "version: 1.2.4" in manifest_path.read_text(encoding="utf-8")
+
+    minor = run_pack("--bump", "minor", input_text="y\n")
+    minor_output = f"{minor.stdout}\n{minor.stderr}"
+    assert minor.returncode == 0
+    assert "[kinnoo pack] Agent version: 1.3.0" in minor_output
+    assert "version: 1.3.0" in manifest_path.read_text(encoding="utf-8")
+
+    major = run_pack("--bump", "major", input_text="y\n")
+    major_output = f"{major.stdout}\n{major.stderr}"
+    assert major.returncode == 0
+    assert "[kinnoo pack] Agent version: 2.0.0" in major_output
+    assert "version: 2.0.0" in manifest_path.read_text(encoding="utf-8")
+
+    invalid = run_pack("--bump", "banana")
+    invalid_output = f"{invalid.stdout}\n{invalid.stderr}"
+    assert invalid.returncode != 0
+    assert "[kinnoo pack] Agent version:" not in invalid_output

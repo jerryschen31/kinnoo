@@ -28,7 +28,7 @@ def test_install_aborts_on_invalid_manifest(tmp_path):
     cli_path = os.path.abspath("src/kinnoo/cli.py")
     # Act: run kinnoo install <archive>
     result = subprocess.run([
-        sys.executable, cli_path, "install", str(archive_path)
+        sys.executable, cli_path, "install", str(archive_path), "--yes"
     ], capture_output=True, text=True)
     # Assert: install aborts, prints validation error, and does not leave agent_dir
     assert result.returncode != 0
