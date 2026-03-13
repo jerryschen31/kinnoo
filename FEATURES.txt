@@ -599,28 +599,41 @@ features:
     description: |
       Add a pluggable input safety check to `kinnoo run` that inspects user-provided input
       for common injection patterns (SQL injection, shell command injection, path traversal,
-      SSRF) before passing it to the agent entrypoint. The guard is non-blocking — it warns
-      and prompts for confirmation rather than hard-rejecting input. The architecture uses a
-      Protocol-based design so the V1 regex guard can be swapped for an ML-based classifier
-      in the future without changing callers.
-    tasks: []
+      SSRF, XSS, template injection) before passing it to the agent entrypoint. The guard is
+      non-blocking — it warns and prompts for confirmation rather than hard-rejecting input.
+      The architecture uses a Protocol-based design so the V1 regex guard can be swapped for
+      an ML-based classifier in the future without changing callers.
+
+      The guard is designed to work with both the current single-string input model
+      (`kinnoo run <path> "<input>"`) and a future parameterized input model
+      (`kinnoo run <path> -e <string> -i <id> -d <file-path> -u <url>`). For parameterized
+      inputs, the guard applies type-aware pattern filtering: file path inputs emphasize path
+      traversal detection, URL inputs emphasize SSRF detection, ID inputs enforce stricter
+      injection patterns. A `check_inputs()` multi-value method accepts typed parameters so
+      callers can pass all inputs in a single call and receive an aggregated result.
+    tasks: [task116, task117, task118, task119]
     acceptance_criteria:
       - id: AC1
-        description: "`kinnoo run` checks user input against injection patterns (SQL injection, shell command injection, path traversal, SSRF) before executing the agent entrypoint."
+        description: "`kinnoo run` checks user input against injection patterns (SQL injection, shell command injection, path traversal, SSRF, XSS, template injection) before executing the agent entrypoint."
       - id: AC2
-        description: "When a pattern match is found, a warning is printed to stderr listing the detected threat(s), and the user is prompted with 'Proceed anyway? [y/N]'. Answering 'n' or empty aborts with non-zero exit. Answering 'y' proceeds normally."
+        description: "When a pattern match is found, a warning is printed to stderr listing the detected threat(s), and the user is prompted with 'Proceed anyway? [y/N]'. Answering 'n' or empty aborts with non-zero exit. Answering 'y' proceeds normally. Non-interactive stdin (no TTY) auto-aborts as a fail-safe."
       - id: AC3
         description: "A `--no-guard` flag on `kinnoo run` disables the input safety check entirely for CI/automation pipelines where input is controlled."
       - id: AC4
-        description: "The guard implementation follows a Protocol-based pluggable design (`InputGuard` protocol with `check(str) -> InputGuardResult`) so the regex-based guard can be replaced with an ML-based guard via a single factory function change."
+        description: "The guard implementation follows a Protocol-based pluggable design (`InputGuard` protocol with `check(value, input_type) -> InputGuardResult` and `check_inputs(inputs) -> InputGuardResult`) so the regex-based guard can be replaced with an ML-based guard via a single factory function change."
       - id: AC5
         description: "Each regex pattern in the V1 guard is individually unit-testable and documented with the threat category it detects."
       - id: AC6
         description: "Legitimate agent input that happens to resemble injection (e.g., a database agent receiving SQL) is not hard-blocked — the user can always proceed after the warning."
+      - id: AC7
+        description: "The guard supports type-aware input checking: 'text' (full scan), 'file_path' (path traversal + shell injection), 'url' (SSRF + shell injection), 'id' (SQL + shell + template injection), enabling future parameterized input modes (-e, -i, -d, -u) without code changes."
+      - id: AC8
+        description: "A `check_inputs()` method accepts a list of (param_name, value, input_type) tuples and returns an aggregated result with per-parameter warnings, ready for future multi-parameter input."
     notes:
-      - "V1 uses RegexInputGuard with patterns for SQL injection (UNION SELECT, DROP TABLE, tautology), shell injection (;&| with dangerous commands, command substitution), path traversal (../), and SSRF (file://, gopher://, dict://)."
+      - "V1 uses RegexInputGuard with patterns for 6 threat categories: SQL injection (UNION SELECT, DROP TABLE, tautology, comment injection, WAITFOR DELAY), shell injection (;&| with dangerous commands, $() and backtick substitution, pipe to shell), path traversal (../, encoded variants, absolute sensitive paths), SSRF (file://, gopher://, dict://, internal IPs, AWS metadata 169.254.169.254), XSS (<script, javascript:, event handlers), and template injection ({{ }}, <% %>, ${})."
       - "Factory function get_default_guard() returns RegexInputGuard. Future ML upgrade: implement MLInputGuard loading a local ONNX classifier, swap in get_default_guard()."
       - "Integration point: input_guard.py module, called from run_command.py before entrypoint execution."
+      - "Type-aware checking enables the same guard module to handle both current single-string input and future parameterized inputs (-e, -i, -d, -u) with appropriate pattern subsets per input type."
       - "The guard is a genuine differentiator — no other agent packaging tool provides input-level safety checks."
       - "Strong interview talking point for 'defense in depth' and 'secure-by-default' design patterns."
       - see feature15-notes.md for more code details
