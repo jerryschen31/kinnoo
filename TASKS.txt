@@ -2133,7 +2133,7 @@ tasks:
       - step3: Keep output additive and non-breaking for existing inspect fields
     dependencies: [task112]
     tests: [test146]
-    status: needs-review
+    status: completed
 
   - id: task114
     title: List output includes archive size
@@ -2151,7 +2151,7 @@ tasks:
       - step3: Preserve backward-compatible output ordering while adding size visibility
     dependencies: [task112, task87]
     tests: [test147]
-    status: needs-review
+    status: completed
 
   - id: task115
     title: Docs and regression coverage for feature17
@@ -2169,4 +2169,4 @@ tasks:
       - step3: Add docs test asserting feature17 coverage statements remain present
     dependencies: [task112, task113, task114]
     tests: [test148]
-    status: needs-review
+    status: completed

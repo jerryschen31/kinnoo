@@ -592,7 +592,7 @@ features:
         description: "`kinnoo list` includes archive size in the registry listing output."
     owner: techlead-agent
     dependencies: [feature8]
-    status: not-started
+    status: completed
 
   - id: feature18
     title: "kinnoo import — Onboard existing agents"
