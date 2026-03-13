@@ -46,7 +46,7 @@ def test_install_creates_venv_and_attempts_wheel_install(tmp_path):
     cli_path = os.path.abspath("src/kinnoo/cli.py")
     # Act: run kinnoo install <archive>
     result = subprocess.run([
-        sys.executable, cli_path, "install", str(archive_path)
+        sys.executable, cli_path, "install", str(archive_path), "--yes"
     ], capture_output=True, text=True)
     # Assert: venv is created, wheel install attempted, error due to fake wheel
     # Should fail due to invalid wheel, and agent_dir should be cleaned up (atomic install)

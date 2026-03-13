@@ -1,0 +1,49 @@
+Assessment:
+**Feature7**
+- do not implement --force flag.
+
+**Feature8**
+- Let’s go with zip as the canonical archive format
+
+**Feature9**
+- Make sure “env_vars” is an industry standard name for a field that will have environment variable and secret names. If there is another name that is more industry standard, use it instead.
+
+**feature10**
+- Looks good
+
+**feature11**
+- Unclear what MCP server will be used for testing - preferably a simple MCP server like an “echo” type of server (just echoes whatever message is sent to it)
+**feature12**
+- Looks good
+
+**feature13**
+- Also provide functionality for a “--local” flag for “kinnoo publish”, which explicitly specifies that user is publishing to local registry
+- “kinnoo publish” should publish locally by default for now, but keep in mind that depending on user feedback, we may switch the default behavior to publish to remote registry in the future. Make sure code is flexible enough that this switch is easy.
+- A bit unclear on the version for an archive.kno. Is the version determined by the version number in the YAML?
+- What happens when trying to publish, and the version already exists in the registry?
+
+**feature16**
+- We need to implement this after feature13, and break this up into 3 features:1. Template for pydantic-ai2. Template for langgraph3. Template for Agno
+- Templates should be for “one-shot” agents by default
+- Do not implement crewai framework support
+
+**feature14**
+- Should be pushed to after feature16
+- Should be broken up into individual features for testing interactive mode with each framework:1. Gemini2. ChatGPT
+- 3. Claude Chat4. Pydantic AI
+- 5. LangGraph6. Agno
+- NOTE: we also need to think about if “capabilities.interactive: true” is the right way to specify that an agent can be run in interactive mode. Currently we have a runtime.type field that currently is “one-shot” only. Maybe this can instead support multiple values: e.g., runtime.type = [“one-shot”, “interactive”] if an agent can support either one-shot or interactive sessions
+- If we specify an agent as “interactive” with runtime.type, then we need a way of creating templates for each framework that support interactive - because I imagine the templates will look slightly different than a one-shot agent template. If this is the case, I would suggest 6 new features - one for creating interactive agent templates for each of the supported frameworks (Gemini, ChatGPT, Claude Chat, PYdantic AI, LangGraph, Agno)
+**feature15**
+- Looks good
+
+**feature17**
+- Omit - do NOT do this one. This is just a “nice to have”
+
+**feature18**
+- This one is important
+- With the ACs and the underlying code: Agents should NEVER NEVER NEVER write any code that displays values of env vars or secrets, not even once. AC3, AC4 are confusing and suggest env var and secret values may be displayed.
+- NOTE: If a user is prompted to type an env var or secret, the typing should be “silent” (not showing the characters being typed)
+**feature19**
+- This should probably be split into 6 features ? One for each framework.
+- Focus on the Github MCP as proof-of-concept

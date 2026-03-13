@@ -43,7 +43,7 @@ def test_install_extracts_archive(tmp_path):
     # Act: run kinnoo install <archive>
     cli_path = os.path.abspath("src/kinnoo/cli.py")
     result = subprocess.run([
-        sys.executable, cli_path, "install", str(archive_path)
+        sys.executable, cli_path, "install", str(archive_path), "--yes"
     ], capture_output=True, text=True)
     # Assert: agent_dir is created and files extracted
     assert result.returncode == 0

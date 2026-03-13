@@ -28,6 +28,28 @@ def normalize_type_field(io_dict: dict) -> None:
     elif isinstance(t, list):
         io_dict['type'] = t
     # else: leave as-is (should not happen if defaults are injected)
+
+
+def normalize_env_vars(env_vars: object) -> list[str]:
+    """Normalize env_vars to a deterministic list of unique non-empty names.
+
+    This helper is runtime-oriented and intentionally defensive. Validator-level
+    type checks still own strict schema enforcement.
+    """
+    if not isinstance(env_vars, list):
+        return []
+
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for value in env_vars:
+        if not isinstance(value, str):
+            continue
+        name = value.strip()
+        if not name or name in seen:
+            continue
+        normalized.append(name)
+        seen.add(name)
+    return normalized
 """Schema constants for kinnoo.yaml manifest validation.
 
 Required fields and their expected Python types.  Nested fields use dot
@@ -65,6 +87,24 @@ FIELD_TYPES: dict[str, type] = {
 
 # The only supported runtime type in this version of kinnoo.
 SUPPORTED_RUNTIME_TYPES: list[str] = ["one-shot"]
+
+# Optional V2 manifest metadata fields (feature9).
+# These are intentionally optional and should not be included in REQUIRED_FIELDS.
+OPTIONAL_FIELDS: list[str] = [
+    "description",
+    "author",
+    "license",
+    "env_vars",
+]
+
+# Expected types for optional V2 fields when present.
+# Enforced in a later validation phase to keep feature rollout scoped by task.
+OPTIONAL_FIELD_TYPES: dict[str, type] = {
+    "description": str,
+    "author": str,
+    "license": str,
+    "env_vars": list,
+}
 
 # Regex for a valid semver string: MAJOR.MINOR.PATCH with optional pre-release
 # and build metadata (https://semver.org).
