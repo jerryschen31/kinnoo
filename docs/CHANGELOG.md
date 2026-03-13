@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v2.0.0] - 2026-03-13
+### Added
+- Completed Phase 2 feature delivery and validation across runtime safety, trust, archive integrity, and packaging UX.
+- Finalized input safety guard coverage in `kinnoo run`, including type-aware detection, interactive warn-and-confirm flow, and CI-friendly bypass controls.
+- Finalized archive size reporting and visibility across `kinnoo pack`, `kinnoo inspect`, and `kinnoo list`.
+
+### Changed
+- Consolidated and stabilized registry/archive publish-install flows introduced in Phase 2, including local archive-first packaging and remote-mode abstractions.
+- Improved install and pack test stability for non-interactive trust confirmation and archive destination handling.
+
+### Quality
+- Phase 2 closeout validation completed:
+  - Manifest validation: `python3 src/validate_project_manifests.py` passed
+  - Full test suite: `158 passed, 1 skipped`
+
+
 ## [v1.6.0] - 2026-03-13
 ### Added
 - Implemented Feature18 "Input Safety Guard" with pre-entrypoint input threat detection in `kinnoo run`.
