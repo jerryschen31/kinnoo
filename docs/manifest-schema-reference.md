@@ -338,6 +338,39 @@ Inspect/pack heuristic security sweep behavior:
 - pack prints sweep warnings as non-blocking output
 - disclaimer: `(heuristic scan — may produce false positives; not a substitute for code review)`
 
+---
+
+## Pack size reporting and warnings (Feature17)
+
+Feature17 documents package size visibility across pack, inspect, and list flows.
+
+Pack output contract:
+
+- `kinnoo pack` prints final archive size:
+  - `[kinnoo pack] Archive size: <human-readable>`
+- If final archive size is strictly greater than 100 MB, pack prints:
+  - `Warning: archive is large (X MB). Consider whether all dependencies are necessary.`
+
+Inspect output contract:
+
+- `kinnoo inspect <archive.kno>` includes archive size metadata:
+  - `- Archive Size: <human-readable>`
+
+List output contract:
+
+- `kinnoo list`
+- `kinnoo list --local`
+- `kinnoo list --remote`
+
+Each list row includes additive archive size visibility:
+
+- `| size: <human-readable>`
+
+Formatting consistency:
+
+- size output uses stable units (`B`, `KB`, `MB`, `GB`)
+- formatting logic is shared across pack, inspect, and list to avoid drift
+
 Project-wide trust invariant:
 
 - no-secret-values contract applies across trust paths
