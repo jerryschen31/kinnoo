@@ -1,4 +1,15 @@
 
+
+## Feature17 Pre-Merge Review (2026-03-12)
+
+- Reviewed tasks task112-task115 against AC1-AC4 with code + tests + docs.
+- Feature17-targeted tests passed:
+  - tests/test_pack_size_reporting.py
+  - tests/test_docs.py::test_feature17_docs_cover_pack_size_reporting
+- Full repository suite is currently not green (18 failures), mainly around existing pack/install expectation drift.
+- Decision: do not approve feature17 merge to phase2/main until full-suite failures are resolved or formally waived.
+- Traceability fix applied during review: corrected stale TESTS.txt automation_path entries for test144/test145/test146; manifest validation passes.
+
 ---
 
 ## V2 Fallback for Missing Wheels (2026-02-25)

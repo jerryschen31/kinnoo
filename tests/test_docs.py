@@ -205,3 +205,34 @@ def test_feature16_docs_cover_checksum_lifecycle() -> None:
 
     assert "Published checksum sidecar: <path>" in combined_text
     assert "Published checksum sidecar: (none found at source)" in combined_text
+
+
+def test_feature17_docs_cover_pack_size_reporting() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    schema_doc = repo_root / "docs" / "manifest-schema-reference.md"
+    readme_doc = repo_root / "README.md"
+
+    schema_text = schema_doc.read_text(encoding="utf-8")
+    readme_text = readme_doc.read_text(encoding="utf-8")
+    combined_text = f"{schema_text}\n{readme_text}"
+    combined_lower = combined_text.lower()
+
+    assert "archive size" in combined_lower
+    assert "[kinnoo pack] Archive size: <human-readable>" in combined_text
+
+    assert (
+        "Warning: archive is large (X MB). Consider whether all dependencies are necessary."
+        in combined_text
+    )
+
+    assert "- Archive Size: <human-readable>" in combined_text
+
+    assert "kinnoo list" in combined_text
+    assert "kinnoo list --local" in combined_text
+    assert "kinnoo list --remote" in combined_text
+    assert "| size: <human-readable>" in combined_text
+
+    assert "B" in combined_text
+    assert "KB" in combined_text
+    assert "MB" in combined_text
+    assert "GB" in combined_text

@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.5.0] - 2026-03-12
+### Added
+- Implemented Feature17 "Pack Size Reporting & Warnings" across pack/inspect/list workflows.
+- Added pack-time archive size output: `[kinnoo pack] Archive size: <human-readable>`.
+- Added large-archive warning for artifacts exceeding 100 MB: `Warning: archive is large (X MB). Consider whether all dependencies are necessary.`
+- Added archive size visibility in `kinnoo inspect <archive.kno>` and list outputs (`kinnoo list`, `kinnoo list --local`, `kinnoo list --remote`).
+- Added focused regression coverage in `tests/test_pack_size_reporting.py` and docs contract coverage in `tests/test_docs.py` for feature17 behavior.
+
+### Changed
+- Stabilized install tests to explicitly handle trust-confirmation behavior in non-interactive flows (`--yes` where prompt behavior is not under test).
+- Stabilized pack tests around canonical archive backend destination semantics using isolated `KINNOO_ARCHIVE_ROOT` test paths.
+
+### Quality
+- Full repository validation now passes after stabilization: `140 passed, 1 skipped`.
+
+
 ## [v1.4.0] - 2026-03-11
 ### Added
 - Implemented Feature16 "Archive Integrity (Checksums)" across pack/install/inspect/publish workflows.

@@ -1,7 +1,19 @@
+import os
 import subprocess
 import sys
 import zipfile
 from pathlib import Path
+
+
+def _pack_env(tmp_path: Path) -> dict[str, str]:
+    return {
+        **os.environ,
+        "KINNOO_ARCHIVE_ROOT": str(tmp_path / "archive-root"),
+    }
+
+
+def _canonical_archive_path(tmp_path: Path, name: str, version: str) -> Path:
+    return tmp_path / "archive-root" / name / version / f"{name}.kno"
 
 
 def _create_agent_with_pinned_transitive_requirements(tmp_path: Path, agent_name: str = "robust-agent") -> Path:
@@ -52,10 +64,11 @@ def test_pack_includes_transitive_wheels_for_pinned_deps(tmp_path):
         [sys.executable, "src/kinnoo/cli.py", "pack", str(agent_dir)],
         capture_output=True,
         text=True,
+        env=_pack_env(tmp_path),
     )
     assert result.returncode == 0, f"kinnoo pack failed:\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
 
-    kno_path = tmp_path / f"{agent_dir.name}.kno"
+    kno_path = _canonical_archive_path(tmp_path, agent_dir.name, "1.0.0")
     assert kno_path.exists(), "Expected .kno archive to be created"
 
     distributions = _collect_wheel_distribution_names(kno_path)
@@ -106,12 +119,13 @@ outputs:
         [sys.executable, "src/kinnoo/cli.py", "pack", str(agent_dir)],
         capture_output=True,
         text=True,
+        env=_pack_env(tmp_path),
     )
     assert pack_result.returncode == 0, (
         f"kinnoo pack failed\nSTDOUT:\n{pack_result.stdout}\nSTDERR:\n{pack_result.stderr}"
     )
 
-    kno_path = tmp_path / "zip-canonical-agent.kno"
+    kno_path = _canonical_archive_path(tmp_path, "zip-canonical-agent", "1.0.0")
     assert kno_path.exists(), "Expected .kno archive to be created"
     assert zipfile.is_zipfile(kno_path), "Expected .kno archive to be a valid zip file"
 
@@ -159,6 +173,7 @@ outputs:
                 [sys.executable, "src/kinnoo/cli.py", "pack", str(agent_dir)],
                 capture_output=True,
                 text=True,
+                env=_pack_env(tmp_path),
         )
 
         assert result.returncode == 0, (
@@ -166,7 +181,7 @@ outputs:
                 f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
         )
 
-        kno_path = tmp_path / "partial-wheel-agent.kno"
+        kno_path = _canonical_archive_path(tmp_path, "partial-wheel-agent", "1.0.0")
         assert kno_path.exists(), "Expected .kno archive to be created"
 
         warning_text = f"Could not build wheel for dependency 'nonexist-pkg-kinnoo-test==0.0.1'"
@@ -211,6 +226,7 @@ outputs:
                 [sys.executable, "src/kinnoo/cli.py", "pack", str(agent_dir)],
                 capture_output=True,
                 text=True,
+            env=_pack_env(tmp_path),
         )
 
         assert result.returncode == 0, (
@@ -219,5 +235,5 @@ outputs:
         )
         assert "Archive contains platform-specific wheels that may not install on other operating systems" in result.stderr
 
-        kno_path = tmp_path / "platform-wheel-agent.kno"
+        kno_path = _canonical_archive_path(tmp_path, "platform-wheel-agent", "1.0.0")
         assert kno_path.exists(), "Expected .kno archive to be created"

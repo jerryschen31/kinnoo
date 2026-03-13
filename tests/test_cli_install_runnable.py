@@ -49,7 +49,7 @@ def test_install_makes_agent_runnable(tmp_path):
     shutil.rmtree(agent_dir)
     # Install the agent
     result = subprocess.run([
-        sys.executable, str(cli_path), "install", str(archive_path)
+        sys.executable, str(cli_path), "install", str(archive_path), "--yes"
     ], capture_output=True, text=True)
     assert result.returncode == 0, f"kinnoo install failed: {result.stderr}"
     assert agent_dir.exists(), "Agent directory not created"
