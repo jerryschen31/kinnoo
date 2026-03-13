@@ -2310,7 +2310,7 @@ tasks:
       - 'step6: Ensure the guard does not run in preflight mode (preflight=True already returns early, but verify)'
     dependencies: [task117]
     tests: [test160, test161, test162, test163]
-    status: not-started
+    status: needs-review
 
   - id: task119
     title: "Docs and regression coverage for feature18"
