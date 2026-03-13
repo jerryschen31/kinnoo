@@ -12,7 +12,7 @@ def test_install_missing_archive_prints_usage():
         sys.executable, cli_path, "install"
     ], capture_output=True, text=True)
     assert result.returncode != 0
-    assert "Usage: kinnoo install <archive-path>" in result.stderr
+    assert "Usage: kinnoo install <archive-path | agent_name[==version]> [target-dir]" in result.stderr
 
 
 def _create_valid_archive(tmp_path: Path) -> tuple[Path, Path]:
