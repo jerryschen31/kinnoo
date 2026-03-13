@@ -236,3 +236,28 @@ def test_feature17_docs_cover_pack_size_reporting() -> None:
     assert "KB" in combined_text
     assert "MB" in combined_text
     assert "GB" in combined_text
+
+
+def test_feature18_docs_cover_input_safety_guard() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    schema_doc = repo_root / "docs" / "manifest-schema-reference.md"
+    readme_doc = repo_root / "README.md"
+
+    schema_text = schema_doc.read_text(encoding="utf-8")
+    readme_text = readme_doc.read_text(encoding="utf-8")
+    combined_text = f"{schema_text}\n{readme_text}"
+    combined_lower = combined_text.lower()
+
+    assert "Input Safety Guard" in combined_text
+    assert "--no-guard" in combined_text
+
+    assert "SQL injection" in combined_text
+    assert "shell" in combined_lower
+    assert "path traversal" in combined_lower
+    assert "SSRF" in combined_text
+    assert "XSS" in combined_text
+    assert "template injection" in combined_lower
+
+    assert "Protocol" in combined_text
+    assert "type-aware" in combined_lower
+    assert "non-blocking" in combined_lower
