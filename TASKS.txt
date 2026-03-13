@@ -692,3 +692,1665 @@ tasks:
     dependencies: []
     tests: [test60]
     status: completed
+
+  - id: task39
+    title: Extract install flow into install_command module
+    type: task
+    description: |
+      Refactor CLI structure so install behavior is implemented in a dedicated
+      src/kinnoo/install_command.py module and invoked from cli.py, matching the
+      existing modular pattern used by init_command.py and pack_command.py.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/install_command.py
+      - src/kinnoo/__init__.py
+    steps:
+      - step1: Define clear install command entry function signature in install_command.py for reuse by CLI handlers
+      - step2: Move install-specific logic from cli.py into install_command.py while preserving current behavior and error messaging
+      - step3: Update cli.py to delegate install command handling to install_command.py
+      - step4: Verify all install paths still propagate exit codes and surface actionable errors for future unit/integration tests
+    dependencies: [task29, task30, task31, task32, task33, task34, task36]
+    tests: [test61]
+    status: completed
+
+  - id: task40
+    title: Add global CLI version flag support
+    type: task
+    description: |
+      Add --version support to the top-level kinnoo CLI so users can retrieve
+      the installed package version quickly and reliably.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/__init__.py
+      - pyproject.toml
+    steps:
+      - step1: Add parser-level --version flag that works without requiring a subcommand
+      - step2: Source version from a single canonical package location and avoid hardcoded duplication
+      - step3: Ensure --version prints version text and exits with code 0 with no side effects
+      - step4: Keep output stable and minimal so it can be asserted by upcoming unit tests
+    dependencies: [task4]
+    tests: [test62]
+    status: completed
+
+  - id: task41
+    title: Remove duplicate test functions across suite
+    type: task
+    description: |
+      Audit and remove duplicate test function definitions in the current test
+      suite to keep coverage deterministic and avoid ambiguous pytest collection.
+    files:
+      - tests/test_cli.py
+      - tests/test_init.py
+      - tests/test_pack.py
+      - tests/test_install.py
+      - tests/test_validator.py
+    steps:
+      - step1: Identify duplicate test function names and overlapping duplicate scenarios across test files
+      - step2: Consolidate duplicates into single canonical tests while preserving intent and coverage breadth
+      - step3: Normalize test naming to keep one unique test function per scenario for clean pytest discovery
+      - step4: Confirm suite remains runnable and produces stable collection counts to support future regression checks
+    dependencies: [task39, task40]
+    tests: [test63, test64]
+    status: completed
+
+  - id: task42
+    title: Include transitive dependencies in pack artifacts
+    type: task
+    description: |
+      Update packaging dependency resolution so `kinnoo pack` bundles wheels for
+      both direct and transitive dependencies required for offline installation.
+    files:
+      - src/kinnoo/pack_command.py
+      - src/kinnoo/cli.py
+    steps:
+      - step1: Remove any dependency-resolution behavior that limits wheel collection to direct dependencies only
+      - step2: Ensure wheel build/download flow resolves and collects full dependency closure compatible with requirements constraints
+      - step3: Preserve clear user-facing output that reports dependency collection progress and actionable failures
+      - step4: Keep implementation deterministic so future unit/integration tests can assert artifact contents reliably
+    dependencies: [task26, task27]
+    tests: [test65]
+    status: completed
+
+  - id: task43
+    title: Canonicalize .kno archive format as zip
+    type: task
+    description: |
+      Standardize `.kno` packaging format to zip and align implementation,
+      command behavior, and documentation references to use zip consistently.
+    files:
+      - src/kinnoo/pack_command.py
+      - src/kinnoo/install_command.py
+      - src/kinnoo/cli.py
+      - README.md
+      - docs/manifest-schema-reference.md
+    steps:
+      - step1: Update pack/install archive handling so `.kno` is treated as a zip-based artifact consistently
+      - step2: Remove or replace conflicting tar.gz assumptions in runtime logic and error/help messages
+      - step3: Align project documentation and user guidance text to reference zip semantics only
+      - step4: Keep behavior backward-safe where feasible and structure code paths for clear future regression tests
+    dependencies: [task27, task30]
+    tests: [test66]
+    status: completed
+
+  - id: task44
+    title: Add non-fatal wheel build fallback warnings
+    type: task
+    description: |
+      Make wheel build failures non-fatal during `kinnoo pack`: emit warnings,
+      continue packaging, and record which dependencies are missing wheels.
+    files:
+      - src/kinnoo/pack_command.py
+      - src/kinnoo/cli.py
+    steps:
+      - step1: Wrap per-dependency wheel build/download operations so individual failures do not abort full pack
+      - step2: Track missing/failed wheel dependencies in a structured list for downstream install handling
+      - step3: Print concise warning messages with dependency names and next-step guidance
+      - step4: Preserve package success criteria and output shape for future assertions in automated tests
+    dependencies: [task42]
+    tests: [test67]
+    status: completed
+
+  - id: task45
+    title: Add install fallback to PyPI for missing wheels
+    type: task
+    description: |
+      Update `kinnoo install` to detect missing wheel artifacts and fall back to
+      network installation from PyPI with explicit user-visible warnings.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/cli.py
+    steps:
+      - step1: Detect dependency gaps between requirements and bundled wheel artifacts at install time
+      - step2: Attempt local-wheel install first, then install unresolved dependencies from PyPI
+      - step3: Emit clear warning output when fallback occurs, including that internet access is required
+      - step4: Keep exit-code and error semantics stable so fallback/non-fallback paths can be tested independently
+    dependencies: [task32, task44]
+    tests: [test68]
+    status: completed
+
+  - id: task46
+    title: Harden offline install behavior and messaging
+    type: task
+    description: |
+      Ensure installations remain fully offline when all required wheels are
+      bundled, and provide actionable failure messaging when offline install is
+      impossible due to missing artifacts.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/pack_command.py
+      - src/kinnoo/cli.py
+    steps:
+      - step1: Keep install path strictly local when wheel set is complete (no implicit network operations)
+      - step2: If required wheels are missing and fallback cannot run, fail with a clear message that names missing dependencies
+      - step3: Ensure pack/install outputs make offline readiness visible for operators before runtime failures
+      - step4: Structure logic so future offline integration tests can deterministically validate both success and failure branches
+    dependencies: [task42, task45]
+    tests: [test69]
+    status: completed
+
+  - id: task47
+    title: Detect platform-specific wheels and warn users
+    type: task
+    description: |
+      Add platform-compatibility checks during packaging and display warnings when
+      bundled wheels may not be portable across operating systems.
+    files:
+      - src/kinnoo/pack_command.py
+      - src/kinnoo/cli.py
+    steps:
+      - step1: Parse wheel filenames/tags to identify platform-specific artifacts during pack
+      - step2: Emit the specified portability warning when non-universal wheels are detected
+      - step3: Keep warnings user-focused and non-blocking while preserving successful archive creation
+      - step4: Keep detection output stable and explicit for future unit tests that assert warning conditions
+    dependencies: [task42]
+    tests: [test70]
+    status: completed
+
+  - id: task48
+    title: Extend schema for optional V2 manifest fields
+    type: task
+    description: |
+      Update manifest schema definitions to support optional V2 metadata fields:
+      description, author, license, and env_vars.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+    steps:
+      - step1: Add schema/type definitions for optional fields description, author, license, and env_vars
+      - step2: Ensure optional fields do not become required and preserve V1 compatibility behavior
+      - step3: Keep schema constants and validation hooks explicit and deterministic for upcoming unit tests
+      - step4: Document any new schema constants/interfaces in module-level docs for maintainability
+    dependencies: [task3]
+    tests: [test71, test72]
+    status: completed
+
+  - id: task49
+    title: Implement validator type checks for new optional fields
+    type: task
+    description: |
+      Implement validation logic for feature9 optional fields with precise errors,
+      including list[str] enforcement for env_vars.
+    files:
+      - src/kinnoo/validator.py
+    steps:
+      - step1: Validate description, author, and license as strings when present
+      - step2: Validate env_vars as list[str] when present and reject non-list or non-string items
+      - step3: Validate env_vars entries are non-empty strings and emit field-specific errors
+      - step4: Keep error message wording stable and specific so unit tests can assert exact expectations
+    dependencies: [task48]
+    tests: [test72, test74, test76]
+    status: completed
+
+  - id: task50
+    title: Preserve V1 manifest compatibility under V2 schema
+    type: task
+    description: |
+      Ensure existing V1 manifests continue to validate unchanged after adding
+      feature9 optional fields.
+    files:
+      - src/kinnoo/validator.py
+      - src/kinnoo/schema.py
+    steps:
+      - step1: Confirm validation flow treats new fields as optional-only with no impact on legacy required fields
+      - step2: Verify absence of new fields does not alter valid/invalid outcomes for existing V1 manifests
+      - step3: Avoid introducing side effects in normalization or parsing paths unrelated to feature9
+      - step4: Keep compatibility logic isolated and readable for future regression unit tests
+    dependencies: [task49]
+    tests: [test73]
+    status: completed
+
+  - id: task51
+    title: Update init templates with description and author placeholders
+    type: task
+    description: |
+      Update kinnoo init-generated manifest templates to include optional
+      description and author placeholder fields.
+    files:
+      - src/kinnoo/templates.py
+      - src/kinnoo/init_command.py
+    steps:
+      - step1: Add description and author placeholders to generated kinnoo.yaml templates
+      - step2: Ensure template output remains valid under validator rules and existing init flows
+      - step3: Keep placeholder values clear and stable for deterministic template assertions in unit tests
+      - step4: Preserve backward compatibility for framework-specific init template generation paths
+    dependencies: [task5, task20, task50]
+    tests: [test75]
+    status: completed
+
+  - id: task52
+    title: Align schema documentation for feature9 fields
+    type: task
+    description: |
+      Update schema documentation to describe feature9 optional fields and
+      validation constraints, including env_vars formatting rules.
+    files:
+      - docs/manifest-schema-reference.md
+      - README.md
+    steps:
+      - step1: Document optional fields description, author, license, and env_vars with accepted types
+      - step2: Document env_vars non-empty string requirements and example valid/invalid snippets
+      - step3: Ensure docs clearly state V1 manifests remain valid without new fields
+      - step4: Keep examples concise and stable so future documentation tests/checks can validate them
+    dependencies: [task49]
+    tests: [test77]
+    status: completed
+
+  - id: task53
+    title: Resolve declared env_vars from process environment
+    type: task
+    description: |
+      Implement runtime resolution of manifest-declared env_vars from the current
+      process environment as the first resolution source.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/schema.py
+    steps:
+      - step1: Read env_vars from validated manifest and normalize into a deterministic list for runtime checks
+      - step2: Resolve each declared variable from current process environment before any fallback sources
+      - step3: Keep behavior no-op for agents that do not declare env_vars
+      - step4: Ensure all user-facing output references only variable names, never values, to support strict security unit tests
+    dependencies: [task49, task50]
+    tests: [test78, test83]
+    status: completed
+
+  - id: task54
+    title: Add secure .env fallback resolution
+    type: task
+    description: |
+      Add .env-based fallback for unresolved env_vars using agent-directory scope
+      without exposing secret values in logs or terminal output.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/schema.py
+      - README.md
+    steps:
+      - step1: When declared env_vars are missing from process environment, load candidate values from agent-local .env file
+      - step2: Restrict .env lookup to agent directory boundaries and handle malformed lines safely
+      - step3: Merge resolved names into runtime context while preventing any value echo in stdout/stderr
+      - step4: Keep deterministic resolution behavior and messaging so fallback path can be asserted via unit/integration tests
+    dependencies: [task53]
+    tests: [test79]
+    status: completed
+
+  - id: task55
+    title: Implement masked prompt fallback and cancel handling
+    type: task
+    description: |
+      Prompt interactively for unresolved env_vars using masked input and abort
+      safely if user declines or cancels input.
+    files:
+      - src/kinnoo/cli.py
+    steps:
+      - step1: For any still-missing declared env_vars, prompt user with non-echo masked input
+      - step2: Handle interruption/decline paths (e.g., Ctrl+C) with clear error that names missing variable only
+      - step3: Ensure prompt and error paths never display captured secret values
+      - step4: Structure prompt behavior for deterministic unit tests around masking and cancel flows
+    dependencies: [task54]
+    tests: [test80, test82]
+    status: completed
+
+  - id: task56
+    title: Inject resolved env_vars into subprocess execution
+    type: task
+    description: |
+      Inject resolved env_vars into the agent subprocess environment for
+      execution while preserving existing run behavior for non-env_vars agents.
+    files:
+      - src/kinnoo/cli.py
+    steps:
+      - step1: Build subprocess environment by combining base environment with resolved declared env_vars
+      - step2: Pass merged environment to entrypoint process invocation path
+      - step3: Keep run behavior unchanged when manifest has no env_vars declarations
+      - step4: Ensure subprocess injection code paths expose variable names only in diagnostics, never values
+    dependencies: [task55]
+    tests: [test81]
+    status: completed
+
+  - id: task57
+    title: Enforce secret non-disclosure across output and logs
+    type: task
+    description: |
+      Enforce project-wide runtime safeguards so environment variable and secret
+      values are never printed, logged, persisted, or committed in code paths.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/install_command.py
+      - src/kinnoo/pack_command.py
+      - tests/test_cli.py
+    steps:
+      - step1: Audit env-vars and runtime logging/output paths for potential secret-value exposure
+      - step2: Add guardrails/redaction patterns so only variable names can appear in logs and terminal messages
+      - step3: Verify no temporary files, debug output, or exceptions persist secret values to disk
+      - step4: Define explicit negative test scenarios that fail if any secret value appears in stdout/stderr/log outputs
+    dependencies: [task56]
+    tests: [test84]
+    status: completed
+
+  - id: task58
+    title: Document env_vars security contract and operator guidance
+    type: task
+    description: |
+      Update docs with env_vars resolution order, secure usage guidance, and the
+      non-disclosure invariant for secrets.
+    files:
+      - docs/manifest-schema-reference.md
+      - README.md
+      - notes/swe-handoff.md
+    steps:
+      - step1: Document resolution order (environment -> .env -> masked prompt) and expected CLI behavior
+      - step2: Document strict invariant that secret values must never be printed, logged, or persisted
+      - step3: Provide safe troubleshooting guidance that references variable names only
+      - step4: Keep examples and wording stable so documentation checks can validate security messaging in tests
+    dependencies: [task53, task54, task55, task56, task57]
+    tests: [test85]
+    status: completed
+
+  - id: task59
+    title: Enforce env precedence over .env values
+    type: task
+    description: |
+      Add regression coverage proving process-environment values always take
+      precedence over agent-local .env values for the same declared env var.
+    files:
+      - tests/test_cli_env_vars.py
+    steps:
+      - step1: Create fixture where one declared env var exists in both process environment and .env with different sentinel values
+      - step2: Run kinnoo run and assert subprocess receives the process-environment value
+      - step3: Assert lower-priority .env value is not selected and never appears in user-facing output
+      - step4: Keep assertions deterministic and names-only in diagnostics
+    dependencies: [task54, task56]
+    tests: [test86]
+    status: completed
+
+  - id: task60
+    title: Add mixed-source env_vars resolution regression
+    type: task
+    description: |
+      Add integration coverage for multi-variable manifests where declared env
+      vars resolve from mixed sources in one run (environment + .env + prompt).
+    files:
+      - tests/test_cli_env_vars.py
+    steps:
+      - step1: Create fixture with multiple declared env vars and deliberately split sources across environment, .env, and prompt fallback
+      - step2: Execute kinnoo run and assert all variables are injected into subprocess successfully
+      - step3: Verify resolution order remains deterministic for each variable name
+      - step4: Ensure test output checks do not expose secret values
+    dependencies: [task53, task54, task55, task56]
+    tests: [test87]
+    status: completed
+
+  - id: task61
+    title: Add filesystem secret leak sentinel checks
+    type: task
+    description: |
+      Strengthen non-disclosure coverage by asserting sentinel secret values do
+      not appear in runtime-created logs or temp artifacts during env_vars flows.
+    files:
+      - tests/test_cli_env_vars.py
+      - src/kinnoo/run_command.py
+    steps:
+      - step1: Capture candidate runtime artifact paths touched by feature10 execution paths in test fixtures
+      - step2: Execute env/.env/prompt flows with sentinel secrets and inspect touched artifacts for leaks
+      - step3: Assert sentinel values are absent from artifact contents and terminal output
+      - step4: Keep behavior backward compatible for agents without env_vars
+    dependencies: [task57]
+    tests: [test88]
+    status: paused
+
+  - id: task62
+    title: Add inspect CLI command parsing
+    type: task
+    description: |
+      Add `kinnoo inspect` command parsing and usage handling so users can
+      inspect either an agent directory or a `.kno` archive path.
+    files:
+      - src/kinnoo/cli.py
+    steps:
+      - step1: Add `inspect` subcommand with positional target argument in the top-level CLI parser
+      - step2: Implement usage/help behavior for missing arguments consistent with existing command patterns
+      - step3: Wire the subcommand handler to a dedicated inspect command module entrypoint
+      - step4: Keep parser behavior deterministic and structured for future unit tests around valid/invalid argument paths
+    dependencies: [task39]
+    tests: [test89]
+    status: completed
+
+  - id: task63
+    title: Implement inspect target detection
+    type: task
+    description: |
+      Implement source detection for inspect targets so the command can read
+      manifests from either agent directories or `.kno` archives.
+    files:
+      - src/kinnoo/inspect_command.py
+    steps:
+      - step1: Detect whether input target is a directory, regular file, or invalid path and emit clear errors
+      - step2: For directory targets, detect presence of `kinnoo.yaml` and `requirements.txt` before manifest load
+      - step3: If `kinnoo.yaml` is missing, print stdout guidance that it must be created and exit gracefully with non-zero status
+      - step4: If `requirements.txt` is missing, print stdout guidance that it must be created and include robust generation guidance (`pip install uv` and `uv export --format requirements-txt > requirements.txt`), then exit gracefully with non-zero status
+      - step5: When both required files exist, load manifest content safely for downstream validation/formatting flow
+      - step6: Keep detection and branching logic isolated and deterministic for upcoming unit tests
+      - step7: For archive targets, branch to archive-manifest extraction path without full extraction
+    dependencies: [task62]
+    tests: [test90]
+    status: completed
+
+  - id: task64
+    title: Read manifest directly from .kno zip
+    type: task
+    description: |
+      Read `kinnoo.yaml` from inside `.kno` archives without extracting full
+      archive contents to disk.
+    files:
+      - src/kinnoo/inspect_command.py
+      - src/kinnoo/install_command.py
+    steps:
+      - step1: Implement zip-based reader that locates and reads `kinnoo.yaml` entry from archive members
+      - step2: Handle missing manifest, invalid zip structure, and read errors with actionable error messages
+      - step3: Ensure archive inspection path does not write extracted files to disk
+      - step4: Structure the archive reader as a reusable helper suitable for focused unit tests
+    dependencies: [task63, task43]
+    tests: [test91]
+    status: completed
+
+  - id: task65
+    title: Validate manifest and format inspect output
+    type: task
+    description: |
+      Validate loaded manifests using the shared validator and render
+      human-readable inspect output with optional-field omission rules.
+    files:
+      - src/kinnoo/inspect_command.py
+      - src/kinnoo/validator.py
+    steps:
+      - step1: Validate loaded manifest with feature1 validator and abort on invalid manifests with clear errors
+      - step2: Ensure missing required-field failures are surfaced with field-by-field clarity from validator output
+      - step3: Render human-readable output for required/optional metadata fields defined in feature11 ACs
+      - step4: Omit missing optional fields from output and avoid raw YAML dumps
+      - step5: Keep output formatting stable for future snapshot-style unit tests
+    dependencies: [task63, task64]
+    tests: [test92]
+    status: completed
+
+  - id: task66
+    title: Enforce inspect secret-safe display
+    type: task
+    description: |
+      Enforce security invariants in inspect output by displaying env var names
+      only and never printing secret values from any source.
+    files:
+      - src/kinnoo/inspect_command.py
+      - tests/test_cli_inspect.py
+    steps:
+      - step1: Ensure inspect output includes env var names from manifest but never attempts runtime env resolution
+      - step2: Audit output/error paths to confirm no environment variable values can be surfaced
+      - step3: Add clear inline guardrails around names-only display behavior for maintainability
+      - step4: Define deterministic negative/edge scenarios in implementation notes to guide upcoming unit tests
+    dependencies: [task65, task57]
+    tests: [test93]
+    status: completed
+
+  - id: task67
+    title: Document inspect command usage and examples
+    type: task
+    description: |
+      Add documentation for `kinnoo inspect` command behavior, examples, and
+      error guidance for directory and archive inspection flows.
+    files:
+      - README.md
+      - docs/manifest-schema-reference.md
+    steps:
+      - step1: Document command usage for directory and `.kno` inputs with example invocations
+      - step2: Document output semantics including optional-field omission and names-only env_vars display
+      - step3: Document missing-file guidance behavior for missing `kinnoo.yaml` and missing `requirements.txt` in directory targets
+      - step4: Document robust requirements generation instructions (`pip install uv` and `uv export --format requirements-txt > requirements.txt`)
+      - step5: Document common failure cases (missing target, invalid archive, invalid manifest) with expected guidance
+      - step6: Keep docs concise and stable so future documentation tests can assert key command semantics
+    dependencies: [task65, task66]
+    tests: [test94]
+    status: completed
+
+  - id: task68
+    title: Add inspect guidance templates with maintenance note
+    type: task
+    description: |
+      Add reusable inspect guidance templates for missing `kinnoo.yaml` and
+      missing `requirements.txt`, including a minimal manifest example kept in
+      code with an explicit `[agent]` maintenance note.
+    files:
+      - src/kinnoo/inspect_command.py
+      - src/kinnoo/templates.py
+    steps:
+      - step1: Define a minimal `kinnoo.yaml` example in a single reusable code location referenced by inspect guidance output
+      - step2: Add an explicit `[agent]` comment near the example stating it must be updated whenever schema/template changes affect minimal required manifest fields
+      - step3: Ensure missing `kinnoo.yaml` guidance prints the reusable minimal example and remains stdout-safe
+      - step4: Ensure missing `requirements.txt` guidance includes the robust `uv export` command path and remains concise
+      - step5: Keep template strings centralized and deterministic to support future unit/snapshot tests
+    dependencies: [task63, task65]
+    tests: [test95]
+    status: completed
+
+  - id: task69
+    title: Define registry abstraction and local backend
+    type: task
+    description: |
+      Introduce a registry abstraction layer for publish/resolve/list/search flows,
+      and implement a local filesystem backend rooted at `~/.kinnoo/registry/`.
+      Structure this so swapping to a remote backend in V3 requires minimal changes.
+    files:
+      - src/kinnoo/registry.py
+      - src/kinnoo/registry_backends.py
+      - src/kinnoo/__init__.py
+    steps:
+      - step1: Define a backend interface/contract for publish, resolve, list, and search operations
+      - step2: Implement a local backend that enforces canonical on-disk layout `~/.kinnoo/registry/<name>/<version>/`
+      - step3: Isolate filesystem concerns behind the backend boundary so CLI command handlers remain backend-agnostic
+      - step4: Keep method signatures and return structures deterministic to support focused unit tests per backend behavior
+    dependencies: [task39, task43]
+    tests: [test96]
+    status: deprecated
+
+  - id: task70
+    title: Add publish command parsing and CLI wiring
+    type: task
+    description: |
+      Add `kinnoo publish <archive.kno> [--local]` to the CLI with clear usage and
+      errors, and route execution through the registry abstraction.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/publish_command.py
+    steps:
+      - step1: Add `publish` subcommand with required archive argument and optional `--local` flag
+      - step2: Ensure `--local` is accepted as explicit forward-compatible backend selection without changing local behavior
+      - step3: Print concise usage/help on missing arguments or invalid paths and exit non-zero
+      - step4: Keep parser output and error text stable for upcoming CLI unit tests
+    dependencies: [task39, task43]
+    tests: [test97]
+    status: deprecated
+
+  - id: task71
+    title: Implement publish metadata extraction and copy flow
+    type: task
+    description: |
+      Implement publish behavior that reads name/version from archive manifest and
+      stores the archive in the local registry path. Reject duplicate name+version
+      publishes with a clear error.
+    files:
+      - src/kinnoo/publish_command.py
+      - src/kinnoo/inspect_command.py
+      - src/kinnoo/registry_backends.py
+    steps:
+      - step1: Read `kinnoo.yaml` directly from `.kno` and extract `name` and `version` using existing manifest-loading logic
+      - step2: Validate extracted metadata and create destination path `~/.kinnoo/registry/<name>/<version>/`
+      - step3: Copy archive to destination and persist metadata needed for list/search display (for example manifest-derived fields)
+      - step4: Fail fast with explicit duplicate error if the same name+version already exists; never silently overwrite
+      - step5: Keep side effects and error paths deterministic for future unit tests around duplicate publish and invalid archive cases
+    dependencies: [task70]
+    tests: [test98]
+    status: deprecated
+
+  - id: task72
+    title: Parse install registry spec while preserving file install
+    type: task
+    description: |
+      Extend install CLI argument handling to accept registry selectors
+      (`<name>` and `<name>==<version>`) while preserving existing
+      `kinnoo install <file.kno>` path-based behavior.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/install_command.py
+      - src/kinnoo/registry.py
+    steps:
+      - step1: Add robust selector parsing that distinguishes filesystem archive paths from registry name selectors
+      - step2: Support `<name>` as latest-version install request and `<name>==<version>` as explicit-version request
+      - step3: Preserve current install behavior for direct archive files with no regression in usage and error messaging
+      - step4: Keep parser and branching logic explicit and stable for future unit tests covering path-vs-registry disambiguation
+    dependencies: [task39, task69]
+    tests: [test99]
+    status: deprecated
+
+  - id: task73
+    title: Implement registry version resolution rules
+    type: task
+    description: |
+      Implement local registry resolution for latest and specific versions,
+      including deterministic version ordering and clear not-found errors.
+    files:
+      - src/kinnoo/registry_backends.py
+      - src/kinnoo/registry.py
+    steps:
+      - step1: Implement lookup for `<name>==<version>` that resolves only an exact stored version path
+      - step2: Implement latest-version resolution for `<name>` using deterministic semver-aware ordering when versions are available
+      - step3: Return clear actionable errors when agent name or requested version does not exist
+      - step4: Structure resolution logic to be directly unit-testable with fixtures that include multiple versions of the same agent in the registry
+    dependencies: [task69]
+    tests: [test100]
+    status: deprecated
+
+  - id: task74
+    title: Integrate registry resolution into install flow
+    type: task
+    description: |
+      Wire registry-resolved archives into the existing install pipeline so
+      installs by name/version reuse current extraction, validation, and venv/dependency
+      setup behavior.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/registry.py
+      - src/kinnoo/registry_backends.py
+    steps:
+      - step1: Resolve registry selector to a concrete archive path via backend abstraction
+      - step2: Reuse existing install execution path from resolved archive (no duplicate install logic)
+      - step3: Ensure offline behavior for local registry installs and preserve existing exit-code semantics
+      - step4: Keep integration points narrow and deterministic for future unit/integration tests of named installs
+    dependencies: [task72, task73]
+    tests: [test101]
+    status: deprecated
+
+  - id: task75
+    title: Add local registry list command
+    type: task
+    description: |
+      Implement `kinnoo list` to display all locally published agents with name,
+      latest version, and description from registry metadata.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/list_command.py
+      - src/kinnoo/registry.py
+      - src/kinnoo/registry_backends.py
+    steps:
+      - step1: Add `list` subcommand and delegate to registry-backed listing logic
+      - step2: Aggregate available versions per agent and compute latest version for display
+      - step3: Display name, latest version, and description in a human-readable stable format
+      - step4: Keep output ordering deterministic to support future snapshot-style CLI unit tests
+    dependencies: [task69, task73]
+    tests: [test102]
+    status: deprecated
+
+  - id: task76
+    title: Add local registry search command
+    type: task
+    description: |
+      Implement `kinnoo search <query>` against local registry metadata with
+      case-insensitive substring matching on name and description.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/search_command.py
+      - src/kinnoo/registry.py
+      - src/kinnoo/registry_backends.py
+    steps:
+      - step1: Add `search` subcommand with required query argument and clear usage errors
+      - step2: Implement case-insensitive name/description substring matching over locally published entries
+      - step3: Return stable, human-readable output for both match and no-match cases
+      - step4: Keep filtering semantics explicit and deterministic for future unit tests across mixed registry fixtures
+    dependencies: [task69, task75]
+    tests: [test103]
+    status: deprecated
+
+  - id: task77
+    title: Document local registry commands and behavior
+    type: task
+    description: |
+      Update docs for local registry publish/install/list/search flows, including
+      examples for latest and explicit version installs and duplicate publish errors.
+    files:
+      - README.md
+      - docs/manifest-schema-reference.md
+      - notes/swe-handoff.md
+    steps:
+      - step1: Document `kinnoo publish <archive.kno>` and `kinnoo publish <archive.kno> --local` behavior and expected registry path layout
+      - step2: Document install selector behavior for `<name>`, `<name>==<version>`, and `<file.kno>` compatibility
+      - step3: Document `kinnoo list` and `kinnoo search <query>` output semantics and examples
+      - step4: Include examples that demonstrate multiple versions of the same agent and how latest-version resolution works
+      - step5: Keep guidance concise and consistent with future unit/doc tests
+    dependencies: [task71, task74, task75, task76]
+    tests: [test104]
+    status: deprecated
+
+  - id: task78
+    title: Prompt before overwriting existing .kno archive
+    type: issue
+    description: |
+      Hotfix `kinnoo pack` so it does not silently overwrite an existing output
+      archive. If the target `.kno` already exists, prompt the user with:
+      `(archive.kno) already exists - are you sure you want to overwrite? (y/n): `
+      and proceed only on explicit confirmation.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/pack_command.py
+      - tests/test_pack.py
+    steps:
+      - step1: Detect existing target archive path before writing output in pack flow
+      - "step2: Print exact confirmation prompt format `(archive.kno) already exists - are you sure you want to overwrite? (y/n): ` with the concrete archive filename substituted for `archive.kno`"
+      - step3: If user responds `y` or `Y`, overwrite existing archive and continue success flow
+      - step4: If user responds `n` or `N` (or provides invalid/empty response), abort pack safely with non-zero exit and no archive mutation
+      - step5: Keep prompt/branch behavior deterministic for automated unit tests including stdin-driven confirmation cases
+    dependencies: [task23, task27, task43]
+    tests: [test105]
+    status: deprecated
+
+  - id: task79
+    title: Add --bump version automation to kinnoo pack
+    type: task
+    description: |
+      Add a `--bump` flag to `kinnoo pack` to automatically increment the agent
+      version in `kinnoo.yaml` before packaging. Supported bump types are
+      `patch`, `minor`, and `major`.
+
+      Also ensure that after every successful `kinnoo pack` run (with or without
+      `--bump`), CLI output includes:
+      `[kinnoo pack] Agent version: <version #>`
+      where `<version #>` is the packaged manifest version.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/pack_command.py
+      - src/kinnoo/validator.py
+      - tests/test_pack.py
+      - README.md
+    steps:
+      - step1: Extend `kinnoo pack` CLI parsing to accept optional `--bump {patch,minor,major}` with clear usage errors for invalid values
+      - step2: Load and validate `kinnoo.yaml`, parse current semver, and compute incremented version based on selected bump type
+      - step3: Persist updated version to `kinnoo.yaml` before archive creation when `--bump` is provided, preserving existing manifest formatting conventions as much as practical
+      - step4: Continue normal pack flow using the effective version (original when no bump is provided, incremented when bump is provided)
+      - "step5: Print `[kinnoo pack] Agent version: <version #>` after successful pack in all cases"
+      - step6: Ensure failures before pack completion do not print a misleading version-success line
+      - step7: Keep behavior deterministic for tests covering no-bump, patch/minor/major bump, and invalid bump inputs
+    dependencies: [task23, task24, task27, task43]
+    tests: [test106]
+    status: deprecated
+
+  - id: task80
+    title: Define archive and registry storage abstractions
+    type: task
+    description: |
+      Introduce clear storage abstractions for local archive and registry targets
+      so pack/publish/install/list/search can switch from mock registry to remote
+      backend later with minimal changes.
+    files:
+      - src/kinnoo/registry.py
+      - src/kinnoo/registry_backends.py
+      - src/kinnoo/archive.py
+    steps:
+      - step1: Define interfaces/contracts for archive source operations and registry target operations
+      - step2: Implement local archive backend rooted at `~/.kinnoo/archive/`
+      - step3: Implement mock registry backend rooted at `registry-scratch/jerry/`
+      - step4: Keep method signatures deterministic and decoupled from CLI specifics for future remote backend swap
+    dependencies: [task69]
+    tests: [test107]
+    status: completed
+
+  - id: task81
+    title: Refactor pack default archive destination
+    type: task
+    description: |
+      Update `kinnoo pack` default behavior to always store versioned archives
+      under `~/.kinnoo/archive/<agent>/<version>/<agent>.kno`.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/pack_command.py
+      - src/kinnoo/archive.py
+    steps:
+      - step1: Resolve package destination from validated manifest name/version into canonical archive path
+      - step2: Ensure parent directories are created safely as needed
+      - step3: Remove dependency on ad-hoc current-directory output as primary packaging behavior
+      - step4: Keep behavior stable for deterministic path assertions in tests
+    dependencies: [task24, task80]
+    tests: [test107]
+    status: completed
+
+  - id: task82
+    title: Standardize pack output and overwrite confirmation
+    type: task
+    description: |
+      Ensure pack output includes destination and packaged version messages on
+      success, and enforce overwrite confirmation behavior for existing archive
+      paths in archive mode.
+    files:
+      - src/kinnoo/pack_command.py
+      - src/kinnoo/cli.py
+      - tests/test_pack.py
+    steps:
+      - step1: Reuse/align overwrite prompt behavior when canonical archive path already exists
+      - "step2: Print success output with archive destination and `[kinnoo pack] Agent version: <version #>` consistently"
+      - step3: Ensure decline path aborts non-zero without mutating existing archive
+      - step4: Ensure failed pack runs do not emit misleading success/version lines
+    dependencies: [task78, task79, task81]
+    tests: [test108]
+    status: completed
+
+  - id: task83
+    title: Refactor publish CLI to agent-name source
+    type: task
+    description: |
+      Change publish flow from archive-path input to `kinnoo publish <agent-name>`
+      that resolves latest local archived artifact before publishing.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/publish_command.py
+      - src/kinnoo/archive.py
+    steps:
+      - step1: Update CLI argument parsing and usage for `kinnoo publish <agent-name>`
+      - step2: Resolve latest version archive for agent from local archive backend
+      - step3: Validate source archive metadata consistency before publish copy
+      - step4: Keep clear non-zero errors when agent/archive/version cannot be resolved
+    dependencies: [task80, task81]
+    tests: [test109, test111]
+    status: completed
+
+  - id: task84
+    title: Implement publish mock registry target and rollover
+    type: task
+    description: |
+      Publish resolved archive to mock registry path
+      `registry-scratch/jerry/<agent>/<version>/<agent>.kno` and prevent hard
+      overwrite via untagged rollover semantics.
+    files:
+      - src/kinnoo/publish_command.py
+      - src/kinnoo/registry_backends.py
+    steps:
+      - step1: Copy publish payload to canonical mock registry target path
+      - step2: If tagged version already exists, archive prior artifact as `untagged-<n>` before writing new tagged artifact
+      - step3: Emit clear publish outcome messages for source, target, and rollover actions
+      - step4: Keep rollover numbering deterministic for repeatable tests
+    dependencies: [task83]
+    tests: [test110]
+    status: completed
+
+  - id: task85
+    title: Install by registry name/version using mock backend
+    type: task
+    description: |
+      Implement install resolution for registry selectors against the mock
+      registry backend while preserving architecture for future real remote
+      registry integration.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/registry.py
+      - src/kinnoo/registry_backends.py
+    steps:
+      - step1: Resolve `<name>` to latest available version from mock registry backend
+      - step2: Resolve `<name>==<version>` to exact version from mock registry backend
+      - step3: Route resolved registry archive through existing install pipeline without duplicating install logic
+      - step4: Isolate backend calls so mock backend can be replaced with real remote registry backend later
+    dependencies: [task80, task83, task84]
+    tests: [test112, test113]
+    status: completed
+
+  - id: task86
+    title: Refactor list with default local and source flags
+    type: task
+    description: |
+      Implement `kinnoo list` source selection behavior:
+      default/local for archive view, and remote for mock registry view.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/list_command.py
+      - src/kinnoo/archive.py
+      - src/kinnoo/registry_backends.py
+    steps:
+      - step1: Implement default `kinnoo list` as local archive listing
+      - step2: Add `--local` flag with same local archive behavior as default
+      - step3: Add `--remote` flag for mock registry listing
+      - step4: Keep output schema stable (name, latest version, description) across sources
+    dependencies: [task80, task81, task84]
+    tests: [test114]
+    status: completed
+
+  - id: task87
+    title: Refactor search with default local and source flags
+    type: task
+    description: |
+      Implement `kinnoo search` source selection behavior:
+      default/local for archive search, and remote for mock registry search.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/search_command.py
+      - src/kinnoo/archive.py
+      - src/kinnoo/registry_backends.py
+    steps:
+      - step1: Implement default `kinnoo search <query>` as local archive search
+      - step2: Add `--local <query>` local archive search behavior
+      - step3: Add `--remote <query>` mock registry search behavior
+      - step4: Keep case-insensitive name/description matching semantics stable across sources
+    dependencies: [task80, task81, task84, task86]
+    tests: [test115]
+    status: completed
+
+  - id: task88
+    title: Preserve file-path install compatibility
+    type: task
+    description: |
+      Preserve existing direct file-path install behavior while adding registry
+      name/version install behavior.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/cli.py
+    steps:
+      - step1: Keep `kinnoo install <file-path/file.kno>` selector path unchanged
+      - step2: Ensure selector disambiguation does not regress existing archive-path installs
+      - step3: Keep usage and error messaging clear for both path and registry selector modes
+      - step4: Verify backward compatibility with existing install test scenarios
+    dependencies: [task85]
+    tests: [test116]
+    status: completed
+
+  - id: task89
+    title: Document pack/publish/archive/registry refactor
+    type: task
+    description: |
+      Update docs to reflect new responsibilities and command semantics for
+      pack, publish, install/list/search source modes, and mock registry behavior.
+    files:
+      - README.md
+      - docs/manifest-schema-reference.md
+      - notes/swe-handoff.md
+    steps:
+      - step1: Document local archive path semantics for pack and default behavior
+      - step2: Document `kinnoo publish <agent-name>` source resolution and mock registry target path
+      - step3: Document untagged rollover behavior for existing tagged version publish
+      - step4: Document install/list/search defaults and `--local`/`--remote` source flags
+      - step5: Document feature12 deprecation context and migration guidance for developers
+    dependencies: [task82, task84, task85, task86, task87, task88]
+    tests: [test117]
+    status: completed
+
+  - id: task90
+    title: Harden source-mode CLI validation and errors
+    type: task
+    description: |
+      Add explicit argument-validation guardrails and deterministic error
+      messaging for new source-mode behaviors in install/list/search/publish.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/install_command.py
+      - src/kinnoo/list_command.py
+      - src/kinnoo/search_command.py
+      - src/kinnoo/publish_command.py
+    steps:
+      - step1: Enforce mutually exclusive `--local` and `--remote` flags where applicable
+      - step2: Ensure missing required inputs (e.g., missing search query, invalid install selector forms) return clear usage and non-zero status
+      - step3: Ensure publish/install/list/search do not silently fall back to unintended sources on invalid argument combinations
+      - step4: Keep error messages stable and concise for deterministic CLI unit tests
+    dependencies: [task83, task85, task86, task87]
+    tests: [test118]
+    status: completed
+
+  - id: task91
+    title: Use absolute mock registry scratch path
+    type: task
+    description: |
+      Update publish/mock-registry path resolution to use an absolute home-based
+      root `~/kinnoo-mock-registry-scratch/...` instead of the current
+      working-directory-relative `registry-scratch/...` path.
+    files:
+      - src/kinnoo/registry_backends.py
+      - src/kinnoo/publish_command.py
+      - tests/test_publish_refactor.py
+      - README.md
+      - docs/manifest-schema-reference.md
+    steps:
+      - step1: Replace relative mock registry root with home-expanded absolute root `~/kinnoo-mock-registry-scratch`
+      - step2: Ensure publish target path renders as `<home>/kinnoo-mock-registry-scratch/jerry/<agent>/<version>/<agent>.kno`
+      - step3: Preserve rollover behavior and publish output clarity with the new absolute path
+      - step4: Update/refactor tests that currently assert `registry-scratch/...` to assert the absolute home path
+      - step5: Update docs/examples that reference `registry-scratch/...` to `~/kinnoo-mock-registry-scratch/...`
+    dependencies: [task84]
+    tests: [test119]
+    status: completed
+
+  - id: task92
+    title: Add --preflight CLI mode wiring
+    type: task
+    description: |
+      Add `--preflight` mode to `kinnoo run` argument parsing and route execution
+      into a preflight-only flow that performs checks and exits without running
+      the agent entrypoint.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/run_command.py
+    steps:
+      - step1: Extend run command parser to accept `--preflight` in a way that is clear and backward compatible
+      - step2: Add explicit preflight execution branch that skips entrypoint invocation and subprocess run
+      - step3: Keep usage/help and error paths deterministic for future unit tests around argument handling
+      - step4: Return non-zero on preflight failures and zero on full preflight pass
+    dependencies: [task39]
+    tests: [test120]
+    status: completed
+
+  - id: task93
+    title: Implement runtime version preflight check
+    type: task
+    description: |
+      Implement Python runtime compatibility check for preflight mode by
+      validating active interpreter version against manifest `runtime.version`
+      constraints.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/validator.py
+    steps:
+      - step1: Parse `runtime.version` constraint from manifest in preflight flow
+      - step2: Compare active interpreter version against constraint and record pass/fail result
+      - step3: Emit actionable failure guidance when version does not satisfy constraint
+      - step4: Keep check output stable and concise so future tests can assert exact messages
+    dependencies: [task92]
+    tests: [test121]
+    status: completed
+
+  - id: task94
+    title: Implement env vars preflight resolution check
+    type: task
+    description: |
+      Reuse env_vars resolution logic to verify that declared env vars are
+      resolvable during preflight, while maintaining strict secret non-disclosure.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/cli.py
+      - src/kinnoo/schema.py
+    steps:
+      - step1: Reuse existing env var resolution sources (environment and `.env`) for preflight checks
+      - step2: Record per-variable pass/fail using variable names only, never values
+      - step3: Ensure preflight does not prompt for values in non-interactive contexts unless explicitly intended
+      - step4: Keep failure messaging deterministic and secret-safe for future unit and security regression tests
+    dependencies: [task92, task53, task54, task57]
+    tests: [test122]
+    status: completed
+
+  - id: task95
+    title: Implement entrypoint and dependency checks
+    type: task
+    description: |
+      Add preflight checks for entrypoint existence and dependency readiness in
+      agent venv without executing agent business logic.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/cli.py
+    steps:
+      - step1: Validate that manifest-declared entrypoint exists and is readable
+      - step2: Check venv/dependency readiness against requirements with clear pass/fail outcomes
+      - step3: Report installability gaps with actionable remediation hints
+      - step4: Keep checks isolated from normal run execution path for testable behavior separation
+    dependencies: [task92, task9, task14]
+    tests: [test123]
+    status: completed
+
+  - id: task96
+    title: Add checklist output and ready summary
+    type: task
+    description: |
+      Produce structured preflight checklist output with pass/fail status for
+      each check and a final readiness summary.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/cli.py
+    steps:
+      - step1: Define stable checklist sections for runtime version, env vars, entrypoint, and dependencies
+      - step2: Print consistent pass/fail indicators and per-failure actionable guidance
+      - step3: Print `Ready to run` only when all checks pass; otherwise print concise remediation summary
+      - step4: Ensure formatting remains deterministic for future snapshot-style unit tests
+    dependencies: [task93, task94, task95]
+    tests: [test124]
+    status: completed
+
+  - id: task97
+    title: Document preflight usage and contracts
+    type: task
+    description: |
+      Update docs for `kinnoo run --preflight`, including behavior, examples,
+      security constraints, and expected output semantics for operators.
+    files:
+      - README.md
+      - docs/manifest-schema-reference.md
+      - notes/swe-handoff.md
+    steps:
+      - step1: Add `kinnoo run --preflight` usage examples and expected checklist behavior
+      - step2: Document that preflight validates but does not execute agent entrypoint logic
+      - step3: Document env var name-only disclosure contract in preflight output
+      - step4: Keep wording/output examples stable to support future documentation tests
+    dependencies: [task96]
+    tests: [test125]
+    status: completed
+
+  - id: task98
+    title: Install summary display and confirmation prompt with --yes flag
+    type: task
+    description: |
+      Update `kinnoo install` to extract env_var NAMES, dependency NAMES, and runtime type
+      from the manifest inside the .kno archive, display them in a readable summary, and
+      prompt the user for yes/no confirmation before proceeding with installation.
+      Add a `--yes` (`-y`) CLI flag that skips the confirmation prompt for CI/automation.
+      Summary must NEVER display env var or secret VALUES — only names.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/install_command.py
+    steps:
+      - step1: Add --yes/-y flag to the install subparser in cli.py
+      - step2: After .kno extraction of manifest, extract env_var names, dependency names, and runtime type
+      - step3: Print formatted summary (agent name, version, runtime, dependencies, env var names)
+      - step4: If --yes not set, prompt "Continue with install? [y/N]" — abort on 'n' or empty
+      - step5: If --yes is set, skip prompt and proceed directly
+      - step6: Add inline comment documenting the no-secret-values invariant on the summary display code
+    dependencies: [task69, task53]
+    tests: [test126, test127]
+    status: completed
+
+  - id: task99
+    title: Unverified source confirmation prompt
+    type: task
+    description: |
+      When installing a .kno file that does not have an accompanying .kno.sha256 checksum file,
+      display a warning: "This agent is from an unverified source." and prompt for confirmation.
+      The --yes/-y flag from task98 also bypasses this prompt. If the .kno.sha256 file exists
+      (even if not yet verified — that is feature16's job), skip this warning.
+    files:
+      - src/kinnoo/install_command.py
+    steps:
+      - step1: Before extraction, check if <archive>.sha256 file exists alongside the .kno file
+      - step2: If missing, print warning and prompt "This agent is from an unverified source. Continue? (y/n)"
+      - step3: Abort on 'n' or empty; proceed on 'y'
+      - step4: If --yes is set, print warning but skip prompt
+    dependencies: [task98]
+    tests: [test128]
+    status: completed
+
+  - id: task100
+    title: Run trace logging to ~/.kinnoo/logs/
+    type: task
+    description: |
+      After each `kinnoo run` execution, write a trace log to ~/.kinnoo/logs/run.<TIMESTAMP>.log.
+      The filename format must be exactly `run.<TIMESTAMP>.log` where `<TIMESTAMP>` is UTC only.
+      The log content must be JSON with this exact shape:
+      {"timestamp": <TIMESTAMP>, "agent_name": <agent-name>, "agent-version": <agent-version>, "runtime_type": <runtime-type>, "exit_code": <exit-code>}.
+      It must NEVER contain input content, env var values, secrets, or stdout/stderr.
+      Create the ~/.kinnoo/logs/ directory if it does not exist.
+    files:
+      - src/kinnoo/run_command.py
+    steps:
+      - step1: After agent execution completes (or fails), create ~/.kinnoo/logs/ if needed
+      - step2: Use UTC timestamps only for both filename and JSON `timestamp` field
+      - step3: Write trace log to ~/.kinnoo/logs/run.<TIMESTAMP>.log as a single JSON object with keys `timestamp`, `agent_name`, `agent-version`, `runtime_type`, `exit_code`
+      - step4: Add inline comment on the log write call documenting the no-secret-values invariant
+      - step5: Ensure graceful failure if log directory creation fails (warn, don't crash)
+    dependencies: [task39]
+    tests: [test129, test130]
+    status: completed
+
+  - id: task101
+    title: Log file secret-safety enforcement
+    type: task
+    description: |
+      Add a dedicated test and code-level guard ensuring the run trace log file never contains
+      env var values, secret values, or user input content. This is a critical security invariant
+      for the trust baseline. The guard is both a runtime check (what gets written) and a test
+      assertion (what the file contains after a run with known secrets in scope).
+    files:
+      - src/kinnoo/run_command.py
+      - tests/test_trust_baseline.py
+    steps:
+      - step1: In the log writing code, explicitly construct JSON from only safe fields (timestamp, agent_name, agent-version, runtime_type, exit_code)
+      - step2: Add test that runs an agent with known env var values and verifies the log file does not contain those values
+      - step3: Add test that runs an agent with known input and verifies the log file does not contain the input text
+    dependencies: [task100]
+    tests: [test130]
+    status: completed
+
+  - id: task102
+    title: Inline no-secret-values comments on trust code
+    type: task
+    description: |
+      Review all trust-related display and logging code paths (install summary, run trace log,
+      inspect env var display, preflight env var display) and ensure each includes an inline
+      comment documenting the "no secret values" invariant. This is a code-quality and
+      auditability requirement — future contributors must see the invariant at each sensitive site.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/run_command.py
+      - src/kinnoo/inspect_command.py
+    steps:
+      - step1: Identify all code sites that display or log env var / secret-related data
+      - 'step2: Add "[agent] SECURITY INVARIANT: only env var NAMES, never values" comments at each site'
+      - step3: Verify no existing code path accidentally leaks values
+    dependencies: [task98, task100]
+    tests: [test131]
+    status: completed
+
+  - id: task103
+    title: Env var exposure heuristic sweep in inspect and pack
+    type: task
+    description: |
+      Implement a regex-based heuristic scanner that detects patterns where env var values
+      may be printed, logged, or written to files in agent Python source code. Scan all .py
+      files in the agent directory excluding .venv/. Integrate into `kinnoo inspect` as a
+      "Security sweep:" section and into `kinnoo pack` as a non-blocking warning.
+      Patterns to detect: print(os.environ/os.getenv), logging with os.environ/os.getenv,
+      file.write(os.environ/os.getenv). Include disclaimer about false positives.
+    files:
+      - src/kinnoo/code_sweep.py
+      - src/kinnoo/inspect_command.py
+      - src/kinnoo/pack_command.py
+    steps:
+      - step1: Create src/kinnoo/code_sweep.py with sweep_env_var_exposure(agent_dir, declared_env_vars) function
+      - step2: Implement regex patterns for print/log/write with os.environ/os.getenv
+      - step3: Return list of warnings with file path and line number
+      - 'step4: Integrate into inspect_command.py — add "Security sweep:" section to inspect output'
+      - step5: Integrate into pack_command.py — run sweep before archiving, print warnings as non-blocking
+      - 'step6: If no warnings, print "Security sweep: no env var exposure patterns detected (heuristic)"'
+      - 'step7: Add disclaimer "(heuristic scan — may produce false positives; not a substitute for code review)"'
+    dependencies: [task62, task23]
+    tests: [test132, test133]
+    status: completed
+
+  - id: task104
+    title: Documentation for trust baseline features
+    type: task
+    description: |
+      Update README.md and docs/ to document all trust baseline features: install summary
+      and confirmation prompt, --yes flag, unverified source warning, run trace logging,
+      security sweep in inspect/pack, and the no-secret-values invariant.
+    files:
+      - README.md
+      - docs/manifest-schema-reference.md
+    steps:
+      - step1: Document install summary prompt behavior and --yes/-y flag
+      - step2: Document unverified source warning behavior
+      - 'step3: Document run trace log location, format, and what it does/does not contain'
+      - 'step4: Document security sweep in inspect/pack — what it checks, limitations, disclaimer'
+      - step5: Document the no-secret-values invariant as a project-wide security contract
+    dependencies: [task98, task99, task100, task103]
+    tests: [test134]
+    status: completed
+
+  - id: task105
+    title: Generate checksum sidecar during pack
+    type: task
+    description: |
+      Extend `kinnoo pack` to compute SHA256 for the final `.kno` archive and write a
+      sibling checksum file `<archive>.kno.sha256`. Ensure behavior works both for direct
+      output and archive-first local storage paths.
+    files:
+      - src/kinnoo/pack_command.py
+    steps:
+      - step1: After successful archive creation, compute SHA256 of the `.kno` bytes
+      - step2: Write `<archive>.kno.sha256` next to the archive using stable text format `<sha256>  <filename>`
+      - step3: Ensure checksum sidecar is also present for archives stored in local archive paths
+      - step4: Print a clear message indicating checksum file location
+    dependencies: [task27, task83]
+    tests: [test135, test136]
+    status: completed
+
+  - id: task106
+    title: Add checksum utility helpers
+    type: task
+    description: |
+      Introduce shared checksum utilities for SHA256 computation, sidecar parsing, and
+      archive integrity verification. Reuse helpers in install, inspect, and publish flows
+      to keep logic consistent and testable.
+    files:
+      - src/kinnoo/checksum.py
+      - src/kinnoo/install_command.py
+      - src/kinnoo/inspect_command.py
+      - src/kinnoo/publish_command.py
+    steps:
+      - step1: Implement helper to compute SHA256 for a file path
+      - step2: Implement helper to read and parse `.kno.sha256` sidecar content
+      - step3: Implement helper to verify expected hash against archive hash
+      - step4: Integrate helpers in command modules without duplicating checksum logic
+    dependencies: [task105]
+    tests: [test137]
+    status: completed
+
+  - id: task107
+    title: Enforce checksum verification on install
+    type: task
+    description: |
+      For `kinnoo install <file.kno>`, if `<file.kno>.sha256` exists, verify integrity before
+      extraction. Abort installation on mismatch with a clear integrity-failure error.
+    files:
+      - src/kinnoo/install_command.py
+    steps:
+      - step1: Detect sibling `.kno.sha256` file for file-path installs
+      - step2: Verify archive hash before extraction when sidecar exists
+      - step3: Abort install on mismatch with exact user-facing integrity failure message
+      - step4: Preserve existing extraction/install flow on successful verification
+    dependencies: [task106]
+    tests: [test138, test139]
+    status: completed
+
+  - id: task108
+    title: Missing checksum warning on install
+    type: task
+    description: |
+      If a `.kno.sha256` sidecar is absent for file-path install, continue installation but
+      print a clear warning that archive integrity was not verified.
+    files:
+      - src/kinnoo/install_command.py
+    steps:
+      - step1: Detect absence of expected sidecar path `<archive>.sha256`
+      - step2: Print warning `No checksum file found — archive integrity not verified`
+      - step3: Continue with normal install behavior and unchanged exit semantics
+    dependencies: [task107]
+    tests: [test140]
+    status: completed
+
+  - id: task109
+    title: Show checksum in inspect output
+    type: task
+    description: |
+      Extend `kinnoo inspect` to display archive checksum when available from a sidecar file
+      or by deterministic computation where appropriate for `.kno` targets.
+    files:
+      - src/kinnoo/inspect_command.py
+    steps:
+      - step1: Resolve checksum availability for `.kno` inspection target
+      - step2: Display checksum in human-readable inspect output under metadata section
+      - step3: Keep output deterministic and avoid exposing unrelated file contents
+    dependencies: [task106]
+    tests: [test141]
+    status: completed
+
+  - id: task110
+    title: Publish checksum sidecar with archive
+    type: task
+    description: |
+      Update publish flow to copy `.kno.sha256` alongside `.kno` when available, keeping
+      registry artifact and checksum paired for downstream integrity verification.
+    files:
+      - src/kinnoo/publish_command.py
+    steps:
+      - step1: Check whether source archive has sibling `.sha256` file
+      - step2: Copy sidecar into publish destination next to published `.kno`
+      - step3: Keep publish behavior unchanged when sidecar is absent
+      - step4: Include checksum sidecar status in publish output messaging
+    dependencies: [task106, task84]
+    tests: [test142]
+    status: completed
+
+  - id: task111
+    title: Docs and regression coverage for checksums
+    type: task
+    description: |
+      Document checksum behavior across pack/install/inspect/publish and add focused tests
+      that validate feature16 acceptance criteria end-to-end.
+    files:
+      - README.md
+      - docs/manifest-schema-reference.md
+      - tests/test_docs.py
+    steps:
+      - step1: Document checksum generation in pack and storage in local archive paths
+      - step2: Document install verification behavior for present/missing checksum sidecars
+      - step3: Document inspect checksum visibility and publish sidecar propagation
+      - step4: Add docs test asserting feature16 coverage statements remain present
+    dependencies: [task105, task107, task108, task109, task110]
+    tests: [test143]
+    status: completed
+
+  - id: task112
+    title: Pack archive size reporting and large-archive warning
+    type: task
+    description: |
+      Add archive size reporting to `kinnoo pack` output and emit a warning when final
+      archive size exceeds 100 MB. Keep output human-readable and deterministic.
+    files:
+      - src/kinnoo/pack_command.py
+    steps:
+      - step1: Compute final archive file size after archive is stored
+      - 'step2: Print `Archive size: <human-readable>` after pack completion'
+      - 'step3: If size exceeds 100 MB, print warning `Warning: archive is large (X MB). Consider whether all dependencies are necessary.`'
+      - step4: Add test-friendly threshold control (for example env-var override) to avoid generating >100 MB fixtures in CI
+    dependencies: [task83]
+    tests: [test144, test145]
+    status: completed
+
+  - id: task113
+    title: Inspect displays archive size metadata
+    type: task
+    description: |
+      Extend `kinnoo inspect <archive.kno>` output to include archive size in human-readable
+      form so users can assess package footprint before installation.
+    files:
+      - src/kinnoo/inspect_command.py
+    steps:
+      - step1: Resolve archive byte size for `.kno` inspection targets
+      - 'step2: Print `- Archive Size: <human-readable>` in archive inspect output'
+      - step3: Keep output additive and non-breaking for existing inspect fields
+    dependencies: [task112]
+    tests: [test146]
+    status: completed
+
+  - id: task114
+    title: List output includes archive size
+    type: task
+    description: |
+      Update `kinnoo list` output to include archive size for local archive and remote
+      registry listings, preserving existing list behavior and deterministic columns.
+    files:
+      - src/kinnoo/list_command.py
+      - src/kinnoo/archive.py
+      - src/kinnoo/registry_backends.py
+    steps:
+      - step1: Extend list data model to carry archive size per version/artifact
+      - step2: Add archive-size column/field to `kinnoo list`, `kinnoo list --local`, and `kinnoo list --remote`
+      - step3: Preserve backward-compatible output ordering while adding size visibility
+    dependencies: [task112, task87]
+    tests: [test147]
+    status: completed
+
+  - id: task115
+    title: Docs and regression coverage for feature17
+    type: task
+    description: |
+      Document pack size reporting/warnings and size visibility in inspect/list, and add
+      docs regression assertions for feature17 command behavior.
+    files:
+      - README.md
+      - docs/manifest-schema-reference.md
+      - tests/test_docs.py
+    steps:
+      - 'step1: Document `Archive size: <value>` output and >100 MB warning semantics'
+      - step2: Document inspect archive size metadata and list size visibility
+      - step3: Add docs test asserting feature17 coverage statements remain present
+    dependencies: [task112, task113, task114]
+    tests: [test148]
+    status: completed
+
+  - id: task116
+    title: InputGuard protocol, result models, and factory function
+    type: task
+    description: |
+      Create `src/kinnoo/input_guard.py` with the core architecture for the input safety
+      guard system. Define result models (`InputGuardResult`, `InputWarning`), the
+      `InputGuard` Protocol with two methods (`check` for single values and `check_inputs`
+      for multi-value parameterized input), threat category constants, and the
+      `get_default_guard()` factory function. This task establishes the pluggable contract:
+      any class satisfying the Protocol can replace the regex guard (e.g., an ML classifier)
+      by changing only the factory function.
+    files:
+      - src/kinnoo/input_guard.py
+    steps:
+      - 'step1: Create `src/kinnoo/input_guard.py`'
+      - 'step2: Define `InputWarning` dataclass with fields: `threat_category: str`, `description: str`, `param_name: str | None = None`'
+      - 'step3: Define `InputGuardResult` dataclass with fields: `safe: bool`, `warnings: list[InputWarning]`'
+      - 'step4: Define threat category string constants: SQL_INJECTION, SHELL_INJECTION, PATH_TRAVERSAL, SSRF, XSS, TEMPLATE_INJECTION'
+      - 'step5: Define `InputGuard` Protocol class with methods: `check(self, value: str, input_type: str = "text") -> InputGuardResult` and `check_inputs(self, inputs: list[tuple[str, str, str]]) -> InputGuardResult` where each tuple is (param_name, value, input_type)'
+      - 'step6: Define `get_default_guard() -> InputGuard` factory function that returns `RegexInputGuard()` (placeholder class for now, fully implemented in task117)'
+      - 'step7: Ensure the module is importable and `get_default_guard()` returns an instance with both `check` and `check_inputs` methods'
+    dependencies: []
+    tests: [test149, test150]
+    status: needs-review
+
+  - id: task117
+    title: "RegexInputGuard — comprehensive injection pattern library"
+    type: task
+    description: |
+      Implement the full `RegexInputGuard` class in `src/kinnoo/input_guard.py` with
+      comprehensive regex patterns for 6 threat categories. Each pattern is a tuple of
+      (compiled_regex, threat_category, human_description). The guard supports type-aware
+      checking: different input_type values activate different pattern subsets. The
+      `check_inputs()` method aggregates results across multiple typed parameters for
+      future parameterized input support (-e, -i, -d, -u flags).
+
+      Threat categories and patterns to implement:
+
+      **SQL Injection** (SQL_INJECTION):
+      - UNION SELECT / UNION ALL SELECT
+      - DROP TABLE / DROP DATABASE
+      - INSERT INTO ... VALUES
+      - DELETE FROM
+      - Tautology: OR 1=1, OR '1'='1', OR ''='', AND 1=1
+      - Comment injection: --, #, /* (as SQL comment starters following injection context)
+      - WAITFOR DELAY (time-based blind SQLi)
+      - EXEC xp_ (stored procedure injection)
+      - Stacked queries: semicolon followed by SELECT/INSERT/UPDATE/DELETE/DROP
+
+      **Shell Injection** (SHELL_INJECTION):
+      - Command chaining: ; & | && || followed by dangerous commands (rm, cat, wget, curl,
+        sudo, sh, bash, python, chmod, chown, nc, ncat, mkfifo, dd, kill)
+      - Command substitution: $(...) and backtick `...`
+      - Pipe to shell: | sh, | bash, | /bin/sh, | /bin/bash
+      - Input/output redirection: > /etc/, >> /etc/, < /etc/
+      - Null byte injection: \x00, %00
+
+      **Path Traversal** (PATH_TRAVERSAL):
+      - ../ and ..\ sequences (2+ levels)
+      - URL-encoded variants: %2e%2e%2f, %2e%2e/, ..%2f
+      - Double-encoding: %252e%252e%252f
+      - Absolute sensitive paths: /etc/passwd, /etc/shadow, /proc/self, /dev/
+
+      **SSRF** (SSRF):
+      - Dangerous protocols: file://, gopher://, dict://, ldap://
+      - Internal IPs: 127.0.0.1, 0.0.0.0, 10.x.x.x, 172.16-31.x.x, 192.168.x.x
+      - IPv6 loopback: [::1], ::1 (as URL host)
+      - localhost as hostname
+      - Octal IP: 0177.0.0.1
+      - AWS metadata endpoint: 169.254.169.254
+
+      **XSS** (XSS):
+      - <script tags (with variations like <ScRiPt, <script/src)
+      - javascript: URI scheme
+      - Event handlers: onerror=, onload=, onclick=, onmouseover=, onfocus=
+      - Dangerous tags with event sources: <img, <iframe, <svg, <object, <embed
+      - data:text/html
+
+      **Template Injection** (TEMPLATE_INJECTION):
+      - Jinja2/Twig: {{ and }}
+      - ERB: <% and %>
+      - Expression language: ${...}, #{...}
+
+      **Type-aware input_type filtering:**
+      - "text" or "string": all 6 categories
+      - "file_path": PATH_TRAVERSAL + SHELL_INJECTION only
+      - "url": SSRF + SHELL_INJECTION only
+      - "id": SQL_INJECTION + SHELL_INJECTION + TEMPLATE_INJECTION only
+
+      **check_inputs() multi-value aggregation:**
+      - Iterate over (param_name, value, input_type) tuples
+      - Call check(value, input_type) for each
+      - Set param_name on each resulting InputWarning
+      - Merge all warnings; safe = True only if all inputs are safe
+    files:
+      - src/kinnoo/input_guard.py
+    steps:
+      - 'step1: Define PATTERNS dict mapping threat category -> list of (regex_str, human_description) tuples'
+      - 'step2: Define TYPE_FILTER dict mapping input_type -> set of applicable threat categories'
+      - 'step3: Implement RegexInputGuard.check(value, input_type) — compile and match patterns filtered by input_type, return InputGuardResult with InputWarning for each match'
+      - 'step4: Implement RegexInputGuard.check_inputs(inputs) — iterate over (param_name, value, input_type) tuples, aggregate results, set param_name on warnings'
+      - 'step5: Add inline documentation for each pattern explaining what it catches and potential false positives'
+      - 'step6: Ensure each pattern can be tested individually via the PATTERNS dict'
+    dependencies: [task116]
+    tests: [test151, test152, test153, test154, test155, test156, test157, test158, test159]
+    status: needs-review
+
+  - id: task118
+    title: "CLI --no-guard flag and run_command integration"
+    type: task
+    description: |
+      Add the `--no-guard` flag to the `kinnoo run` subcommand in cli.py and integrate
+      the InputGuard into run_command.py. The guard runs after env var resolution but
+      before entrypoint execution. When the guard flags input as unsafe, the user is
+      warned and prompted to proceed. Non-interactive stdin (no TTY) auto-aborts as a
+      fail-safe to prevent unattended execution of flagged input. The --no-guard flag
+      skips the guard entirely for CI/automation pipelines.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/run_command.py
+    steps:
+      - 'step1: Add `--no-guard` argument to the run subparser in cli.py: `run_parser.add_argument("--no-guard", action="store_true", help="Disable input safety check")`'
+      - 'step2: Pass `no_guard=bool(getattr(args, "no_guard", False))` to `run_agent()` call in cli.py'
+      - 'step3: Add `no_guard: bool = False` parameter to `run_agent()` signature in run_command.py'
+      - 'step4: In run_command.py, after env var resolution and before entrypoint execution, add guard integration block:
+        - If not no_guard and input_arg is not None:
+          - Import get_default_guard from input_guard
+          - Call guard.check(input_arg, "text")
+          - If not result.safe:
+            - Print "[kinnoo] Input safety warning:" to stderr
+            - For each warning, print "  - [{threat_category}] {description}" to stderr
+            - If sys.stdin.isatty(): prompt "Proceed anyway? [y/N]: " and read response
+            - If not sys.stdin.isatty() (non-interactive): print "Non-interactive mode: aborting." to stderr and return finalize(1)
+            - If response is not "y" (case-insensitive): return finalize(1)
+            - Handle KeyboardInterrupt and EOFError during prompt gracefully (abort with exit 1)'
+      - 'step5: Ensure --no-guard bypasses the entire guard block (no import, no check, no prompt)'
+      - 'step6: Ensure the guard does not run in preflight mode (preflight=True already returns early, but verify)'
+    dependencies: [task117]
+    tests: [test160, test161, test162, test163]
+    status: needs-review
+
+  - id: task119
+    title: "Docs and regression coverage for feature18"
+    type: task
+    description: |
+      Document the input safety guard feature in README.md and docs/manifest-schema-reference.md.
+      Add a docs regression test in test_docs.py asserting that feature18 documentation
+      coverage statements remain present. Documentation should describe the guard behavior,
+      supported threat categories, --no-guard flag, type-aware checking, and the pluggable
+      architecture for future ML guard replacement.
+    files:
+      - README.md
+      - docs/manifest-schema-reference.md
+      - tests/test_docs.py
+    steps:
+      - 'step1: Add "Input Safety Guard" section to README.md describing: guard behavior on kinnoo run, list of 6 threat categories, --no-guard flag, type-aware checking for future parameterized inputs, pluggable Protocol-based design'
+      - 'step2: Add input safety section to docs/manifest-schema-reference.md describing the guard contract and threat categories'
+      - 'step3: Add test_feature18_docs_cover_input_safety_guard test in test_docs.py asserting required feature18 documentation strings are present'
+    dependencies: [task116, task117, task118]
+    tests: [test164]
+    status: needs-review
+
+  - id: task120
+    title: "Reduce SQL comment false positives while preserving detection rigor"
+    type: task
+    description: |
+      Refine SQL injection comment-detection heuristics in `RegexInputGuard` so benign
+      text containing symbols like `#` or `--` is less likely to trigger warnings,
+      while preserving strong detection for SQL comment markers in injection-like
+      contexts (for example quote + comment and SQL keyword + comment combinations).
+      This task addresses the Feature18 post-review precision warning and should keep
+      the guard rigorous but less noisy for normal user input.
+    files:
+      - src/kinnoo/input_guard.py
+      - tests/test_input_guard.py
+    steps:
+      - 'step1: Narrow SQL comment pattern matching to require SQL-like context near comment markers (quote/injection indicator and/or SQL statement context)'
+      - 'step2: Add focused false-positive regression tests for benign text with `#` and `--`'
+      - 'step3: Add focused true-positive regression tests to ensure SQL comment injection payloads remain detected'
+      - 'step4: Re-run feature18 tests and full suite to verify precision improvements do not regress category coverage'
+    dependencies: [task117]
+    tests: [test165, test166]
+    status: needs-review

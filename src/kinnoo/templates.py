@@ -119,8 +119,32 @@ python run.py "Hello Claude!"
 Templates for kinnoo agent scaffolding files.
 """
 
+# [agent] Keep this minimal manifest example synchronized with required manifest
+# fields whenever schema/template changes affect minimum valid kinnoo.yaml shape.
+INSPECT_MINIMAL_KINNOO_YAML_EXAMPLE = """name: my-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: "3.10"
+  type: one-shot
+dependencies: []
+inputs:
+  type: string
+outputs:
+  type: string
+"""
+
+INSPECT_MISSING_REQUIREMENTS_GUIDANCE_LINES = (
+    "Recommended generation steps:",
+    "pip install uv",
+    "uv export --format requirements-txt > requirements.txt",
+)
+
 KINNOO_YAML_TEMPLATE = """name: {name}
 version: 0.1.0
+description: "TODO: Add a short agent description"
+author: "TODO: Add author name"
 entrypoint: run.py
 runtime:
   language: python

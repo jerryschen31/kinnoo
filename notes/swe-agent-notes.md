@@ -16,3 +16,10 @@
 - Do all sys.argv checks before calling parser.parse_args().
 - After parser.parse_args(), only use args for logic.
 - This will prevent UnboundLocalError and make your CLI more robust and maintainable.
+
+## Feature12 deprecation guardrail (do not re-enable)
+- Feature12 local-registry behavior is superseded by Feature13 archive/publish/source-mode architecture.
+- Treat `task69` to `task77` and `test96` to `test104` as deprecated historical references only.
+- Do not restore deprecated pytest functions in `tests/test_registry.py`, `tests/test_cli_registry.py`, or `tests/test_docs.py` unless explicitly directed by TechLead.
+- If behavior needs to change, add/adjust Feature13 tests (`test107` to `test118`) instead of reviving Feature12 tests.
+- Run `python3 src/validate_project_manifests.py` after any manifest edits and keep deprecation notes/mappings in `TESTS.txt` intact.

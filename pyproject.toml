@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kinnoo"
-version = "1.0.0"
+version = "2.0.0"
 description = "Kinnoo agent CLI and scaffolding tools"
 authors = [
     { name = "Kinnoo Team" }
@@ -21,3 +21,8 @@ package-dir = {"" = "src"}
 
 [project.scripts]
 kinnoo = "kinnoo.cli:main"
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: marks integration tests",
+]

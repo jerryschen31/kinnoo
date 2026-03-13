@@ -2,6 +2,8 @@
 
 This document explains the fields in the `kinnoo.yaml` manifest — the heart of every Kinnoo agent package. It covers what each field specifies and provides concrete examples.
 
+Archive note: Kinnoo package files use the `.kno` extension and are stored as ZIP archives.
+
 ---
 
 ## Field Definitions
@@ -73,6 +75,64 @@ This field exists because future versions will support other execution models:
 - `worker` — a background queue consumer
 
 The CLI's behavior on `kinnoo run` is determined entirely by this field.
+
+---
+
+### Feature9 optional fields (`description`, `author`, `license`, `env_vars`)
+
+Feature9 adds optional metadata fields to `kinnoo.yaml`. These fields are optional-only and do not change validity for existing V1 manifests.
+
+- `description` (optional): string
+- `author` (optional): string
+- `license` (optional): string
+- `env_vars` (optional): list[string]
+
+`env_vars` item constraints:
+- each item must be a string
+- each item must be non-empty (empty or whitespace-only values are invalid)
+
+V1 compatibility note:
+- manifests that omit `description`, `author`, `license`, and `env_vars` remain valid
+- legacy validation behavior is unchanged when these fields are absent
+
+Valid example:
+
+```yaml
+description: "Customer support agent"
+author: "Kinnoo Team"
+license: "MIT"
+env_vars:
+  - OPENAI_API_KEY
+  - ANTHROPIC_API_KEY
+```
+
+Invalid `env_vars` example:
+
+```yaml
+env_vars:
+  - OPENAI_API_KEY
+  - ""
+  - "   "
+```
+
+### Feature10 env_vars runtime security contract
+
+When `env_vars` is declared, runtime resolution order is:
+
+1. process environment
+2. agent-local `.env`
+3. masked interactive prompt (for unresolved names)
+
+Non-disclosure invariant:
+
+- secret values must never be printed, logged, or persisted
+- diagnostics must reference variable names only
+
+Safe troubleshooting:
+
+- verify that required names are present in `env_vars`
+- confirm those names are set in process environment or `.env`
+- when prompted, enter values interactively without echoing values into logs
 
 ---
 
@@ -160,3 +220,292 @@ Notice that both examples look nearly identical from the CLI's perspective — `
 | inputs.type      | yes      | string       | e.g., "text"                                    |
 | outputs.type     | yes      | string       | e.g., "text"                                    |
 | framework        | no       | string       | optional, e.g., "langchain", "crewai"           |
+| description      | no       | string       | optional metadata                                 |
+| author           | no       | string       | optional metadata                                 |
+| license          | no       | string       | optional metadata                                 |
+| env_vars         | no       | list[string] | optional; each item must be a non-empty string    |
+
+---
+
+## Manifest Cross-File Rule (TESTS.txt and TASKS.txt)
+
+For project manifest consistency:
+
+- In `TESTS.txt`, each item in `covers` must reference acceptance criteria only, using:
+  - `feature: featureX`
+  - `ac: ACY`
+- Do not place `task: taskX` entries inside `TESTS.txt` `covers`.
+- Task-to-test linkage belongs in `TASKS.txt` via each task's `tests: [testA, testB]` list.
+
+This matches the manifest validator behavior in `src/validate_project_manifests.py`.
+
+---
+
+## `kinnoo inspect` command (Feature11)
+
+`kinnoo inspect` displays manifest metadata from either a source directory or a packaged `.kno` archive.
+
+Usage:
+
+- `kinnoo inspect <agent-dir>`
+- `kinnoo inspect <archive.kno>`
+
+Examples:
+
+```bash
+kinnoo inspect ./my-agent
+kinnoo inspect ./my-agent.kno
+```
+
+Output semantics:
+
+- human-readable formatted text (not raw YAML)
+- missing optional fields are omitted
+- `env_vars` are names-only (never values)
+
+Directory guidance behavior:
+
+- if `kinnoo.yaml` is missing, inspect prints guidance with a minimal manifest example and exits non-zero
+- if `requirements.txt` is missing, inspect prints guidance with:
+  - `pip install uv`
+  - `uv export --format requirements-txt > requirements.txt`
+
+Common failure cases:
+
+- missing target argument → `Usage: kinnoo inspect <target>`
+- invalid archive format → clear invalid zip-based `.kno` error
+- invalid manifest content → `Error: Manifest validation failed.` plus field-level validator messages
+
+---
+
+## `kinnoo run --preflight` command (Feature14)
+
+`kinnoo run --preflight` performs run-readiness checks without executing agent entrypoint logic.
+
+Usage:
+
+- `kinnoo run <agent-dir> --preflight`
+- `kinnoo run ./my-agent --preflight`
+
+Preflight checklist semantics:
+
+- output is checklist-style with deterministic pass/fail lines
+- required checklist sections include runtime version, env vars, entrypoint, and dependencies
+- all checks pass: output includes `Ready to run`
+- one or more checks fail: output includes `Not ready to run` and `Remediation summary`
+- preflight validates only and does not execute agent entrypoint logic
+
+Preflight env var security semantics:
+
+- output is names-only for env vars
+- unresolved env var names may be listed for operator action
+- env var values are never printed, logged, or persisted
+
+---
+
+## Trust baseline documentation reference (Feature15)
+
+Feature15 introduces trust and transparency behavior that works alongside manifest-driven execution.
+
+Install trust behavior:
+
+- install summary includes agent/version/runtime/dependencies/env var names
+- install confirmation prompt is `Continue with install? [y/N]:`
+- `--yes` / `-y` keeps summary but bypasses confirmation
+- unverified source warning appears when `<archive>.sha256` is missing
+
+Unverified prompt behavior:
+
+- warning text: `This agent is from an unverified source.`
+- prompt (without `--yes`): `This agent is from an unverified source. Continue? (y/n):`
+
+---
+
+## Input Safety Guard reference (Feature18)
+
+Feature18 adds an input safety check stage to `kinnoo run` before entrypoint execution.
+
+Behavior contract:
+
+- The guard evaluates user-provided run input and emits warnings when risky patterns are detected.
+- The guard is non-blocking in interactive mode (warn + confirm).
+- In non-interactive execution, flagged input aborts run by default.
+- `--no-guard` is the explicit override for trusted CI/automation workflows.
+
+Threat categories:
+
+- SQL injection
+- shell command injection
+- path traversal
+- SSRF
+- XSS
+- template injection
+
+Type-aware model:
+
+- Guard checks are type-aware and can scope detection by input type (`text`, `string`, `file_path`, `url`, `id`).
+- Unknown input types fall back to full text-style scanning.
+
+Pluggable architecture:
+
+- Runtime integration depends on the `InputGuard` Protocol, not on a concrete implementation.
+- The default implementation is provided via factory (`get_default_guard`).
+- This design allows replacing regex heuristics with an ML guard in future versions without changing call sites.
+
+Run trace log behavior:
+
+- output path: `~/.kinnoo/logs/run.<TIMESTAMP>.log`
+- filename and JSON timestamp are UTC-only
+- log JSON keys are safe-only:
+  - `timestamp`
+  - `agent_name`
+  - `agent-version`
+  - `runtime_type`
+  - `exit_code`
+- trace log never includes input text, secret values, env var values, stdout, or stderr
+
+Inspect/pack heuristic security sweep behavior:
+
+- inspect shows `Security sweep:` output with either clean message or warnings
+- clean message: `Security sweep: no env var exposure patterns detected (heuristic)`
+- pack prints sweep warnings as non-blocking output
+- disclaimer: `(heuristic scan — may produce false positives; not a substitute for code review)`
+
+---
+
+## Pack size reporting and warnings (Feature17)
+
+Feature17 documents package size visibility across pack, inspect, and list flows.
+
+Pack output contract:
+
+- `kinnoo pack` prints final archive size:
+  - `[kinnoo pack] Archive size: <human-readable>`
+- If final archive size is strictly greater than 100 MB, pack prints:
+  - `Warning: archive is large (X MB). Consider whether all dependencies are necessary.`
+
+Inspect output contract:
+
+- `kinnoo inspect <archive.kno>` includes archive size metadata:
+  - `- Archive Size: <human-readable>`
+
+List output contract:
+
+- `kinnoo list`
+- `kinnoo list --local`
+- `kinnoo list --remote`
+
+Each list row includes additive archive size visibility:
+
+- `| size: <human-readable>`
+
+Formatting consistency:
+
+- size output uses stable units (`B`, `KB`, `MB`, `GB`)
+- formatting logic is shared across pack, inspect, and list to avoid drift
+
+Project-wide trust invariant:
+
+- no-secret-values contract applies across trust paths
+- env var diagnostics must remain names-only
+
+---
+
+## Archive integrity checksums (Feature16)
+
+Feature16 introduces checksum sidecars across pack/install/inspect/publish to improve artifact integrity visibility and verification.
+
+Checksum sidecar contract:
+
+- sidecar path is sibling to archive: `<archive>.kno.sha256`
+- sidecar line format is stable: `<sha256>  <archive-filename>`
+- digest is lowercase SHA256 over archive bytes
+
+Pack behavior:
+
+- `kinnoo pack <agent-dir>` writes a checksum sidecar beside the stored archive artifact
+- pack emits:
+  - `[kinnoo pack] Checksum sidecar written: <path>`
+
+Install behavior (`kinnoo install <file.kno>`):
+
+- sidecar exists and checksum matches: install proceeds and prints `[kinnoo install] Archive checksum verified.`
+- sidecar exists and checksum mismatches: install aborts with exact error:
+  - `Archive integrity check failed — the file may be corrupted or tampered with`
+- sidecar is missing: install warns and continues with exact warning:
+  - `No checksum file found — archive integrity not verified`
+
+Inspect behavior:
+
+- `kinnoo inspect <archive.kno>` displays checksum metadata when valid sidecar is available:
+  - `- Checksum (SHA256): <digest>`
+
+Publish behavior:
+
+- `kinnoo publish <agent-name>` copies `.kno.sha256` to registry destination when present at source
+- sidecar absence is non-fatal; publish continues
+- publish emits one of:
+  - `Published checksum sidecar: <path>`
+  - `Published checksum sidecar: (none found at source)`
+
+---
+
+## Pack/Publish Refactor commands (Feature13)
+
+Feature13 refactors command responsibilities to an archive-first packaging source plus mock-registry publishing target.
+
+### Pack destination
+
+- `kinnoo pack <agent-dir>` writes to local archive by default:
+  - `~/.kinnoo/archive/<agent>/<version>/<agent>.kno`
+- Test/custom override:
+  - `KINNOO_ARCHIVE_ROOT`
+
+### Publish semantics
+
+Canonical publish commands:
+
+- `kinnoo publish <agent-name>`
+- `kinnoo publish <agent-name> --local`
+
+Behavior:
+
+- source resolves latest local archive artifact for `<agent-name>`
+- target path in mock registry:
+  - `~/kinnoo-mock-registry-scratch/jerry/<agent>/<version>/<agent>.kno`
+- if tagged target exists, prior payload rolls to:
+  - `~/kinnoo-mock-registry-scratch/jerry/<agent>/untagged-<n>/`
+
+### Install selectors
+
+Supported forms:
+
+- `kinnoo install <name>` (latest from mock registry)
+- `kinnoo install <name>==<version>` (exact from mock registry)
+- `kinnoo install <file-path/file.kno>` (backward-compatible direct file install)
+
+### List source modes
+
+- `kinnoo list` (default local archive)
+- `kinnoo list --local` (same as default)
+- `kinnoo list --remote` (mock registry)
+
+### Search source modes
+
+- `kinnoo search <query>` (default local archive)
+- `kinnoo search --local <query>` (same as default)
+- `kinnoo search --remote <query>` (mock registry)
+
+Search behavior remains case-insensitive substring matching across name and description fields.
+
+### Migration guidance from Feature12
+
+- Previous publish form:
+  - `kinnoo publish <archive.kno>`
+- Feature13 canonical form:
+  - `kinnoo publish <agent-name>`
+
+- Previous docs centered on `~/.kinnoo/registry/` as primary source/target.
+- Feature13 split of responsibilities:
+  - packaging source-of-truth: local archive (`~/.kinnoo/archive/...`)
+  - publish/install remote target: mock registry (`~/kinnoo-mock-registry-scratch/jerry/...`)

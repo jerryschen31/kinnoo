@@ -247,7 +247,7 @@ features:
       Implement the `kinnoo install` CLI command that installs a packaged agent archive with the `.kno` extension
       onto the user's machine. Sets up the agent directory, environment, and dependencies so the agent can be run
       immediately with `kinnoo run`. Handles manifest validation, file extraction, venv creation, and dependency installation.
-    tasks: []
+    tasks: [task69, task70, task71, task72, task73, task74, task75, task76, task77]
     acceptance_criteria:
       - id: AC1
         description: "Running `kinnoo install <archive.kno>` extracts agent files to a new directory <archive>/ (e.g., myagent.kno extracts into myagent/). If <archive>/ directory exists, use <archive>_1/. If <archive>_1 exists, use <archive>_2, etc."
@@ -274,3 +274,399 @@ features:
     owner: techlead-agent
     dependencies: [feature4, feature5]
     status: completed
+  
+  - id: feature7
+    title: "CLI Refactor & Modular Architecture"
+    description: |
+      Extract install logic from monolithic cli.py into a dedicated install_command.py module,
+      matching the existing pattern of init_command.py and pack_command.py. Add a --version flag
+      to the CLI. Clean up any duplicate test functions in the test suite.
+    tasks: [task39, task40, task41]
+    acceptance_criteria:
+      - id: AC1
+        description: "Install logic lives in src/kinnoo/install_command.py, not inline in cli.py."
+      - id: AC2
+        description: "cli.py imports and delegates to install_command.py for install operations."
+      - id: AC3
+        description: "`kinnoo --version` prints the package version and exits with code 0."
+      - id: AC4
+        description: "No duplicate test functions exist in the test suite."
+      - id: AC5
+        description: "All existing V1 tests continue to pass after refactor."
+    owner: techlead-agent
+    dependencies: []
+    status: completed
+
+  - id: feature8
+    title: "Packaging Robustness"
+    description: |
+      Fix transitive dependency bundling in `kinnoo pack` (currently uses --no-deps which omits
+      transitive dependencies). Canonicalize archive format as zip. Implement fallback behavior
+      for missing or failed wheel builds. Add cross-platform wheel detection with user-visible warnings.
+    tasks: [task42, task43, task44, task45, task46, task47]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo pack` includes transitive dependencies (not just direct), so pip install in an offline venv succeeds."
+      - id: AC2
+        description: "Archive format is zip with .kno extension; code, tests, and authoritative packaging docs (README + docs/manifest-schema-reference.md) reference zip consistently."
+      - id: AC3
+        description: "If a wheel build fails for a dependency, `kinnoo pack` warns but continues (does not abort the entire pack)."
+      - id: AC4
+        description: "`kinnoo install` falls back to PyPI install for any missing wheels, printing a warning message."
+      - id: AC5
+        description: "A packed agent with transitive deps installs and runs correctly in a fresh venv with no internet access (offline install test)."
+      - id: AC6
+        description: "If platform-specific wheels are detected during packing, a warning is printed: 'Archive contains platform-specific wheels that may not install on other operating systems'."
+    owner: techlead-agent
+    dependencies: []
+    status: completed
+
+  - id: feature9
+    title: "Manifest Schema V2 Extensions"
+    description: |
+      Add optional fields to the kinnoo.yaml schema: description (string), author (string),
+      license (string), and env_vars (list of strings declaring required environment variable names).
+      All additions are non-breaking — existing V1 manifests remain valid. runtime.type stays as
+      a single string with only "one-shot" valid in V2; list support deferred to V3.
+    tasks: [task48, task49, task50, task51, task52]
+    acceptance_criteria:
+      - id: AC1
+        description: "description (string), author (string), and license (string) are accepted as optional fields; absence is valid."
+      - id: AC2
+        description: "env_vars (list[string]) is accepted as an optional field; validator ensures it is a list of strings when present."
+      - id: AC3
+        description: "A V1 manifest without any new fields still passes validation with no errors."
+      - id: AC4
+        description: "Invalid types for new fields (e.g., env_vars as a string, description as a number) produce specific error messages naming the field and expected type."
+      - id: AC5
+        description: "`kinnoo init` generated kinnoo.yaml templates include description and author fields with placeholder values."
+      - id: AC6
+        description: "env_vars items are validated as non-empty strings (empty string items in the list produce an error)."
+    owner: techlead-agent
+    dependencies: []
+    status: completed
+
+  - id: feature10
+    title: "Environment Variable / Secret Management (env_vars)"
+    description: |
+      When running an agent whose kinnoo.yaml declares env_vars, the runtime checks, resolves,
+      and injects the required variables into the subprocess environment. Resolution order:
+      current environment -> .env file in agent directory -> interactive masked prompt.
+      Secret values must NEVER be displayed, logged, or echoed anywhere in the codebase.
+    tasks: [task53, task54, task55, task56, task57, task58, task59, task60, task61]
+    acceptance_criteria:
+      - id: AC1
+        description: "If env_vars declares variables and all are set in the current environment, the agent runs with those vars injected into the subprocess."
+      - id: AC2
+        description: "If a declared env var is missing from the environment, kinnoo checks for a .env file in the agent directory and loads matching variables."
+      - id: AC3
+        description: "If a declared env var is still missing after .env check, kinnoo prompts the user interactively with masked input (characters not echoed to terminal)."
+      - id: AC4
+        description: "All resolved env vars are injected into the subprocess environment when executing the agent."
+      - id: AC5
+        description: "If the user declines to provide a missing env var (e.g., Ctrl+C), execution aborts with a clear message listing which variable was not provided."
+      - id: AC6
+        description: "Agents without env_vars in manifest are unaffected — no prompting, no .env loading, existing V1 behavior unchanged."
+      - id: AC7
+        description: "No code path in the codebase ever prints, logs, or displays the VALUE of any env var or secret — only variable NAMES may appear in output or logs."
+    owner: techlead-agent
+    dependencies: [feature9]
+    status: completed
+
+  - id: feature11
+    title: "kinnoo inspect — Manifest inspection command"
+    description: |
+      New CLI command that reads and displays manifest metadata from a .kno archive or agent
+      directory. Provides transparency into what an agent requires before install or run.
+      Displays env_var names (never values), dependencies, runtime type, and other metadata.
+    tasks: [task62, task63, task64, task65, task66, task67, task68]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo inspect <agent-dir>` reads kinnoo.yaml and displays: name, version, description, author, license, dependencies, env_var NAMES (not values), and runtime type."
+      - id: AC2
+        description: "`kinnoo inspect <archive.kno>` reads the manifest from inside the zip archive without extracting the full archive to disk."
+      - id: AC3
+        description: "Output is human-readable formatted text (not a raw YAML dump)."
+      - id: AC4
+        description: "Missing optional fields are omitted from output (not shown as None or empty)."
+      - id: AC5
+        description: "Invalid manifest produces a clear error (reuses feature1 validator)."
+      - id: AC6
+        description: "`kinnoo inspect` without arguments prints usage help."
+      - id: AC7
+        description: "If an inspected agent directory is missing `kinnoo.yaml`, `kinnoo inspect` prints a stdout guidance message that `kinnoo.yaml` must be created, includes a minimal manifest example, and exits gracefully with non-zero status."
+      - id: AC8
+        description: "If an inspected agent directory is missing `requirements.txt`, `kinnoo inspect` prints a stdout guidance message that `requirements.txt` must be created, includes robust generation guidance (`pip install uv` and `uv export --format requirements-txt > requirements.txt`), and exits gracefully with non-zero status."
+      - id: AC9
+        description: "If `kinnoo.yaml` is present but missing required fields, inspect output clearly names each missing required field using validator-provided messages."
+    owner: techlead-agent
+    dependencies: [feature7]
+    status: completed
+
+  - id: feature12
+    title: "Local Registry (kinnoo publish, kinnoo install <name>, kinnoo list, kinnoo search)"
+    description: |
+      Implement a local registry at ~/.kinnoo/registry/ where agents can be published by
+      name/version and installed by name. Version is extracted from the archive's kinnoo.yaml.
+      Publish and resolve logic is structured behind an abstraction so swapping to a remote
+      backend in V3 requires minimal changes.
+    tasks: [task80, task81, task82, task83, task84, task85, task86, task87, task88, task89]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo publish <archive.kno>` extracts name and version from the archive's kinnoo.yaml and copies the archive to ~/.kinnoo/registry/<name>/<version>/."
+      - id: AC2
+        description: "`kinnoo publish <archive.kno> --local` does the same as AC1 (explicit local flag for forward-compatibility)."
+      - id: AC3
+        description: "`kinnoo install <name>` resolves the latest version from the local registry and installs it with no network required."
+      - id: AC4
+        description: "`kinnoo install <name>==<version>` installs a specific version from the local registry."
+      - id: AC5
+        description: "`kinnoo list` displays all locally published agents with name, latest version, and description."
+      - id: AC6
+        description: "`kinnoo search <query>` filters the local registry by name/description substring match."
+      - id: AC7
+        description: "Publishing the same name+version twice produces a clear error (no silent overwrite)."
+      - id: AC8
+        description: "`kinnoo install <file.kno>` (file path) continues to work as before (V1 behavior preserved)."
+      - id: AC9
+        description: "Publish/resolve logic is behind an abstraction (e.g., RegistryBackend interface) so swapping local for remote backend is a minimal change."
+    owner: techlead-agent
+    dependencies: [feature11]
+    status: deprecated
+
+  - id: feature13
+    title: "Pack/Publish Refactor — Local Archive + Registry Publish Flow"
+    description: |
+      Refactor packaging and publishing responsibilities:
+      - `kinnoo pack <agent-dir>` becomes the default archival mechanism and always stores
+        versioned `.kno` artifacts under `~/.kinnoo/archive/<agent-name>/<version>/<agent-name>.kno`.
+      - `kinnoo publish <agent-name>` becomes a registry publication workflow that reads the
+        latest packaged archive from the local archive and publishes it to a registry target.
+
+      For V1 of registry publishing, mock the online registry in-repo at:
+      `registry-scratch/jerry/<agent-name>/<version>/<agent-name>.kno`
+
+      `kinnoo publish` must prevent hard overwrite of an existing tagged version by
+      archiving old content as `untagged-1`, `untagged-2`, etc., then storing the new
+      payload at the requested tagged version path.
+    tasks: [task80, task81, task82, task83, task84, task85, task86, task87, task88, task89, task90]
+    acceptance_criteria:
+      - id: AC1
+        description: "Running `kinnoo pack <agent-dir>` writes archive output to `~/.kinnoo/archive/<agent-name>/<version>/<agent-name>.kno` by default and no longer relies on ad-hoc output location as the primary path."
+      - id: AC2
+        description: "`kinnoo pack` output clearly prints archive destination path and packaged version (including existing `[kinnoo pack] Agent version: <version #>` message contract)."
+      - id: AC3
+        description: "If the target archive path already exists, `kinnoo pack` uses explicit overwrite confirmation behavior and preserves file on decline."
+      - id: AC4
+        description: "`kinnoo publish <agent-name>` resolves the latest version of `<agent-name>` from `~/.kinnoo/archive/<agent-name>/` and publishes that artifact (no manual archive path required)."
+      - id: AC5
+        description: "V1 publish target is local mock registry path `registry-scratch/jerry/<agent-name>/<version>/<agent-name>.kno` (login deferred)."
+      - id: AC6
+        description: "If the same tagged version already exists in publish target, prior artifact is preserved as `untagged-<n>` and the new artifact is written at the tagged version path."
+      - id: AC7
+        description: "`kinnoo publish` prints clear outcome messages including source archive path, target registry path, and any untagged rollover actions."
+      - id: AC8
+        description: "Clear errors are printed when source archive for `<agent-name>` is missing, when no versions exist, or when archive metadata is invalid."
+      - id: AC9
+        description: "Feature12 local-registry name-based install/list/search behavior is explicitly deprecated or isolated so responsibilities are unambiguous: archive management in pack, registry publication in publish."
+      - id: AC10
+        description: "`kinnoo install <name>` resolves the latest version from the mock registry and installs it; implementation is structured so switching to a real remote registry later is a minimal change."
+      - id: AC11
+        description: "`kinnoo install <name>==<version>` installs a specific version from the mock registry."
+      - id: AC12
+        description: "`kinnoo list` displays by default all locally archived agents with name, latest version, and description."
+      - id: AC13
+        description: "`kinnoo list --local` displays all locally archived agents with name, latest version, and description."
+      - id: AC14
+        description: "`kinnoo list --remote` displays all registry agents with name, latest version, and description, using the mock registry for now."
+      - id: AC15
+        description: "`kinnoo search <query>` filters by default the local archive by name/description substring match."
+      - id: AC16
+        description: "`kinnoo search --local <query>` filters the local archive by name/description substring match."
+      - id: AC17
+        description: "`kinnoo search --remote <query>` filters the remote registry by name/description substring match, using the mock registry for now."
+      - id: AC18
+        description: "`kinnoo install <file-path/file.kno>` (file path) continues to work as before (V1 behavior preserved)."
+      - id: AC19
+        description: "New source-mode CLI arguments (`--local`, `--remote`, selector forms) provide clear usage/help and deterministic errors for invalid combinations (e.g., conflicting flags, missing query/selector), with no ambiguous fallback behavior."
+    owner: techlead-agent
+    dependencies: [feature5, feature8, feature11]
+    status: completed
+
+  - id: feature14
+    title: "Preflight Checks (--preflight flag on kinnoo run)"
+    description: |
+      Add a --preflight flag to `kinnoo run` that validates the agent's environment before
+      execution. Checks Python version, env vars, entrypoint existence, and dependency
+      installation. Reports results as a checklist with actionable guidance on failures,
+      without executing the agent.
+    tasks: [task92, task93, task94, task95, task96, task97]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo run <dir> --preflight` runs all checks and reports results without executing the agent."
+      - id: AC2
+        description: "Check: Python version matches the runtime.version constraint in the manifest."
+      - id: AC3
+        description: "Check: All declared env_vars NAMES are resolvable (set in env or in .env file) — values are never displayed."
+      - id: AC4
+        description: "Check: Entrypoint file exists at the declared path."
+      - id: AC5
+        description: "Check: All dependencies in requirements.txt are installed in the venv (or installable)."
+      - id: AC6
+        description: "Results are printed as a checklist with pass/fail status for each check."
+      - id: AC7
+        description: "If all checks pass, prints 'Ready to run'; if any fail, prints actionable guidance per failed check."
+    owner: techlead-agent
+    dependencies: [feature10]
+    status: completed
+
+  - id: feature15
+    title: "Trust Baseline"
+    description: |
+      Add transparency and trust features: display dependency/secret name summary on install,
+      warn when installing agents from unverified sources, log run traces, and perform a
+      heuristic code sweep for env var value exposure. Absolute rule: no env var or secret
+      VALUES ever appear in output, logs, or code paths — only names.
+    tasks: [task98, task99, task100, task101, task102, task103, task104]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo install` displays a summary of what the agent requires (env_var NAMES, dependency NAMES, runtime type) before installing and prompts for yes/no confirmation. A `--yes` (`-y`) flag skips the confirmation prompt for CI/automation pipelines."
+      - id: AC2
+        description: "If an agent is installed from a raw .kno file (not from a registry or archive) without an accompanying checksum .kno.sha256 file, a confirmation prompt is asked before proceeding: 'This agent is from an unverified source. Continue? (y/n)'."
+      - id: AC3
+        description: "`kinnoo run` logs a trace in JSON format to ~/.kinnoo/logs/run.<TIMESTAMP>.log containing ONLY: timestamp, agent name, agent version, runtime type, and exit code — no input content, no env var values, no secrets."
+      - id: AC4
+        description: "Log file never contains actual values of environment variables, secrets, or user input."
+      - id: AC5
+        description: "All trust-related display and logging code includes inline comments documenting the 'no secret values' invariant."
+      - id: AC6
+        description: "`kinnoo inspect` includes a heuristic security sweep of all .py files in the agent directory (excluding .venv/) that detects patterns where env var values may be printed, logged, or written to files. Warnings are displayed with file path and line number. A clean scan prints 'Security sweep: no env var exposure patterns detected (heuristic)'. The sweep also runs during `kinnoo pack` as a non-blocking warning before archiving."
+    notes:
+      - "Original AC4 (first-run display of env/dep names) was dropped — redundant with kinnoo inspect and kinnoo run --preflight."
+      - "AC6 is a regex-based heuristic, not taint analysis. Output includes a disclaimer about false positives."
+      - "--yes/-y flag on install follows apt/brew convention for CI automation."
+    owner: techlead-agent
+    dependencies: [feature10]
+    status: completed
+
+  - id: feature16
+    title: "Archive Integrity (Checksums)"
+    description: |
+      Generate and verify SHA256 checksums for .kno archives. Enables detection of tampered
+      or corrupted archives during install. kinnoo publish stores checksums in the registry.
+    tasks: [task105, task106, task107, task108, task109, task110, task111]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo pack` generates a .kno.sha256 checksum file alongside the .kno archive."
+      - id: AC2
+        description: "`kinnoo install <file.kno>` checks for a .kno.sha256 file; if present, verifies the archive matches before extracting."
+      - id: AC3
+        description: "If checksum verification fails, install aborts with a clear error: 'Archive integrity check failed — the file may be corrupted or tampered with'."
+      - id: AC4
+        description: "If no .kno.sha256 file is present, install proceeds with a warning: 'No checksum file found — archive integrity not verified'."
+      - id: AC5
+        description: "`kinnoo pack` stores the SHA256 checksum alongside the .kno file in the local archive."
+      - id: AC6
+        description: "`kinnoo inspect` displays the archive checksum if available."
+      - id: AC7
+        description: "`kinnoo publish` publishes the .kno file along with associated .kno.sha256 file, if present."
+    owner: techlead-agent
+    dependencies: [feature8]
+    status: completed
+
+  - id: feature17
+    title: "Pack Size Reporting & Warnings"
+    description: |
+      Report archive size after packing and warn when archives are unusually large, which is
+      common with heavy dependency trees (e.g., LangChain). Display size in kinnoo inspect
+      and kinnoo list for visibility before install.
+    tasks: [task112, task113, task114, task115]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo pack` prints the final archive size in human-readable format (e.g., 'Archive size: 45.2 MB') after packing completes."
+      - id: AC2
+        description: "If archive size exceeds 100 MB, a warning is printed: 'Warning: archive is large (X MB). Consider whether all dependencies are necessary.'"
+      - id: AC3
+        description: "`kinnoo inspect` displays the archive size when inspecting a .kno file."
+      - id: AC4
+        description: "`kinnoo list` includes archive size in the registry listing output."
+    owner: techlead-agent
+    dependencies: [feature8]
+    status: completed
+
+  - id: feature18
+    title: "Input Safety Guard"
+    description: |
+      Add a pluggable input safety check to `kinnoo run` that inspects user-provided input
+      for common injection patterns (SQL injection, shell command injection, path traversal,
+      SSRF, XSS, template injection) before passing it to the agent entrypoint. The guard is
+      non-blocking — it warns and prompts for confirmation rather than hard-rejecting input.
+      The architecture uses a Protocol-based design so the V1 regex guard can be swapped for
+      an ML-based classifier in the future without changing callers.
+
+      The guard is designed to work with both the current single-string input model
+      (`kinnoo run <path> "<input>"`) and a future parameterized input model
+      (`kinnoo run <path> -e <string> -i <id> -d <file-path> -u <url>`). For parameterized
+      inputs, the guard applies type-aware pattern filtering: file path inputs emphasize path
+      traversal detection, URL inputs emphasize SSRF detection, ID inputs enforce stricter
+      injection patterns. A `check_inputs()` multi-value method accepts typed parameters so
+      callers can pass all inputs in a single call and receive an aggregated result.
+    tasks: [task116, task117, task118, task119, task120]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo run` checks user input against injection patterns (SQL injection, shell command injection, path traversal, SSRF, XSS, template injection) before executing the agent entrypoint."
+      - id: AC2
+        description: "When a pattern match is found, a warning is printed to stderr listing the detected threat(s), and the user is prompted with 'Proceed anyway? [y/N]'. Answering 'n' or empty aborts with non-zero exit. Answering 'y' proceeds normally. Non-interactive stdin (no TTY) auto-aborts as a fail-safe."
+      - id: AC3
+        description: "A `--no-guard` flag on `kinnoo run` disables the input safety check entirely for CI/automation pipelines where input is controlled."
+      - id: AC4
+        description: "The guard implementation follows a Protocol-based pluggable design (`InputGuard` protocol with `check(value, input_type) -> InputGuardResult` and `check_inputs(inputs) -> InputGuardResult`) so the regex-based guard can be replaced with an ML-based guard via a single factory function change."
+      - id: AC5
+        description: "Each regex pattern in the V1 guard is individually unit-testable and documented with the threat category it detects."
+      - id: AC6
+        description: "Legitimate agent input that happens to resemble injection (e.g., a database agent receiving SQL) is not hard-blocked — the user can always proceed after the warning."
+      - id: AC7
+        description: "The guard supports type-aware input checking: 'text' (full scan), 'file_path' (path traversal + shell injection), 'url' (SSRF + shell injection), 'id' (SQL + shell + template injection), enabling future parameterized input modes (-e, -i, -d, -u) without code changes."
+      - id: AC8
+        description: "A `check_inputs()` method accepts a list of (param_name, value, input_type) tuples and returns an aggregated result with per-parameter warnings, ready for future multi-parameter input."
+    notes:
+      - "V1 uses RegexInputGuard with patterns for 6 threat categories: SQL injection (UNION SELECT, DROP TABLE, tautology, comment injection, WAITFOR DELAY), shell injection (;&| with dangerous commands, $() and backtick substitution, pipe to shell), path traversal (../, encoded variants, absolute sensitive paths), SSRF (file://, gopher://, dict://, internal IPs, AWS metadata 169.254.169.254), XSS (<script, javascript:, event handlers), and template injection ({{ }}, <% %>, ${})."
+      - "Factory function get_default_guard() returns RegexInputGuard. Future ML upgrade: implement MLInputGuard loading a local ONNX classifier, swap in get_default_guard()."
+      - "Integration point: input_guard.py module, called from run_command.py before entrypoint execution."
+      - "Type-aware checking enables the same guard module to handle both current single-string input and future parameterized inputs (-e, -i, -d, -u) with appropriate pattern subsets per input type."
+      - "The guard is a genuine differentiator — no other agent packaging tool provides input-level safety checks."
+      - "Strong interview talking point for 'defense in depth' and 'secure-by-default' design patterns."
+      - see feature15-notes.md for more code details
+    owner: techlead-agent
+    dependencies: [feature3, feature15]
+    status: not-started
+
+  - id: feature19
+    title: "kinnoo import — Onboard existing agents"
+    description: |
+      Add a new command `kinnoo import <existing-agent-path> <new-agent-dir>` to
+      help developers onboard existing agents quickly. The command analyzes an
+      existing project, creates a Kinnoo-compatible scaffold, generates
+      kinnoo.yaml with safe defaults, and copies project artifacts needed for
+      run/pack flows while preserving source project files.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo import <existing-agent-path> <new-agent-dir>` validates arguments and prints clear usage/help when arguments are missing."
+      - id: AC2
+        description: "Import creates a new Kinnoo agent directory with required files (`kinnoo.yaml`, `requirements.txt`, entrypoint, README, `tools/`, `prompts/`) and does not modify the original source project."
+      - id: AC3
+        description: "Generated `kinnoo.yaml` includes valid required fields and passes feature1 validator with actionable warnings when fields cannot be inferred confidently."
+      - id: AC4
+        description: "Entrypoint and dependency inference support common existing-agent layouts; unresolved cases produce explicit guidance rather than silent failures."
+      - id: AC5
+        description: "If import fails at any step, partial output in `<new-agent-dir>` is cleaned up (or rolled back) so users are not left with a broken half-created agent."
+      - id: AC6
+        description: "If user interrupts (Ctrl+C/EOF) during interactive confirmation, import exits safely with non-zero status and leaves no partial artifacts."
+      - id: AC7
+        description: "Collision and safety checks prevent overwrites unless an explicit force/confirm path is used; error messages remain clear and actionable."
+      - id: AC8
+        description: "Imported agent can be executed via `kinnoo run <new-agent-dir> \"<input>\"` after standard dependency installation path."
+    owner: techlead-agent
+    dependencies: [feature2, feature3, feature9]
+    status: paused
