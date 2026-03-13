@@ -441,7 +441,12 @@ def _write_run_trace_log(
         return
 
 
-def run_agent(agent_dir_arg: str, input_arg: str | None, preflight: bool = False) -> int:
+def run_agent(
+    agent_dir_arg: str,
+    input_arg: str | None,
+    preflight: bool = False,
+    no_guard: bool = False,
+) -> int:
     if preflight:
         return run_preflight(agent_dir_arg)
 
@@ -569,6 +574,31 @@ def run_agent(agent_dir_arg: str, input_arg: str | None, preflight: bool = False
             resolved_env_vars[env_var_name] = prompted_value
 
     trace_forbidden_values.extend(resolved_env_vars.values())
+
+    # Evaluate the user input before entrypoint execution; this is warning-based and never hard-rejects
+    # when a user explicitly confirms in interactive mode.
+    if not no_guard and input_arg is not None:
+        from .input_guard import get_default_guard
+
+        guard = get_default_guard()
+        guard_result = guard.check(input_arg, "text")
+        if not guard_result.safe:
+            print("[kinnoo] Input safety warning:", file=sys.stderr)
+            for warning in guard_result.warnings:
+                print(f"  - [{warning.threat_category}] {warning.description}", file=sys.stderr)
+            if sys.stdin.isatty():
+                try:
+                    response = input("Proceed anyway? [y/N]: ").strip().lower()
+                except (KeyboardInterrupt, EOFError):
+                    return finalize(1)
+                if response != "y":
+                    return finalize(1)
+            else:
+                print(
+                    "Non-interactive mode: aborting due to input safety warning.",
+                    file=sys.stderr,
+                )
+                return finalize(1)
 
     entrypoint_path = agent_dir / entrypoint
     if not entrypoint_path.exists():

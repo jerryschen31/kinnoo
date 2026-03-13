@@ -211,6 +211,40 @@ List behavior:
 	- `| size: <human-readable>`
 - Size formatting is shared across commands and uses stable units (`B`, `KB`, `MB`, `GB`).
 
+## Input Safety Guard (Feature18)
+
+Feature18 adds an input safety guard to `kinnoo run` before agent execution.
+
+Guard behavior:
+
+- The guard runs automatically for `kinnoo run <agent-dir> "<input>"` before entrypoint execution.
+- It evaluates user input for common injection patterns and emits warnings to stderr.
+- The guard is non-blocking by design:
+	- in interactive terminals, users can acknowledge risk and proceed,
+	- in non-interactive mode, execution aborts by default for safety.
+
+Threat categories currently covered:
+
+- SQL injection
+- shell command injection
+- path traversal
+- SSRF
+- XSS
+- template injection
+
+CLI override for automation:
+
+- `--no-guard` disables the input safety check for trusted CI/automation pipelines.
+
+Type-aware checking model:
+
+- The guard supports typed checks (`text`, `string`, `file_path`, `url`, `id`) so threat-category evaluation can be narrowed by input semantics.
+- This supports future parameterized input flags without changing the guard contract.
+
+Architecture note:
+
+- The guard is implemented behind an `InputGuard` Protocol and factory (`get_default_guard()`), enabling future replacement with a model-based or hybrid classifier while preserving runtime integration.
+
 ## Pack/Publish Refactor (Feature13)
 
 Feature13 shifts command responsibilities to an archive-first source model and a mock-registry publish target.

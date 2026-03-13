@@ -2170,3 +2170,187 @@ tasks:
     dependencies: [task112, task113, task114]
     tests: [test148]
     status: completed
+
+  - id: task116
+    title: InputGuard protocol, result models, and factory function
+    type: task
+    description: |
+      Create `src/kinnoo/input_guard.py` with the core architecture for the input safety
+      guard system. Define result models (`InputGuardResult`, `InputWarning`), the
+      `InputGuard` Protocol with two methods (`check` for single values and `check_inputs`
+      for multi-value parameterized input), threat category constants, and the
+      `get_default_guard()` factory function. This task establishes the pluggable contract:
+      any class satisfying the Protocol can replace the regex guard (e.g., an ML classifier)
+      by changing only the factory function.
+    files:
+      - src/kinnoo/input_guard.py
+    steps:
+      - 'step1: Create `src/kinnoo/input_guard.py`'
+      - 'step2: Define `InputWarning` dataclass with fields: `threat_category: str`, `description: str`, `param_name: str | None = None`'
+      - 'step3: Define `InputGuardResult` dataclass with fields: `safe: bool`, `warnings: list[InputWarning]`'
+      - 'step4: Define threat category string constants: SQL_INJECTION, SHELL_INJECTION, PATH_TRAVERSAL, SSRF, XSS, TEMPLATE_INJECTION'
+      - 'step5: Define `InputGuard` Protocol class with methods: `check(self, value: str, input_type: str = "text") -> InputGuardResult` and `check_inputs(self, inputs: list[tuple[str, str, str]]) -> InputGuardResult` where each tuple is (param_name, value, input_type)'
+      - 'step6: Define `get_default_guard() -> InputGuard` factory function that returns `RegexInputGuard()` (placeholder class for now, fully implemented in task117)'
+      - 'step7: Ensure the module is importable and `get_default_guard()` returns an instance with both `check` and `check_inputs` methods'
+    dependencies: []
+    tests: [test149, test150]
+    status: needs-review
+
+  - id: task117
+    title: "RegexInputGuard — comprehensive injection pattern library"
+    type: task
+    description: |
+      Implement the full `RegexInputGuard` class in `src/kinnoo/input_guard.py` with
+      comprehensive regex patterns for 6 threat categories. Each pattern is a tuple of
+      (compiled_regex, threat_category, human_description). The guard supports type-aware
+      checking: different input_type values activate different pattern subsets. The
+      `check_inputs()` method aggregates results across multiple typed parameters for
+      future parameterized input support (-e, -i, -d, -u flags).
+
+      Threat categories and patterns to implement:
+
+      **SQL Injection** (SQL_INJECTION):
+      - UNION SELECT / UNION ALL SELECT
+      - DROP TABLE / DROP DATABASE
+      - INSERT INTO ... VALUES
+      - DELETE FROM
+      - Tautology: OR 1=1, OR '1'='1', OR ''='', AND 1=1
+      - Comment injection: --, #, /* (as SQL comment starters following injection context)
+      - WAITFOR DELAY (time-based blind SQLi)
+      - EXEC xp_ (stored procedure injection)
+      - Stacked queries: semicolon followed by SELECT/INSERT/UPDATE/DELETE/DROP
+
+      **Shell Injection** (SHELL_INJECTION):
+      - Command chaining: ; & | && || followed by dangerous commands (rm, cat, wget, curl,
+        sudo, sh, bash, python, chmod, chown, nc, ncat, mkfifo, dd, kill)
+      - Command substitution: $(...) and backtick `...`
+      - Pipe to shell: | sh, | bash, | /bin/sh, | /bin/bash
+      - Input/output redirection: > /etc/, >> /etc/, < /etc/
+      - Null byte injection: \x00, %00
+
+      **Path Traversal** (PATH_TRAVERSAL):
+      - ../ and ..\ sequences (2+ levels)
+      - URL-encoded variants: %2e%2e%2f, %2e%2e/, ..%2f
+      - Double-encoding: %252e%252e%252f
+      - Absolute sensitive paths: /etc/passwd, /etc/shadow, /proc/self, /dev/
+
+      **SSRF** (SSRF):
+      - Dangerous protocols: file://, gopher://, dict://, ldap://
+      - Internal IPs: 127.0.0.1, 0.0.0.0, 10.x.x.x, 172.16-31.x.x, 192.168.x.x
+      - IPv6 loopback: [::1], ::1 (as URL host)
+      - localhost as hostname
+      - Octal IP: 0177.0.0.1
+      - AWS metadata endpoint: 169.254.169.254
+
+      **XSS** (XSS):
+      - <script tags (with variations like <ScRiPt, <script/src)
+      - javascript: URI scheme
+      - Event handlers: onerror=, onload=, onclick=, onmouseover=, onfocus=
+      - Dangerous tags with event sources: <img, <iframe, <svg, <object, <embed
+      - data:text/html
+
+      **Template Injection** (TEMPLATE_INJECTION):
+      - Jinja2/Twig: {{ and }}
+      - ERB: <% and %>
+      - Expression language: ${...}, #{...}
+
+      **Type-aware input_type filtering:**
+      - "text" or "string": all 6 categories
+      - "file_path": PATH_TRAVERSAL + SHELL_INJECTION only
+      - "url": SSRF + SHELL_INJECTION only
+      - "id": SQL_INJECTION + SHELL_INJECTION + TEMPLATE_INJECTION only
+
+      **check_inputs() multi-value aggregation:**
+      - Iterate over (param_name, value, input_type) tuples
+      - Call check(value, input_type) for each
+      - Set param_name on each resulting InputWarning
+      - Merge all warnings; safe = True only if all inputs are safe
+    files:
+      - src/kinnoo/input_guard.py
+    steps:
+      - 'step1: Define PATTERNS dict mapping threat category -> list of (regex_str, human_description) tuples'
+      - 'step2: Define TYPE_FILTER dict mapping input_type -> set of applicable threat categories'
+      - 'step3: Implement RegexInputGuard.check(value, input_type) — compile and match patterns filtered by input_type, return InputGuardResult with InputWarning for each match'
+      - 'step4: Implement RegexInputGuard.check_inputs(inputs) — iterate over (param_name, value, input_type) tuples, aggregate results, set param_name on warnings'
+      - 'step5: Add inline documentation for each pattern explaining what it catches and potential false positives'
+      - 'step6: Ensure each pattern can be tested individually via the PATTERNS dict'
+    dependencies: [task116]
+    tests: [test151, test152, test153, test154, test155, test156, test157, test158, test159]
+    status: needs-review
+
+  - id: task118
+    title: "CLI --no-guard flag and run_command integration"
+    type: task
+    description: |
+      Add the `--no-guard` flag to the `kinnoo run` subcommand in cli.py and integrate
+      the InputGuard into run_command.py. The guard runs after env var resolution but
+      before entrypoint execution. When the guard flags input as unsafe, the user is
+      warned and prompted to proceed. Non-interactive stdin (no TTY) auto-aborts as a
+      fail-safe to prevent unattended execution of flagged input. The --no-guard flag
+      skips the guard entirely for CI/automation pipelines.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/run_command.py
+    steps:
+      - 'step1: Add `--no-guard` argument to the run subparser in cli.py: `run_parser.add_argument("--no-guard", action="store_true", help="Disable input safety check")`'
+      - 'step2: Pass `no_guard=bool(getattr(args, "no_guard", False))` to `run_agent()` call in cli.py'
+      - 'step3: Add `no_guard: bool = False` parameter to `run_agent()` signature in run_command.py'
+      - 'step4: In run_command.py, after env var resolution and before entrypoint execution, add guard integration block:
+        - If not no_guard and input_arg is not None:
+          - Import get_default_guard from input_guard
+          - Call guard.check(input_arg, "text")
+          - If not result.safe:
+            - Print "[kinnoo] Input safety warning:" to stderr
+            - For each warning, print "  - [{threat_category}] {description}" to stderr
+            - If sys.stdin.isatty(): prompt "Proceed anyway? [y/N]: " and read response
+            - If not sys.stdin.isatty() (non-interactive): print "Non-interactive mode: aborting." to stderr and return finalize(1)
+            - If response is not "y" (case-insensitive): return finalize(1)
+            - Handle KeyboardInterrupt and EOFError during prompt gracefully (abort with exit 1)'
+      - 'step5: Ensure --no-guard bypasses the entire guard block (no import, no check, no prompt)'
+      - 'step6: Ensure the guard does not run in preflight mode (preflight=True already returns early, but verify)'
+    dependencies: [task117]
+    tests: [test160, test161, test162, test163]
+    status: needs-review
+
+  - id: task119
+    title: "Docs and regression coverage for feature18"
+    type: task
+    description: |
+      Document the input safety guard feature in README.md and docs/manifest-schema-reference.md.
+      Add a docs regression test in test_docs.py asserting that feature18 documentation
+      coverage statements remain present. Documentation should describe the guard behavior,
+      supported threat categories, --no-guard flag, type-aware checking, and the pluggable
+      architecture for future ML guard replacement.
+    files:
+      - README.md
+      - docs/manifest-schema-reference.md
+      - tests/test_docs.py
+    steps:
+      - 'step1: Add "Input Safety Guard" section to README.md describing: guard behavior on kinnoo run, list of 6 threat categories, --no-guard flag, type-aware checking for future parameterized inputs, pluggable Protocol-based design'
+      - 'step2: Add input safety section to docs/manifest-schema-reference.md describing the guard contract and threat categories'
+      - 'step3: Add test_feature18_docs_cover_input_safety_guard test in test_docs.py asserting required feature18 documentation strings are present'
+    dependencies: [task116, task117, task118]
+    tests: [test164]
+    status: needs-review
+
+  - id: task120
+    title: "Reduce SQL comment false positives while preserving detection rigor"
+    type: task
+    description: |
+      Refine SQL injection comment-detection heuristics in `RegexInputGuard` so benign
+      text containing symbols like `#` or `--` is less likely to trigger warnings,
+      while preserving strong detection for SQL comment markers in injection-like
+      contexts (for example quote + comment and SQL keyword + comment combinations).
+      This task addresses the Feature18 post-review precision warning and should keep
+      the guard rigorous but less noisy for normal user input.
+    files:
+      - src/kinnoo/input_guard.py
+      - tests/test_input_guard.py
+    steps:
+      - 'step1: Narrow SQL comment pattern matching to require SQL-like context near comment markers (quote/injection indicator and/or SQL statement context)'
+      - 'step2: Add focused false-positive regression tests for benign text with `#` and `--`'
+      - 'step3: Add focused true-positive regression tests to ensure SQL comment injection payloads remain detected'
+      - 'step4: Re-run feature18 tests and full suite to verify precision improvements do not regress category coverage'
+    dependencies: [task117]
+    tests: [test165, test166]
+    status: needs-review
