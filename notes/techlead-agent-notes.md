@@ -1,4 +1,35 @@
 
+
+## Feature18 Task Breakdown (2026-03-13)
+
+- Created 4 tasks (task116–task119) and 16 tests (test149–test164) for feature18 "Input Safety Guard".
+- Updated feature18 description and ACs in FEATURES.txt to include:
+  - 6 threat categories (added XSS and template injection beyond original 4)
+  - Type-aware checking for future parameterized inputs (-e, -i, -d, -u)
+  - `check_inputs()` multi-value method for future multi-parameter input mode
+  - Non-interactive TTY fail-safe (auto-abort when stdin is not a TTY)
+  - 8 ACs (expanded from original 6)
+- Task execution order: task116 → task117 → task118 → task119 (strictly sequential)
+- Key design decisions:
+  - Protocol-based `InputGuard` with `check(value, input_type)` and `check_inputs(inputs)` for current + future input models
+  - Break after first pattern match per category per value to avoid warning floods
+  - Type-aware filtering: file_path → path traversal + shell only; url → SSRF + shell only; id → SQL + shell + template only
+  - Non-interactive mode auto-aborts as fail-safe (requires `--no-guard` for CI)
+- SWE handoff written to notes/swe-handoff.md with detailed per-task implementation guidance
+- Manifest validation passed after all changes
+
+---
+
+## Feature17 Pre-Merge Review (2026-03-12)
+
+- Reviewed tasks task112-task115 against AC1-AC4 with code + tests + docs.
+- Feature17-targeted tests passed:
+  - tests/test_pack_size_reporting.py
+  - tests/test_docs.py::test_feature17_docs_cover_pack_size_reporting
+- Full repository suite is currently not green (18 failures), mainly around existing pack/install expectation drift.
+- Decision: do not approve feature17 merge to phase2/main until full-suite failures are resolved or formally waived.
+- Traceability fix applied during review: corrected stale TESTS.txt automation_path entries for test144/test145/test146; manifest validation passes.
+
 ---
 
 ## V2 Fallback for Missing Wheels (2026-02-25)
@@ -996,6 +1027,52 @@ Semantic Kernel and barebones OpenAI function-calling are also straightforward.
 Choose frameworks with simple, well-documented APIs and minimal external dependencies for the smoothest V2 integration.
 Multi-Agent (LangGraph, CrewAI) is harder
 
+---
+
+## Onboarding Existing Agents — Q&A (2026-03-01)
+
+Great questions. You’re focusing on exactly the right onboarding friction points.
+
+**1) Existing LangChain agent → package with kinnoo pack**
+- Keep your existing project; you do not need to rewrite it for Kinnoo.
+- Ensure there is a single runnable entrypoint that accepts one input argument and prints output.
+- Ensure requirements.txt lists your dependencies.
+- Add kinnoo.yaml (or bootstrap it with kinnoo init and adapt it).
+- Verify locally with kinnoo run path/to/agent "test input".
+- Package with kinnoo pack path/to/agent.
+- Result: a .kno archive that others can install/run.
+
+**2) Do they need to write kinnoo.yaml manually?**
+- Not strictly. Today, easiest path is bootstrap with kinnoo init, then copy in existing code.
+- For required fields and format, developers can use:
+  - `README.md`
+  - `docs/manifest-schema-reference.md`
+- If fields are wrong/missing, runtime/pack validation returns concrete errors, so it is discoverable.
+- Typical values:
+  - name: project slug
+  - version: semantic version like 0.1.0
+  - entrypoint: relative path to your run file
+  - runtime: python, version constraint, type one-shot
+  - dependencies: list from requirements
+  - inputs/outputs: usually text for one-shot agents
+  - env_vars/framework: optional, as needed
+
+**3) “Easy creation” options (current + near-term)**
+- Option A (available now, lowest effort): init-first migration
+  - Run kinnoo init, replace run.py with your existing entrypoint, copy deps, tweak kinnoo.yaml.
+- Option B (available now): copy/paste minimal manifest template from docs + validator-driven fixes.
+- Option C (easy implementation, best UX): add kinnoo import existing-agent-path
+  - Auto-detect entrypoint and requirements, generate kinnoo.yaml, then show interactive confirmation.
+- Option D (easy implementation): add kinnoo wizard
+  - Prompt for each field, validate immediately, and write a correct manifest in one flow.
+- Option E (easy implementation): add kinnoo validate --explain
+  - Same validation, but with fix suggestions and examples for each failing field.
+
+If you want, I can draft a concrete UX spec for Option C (kinnoo import) with command behavior, prompts, and error handling so SWE can implement it quickly.
+
+### Recommendation note
+- Recommended Option C command shape: "kinnoo import <existing-agent-path> <new-agent-dir>"
+
 
 ### Clarification: V1 vs V2 Functionality (LangChain Project Structure)
 
@@ -1140,3 +1217,30 @@ This sequence covers the core agent sharing workflow.
 - Optionally, reserve `kinnoo info` for future project/agent metadata queries.
 - Implementation should dynamically surface available models/frameworks from a registry/config for up-to-date info.
 - Action: Track this for future CLI/UX improvements and discuss design in planning sessions.
+
+---
+
+## Pack/Publish Responsibility Refactor Feedback (2026-03-05)
+
+### Decision Summary
+- Feedback accepted: `kinnoo pack` should own local versioned artifact archival.
+- `kinnoo publish` should represent publication to an online-style registry flow (mocked locally for now).
+
+### Why this is a better split
+- Clarifies responsibilities:
+  - `pack` = produce + organize local build artifacts for developer workflows.
+  - `publish` = push selected artifact to registry namespace/workspace.
+- Removes ambiguity in “local registry” semantics and aligns with common container/package mental models.
+- Enables future auth (`kinnoo login`) and remote backend swap with minimal CLI behavior changes.
+
+### Agreed behavior targets
+- Local archive root: `~/.kinnoo/archive/<agent>/<version>/<agent>.kno`
+- Publish target (V1 mock): `registry-scratch/jerry/<agent>/<version>/<agent>.kno`
+- Overwrite protection for publish tags via untagged rollover (`untagged-1`, `untagged-2`, ...)
+
+### Recommended implementation improvements
+1. Add reusable path resolver helpers (archive source + publish target) to avoid hardcoded path drift.
+2. Add explicit publish manifest metadata validation before copy (agent name/version consistency checks).
+3. Emit deterministic, parse-friendly output lines for CI and future UX tooling.
+4. Keep untagged rollover logic isolated in a small utility to simplify future remote-registry adapter parity.
+5. Mark old feature12 local-registry install/list/search scope as deprecated or explicitly out-of-scope after refactor to avoid dual-behavior confusion.

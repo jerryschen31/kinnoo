@@ -274,3 +274,111 @@ def test_type_field_normalization(tmp_path: Path, io_field, type_value, expected
     # For this test, we can check that the type is a list after validation
     # But since the file is not rewritten, we can't check the file, only the runtime
     # So, for a more robust test, we could expose normalization, but for now, just ensure validation passes
+
+
+def test_feature9_optional_string_fields_are_accepted(tmp_path: Path) -> None:
+    # [agent] test71 validates feature9 task48 optional metadata presence/absence behavior.
+    with_optional = dict(_VALID_MANIFEST)
+    with_optional["description"] = "A demo manifest description"
+    with_optional["author"] = "Kinnoo Team"
+    with_optional["license"] = "MIT"
+
+    p_with_optional = _write_manifest(with_optional, tmp_path)
+    is_valid, errors = validate(str(p_with_optional))
+    assert is_valid is True, f"Expected optional metadata fields to be accepted; errors: {errors}"
+    assert errors == []
+
+    without_optional = dict(_VALID_MANIFEST)
+    p_without_optional = tmp_path / "feature9_without_optional.yaml"
+    p_without_optional.write_text(yaml.dump(without_optional), encoding="utf-8")
+    is_valid, errors = validate(str(p_without_optional))
+    assert is_valid is True, f"Expected manifest without optional metadata fields to remain valid; errors: {errors}"
+    assert errors == []
+
+
+def test_feature9_env_vars_list_of_strings_is_accepted(tmp_path: Path) -> None:
+    # [agent] test72 validates that env_vars list[str] is accepted under task48 schema extension.
+    data = dict(_VALID_MANIFEST)
+    data["env_vars"] = ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "KINNOO_ENV"]
+
+    p = _write_manifest(data, tmp_path)
+    is_valid, errors = validate(str(p))
+    assert is_valid is True, f"Expected env_vars list[str] to pass validation; errors: {errors}"
+    assert errors == []
+
+
+def test_feature9_v1_manifest_compatibility(tmp_path: Path) -> None:
+    # [agent] test73 validates that V1 manifests remain compatible after V2 field additions.
+    v1_manifest = dict(_VALID_MANIFEST)
+    p_v1 = _write_manifest(v1_manifest, tmp_path)
+
+    is_valid, errors = validate(str(p_v1))
+    assert is_valid is True, f"Expected V1 manifest to remain valid; errors: {errors}"
+    assert errors == []
+
+    v1_invalid_manifest = dict(_VALID_MANIFEST)
+    del v1_invalid_manifest["entrypoint"]
+    p_v1_invalid = tmp_path / "feature9_v1_invalid_manifest.yaml"
+    p_v1_invalid.write_text(yaml.dump(v1_invalid_manifest), encoding="utf-8")
+
+    is_valid, errors = validate(str(p_v1_invalid))
+    assert is_valid is False, "Expected invalid V1 manifest to remain invalid for original reasons"
+    assert any("Missing required field: 'entrypoint'" in msg for msg in errors), (
+        f"Expected legacy missing-field error; got: {errors}"
+    )
+    assert all(
+        "description" not in msg and "author" not in msg and "license" not in msg and "env_vars" not in msg
+        for msg in errors
+    ), f"Did not expect feature9 optional-field errors for V1 manifest path; got: {errors}"
+
+
+def test_feature9_invalid_optional_field_types_are_rejected(tmp_path: Path) -> None:
+    # [agent] test74 validates field-specific type checks for optional V2 fields.
+    invalid_optional_types = dict(_VALID_MANIFEST)
+    invalid_optional_types["description"] = 123
+    invalid_optional_types["author"] = ["Kinnoo Team"]
+    invalid_optional_types["license"] = {"name": "MIT"}
+    invalid_optional_types["env_vars"] = "OPENAI_API_KEY"
+
+    p_invalid_optional_types = _write_manifest(invalid_optional_types, tmp_path)
+    is_valid, errors = validate(str(p_invalid_optional_types))
+    assert is_valid is False, "Expected validation to fail for invalid optional field types"
+    assert any("Field 'description' must be of type str" in msg for msg in errors), (
+        f"Expected description type error; got: {errors}"
+    )
+    assert any("Field 'author' must be of type str" in msg for msg in errors), (
+        f"Expected author type error; got: {errors}"
+    )
+    assert any("Field 'license' must be of type str" in msg for msg in errors), (
+        f"Expected license type error; got: {errors}"
+    )
+    assert any("Field 'env_vars' must be of type list" in msg for msg in errors), (
+        f"Expected env_vars list type error; got: {errors}"
+    )
+
+    invalid_env_var_item_type = dict(_VALID_MANIFEST)
+    invalid_env_var_item_type["env_vars"] = ["OPENAI_API_KEY", 42]
+
+    p_invalid_env_item = tmp_path / "feature9_invalid_env_item.yaml"
+    p_invalid_env_item.write_text(yaml.dump(invalid_env_var_item_type), encoding="utf-8")
+    is_valid, errors = validate(str(p_invalid_env_item))
+    assert is_valid is False, "Expected validation to fail for non-string env_vars item"
+    assert any("Field 'env_vars[1]' must be of type str" in msg for msg in errors), (
+        f"Expected env_vars item type error; got: {errors}"
+    )
+
+
+def test_feature9_env_vars_items_must_be_non_empty_strings(tmp_path: Path) -> None:
+    # [agent] test76 validates env_vars non-empty string item constraints.
+    invalid_env_vars = dict(_VALID_MANIFEST)
+    invalid_env_vars["env_vars"] = ["OPENAI_API_KEY", "", "   "]
+
+    p = _write_manifest(invalid_env_vars, tmp_path)
+    is_valid, errors = validate(str(p))
+    assert is_valid is False, "Expected validation to fail for empty env_vars entries"
+    assert any("Field 'env_vars[1]' must be a non-empty string." in msg for msg in errors), (
+        f"Expected env_vars[1] non-empty string error; got: {errors}"
+    )
+    assert any("Field 'env_vars[2]' must be a non-empty string." in msg for msg in errors), (
+        f"Expected env_vars[2] non-empty string error; got: {errors}"
+    )

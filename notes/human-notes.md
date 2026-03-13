@@ -61,6 +61,7 @@ If kinnoo only supports running single agents (but can package multi-agent syste
 - Standardizes agent packaging: Introduces a manifest and packaging convention, reducing “works on my machine” problems for single-agent projects.
 - Lowers onboarding friction: New users can quickly try, run, and modify single-agent projects without manual setup.
 - Lays groundwork for a registry: Even if multi-agent systems can’t be run, they can be published/discovered, encouraging ecosystem growth.
+- Lays groundwork for orchestrating cross-framework multi-agent systems. Regardless of orchestration framework (e.g., Kubernetes), individual agents within a multi-agent system can be run with "kinnoo run", and the individual agents themselves can be written with any supported framework. This greatly simplifies the runtime and management of these multi-agent systems, and prevents having to "lock into" a specific multi-agent framework like CrewAI.
 
 ### Limitations:
 
@@ -78,4 +79,132 @@ Kinnoo would still provide real value for reproducibility, sharing, and onboardi
 - V2 should support interactive mode with "kinnoo run"
 - V2 should support secure MCP server for interacting with filesystem (Filesystem MCP server)
 - need to decide on a direction for V3+. Do I support more "scaffolding" and focus on init (building an agent), or focus more on runtime capabilities (kinnoo run), or just focus on the registry aspect, or something else? Need some good ideas and guidance here
+
+### v1.1.0 notes
+
+- currently kinnoo pack overwrites an existing .kno archive without warning. We should have kinnoo pack prompt for a warning: "(archive.kno) already exists - are you sure you want to overwrite? (y/n): "
+- currently the agent version is controlled by the version number within kinnoo.yaml of the agent. We need to think of a more automated way for versioning to happen, instead of the developer always needing to manually update the version in kinnoo.yaml. Help me think of a clean, easy way to update agent versions.
+
+### kinnoo import tasks (for later)
+
+
+  - id: task62
+    title: Add kinnoo import CLI command
+    type: task
+    description: |
+      Add `kinnoo import <existing-agent-path> <new-agent-dir>` to CLI parsing
+      and route execution to a dedicated import command module.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/import_command.py
+    steps:
+      - step1: Add `import` subcommand with required positional args `existing-agent-path` and `new-agent-dir`
+      - step2: Print clear usage and examples when args are missing or invalid
+      - step3: Delegate command execution to `import_command.py` to keep CLI modular
+      - step4: Ensure command exits with stable non-zero codes on validation failure
+    dependencies: [task39]
+    tests: []
+    status: not-started
+
+  - id: task63
+    title: Implement source project analysis and inference
+    type: task
+    description: |
+      Analyze an existing agent project to infer likely entrypoint,
+      requirements source, and baseline manifest metadata.
+    files:
+      - src/kinnoo/import_command.py
+      - src/kinnoo/schema.py
+    steps:
+      - step1: Detect candidate entrypoint files using deterministic priority rules (for example run.py/main.py)
+      - step2: Detect requirements source (`requirements.txt`, fallback heuristics) and capture dependencies list
+      - step3: Infer manifest fields (`name`, `entrypoint`, runtime defaults, inputs/outputs defaults) with explicit fallback behavior
+      - step4: Emit actionable warnings when inference confidence is low instead of silently guessing
+    dependencies: [task62, task48, task49]
+    tests: []
+    status: not-started
+
+  - id: task64
+    title: Generate kinnoo scaffold from inferred metadata
+    type: task
+    description: |
+      Create the target Kinnoo agent directory and generate required files from
+      inferred metadata while preserving source files unchanged.
+    files:
+      - src/kinnoo/import_command.py
+      - src/kinnoo/templates.py
+      - src/kinnoo/validator.py
+    steps:
+      - step1: Create `<new-agent-dir>` with required Kinnoo structure and copy/import selected source files
+      - step2: Generate kinnoo.yaml and requirements.txt with inferred/default values
+      - step3: Validate generated kinnoo.yaml via feature1 validator before finalizing output
+      - step4: Surface guidance for user edits when generated values need manual refinement
+    dependencies: [task63, task5, task18]
+    tests: []
+    status: not-started
+
+  - id: task65
+    title: Add collision safety and force controls
+    type: task
+    description: |
+      Prevent destructive writes when target directories already exist and add a
+      deliberate override path for advanced users.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/import_command.py
+    steps:
+      - step1: Detect target directory collisions before file writes
+      - step2: Abort safely by default with clear remediation message
+      - step3: Add explicit override behavior (force/confirm) with guarded semantics
+      - step4: Ensure source project paths are never modified during import
+    dependencies: [task62]
+    tests: []
+    status: not-started
+
+  - id: task66
+    title: Implement rollback and interruption-safe cleanup
+    type: task
+    description: |
+      Ensure partial import state is cleaned up when failures or user
+      interruptions occur during onboarding flows.
+    files:
+      - src/kinnoo/import_command.py
+      - src/kinnoo/cli.py
+    steps:
+      - step1: Track created files/directories transactionally during import
+      - step2: On exceptions, remove partially created artifacts and print concise failure summary
+      - step3: Handle KeyboardInterrupt/EOF as controlled aborts with deterministic cleanup
+      - step4: Guarantee no broken partial Kinnoo agent remains after failed/aborted import
+    dependencies: [task64, task65]
+    tests: []
+    status: not-started
+
+  - id: task67
+    title: Document kinnoo import onboarding workflow
+    type: task
+    description: |
+      Add documentation for importing existing agents, including expected input
+      structure, inferred defaults, safe override behavior, and failure recovery.
+    files:
+      - README.md
+      - docs/manifest-schema-reference.md
+    steps:
+      - step1: Add quickstart for `kinnoo import <existing-agent-path> <new-agent-dir>`
+      - step2: Document inference behavior, when manual edits are expected, and common troubleshooting paths
+      - step3: Document cleanup and interruption guarantees so users trust failure handling
+      - step4: Keep examples concise and aligned with command help output
+    dependencies: [task62, task63, task64, task66]
+    tests: []
+    status: not-started
+
+## feature18 notes from Tech Lead Agent - input injections
+
+### Design rationale — why these decisions matter
+Why 6 threat categories (not the original 4)? XSS and template injection are real attack vectors when agent input gets rendered in web contexts or processed by template engines. Since kinnoo agents can be anything — including web-facing agents — covering these costs little but catches genuine threats.
+
+Why type-aware filtering? When kinnoo adds -d <file-path> and -u <url> flags later, a file path input doesn't need SQL injection checks, and a URL input doesn't need path traversal checks. Filtering by input type reduces false positives and makes the guard more precise. The SWE agent builds this now so no refactoring is needed when parameterized inputs ship.
+
+Why break after first match per category? Without this, a single malicious input like '; DROP TABLE users; DELETE FROM logs; -- would generate 3+ SQL warnings. One warning per category is enough to convey the risk without overwhelming the user.
+
+Why non-interactive fail-safe? In CI/scripts where stdin is piped, prompting would hang or auto-answer empty (which maps to 'n'/abort). Detecting not sys.stdin.isatty() and auto-aborting with a clear message is safer and more predictable than hanging. Teams that trust their input use --no-guard.
 
