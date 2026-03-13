@@ -2194,7 +2194,7 @@ tasks:
       - 'step7: Ensure the module is importable and `get_default_guard()` returns an instance with both `check` and `check_inputs` methods'
     dependencies: []
     tests: [test149, test150]
-    status: not-started
+    status: needs-review
 
   - id: task117
     title: "RegexInputGuard — comprehensive injection pattern library"
