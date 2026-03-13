@@ -2413,7 +2413,7 @@ tests:
     expected: Pack always reports final archive size in human-readable format
     pass_criteria: Output includes archive size line with deterministic unit formatting
     automated: true
-    automation_path: tests/test_pack_size_reporting.py::test_pack_prints_archive_size
+    automation_path: tests/test_pack_size_reporting.py::test_pack_prints_human_readable_archive_size
     covers:
       - feature: feature17
         ac: AC1
@@ -2430,7 +2430,7 @@ tests:
     expected: Warning branch is triggered when final archive size exceeds threshold
     pass_criteria: Pack output includes large-archive warning with computed MB value
     automated: true
-    automation_path: tests/test_pack_size_reporting.py::test_pack_warns_when_archive_large
+    automation_path: tests/test_pack_size_reporting.py::test_pack_warns_when_archive_exceeds_threshold_override
     covers:
       - feature: feature17
         ac: AC2
@@ -2446,7 +2446,7 @@ tests:
     expected: Inspect output includes archive size visibility for packaged artifacts
     pass_criteria: "`- Archive Size: <value>` appears and is consistent with archive file size"
     automated: true
-    automation_path: tests/test_pack_size_reporting.py::test_inspect_displays_archive_size
+    automation_path: tests/test_pack_size_reporting.py::test_inspect_displays_archive_size_for_archive_target
     covers:
       - feature: feature17
         ac: AC3
