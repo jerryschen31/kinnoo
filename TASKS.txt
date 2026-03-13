@@ -2151,7 +2151,7 @@ tasks:
       - step3: Preserve backward-compatible output ordering while adding size visibility
     dependencies: [task112, task87]
     tests: [test147]
-    status: not-started
+    status: needs-review
 
   - id: task115
     title: Docs and regression coverage for feature17
