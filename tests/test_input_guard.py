@@ -217,3 +217,29 @@ def test_check_inputs_multi_value_aggregation() -> None:
     ])
     assert safe_result.safe is True
     assert safe_result.warnings == []
+
+
+def test_sql_comment_markers_benign_text_not_flagged() -> None:
+    guard = RegexInputGuard()
+    benign_inputs = [
+        "Roadmap #2026 draft for internal review",
+        "Use -- to indicate a pause in writing, not code",
+    ]
+
+    for value in benign_inputs:
+        result = guard.check(value)
+        assert result.safe is True
+        assert not any(w.threat_category == SQL_INJECTION for w in result.warnings)
+
+
+def test_sql_comment_injection_context_still_detected() -> None:
+    guard = RegexInputGuard()
+    contextual_payloads = [
+        "name' -- drop the rest",
+        "UNION SELECT password FROM users --",
+    ]
+
+    for payload in contextual_payloads:
+        result = guard.check(payload)
+        assert result.safe is False
+        assert any(w.threat_category == SQL_INJECTION for w in result.warnings)

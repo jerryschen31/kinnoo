@@ -24,7 +24,7 @@ PATTERNS: dict[str, list[tuple[str, str]]] = {
             "Possible SQL injection: tautology condition",
         ),
         (
-            r"(?:['\"`].{0,20})?(?:--|#|/\*)",
+            r"(?:['\"`][^\n]{0,40}(?:--|#|/\*)|\b(?:select|union|insert|update|delete|drop|where|from|or|and)\b[^\n]{0,40}(?:--|#|/\*))",
             "Possible SQL injection: SQL comment sequence",
         ),
         (r"\bwaitfor\s+delay\b", "Possible SQL injection: WAITFOR DELAY"),

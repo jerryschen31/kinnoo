@@ -2353,4 +2353,4 @@ tasks:
       - 'step4: Re-run feature18 tests and full suite to verify precision improvements do not regress category coverage'
     dependencies: [task117]
     tests: [test165, test166]
-    status: not-started
+    status: needs-review
