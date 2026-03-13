@@ -2276,7 +2276,7 @@ tasks:
       - 'step6: Ensure each pattern can be tested individually via the PATTERNS dict'
     dependencies: [task116]
     tests: [test151, test152, test153, test154, test155, test156, test157, test158, test159]
-    status: not-started
+    status: needs-review
 
   - id: task118
     title: "CLI --no-guard flag and run_command integration"
