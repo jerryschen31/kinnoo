@@ -1,5 +1,84 @@
 
 
+## Phase 3 Feature Definition (2026-03-13)
+
+Created 10 features (feature20–feature29) for Phase 3: "Share any agent. Run it with its full stack."
+
+### Decomposition from Phase 3 Notes (6 high-level → 10 features)
+
+The 6 high-level features from `notes/phases/phase3-notes-opus-4-6.md` were decomposed as follows:
+
+1. **Remote Registry** (3-4 weeks) → split into 3 features:
+   - **feature27**: Registry Backend Abstraction & Remote Client (CLI-side protocol + HTTP client)
+   - **feature28**: Remote Registry Server (FastAPI + S3 + JSON metadata + auth)
+   - **feature29**: Registry Web UI (Jinja2 templates, session auth, browsing)
+
+2. **Flexible Runtime Inputs** (3-5 days) → 1 feature:
+   - **feature20**: No-input run + `--` pass-through arguments + `inputs.required` schema field
+
+3. **Service Declarations & Health Checks** (1.5-2.5 weeks) → split into 2 features:
+   - **feature24**: Service Declarations Schema (manifest `services` section + validation only)
+   - **feature25**: Service Health Checks Runtime (preflight checks: HTTP, TCP, process)
+
+4. **Data & Asset Bundling** (4-7 days) → 1 feature:
+   - **feature22**: Manifest `data` section, pack/install integration, size warnings
+
+5. **MCP Server Packaging & Client Templates** (2-3 weeks) → split into 2 features:
+   - **feature23**: MCP Server Runtime Type (schema + supervisor lifecycle in run_command)
+   - **feature26**: MCP Server Packages & Client Templates (FS MCP server, GitHub MCP server, mcp-client template, permissions)
+
+6. **Framework & Template Expansion** (1-1.5 weeks) → 1 feature:
+   - **feature21**: PydanticAI, LangGraph, OpenAI Agents SDK templates
+
+### Implementation Order (recommended)
+
+**Wave 1 — Quick wins, independent (parallel):**
+- feature20 (Flexible Runtime Inputs) — small, high-value
+- feature21 (Framework Templates) — self-contained, no cross-cutting changes
+- feature22 (Data Bundling) — small, builds on existing pack/install
+
+**Wave 2 — New runtime type:**
+- feature23 (MCP Server Runtime Type) — establishes `mcp-server` in schema + supervisor
+
+**Wave 3 — Schema extensions:**
+- feature24 (Service Declarations Schema) — schema-only, clean
+
+**Wave 4 — MCP ecosystem:**
+- feature26 (MCP Packages & Client Templates) — depends on feature23 + feature21
+
+**Wave 5 — Runtime integration:**
+- feature25 (Service Health Checks) — depends on feature24, benefits from feature23
+
+**Wave 6 — Registry (longest tail, can overlap with waves 2-5):**
+- feature27 (Registry Client Abstraction) — start anytime
+- feature28 (Registry Server) — depends on feature27
+- feature29 (Registry Web UI) — depends on feature28
+
+### Regression Risk Summary
+
+| Feature | Risk | Tests to Verify |
+|---------|------|-----------------|
+| feature20 | HIGH — changes `kinnoo run` argparse (input is currently required positional) | test_cli.py, test_install.py |
+| feature21 | MEDIUM — adds --framework choices to cli.py/init_command.py | test_init.py, test_cli.py |
+| feature22 | MEDIUM — changes pack/install archive handling | test_pack.py, test_cli_install.py, test_cli_install_extract.py |
+| feature23 | HIGH — adds `mcp-server` to SUPPORTED_RUNTIME_TYPES, may break validator tests that assert only `one-shot` | test_validator.py |
+| feature24 | LOW — additive schema change only | test_validator.py |
+| feature25 | LOW — additive runtime behavior | test_cli.py (preflight tests) |
+| feature26 | MEDIUM — new --framework choice + permissions schema | test_init.py, test_validator.py |
+| feature27 | HIGH — refactors publish/install/list/search internals | test_cli.py, test_cli_install.py, test_install.py |
+| feature28 | NONE — new server app, separate from CLI | (new server tests) |
+| feature29 | NONE — extends server app | (new server tests) |
+
+### Key Design Decisions
+
+- Split Remote Registry into 3 features (client → server → UI) to allow incremental delivery and review
+- Split MCP into runtime type + packages to avoid a monolithic feature
+- Split Service Declarations into schema + runtime for cleaner separation of concerns
+- All features have explicit regression notes in YAML so SWE agents know which test suites to run
+- Manifest validator passes after all additions (confirmed via `python3 src/validate_project_manifests.py`)
+
+---
+
 ## Feature18 Task Breakdown (2026-03-13)
 
 - Created 4 tasks (task116–task119) and 16 tests (test149–test164) for feature18 "Input Safety Guard".

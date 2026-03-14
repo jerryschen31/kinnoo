@@ -670,3 +670,420 @@ features:
     owner: techlead-agent
     dependencies: [feature2, feature3, feature9]
     status: paused
+
+  # ======================================================================
+  # Phase 3 (V3): "Share any agent. Run it with its full stack."
+  # ======================================================================
+
+  - id: feature20
+    title: "Flexible Runtime Inputs — No-input run & pass-through arguments"
+    description: |
+      Extend `kinnoo run` to support agents that require no user input (self-contained
+      agents) and agents that accept multiple typed arguments via a `--` pass-through
+      separator. Add `inputs.required` (boolean, default true) to the manifest schema
+      so agents can declare they need no input. Pass-through arguments after `--` are
+      forwarded verbatim to the agent subprocess. The input guard is extended to scan
+      each pass-through argument individually.
+
+      Usage patterns:
+        kinnoo run myagent                        # no-input (inputs.required: false)
+        kinnoo run myagent "hello"                 # current single-input (unchanged)
+        kinnoo run myagent -- -e "text" -u "url"  # pass-through mode
+
+      Backward compatibility: the current single positional input mode MUST continue to
+      work identically. Only agents with `inputs.required: false` may omit input.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo run <dir>` without input succeeds when manifest has `inputs.required: false`; agent receives no positional input argument."
+      - id: AC2
+        description: "`kinnoo run <dir>` without input fails with a clear error when manifest has `inputs.required: true` (default) or when `inputs.required` is absent."
+      - id: AC3
+        description: "`kinnoo run <dir> \"hello\"` continues to work identically to V2 behavior (single positional input)."
+      - id: AC4
+        description: "`kinnoo run <dir> -- -e \"text\" -u \"url\"` forwards all arguments after `--` to the agent subprocess as additional argv entries."
+      - id: AC5
+        description: "The input guard scans each pass-through argument individually before execution; detected threats are aggregated and displayed."
+      - id: AC6
+        description: "`--no-guard` flag still disables the guard for all input modes (no-input, single, pass-through)."
+      - id: AC7
+        description: "Manifest validator accepts `inputs.required` as an optional boolean field; non-boolean values produce a clear type error."
+      - id: AC8
+        description: "Existing V2 tests for `kinnoo run` continue to pass without modification (regression check required)."
+    notes:
+      - "REGRESSION RISK: changes argparse for `kinnoo run` — input is currently a required positional arg. SWE agent must run full `test_cli.py` and `test_install.py` regression suite after changes."
+      - "Use `argparse.REMAINDER` to capture args after `--` separator."
+      - "Preserve backward compat: if no `--` and no input, check `inputs.required` to decide error vs proceed."
+      - "Input guard `check_inputs()` multi-value method (from feature18) is the integration point for scanning pass-through args."
+    owner: techlead-agent
+    dependencies: [feature3, feature18]
+    status: not-started
+
+  - id: feature21
+    title: "Framework & Template Expansion — PydanticAI, LangGraph, OpenAI Agents"
+    description: |
+      Expand `kinnoo init --framework` to support three new framework templates:
+      `pydantic-ai`, `langgraph`, and `openai-agents`. Each template produces a
+      minimal but runnable agent scaffold with framework-specific `run.py`, 
+      `requirements.txt`, `kinnoo.yaml`, and `README.md`. All templates follow
+      a common contract (accept input via sys.argv[1], print output to stdout,
+      env vars for API keys) so the kinnoo run/pack/install flow works unchanged.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo init my-agent --framework pydantic-ai` creates a directory with PydanticAI agent scaffold including typed tools and multi-model support boilerplate."
+      - id: AC2
+        description: "`kinnoo init my-agent --framework langgraph` creates a directory with LangGraph stateful graph agent scaffold including nodes and edges boilerplate."
+      - id: AC3
+        description: "`kinnoo init my-agent --framework openai-agents` creates a directory with OpenAI Agent SDK scaffold including agent handoffs and guardrails boilerplate."
+      - id: AC4
+        description: "Each template's `requirements.txt` pins the framework dependency to a major version (e.g., `pydantic-ai>=0.1,<1.0`) to reduce upstream breakage."
+      - id: AC5
+        description: "Each template's `kinnoo.yaml` passes feature1 validator and sets the `framework` field to the appropriate value."
+      - id: AC6
+        description: "Each template's `README.md` includes framework-specific setup instructions (API key env vars, model configuration)."
+      - id: AC7
+        description: "All three templates follow the same contract: accept input via `sys.argv[1]`, output to stdout, env vars for API keys — runnable with `kinnoo run` without modification."
+      - id: AC8
+        description: "Existing framework choices (`gemini`, `chatgpt`, `claude-chat`) continue to work unchanged (regression check required)."
+      - id: AC9
+        description: "`kinnoo init --framework invalid-name` prints a clear error listing all valid framework choices."
+    notes:
+      - "REGRESSION RISK: modifying the `--framework` choices list in cli.py and init_command.py. SWE agent must run `test_init.py` and `test_cli.py` regression tests."
+      - "Define templates in templates.py following existing GEMINI_RUN_PY / CHATGPT_RUN_PY pattern."
+      - "Pin major versions in each template's requirements.txt to reduce churn."
+      - "One smoke test per template: `kinnoo init` + validate generated manifest."
+    owner: techlead-agent
+    dependencies: [feature4]
+    status: not-started
+
+  - id: feature22
+    title: "Data & Asset Bundling"
+    description: |
+      Add a manifest `data` section for declaring data files and directories to be
+      bundled alongside agent code. Declared data is included in the `.kno` archive
+      during `kinnoo pack` and extracted during `kinnoo install`. Size warnings are
+      displayed when data pushes the archive beyond configurable thresholds.
+
+      Manifest syntax:
+      ```yaml
+      data:
+        - path: data/embeddings.npz
+        - path: data/reference_docs/
+        - path: models/classifier.onnx
+      ```
+
+      Use cases: local vector DBs, embedding files, reference documents, model weights.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "Manifest validator accepts an optional `data` field as a list of objects, each with a `path` string. Non-list or invalid item structure produces clear errors."
+      - id: AC2
+        description: "`kinnoo pack` includes all declared data paths (files and directories) in the archive under their original relative paths."
+      - id: AC3
+        description: "`kinnoo pack` rejects data paths that use path traversal (e.g., `../secret`) with a clear security error."
+      - id: AC4
+        description: "`kinnoo pack` warns if declared data path does not exist in the agent directory."
+      - id: AC5
+        description: "`kinnoo install` extracts data files and directories to their correct relative paths in the installed agent directory."
+      - id: AC6
+        description: "`kinnoo pack` warns when total archive size exceeds 100 MB (default) or a configurable `max_bundle_size_mb` from manifest."
+      - id: AC7
+        description: "`kinnoo inspect` displays declared data paths and their sizes when inspecting an agent or archive."
+      - id: AC8
+        description: "Agents without a `data` section are unaffected — pack/install behavior is identical to V2 (regression check required)."
+    notes:
+      - "REGRESSION RISK: changes pack and install archive handling. SWE agent must run `test_pack.py`, `test_cli_install.py`, and `test_cli_install_extract.py` regression tests."
+      - "Reuse existing `files` inclusion logic where possible but keep `data` semantically separate for clearer UX."
+      - "Enforce deterministic archive paths to avoid install-time path mismatches."
+      - "Path traversal check already exists in pack_command.py for extra files — extend it to data paths."
+    owner: techlead-agent
+    dependencies: [feature5, feature8]
+    status: not-started
+
+  - id: feature23
+    title: "MCP Server Runtime Type — Schema & Lifecycle"
+    description: |
+      Add `mcp-server` as a supported `runtime.type` in the manifest schema. MCP servers
+      are long-running processes (as opposed to one-shot agents). Implement a supervisor
+      module that manages the MCP server lifecycle: spawn, readiness probe, signal handling,
+      and graceful teardown. When `kinnoo run` is invoked on an agent whose manifest
+      declares `runtime.type: mcp-server`, the runtime launches the server process and
+      keeps it alive until the user sends SIGINT (Ctrl+C).
+
+      This establishes the foundation for packaging and distributing MCP servers via kinnoo.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "Manifest validator accepts `runtime.type: mcp-server` as a valid runtime type alongside `one-shot`."
+      - id: AC2
+        description: "`kinnoo run` on an `mcp-server` agent spawns the entrypoint as a long-running subprocess (does not wait for it to exit like one-shot)."
+      - id: AC3
+        description: "The supervisor performs a readiness probe (configurable: TCP port check or stdout marker) before reporting the server as running."
+      - id: AC4
+        description: "Ctrl+C (SIGINT) triggers graceful shutdown: sends SIGTERM to server, waits for exit (with timeout), then SIGKILL if unresponsive."
+      - id: AC5
+        description: "Server stdout/stderr are streamed to the terminal in real-time, matching one-shot behavior."
+      - id: AC6
+        description: "Trace log records server start time, stop time, and exit code/signal."
+      - id: AC7
+        description: "Existing one-shot agents are completely unaffected by this change (regression check required)."
+      - id: AC8
+        description: "A manifest with `runtime.type: mcp-server` and no readiness probe configuration falls back to a default TCP check or immediate-ready."
+    notes:
+      - "REGRESSION RISK: adding `mcp-server` to SUPPORTED_RUNTIME_TYPES in schema.py changes validation behavior. SWE agent must run `test_validator.py` regression tests — existing tests that assert only 'one-shot' is valid will need updating."
+      - "Implement lifecycle as a standalone supervisor module (src/kinnoo/supervisor.py) — do NOT embed lifecycle logic inline in run_command.py."
+      - "Signal handling should use Python's signal module; test with mock subprocess."
+      - "Readiness probe options: TCP port (manifest field `runtime.port`), stdout marker string, or skip (immediate-ready)."
+    owner: techlead-agent
+    dependencies: [feature3, feature9]
+    status: not-started
+
+  - id: feature24
+    title: "Service Declarations — Manifest Schema"
+    description: |
+      Add an optional `services` section to the kinnoo.yaml manifest schema for declaring
+      external service dependencies. Each service entry declares a name, type, and health
+      check configuration. The validator ensures correct structure and types. This is a
+      schema-only feature — runtime health checks are implemented in feature25.
+
+      Manifest syntax:
+      ```yaml
+      services:
+        - name: my-vector-db
+          type: vector-db
+          health_check:
+            method: tcp
+            port: 6333
+        - name: my-api
+          type: api
+          health_check:
+            method: http
+            url: http://localhost:8000/health
+      ```
+
+      Supported service types: mcp-server, vector-db, database, api, local-process.
+      Supported health check methods: http, tcp, process.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "Manifest validator accepts an optional `services` field as a list of service objects."
+      - id: AC2
+        description: "Each service object requires `name` (string) and `type` (string from allowed set: mcp-server, vector-db, database, api, local-process). Missing fields produce clear errors."
+      - id: AC3
+        description: "Each service object accepts an optional `health_check` object with `method` (string from: http, tcp, process) and method-specific fields (`port` for tcp, `url` for http, `process_name` for process)."
+      - id: AC4
+        description: "Invalid service type or health check method produces a clear error listing the allowed values."
+      - id: AC5
+        description: "Agents without a `services` section pass validation unchanged (no regression)."
+      - id: AC6
+        description: "`kinnoo inspect` displays declared services with their names, types, and health check configurations."
+      - id: AC7
+        description: "Duplicate service names within a single manifest produce a validation error."
+    notes:
+      - "Schema-only feature — no runtime behavior changes. Health check execution is feature25."
+      - "Keep the service type set extensible: validate against a known list but structure for future additions."
+      - "SWE agent should add new schema constants (SUPPORTED_SERVICE_TYPES, SUPPORTED_HEALTH_CHECK_METHODS) to schema.py following existing patterns."
+    owner: techlead-agent
+    dependencies: [feature9]
+    status: not-started
+
+  - id: feature25
+    title: "Service Health Checks — Runtime Preflight"
+    description: |
+      Implement runtime health checks for services declared in the manifest's `services`
+      section. Before agent execution, `kinnoo run` performs preflight health checks on
+      all declared services. Health check methods: HTTP GET (expects 2xx), TCP port probe,
+      process name check (via `pgrep` or equivalent). Results integrate with the existing
+      `--preflight` flag output.
+
+      Behavior:
+      - Interactive mode: warn on failed checks, prompt user to proceed or abort
+      - Non-interactive mode: fail-fast on any failed health check
+      - `--preflight` mode: report all service health check results without executing
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo run` checks health of all declared services before executing the agent. Failed checks display service name, type, and actionable guidance."
+      - id: AC2
+        description: "HTTP health check performs a GET request to the declared URL and expects a 2xx status code. Timeout is 5 seconds (configurable)."
+      - id: AC3
+        description: "TCP health check attempts a socket connection to the declared port on localhost. Timeout is 3 seconds (configurable)."
+      - id: AC4
+        description: "Process health check verifies a process with the declared name is running."
+      - id: AC5
+        description: "In interactive mode, failed health checks produce a warning and prompt: 'Service <name> is not healthy. Proceed anyway? [y/N]'. In non-interactive mode, failed checks abort execution."
+      - id: AC6
+        description: "`kinnoo run --preflight` includes service health check results in its output alongside existing preflight checks."
+      - id: AC7
+        description: "Agents without declared services have no health check behavior — identical to V2 (no regression)."
+      - id: AC8
+        description: "Health check failures do not hard-block execution in interactive mode — the user can always proceed after the warning."
+    notes:
+      - "Depends on feature24 for schema; depends on feature14 for --preflight integration."
+      - "Use stdlib `socket` for TCP checks, `urllib.request` for HTTP checks to avoid adding dependencies."
+      - "Implement health checkers as a small interface (check method → pass/fail + message) in a dedicated module (src/kinnoo/health_check.py)."
+    owner: techlead-agent
+    dependencies: [feature24, feature14]
+    status: not-started
+
+  - id: feature26
+    title: "MCP Server Packages & Client Templates"
+    description: |
+      Build on the mcp-server runtime type (feature23) to provide:
+      1. Packaged MCP server examples — GitHub MCP server and Filesystem MCP server as
+         first-party `.kno` archives that can be packed, published, and installed.
+      2. Filesystem MCP server permissions — read-only by default, opt-in write+create
+         (no delete), `allowed_paths` sandboxing declared in manifest.
+      3. MCP client agent templates — new `--framework` options for agents that connect
+         to MCP servers, demonstrating the end-to-end MCP workflow.
+
+      The goal is to ship one complete reference pair (MCP server archive + MCP client
+      template) as proof-of-concept before expanding the MCP catalog.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "A Filesystem MCP server agent exists in the project as a packable agent with `runtime.type: mcp-server` that passes validation and can be packed into a `.kno` archive."
+      - id: AC2
+        description: "Filesystem MCP server manifest declares `permissions` with `read_only` (boolean, default true), `allow_write` (boolean), `allow_create` (boolean), and `allowed_paths` (list of strings) — validator enforces schema."
+      - id: AC3
+        description: "When `read_only: true` (default), the filesystem MCP server rejects write/create tool calls at runtime."
+      - id: AC4
+        description: "A GitHub MCP server agent exists as a packable agent with appropriate manifest and entrypoint."
+      - id: AC5
+        description: "`kinnoo init my-agent --framework mcp-client` generates a template agent that demonstrates connecting to an MCP server, with README instructions for the full workflow."
+      - id: AC6
+        description: "The MCP client template follows the standard kinnoo contract (sys.argv[1] input, stdout output) and passes manifest validation."
+      - id: AC7
+        description: "The `permissions` manifest section is validated: unknown keys produce errors, boolean fields reject non-boolean values, `allowed_paths` must be a list of strings."
+    notes:
+      - "This feature depends on feature23 (MCP Server Runtime Type) being complete first."
+      - "REGRESSION RISK: adding `mcp-client` to --framework choices affects init_command.py and cli.py. Run `test_init.py` regression."
+      - "Filesystem permissions enforcement should be in the MCP server wrapper code, not in the kinnoo CLI itself."
+      - "Start with Filesystem MCP server as the primary reference; GitHub MCP server is secondary."
+      - "Manifest `permissions` section is MCP-server-specific; validate only when `runtime.type: mcp-server`."
+    owner: techlead-agent
+    dependencies: [feature23, feature21]
+    status: not-started
+
+  - id: feature27
+    title: "Registry Backend Abstraction & Remote Client"
+    description: |
+      Extract the current local mock registry logic behind a formal `RegistryBackend`
+      protocol/interface. Implement a `RemoteRegistryClient` that communicates with a
+      remote registry server via HTTP. Update CLI commands (`publish`, `install`, `search`,
+      `list`) to use the backend abstraction, defaulting to local when no remote is
+      configured. Configuration via `~/.kinnoo/config.yaml` or env var
+      `KINNOO_REGISTRY_URL`.
+
+      This is the client-side foundation for the remote registry. The server is feature28.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "A `RegistryBackend` protocol exists defining methods: `publish(archive_path) -> result`, `resolve(name, version) -> archive_path`, `search(query) -> list`, `list_agents() -> list`."
+      - id: AC2
+        description: "`LocalRegistryBackend` implements the protocol using existing local mock registry logic — all existing `--local` behavior is preserved."
+      - id: AC3
+        description: "`RemoteRegistryClient` implements the protocol via HTTP calls to a configurable server URL."
+      - id: AC4
+        description: "Registry URL is configurable via `~/.kinnoo/config.yaml` (`registry_url` field) or `KINNOO_REGISTRY_URL` env var (env var takes precedence)."
+      - id: AC5
+        description: "`kinnoo publish` (without `--local`) uses the remote backend when a registry URL is configured; falls back to local when not configured."
+      - id: AC6
+        description: "`kinnoo install <name>` with `--remote` uses the remote backend to resolve and download the archive."
+      - id: AC7
+        description: "All existing local registry behavior (publish --local, install --local, list --local, search --local) continues to work identically (regression check required)."
+      - id: AC8
+        description: "Remote client handles HTTP errors gracefully: connection refused, 401 unauthorized, 404 not found, 500 server error — each produces a clear, actionable CLI message."
+    notes:
+      - "REGRESSION RISK: refactoring publish/install/list/search command internals. SWE agent must run full `test_cli.py`, `test_cli_install.py`, `test_install.py` regression suite."
+      - "Use presigned upload/download URLs so the client does not proxy large .kno files through the API."
+      - "RemoteRegistryClient should use `urllib.request` (stdlib) to avoid adding `requests` as a dependency. Consider making `requests` optional."
+      - "Token-based auth for remote: store token in `~/.kinnoo/config.yaml` under `registry_token`."
+    owner: techlead-agent
+    dependencies: [feature13]
+    status: not-started
+
+  - id: feature28
+    title: "Remote Registry Server"
+    description: |
+      Implement a FastAPI-based registry server that stores agent archives in S3 and
+      maintains a JSON metadata index. The server provides REST endpoints for the CLI
+      client (feature27) to publish, install, search, and list agents. Authentication
+      uses token-based auth for CLI and session-based auth for the web UI (feature29).
+
+      Server endpoints:
+        POST   /api/publish          — upload archive + metadata
+        GET    /api/agents           — list all agents (paginated)
+        GET    /api/agents/<name>    — get agent metadata + versions
+        GET    /api/agents/<name>/<version>/download — presigned download URL
+        GET    /api/search?q=<query> — search agents by name/description
+        POST   /api/auth/token       — authenticate, get API token
+
+      Metadata schema: name, version, description, author, checksum, upload_timestamp,
+      archive_size_bytes.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "A FastAPI server application exists in a dedicated `server/` directory with proper project structure (requirements.txt, entry point)."
+      - id: AC2
+        description: "POST `/api/publish` accepts archive upload with metadata, stores archive in S3 (or S3-compatible storage), and updates JSON metadata index. Duplicate name+version returns 409 Conflict."
+      - id: AC3
+        description: "GET `/api/agents` returns paginated list of agents with metadata (name, latest version, description, author, archive size)."
+      - id: AC4
+        description: "GET `/api/agents/<name>/<version>/download` returns a presigned S3 download URL (archive is not proxied through the server)."
+      - id: AC5
+        description: "GET `/api/search?q=<query>` filters agents by name and description substring match."
+      - id: AC6
+        description: "POST `/api/auth/token` authenticates a user and returns an API token. All publish endpoints require valid token in Authorization header."
+      - id: AC7
+        description: "All endpoints return appropriate HTTP status codes (200, 201, 400, 401, 404, 409, 500) with JSON error bodies."
+      - id: AC8
+        description: "Server tests use FastAPI TestClient and mock S3 — no real AWS credentials required for testing."
+    notes:
+      - "This is a NEW server application, separate from the CLI package. Create under `server/` directory at project root."
+      - "Use presigned URLs for archive upload/download to avoid proxying large files through the server."
+      - "Keep metadata schema small: name, version, description, author, checksum, upload_timestamp, archive_size_bytes."
+      - "Add pagination (offset/limit) to list and search endpoints from the start."
+      - "S3 backend should be behind an abstraction layer for testing with local filesystem or moto."
+      - "Server dependencies (fastapi, uvicorn, boto3) go in server/requirements.txt, NOT in the main kinnoo requirements.txt."
+    owner: techlead-agent
+    dependencies: [feature27]
+    status: not-started
+
+  - id: feature29
+    title: "Registry Web UI"
+    description: |
+      Add a web-based UI to the remote registry server (feature28) using Jinja2 templates
+      served by the same FastAPI application. The web UI provides a browser-based interface
+      for discovering, browsing, and downloading agents. Authentication uses session-based
+      login (separate from CLI token auth).
+
+      Pages:
+        /login             — login form with session cookie auth
+        /agents            — paginated agent listing table (name, version, author, size, description)
+        /agents/<name>     — agent profile page with version history, metadata, and download link
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "GET `/login` renders a login form; POST `/login` authenticates and sets a session cookie."
+      - id: AC2
+        description: "GET `/agents` renders a paginated HTML table of all published agents with name, latest version, author, size, and description."
+      - id: AC3
+        description: "GET `/agents/<name>` renders an agent profile page showing all versions, metadata, and a download button for each version."
+      - id: AC4
+        description: "Download button generates a presigned URL and redirects the browser to download the archive directly from S3."
+      - id: AC5
+        description: "Unauthenticated access to `/agents` and `/agents/<name>` is allowed (read-only browsing). Publishing requires login."
+      - id: AC6
+        description: "HTML pages are rendered via Jinja2 templates with consistent styling (simple CSS, no JavaScript framework required)."
+      - id: AC7
+        description: "Web UI tests use FastAPI TestClient to verify page rendering and authentication flows."
+    notes:
+      - "This feature extends the server from feature28 — same FastAPI app, additional routes and templates."
+      - "Keep the UI simple: Jinja2 + plain CSS. No React/Vue/frontend build tools."
+      - "Read-only browsing without login is intentional — lowers friction for agent discovery."
+      - "Jinja2 templates go in server/templates/."
+    owner: techlead-agent
+    dependencies: [feature28]
+    status: not-started
