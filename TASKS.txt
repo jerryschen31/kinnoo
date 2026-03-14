@@ -2194,7 +2194,7 @@ tasks:
       - 'step7: Ensure the module is importable and `get_default_guard()` returns an instance with both `check` and `check_inputs` methods'
     dependencies: []
     tests: [test149, test150]
-    status: needs-review
+    status: completed
 
   - id: task117
     title: "RegexInputGuard — comprehensive injection pattern library"
@@ -2276,7 +2276,7 @@ tasks:
       - 'step6: Ensure each pattern can be tested individually via the PATTERNS dict'
     dependencies: [task116]
     tests: [test151, test152, test153, test154, test155, test156, test157, test158, test159]
-    status: needs-review
+    status: completed
 
   - id: task118
     title: "CLI --no-guard flag and run_command integration"
@@ -2310,7 +2310,7 @@ tasks:
       - 'step6: Ensure the guard does not run in preflight mode (preflight=True already returns early, but verify)'
     dependencies: [task117]
     tests: [test160, test161, test162, test163]
-    status: needs-review
+    status: completed
 
   - id: task119
     title: "Docs and regression coverage for feature18"
@@ -2331,7 +2331,7 @@ tasks:
       - 'step3: Add test_feature18_docs_cover_input_safety_guard test in test_docs.py asserting required feature18 documentation strings are present'
     dependencies: [task116, task117, task118]
     tests: [test164]
-    status: needs-review
+    status: completed
 
   - id: task120
     title: "Reduce SQL comment false positives while preserving detection rigor"
@@ -2353,4 +2353,4 @@ tasks:
       - 'step4: Re-run feature18 tests and full suite to verify precision improvements do not regress category coverage'
     dependencies: [task117]
     tests: [test165, test166]
-    status: needs-review
+    status: completed
