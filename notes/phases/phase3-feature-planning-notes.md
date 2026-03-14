@@ -42,4 +42,32 @@ New runtime type, lifecycle management, templates. Breaking into:
 9. **feature21** (Registry Server) — depends on feature20
 10. **feature22** (Registry Web UI) — depends on feature21
 
-Now let me write these features:
+Phase 3 features are defined. Here's the summary of what was created and the reasoning behind the decisions:
+
+### Decomposition: 6 High-Level → 10 Features
+Three of the six phase3 items were too large for a single feature and were split:
+
+### Phase3 Item	Scope Issue	Split Into
+Remote Registry (3-4 weeks)	Server + client + web UI are distinct deliverables	feature27 (client abstraction), feature28 (server), feature29 (web UI)
+MCP Server Packaging (2-3 weeks)	Runtime type is a schema/lifecycle concern; templates are a packaging concern	feature23 (runtime type + supervisor), feature26 (packages + client templates)
+Service Declarations (1.5-2.5 weeks)	Schema validation and runtime health checks are different layers	feature24 (schema only), feature25 (runtime health checks)
+The other three (Flexible Runtime Inputs, Data Bundling, Framework Templates) stayed as single features.
+
+### Feature IDs and Ordering
+Wave	Feature	Title	Dependencies
+1 (parallel)	feature20	Flexible Runtime Inputs	feature3, feature18
+1 (parallel)	feature21	Framework Templates (PydanticAI, LangGraph, OpenAI Agents)	feature4
+1 (parallel)	feature22	Data & Asset Bundling	feature5, feature8
+2	feature23	MCP Server Runtime Type — Schema & Lifecycle	feature3, feature9
+3	feature24	Service Declarations — Manifest Schema	feature9
+4	feature25	Service Health Checks — Runtime Preflight	feature24, feature14
+4	feature26	MCP Server Packages & Client Templates	feature23, feature21
+5+	feature27	Registry Backend Abstraction & Remote Client	feature13
+5+	feature28	Remote Registry Server	feature27
+5+	feature29	Registry Web UI	feature28
+
+### Regression Risk
+Every feature that modifies existing code has explicit notes in the YAML calling out which test files the SWE agent must regression-test. The highest-risk features are feature20 (changes kinnoo run argparse), feature23 (adds mcp-server to SUPPORTED_RUNTIME_TYPES), and feature27 (refactors registry command internals).
+
+### What each AC targets
+All ACs are designed to be testable with simple, fast unit tests — no live network calls, no real S3, no real MCP servers. Server features (feature28/29) use FastAPI's TestClient; MCP lifecycle tests use mock subprocesses; health checks test against localhost sockets.
