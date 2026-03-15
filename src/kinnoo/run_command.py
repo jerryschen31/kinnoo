@@ -286,6 +286,51 @@ def _check_preflight_dependencies(manifest: dict, agent_dir: Path) -> tuple[bool
     return True, f"dependency readiness check passed: installed packages [{dependency_label}]"
 
 
+def _manifest_inputs_required(manifest: dict) -> bool:
+    inputs_section = manifest.get("inputs")
+    if not isinstance(inputs_section, dict):
+        return True
+    required_value = inputs_section.get("required")
+    if isinstance(required_value, bool):
+        return required_value
+    return True
+
+
+def _infer_pass_through_input_type(param_name: str) -> str:
+    type_by_flag = {
+        "-u": "url",
+        "--url": "url",
+        "-p": "file_path",
+        "--path": "file_path",
+        "-d": "file_path",
+        "--data-path": "file_path",
+        "-i": "id",
+        "--id": "id",
+        "-e": "string",
+        "--text": "string",
+    }
+    return type_by_flag.get(param_name, "text")
+
+
+def _build_pass_through_guard_inputs(pass_through_args: list[str]) -> list[tuple[str, str, str]]:
+    inputs: list[tuple[str, str, str]] = []
+    index = 0
+    while index < len(pass_through_args):
+        token = pass_through_args[index]
+        if token.startswith("-") and index + 1 < len(pass_through_args):
+            candidate_value = pass_through_args[index + 1]
+            if not candidate_value.startswith("-"):
+                inputs.append((token, candidate_value, _infer_pass_through_input_type(token)))
+                index += 2
+                continue
+
+        if not token.startswith("-"):
+            inputs.append((f"arg{index}", token, "text"))
+        index += 1
+
+    return inputs
+
+
 def run_preflight(agent_dir_arg: str) -> int:
     """Run preflight-only checks without executing the agent entrypoint."""
     agent_dir = Path(agent_dir_arg).resolve()
@@ -448,7 +493,7 @@ def run_agent(
     no_guard: bool = False,
     pass_through_args: list[str] | None = None,
 ) -> int:
-    del pass_through_args
+    runtime_pass_through_args = list(pass_through_args or [])
     if preflight:
         return run_preflight(agent_dir_arg)
 
@@ -457,6 +502,7 @@ def run_agent(
     trace_forbidden_values: list[str] = []
     if input_arg is not None:
         trace_forbidden_values.append(input_arg)
+    trace_forbidden_values.extend(runtime_pass_through_args)
 
     def finalize(exit_code: int) -> int:
         _write_run_trace_log(
@@ -466,10 +512,6 @@ def run_agent(
             forbidden_values=trace_forbidden_values,
         )
         return exit_code
-
-    if input_arg is None:
-        _print_safe_error("Error: input is required for kinnoo run unless --preflight is used")
-        return finalize(1)
 
     venv_dir = agent_dir / ".venv"
     requirements = agent_dir / "requirements.txt"
@@ -533,6 +575,11 @@ def run_agent(
     if isinstance(manifest, dict):
         trace_manifest = manifest
 
+    inputs_required = _manifest_inputs_required(manifest)
+    if input_arg is None and not runtime_pass_through_args and inputs_required:
+        _print_safe_error("Error: input is required for kinnoo run unless --preflight is used")
+        return finalize(1)
+
     entrypoint = manifest.get("entrypoint")
     if not entrypoint:
         _print_safe_error("Error: 'entrypoint' not specified in kinnoo.yaml")
@@ -579,15 +626,29 @@ def run_agent(
 
     # Evaluate the user input before entrypoint execution; this is warning-based and never hard-rejects
     # when a user explicitly confirms in interactive mode.
-    if not no_guard and input_arg is not None:
+    if not no_guard:
         from .input_guard import get_default_guard
 
         guard = get_default_guard()
-        guard_result = guard.check(input_arg, "text")
-        if not guard_result.safe:
+        aggregate_warnings = []
+
+        if input_arg is not None:
+            guard_result = guard.check(input_arg, "text")
+            aggregate_warnings.extend(guard_result.warnings)
+
+        pass_through_inputs = _build_pass_through_guard_inputs(runtime_pass_through_args)
+        if pass_through_inputs:
+            guard_result = guard.check_inputs(pass_through_inputs)
+            aggregate_warnings.extend(guard_result.warnings)
+
+        if aggregate_warnings:
             print("[kinnoo] Input safety warning:", file=sys.stderr)
-            for warning in guard_result.warnings:
-                print(f"  - [{warning.threat_category}] {warning.description}", file=sys.stderr)
+            for warning in aggregate_warnings:
+                param_suffix = f" (param: {warning.param_name})" if warning.param_name else ""
+                print(
+                    f"  - [{warning.threat_category}] {warning.description}{param_suffix}",
+                    file=sys.stderr,
+                )
             if sys.stdin.isatty():
                 try:
                     response = input("Proceed anyway? [y/N]: ").strip().lower()
@@ -617,9 +678,14 @@ def run_agent(
     subprocess_env = os.environ.copy()
     subprocess_env.update(resolved_env_vars)
 
+    process_args = [str(python_exe), str(entrypoint_path)]
+    if input_arg is not None:
+        process_args.append(input_arg)
+    process_args.extend(runtime_pass_through_args)
+
     try:
         process = subprocess.Popen(
-            [str(python_exe), str(entrypoint_path), input_arg],
+            process_args,
             cwd=agent_dir,
             stdout=sys.stdout,
             stderr=sys.stderr,

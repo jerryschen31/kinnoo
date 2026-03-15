@@ -2414,7 +2414,7 @@ tasks:
       - 'step5: Add integration tests for reject/proceed/no-guard behavior in pass-through mode'
     dependencies: [task122, task118]
     tests: [test173, test174, test175, test176]
-    status: not-started
+    status: needs-review
 
   - id: task124
     title: "Feature20 regression suite verification"
