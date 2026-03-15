@@ -692,7 +692,7 @@ features:
 
       Backward compatibility: the current single positional input mode MUST continue to
       work identically. Only agents with `inputs.required: false` may omit input.
-    tasks: [task121, task122, task123, task124]
+    tasks: [task121, task122, task123, task124, task125]
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo run <dir>` without input succeeds when manifest has `inputs.required: false`; agent receives no positional input argument."

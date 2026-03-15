@@ -16,6 +16,13 @@ except ImportError:
     from .schema import NAME_PATTERN
     from . import __version__ as KINNOO_VERSION
 
+
+RUN_USAGE_TEXT = (
+    "Usage: kinnoo run <agent-dir> '<input>'\n"
+    "       kinnoo run <agent-dir>\n"
+    "       kinnoo run <agent-dir> -- <args...>"
+)
+
 def main():
     import os
     parser = argparse.ArgumentParser(prog="kinnoo", description="Kinnoo CLI")
@@ -153,7 +160,7 @@ def main():
             and "--no-guard" not in sys.argv
             and len(sys.argv) < 3
         ):
-            print("Usage: kinnoo run <agent-dir> '<input>'", file=sys.stderr)
+            print(RUN_USAGE_TEXT, file=sys.stderr)
             sys.exit(1)
 
     run_pass_through_args: list[str] = []
@@ -189,7 +196,7 @@ def main():
             if preflight_mode:
                 print("Usage: kinnoo run <agent-dir> --preflight", file=sys.stderr)
             else:
-                print("Usage: kinnoo run <agent-dir> '<input>'", file=sys.stderr)
+                print(RUN_USAGE_TEXT, file=sys.stderr)
             sys.exit(1)
 
         try:
