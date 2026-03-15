@@ -649,7 +649,7 @@ features:
       existing project, creates a Kinnoo-compatible scaffold, generates
       kinnoo.yaml with safe defaults, and copies project artifacts needed for
       run/pack flows while preserving source project files.
-    tasks: [task121, task122, task123, task124]
+    tasks: []
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo import <existing-agent-path> <new-agent-dir>` validates arguments and prints clear usage/help when arguments are missing."
@@ -692,7 +692,7 @@ features:
 
       Backward compatibility: the current single positional input mode MUST continue to
       work identically. Only agents with `inputs.required: false` may omit input.
-    tasks: []
+    tasks: [task121, task122, task123, task124]
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo run <dir>` without input succeeds when manifest has `inputs.required: false`; agent receives no positional input argument."
