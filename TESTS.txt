@@ -2976,3 +2976,33 @@ tests:
     covers:
       - feature: feature20
         ac: AC8
+
+  - id: test178
+    title: Required input cannot be bypassed by pass-through args
+    type: integration
+    preconditions: "valid agent fixture with `inputs.required: true`"
+    steps:
+      - step1: Run `kinnoo run <dir> -- -e text` with no positional input
+      - step2: Verify command fails before entrypoint execution
+    expected: required-input contract is enforced even when pass-through args are provided
+    pass_criteria: non-zero exit code and clear required-input message in stderr
+    automated: true
+    automation_path: tests/test_cli.py::test_run_required_input_cannot_be_bypassed_by_pass_through
+    covers:
+      - feature: feature20
+        ac: AC2
+
+  - id: test179
+    title: Run usage text documents no-input and pass-through modes
+    type: unit
+    preconditions: kinnoo CLI installed
+    steps:
+      - step1: Run `kinnoo run` with missing required args
+      - step2: Verify usage output includes legacy, no-input, and pass-through forms
+    expected: user guidance reflects all supported feature20 invocation modes
+    pass_criteria: stderr usage contains no-input and `-- <args...>` guidance in addition to legacy mode
+    automated: true
+    automation_path: tests/test_cli.py::test_run_usage_includes_feature20_modes
+    covers:
+      - feature: feature20
+        ac: AC4
