@@ -2,6 +2,7 @@ import subprocess
 import sys
 import pytest
 import re
+import types
 
 def test_cli_installable_and_runnable():
     # This test checks that the CLI is installable and runnable via pyproject.toml
@@ -229,7 +230,119 @@ outputs:
     )
 
     assert result.returncode != 0
-    assert "Usage: kinnoo run <agent-dir> '<input>'" in result.stderr
+    assert "input is required for kinnoo run unless --preflight is used" in result.stderr
+
+
+def test_run_without_input_allowed_when_inputs_not_required(monkeypatch, tmp_path):
+    captured: dict[str, object] = {}
+
+    def fake_run_agent(**kwargs):
+        captured.update(kwargs)
+        return 0
+
+    fake_module = types.SimpleNamespace(run_agent=fake_run_agent)
+    monkeypatch.setitem(sys.modules, "kinnoo.run_command", fake_module)
+
+    from kinnoo.cli import main
+
+    agent_dir = tmp_path / "feature20-no-input-agent"
+    agent_dir.mkdir()
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["kinnoo", "run", str(agent_dir)],
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == 0
+    assert captured["agent_dir_arg"] == str(agent_dir)
+    assert captured["input_arg"] is None
+    assert captured["pass_through_args"] == []
+
+
+def test_run_pass_through_args_forwarded_verbatim(monkeypatch, tmp_path):
+    captured: dict[str, object] = {}
+
+    def fake_run_agent(**kwargs):
+        captured.update(kwargs)
+        return 0
+
+    fake_module = types.SimpleNamespace(run_agent=fake_run_agent)
+    monkeypatch.setitem(sys.modules, "kinnoo.run_command", fake_module)
+
+    from kinnoo.cli import main
+
+    agent_dir = tmp_path / "feature20-pass-through-agent"
+    agent_dir.mkdir()
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "kinnoo",
+            "run",
+            str(agent_dir),
+            "--",
+            "-e",
+            "text",
+            "-u",
+            "https://example.com",
+            "-p",
+            "./file.txt",
+        ],
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == 0
+    assert captured["input_arg"] is None
+    assert captured["pass_through_args"] == [
+        "-e",
+        "text",
+        "-u",
+        "https://example.com",
+        "-p",
+        "./file.txt",
+    ]
+
+
+def test_run_single_input_backward_compatible(tmp_path):
+    agent_dir = tmp_path / "feature20-single-input-agent"
+    agent_dir.mkdir()
+    (agent_dir / "requirements.txt").write_text("")
+    (agent_dir / "kinnoo.yaml").write_text(
+        """
+name: feature20-single-input-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+"""
+    )
+    (agent_dir / "run.py").write_text(
+        'import sys\nprint(f"input: {sys.argv[1] if len(sys.argv) > 1 else \"\"}")\n'
+    )
+    (agent_dir / "README.md").write_text("feature20 backward-compat test")
+    (agent_dir / "tools").mkdir()
+    (agent_dir / "prompts").mkdir()
+
+    result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "run", str(agent_dir), "hello"],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, f"kinnoo run failed: {result.stderr}"
+    assert "input: hello" in result.stdout or "input: hello" in result.stderr
 
 
 def test_run_missing_entrypoint(tmp_path):
