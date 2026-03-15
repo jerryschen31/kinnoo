@@ -446,7 +446,9 @@ def run_agent(
     input_arg: str | None,
     preflight: bool = False,
     no_guard: bool = False,
+    pass_through_args: list[str] | None = None,
 ) -> int:
+    del pass_through_args
     if preflight:
         return run_preflight(agent_dir_arg)
 
