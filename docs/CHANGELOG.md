@@ -3,7 +3,22 @@
 All notable changes to this project will be documented in this file.
 
 
-## [v2.0.0] - 2026-03-13
+## [v0.8.0] - 2026-03-15
+### Added
+- Implemented Feature20 "Flexible Runtime Inputs" for `kinnoo run`.
+- Added support for no-input execution when manifests declare `inputs.required: false`.
+- Added pass-through invocation mode via `--` with verbatim argv forwarding to the agent entrypoint.
+- Added explicit protection so required input cannot be bypassed by pass-through arguments.
+
+### Changed
+- Updated run CLI usage/help messaging to document all three supported invocation modes (single input, no-input, pass-through).
+- Extended feature20 test coverage with focused assertions for required-input enforcement and usage guidance output.
+
+### Quality
+- Feature20 follow-up regression checks passed, including required-input/pass-through compatibility paths.
+
+
+## [v0.7.0] - 2026-03-13
 ### Added
 - Completed Phase 2 feature delivery and validation across runtime safety, trust, archive integrity, and packaging UX.
 - Finalized input safety guard coverage in `kinnoo run`, including type-aware detection, interactive warn-and-confirm flow, and CI-friendly bypass controls.
@@ -19,7 +34,7 @@ All notable changes to this project will be documented in this file.
   - Full test suite: `158 passed, 1 skipped`
 
 
-## [v1.6.0] - 2026-03-13
+## [v0.6.0] - 2026-03-13
 ### Added
 - Implemented Feature18 "Input Safety Guard" with pre-entrypoint input threat detection in `kinnoo run`.
 - Added pluggable guard architecture via `InputGuard` protocol and `get_default_guard()` factory for future ML-based guard replacement.
@@ -38,7 +53,7 @@ All notable changes to this project will be documented in this file.
   - Full repository suite: `156 passed, 1 skipped`
 
 
-## [v1.5.0] - 2026-03-12
+## [v0.5.0] - 2026-03-12
 ### Added
 - Implemented Feature17 "Pack Size Reporting & Warnings" across pack/inspect/list workflows.
 - Added pack-time archive size output: `[kinnoo pack] Archive size: <human-readable>`.
@@ -54,7 +69,7 @@ All notable changes to this project will be documented in this file.
 - Full repository validation now passes after stabilization: `140 passed, 1 skipped`.
 
 
-## [v1.4.0] - 2026-03-11
+## [v0.4.0] - 2026-03-11
 ### Added
 - Implemented Feature16 "Archive Integrity (Checksums)" across pack/install/inspect/publish workflows.
 - Added checksum sidecar generation during pack using sibling `.kno.sha256` files with stable `<sha256>  <archive-filename>` format.
@@ -66,7 +81,7 @@ All notable changes to this project will be documented in this file.
 - Strengthened artifact provenance and tamper detection by validating archive digests before extraction side effects.
 
 
-## [v1.3.0] - 2026-03-11
+## [v0.3.0] - 2026-03-11
 ### Added
 - Implemented Feature15 "Trust Baseline" across install, run, inspect, and pack flows.
 - Added install-time trust summary with confirmation prompt and `--yes`/`-y` automation bypass.
@@ -78,7 +93,7 @@ All notable changes to this project will be documented in this file.
 - Reinforced the project-wide invariant that secret/env var values are never emitted in trust-related output or logs; only names may be shown.
 
 
-## [v1.2.0] - 2026-03-05
+## [v0.2.0] - 2026-03-05
 ### Changed
 - Refactored `pack` and `publish` flows in Feature13 to use the registry abstraction and source-mode path consistently.
 - Improved packaging/publishing reliability through shared backend handling and updated test coverage.
@@ -87,12 +102,12 @@ All notable changes to this project will be documented in this file.
 - Feature12 legacy registry path/tests were deprecated and documented to prevent accidental re-enable.
 
 
-## [v1.1.0] - 2026-03-05
+## [v0.1.1] - 2026-03-05
 ### Added
 - Implemented `kinnoo pack` command for packaging projects.
 - Enhanced `kinnoo install` with improved functionality and support for packaged projects.
 
-## [v1.0.0] - 2026-02-25
+## [v0.1.0] - 2026-02-25
 ### Added
 - Initial release.
 - Implemented all MVP features:
