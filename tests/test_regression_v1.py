@@ -24,3 +24,25 @@ def test_v1_suite_passes_after_feature7():
         f"STDOUT:\n{result.stdout}\n"
         f"STDERR:\n{result.stderr}"
     )
+
+
+def test_feature20_does_not_regress_v2_behavior():
+    command = [
+        sys.executable,
+        "-m",
+        "pytest",
+        "tests/test_cli.py",
+        "-k",
+        "run",
+        "tests/test_install.py",
+    ]
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, (
+        "Feature20 regression gate failed for V2 run/install behavior.\n"
+        f"STDOUT:\n{result.stdout}\n"
+        f"STDERR:\n{result.stderr}"
+    )
