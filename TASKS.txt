@@ -2392,7 +2392,7 @@ tasks:
       - 'step4: Add CLI tests for no-input, pass-through, and backward compatibility'
     dependencies: [task121]
     tests: [test170, test171, test172]
-    status: not-started
+    status: needs-review
 
   - id: task123
     title: "Implement run_command flexible input execution flow"
