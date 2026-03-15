@@ -465,6 +465,64 @@ outputs:
     assert "ARGS:-e|text|-u|https://example.com|-p|./file.txt" in pass_through_result.stdout
 
 
+def test_run_required_input_cannot_be_bypassed_by_pass_through(tmp_path):
+    agent_dir = tmp_path / "feature20-required-pass-through-agent"
+    agent_dir.mkdir()
+    (agent_dir / "requirements.txt").write_text("")
+    (agent_dir / "kinnoo.yaml").write_text(
+        """
+name: feature20-required-pass-through-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+    required: true
+outputs:
+    type: text
+"""
+    )
+    (agent_dir / "run.py").write_text("print('should not run with bypass attempt')\n")
+    (agent_dir / "README.md").write_text("feature20 required bypass guard test")
+    (agent_dir / "tools").mkdir()
+    (agent_dir / "prompts").mkdir()
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(agent_dir),
+            "--",
+            "-e",
+            "text",
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode != 0
+    assert "input is required" in result.stderr
+    assert "should not run" not in result.stdout
+
+
+def test_run_usage_includes_feature20_modes():
+    result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "run"],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode != 0
+    assert "Usage: kinnoo run <agent-dir> '<input>'" in result.stderr
+    assert "kinnoo run <agent-dir>" in result.stderr
+    assert "kinnoo run <agent-dir> -- <args...>" in result.stderr
+
+
 def test_run_missing_entrypoint(tmp_path):
     """Test kinnoo run with missing entrypoint file prints error and aborts."""
     agent_dir = tmp_path / "test-agent"
