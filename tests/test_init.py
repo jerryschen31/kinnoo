@@ -420,6 +420,50 @@ def test_feature21_readme_setup_guidance(tmp_path):
             assert term in readme_text
 
 
+def test_feature21_regression_existing_frameworks_unchanged(tmp_path):
+    expected = {
+        "gemini": {
+            "dependency": "google-genai",
+            "env_var": "GOOGLE_API_KEY",
+            "model_hint": "gemini-2.5-flash-lite",
+            "run_example": "Hello Gemini!",
+        },
+        "chatgpt": {
+            "dependency": "openai",
+            "env_var": "OPENAI_API_KEY",
+            "model_hint": "gpt-5-nano",
+            "run_example": "Hello ChatGPT!",
+        },
+        "claude-chat": {
+            "dependency": "anthropic",
+            "env_var": "ANTHROPIC_API_KEY",
+            "model_hint": "claude-sonnet-4-20250514",
+            "run_example": "Hello Claude!",
+        },
+    }
+
+    for framework, checks in expected.items():
+        agent_name = f"feature21-regression-{framework}"
+        code, out, err = run_cli(["init", agent_name, "--framework", framework], cwd=tmp_path)
+        assert code == 0, err
+
+        agent_dir = tmp_path / agent_name
+        requirements_text = (agent_dir / "requirements.txt").read_text()
+        run_text = (agent_dir / "run.py").read_text()
+        readme_text = (agent_dir / "README.md").read_text()
+
+        assert checks["dependency"] in requirements_text
+        assert checks["model_hint"] in run_text
+        assert checks["env_var"] in readme_text
+        assert checks["run_example"] in readme_text
+
+        from kinnoo.validator import validate
+        manifest_path = agent_dir / "kinnoo.yaml"
+        is_valid, errors = validate(str(manifest_path))
+        assert is_valid
+        assert not errors
+
+
 def test_feature9_init_manifest_includes_description_and_author(tmp_path):
     """test75: init-generated manifest includes description and author placeholders."""
     agent_name = "feature9-init-agent"
