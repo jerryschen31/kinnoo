@@ -81,8 +81,15 @@ def test_framework_valid():
 
 def test_framework_invalid():
     # Should error for unsupported frameworks
-    for fw in ["langgraph", "pigglypoo", "openai"]:
-        result = run_kinnoo_init(["myagent", "--framework", fw])
+    import tempfile
+    for fw in ["pigglypoo", "openai", "invalid-name"]:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                result = run_kinnoo_init(["myagent", "--framework", fw])
+            finally:
+                os.chdir(cwd)
         assert result.returncode != 0, f"Invalid framework {fw} should error"
         assert b"Unsupported framework" in result.stderr, f"Error message missing for {fw}"
         assert b"Usage: kinnoo init" in result.stderr, f"Usage message missing for {fw}"
@@ -282,6 +289,29 @@ def test_agent_name_with_underscore_is_accepted(tmp_path):
     result = subprocess.run([sys.executable, str(run_py), "test"], capture_output=True, text=True)
     assert result.returncode == 0
     assert "Hello, world!" in result.stdout
+
+
+def test_feature21_framework_invalid_lists_all_choices(tmp_path):
+    code, out, err = run_cli(["init", "feature21-invalid", "--framework", "invalid-name"], cwd=tmp_path)
+    assert code != 0
+    for framework in [
+        "gemini",
+        "chatgpt",
+        "claude-chat",
+        "pydantic-ai",
+        "langgraph",
+        "openai-agents",
+    ]:
+        assert framework in err
+
+
+def test_feature21_framework_values_accepted(tmp_path):
+    for framework in ["pydantic-ai", "langgraph", "openai-agents"]:
+        agent_name = f"feature21-{framework}-agent"
+        code, out, err = run_cli(["init", agent_name, "--framework", framework], cwd=tmp_path)
+        assert code == 0
+        agent_dir = tmp_path / agent_name
+        assert agent_dir.exists() and agent_dir.is_dir()
 
 
 def test_feature9_init_manifest_includes_description_and_author(tmp_path):
