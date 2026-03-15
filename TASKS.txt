@@ -2475,7 +2475,7 @@ tasks:
       - 'step4: Add/extend parser-focused tests for new and invalid choices'
     dependencies: [task16]
     tests: [test180, test181]
-    status: not-started
+    status: needs-review
 
   - id: task127
     title: "Generate framework templates and metadata artifacts"

@@ -14,7 +14,14 @@ from kinnoo.templates import (
     CLAUDE_RUN_PY, CLAUDE_REQUIREMENTS, CLAUDE_README
 )
 
-SUPPORTED_FRAMEWORKS = ["gemini", "chatgpt", "claude-chat"]
+SUPPORTED_FRAMEWORKS = [
+    "gemini",
+    "chatgpt",
+    "claude-chat",
+    "pydantic-ai",
+    "langgraph",
+    "openai-agents",
+]
 
 def init_agent(name: str, target_dir: Path, framework: Optional[str] = None):
     agent_dir = target_dir / name

@@ -34,8 +34,11 @@ def main():
     init_parser.add_argument("agent_name", nargs="?", help="Name of the agent to create")
     init_parser.add_argument(
         "--framework",
-        choices=["gemini", "chatgpt", "claude-chat"],
-        help="(Optional) Pre-populate agent with LLM framework template (gemini, chatgpt, claude-chat)"
+        choices=["gemini", "chatgpt", "claude-chat", "pydantic-ai", "langgraph", "openai-agents"],
+        help=(
+            "(Optional) Pre-populate agent with LLM framework template "
+            "(gemini, chatgpt, claude-chat, pydantic-ai, langgraph, openai-agents)"
+        )
     )
 
     # Add 'run' subcommand
