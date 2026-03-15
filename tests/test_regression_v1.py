@@ -46,3 +46,25 @@ def test_feature20_does_not_regress_v2_behavior():
         f"STDOUT:\n{result.stdout}\n"
         f"STDERR:\n{result.stderr}"
     )
+
+
+def test_feature21_framework_templates_do_not_regress_existing_frameworks():
+    command = [
+        sys.executable,
+        "-m",
+        "pytest",
+        "tests/test_init.py::test_framework_templates_generate_correct_files",
+        "tests/test_init.py::test_framework_valid",
+        "tests/test_init.py::test_framework_manifests_pass_validation",
+        "tests/test_init.py::test_feature21_regression_existing_frameworks_unchanged",
+    ]
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, (
+        "Feature21 regression gate failed for existing framework templates.\n"
+        f"STDOUT:\n{result.stdout}\n"
+        f"STDERR:\n{result.stderr}"
+    )
