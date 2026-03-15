@@ -237,3 +237,38 @@ Run these after implementation before marking tasks `needs-review`:
 
 - **Status: changes requested before merge**
 - Rationale: core implementation is close and tests are largely solid, but the required-input bypass in pass-through mode is a contract-level mismatch that should be fixed before integrating into `phase3/main`.
+
+---
+
+## Tech Lead Feature 20 Review 2
+
+### Review Context
+
+- Scope for this follow-up review: validate task125 fixes for prior outcomes 1 and 3 only.
+- Outcome 2 (feature/task manifest linkage and status consistency) was updated separately and is treated as resolved per maintainer update.
+
+### Outcome 1 Check (required input cannot be bypassed with pass-through)
+
+- Code check: `run_command.py` now enforces required input with `if input_arg is None and inputs_required:` before execution.
+- Test evidence:
+   - `tests/test_cli.py::test_run_required_input_cannot_be_bypassed_by_pass_through` -> pass
+   - `tests/test_cli.py::test_run_without_input_rejected_when_required` -> pass
+   - `tests/test_cli.py::test_run_pass_through_args_forwarded_verbatim` -> pass (confirms valid pass-through path still works)
+- Assessment: outcome 1 is resolved and behavior matches feature20 contract.
+
+### Outcome 3 Check (run usage/help text includes new modes)
+
+- Code check: CLI now defines `RUN_USAGE_TEXT` including legacy, no-input, and pass-through invocation patterns.
+- Test evidence:
+   - `tests/test_cli.py::test_run_usage_includes_feature20_modes` -> pass
+- Assessment: outcome 3 is resolved and user guidance now reflects supported feature20 runtime modes.
+
+### Targeted Verification Commands Executed
+
+1. `python3 -m pytest tests/test_cli.py -k "cannot_be_bypassed or usage_includes_feature20_modes"` -> 2 passed
+2. `python3 -m pytest tests/test_cli.py -k "run_without_input_rejected_when_required or run_pass_through_args_forwarded_verbatim"` -> 2 passed
+
+### Final Decision
+
+- **Approval: approved to merge to phase3/main**
+- Rationale: task125 closes both remaining technical issues from the first Tech Lead review (outcomes 1 and 3), and targeted verification confirms expected behavior.
