@@ -314,6 +314,112 @@ def test_feature21_framework_values_accepted(tmp_path):
         assert agent_dir.exists() and agent_dir.is_dir()
 
 
+def test_feature21_pydanticai_template_generation(tmp_path):
+    agent_name = "feature21-pydanticai-template"
+    code, out, err = run_cli(["init", agent_name, "--framework", "pydantic-ai"], cwd=tmp_path)
+    assert code == 0
+
+    agent_dir = tmp_path / agent_name
+    assert (agent_dir / "run.py").exists()
+    assert (agent_dir / "requirements.txt").exists()
+    assert (agent_dir / "kinnoo.yaml").exists()
+    assert (agent_dir / "README.md").exists()
+
+    run_py = (agent_dir / "run.py").read_text()
+    readme = (agent_dir / "README.md").read_text()
+    assert "pydantic-ai template" in run_py
+    assert "pydantic-ai" in readme
+
+
+def test_feature21_langgraph_template_generation(tmp_path):
+    agent_name = "feature21-langgraph-template"
+    code, out, err = run_cli(["init", agent_name, "--framework", "langgraph"], cwd=tmp_path)
+    assert code == 0
+
+    agent_dir = tmp_path / agent_name
+    assert (agent_dir / "run.py").exists()
+    assert (agent_dir / "requirements.txt").exists()
+    assert (agent_dir / "kinnoo.yaml").exists()
+    assert (agent_dir / "README.md").exists()
+
+    run_py = (agent_dir / "run.py").read_text()
+    readme = (agent_dir / "README.md").read_text()
+    assert "langgraph template" in run_py
+    assert "langgraph" in readme
+
+
+def test_feature21_openai_agents_template_generation(tmp_path):
+    agent_name = "feature21-openai-agents-template"
+    code, out, err = run_cli(["init", agent_name, "--framework", "openai-agents"], cwd=tmp_path)
+    assert code == 0
+
+    agent_dir = tmp_path / agent_name
+    assert (agent_dir / "run.py").exists()
+    assert (agent_dir / "requirements.txt").exists()
+    assert (agent_dir / "kinnoo.yaml").exists()
+    assert (agent_dir / "README.md").exists()
+
+    run_py = (agent_dir / "run.py").read_text()
+    readme = (agent_dir / "README.md").read_text()
+    assert "openai-agents template" in run_py
+    assert "openai-agents" in readme
+
+
+def test_feature21_requirements_major_version_pins(tmp_path):
+    expected_dependency_patterns = {
+        "pydantic-ai": r"^pydantic-ai>=\d+\.\d+,<\d+\.\d+$",
+        "langgraph": r"^langgraph>=\d+\.\d+,<\d+\.\d+$",
+        "openai-agents": r"^openai-agents>=\d+\.\d+,<\d+\.\d+$",
+    }
+
+    for framework, dependency_pattern in expected_dependency_patterns.items():
+        agent_name = f"feature21-pins-{framework}"
+        code, out, err = run_cli(["init", agent_name, "--framework", framework], cwd=tmp_path)
+        assert code == 0
+
+        requirements_path = tmp_path / agent_name / "requirements.txt"
+        requirements_entry = requirements_path.read_text().strip()
+        assert re.match(dependency_pattern, requirements_entry), (
+            f"Requirements pin for {framework} did not match expected major-range format: {requirements_entry}"
+        )
+
+
+def test_feature21_manifests_pass_and_set_framework(tmp_path):
+    import yaml
+    from kinnoo.validator import validate
+
+    frameworks = ["pydantic-ai", "langgraph", "openai-agents"]
+    for framework in frameworks:
+        agent_name = f"feature21-manifest-{framework}"
+        code, out, err = run_cli(["init", agent_name, "--framework", framework], cwd=tmp_path)
+        assert code == 0
+
+        manifest_path = tmp_path / agent_name / "kinnoo.yaml"
+        is_valid, errors = validate(str(manifest_path))
+        assert is_valid, f"Manifest for {framework} should validate: {errors}"
+        assert not errors
+
+        manifest_data = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+        assert manifest_data.get("framework") == framework
+
+
+def test_feature21_readme_setup_guidance(tmp_path):
+    readme_expectations = {
+        "pydantic-ai": ["OPENAI_API_KEY", "Model Configuration", "python run.py"],
+        "langgraph": ["OPENAI_API_KEY", "Graph Configuration", "python run.py"],
+        "openai-agents": ["OPENAI_API_KEY", "Agent Configuration", "python run.py"],
+    }
+
+    for framework, expected_terms in readme_expectations.items():
+        agent_name = f"feature21-readme-{framework}"
+        code, out, err = run_cli(["init", agent_name, "--framework", framework], cwd=tmp_path)
+        assert code == 0
+
+        readme_text = (tmp_path / agent_name / "README.md").read_text()
+        for term in expected_terms:
+            assert term in readme_text
+
+
 def test_feature9_init_manifest_includes_description_and_author(tmp_path):
     """test75: init-generated manifest includes description and author placeholders."""
     agent_name = "feature9-init-agent"

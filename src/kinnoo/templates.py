@@ -115,6 +115,99 @@ This agent uses Anthropic Claude via the `anthropic` library.
 python run.py "Hello Claude!"
 ```
 '''
+
+PYDANTIC_AI_RUN_PY = '''import sys
+import asyncio
+
+async def main(input_text):
+  # Placeholder scaffold for pydantic-ai workflow (kept deterministic for tests).
+  print(f"[pydantic-ai template] processed: {input_text}")
+
+if __name__ == '__main__':
+  input_text = sys.argv[1] if len(sys.argv) > 1 else ''
+  asyncio.run(main(input_text))
+'''
+
+PYDANTIC_AI_REQUIREMENTS = "pydantic-ai>=0.1,<1.0\n"
+
+PYDANTIC_AI_README = '''# {name}
+
+This agent scaffold targets the `pydantic-ai` framework.
+
+## Setup
+- Install dependencies: `pip install -r requirements.txt`
+- Set your API key: `export OPENAI_API_KEY=your-key-here`
+
+## Model Configuration
+- Update model/provider settings in `run.py` for your target backend.
+
+## Run Example
+```
+python run.py "Hello PydanticAI!"
+```
+'''
+
+LANGGRAPH_RUN_PY = '''import sys
+import asyncio
+
+async def main(input_text):
+  # Placeholder scaffold for LangGraph-style node/edge orchestration.
+  print(f"[langgraph template] node->edge output: {input_text}")
+
+if __name__ == '__main__':
+  input_text = sys.argv[1] if len(sys.argv) > 1 else ''
+  asyncio.run(main(input_text))
+'''
+
+LANGGRAPH_REQUIREMENTS = "langgraph>=0.2,<1.0\n"
+
+LANGGRAPH_README = '''# {name}
+
+This agent scaffold targets the `langgraph` framework.
+
+## Setup
+- Install dependencies: `pip install -r requirements.txt`
+- Set your API key: `export OPENAI_API_KEY=your-key-here`
+
+## Graph Configuration
+- Define state schema and graph nodes/edges in `run.py`.
+
+## Run Example
+```
+python run.py "Hello LangGraph!"
+```
+'''
+
+OPENAI_AGENTS_RUN_PY = '''import sys
+import asyncio
+
+async def main(input_text):
+  # Placeholder scaffold for OpenAI Agents handoff/guardrail flow.
+  print(f"[openai-agents template] handoff result: {input_text}")
+
+if __name__ == '__main__':
+  input_text = sys.argv[1] if len(sys.argv) > 1 else ''
+  asyncio.run(main(input_text))
+'''
+
+OPENAI_AGENTS_REQUIREMENTS = "openai-agents>=0.1,<1.0\n"
+
+OPENAI_AGENTS_README = '''# {name}
+
+This agent scaffold targets the `openai-agents` SDK.
+
+## Setup
+- Install dependencies: `pip install -r requirements.txt`
+- Set your API key: `export OPENAI_API_KEY=your-key-here`
+
+## Agent Configuration
+- Define agent roles, handoffs, and guardrails in `run.py`.
+
+## Run Example
+```
+python run.py "Hello OpenAI Agents!"
+```
+'''
 """
 Templates for kinnoo agent scaffolding files.
 """
