@@ -576,7 +576,7 @@ def run_agent(
         trace_manifest = manifest
 
     inputs_required = _manifest_inputs_required(manifest)
-    if input_arg is None and not runtime_pass_through_args and inputs_required:
+    if input_arg is None and inputs_required:
         _print_safe_error("Error: input is required for kinnoo run unless --preflight is used")
         return finalize(1)
 

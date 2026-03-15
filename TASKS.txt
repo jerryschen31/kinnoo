@@ -2434,3 +2434,25 @@ tasks:
     dependencies: [task123]
     tests: [test177]
     status: needs-review
+
+  - id: task125
+    title: "Feature20 merge-fix: enforce required input and refresh run usage guidance"
+    type: task
+    description: |
+      Address TechLead merge findings for feature20 by enforcing strict required-input
+      contract semantics (no bypass via pass-through args when `inputs.required: true`)
+      and updating `kinnoo run` usage/help text to include no-input and pass-through
+      invocation modes.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+      - FEATURES.txt
+    steps:
+      - 'step1: Enforce required positional input whenever `inputs.required` is true, even if pass-through args are present'
+      - 'step2: Add regression test for required=true + pass-through invocation without positional input (must fail)'
+      - 'step3: Update run usage/help text to document legacy, no-input, and pass-through invocation modes'
+      - 'step4: Add regression test asserting updated run usage/help guidance appears on missing-args path'
+    dependencies: [task123]
+    tests: [test178, test179]
+    status: needs-review
