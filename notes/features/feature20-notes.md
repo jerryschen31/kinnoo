@@ -173,3 +173,67 @@ Run these after implementation before marking tasks `needs-review`:
 - Set `task121`..`task124` to `in-progress` when work begins.
 - Set each to `needs-review` only after tests pass and evidence is captured.
 - Do not move feature status to `completed`; TechLead review + approval gate handles final completion.
+
+---
+
+## TechLead Review (Pre-merge) — 2026-03-15
+
+### Review Scope
+
+- Verified task definitions and statuses for `task121`..`task124`.
+- Audited feature acceptance criteria coverage using `test167`..`test177` and implemented test code.
+- Reviewed implementation in runtime/parser/schema paths for feature20 behavior and regressions.
+
+### Evidence Run
+
+- `python3 src/validate_project_manifests.py` -> pass
+- `python3 -m pytest tests/test_validator.py -k "inputs_required"` -> 2 passed
+- `python3 -m pytest tests/test_cli.py -k "feature20 or run_without_input or pass_through"` -> 5 passed
+- `python3 -m pytest tests/test_input_guard_integration.py -k "pass_through or no_guard"` -> 3 passed
+- `python3 -m pytest tests/test_regression_v1.py -k "feature20_does_not_regress_v2_behavior"` -> 1 passed
+
+### Findings (ordered by severity)
+
+1. **High: behavior conflict with feature contract for `inputs.required: true`**
+   - Current logic in `run_command.py` only rejects missing positional input when both input and pass-through args are absent.
+   - This allows `kinnoo run <dir> -- -e text` to proceed even when `inputs.required` is true.
+   - Feature20 contract states only agents with `inputs.required: false` may omit positional input.
+   - Impact: agents marked input-required can be run without positional input by using pass-through mode.
+   - Recommendation: enforce positional input requirement whenever `inputs.required` is true, regardless of pass-through args. Add a dedicated regression test for required=true + pass-through without positional input.
+
+2. **Medium: feature manifest linkage/state is stale**
+   - `FEATURES.txt` still shows feature20 `tasks: []` and `status: not-started`.
+   - `TASKS.txt` shows `task121`..`task124` at `needs-review`.
+   - Impact: project-tracking inconsistency before merge gate.
+   - Recommendation: update feature20 task list and status to match current task progression before merge into phase3 main.
+
+3. **Low: run usage/help text no longer reflects supported modes**
+   - CLI usage error still prints `Usage: kinnoo run <agent-dir> '<input>'` as the only form.
+   - Feature20 now supports no-input and pass-through modes.
+   - Impact: user-facing guidance is incomplete and can cause confusion.
+   - Recommendation: expand usage/help examples to include:
+     - `kinnoo run <agent-dir>` (when `inputs.required: false`)
+     - `kinnoo run <agent-dir> -- <args...>`
+
+### AC Coverage Audit
+
+- AC1: covered (`test170`, `test176`)
+- AC2: covered for plain no-input (`test169`, `test175`), but **missing required=true + pass-through/no positional input case**
+- AC3: covered (`test172`)
+- AC4: covered (`test171`, `test176`)
+- AC5: covered (`test173`)
+- AC6: covered (`test174`; existing single-input no-guard integration also present)
+- AC7: covered (`test167`, `test168`)
+- AC8: covered (`test177`)
+
+### Recommended Follow-up Before Merge
+
+1. Patch runtime required-input gate to align with feature contract for required=true manifests.
+2. Add one explicit test case for required=true + pass-through without positional input -> must fail.
+3. Update feature20 entry in `FEATURES.txt` (tasks list + status progression).
+4. Update run usage/help text to represent all supported invocation modes.
+
+### Merge Recommendation
+
+- **Status: changes requested before merge**
+- Rationale: core implementation is close and tests are largely solid, but the required-input bypass in pass-through mode is a contract-level mismatch that should be fixed before integrating into `phase3/main`.
