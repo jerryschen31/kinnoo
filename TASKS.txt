@@ -2433,4 +2433,4 @@ tasks:
       - 'step4: Record pass/fail evidence in task notes before handoff to review'
     dependencies: [task123]
     tests: [test177]
-    status: not-started
+    status: needs-review
