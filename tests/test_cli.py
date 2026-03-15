@@ -196,6 +196,42 @@ def test_run_missing_args():
     assert "<agent-dir> '<input>'" in result.stderr
 
 
+def test_run_without_input_defaults_to_required(tmp_path):
+    agent_dir = tmp_path / "feature20-default-required-agent"
+    agent_dir.mkdir()
+    (agent_dir / "requirements.txt").write_text("")
+    # Intentionally omit inputs.required so default behavior remains input-required.
+    (agent_dir / "kinnoo.yaml").write_text(
+        """
+name: default-required-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+"""
+    )
+    (agent_dir / "run.py").write_text("print('should not run without input')\n")
+    (agent_dir / "README.md").write_text("feature20 default-required test")
+    (agent_dir / "tools").mkdir()
+    (agent_dir / "prompts").mkdir()
+
+    result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "run", str(agent_dir)],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode != 0
+    assert "Usage: kinnoo run <agent-dir> '<input>'" in result.stderr
+
+
 def test_run_missing_entrypoint(tmp_path):
     """Test kinnoo run with missing entrypoint file prints error and aborts."""
     agent_dir = tmp_path / "test-agent"
