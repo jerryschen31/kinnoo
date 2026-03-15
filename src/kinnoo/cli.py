@@ -151,12 +151,18 @@ def main():
             and "--help" not in sys.argv
             and "--preflight" not in sys.argv
             and "--no-guard" not in sys.argv
-            and len(sys.argv) < 4
+            and len(sys.argv) < 3
         ):
             print("Usage: kinnoo run <agent-dir> '<input>'", file=sys.stderr)
             sys.exit(1)
 
-    args = parser.parse_args()
+    run_pass_through_args: list[str] = []
+    if len(sys.argv) > 1 and sys.argv[1] == "run" and "--" in sys.argv:
+        separator_index = sys.argv.index("--")
+        run_pass_through_args = sys.argv[separator_index + 1 :]
+        args = parser.parse_args(sys.argv[1:separator_index])
+    else:
+        args = parser.parse_args()
 
     if args.command == "init":
         if not args.agent_name:
@@ -177,15 +183,13 @@ def main():
 
     elif args.command == "run":
         preflight_mode = bool(getattr(args, "preflight", False))
+        input_arg = args.input
+        pass_through_args = run_pass_through_args
         if not hasattr(args, "agent_dir") or args.agent_dir is None:
             if preflight_mode:
                 print("Usage: kinnoo run <agent-dir> --preflight", file=sys.stderr)
             else:
                 print("Usage: kinnoo run <agent-dir> '<input>'", file=sys.stderr)
-            sys.exit(1)
-
-        if not preflight_mode and args.input is None:
-            print("Usage: kinnoo run <agent-dir> '<input>'", file=sys.stderr)
             sys.exit(1)
 
         try:
@@ -195,9 +199,10 @@ def main():
 
         exit_code = run_agent(
             agent_dir_arg=args.agent_dir,
-            input_arg=args.input,
+            input_arg=input_arg,
             preflight=preflight_mode,
             no_guard=bool(getattr(args, "no_guard", False)),
+            pass_through_args=pass_through_args,
         )
         sys.exit(exit_code)
 
