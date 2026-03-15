@@ -1,3 +1,7 @@
+# Feature 21 Notes
+
+## SWE Handoff
+
 # SWE Agent Handoff — Feature 21: Framework Template Expansion
 
 **Date:** 2026-03-15

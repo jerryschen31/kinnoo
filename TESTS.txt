@@ -3006,3 +3006,197 @@ tests:
     covers:
       - feature: feature20
         ac: AC4
+
+  - id: test180
+    title: Feature21 init rejects invalid framework with full choices listed
+    type: unit
+    preconditions: kinnoo CLI installed
+    steps:
+      - step1: Run `kinnoo init my-agent --framework invalid-name`
+      - step2: Verify error output lists all valid framework choices including new entries
+    expected: Invalid framework is rejected with clear guidance
+    pass_criteria: non-zero exit and output contains `pydantic-ai`, `langgraph`, `openai-agents`, plus existing framework choices
+    automated: true
+    automation_path: tests/test_init.py::test_feature21_framework_invalid_lists_all_choices
+    covers:
+      - feature: feature21
+        ac: AC9
+
+  - id: test181
+    title: Feature21 framework values accepted by init parsing
+    type: unit
+    preconditions: kinnoo CLI installed
+    steps:
+      - step1: Run init with each framework value (`pydantic-ai`, `langgraph`, `openai-agents`)
+      - step2: Verify command succeeds and creates agent directories
+    expected: New framework choices are accepted by parsing and init dispatch
+    pass_criteria: all three invocations exit 0 and produce generated scaffold directories
+    automated: true
+    automation_path: tests/test_init.py::test_feature21_framework_values_accepted
+    covers:
+      - feature: feature21
+        ac: AC1
+      - feature: feature21
+        ac: AC2
+      - feature: feature21
+        ac: AC3
+
+  - id: test182
+    title: Feature21 PydanticAI template scaffold generation
+    type: integration
+    preconditions: kinnoo CLI installed
+    steps:
+      - step1: Run `kinnoo init <name> --framework pydantic-ai`
+      - step2: Inspect generated `run.py`, `requirements.txt`, `kinnoo.yaml`, and README
+    expected: PydanticAI scaffold files are generated with framework-appropriate boilerplate
+    pass_criteria: generated files exist and contain expected PydanticAI template markers
+    automated: true
+    automation_path: tests/test_init.py::test_feature21_pydanticai_template_generation
+    covers:
+      - feature: feature21
+        ac: AC1
+
+  - id: test183
+    title: Feature21 LangGraph template scaffold generation
+    type: integration
+    preconditions: kinnoo CLI installed
+    steps:
+      - step1: Run `kinnoo init <name> --framework langgraph`
+      - step2: Inspect generated `run.py`, `requirements.txt`, `kinnoo.yaml`, and README
+    expected: LangGraph scaffold files are generated with graph-oriented boilerplate
+    pass_criteria: generated files exist and contain expected LangGraph template markers
+    automated: true
+    automation_path: tests/test_init.py::test_feature21_langgraph_template_generation
+    covers:
+      - feature: feature21
+        ac: AC2
+
+  - id: test184
+    title: Feature21 OpenAI Agents template scaffold generation
+    type: integration
+    preconditions: kinnoo CLI installed
+    steps:
+      - step1: Run `kinnoo init <name> --framework openai-agents`
+      - step2: Inspect generated `run.py`, `requirements.txt`, `kinnoo.yaml`, and README
+    expected: OpenAI Agents scaffold files are generated with agent SDK-oriented boilerplate
+    pass_criteria: generated files exist and contain expected OpenAI Agents template markers
+    automated: true
+    automation_path: tests/test_init.py::test_feature21_openai_agents_template_generation
+    covers:
+      - feature: feature21
+        ac: AC3
+
+  - id: test185
+    title: Feature21 requirements pin framework dependencies to major ranges
+    type: unit
+    preconditions: generated templates available for new frameworks
+    steps:
+      - step1: Generate all three new framework templates
+      - step2: Inspect each `requirements.txt` entry for major-version range pinning
+    expected: Dependencies are pinned to bounded major ranges
+    pass_criteria: each framework dependency follows a bounded major pattern like `>=X.Y,<Z.0`
+    automated: true
+    automation_path: tests/test_init.py::test_feature21_requirements_major_version_pins
+    covers:
+      - feature: feature21
+        ac: AC4
+
+  - id: test186
+    title: Feature21 generated manifests validate and set framework field
+    type: integration
+    preconditions: validator module available; generated templates for new frameworks
+    steps:
+      - step1: Generate each new framework template
+      - step2: Validate each generated manifest using feature1 validator
+      - step3: Verify `framework` field equals selected framework value
+    expected: All generated manifests are valid and correctly identify framework type
+    pass_criteria: validator passes for all; `framework` value matches template selection
+    automated: true
+    automation_path: tests/test_init.py::test_feature21_manifests_pass_and_set_framework
+    covers:
+      - feature: feature21
+        ac: AC5
+
+  - id: test187
+    title: Feature21 README includes setup and API/env guidance per framework
+    type: unit
+    preconditions: generated templates for new frameworks
+    steps:
+      - step1: Generate each new framework template
+      - step2: Inspect README setup instructions for env vars and model/config guidance
+    expected: READMEs include framework-specific setup instructions and execution guidance
+    pass_criteria: each README contains env-var setup and run instructions matching its framework
+    automated: true
+    automation_path: tests/test_init.py::test_feature21_readme_setup_guidance
+    covers:
+      - feature: feature21
+        ac: AC6
+
+  - id: test188
+    title: Feature21 PydanticAI template smoke run with basic input
+    type: integration
+    preconditions: pydantic-ai template generated; test-safe runtime configuration available
+    steps:
+      - step1: Run `kinnoo init <name> --framework pydantic-ai`
+      - step2: Execute `kinnoo run <dir> "hello"` under test-safe config
+      - step3: Verify non-empty stdout and no template-level runtime error
+    expected: Template is runnable with basic input through kinnoo run
+    pass_criteria: run exits 0, emits non-empty stdout, and follows input->stdout contract
+    automated: true
+    automation_path: tests/test_cli.py::test_feature21_pydanticai_smoke_run
+    covers:
+      - feature: feature21
+        ac: AC7
+      - feature: feature21
+        ac: AC10
+
+  - id: test189
+    title: Feature21 LangGraph template smoke run with basic input
+    type: integration
+    preconditions: langgraph template generated; test-safe runtime configuration available
+    steps:
+      - step1: Run `kinnoo init <name> --framework langgraph`
+      - step2: Execute `kinnoo run <dir> "hello"` under test-safe config
+      - step3: Verify non-empty stdout and no template-level runtime error
+    expected: Template is runnable with basic input through kinnoo run
+    pass_criteria: run exits 0, emits non-empty stdout, and follows input->stdout contract
+    automated: true
+    automation_path: tests/test_cli.py::test_feature21_langgraph_smoke_run
+    covers:
+      - feature: feature21
+        ac: AC7
+      - feature: feature21
+        ac: AC11
+
+  - id: test190
+    title: Feature21 OpenAI Agents template smoke run with basic input
+    type: integration
+    preconditions: openai-agents template generated; test-safe runtime configuration available
+    steps:
+      - step1: Run `kinnoo init <name> --framework openai-agents`
+      - step2: Execute `kinnoo run <dir> "hello"` under test-safe config
+      - step3: Verify non-empty stdout and no template-level runtime error
+    expected: Template is runnable with basic input through kinnoo run
+    pass_criteria: run exits 0, emits non-empty stdout, and follows input->stdout contract
+    automated: true
+    automation_path: tests/test_cli.py::test_feature21_openai_agents_smoke_run
+    covers:
+      - feature: feature21
+        ac: AC7
+      - feature: feature21
+        ac: AC12
+
+  - id: test191
+    title: Feature21 regression preserves existing framework templates
+    type: integration
+    preconditions: legacy framework template tests available (gemini/chatgpt/claude-chat)
+    steps:
+      - step1: Execute existing framework template generation/validation tests
+      - step2: Verify existing framework choices remain unchanged after feature21 additions
+    expected: Existing framework behavior remains stable
+    pass_criteria: legacy framework template tests pass without feature21-induced regressions
+    automated: true
+    automation_path: tests/test_init.py::test_feature21_regression_existing_frameworks_unchanged
+    covers:
+      - feature: feature21
+        ac: AC8
