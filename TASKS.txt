@@ -2495,7 +2495,7 @@ tasks:
       - 'step4: Add/extend tests for generated file contents and manifest validity'
     dependencies: [task126, task18]
     tests: [test182, test183, test184, test185, test186, test187]
-    status: not-started
+    status: needs-review
 
   - id: task128
     title: "Add runnable smoke tests for new frameworks"
