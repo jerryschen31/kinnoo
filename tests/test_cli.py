@@ -630,3 +630,54 @@ outputs:
     finally:
         # Restore permissions so tmp_path can clean up
         agent_dir.chmod(stat.S_IWRITE | stat.S_IREAD | stat.S_IEXEC)
+
+
+def _run_feature21_smoke_framework(tmp_path, framework: str, marker: str):
+    agent_name = f"feature21-smoke-{framework}"
+    init_result = subprocess.run(
+        [sys.executable, "-m", "kinnoo.cli", "init", agent_name, "--framework", framework],
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+    )
+    assert init_result.returncode == 0, init_result.stderr
+
+    agent_dir = tmp_path / agent_name
+    # Keep smoke runs deterministic and network-independent in CI.
+    (agent_dir / "requirements.txt").write_text("")
+
+    run_result = subprocess.run(
+        [sys.executable, "-m", "kinnoo.cli", "run", str(agent_dir), "hello"],
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+    )
+    assert run_result.returncode == 0, run_result.stderr
+    assert run_result.stdout.strip() != ""
+    assert marker in run_result.stdout
+    assert "Traceback" not in run_result.stderr
+    assert "Error:" not in run_result.stderr
+
+
+def test_feature21_pydanticai_smoke_run(tmp_path):
+    _run_feature21_smoke_framework(
+        tmp_path=tmp_path,
+        framework="pydantic-ai",
+        marker="[pydantic-ai template]",
+    )
+
+
+def test_feature21_langgraph_smoke_run(tmp_path):
+    _run_feature21_smoke_framework(
+        tmp_path=tmp_path,
+        framework="langgraph",
+        marker="[langgraph template]",
+    )
+
+
+def test_feature21_openai_agents_smoke_run(tmp_path):
+    _run_feature21_smoke_framework(
+        tmp_path=tmp_path,
+        framework="openai-agents",
+        marker="[openai-agents template]",
+    )

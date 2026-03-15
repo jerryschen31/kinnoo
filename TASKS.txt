@@ -2514,7 +2514,7 @@ tasks:
       - 'step4: Validate contract expectations (input handling/stdout path/env-var guidance) for each framework template'
     dependencies: [task127, task10]
     tests: [test188, test189, test190]
-    status: not-started
+    status: needs-review
 
   - id: task129
     title: "Feature21 regression gate for existing frameworks"
