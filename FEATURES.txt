@@ -649,7 +649,7 @@ features:
       existing project, creates a Kinnoo-compatible scaffold, generates
       kinnoo.yaml with safe defaults, and copies project artifacts needed for
       run/pack flows while preserving source project files.
-    tasks: []
+    tasks: [task126, task127, task128, task129]
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo import <existing-agent-path> <new-agent-dir>` validates arguments and prints clear usage/help when arguments are missing."
@@ -717,7 +717,7 @@ features:
       - "Input guard `check_inputs()` multi-value method (from feature18) is the integration point for scanning pass-through args."
     owner: techlead-agent
     dependencies: [feature3, feature18]
-    status: not-started
+    status: completed
 
   - id: feature21
     title: "Framework & Template Expansion — PydanticAI, LangGraph, OpenAI Agents"
@@ -748,6 +748,12 @@ features:
         description: "Existing framework choices (`gemini`, `chatgpt`, `claude-chat`) continue to work unchanged (regression check required)."
       - id: AC9
         description: "`kinnoo init --framework invalid-name` prints a clear error listing all valid framework choices."
+      - id: AC10
+        description: "A generated `pydantic-ai` template passes a basic runnable smoke test: after `kinnoo init`, running `kinnoo run <dir> \"hello\"` with test-safe configuration executes and emits non-empty stdout without template-level errors."
+      - id: AC11
+        description: "A generated `langgraph` template passes a basic runnable smoke test: after `kinnoo init`, running `kinnoo run <dir> \"hello\"` with test-safe configuration executes and emits non-empty stdout without template-level errors."
+      - id: AC12
+        description: "A generated `openai-agents` template passes a basic runnable smoke test: after `kinnoo init`, running `kinnoo run <dir> \"hello\"` with test-safe configuration executes and emits non-empty stdout without template-level errors."
     notes:
       - "REGRESSION RISK: modifying the `--framework` choices list in cli.py and init_command.py. SWE agent must run `test_init.py` and `test_cli.py` regression tests."
       - "Define templates in templates.py following existing GEMINI_RUN_PY / CHATGPT_RUN_PY pattern."

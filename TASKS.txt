@@ -2373,7 +2373,7 @@ tasks:
       - 'step4: Add/extend validator tests for valid and invalid `inputs.required` values'
     dependencies: [task50]
     tests: [test167, test168, test169]
-    status: needs-review
+    status: completed
 
   - id: task122
     title: "Update run CLI parsing for no-input and pass-through"
@@ -2392,7 +2392,7 @@ tasks:
       - 'step4: Add CLI tests for no-input, pass-through, and backward compatibility'
     dependencies: [task121]
     tests: [test170, test171, test172]
-    status: needs-review
+    status: completed
 
   - id: task123
     title: "Implement run_command flexible input execution flow"
@@ -2414,7 +2414,7 @@ tasks:
       - 'step5: Add integration tests for reject/proceed/no-guard behavior in pass-through mode'
     dependencies: [task122, task118]
     tests: [test173, test174, test175, test176]
-    status: needs-review
+    status: completed
 
   - id: task124
     title: "Feature20 regression suite verification"
@@ -2433,7 +2433,7 @@ tasks:
       - 'step4: Record pass/fail evidence in task notes before handoff to review'
     dependencies: [task123]
     tests: [test177]
-    status: needs-review
+    status: completed
 
   - id: task125
     title: "Feature20 merge-fix: enforce required input and refresh run usage guidance"
@@ -2455,4 +2455,82 @@ tasks:
       - 'step4: Add regression test asserting updated run usage/help guidance appears on missing-args path'
     dependencies: [task123]
     tests: [test178, test179]
-    status: needs-review
+    status: completed
+
+  - id: task126
+    title: "Extend init --framework parsing for feature21"
+    type: task
+    description: |
+      Update CLI/init argument parsing to accept `pydantic-ai`, `langgraph`, and
+      `openai-agents` as supported framework values while preserving existing
+      framework behavior and error guidance for invalid inputs.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/init_command.py
+      - tests/test_init.py
+    steps:
+      - 'step1: Add new framework options to init parsing/validation paths'
+      - 'step2: Keep invalid-framework error output explicit and list all valid choices'
+      - 'step3: Confirm existing framework choices remain accepted without behavior changes'
+      - 'step4: Add/extend parser-focused tests for new and invalid choices'
+    dependencies: [task16]
+    tests: [test180, test181]
+    status: not-started
+
+  - id: task127
+    title: "Generate framework templates and metadata artifacts"
+    type: task
+    description: |
+      Implement framework-specific template content for `pydantic-ai`, `langgraph`,
+      and `openai-agents`, including `run.py`, `requirements.txt`, `kinnoo.yaml`,
+      and README setup guidance.
+    files:
+      - src/kinnoo/templates.py
+      - src/kinnoo/init_command.py
+      - tests/test_init.py
+    steps:
+      - 'step1: Add template definitions for run/requirements/README for each new framework'
+      - 'step2: Pin framework dependencies to major-version ranges in requirements'
+      - 'step3: Ensure generated manifests include framework field and pass validator'
+      - 'step4: Add/extend tests for generated file contents and manifest validity'
+    dependencies: [task126, task18]
+    tests: [test182, test183, test184, test185, test186, test187]
+    status: not-started
+
+  - id: task128
+    title: "Add runnable smoke tests for new frameworks"
+    type: task
+    description: |
+      Add runnable smoke coverage for generated `pydantic-ai`, `langgraph`, and
+      `openai-agents` templates using basic inputs and test-safe configuration,
+      validating the runtime contract and end-to-end `kinnoo run` compatibility.
+    files:
+      - tests/test_init.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Create smoke fixtures for each new framework using `kinnoo init --framework`'
+      - 'step2: Run `kinnoo run <dir> "hello"` for each fixture with deterministic test-safe config'
+      - 'step3: Assert non-empty stdout and absence of template-level execution errors'
+      - 'step4: Validate contract expectations (input handling/stdout path/env-var guidance) for each framework template'
+    dependencies: [task127, task10]
+    tests: [test188, test189, test190]
+    status: not-started
+
+  - id: task129
+    title: "Feature21 regression gate for existing frameworks"
+    type: task
+    description: |
+      Run and codify regression checks proving that adding the three new
+      framework templates does not break existing `gemini`, `chatgpt`, and
+      `claude-chat` init/template behavior.
+    files:
+      - tests/test_init.py
+      - tests/test_cli.py
+      - tests/test_regression_v1.py
+    steps:
+      - 'step1: Execute existing framework template generation tests for gemini/chatgpt/claude-chat'
+      - 'step2: Add focused regression assertion that old frameworks remain valid and runnable at baseline level'
+      - 'step3: Capture regression evidence for handoff/review'
+    dependencies: [task126, task127, task128]
+    tests: [test191]
+    status: not-started
