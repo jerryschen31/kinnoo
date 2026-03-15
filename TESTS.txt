@@ -2810,3 +2810,169 @@ tests:
         ac: AC1
       - feature: feature18
         ac: AC5
+
+  - id: test167
+    title: Validator accepts boolean inputs.required
+    type: unit
+    preconditions: validator module available; manifest fixture with inputs.required field
+    steps:
+      - 'step1: Validate manifest with `inputs.required: true`'
+      - 'step2: Validate manifest with `inputs.required: false`'
+    expected: Both manifests pass schema validation
+    pass_criteria: validator returns valid for both boolean values
+    automated: true
+    automation_path: tests/test_validator.py::test_inputs_required_boolean_values_accepted
+    covers:
+      - feature: feature20
+        ac: AC7
+
+  - id: test168
+    title: Validator rejects non-boolean inputs.required
+    type: unit
+    preconditions: validator module available; manifest fixture with invalid inputs.required
+    steps:
+      - 'step1: Validate manifest with `inputs.required: "no"`'
+      - 'step2: Validate manifest with `inputs.required: 1`'
+    expected: Validation fails with clear type error for inputs.required
+    pass_criteria: validator returns invalid and error message names inputs.required boolean expectation
+    automated: true
+    automation_path: tests/test_validator.py::test_inputs_required_non_boolean_rejected
+    covers:
+      - feature: feature20
+        ac: AC7
+
+  - id: test169
+    title: Missing inputs.required preserves default required behavior
+    type: unit
+    preconditions: validator and run path fixtures available
+    steps:
+      - step1: Validate manifest without `inputs.required`
+      - step2: Attempt `kinnoo run <dir>` with no input argument
+    expected: Manifest is valid; run without input is rejected as required by default
+    pass_criteria: validation succeeds and run returns clear missing-input error
+    automated: true
+    automation_path: tests/test_cli.py::test_run_without_input_defaults_to_required
+    covers:
+      - feature: feature20
+        ac: AC2
+
+  - id: test170
+    title: Run succeeds with no input when inputs.required is false
+    type: integration
+    preconditions: "valid agent fixture with `inputs.required: false`"
+    steps:
+      - step1: Run `kinnoo run <dir>` without positional input
+      - step2: Verify entrypoint executes successfully
+    expected: Agent executes without positional input argument
+    pass_criteria: exit code is 0 and entrypoint output confirms execution
+    automated: true
+    automation_path: tests/test_cli.py::test_run_without_input_allowed_when_inputs_not_required
+    covers:
+      - feature: feature20
+        ac: AC1
+
+  - id: test171
+    title: Pass-through args after -- are forwarded to entrypoint
+    type: integration
+    preconditions: valid agent fixture that echoes argv
+    steps:
+      - step1: Run `kinnoo run <dir> -- -e text -u https://example.com -p ./file.txt`
+      - step2: Inspect entrypoint-observed argv values
+    expected: Arguments after `--` are forwarded verbatim to subprocess
+    pass_criteria: observed argv contains `-e`, `text`, `-u`, URL, `-p`, path in order
+    automated: true
+    automation_path: tests/test_cli.py::test_run_pass_through_args_forwarded_verbatim
+    covers:
+      - feature: feature20
+        ac: AC4
+
+  - id: test172
+    title: Legacy single-input run behavior remains unchanged
+    type: integration
+    preconditions: existing run fixture from V2 tests
+    steps:
+      - step1: Run `kinnoo run <dir> "hello"`
+      - step2: Verify entrypoint receives hello as first argument
+    expected: V2 single-input behavior is preserved
+    pass_criteria: run succeeds and sys.argv[1] equals hello
+    automated: true
+    automation_path: tests/test_cli.py::test_run_single_input_backward_compatible
+    covers:
+      - feature: feature20
+        ac: AC3
+
+  - id: test173
+    title: Pass-through args are guard-scanned and aggregated
+    type: integration
+    preconditions: run path with guard enabled; pass-through includes one malicious and one benign value
+    steps:
+      - step1: Run `kinnoo run <dir> -- -e "safe" -u "http://169.254.169.254/latest/meta-data/"`
+      - step2: Reject prompt response
+    expected: Guard warning shows aggregated flagged pass-through input and run aborts
+    pass_criteria: warning displayed for pass-through argument and process exits non-zero on reject
+    automated: true
+    automation_path: tests/test_input_guard_integration.py::test_pass_through_inputs_are_guard_checked
+    covers:
+      - feature: feature20
+        ac: AC5
+
+  - id: test174
+    title: No-guard bypass works in pass-through mode
+    type: integration
+    preconditions: run path with pass-through malicious payload and --no-guard flag
+    steps:
+      - 'step1: Run `kinnoo run <dir> --no-guard -- -e "'' OR 1=1--"`'
+      - step2: Verify execution proceeds without safety prompt
+    expected: Guard is bypassed in pass-through mode
+    pass_criteria: no guard warning/prompt and entrypoint executes
+    automated: true
+    automation_path: tests/test_input_guard_integration.py::test_no_guard_bypasses_pass_through_checks
+    covers:
+      - feature: feature20
+        ac: AC6
+
+  - id: test175
+    title: Run without input is rejected when inputs.required true
+    type: integration
+    preconditions: "valid agent fixture with `inputs.required: true`"
+    steps:
+      - step1: Run `kinnoo run <dir>` without input
+    expected: Command fails with clear missing-input message
+    pass_criteria: non-zero exit and message explains required input
+    automated: true
+    automation_path: tests/test_cli.py::test_run_without_input_rejected_when_required
+    covers:
+      - feature: feature20
+        ac: AC2
+
+  - id: test176
+    title: Pass-through mode coexists with no-input mode
+    type: integration
+    preconditions: valid agent fixtures for both no-input and pass-through paths
+    steps:
+      - step1: Run no-input agent with no positional input
+      - step2: Run pass-through invocation using `--` on another fixture
+    expected: Both modes work correctly without mode-conflict regressions
+    pass_criteria: both invocations behave as expected and produce expected output
+    automated: true
+    automation_path: tests/test_cli.py::test_run_no_input_and_pass_through_modes_both_supported
+    covers:
+      - feature: feature20
+        ac: AC1
+      - feature: feature20
+        ac: AC4
+
+  - id: test177
+    title: Feature20 regression gate for V2 run/install behavior
+    type: integration
+    preconditions: full legacy V2 run/install test set available
+    steps:
+      - step1: Execute targeted legacy suites for run and install behavior
+      - step2: Verify no regressions introduced by flexible-input changes
+    expected: Existing V2 tests continue to pass unchanged
+    pass_criteria: targeted regression suites pass with no new failures
+    automated: true
+    automation_path: tests/test_regression_v1.py::test_feature20_does_not_regress_v2_behavior
+    covers:
+      - feature: feature20
+        ac: AC8

@@ -2354,3 +2354,83 @@ tasks:
     dependencies: [task117]
     tests: [test165, test166]
     status: completed
+
+  - id: task121
+    title: "Add inputs.required manifest field"
+    type: task
+    description: |
+      Extend manifest schema and validation to support `inputs.required` as an optional
+      boolean field (default behavior true). This field is used by feature20 to allow
+      no-input execution mode for agents that do not require user input.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+      - tests/test_validator.py
+    steps:
+      - 'step1: Add `inputs.required` to optional schema/validation type maps as boolean'
+      - 'step2: Ensure manifests without `inputs.required` remain valid and behave as required=true'
+      - 'step3: Emit clear validator errors when `inputs.required` is present but non-boolean'
+      - 'step4: Add/extend validator tests for valid and invalid `inputs.required` values'
+    dependencies: [task50]
+    tests: [test167, test168, test169]
+    status: not-started
+
+  - id: task122
+    title: "Update run CLI parsing for no-input and pass-through"
+    type: task
+    description: |
+      Update `kinnoo run` argument parsing to support both no-input mode and
+      parameterized pass-through arguments after `--`, while preserving existing
+      single positional input behavior.
+    files:
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Adjust run parser to support optional positional input plus pass-through remainder'
+      - 'step2: Ensure arguments after `--` are captured and forwarded to run_command'
+      - 'step3: Preserve current usage/errors for legacy single-input invocation'
+      - 'step4: Add CLI tests for no-input, pass-through, and backward compatibility'
+    dependencies: [task121]
+    tests: [test170, test171, test172]
+    status: not-started
+
+  - id: task123
+    title: "Implement run_command flexible input execution flow"
+    type: task
+    description: |
+      Implement runtime behavior for no-input and pass-through input execution in
+      `run_command`, including input guard aggregation over pass-through arguments and
+      continued support for `--no-guard`.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/input_guard.py
+      - tests/test_input_guard_integration.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Allow execution without positional input when manifest declares `inputs.required: false`'
+      - 'step2: Forward pass-through argv entries to subprocess after entrypoint path'
+      - 'step3: Run guard over pass-through arguments using aggregated `check_inputs()` when guard is enabled'
+      - 'step4: Ensure `--no-guard` bypasses guard checks in all input modes'
+      - 'step5: Add integration tests for reject/proceed/no-guard behavior in pass-through mode'
+    dependencies: [task122, task118]
+    tests: [test173, test174, test175, test176]
+    status: not-started
+
+  - id: task124
+    title: "Feature20 regression suite verification"
+    type: task
+    description: |
+      Verify feature20 changes do not break existing V2 functionality and tests,
+      especially legacy `kinnoo run <dir> \"<input>\"` behavior and install/run flows.
+    files:
+      - tests/test_cli.py
+      - tests/test_install.py
+      - tests/test_regression_v1.py
+    steps:
+      - 'step1: Run targeted legacy run/install tests after feature20 implementation'
+      - 'step2: Confirm legacy single-input invocation behavior remains unchanged'
+      - 'step3: Add a focused regression assertion covering feature20 backward compatibility contract'
+      - 'step4: Record pass/fail evidence in task notes before handoff to review'
+    dependencies: [task123]
+    tests: [test177]
+    status: not-started
