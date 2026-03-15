@@ -6,10 +6,15 @@ from pathlib import Path
 import pytest
 
 
-def _create_agent(agent_dir: Path) -> None:
+def _create_agent(agent_dir: Path, *, inputs_required: bool | None = None, print_argv_json: bool = False) -> None:
+    required_block = ""
+    if inputs_required is not None:
+        required_value = "true" if inputs_required else "false"
+        required_block = f"\n    required: {required_value}"
+
     agent_dir.mkdir(parents=True, exist_ok=True)
     (agent_dir / "kinnoo.yaml").write_text(
-        """
+        f"""
 name: safety-agent
 version: 1.0.0
 entrypoint: run.py
@@ -19,7 +24,7 @@ runtime:
   version: "3.10"
 dependencies: []
 inputs:
-  type: string
+    type: string{required_block}
 outputs:
   type: string
 """.strip()
@@ -27,10 +32,11 @@ outputs:
         encoding="utf-8",
     )
     (agent_dir / "requirements.txt").write_text("\n", encoding="utf-8")
-    (agent_dir / "run.py").write_text(
-        "import sys\nprint(f'AGENT_EXECUTED:{sys.argv[1]}')\n",
-        encoding="utf-8",
-    )
+    if print_argv_json:
+        run_py = "import sys, json\nprint('ARGS_JSON:' + json.dumps(sys.argv[1:]))\n"
+    else:
+        run_py = "import sys\nprint('AGENT_EXECUTED:' + '|'.join(sys.argv[1:]))\n"
+    (agent_dir / "run.py").write_text(run_py, encoding="utf-8")
 
 
 def _run_with_tty(command: list[str], response: str) -> subprocess.CompletedProcess[str]:
@@ -149,3 +155,55 @@ def test_non_interactive_auto_aborts(tmp_path: Path) -> None:
     assert "[kinnoo] Input safety warning:" in result.stderr
     assert "Non-interactive mode: aborting due to input safety warning." in result.stderr
     assert "AGENT_EXECUTED:" not in result.stdout
+
+
+def test_pass_through_inputs_are_guard_checked(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "agent"
+    _create_agent(agent_dir, inputs_required=False)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(agent_dir),
+            "--",
+            "-e",
+            "safe",
+            "-u",
+            "http://169.254.169.254/latest/meta-data/",
+        ],
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode != 0
+    assert "[kinnoo] Input safety warning:" in result.stderr
+    assert "[SSRF]" in result.stderr
+    assert "param: -u" in result.stderr
+    assert "AGENT_EXECUTED:" not in result.stdout
+
+
+def test_no_guard_bypasses_pass_through_checks(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "agent"
+    _create_agent(agent_dir, inputs_required=False)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(agent_dir),
+            "--no-guard",
+            "--",
+            "-e",
+            "' OR 1=1--",
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "[kinnoo] Input safety warning:" not in result.stderr
+    assert "AGENT_EXECUTED:" in result.stdout
