@@ -382,3 +382,40 @@ def test_feature9_env_vars_items_must_be_non_empty_strings(tmp_path: Path) -> No
     assert any("Field 'env_vars[2]' must be a non-empty string." in msg for msg in errors), (
         f"Expected env_vars[2] non-empty string error; got: {errors}"
     )
+
+
+def test_inputs_required_boolean_values_accepted(tmp_path: Path) -> None:
+    data_true = dict(_VALID_MANIFEST)
+    data_true["inputs"] = {"type": "text", "required": True}
+    p_true = tmp_path / "inputs_required_true.yaml"
+    p_true.write_text(yaml.dump(data_true), encoding="utf-8")
+
+    is_valid, errors = validate(str(p_true))
+    assert is_valid is True, f"Expected inputs.required=true to pass; errors: {errors}"
+    assert errors == []
+
+    data_false = dict(_VALID_MANIFEST)
+    data_false["inputs"] = {"type": "text", "required": False}
+    p_false = tmp_path / "inputs_required_false.yaml"
+    p_false.write_text(yaml.dump(data_false), encoding="utf-8")
+
+    is_valid, errors = validate(str(p_false))
+    assert is_valid is True, f"Expected inputs.required=false to pass; errors: {errors}"
+    assert errors == []
+
+
+def test_inputs_required_non_boolean_rejected(tmp_path: Path) -> None:
+    for bad_value in ("no", 1):
+        data = dict(_VALID_MANIFEST)
+        data["inputs"] = {"type": "text", "required": bad_value}
+        p = tmp_path / f"inputs_required_invalid_{type(bad_value).__name__}.yaml"
+        p.write_text(yaml.dump(data), encoding="utf-8")
+
+        is_valid, errors = validate(str(p))
+        assert is_valid is False, f"Expected inputs.required={bad_value!r} to fail"
+        assert any("inputs.required" in msg for msg in errors), (
+            f"Expected error mentioning inputs.required; got: {errors}"
+        )
+        assert any("type bool" in msg for msg in errors), (
+            f"Expected bool type error for inputs.required; got: {errors}"
+        )
