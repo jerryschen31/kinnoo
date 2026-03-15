@@ -79,6 +79,17 @@ The 6 high-level features from `notes/phases/phase3-notes-opus-4-6.md` were deco
 
 ---
 
+## Feature20 SWE Handoff Created (2026-03-15)
+
+- Created dedicated handoff brief at `notes/features/feature20-notes.md`.
+- Handoff includes:
+  - ordered execution plan for `task121` -> `task124`
+  - per-task file targets and expected tests
+  - full AC-to-test mapping for feature20 (AC1-AC8)
+  - explicit regression test commands and risk callouts
+- Branching guidance included: `phase3/feature20/main` + per-task branches.
+
+
 ## Feature18 Task Breakdown (2026-03-13)
 
 - Created 4 tasks (task116–task119) and 16 tests (test149–test164) for feature18 "Input Safety Guard".
