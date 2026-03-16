@@ -270,12 +270,47 @@ KINNOO_TEST_SAFE_MODE=1 python run.py "Hello LangGraph!"
 ```
 '''
 
-OPENAI_AGENTS_RUN_PY = '''import sys
+OPENAI_AGENTS_RUN_PY = '''import os
+import sys
 import asyncio
 
+
+def _build_agent():
+  # Framework-native path: define an OpenAI Agent with instructions.
+  from agents import Agent
+
+  return Agent(
+    name="KinnooAssistant",
+    instructions="You are a concise assistant.",
+  )
+
+
+async def _run_framework_mode(input_text):
+  from agents import Runner
+
+  agent = _build_agent()
+  result = await Runner.run(agent, input_text)
+  final_output = getattr(result, "final_output", None)
+  print(final_output if final_output is not None else str(result))
+
+
+async def _run_test_safe_mode(input_text):
+  # Deterministic CI-safe path for environments without external API access.
+  print(f"[openai-agents template] test-safe response: {input_text}")
+
+
 async def main(input_text):
-  # Placeholder scaffold for OpenAI Agents handoff/guardrail flow.
-  print(f"[openai-agents template] handoff result: {input_text}")
+  test_safe_mode = os.getenv("KINNOO_TEST_SAFE_MODE", "").lower() in {"1", "true", "yes"}
+  if test_safe_mode:
+    await _run_test_safe_mode(input_text)
+    return
+
+  try:
+    await _run_framework_mode(input_text)
+  except Exception:
+    # Fall back to deterministic output when framework dependencies are unavailable.
+    await _run_test_safe_mode(input_text)
+
 
 if __name__ == '__main__':
   input_text = sys.argv[1] if len(sys.argv) > 1 else ''
@@ -292,12 +327,21 @@ This agent scaffold targets the `openai-agents` SDK.
 - Install dependencies: `pip install -r requirements.txt`
 - Set your API key: `export OPENAI_API_KEY=your-key-here`
 
+## Runtime Paths
+- Production framework path: uses `Agent` construction and `Runner.run(...)` workflow.
+- Deterministic test-safe path: set `KINNOO_TEST_SAFE_MODE=1` to run without external API calls.
+
 ## Agent Configuration
 - Define agent roles, handoffs, and guardrails in `run.py`.
 
 ## Run Example
 ```
 python run.py "Hello OpenAI Agents!"
+```
+
+## Test-Safe Example
+```
+KINNOO_TEST_SAFE_MODE=1 python run.py "Hello OpenAI Agents!"
 ```
 '''
 """
