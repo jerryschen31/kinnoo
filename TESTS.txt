@@ -3368,3 +3368,192 @@ tests:
         ac: AC5
       - feature: feature21
         ac: AC16
+
+  - id: test202
+    title: Feature22 validator accepts valid assets object and defaults
+    type: unit
+    preconditions: validator/schema support assets field normalization
+    steps:
+      - step1: Validate manifest with `assets.paths` only
+      - step2: Validate manifest with explicit `assets.bundle` and `assets.max_bundle_size_mb`
+      - step3: Assert defaulted values are applied when omitted
+    expected: Valid assets manifests pass with expected defaults
+    pass_criteria: validation succeeds and normalized assets defaults are applied as documented
+    automated: true
+    automation_path: tests/test_validator.py::test_feature22_assets_schema_accepts_valid_and_defaults
+    covers:
+      - feature: feature22
+        ac: AC1
+
+  - id: test203
+    title: Feature22 validator rejects invalid assets structure and types
+    type: unit
+    preconditions: validator/schema support assets field validation
+    steps:
+      - step1: Validate manifest with non-list `assets.paths`
+      - step2: Validate manifest with non-bool `assets.bundle`
+      - step3: Validate manifest with invalid `assets.max_bundle_size_mb` type
+    expected: Validation fails with clear field-specific errors
+    pass_criteria: invalid manifests fail and errors identify exact invalid assets subfields
+    automated: true
+    automation_path: tests/test_validator.py::test_feature22_assets_schema_rejects_invalid_structure
+    covers:
+      - feature: feature22
+        ac: AC1
+
+  - id: test204
+    title: Feature22 pack includes declared assets recursively when enabled
+    type: integration
+    preconditions: valid agent fixture with files and nested directories under assets paths
+    steps:
+      - step1: Run `kinnoo pack` with `assets.paths` including file and directory entries
+      - step2: Inspect archive content list
+      - step3: Verify nested directory content is present under original relative paths
+    expected: Declared assets are bundled recursively when bundling is enabled/default
+    pass_criteria: archive contains all expected asset files at deterministic relative paths
+    automated: true
+    automation_path: tests/test_pack.py::test_feature22_pack_includes_assets_recursively_when_enabled
+    covers:
+      - feature: feature22
+        ac: AC2
+
+  - id: test205
+    title: Feature22 pack skips asset inclusion when assets.bundle is false
+    type: integration
+    preconditions: "valid agent fixture with assets declared and `assets.bundle: false`"
+    steps:
+      - step1: Run `kinnoo pack`
+      - step2: Verify informational output indicates asset bundling is disabled
+      - step3: Inspect archive and confirm declared assets are absent
+    expected: Packaging succeeds but excludes declared assets when bundle is disabled
+    pass_criteria: archive omits asset payload and output contains explicit bundle-disabled info message
+    automated: true
+    automation_path: tests/test_pack.py::test_feature22_pack_skips_assets_when_bundle_false
+    covers:
+      - feature: feature22
+        ac: AC3
+
+  - id: test206
+    title: Feature22 pack rejects asset path traversal outside agent root
+    type: unit
+    preconditions: manifest includes traversal asset path such as `../secret.txt`
+    steps:
+      - step1: Run `kinnoo pack` on agent with traversal asset entry
+      - step2: Capture stderr and exit code
+    expected: Pack aborts with a clear security error
+    pass_criteria: non-zero exit and error explicitly states traversal/escape is not allowed
+    automated: true
+    automation_path: tests/test_pack.py::test_feature22_pack_rejects_asset_path_traversal
+    covers:
+      - feature: feature22
+        ac: AC4
+
+  - id: test207
+    title: Feature22 pack warns when declared asset path is missing
+    type: unit
+    preconditions: manifest declares at least one nonexistent asset path
+    steps:
+      - step1: Run `kinnoo pack`
+      - step2: Capture warning output
+    expected: Pack emits clear warning about missing asset path
+    pass_criteria: warning includes missing path identity and packaging behavior matches defined contract
+    automated: true
+    automation_path: tests/test_pack.py::test_feature22_pack_warns_on_missing_asset_path
+    covers:
+      - feature: feature22
+        ac: AC5
+
+  - id: test208
+    title: Feature22 install extracts bundled assets to correct relative paths
+    type: integration
+    preconditions: packed archive includes bundled assets with nested paths
+    steps:
+      - step1: Run `kinnoo install <archive.kno>`
+      - step2: Verify extracted asset files/directories exist at expected relative locations
+      - step3: Verify agent remains runnable after install
+    expected: Bundled assets are extracted with preserved relative paths
+    pass_criteria: all expected asset files/directories exist in installed agent directory structure
+    automated: true
+    automation_path: tests/test_cli_install_extract.py::test_feature22_install_extracts_assets_with_relative_paths
+    covers:
+      - feature: feature22
+        ac: AC6
+
+  - id: test209
+    title: Feature22 pack archive size warning honors default and assets override
+    type: integration
+    preconditions: fixtures available to produce archives near threshold boundaries
+    steps:
+      - step1: Pack with assets and no override; verify 100 MB default threshold behavior
+      - step2: Pack with `assets.max_bundle_size_mb` override and verify override behavior
+    expected: Size warning uses default threshold unless overridden in assets config
+    pass_criteria: warning presence/absence matches threshold configuration for both default and override runs
+    automated: true
+    automation_path: tests/test_pack.py::test_feature22_pack_size_warning_uses_assets_threshold
+    covers:
+      - feature: feature22
+        ac: AC7
+
+  - id: test210
+    title: Feature22 inspect shows declared asset paths and sizes
+    type: integration
+    preconditions: agent and archive fixtures include declared assets
+    steps:
+      - step1: Run `kinnoo inspect <agent-dir>` and capture output
+      - step2: Run `kinnoo inspect <archive.kno>` and capture output
+      - step3: Verify output includes declared asset paths and size information
+    expected: Inspect output exposes asset metadata for both directory and archive targets
+    pass_criteria: output contains asset path list and size values in both inspect modes
+    automated: true
+    automation_path: tests/test_cli_inspect.py::test_feature22_inspect_displays_asset_paths_and_sizes
+    covers:
+      - feature: feature22
+        ac: AC8
+
+  - id: test211
+    title: Feature22 no-assets regression preserves prior pack/install behavior
+    type: integration
+    preconditions: valid agent fixture without assets section in manifest
+    steps:
+      - step1: Run `kinnoo pack` and `kinnoo install` using no-assets fixture
+      - step2: Verify archive/install behavior matches pre-feature22 baseline expectations
+    expected: Agents without assets are unaffected
+    pass_criteria: pack/install flows pass with no assets-specific failures or behavior drift
+    automated: true
+    automation_path: tests/test_regression_v1.py::test_feature22_no_assets_regression_unchanged
+    covers:
+      - feature: feature22
+        ac: AC9
+
+  - id: test212
+    title: Feature22 pack warns on credential-like asset filenames
+    type: unit
+    preconditions: assets include filenames matching credential-like patterns (for example `.env`, `.pem`, `id_rsa`)
+    steps:
+      - step1: Run `kinnoo pack` with credential-like asset filenames declared
+      - step2: Capture warning output
+    expected: Filename-based credential warnings are emitted as non-blocking output
+    pass_criteria: warnings include matched filename/path and pack still completes
+    automated: true
+    automation_path: tests/test_pack.py::test_feature22_pack_warns_on_secret_like_asset_filenames
+    covers:
+      - feature: feature22
+        ac: AC10
+
+  - id: test213
+    title: Feature22 text credential scan is warning-only with disclaimer and binary skip
+    type: integration
+    preconditions: assets include UTF-8 text with secret-like token and binary file fixture
+    steps:
+      - step1: Run `kinnoo pack` with mixed text and binary assets
+      - step2: Verify warning output includes regex match finding(s) and disclaimer text
+      - step3: Verify binary files are skipped for text regex scanning and pack still succeeds
+    expected: Regex-based asset credential findings are warning-only and include heuristic disclaimer
+    pass_criteria: warnings emitted for text findings, binary skip behavior observed, and pack exits success
+    automated: true
+    automation_path: tests/test_pack.py::test_feature22_pack_text_secret_scan_warning_only_with_binary_skip
+    covers:
+      - feature: feature22
+        ac: AC11
+      - feature: feature22
+        ac: AC12
