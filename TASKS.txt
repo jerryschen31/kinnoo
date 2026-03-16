@@ -2913,7 +2913,7 @@ tasks:
       - 'step4: Keep existing inspect output stable for manifests without services'
     dependencies: [task147, task63]
     tests: [test226]
-    status: not-started
+    status: needs-review
 
   - id: task149
     title: "Feature24 AC coverage and regression gate"
