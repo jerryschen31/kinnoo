@@ -185,3 +185,67 @@ def test_feature27_detect_env_vars_patterns_and_dedup(tmp_path: Path) -> None:
         "OPENAI_API_KEY",
     ]
     assert payload["confidence"]["env_vars"]["score"] >= 0.8
+
+
+def test_feature27_detect_assets_with_path_safety_filter(tmp_path: Path) -> None:
+    """test247: asset detector infers safe model/data candidates and filters unsafe path literals."""
+    project_dir = tmp_path / "feature27-assets-layout"
+    project_dir.mkdir(parents=True, exist_ok=True)
+
+    (project_dir / "models").mkdir()
+    (project_dir / "data").mkdir()
+    (project_dir / "models" / "model.onnx").write_text("binary-placeholder", encoding="utf-8")
+    (project_dir / "data" / "train.csv").write_text("x,y\n1,2\n", encoding="utf-8")
+    (project_dir / "run.py").write_text(
+        "MODEL_PATH = 'models/model.onnx'\n"
+        "SAFE_DATA = 'data/train.csv'\n"
+        "UNSAFE = '../secrets/api-key.txt'\n",
+        encoding="utf-8",
+    )
+
+    payload = analyze_project(project_dir).as_dict()
+    assets = payload["inferred"]["assets"]
+
+    assert "models" in assets
+    assert "data" in assets
+    assert "models/model.onnx" in assets
+    assert "data/train.csv" in assets
+    assert all(".." not in asset for asset in assets)
+    warning_text = " ".join(payload["warnings"]).lower()
+    assert "unsafe asset path" in warning_text
+    assert payload["confidence"]["assets"]["score"] >= 0.7
+
+
+def test_feature27_detect_services_with_health_check_hints(tmp_path: Path) -> None:
+    """test248: service detector infers endpoints with actionable health-check hints."""
+    project_dir = tmp_path / "feature27-services-layout"
+    project_dir.mkdir(parents=True, exist_ok=True)
+
+    (project_dir / "run.py").write_text(
+        "REDIS_URL = 'redis://localhost:6379/0'\n"
+        "DB_DSN = 'postgresql://user:pass@db.local:5432/app'\n"
+        "HEALTH_URL = 'https://api.example.com/health'\n"
+        "STATUS_URL = 'https://api.example.com/v1/status'\n",
+        encoding="utf-8",
+    )
+
+    payload = analyze_project(project_dir).as_dict()
+    services = payload["inferred"]["services"]
+
+    def find_service(service_type: str, endpoint_prefix: str) -> dict[str, object]:
+        return next(
+            service
+            for service in services
+            if service["type"] == service_type and str(service["endpoint"]).startswith(endpoint_prefix)
+        )
+
+    redis_service = find_service("redis", "redis://")
+    postgres_service = find_service("postgres", "postgresql://")
+    health_service = find_service("http", "https://api.example.com/health")
+    status_service = find_service("http", "https://api.example.com/v1/status")
+
+    assert redis_service["health_check_hint"] == "PING"
+    assert postgres_service["health_check_hint"] == "SELECT 1"
+    assert health_service["health_check_hint"] == "GET /health"
+    assert "health_check_hint" not in status_service
+    assert payload["confidence"]["services"]["score"] >= 0.7
