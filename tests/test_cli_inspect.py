@@ -325,3 +325,68 @@ def test_feature22_inspect_displays_asset_paths_and_sizes(tmp_path: Path) -> Non
         assert "- Assets Size:" in inspect_archive_result.stdout
         assert "assets/nested/a.txt" in inspect_archive_result.stdout
         assert "data/b.txt" in inspect_archive_result.stdout
+
+
+def test_feature24_inspect_displays_services(tmp_path: Path) -> None:
+                agent_dir = tmp_path / "inspect-services-agent"
+                agent_dir.mkdir(parents=True, exist_ok=True)
+                (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+                (agent_dir / "run.py").write_text("print('ok')\n", encoding="utf-8")
+
+                manifest_text = "\n".join(
+                    [
+                        "name: inspect-services-agent",
+                        "version: 1.0.0",
+                        "entrypoint: run.py",
+                        "runtime:",
+                        "  language: python",
+                        "  version: \"3.10\"",
+                        "  type: one-shot",
+                        "dependencies: []",
+                        "inputs:",
+                        "  type: string",
+                        "outputs:",
+                        "  type: string",
+                        "services:",
+                        "  - name: primary-db",
+                        "    type: postgres",
+                        "    health_check:",
+                        "      method: tcp",
+                        "      port: 5432",
+                        "  - name: cache",
+                        "    type: redis",
+                        "    health_check:",
+                        "      method: process",
+                        "      process_name: redis-server",
+                        "  - name: external-api",
+                        "    type: http-api",
+                        "    health_check:",
+                        "      method: http",
+                        "      url: http://localhost:8080/health",
+                        "  - name: telemetry",
+                        "    type: process",
+                        "",
+                    ]
+                )
+                (agent_dir / "kinnoo.yaml").write_text(manifest_text, encoding="utf-8")
+
+                result = subprocess.run(
+                        [sys.executable, "src/kinnoo/cli.py", "inspect", str(agent_dir)],
+                        capture_output=True,
+                        text=True,
+                )
+
+                assert result.returncode == 0
+                assert "- Services:" in result.stdout
+                assert "  - primary-db (postgres)" in result.stdout
+                assert "    - health_check.method: tcp" in result.stdout
+                assert "    - health_check.port: 5432" in result.stdout
+                assert "  - cache (redis)" in result.stdout
+                assert "    - health_check.method: process" in result.stdout
+                assert "    - health_check.process_name: redis-server" in result.stdout
+                assert "  - external-api (http-api)" in result.stdout
+                assert "    - health_check.method: http" in result.stdout
+                assert "    - health_check.url: http://localhost:8080/health" in result.stdout
+                assert "  - telemetry (process)" in result.stdout
+                # Service without health_check should not emit placeholder/noise lines.
+                assert "health_check: (none)" not in result.stdout
