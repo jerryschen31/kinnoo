@@ -642,23 +642,27 @@ features:
     status: not-started
 
   - id: feature19
-    title: "kinnoo import — Onboard existing agents"
+    title: "kinnoo import — Analyzer-backed onboarding wizard"
     description: |
-      Add a new command `kinnoo import <existing-agent-path> <new-agent-dir>` to
-      help developers onboard existing agents quickly. The command analyzes an
-      existing project, creates a Kinnoo-compatible scaffold, generates
-      kinnoo.yaml with safe defaults, and copies project artifacts needed for
-      run/pack flows while preserving source project files.
-    tasks: [task126, task127, task128, task129]
+      Add a guided onboarding flow for existing agents: `kinnoo import
+      <existing-agent-path> <new-agent-dir>`. The command uses static analysis
+      from feature27's analyzer module to infer kinnoo.yaml fields, then runs an
+      interactive confirmation wizard. The wizard first presents detected values
+      and only asks follow-up questions for fields that could not be inferred.
+
+      The flow creates a Kinnoo-compatible scaffold, writes `kinnoo.yaml` with
+      safe defaults and confidence-aware warnings, copies required artifacts for
+      run/pack flows, and leaves the source project unchanged.
+    tasks: []
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo import <existing-agent-path> <new-agent-dir>` validates arguments and prints clear usage/help when arguments are missing."
       - id: AC2
         description: "Import creates a new Kinnoo agent directory with required files (`kinnoo.yaml`, `requirements.txt`, entrypoint, README, `tools/`, `prompts/`) and does not modify the original source project."
       - id: AC3
-        description: "Generated `kinnoo.yaml` includes valid required fields and passes feature1 validator with actionable warnings when fields cannot be inferred confidently."
+        description: "`kinnoo import` invokes feature27 analyzer detectors and generates `kinnoo.yaml` with inferred fields plus confidence-aware warnings when a field cannot be inferred confidently."
       - id: AC4
-        description: "Entrypoint and dependency inference support common existing-agent layouts; unresolved cases produce explicit guidance rather than silent failures."
+        description: "Interactive wizard behavior is confirm-first: detected values are shown for user confirmation, and prompts are only shown for missing/ambiguous fields."
       - id: AC5
         description: "If import fails at any step, partial output in `<new-agent-dir>` is cleaned up (or rolled back) so users are not left with a broken half-created agent."
       - id: AC6
@@ -667,9 +671,16 @@ features:
         description: "Collision and safety checks prevent overwrites unless an explicit force/confirm path is used; error messages remain clear and actionable."
       - id: AC8
         description: "Imported agent can be executed via `kinnoo run <new-agent-dir> \"<input>\"` after standard dependency installation path."
+      - id: AC9
+        description: "For schema fields introduced in features23-26 (for example `runtime.type: mcp-server`, `services`, and MCP permissions), wizard prompts are conditional: ask only when analyzers cannot infer values or when detector confidence is below threshold."
+    notes:
+      - "Redesign scope: import UX should minimize prompt count; default behavior is accept detected values with one confirmation step."
+      - "feature27 analyzers are the single inference backend for import; avoid duplicating heuristics inside import_command."
+      - "Import summary should clearly separate: detected values, user-overrides, and unresolved TODO/warnings."
+      - "Deferred implementation planning lives in notes/tasks-todo-later.md and notes/tests-todo-later.md while feature23-feature26 are implemented first."
     owner: techlead-agent
-    dependencies: [feature2, feature3, feature9]
-    status: paused
+    dependencies: [feature2, feature3, feature9, feature27]
+    status: not-started
 
   # ======================================================================
   # Phase 3 (V3): "Share any agent. Run it with its full stack."
@@ -995,6 +1006,55 @@ features:
     status: not-started
 
   - id: feature27
+    title: "Project Analyzer Module — Manifest Field Inference"
+    description: |
+      Add a reusable static analysis module (`src/kinnoo/analyzer.py`) that
+      infers kinnoo manifest fields from an existing project directory. The
+      analyzer is a detector-based engine used by `kinnoo import` and future
+      onboarding workflows to minimize manual `kinnoo.yaml` authoring.
+
+      Initial detectors:
+      - `_detect_entrypoint`: infer entrypoint from common files and `__main__`.
+      - `_detect_runtime`: infer language/version/type (one-shot vs mcp-server)
+        and runtime port hints.
+      - `_detect_framework`: infer framework from imports/usages.
+      - `_detect_dependencies`: infer dependencies from requirements/pyproject.
+      - `_detect_env_vars`: infer env vars from getenv/environ usage.
+      - `_detect_assets`: infer bundle candidates from data/model artifacts.
+      - `_detect_services`: infer likely external services and health-check hints.
+
+      Analyzer output is structured with inferred values, per-field confidence,
+      and warnings so callers can run a confirm-first UX.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "A dedicated analyzer module exists (`src/kinnoo/analyzer.py`) with public API `analyze_project(project_dir) -> AnalysisReport` and detector helper functions."
+      - id: AC2
+        description: "Entrypoint/runtime/framework detection supports common Python agent layouts and emits confidence levels instead of hard failures when uncertain."
+      - id: AC3
+        description: "Dependency detection reads `requirements.txt` and `pyproject.toml` (project dependencies) and returns normalized package names/constraints."
+      - id: AC4
+        description: "Environment-variable detection scans source for `os.getenv`, `os.environ[...]`, and equivalent patterns, returning deduplicated env var names."
+      - id: AC5
+        description: "Asset detection identifies likely bundle candidates (for example `.npz`, `.onnx`, `.bin`, `.db`, model/data directories) with path-safety filtering."
+      - id: AC6
+        description: "Service detection emits suggested `services` entries based on recognizable connection patterns (for example redis/postgres/http endpoints) with health-check hints where possible."
+      - id: AC7
+        description: "Analyzer output includes three sections: inferred manifest fields, confidence metadata, and warnings/todo guidance for unresolved fields."
+      - id: AC8
+        description: "Analyzer is reusable by feature19 import flow without duplicating inference logic in command code."
+      - id: AC9
+        description: "Analyzer-only tests cover positive detection and uncertain/ambiguous cases for each detector; failures provide actionable diagnostics for debugging detector behavior."
+    notes:
+      - "Design constraint: detector functions should be independent and composable; each detector returns value + confidence + evidence string."
+      - "Prefer stdlib parsing first (regex/ast/pathlib/tomllib); avoid heavyweight optional dependencies in the analyzer core."
+      - "This feature is onboarding infrastructure and should be implemented before the full feature19 wizard UX."
+      - "Deferred implementation planning lives in notes/tasks-todo-later.md and notes/tests-todo-later.md while feature23-feature26 are implemented first."
+    owner: techlead-agent
+    dependencies: [feature20, feature22, feature23, feature24, feature26]
+    status: not-started
+
+  - id: feature28
     title: "Registry Backend Abstraction & Remote Client"
     description: |
       Extract the current local mock registry logic behind a formal `RegistryBackend`
@@ -1004,7 +1064,7 @@ features:
       configured. Configuration via `~/.kinnoo/config.yaml` or env var
       `KINNOO_REGISTRY_URL`.
 
-      This is the client-side foundation for the remote registry. The server is feature28.
+      This is the client-side foundation for the remote registry. The server is feature29.
     tasks: []
     acceptance_criteria:
       - id: AC1
@@ -1032,12 +1092,12 @@ features:
     dependencies: [feature13]
     status: not-started
 
-  - id: feature28
+  - id: feature29
     title: "Remote Registry Server"
     description: |
       Implement a FastAPI-based registry server that stores agent archives in S3 and
       maintains a JSON metadata index. The server provides REST endpoints for the CLI
-      client (feature27) to publish, install, search, and list agents. Authentication
+      client (feature28) to publish, install, search, and list agents. Authentication
       uses token-based auth for CLI and session-based auth for the web UI (feature29).
 
       Server endpoints:
@@ -1076,10 +1136,10 @@ features:
       - "S3 backend should be behind an abstraction layer for testing with local filesystem or moto."
       - "Server dependencies (fastapi, uvicorn, boto3) go in server/requirements.txt, NOT in the main kinnoo requirements.txt."
     owner: techlead-agent
-    dependencies: [feature27]
+    dependencies: [feature28]
     status: not-started
 
-  - id: feature29
+  - id: feature30
     title: "Registry Web UI"
     description: |
       Add a web-based UI to the remote registry server (feature28) using Jinja2 templates
@@ -1113,5 +1173,5 @@ features:
       - "Read-only browsing without login is intentional — lowers friction for agent discovery."
       - "Jinja2 templates go in server/templates/."
     owner: techlead-agent
-    dependencies: [feature28]
+    dependencies: [feature29]
     status: not-started

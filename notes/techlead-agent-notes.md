@@ -7,6 +7,19 @@
 - Approved direction: asset credential detection during `kinnoo pack` remains warning-only because packing is a local operation.
 - Follow-up design note: evaluate stricter/blocking secret scans at `kinnoo publish` time for registry-bound artifacts.
 
+### Onboarding complexity strategy update (2026-03-16)
+
+- Captured Phase 3 onboarding strategy in `notes/phases/phase3-notes-schema-complexity-thoughts.md`.
+- Decision recorded from user: proceed with Strategy 1 (smart defaults/inference) and Strategy 2 (analyzer + wizard), defer Strategy 3 (`--ai` manifest generation).
+- `feature19` redesigned as analyzer-backed `kinnoo import` with confirm-first wizard UX.
+- Added new `feature27` for reusable analyzer module and detector set (`entrypoint`, `runtime`, `framework`, `dependencies`, `env_vars`, `assets`, `services`).
+- Registry roadmap IDs were shifted forward to avoid collision after adding feature27:
+  - `feature28`: Registry Backend Abstraction & Remote Client
+  - `feature29`: Remote Registry Server
+  - `feature30`: Registry Web UI
+- Sequencing update (explicit): implement feature23-feature26 first, then feature27, then feature19.
+- Manifest updates validated with `python3 src/validate_project_manifests.py` (pass).
+
 Created 10 features (feature20–feature29) for Phase 3: "Share any agent. Run it with its full stack."
 
 ### Decomposition from Phase 3 Notes (6 high-level → 10 features)
