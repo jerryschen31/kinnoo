@@ -1053,3 +1053,81 @@ def test_feature23_mcp_server_streams_stdout_stderr(tmp_path):
     finally:
         process.terminate()
         process.wait(timeout=3)
+
+
+def _feature23_write_stubborn_mcp_agent_fixture(tmp_path, script_name: str = "feature23_stubborn_mcp.py"):
+    agent_dir = tmp_path / "feature23-stubborn-mcp-agent"
+    agent_dir.mkdir()
+    marker_file = agent_dir / "term-marker.txt"
+    agent_script = agent_dir / script_name
+    agent_script.write_text(
+        f"""
+import signal
+import time
+from pathlib import Path
+
+marker_file = Path(r"{marker_file}")
+
+def _on_sigterm(*_args):
+    marker_file.write_text("SIGTERM_RECEIVED", encoding="utf-8")
+    print("SIGTERM_RECEIVED", flush=True)
+
+signal.signal(signal.SIGTERM, _on_sigterm)
+print("SERVER_READY", flush=True)
+while True:
+    time.sleep(0.1)
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    (agent_dir / "README.md").write_text("feature23 stubborn mcp fixture", encoding="utf-8")
+    (agent_dir / "tools").mkdir()
+    (agent_dir / "prompts").mkdir()
+    (agent_dir / "kinnoo.yaml").write_text(
+        f"""
+name: feature23-stubborn-mcp-agent
+version: 0.1.0
+entrypoint: {script_name}
+runtime:
+    language: python
+    version: ">=3.10"
+    type: mcp-server
+    shutdown_timeout_seconds: 0.25
+    readiness_probe:
+        method: stdout
+        marker: SERVER_READY
+dependencies: []
+inputs:
+    type: text
+    required: false
+outputs:
+    type: text
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    return agent_dir, marker_file
+
+
+def test_feature23_sigint_graceful_shutdown_with_escalation(tmp_path):
+    from kinnoo.supervisor import shutdown_server_with_report, start_server
+
+    agent_dir, marker_file = _feature23_write_stubborn_mcp_agent_fixture(tmp_path)
+
+    process = start_server(
+        [sys.executable, str(agent_dir / "feature23_stubborn_mcp.py")],
+        cwd=agent_dir,
+        env=os.environ.copy(),
+    )
+    try:
+        time.sleep(0.3)
+        shutdown_report = shutdown_server_with_report(process, timeout_seconds=0.25)
+        assert shutdown_report.sigterm_sent is True
+        assert shutdown_report.sigkill_sent is True
+        assert shutdown_report.exit_code < 0
+        assert marker_file.exists(), "Expected SIGTERM handler marker file to verify SIGTERM-first shutdown"
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            process.wait(timeout=3)
