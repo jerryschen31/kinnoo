@@ -68,3 +68,23 @@ def test_feature21_framework_templates_do_not_regress_existing_frameworks():
         f"STDOUT:\n{result.stdout}\n"
         f"STDERR:\n{result.stderr}"
     )
+
+
+def test_feature22_no_assets_regression_unchanged():
+    command = [
+        sys.executable,
+        "-m",
+        "pytest",
+        "tests/test_pack.py::test_pack_creates_correct_archive_structure",
+        "tests/test_cli_install_extract.py::test_install_extracts_archive",
+    ]
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, (
+        "Feature22 no-assets regression gate failed for pack/install behavior.\n"
+        f"STDOUT:\n{result.stdout}\n"
+        f"STDERR:\n{result.stderr}"
+    )

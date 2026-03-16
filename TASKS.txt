@@ -2760,4 +2760,4 @@ tasks:
       - 'step4: Run manifest and regression validations and prepare review evidence'
     dependencies: [task136, task137, task138, task139]
     tests: [test211]
-    status: not-started
+    status: needs-review
