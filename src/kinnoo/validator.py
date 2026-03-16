@@ -27,6 +27,8 @@ import yaml
 
 from .schema import (
     FIELD_TYPES,
+    MCP_SERVER_PERMISSION_BOOL_FIELDS,
+    MCP_SERVER_PERMISSION_KEYS,
     NAME_PATTERN,
     OPTIONAL_FIELD_TYPES,
     REQUIRED_FIELDS,
@@ -198,6 +200,63 @@ def _collect_services_shape_errors(data: dict[str, Any]) -> list[str]:
     return errors
 
 
+def _collect_mcp_server_permissions_errors(data: dict[str, Any]) -> list[str]:
+    """Validate optional permissions payload for mcp-server manifests only."""
+    errors: list[str] = []
+
+    runtime_found, runtime_type = _get_nested(data, "runtime.type")
+    if not runtime_found or runtime_type != "mcp-server":
+        return errors
+
+    permissions_found, permissions = _get_nested(data, "permissions")
+    if not permissions_found:
+        return errors
+
+    if not isinstance(permissions, dict):
+        actual = type(permissions).__name__
+        errors.append(
+            f"Field 'permissions' must be of type dict, got {actual}."
+        )
+        return errors
+
+    allowed_keys = set(MCP_SERVER_PERMISSION_KEYS)
+    allowed_keys_display = ", ".join(f"'{key}'" for key in MCP_SERVER_PERMISSION_KEYS)
+
+    for key in sorted(permissions.keys()):
+        if key not in allowed_keys:
+            errors.append(
+                f"Field 'permissions' contains unsupported key: '{key}'. "
+                f"Allowed keys: {allowed_keys_display}."
+            )
+
+    for field_name in MCP_SERVER_PERMISSION_BOOL_FIELDS:
+        if field_name not in permissions:
+            continue
+        value = permissions[field_name]
+        if not isinstance(value, bool):
+            actual = type(value).__name__
+            errors.append(
+                f"Field 'permissions.{field_name}' must be of type bool, got {actual}."
+            )
+
+    if "allowed_paths" in permissions:
+        allowed_paths = permissions["allowed_paths"]
+        if not isinstance(allowed_paths, list):
+            actual = type(allowed_paths).__name__
+            errors.append(
+                f"Field 'permissions.allowed_paths' must be of type list, got {actual}."
+            )
+        else:
+            for index, value in enumerate(allowed_paths):
+                if not isinstance(value, str):
+                    actual = type(value).__name__
+                    errors.append(
+                        f"Field 'permissions.allowed_paths[{index}]' must be of type str, got {actual}."
+                    )
+
+    return errors
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -319,6 +378,7 @@ def _collect_validation_errors(data: dict[str, Any]) -> list[str]:
                     )
 
     errors.extend(_collect_services_shape_errors(data))
+    errors.extend(_collect_mcp_server_permissions_errors(data))
 
     return errors
 
