@@ -11,6 +11,7 @@ import ast
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+from urllib.parse import urlsplit
 from typing import Any, Callable
 
 try:
@@ -478,21 +479,206 @@ def _detect_env_vars(project_dir: Path) -> DetectorResult:
     )
 
 
+def _looks_like_safe_relative_path(value: str) -> bool:
+    normalized = value.strip().replace("\\", "/")
+    if not normalized:
+        return False
+    if normalized.startswith(("/", "~")):
+        return False
+    parts = [part for part in normalized.split("/") if part not in {"", "."}]
+    if any(part == ".." for part in parts):
+        return False
+    return True
+
+
+def _candidate_asset_directories(project_dir: Path) -> set[str]:
+    candidate_names = {"data", "dataset", "datasets", "model", "models", "assets", "artifacts", "checkpoints"}
+    candidates: set[str] = set()
+
+    for path in sorted(project_dir.rglob("*")):
+        if not path.is_dir():
+            continue
+        if path.name.lower() not in candidate_names:
+            continue
+        candidates.add(_relative_path(project_dir, path))
+
+    return candidates
+
+
+def _candidate_asset_files(project_dir: Path) -> set[str]:
+    asset_suffixes = {
+        ".onnx",
+        ".pt",
+        ".pth",
+        ".safetensors",
+        ".pkl",
+        ".pickle",
+        ".joblib",
+        ".h5",
+        ".npy",
+        ".npz",
+        ".csv",
+        ".parquet",
+        ".jsonl",
+    }
+    candidates: set[str] = set()
+
+    for path in sorted(project_dir.rglob("*")):
+        if not path.is_file():
+            continue
+        if path.suffix.lower() not in asset_suffixes:
+            continue
+        candidates.add(_relative_path(project_dir, path))
+
+    return candidates
+
+
+def _collect_string_literals(tree: ast.AST) -> list[str]:
+    literals: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            literals.append(node.value)
+    return literals
+
+
+def _collect_path_literal_assets(project_dir: Path) -> tuple[set[str], list[str]]:
+    safe_assets: set[str] = set()
+    blocked_candidates: list[str] = []
+
+    for python_path in _iter_python_files(project_dir):
+        try:
+            tree = ast.parse(python_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, SyntaxError):
+            continue
+
+        for literal in _collect_string_literals(tree):
+            if "/" not in literal and "\\" not in literal:
+                continue
+
+            normalized = literal.strip().replace("\\", "/")
+            if not _looks_like_safe_relative_path(normalized):
+                blocked_candidates.append(normalized)
+                continue
+
+            candidate_path = (project_dir / normalized).resolve()
+            try:
+                candidate_path.relative_to(project_dir.resolve())
+            except ValueError:
+                blocked_candidates.append(normalized)
+                continue
+
+            if candidate_path.exists() and (candidate_path.is_file() or candidate_path.is_dir()):
+                safe_assets.add(_relative_path(project_dir, candidate_path))
+
+    return safe_assets, sorted(set(blocked_candidates))
+
+
 def _detect_assets(project_dir: Path) -> DetectorResult:
+    dir_candidates = _candidate_asset_directories(project_dir)
+    file_candidates = _candidate_asset_files(project_dir)
+    literal_candidates, blocked_candidates = _collect_path_literal_assets(project_dir)
+
+    inferred_assets = sorted(dir_candidates | file_candidates | literal_candidates)
+
+    warning_parts: list[str] = []
+    if blocked_candidates:
+        warning_parts.append(
+            "Ignored unsafe asset path candidates: "
+            + ", ".join(blocked_candidates[:3])
+            + (" ..." if len(blocked_candidates) > 3 else "")
+        )
+
+    if inferred_assets:
+        evidence = (
+            f"Detected {len(inferred_assets)} asset candidate(s) "
+            f"from directories={len(dir_candidates)}, files={len(file_candidates)}, literals={len(literal_candidates)}."
+        )
+        confidence = 0.84 if (dir_candidates and file_candidates) else 0.72
+        return DetectorResult(
+            value=inferred_assets,
+            confidence=confidence,
+            evidence=evidence,
+            warning=" ".join(warning_parts) if warning_parts else None,
+        )
+
+    warning_parts.append("Could not infer assets; review model/data files and manifest include paths manually.")
     return DetectorResult(
         value=[],
         confidence=0.0,
-        evidence=f"asset detector not implemented for {project_dir.name}",
-        warning="Could not infer assets yet; review data/model files manually.",
+        evidence="No model/data asset candidates detected.",
+        warning=" ".join(warning_parts),
     )
 
 
+def _extract_service_endpoints_from_tree(tree: ast.AST) -> set[str]:
+    endpoints: set[str] = set()
+    for literal in _collect_string_literals(tree):
+        if literal.startswith(("http://", "https://", "redis://", "postgres://", "postgresql://")):
+            endpoints.add(literal.strip())
+    return endpoints
+
+
+def _service_type_from_endpoint(endpoint: str) -> str:
+    lower = endpoint.lower()
+    if lower.startswith("redis://"):
+        return "redis"
+    if lower.startswith(("postgres://", "postgresql://")):
+        return "postgres"
+    if lower.startswith(("http://", "https://")):
+        return "http"
+    return "unknown"
+
+
+def _health_check_hint(service_type: str, endpoint: str) -> str | None:
+    if service_type == "redis":
+        return "PING"
+    if service_type == "postgres":
+        return "SELECT 1"
+    if service_type == "http":
+        parsed = urlsplit(endpoint)
+        if parsed.path in {"/health", "/healthz", "/ready", "/readyz"}:
+            return f"GET {parsed.path}"
+    return None
+
+
 def _detect_services(project_dir: Path) -> DetectorResult:
+    discovered: dict[tuple[str, str], dict[str, Any]] = {}
+
+    for python_path in _iter_python_files(project_dir):
+        try:
+            tree = ast.parse(python_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, SyntaxError):
+            continue
+
+        for endpoint in _extract_service_endpoints_from_tree(tree):
+            service_type = _service_type_from_endpoint(endpoint)
+            if service_type == "unknown":
+                continue
+            key = (service_type, endpoint)
+            service = {
+                "type": service_type,
+                "endpoint": endpoint,
+            }
+            hint = _health_check_hint(service_type, endpoint)
+            if hint:
+                service["health_check_hint"] = hint
+            discovered[key] = service
+
+    services = [discovered[key] for key in sorted(discovered.keys())]
+    if services:
+        with_hints = sum(1 for service in services if "health_check_hint" in service)
+        return DetectorResult(
+            value=services,
+            confidence=0.8 if with_hints else 0.7,
+            evidence=f"Detected {len(services)} service endpoint(s); {with_hints} include health-check hints.",
+            warning=None,
+        )
+
     return DetectorResult(
         value=[],
         confidence=0.0,
-        evidence=f"service detector not implemented for {project_dir.name}",
-        warning="Could not infer services yet; review external service dependencies manually.",
+        evidence="No recognizable service endpoint patterns found in source literals.",
+        warning="Could not infer services; review external endpoint configuration manually.",
     )
 
 
