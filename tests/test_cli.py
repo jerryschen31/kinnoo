@@ -4,6 +4,8 @@ import pytest
 import re
 import types
 import time
+import signal
+import json
 
 def test_cli_installable_and_runnable():
     # This test checks that the CLI is installable and runnable via pyproject.toml
@@ -1111,22 +1113,49 @@ outputs:
 
 
 def test_feature23_sigint_graceful_shutdown_with_escalation(tmp_path):
-    from kinnoo.supervisor import shutdown_server_with_report, start_server
-
     agent_dir, marker_file = _feature23_write_stubborn_mcp_agent_fixture(tmp_path)
 
-    process = start_server(
-        [sys.executable, str(agent_dir / "feature23_stubborn_mcp.py")],
-        cwd=agent_dir,
-        env=os.environ.copy(),
+    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    env = os.environ.copy()
+    env["HOME"] = str(tmp_path)
+    env["PYTHONPATH"] = str(Path(__file__).resolve().parents[1] / "src")
+
+    process = subprocess.Popen(
+        [sys.executable, str(cli_path), "run", str(agent_dir)],
+        cwd=tmp_path,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=env,
     )
+
+    logs_dir = tmp_path / ".kinnoo" / "logs"
     try:
-        time.sleep(0.3)
-        shutdown_report = shutdown_server_with_report(process, timeout_seconds=0.25)
-        assert shutdown_report.sigterm_sent is True
-        assert shutdown_report.sigkill_sent is True
-        assert shutdown_report.exit_code < 0
+        ready_seen = False
+        deadline = time.monotonic() + 5.0
+        while time.monotonic() < deadline and not ready_seen:
+            if process.stdout is not None:
+                line = process.stdout.readline()
+                if "SERVER_READY" in line:
+                    ready_seen = True
+            if process.poll() is not None:
+                break
+
+        assert ready_seen, "mcp-server fixture did not reach ready state before SIGINT"
+
+        process.send_signal(signal.SIGINT)
+        process.wait(timeout=6)
+
+        assert process.returncode != 0
         assert marker_file.exists(), "Expected SIGTERM handler marker file to verify SIGTERM-first shutdown"
+
+        log_files = sorted(logs_dir.glob("run.*.log"))
+        assert log_files, f"Expected run trace log in {logs_dir}"
+        payload = json.loads(log_files[-1].read_text(encoding="utf-8"))
+
+        assert payload["runtime_type"] == "mcp-server"
+        assert payload.get("shutdown_sigterm_sent") is True
+        assert payload.get("shutdown_sigkill_sent") is True
     finally:
         if process.poll() is None:
             process.terminate()

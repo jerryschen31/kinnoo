@@ -41,6 +41,11 @@
   - mcp lifecycle trace fields validated via finite mcp runtime completion
 - Same bug/error class fix attempts: 4 (within requested cap of 5).
 
+## Post-review follow-up
+- Tech Lead review identified that AC4 still needed end-to-end coverage at the `kinnoo run` integration boundary.
+- Updated `tests/test_cli.py::test_feature23_sigint_graceful_shutdown_with_escalation` to launch `python src/kinnoo/cli.py run <agent-dir>`, send SIGINT to the parent process, and assert shutdown lifecycle flags from trace logs.
+- Hardened `run_command` mcp-server signal wiring by installing the SIGINT handler before readiness gating to avoid pre-handler race conditions.
+
 ## Teaching notes
 - Process signal tests can become nondeterministic when multiple subprocess layers and Python signal semantics interact; favor deterministic tests that assert the same contract at the most stable layer.
 - Structured shutdown results (`ShutdownReport`) are a strong pattern for observability and testability: they decouple behavior verification from raw process return codes.
