@@ -797,3 +797,79 @@ def test_feature24_duplicate_service_names_rejected(tmp_path: Path) -> None:
     assert any("Duplicate service name not allowed: 'primary-db'." in msg for msg in errors), (
         f"Expected duplicate service-name error; got: {errors}"
     )
+
+
+def test_feature26_permissions_schema_validation(tmp_path: Path) -> None:
+    """Feature26 test237: validate mcp-server permissions schema behavior."""
+    valid_permissions = dict(_VALID_MANIFEST)
+    valid_permissions["runtime"] = dict(valid_permissions["runtime"])
+    valid_permissions["runtime"]["type"] = "mcp-server"
+    valid_permissions["permissions"] = {
+        "read_only": True,
+        "allow_write": False,
+        "allow_create": False,
+        "allowed_paths": [".", "./docs"],
+    }
+
+    valid_path = tmp_path / "feature26_valid_permissions.yaml"
+    valid_path.write_text(yaml.dump(valid_permissions), encoding="utf-8")
+
+    is_valid, errors = validate(str(valid_path))
+    assert is_valid is True, (
+        "Expected mcp-server manifest with valid permissions schema to pass; "
+        f"errors: {errors}"
+    )
+    assert errors == []
+
+    unknown_key = dict(valid_permissions)
+    unknown_key["runtime"] = dict(valid_permissions["runtime"])
+    unknown_key["permissions"] = dict(valid_permissions["permissions"])
+    unknown_key["permissions"]["allow_delete"] = True
+
+    unknown_key_path = tmp_path / "feature26_unknown_permission_key.yaml"
+    unknown_key_path.write_text(yaml.dump(unknown_key), encoding="utf-8")
+
+    is_valid, errors = validate(str(unknown_key_path))
+    assert is_valid is False, "Expected unknown permissions key to fail validation"
+    assert any("unsupported key" in msg and "allow_delete" in msg for msg in errors), (
+        f"Expected unknown permissions key guidance; got: {errors}"
+    )
+
+    invalid_types = dict(valid_permissions)
+    invalid_types["runtime"] = dict(valid_permissions["runtime"])
+    invalid_types["permissions"] = {
+        "read_only": "yes",
+        "allow_write": 1,
+        "allow_create": None,
+        "allowed_paths": "/tmp",
+    }
+
+    invalid_types_path = tmp_path / "feature26_invalid_permissions_types.yaml"
+    invalid_types_path.write_text(yaml.dump(invalid_types), encoding="utf-8")
+
+    is_valid, errors = validate(str(invalid_types_path))
+    assert is_valid is False, "Expected invalid permissions field types to fail validation"
+    assert any("permissions.read_only" in msg and "bool" in msg for msg in errors), (
+        f"Expected read_only bool type error; got: {errors}"
+    )
+    assert any("permissions.allow_write" in msg and "bool" in msg for msg in errors), (
+        f"Expected allow_write bool type error; got: {errors}"
+    )
+    assert any("permissions.allow_create" in msg and "bool" in msg for msg in errors), (
+        f"Expected allow_create bool type error; got: {errors}"
+    )
+    assert any("permissions.allowed_paths" in msg and "list" in msg for msg in errors), (
+        f"Expected allowed_paths list type error; got: {errors}"
+    )
+
+    non_mcp_server = dict(_VALID_MANIFEST)
+    non_mcp_server["permissions"] = "not-a-dict"
+    non_mcp_server_path = tmp_path / "feature26_non_mcp_permissions_ignored.yaml"
+    non_mcp_server_path.write_text(yaml.dump(non_mcp_server), encoding="utf-8")
+
+    is_valid, errors = validate(str(non_mcp_server_path))
+    assert is_valid is True, (
+        "Expected permissions schema checks to be mcp-server specific; "
+        f"errors: {errors}"
+    )
+    assert errors == []

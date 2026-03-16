@@ -3904,3 +3904,118 @@ tests:
     covers:
       - feature: feature25
         ac: AC7
+
+  - id: test236
+    title: Feature26 filesystem MCP server fixture validates and packs
+    type: integration
+    preconditions: filesystem MCP server reference fixture exists with runtime.type mcp-server
+    steps:
+      - step1: Validate filesystem MCP server manifest with validator
+      - step2: Run pack flow against fixture and verify .kno archive is created
+      - step3: Confirm archive contains expected server files and manifest
+    expected: filesystem MCP server fixture is a valid, packable mcp-server agent
+    pass_criteria: validator passes and pack command emits installable .kno archive
+    automated: true
+    automation_path: tests/test_pack.py::test_feature26_filesystem_mcp_fixture_valid_and_packable
+    covers:
+      - feature: feature26
+        ac: AC1
+
+  - id: test237
+    title: Feature26 validator enforces mcp-server permissions schema
+    type: unit
+    preconditions: validator supports mcp-server permissions section
+    steps:
+      - step1: Validate mcp-server manifest with valid permissions fields and types
+      - step2: Validate manifest with unknown permissions keys
+      - step3: Validate manifest with non-boolean permission fields or non-list allowed_paths
+    expected: valid permissions pass and invalid permissions fail with explicit errors
+    pass_criteria: unknown keys and invalid field types are rejected with actionable messages
+    automated: true
+    automation_path: tests/test_validator.py::test_feature26_permissions_schema_validation
+    covers:
+      - feature: feature26
+        ac: AC2
+      - feature: feature26
+        ac: AC7
+
+  - id: test238
+    title: Feature26 filesystem MCP read-only mode rejects write and create calls
+    type: integration
+    preconditions: filesystem MCP server wrapper supports permissions enforcement at runtime
+    steps:
+      - step1: Start filesystem MCP server with read_only default behavior
+      - step2: Issue write/create tool calls through server interface
+      - step3: Re-run with explicit allow_write/allow_create enabled and verify allowed path
+    expected: read-only mode rejects write/create by default; opt-in permissions allow expected operations
+    pass_criteria: default branch blocks write/create with clear error; enabled branch permits allowed actions
+    automated: true
+    automation_path: tests/test_registry.py::test_feature26_filesystem_permissions_runtime_enforcement
+    covers:
+      - feature: feature26
+        ac: AC3
+
+  - id: test239
+    title: Feature26 github MCP server fixture is valid and packable
+    type: integration
+    preconditions: github MCP server reference fixture exists with manifest and entrypoint
+    steps:
+      - step1: Validate github MCP server fixture manifest
+      - step2: Run pack flow on fixture and verify archive creation
+      - step3: Confirm entrypoint and manifest are present in archive
+    expected: github MCP server reference fixture can be validated and packaged
+    pass_criteria: fixture passes validation and pack output contains required runtime files
+    automated: true
+    automation_path: tests/test_pack.py::test_feature26_github_mcp_fixture_valid_and_packable
+    covers:
+      - feature: feature26
+        ac: AC4
+
+  - id: test240
+    title: Feature26 init mcp-client template generation and workflow README
+    type: integration
+    preconditions: init command supports --framework mcp-client
+    steps:
+      - step1: Run python src/kinnoo/cli.py init my-agent --framework mcp-client
+      - step2: Verify generated template files include MCP connection sample code
+      - step3: Verify README includes end-to-end MCP workflow instructions
+    expected: mcp-client template is generated with usable guidance and starter code
+    pass_criteria: generated files contain framework-specific template artifacts and workflow README sections
+    automated: true
+    automation_path: tests/test_init.py::test_feature26_mcp_client_template_generation
+    covers:
+      - feature: feature26
+        ac: AC5
+
+  - id: test241
+    title: Feature26 mcp-client template follows kinnoo runtime contract
+    type: integration
+    preconditions: generated mcp-client template agent is available
+    steps:
+      - step1: Validate generated mcp-client manifest
+      - step2: Execute generated entrypoint with positional input via kinnoo run or direct python call
+      - step3: Verify output is emitted to stdout following contract
+    expected: mcp-client template remains contract-compliant and validation-clean
+    pass_criteria: manifest validation succeeds and entrypoint uses sys.argv[1] with stdout output behavior
+    automated: true
+    automation_path: tests/test_init.py::test_feature26_mcp_client_template_contract_and_validation
+    covers:
+      - feature: feature26
+        ac: AC6
+
+  - id: test242
+    title: Feature26 regression gate preserves existing framework template behavior
+    type: integration
+    preconditions: existing framework template tests are passing before feature26 changes
+    steps:
+      - step1: Run focused init framework regression suite including existing frameworks and mcp-client
+      - step2: Verify existing framework outputs are unchanged except intended mcp-client addition
+    expected: adding mcp-client framework does not regress prior init framework behavior
+    pass_criteria: focused regression suite passes with stable outputs for pre-existing templates
+    automated: true
+    automation_path: tests/test_regression_v1.py::test_feature26_framework_template_regression_gate
+    covers:
+      - feature: feature26
+        ac: AC5
+      - feature: feature26
+        ac: AC6
