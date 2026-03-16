@@ -2534,3 +2534,112 @@ tasks:
     dependencies: [task126, task127, task128]
     tests: [test191]
     status: needs-review
+
+  - id: task130
+    title: "Feature21 dependency compatibility pinning update"
+    type: task
+    description: |
+      Replace placeholder `<1.0` dependency constraints with tested compatibility
+      ranges for framework templates. For stable major versions, use bounded major
+      ranges; for pre-1.0 frameworks, use explicitly tested bounded ranges or exact
+      tested pins.
+    files:
+      - src/kinnoo/templates.py
+      - src/kinnoo/init_command.py
+      - tests/test_init.py
+      - FEATURES.txt
+    steps:
+      - 'step1: Determine tested dependency versions/ranges for pydantic-ai, langgraph, and openai-agents templates'
+      - 'step2: Update requirements template strings to use compatibility bounds matching tested versions'
+      - 'step3: Add tests asserting constraints are stable-major bounded or explicit tested pre-1.0 pins'
+      - 'step4: Ensure AC4 wording and tests stay aligned with implemented version policy'
+    dependencies: [task127]
+    tests: [test192, test193]
+    status: not-started
+
+  - id: task131
+    title: "Feature21 implement real PydanticAI runnable template"
+    type: task
+    description: |
+      Replace placeholder behavior in the `pydantic-ai` template with a real
+      framework-native runnable agent flow in `run.py`, including a test-safe mode
+      so CI can execute without external API calls.
+    files:
+      - src/kinnoo/templates.py
+      - src/kinnoo/init_command.py
+      - tests/test_init.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Implement PydanticAI template run.py using framework-native agent/model/tool constructs'
+      - 'step2: Add deterministic test-safe path for local execution with basic input when credentials/network are unavailable'
+      - 'step3: Update README guidance for real runtime path and test-safe mode behavior'
+      - 'step4: Add tests asserting framework-native code markers and runnable behavior with basic input'
+    dependencies: [task130, task128]
+    tests: [test194, test195]
+    status: not-started
+
+  - id: task132
+    title: "Feature21 implement real LangGraph runnable template"
+    type: task
+    description: |
+      Replace placeholder behavior in the `langgraph` template with a real
+      graph-based runnable agent flow in `run.py`, including deterministic
+      test-safe execution support for CI.
+    files:
+      - src/kinnoo/templates.py
+      - src/kinnoo/init_command.py
+      - tests/test_init.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Implement LangGraph template run.py using state + graph/node execution constructs'
+      - 'step2: Add deterministic test-safe path for local basic-input runs without external API dependency'
+      - 'step3: Update README guidance for graph execution flow and test-safe mode behavior'
+      - 'step4: Add tests asserting framework-native graph constructs and runnable behavior with basic input'
+    dependencies: [task130, task128]
+    tests: [test196, test197]
+    status: not-started
+
+  - id: task133
+    title: "Feature21 implement real OpenAI Agents runnable template"
+    type: task
+    description: |
+      Replace placeholder behavior in the `openai-agents` template with a real
+      framework-native runnable agent flow in `run.py` (agent/handoff or tools),
+      including deterministic test-safe execution support.
+    files:
+      - src/kinnoo/templates.py
+      - src/kinnoo/init_command.py
+      - tests/test_init.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Implement OpenAI Agents template run.py using framework-native agent workflow constructs'
+      - 'step2: Add deterministic test-safe path for local basic-input runs without external API dependency'
+      - 'step3: Update README guidance for production API path and local test-safe mode behavior'
+      - 'step4: Add tests asserting framework-native constructs and runnable behavior with basic input'
+    dependencies: [task130, task128]
+    tests: [test198, test199]
+    status: not-started
+
+  - id: task134
+    title: "Feature21 optional kinnoo.yaml model metadata field"
+    type: task
+    description: |
+      Add support for an optional `model` field in generated `kinnoo.yaml` when
+      the template has a known default underlying model. Keep this metadata
+      non-breaking for agents where model is unknown or intentionally user-chosen
+      at runtime.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+      - src/kinnoo/templates.py
+      - src/kinnoo/init_command.py
+      - tests/test_validator.py
+      - tests/test_init.py
+    steps:
+      - 'step1: Define `model` as an optional manifest metadata field with clear type constraints'
+      - 'step2: Update validator/schema logic so existing manifests remain compatible when `model` is absent'
+      - 'step3: Populate known default model values in generated framework templates where appropriate'
+      - 'step4: Add tests for validator acceptance and template generation behavior with/without `model`'
+    dependencies: [task127, task50]
+    tests: [test200, test201]
+    status: not-started
