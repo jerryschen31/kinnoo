@@ -126,6 +126,10 @@ SERVICE_TYPE_ALIASES: dict[str, str] = {
 # Feature24 health-check method values for service declarations.
 SUPPORTED_HEALTH_CHECK_METHODS: list[str] = ["tcp", "http", "process"]
 
+# Feature25 default timeout values for runtime service health checks.
+DEFAULT_HTTP_HEALTH_CHECK_TIMEOUT_SECONDS: float = 5.0
+DEFAULT_TCP_HEALTH_CHECK_TIMEOUT_SECONDS: float = 3.0
+
 # Optional V2 manifest metadata fields (feature9).
 # These are intentionally optional and should not be included in REQUIRED_FIELDS.
 OPTIONAL_FIELDS: list[str] = [
