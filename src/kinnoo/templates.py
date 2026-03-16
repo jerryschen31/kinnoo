@@ -344,6 +344,60 @@ python run.py "Hello OpenAI Agents!"
 KINNOO_TEST_SAFE_MODE=1 python run.py "Hello OpenAI Agents!"
 ```
 '''
+
+MCP_CLIENT_RUN_PY = '''import os
+import sys
+import asyncio
+from pathlib import Path
+
+
+async def main(input_text):
+  """Minimal MCP client template that preserves Kinnoo runtime contract.
+
+  This scaffold demonstrates where MCP server startup/connection logic should live
+  while remaining deterministic for local test execution.
+  """
+  server_archive_path = os.getenv("KINNOO_MCP_SERVER_ARCHIVE", "./filesystem-mcp-server.kno")
+  server_dir_hint = Path(server_archive_path).stem
+
+  # Connection placeholder: replace this with your framework-specific MCP client.
+  print(
+    f"[mcp-client template] input={input_text} | "
+    f"server_archive={server_archive_path} | "
+    f"server_dir_hint={server_dir_hint}"
+  )
+
+
+if __name__ == '__main__':
+  input_text = sys.argv[1] if len(sys.argv) > 1 else ''
+  asyncio.run(main(input_text))
+'''
+
+MCP_CLIENT_REQUIREMENTS = ""
+
+MCP_CLIENT_README = '''# {name}
+
+This scaffold demonstrates a Kinnoo-compatible MCP client template.
+
+## Setup
+- Install dependencies: `pip install -r requirements.txt`
+- Package/install an MCP server agent archive (for example a filesystem MCP server)
+
+## Suggested End-to-End Workflow
+1. Package MCP server:
+   - `python src/kinnoo/cli.py pack <mcp-server-dir>`
+2. Install MCP server package:
+   - `python src/kinnoo/cli.py install <mcp-server>.kno`
+3. Run this client template:
+   - `python run.py "list available files"`
+
+## Optional Environment Variables
+- `KINNOO_MCP_SERVER_ARCHIVE` (default: `./filesystem-mcp-server.kno`)
+
+## Contract Notes
+- Input is read from `sys.argv[1]`
+- Output is printed to stdout
+'''
 """
 Templates for kinnoo agent scaffolding files.
 """

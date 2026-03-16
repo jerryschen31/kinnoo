@@ -3072,7 +3072,7 @@ tasks:
       - 'step4: Ensure template entrypoint follows kinnoo contract (sys.argv[1] input, stdout output) and passes validation'
     dependencies: [task154, task132]
     tests: [test239, test240, test241]
-    status: not-started
+    status: needs-review
 
   - id: task157
     title: "Feature26 AC coverage and regression gate"
