@@ -101,6 +101,12 @@ SUPPORTED_RUNTIME_TYPES: list[str] = ["one-shot", "mcp-server"]
 # Feature23 readiness probe method values for mcp-server runtime workflows.
 SUPPORTED_READINESS_METHODS: list[str] = ["tcp", "stdout"]
 
+# Feature24 service declaration types for optional manifest services entries.
+SUPPORTED_SERVICE_TYPES: list[str] = ["postgres", "redis", "http-api", "process"]
+
+# Feature24 health-check method values for service declarations.
+SUPPORTED_HEALTH_CHECK_METHODS: list[str] = ["tcp", "http", "process"]
+
 # Optional V2 manifest metadata fields (feature9).
 # These are intentionally optional and should not be included in REQUIRED_FIELDS.
 OPTIONAL_FIELDS: list[str] = [
@@ -114,6 +120,7 @@ OPTIONAL_FIELDS: list[str] = [
     "assets.paths",
     "assets.bundle",
     "assets.max_bundle_size_mb",
+    "services",
 ]
 
 # Expected types for optional V2 fields when present.
@@ -129,6 +136,7 @@ OPTIONAL_FIELD_TYPES: dict[str, object] = {
     "assets.paths": list,
     "assets.bundle": bool,
     "assets.max_bundle_size_mb": (int, float),
+    "services": list,
 }
 
 # Regex for a valid semver string: MAJOR.MINOR.PATCH with optional pre-release

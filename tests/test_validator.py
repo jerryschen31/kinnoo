@@ -543,3 +543,56 @@ def test_feature22_assets_schema_rejects_invalid_structure(tmp_path: Path) -> No
     assert any("Field 'assets.max_bundle_size_mb' must be of type" in msg for msg in errors), (
         f"Expected assets.max_bundle_size_mb type error; got: {errors}"
     )
+
+
+def test_feature24_services_optional_list_is_accepted(tmp_path: Path) -> None:
+    """Feature24 test222: services is optional and valid list payloads are accepted."""
+    with_services = dict(_VALID_MANIFEST)
+    with_services["services"] = [
+        {
+            "name": "primary-db",
+            "type": "postgres",
+            "health_check": {
+                "method": "tcp",
+                "port": 5432,
+            },
+        },
+        {
+            "name": "worker",
+            "type": "process",
+            "health_check": {
+                "method": "process",
+                "process_name": "python",
+            },
+        },
+    ]
+
+    with_services_path = _write_manifest(with_services, tmp_path)
+    is_valid, errors = validate(str(with_services_path))
+    assert is_valid is True, f"Expected valid services list to pass; errors: {errors}"
+    assert errors == []
+
+    without_services = dict(_VALID_MANIFEST)
+    without_services_path = tmp_path / "feature24_without_services.yaml"
+    without_services_path.write_text(yaml.dump(without_services), encoding="utf-8")
+
+    is_valid, errors = validate(str(without_services_path))
+    assert is_valid is True, f"Expected manifest without services to pass; errors: {errors}"
+    assert errors == []
+
+
+def test_feature24_no_services_regression_unchanged(tmp_path: Path) -> None:
+    """Feature24 test225: no-services manifests keep existing pass behavior."""
+    baseline = dict(_VALID_MANIFEST)
+    baseline["assets"] = {"paths": ["docs"]}
+    baseline["env_vars"] = ["KINNOO_ENV"]
+
+    manifest_path = tmp_path / "feature24_no_services_regression.yaml"
+    manifest_path.write_text(yaml.dump(baseline), encoding="utf-8")
+
+    is_valid, errors = validate(str(manifest_path))
+    assert is_valid is True, (
+        "Expected manifest without services to remain valid after feature24 schema updates; "
+        f"errors: {errors}"
+    )
+    assert errors == []
