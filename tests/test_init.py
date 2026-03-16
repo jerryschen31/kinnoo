@@ -464,6 +464,71 @@ def test_feature21_regression_existing_frameworks_unchanged(tmp_path):
         assert not errors
 
 
+def _feature21_tested_compatibility_targets():
+    # Keep this map aligned with template requirements constants.
+    return {
+        "pydantic-ai": "pydantic-ai>=0.0,<0.1",
+        "langgraph": "langgraph>=0.2,<0.3",
+        "openai-agents": "openai-agents>=0.1,<0.2",
+    }
+
+
+def _satisfies_feature21_dependency_policy(requirement_line: str) -> bool:
+    exact_match = re.match(r"^[a-z0-9-]+==\d+\.\d+\.\d+$", requirement_line)
+    if exact_match:
+        return True
+
+    bounded_range = re.match(
+        r"^(?P<pkg>[a-z0-9-]+)>=(?P<lmajor>\d+)\.(?P<lminor>\d+),<(?P<umajor>\d+)\.(?P<uminor>\d+)$",
+        requirement_line,
+    )
+    if not bounded_range:
+        return False
+
+    lower_major = int(bounded_range.group("lmajor"))
+    lower_minor = int(bounded_range.group("lminor"))
+    upper_major = int(bounded_range.group("umajor"))
+    upper_minor = int(bounded_range.group("uminor"))
+
+    if lower_major >= 1:
+        # Stable-major policy: bounded major range (>=X.Y,<X+1.0).
+        return upper_major == (lower_major + 1) and upper_minor == 0
+
+    # Pre-1.0 policy: explicitly tested bounded range narrower than <1.0.
+    return upper_major == 0 and upper_minor == (lower_minor + 1)
+
+
+def test_feature21_requirements_tested_compatibility_ranges(tmp_path):
+    expected_requirements = _feature21_tested_compatibility_targets()
+
+    for framework, expected_line in expected_requirements.items():
+        agent_name = f"feature21-compat-ranges-{framework}"
+        code, out, err = run_cli(["init", agent_name, "--framework", framework], cwd=tmp_path)
+        assert code == 0, err
+
+        requirements_line = (tmp_path / agent_name / "requirements.txt").read_text().strip()
+        assert requirements_line == expected_line
+        assert "<1.0" not in requirements_line
+        assert _satisfies_feature21_dependency_policy(requirements_line)
+
+
+def test_feature21_dependency_policy_alignment(tmp_path):
+    features_text = Path("FEATURES.txt").read_text(encoding="utf-8")
+    assert "stable major versions" in features_text
+    assert "pre-1.0 frameworks" in features_text
+    assert "tested compatibility ranges" in features_text
+
+    for framework in _feature21_tested_compatibility_targets().keys():
+        agent_name = f"feature21-policy-alignment-{framework}"
+        code, out, err = run_cli(["init", agent_name, "--framework", framework], cwd=tmp_path)
+        assert code == 0, err
+
+        requirements_line = (tmp_path / agent_name / "requirements.txt").read_text().strip()
+        assert _satisfies_feature21_dependency_policy(requirements_line), (
+            f"Generated requirement does not satisfy AC4 policy for {framework}: {requirements_line}"
+        )
+
+
 def test_feature9_init_manifest_includes_description_and_author(tmp_path):
     """test75: init-generated manifest includes description and author placeholders."""
     agent_name = "feature9-init-agent"
