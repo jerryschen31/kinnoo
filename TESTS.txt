@@ -3557,3 +3557,126 @@ tests:
         ac: AC11
       - feature: feature22
         ac: AC12
+
+  - id: test214
+    title: Feature23 validator accepts runtime.type mcp-server
+    type: unit
+    preconditions: validator module available with updated runtime type support
+    steps:
+      - 'step1: Validate manifest fixture with `runtime.type: mcp-server`'
+      - step2: Validate fixture with unsupported runtime type value
+    expected: mcp-server is accepted and unsupported values are rejected with clear error text
+    pass_criteria: valid fixture passes; invalid fixture fails with runtime.type allowed-values guidance
+    automated: true
+    automation_path: tests/test_validator.py::test_feature23_runtime_type_mcp_server_supported
+    covers:
+      - feature: feature23
+        ac: AC1
+
+  - id: test215
+    title: Feature23 run launches mcp-server as long-running process
+    type: integration
+    preconditions: "runnable fixture with `runtime.type: mcp-server` and long-running entrypoint"
+    steps:
+      - step1: Execute `kinnoo run <fixture-dir>`
+      - step2: Verify process enters server-running mode instead of one-shot immediate wait/exit
+    expected: mcp-server runtime is treated as long-running lifecycle flow
+    pass_criteria: supervisor mode is engaged and command remains active until interrupted
+    automated: true
+    automation_path: tests/test_cli.py::test_feature23_run_mcp_server_long_running_mode
+    covers:
+      - feature: feature23
+        ac: AC2
+
+  - id: test216
+    title: Feature23 readiness probe supports tcp and stdout marker modes
+    type: integration
+    preconditions: fixtures for tcp-ready and stdout-marker-ready mcp server processes
+    steps:
+      - step1: Run mcp-server fixture with TCP readiness configuration
+      - step2: Run mcp-server fixture with stdout-marker readiness configuration
+      - step3: Verify run reports server as running only after readiness succeeds
+    expected: readiness probe gating works for both supported probe methods
+    pass_criteria: both probe modes pass when ready and block/fail when readiness is not met
+    automated: true
+    automation_path: tests/test_cli.py::test_feature23_readiness_probe_tcp_and_stdout_marker
+    covers:
+      - feature: feature23
+        ac: AC3
+
+  - id: test217
+    title: Feature23 Ctrl+C triggers graceful shutdown with timeout escalation
+    type: integration
+    preconditions: running mcp-server fixture and signal/timeout test harness
+    steps:
+      - step1: Start mcp-server runtime via `kinnoo run`
+      - step2: Send SIGINT and observe shutdown sequence
+      - step3: Verify SIGTERM-first behavior and SIGKILL escalation for non-responsive fixture
+    expected: runtime performs graceful teardown with forced kill fallback when needed
+    pass_criteria: shutdown sequence follows SIGTERM wait timeout then SIGKILL only when necessary
+    automated: true
+    automation_path: tests/test_cli.py::test_feature23_sigint_graceful_shutdown_with_escalation
+    covers:
+      - feature: feature23
+        ac: AC4
+
+  - id: test218
+    title: Feature23 mcp-server mode streams stdout and stderr in real time
+    type: integration
+    preconditions: mcp-server fixture emits both stdout and stderr lines while running
+    steps:
+      - step1: Run fixture via `kinnoo run`
+      - step2: Capture terminal output ordering and timing characteristics
+    expected: server stdout/stderr passthrough matches one-shot streaming behavior
+    pass_criteria: stdout and stderr lines are visible during runtime without end-of-run buffering
+    automated: true
+    automation_path: tests/test_cli.py::test_feature23_mcp_server_streams_stdout_stderr
+    covers:
+      - feature: feature23
+        ac: AC5
+
+  - id: test219
+    title: Feature23 trace log records server lifecycle and exit metadata
+    type: integration
+    preconditions: trace logging enabled and writable log directory
+    steps:
+      - step1: Start and stop an mcp-server runtime session
+      - step2: Inspect generated trace log entries
+      - step3: Verify start time, stop time, and exit code/signal fields are present
+    expected: lifecycle trace entries capture required server runtime metadata
+    pass_criteria: log contains complete lifecycle fields for mcp-server session
+    automated: true
+    automation_path: tests/test_trust_baseline.py::test_feature23_trace_log_server_lifecycle_fields
+    covers:
+      - feature: feature23
+        ac: AC6
+
+  - id: test220
+    title: Feature23 preserves one-shot runtime behavior
+    type: integration
+    preconditions: existing one-shot agent fixtures and baseline run assertions available
+    steps:
+      - step1: Execute one-shot fixtures through `kinnoo run`
+      - step2: Compare output/exit semantics to pre-feature23 baseline expectations
+    expected: one-shot behavior remains unchanged after adding mcp-server runtime mode
+    pass_criteria: baseline one-shot tests pass with no behavior drift
+    automated: true
+    automation_path: tests/test_regression_v1.py::test_feature23_no_regression_for_one_shot_runtime
+    covers:
+      - feature: feature23
+        ac: AC7
+
+  - id: test221
+    title: Feature23 readiness defaults when no explicit probe config is provided
+    type: integration
+    preconditions: mcp-server fixture manifest omits explicit readiness probe settings
+    steps:
+      - step1: Run fixture with runtime.port present and verify default TCP readiness path
+      - step2: Run fixture without port and verify immediate-ready fallback path
+    expected: runtime applies documented default readiness fallback semantics
+    pass_criteria: default behavior follows TCP check when possible, otherwise immediate-ready without config errors
+    automated: true
+    automation_path: tests/test_cli.py::test_feature23_default_readiness_fallback_behavior
+    covers:
+      - feature: feature23
+        ac: AC8

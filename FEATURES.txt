@@ -851,7 +851,7 @@ features:
       keeps it alive until the user sends SIGINT (Ctrl+C).
 
       This establishes the foundation for packaging and distributing MCP servers via kinnoo.
-    tasks: []
+    tasks: [task141, task142, task143, task144, task145]
     acceptance_criteria:
       - id: AC1
         description: "Manifest validator accepts `runtime.type: mcp-server` as a valid runtime type alongside `one-shot`."

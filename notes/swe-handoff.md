@@ -1,192 +1,127 @@
-# SWE Agent Handoff — Feature 22: Asset Bundling
+# SWE Handoff - Feature23
 
-**Date:** 2026-03-15
-**From:** TechLead Agent
-**Feature:** feature22 — Asset Bundling
-**Branch:** Create `phase3/feature22/main` from `phase3/main`; use task branches (`phase3/feature22/task135`, etc.)
-**Status:** `not-started` -> set to `in-progress` when implementation starts
+## Feature
+- ID: `feature23`
+- Title: `MCP Server Runtime Type - Schema & Lifecycle`
+- Goal: Add first-class `runtime.type: mcp-server` support in manifest validation and runtime execution, with supervisor-managed lifecycle, readiness probes, streaming, graceful shutdown, and trace logging.
 
-## Overview
+## Scope Summary
+Implement support for long-running MCP server agents while preserving existing one-shot behavior.
 
-Implement manifest-driven asset bundling with an `assets` object in `kinnoo.yaml`:
-
-- `assets.paths` for file/directory declarations
-- `assets.bundle` opt-out switch (default `true`)
-- `assets.max_bundle_size_mb` threshold override (default `100`)
-
-Feature22 adds pack/install/inspect behavior for assets plus warning-only heuristic credential scanning over asset files.
-
-Primary risks:
-
-- regression in pack/install behavior for agents without assets
-- path traversal vulnerabilities in recursive path handling
-- scanning logic that is either too noisy or accidentally blocking
+- Schema/validator: accept `mcp-server` runtime type.
+- Runtime: route mcp-server runs through a dedicated supervisor module.
+- Readiness: support TCP and stdout-marker probe modes plus default fallback behavior.
+- Shutdown: SIGINT -> SIGTERM -> timeout -> SIGKILL escalation.
+- Observability: trace logs record start/stop and exit metadata.
+- Regression: one-shot mode must remain unchanged.
 
 ## Task Execution Order
+Tasks are sequential for this feature:
 
-`task135 -> task136 -> task137 -> task138 -> task139 -> task140`
+1. `task141` - schema support for `mcp-server`
+2. `task142` - supervisor lifecycle + readiness probes
+3. `task143` - integrate supervisor into `run_command`
+4. `task144` - graceful shutdown + trace logging
+5. `task145` - one-shot regression gate
 
-Order rationale:
+## Task-to-Test Mapping
 
-- define schema first
-- wire pack behavior second
-- then install/inspect visibility
-- then thresholds and scanning
-- finish with docs/regression gate
+- `task141` -> `test214`
+- `task142` -> `test216`, `test221`
+- `task143` -> `test215`, `test218`
+- `task144` -> `test217`, `test219`
+- `task145` -> `test220`
 
-## Task 1 — task135: Manifest assets schema and validation
+## AC Coverage Mapping (Feature23)
 
-**Files:**
+- AC1 -> `test214`
+- AC2 -> `test215`
+- AC3 -> `test216`
+- AC4 -> `test217`
+- AC5 -> `test218`
+- AC6 -> `test219`
+- AC7 -> `test220`
+- AC8 -> `test221`
+
+## Primary Files to Modify
 
 - `src/kinnoo/schema.py`
 - `src/kinnoo/validator.py`
+- `src/kinnoo/supervisor.py` (new)
+- `src/kinnoo/run_command.py`
+- `src/kinnoo/cli.py` (only if runtime wiring requires parser/dispatch updates)
 - `tests/test_validator.py`
+- `tests/test_cli.py`
+- `tests/test_trust_baseline.py`
 
-**Tests:** `test202`, `test203`
+## Design Constraints
 
-### Implementation goals
+- Keep lifecycle logic out of `run_command.py` as much as possible; place process control in `src/kinnoo/supervisor.py`.
+- Keep one-shot path behavior unchanged.
+- Preserve real-time streaming semantics already used in run flow.
+- Keep readiness behavior deterministic and testable.
+- Do not expose secret values in logs or stdout/stderr diagnostics.
 
-- Add optional `assets` object validation.
-- Enforce:
-	- `assets.paths` as `list[str]`
-	- `assets.bundle` as `bool` (default `true`)
-	- `assets.max_bundle_size_mb` as number (default `100`)
-- Keep manifests without assets fully backward compatible.
+## Implementation Guidance
 
-### AC coverage targets
+### 1) Runtime Type Schema
+- Add `mcp-server` to supported runtime types.
+- Keep invalid `runtime.type` errors explicit and list allowed values.
 
-- AC1 via `test202`, `test203`
+### 2) Supervisor API
+Recommended minimal API (shape can vary as long as behavior is equivalent):
 
-## Task 2 — task136: Pack asset inclusion and path safety
+- `start_server(...)`
+- `wait_until_ready(...)`
+- `stream_output(...)`
+- `shutdown_server(...)`
 
-**Files:**
+Use a small readiness strategy model:
 
-- `src/kinnoo/pack_command.py`
-- `tests/test_pack.py`
+- TCP check (port-based)
+- stdout marker check
+- fallback: if no readiness config, use default TCP when `runtime.port` exists, else immediate-ready
 
-**Tests:** `test204`, `test205`, `test206`, `test207`
+### 3) Run Integration
+- For `runtime.type == one-shot`: keep existing path.
+- For `runtime.type == mcp-server`: start supervisor and block until interrupted.
 
-### Implementation goals
+### 4) Shutdown Semantics
+- On Ctrl+C/SIGINT:
+	- send SIGTERM
+	- wait timeout
+	- send SIGKILL if still alive
 
-- Include declared assets recursively in archive when enabled.
-- Implement `assets.bundle: false` opt-out message and behavior.
-- Reject traversal/escape paths.
-- Warn for missing declared asset paths per feature contract.
+### 5) Trace Logging
+- Record:
+	- start timestamp
+	- stop timestamp
+	- exit code or signal
 
-### AC coverage targets
+## Regression & Validation Commands
 
-- AC2 via `test204`
-- AC3 via `test205`
-- AC4 via `test206`
-- AC5 via `test207`
+Run these after implementation:
 
-## Task 3 — task137: Install extraction and inspect visibility
+```bash
+python3 src/validate_project_manifests.py
+python3 -m pytest tests/test_validator.py -k feature23
+python3 -m pytest tests/test_cli.py -k feature23
+python3 -m pytest tests/test_trust_baseline.py -k feature23
+python3 -m pytest tests/test_regression_v1.py::test_feature23_no_regression_for_one_shot_runtime
+```
 
-**Files:**
+Then run broader regression for runtime/CLI confidence:
 
-- `src/kinnoo/install_command.py`
-- `src/kinnoo/inspect_command.py`
-- `tests/test_cli_install_extract.py`
-- `tests/test_cli_inspect.py`
+```bash
+python3 -m pytest tests/test_cli.py tests/test_validator.py tests/test_regression_v1.py
+```
 
-**Tests:** `test208`, `test210`
+## Delivery Checklist
 
-### Implementation goals
+- [ ] Tasks moved through status flow: `not-started -> in-progress -> needs-review`
+- [ ] All feature23 tests implemented and passing
+- [ ] AC1-AC8 coverage confirmed in TESTS mapping
+- [ ] One-shot regression evidence captured
+- [ ] No secret leaks in logs/output
+- [ ] Manifest validation script passes
 
-- Ensure installed agent retains bundled asset paths exactly.
-- Display declared asset paths and sizes in inspect output for dir/archive.
-
-### AC coverage targets
-
-- AC6 via `test208`
-- AC8 via `test210`
-
-## Task 4 — task138: Asset size threshold behavior
-
-**Files:**
-
-- `src/kinnoo/pack_command.py`
-- `tests/test_pack.py`
-
-**Test:** `test209`
-
-### Implementation goals
-
-- Use `assets.max_bundle_size_mb` when present.
-- Keep 100 MB default warning threshold.
-
-### AC coverage targets
-
-- AC7 via `test209`
-
-## Task 5 — task139: Warning-only credential sweep for assets
-
-**Files:**
-
-- `src/kinnoo/code_sweep.py`
-- `src/kinnoo/pack_command.py`
-- `tests/test_pack.py`
-
-**Tests:** `test212`, `test213`
-
-### Implementation goals
-
-- Add filename-based secret checks on assets.
-- Add regex-based text checks for size-limited UTF-8 assets.
-- Skip binary files in text regex scan path.
-- Keep findings warning-only with explicit heuristic disclaimer.
-
-### AC coverage targets
-
-- AC10 via `test212`
-- AC11 via `test213`
-- AC12 via `test213`
-
-## Task 6 — task140: Docs and regression gate
-
-**Files:**
-
-- `README.md`
-- `docs/manifest-schema-reference.md`
-- `tests/test_regression_v1.py`
-
-**Test:** `test211`
-
-### Implementation goals
-
-- Ensure docs explain what can be included and how folder-based inclusion works.
-- Confirm no-assets flows are unchanged from pre-feature22 behavior.
-
-### AC coverage targets
-
-- AC9 via `test211`
-
-## Full AC-to-Test Mapping (Feature22)
-
-- AC1: `test202`, `test203`
-- AC2: `test204`
-- AC3: `test205`
-- AC4: `test206`
-- AC5: `test207`
-- AC6: `test208`
-- AC7: `test209`
-- AC8: `test210`
-- AC9: `test211`
-- AC10: `test212`
-- AC11: `test213`
-- AC12: `test213`
-
-## Regression and Validation Requirements (Must Run)
-
-1. `python3 src/validate_project_manifests.py`
-2. `python3 -m pytest tests/test_validator.py -k "feature22 or assets"`
-3. `python3 -m pytest tests/test_pack.py -k "feature22 or assets"`
-4. `python3 -m pytest tests/test_cli_install_extract.py -k "feature22 or assets"`
-5. `python3 -m pytest tests/test_cli_inspect.py -k "feature22 or assets"`
-6. `python3 -m pytest tests/test_regression_v1.py -k "feature22 or assets"`
-
-## Status Update Guidance for SWE Agent
-
-- Set `task135`..`task140` to `in-progress` when implementation begins.
-- Move each task to `needs-review` only after linked tests pass with evidence.
-- Do not set feature status to `completed`; completion is TechLead review + approval gate.
