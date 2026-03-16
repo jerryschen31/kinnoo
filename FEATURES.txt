@@ -903,7 +903,7 @@ features:
 
       Supported service types: mcp-server, vector-db, database, api, local-process.
       Supported health check methods: http, tcp, process.
-    tasks: []
+    tasks: [task146, task147, task148, task149]
     acceptance_criteria:
       - id: AC1
         description: "Manifest validator accepts an optional `services` field as a list of service objects."
