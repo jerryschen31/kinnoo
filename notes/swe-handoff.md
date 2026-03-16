@@ -1,185 +1,192 @@
-# SWE Agent Handoff — Feature 21: Framework Template Expansion
+# SWE Agent Handoff — Feature 22: Asset Bundling
 
 **Date:** 2026-03-15
 **From:** TechLead Agent
-**Feature:** feature21 — Framework & Template Expansion (PydanticAI, LangGraph, OpenAI Agents)
-**Branch:** Create `phase3/feature21/main` from `phase3/main`; use task branches (`phase3/feature21/task126`, etc.)
+**Feature:** feature22 — Asset Bundling
+**Branch:** Create `phase3/feature22/main` from `phase3/main`; use task branches (`phase3/feature22/task135`, etc.)
 **Status:** `not-started` -> set to `in-progress` when implementation starts
-
----
 
 ## Overview
 
-Implement `kinnoo init --framework` support for three new frameworks:
+Implement manifest-driven asset bundling with an `assets` object in `kinnoo.yaml`:
 
-1. `pydantic-ai`
-2. `langgraph`
-3. `openai-agents`
+- `assets.paths` for file/directory declarations
+- `assets.bundle` opt-out switch (default `true`)
+- `assets.max_bundle_size_mb` threshold override (default `100`)
 
-Each template must generate framework-specific `run.py`, `requirements.txt`, `kinnoo.yaml`, and `README.md` while preserving the existing kinnoo runtime contract and backward compatibility for current frameworks (`gemini`, `chatgpt`, `claude-chat`).
+Feature22 adds pack/install/inspect behavior for assets plus warning-only heuristic credential scanning over asset files.
 
 Primary risks:
 
-- parser/choices regressions in init command
-- template quality drift that breaks run-path contract
-- hidden regressions in existing frameworks
-
----
+- regression in pack/install behavior for agents without assets
+- path traversal vulnerabilities in recursive path handling
+- scanning logic that is either too noisy or accidentally blocking
 
 ## Task Execution Order
 
-`task126 -> task127 -> task128 -> task129`
+`task135 -> task136 -> task137 -> task138 -> task139 -> task140`
 
-Tasks are ordered from parser acceptance -> template generation -> runnable smoke validation -> regression gate.
+Order rationale:
 
----
+- define schema first
+- wire pack behavior second
+- then install/inspect visibility
+- then thresholds and scanning
+- finish with docs/regression gate
 
-## Task 1 — task126: Extend init framework parsing
+## Task 1 — task135: Manifest assets schema and validation
 
 **Files:**
 
-- `src/kinnoo/cli.py`
-- `src/kinnoo/init_command.py`
-- `tests/test_init.py`
+- `src/kinnoo/schema.py`
+- `src/kinnoo/validator.py`
+- `tests/test_validator.py`
 
-**Tests:** `test180`, `test181`
+**Tests:** `test202`, `test203`
 
 ### Implementation goals
 
-- Add `pydantic-ai`, `langgraph`, `openai-agents` as accepted framework values.
-- Keep invalid-framework messaging explicit and complete.
-- Preserve existing framework values and behavior.
+- Add optional `assets` object validation.
+- Enforce:
+	- `assets.paths` as `list[str]`
+	- `assets.bundle` as `bool` (default `true`)
+	- `assets.max_bundle_size_mb` as number (default `100`)
+- Keep manifests without assets fully backward compatible.
 
 ### AC coverage targets
 
-- AC1/AC2/AC3 entry path via `test181`
-- AC9 via `test180`
+- AC1 via `test202`, `test203`
 
----
-
-## Task 2 — task127: Generate templates and metadata artifacts
+## Task 2 — task136: Pack asset inclusion and path safety
 
 **Files:**
 
-- `src/kinnoo/templates.py`
-- `src/kinnoo/init_command.py`
-- `tests/test_init.py`
+- `src/kinnoo/pack_command.py`
+- `tests/test_pack.py`
 
-**Tests:** `test182`, `test183`, `test184`, `test185`, `test186`, `test187`
+**Tests:** `test204`, `test205`, `test206`, `test207`
 
 ### Implementation goals
 
-- Add framework-specific template strings for all four generated artifacts.
-- Pin framework dependencies to major-version ranges in requirements files.
-- Ensure generated manifests validate and set framework field correctly.
-- Ensure generated READMEs contain framework-specific setup guidance.
+- Include declared assets recursively in archive when enabled.
+- Implement `assets.bundle: false` opt-out message and behavior.
+- Reject traversal/escape paths.
+- Warn for missing declared asset paths per feature contract.
 
 ### AC coverage targets
 
-- AC1 via `test182`
-- AC2 via `test183`
-- AC3 via `test184`
-- AC4 via `test185`
-- AC5 via `test186`
-- AC6 via `test187`
+- AC2 via `test204`
+- AC3 via `test205`
+- AC4 via `test206`
+- AC5 via `test207`
 
-### Design constraints
-
-- Keep templates minimal and deterministic for testing.
-- Do not introduce plaintext secret values in templates or logs.
-
----
-
-## Task 3 — task128: Runnable smoke tests for new frameworks
+## Task 3 — task137: Install extraction and inspect visibility
 
 **Files:**
 
-- `tests/test_init.py`
-- `tests/test_cli.py`
+- `src/kinnoo/install_command.py`
+- `src/kinnoo/inspect_command.py`
+- `tests/test_cli_install_extract.py`
+- `tests/test_cli_inspect.py`
 
-**Tests:** `test188`, `test189`, `test190`
+**Tests:** `test208`, `test210`
 
 ### Implementation goals
 
-- Verify each new template is runnable with a basic input (`"hello"`) through `kinnoo run`.
-- Use test-safe configuration paths to avoid live external API dependencies.
-- Assert non-empty stdout and absence of template-level errors.
+- Ensure installed agent retains bundled asset paths exactly.
+- Display declared asset paths and sizes in inspect output for dir/archive.
 
 ### AC coverage targets
 
-- AC7 via `test188`, `test189`, `test190`
-- AC10 via `test188`
-- AC11 via `test189`
-- AC12 via `test190`
+- AC6 via `test208`
+- AC8 via `test210`
 
-### Design constraints
-
-- Smoke tests should be stable in CI without network credentials.
-- Keep runtime assertions focused on contract, not model output quality.
-
----
-
-## Task 4 — task129: Regression gate for existing frameworks
+## Task 4 — task138: Asset size threshold behavior
 
 **Files:**
 
-- `tests/test_init.py`
-- `tests/test_cli.py`
+- `src/kinnoo/pack_command.py`
+- `tests/test_pack.py`
+
+**Test:** `test209`
+
+### Implementation goals
+
+- Use `assets.max_bundle_size_mb` when present.
+- Keep 100 MB default warning threshold.
+
+### AC coverage targets
+
+- AC7 via `test209`
+
+## Task 5 — task139: Warning-only credential sweep for assets
+
+**Files:**
+
+- `src/kinnoo/code_sweep.py`
+- `src/kinnoo/pack_command.py`
+- `tests/test_pack.py`
+
+**Tests:** `test212`, `test213`
+
+### Implementation goals
+
+- Add filename-based secret checks on assets.
+- Add regex-based text checks for size-limited UTF-8 assets.
+- Skip binary files in text regex scan path.
+- Keep findings warning-only with explicit heuristic disclaimer.
+
+### AC coverage targets
+
+- AC10 via `test212`
+- AC11 via `test213`
+- AC12 via `test213`
+
+## Task 6 — task140: Docs and regression gate
+
+**Files:**
+
+- `README.md`
+- `docs/manifest-schema-reference.md`
 - `tests/test_regression_v1.py`
 
-**Test:** `test191`
+**Test:** `test211`
 
 ### Implementation goals
 
-- Prove existing framework behavior (`gemini`, `chatgpt`, `claude-chat`) is unchanged.
-- Capture explicit regression evidence before handing off for review.
+- Ensure docs explain what can be included and how folder-based inclusion works.
+- Confirm no-assets flows are unchanged from pre-feature22 behavior.
 
 ### AC coverage targets
 
-- AC8 via `test191`
+- AC9 via `test211`
 
----
+## Full AC-to-Test Mapping (Feature22)
 
-## Full AC-to-Test Mapping (Feature21)
-
-- AC1: `test181`, `test182`
-- AC2: `test181`, `test183`
-- AC3: `test181`, `test184`
-- AC4: `test185`
-- AC5: `test186`
-- AC6: `test187`
-- AC7: `test188`, `test189`, `test190`
-- AC8: `test191`
-- AC9: `test180`
-- AC10: `test188`
-- AC11: `test189`
-- AC12: `test190`
-
----
+- AC1: `test202`, `test203`
+- AC2: `test204`
+- AC3: `test205`
+- AC4: `test206`
+- AC5: `test207`
+- AC6: `test208`
+- AC7: `test209`
+- AC8: `test210`
+- AC9: `test211`
+- AC10: `test212`
+- AC11: `test213`
+- AC12: `test213`
 
 ## Regression and Validation Requirements (Must Run)
 
-Run these before marking tasks `needs-review`:
-
 1. `python3 src/validate_project_manifests.py`
-2. `python3 -m pytest tests/test_init.py -k "framework or feature21"`
-3. `python3 -m pytest tests/test_cli.py -k "feature21"`
-4. `python3 -m pytest tests/test_regression_v1.py -k "framework or feature21"`
-5. `python3 -m pytest`
-
----
-
-## Risks and Pitfalls
-
-- New framework parser choices can accidentally drop existing valid choices.
-- Template boilerplate can become non-runnable if runtime contract is violated.
-- External SDK assumptions can destabilize tests unless smoke tests are fully test-safe.
-- README/setup instructions can drift from actual template behavior.
-
----
+2. `python3 -m pytest tests/test_validator.py -k "feature22 or assets"`
+3. `python3 -m pytest tests/test_pack.py -k "feature22 or assets"`
+4. `python3 -m pytest tests/test_cli_install_extract.py -k "feature22 or assets"`
+5. `python3 -m pytest tests/test_cli_inspect.py -k "feature22 or assets"`
+6. `python3 -m pytest tests/test_regression_v1.py -k "feature22 or assets"`
 
 ## Status Update Guidance for SWE Agent
 
-- Set `task126`..`task129` to `in-progress` when implementation begins.
+- Set `task135`..`task140` to `in-progress` when implementation begins.
 - Move each task to `needs-review` only after linked tests pass with evidence.
 - Do not set feature status to `completed`; completion is TechLead review + approval gate.

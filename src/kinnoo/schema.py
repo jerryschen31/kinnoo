@@ -3,7 +3,7 @@ from __future__ import annotations
 # Manifest normalization: inject defaults for missing fields
 # ---------------------------------------------------------------------------
 def normalize_manifest_defaults(manifest: dict) -> dict:
-    """Inject defaults for dependencies, inputs, outputs if missing."""
+    """Inject defaults for dependencies, inputs, outputs, and assets fields."""
     m = dict(manifest)  # shallow copy
     if "dependencies" not in m:
         m["dependencies"] = []
@@ -15,6 +15,16 @@ def normalize_manifest_defaults(manifest: dict) -> dict:
         m["outputs"] = {"type": "string"}
     elif "type" not in m["outputs"]:
         m["outputs"]["type"] = "string"
+
+    if "assets" in m and isinstance(m["assets"], dict):
+        m["assets"] = dict(m["assets"])  # avoid mutating original nested object
+        if "paths" not in m["assets"]:
+            m["assets"]["paths"] = []
+        if "bundle" not in m["assets"]:
+            m["assets"]["bundle"] = True
+        if "max_bundle_size_mb" not in m["assets"]:
+            m["assets"]["max_bundle_size_mb"] = 100
+
     return m
 
 # ---------------------------------------------------------------------------
@@ -97,17 +107,25 @@ OPTIONAL_FIELDS: list[str] = [
     "env_vars",
     "inputs.required",
     "model",
+    "assets",
+    "assets.paths",
+    "assets.bundle",
+    "assets.max_bundle_size_mb",
 ]
 
 # Expected types for optional V2 fields when present.
 # Enforced in a later validation phase to keep feature rollout scoped by task.
-OPTIONAL_FIELD_TYPES: dict[str, type] = {
+OPTIONAL_FIELD_TYPES: dict[str, object] = {
     "description": str,
     "author": str,
     "license": str,
     "env_vars": list,
     "inputs.required": bool,
     "model": str,
+    "assets": dict,
+    "assets.paths": list,
+    "assets.bundle": bool,
+    "assets.max_bundle_size_mb": (int, float),
 }
 
 # Regex for a valid semver string: MAJOR.MINOR.PATCH with optional pre-release

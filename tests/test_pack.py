@@ -360,3 +360,387 @@ outputs:
     invalid_output = f"{invalid.stdout}\n{invalid.stderr}"
     assert invalid.returncode != 0
     assert "[kinnoo pack] Agent version:" not in invalid_output
+
+
+def test_feature22_pack_includes_assets_recursively_when_enabled(tmp_path):
+    agent = tmp_path / "asset-agent"
+    agent.mkdir()
+
+    (agent / "assets" / "nested").mkdir(parents=True)
+    (agent / "assets" / "nested" / "a.txt").write_text("A\n", encoding="utf-8")
+    (agent / "data").mkdir()
+    (agent / "data" / "config.json").write_text('{"ok": true}\n', encoding="utf-8")
+
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: asset-agent
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+assets:
+  paths:
+    - assets
+    - data/config.json
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.py").write_text("print('hello')\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    result = subprocess.run(
+        KINNOO_CLI + ["pack", str(agent)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert result.returncode == 0, f"pack failed: {result.stderr}"
+
+    archive = _canonical_archive_path(tmp_path, "asset-agent", "1.0.0")
+    assert archive.exists()
+
+    with zipfile.ZipFile(archive, "r") as zf:
+        names = set(zf.namelist())
+        assert "assets/nested/a.txt" in names
+        assert "data/config.json" in names
+
+
+def test_feature22_pack_skips_assets_when_bundle_false(tmp_path):
+    agent = tmp_path / "asset-optout"
+    agent.mkdir()
+    (agent / "assets").mkdir()
+    (agent / "assets" / "secret.txt").write_text("no bundle\n", encoding="utf-8")
+
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: asset-optout
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+assets:
+  bundle: false
+  paths:
+    - assets
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.py").write_text("print('hello')\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    result = subprocess.run(
+        KINNOO_CLI + ["pack", str(agent)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0
+    assert "Asset bundling disabled" in output
+
+    archive = _canonical_archive_path(tmp_path, "asset-optout", "1.0.0")
+    assert archive.exists()
+
+    with zipfile.ZipFile(archive, "r") as zf:
+        names = set(zf.namelist())
+        assert "assets/secret.txt" not in names
+
+
+def test_feature22_pack_rejects_asset_path_traversal(tmp_path):
+    workspace_secret = tmp_path / "secret.txt"
+    workspace_secret.write_text("hidden\n", encoding="utf-8")
+
+    agent = tmp_path / "asset-traversal"
+    agent.mkdir()
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: asset-traversal
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+assets:
+  paths:
+    - ../secret.txt
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.py").write_text("print('hello')\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    result = subprocess.run(
+        KINNOO_CLI + ["pack", str(agent)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode != 0
+    assert "escapes agent directory" in output
+
+
+def test_feature22_pack_warns_on_missing_asset_path(tmp_path):
+    agent = tmp_path / "asset-missing"
+    agent.mkdir()
+    (agent / "assets").mkdir()
+    (agent / "assets" / "present.txt").write_text("present\n", encoding="utf-8")
+
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: asset-missing
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+assets:
+  paths:
+    - assets/present.txt
+    - assets/missing.txt
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.py").write_text("print('hello')\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    result = subprocess.run(
+        KINNOO_CLI + ["pack", str(agent)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0
+    assert "Declared asset path 'assets/missing.txt' was not found" in output
+
+    archive = _canonical_archive_path(tmp_path, "asset-missing", "1.0.0")
+    assert archive.exists()
+    with zipfile.ZipFile(archive, "r") as zf:
+        names = set(zf.namelist())
+        assert "assets/present.txt" in names
+        assert "assets/missing.txt" not in names
+
+
+def test_feature22_pack_size_warning_uses_assets_threshold(tmp_path):
+    default_agent = tmp_path / "asset-threshold-default"
+    default_agent.mkdir()
+    (default_agent / "kinnoo.yaml").write_text(
+        """
+name: asset-threshold-default
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+assets:
+  paths: []
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (default_agent / "run.py").write_text("print('hello')\n", encoding="utf-8")
+    (default_agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    default_env = _pack_env(tmp_path)
+    default_env.pop("KINNOO_PACK_WARN_THRESHOLD_MB", None)
+    default_result = subprocess.run(
+        KINNOO_CLI + ["pack", str(default_agent)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=default_env,
+    )
+    default_output = f"{default_result.stdout}\n{default_result.stderr}"
+    assert default_result.returncode == 0
+    assert "Warning: archive is large" not in default_output
+
+    override_agent = tmp_path / "asset-threshold-override"
+    override_agent.mkdir()
+    (override_agent / "assets").mkdir()
+    (override_agent / "assets" / "tiny.txt").write_text("tiny\n", encoding="utf-8")
+    (override_agent / "kinnoo.yaml").write_text(
+        """
+name: asset-threshold-override
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+assets:
+  max_bundle_size_mb: 0.000001
+  paths:
+    - assets
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (override_agent / "run.py").write_text("print('hello')\n", encoding="utf-8")
+    (override_agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    override_env = _pack_env(tmp_path)
+    override_env.pop("KINNOO_PACK_WARN_THRESHOLD_MB", None)
+    override_result = subprocess.run(
+        KINNOO_CLI + ["pack", str(override_agent)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=override_env,
+    )
+    override_output = f"{override_result.stdout}\n{override_result.stderr}"
+    assert override_result.returncode == 0
+    assert "Warning: archive is large" in override_output
+
+
+def test_feature22_pack_warns_on_secret_like_asset_filenames(tmp_path):
+    agent = tmp_path / "asset-secret-filenames"
+    agent.mkdir()
+    (agent / "secrets").mkdir(parents=True)
+    (agent / "secrets" / ".env").write_text("DUMMY=1\n", encoding="utf-8")
+    (agent / "secrets" / "id_rsa").write_text("not-real-key\n", encoding="utf-8")
+    (agent / "secrets" / "tls.key").write_text("not-real-tls-key\n", encoding="utf-8")
+    (agent / "secrets" / "certificate.p12").write_text("not-real-p12\n", encoding="utf-8")
+    (agent / "secrets" / "cert-store.pfx").write_text("not-real-pfx\n", encoding="utf-8")
+    (agent / "secrets" / "credentials.json").write_text("{}\n", encoding="utf-8")
+
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: asset-secret-filenames
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+assets:
+  paths:
+    - secrets
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.py").write_text("print('hello')\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    result = subprocess.run(
+        KINNOO_CLI + ["pack", str(agent)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0
+    assert "Asset security sweep warnings:" in output
+    assert "secrets/.env: secret-like filename (.env)" in output
+    assert "secrets/id_rsa: secret-like filename (id_rsa)" in output
+    assert "secrets/tls.key: secret-like filename (.key)" in output
+    assert "secrets/certificate.p12: secret-like filename (*.p12)" in output
+    assert "secrets/cert-store.pfx: secret-like filename (*.pfx)" in output
+    assert "secrets/credentials.json: secret-like filename (credential marker)" in output
+
+
+def test_feature22_pack_text_secret_scan_warning_only_with_binary_skip(tmp_path):
+    agent = tmp_path / "asset-text-and-binary-scan"
+    agent.mkdir()
+    (agent / "assets").mkdir(parents=True)
+    (agent / "assets" / "token.txt").write_text(
+        "api_key = sk_test_token_123456789\n",
+        encoding="utf-8",
+    )
+    (agent / "assets" / "blob.bin").write_bytes(b"\x00\x01\x02\x03")
+
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: asset-text-and-binary-scan
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+assets:
+  paths:
+    - assets
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.py").write_text("print('hello')\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    result = subprocess.run(
+        KINNOO_CLI + ["pack", str(agent)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0
+    assert "Asset security sweep warnings:" in output
+    assert "assets/token.txt: credential-like text pattern (API key assignment)" in output
+    assert "assets/blob.bin: skipped binary file for text credential scan" in output
+    assert "heuristic credential scan over assets - warning-only" in output
