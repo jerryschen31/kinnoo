@@ -2990,7 +2990,7 @@ tasks:
       - 'step4: Keep prompt and exit-code behavior consistent with existing confirmation patterns'
     dependencies: [task151]
     tests: [test233, test234]
-    status: not-started
+    status: needs-review
 
   - id: task153
     title: "Feature25 AC coverage and no-services regression gate"
