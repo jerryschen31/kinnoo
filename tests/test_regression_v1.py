@@ -88,3 +88,27 @@ def test_feature22_no_assets_regression_unchanged():
         f"STDOUT:\n{result.stdout}\n"
         f"STDERR:\n{result.stderr}"
     )
+
+
+def test_feature23_no_regression_for_one_shot_runtime():
+    """Regression gate: ensure one-shot execution semantics remain unchanged."""
+    command = [
+        sys.executable,
+        "-m",
+        "pytest",
+        "tests/test_cli.py::test_run_entrypoint_with_input",
+        "tests/test_cli.py::test_run_streams_stdout_stderr",
+        "tests/test_cli.py::test_run_exit_code",
+        "tests/test_cli.py::test_run_single_input_backward_compatible",
+        "tests/test_trust_baseline.py::test_run_trace_log_safe_fields",
+    ]
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, (
+        "Feature23 regression gate failed for one-shot runtime behavior.\n"
+        f"STDOUT:\n{result.stdout}\n"
+        f"STDERR:\n{result.stderr}"
+    )
