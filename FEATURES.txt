@@ -1026,7 +1026,7 @@ features:
 
       Analyzer output is structured with inferred values, per-field confidence,
       and warnings so callers can run a confirm-first UX.
-    tasks: []
+    tasks: [task158, task159, task160, task161, task162]
     acceptance_criteria:
       - id: AC1
         description: "A dedicated analyzer module exists (`src/kinnoo/analyzer.py`) with public API `analyze_project(project_dir) -> AnalysisReport` and detector helper functions."

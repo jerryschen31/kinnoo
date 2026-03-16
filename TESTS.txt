@@ -4019,3 +4019,147 @@ tests:
         ac: AC5
       - feature: feature26
         ac: AC6
+
+  - id: test243
+    title: Feature27 analyzer module exposes public API and detector hooks
+    type: unit
+    preconditions: analyzer module source exists in src/kinnoo/analyzer.py
+    steps:
+      - step1: Import analyzer module and resolve analyze_project symbol
+      - step2: Invoke analyze_project on a minimal project fixture
+      - step3: Verify report contains detector-oriented result structures
+    expected: analyzer module is importable and public API returns structured report data
+    pass_criteria: analyze_project executes without crash and report includes inferred/confidence/warnings top-level sections
+    automated: true
+    automation_path: tests/test_analyzer.py::test_feature27_analyzer_public_api_and_detector_hooks
+    covers:
+      - feature: feature27
+        ac: AC1
+
+  - id: test244
+    title: Feature27 entrypoint runtime framework detection handles uncertain layouts
+    type: integration
+    preconditions: project fixtures include both clear and ambiguous Python layouts
+    steps:
+      - step1: Run analyzer on fixture with conventional entrypoint/runtime/framework signals
+      - step2: Run analyzer on ambiguous fixture with partial/conflicting signals
+      - step3: Compare confidence levels and warning output
+    expected: clear cases infer values confidently and ambiguous cases downgrade confidence instead of hard-failing
+    pass_criteria: report includes inferred values for clear fixture and uncertainty metadata/warnings for ambiguous fixture
+    automated: true
+    automation_path: tests/test_analyzer.py::test_feature27_detect_entrypoint_runtime_framework_with_uncertainty
+    covers:
+      - feature: feature27
+        ac: AC2
+
+  - id: test245
+    title: Feature27 dependency detection merges requirements and pyproject constraints
+    type: integration
+    preconditions: fixture project contains requirements.txt and pyproject.toml dependencies
+    steps:
+      - step1: Run analyzer dependency detector across both files
+      - step2: Verify normalization of package names and constraint formatting
+      - step3: Verify merged output removes duplicates while preserving useful constraints
+    expected: dependency inference returns normalized consolidated dependency list
+    pass_criteria: deduplicated dependency results include expected package names and constraints from both sources
+    automated: true
+    automation_path: tests/test_analyzer.py::test_feature27_detect_dependencies_from_requirements_and_pyproject
+    covers:
+      - feature: feature27
+        ac: AC3
+
+  - id: test246
+    title: Feature27 env var detection deduplicates getenv and environ patterns
+    type: integration
+    preconditions: fixture source files include os.getenv, os.environ[], and related env access patterns
+    steps:
+      - step1: Run analyzer env-var detector on fixture sources
+      - step2: Verify extraction includes all expected variable names
+      - step3: Verify duplicates are removed and output remains deterministic
+    expected: environment variable inference captures and deduplicates env var names
+    pass_criteria: report env_vars set matches expected deduplicated names from all supported patterns
+    automated: true
+    automation_path: tests/test_analyzer.py::test_feature27_detect_env_vars_patterns_and_dedup
+    covers:
+      - feature: feature27
+        ac: AC4
+
+  - id: test247
+    title: Feature27 asset detector infers bundle candidates with path-safety filtering
+    type: integration
+    preconditions: fixture contains model/data artifacts and unsafe traversal-like path candidates
+    steps:
+      - step1: Run analyzer asset detector on fixture
+      - step2: Verify expected model/data files and directories are inferred
+      - step3: Verify unsafe path candidates are excluded with warning metadata
+    expected: detector returns useful asset candidates while enforcing path-safety rules
+    pass_criteria: inferred assets include expected safe candidates and omit blocked unsafe paths
+    automated: true
+    automation_path: tests/test_analyzer.py::test_feature27_detect_assets_with_path_safety_filter
+    covers:
+      - feature: feature27
+        ac: AC5
+
+  - id: test248
+    title: Feature27 service detector infers service entries and health-check hints
+    type: integration
+    preconditions: fixture contains recognizable redis/postgres/http endpoint usage patterns
+    steps:
+      - step1: Run analyzer service detector on fixture
+      - step2: Verify inferred service type hints and endpoint metadata
+      - step3: Verify suggested health-check hints are included when evidence is sufficient
+    expected: service detector emits suggested services with actionable health-check hints where possible
+    pass_criteria: report includes expected service suggestions and hint metadata for supported patterns
+    automated: true
+    automation_path: tests/test_analyzer.py::test_feature27_detect_services_with_health_check_hints
+    covers:
+      - feature: feature27
+        ac: AC6
+
+  - id: test249
+    title: Feature27 report schema includes inferred fields confidence and warnings sections
+    type: unit
+    preconditions: analyzer module can run against minimal fixture project
+    steps:
+      - step1: Execute analyze_project on minimal fixture
+      - step2: Assert report contains inferred manifest fields section
+      - step3: Assert report contains confidence metadata and warnings/todo guidance section
+    expected: analyzer output schema consistently includes all three report sections
+    pass_criteria: inferred/confidence/warnings sections are present with stable types
+    automated: true
+    automation_path: tests/test_analyzer.py::test_feature27_report_sections_are_stable
+    covers:
+      - feature: feature27
+        ac: AC7
+
+  - id: test250
+    title: Feature27 analyzer can be consumed as reusable library by import workflows
+    type: integration
+    preconditions: analyzer module and test harness wrapper for feature19-style call path are available
+    steps:
+      - step1: Invoke analyzer through a feature19-style adapter function in tests
+      - step2: Verify adapter consumes analyzer results without duplicating detector logic
+      - step3: Verify no CLI-specific side effects are required for analyzer execution
+    expected: analyzer is reusable as a library component for onboarding/import workflows
+    pass_criteria: adapter path succeeds and relies on analyze_project output contract directly
+    automated: true
+    automation_path: tests/test_analyzer.py::test_feature27_analyzer_reusable_for_feature19_import_flow
+    covers:
+      - feature: feature27
+        ac: AC8
+
+  - id: test251
+    title: Feature27 detector matrix covers positive and ambiguous cases with actionable diagnostics
+    type: integration
+    preconditions: fixture matrix exists for entrypoint runtime framework dependencies env-vars assets and services detectors
+    steps:
+      - step1: Run detector matrix suite across positive and ambiguous fixtures
+      - step2: Verify each detector emits expected values and uncertainty diagnostics
+      - step3: Verify diagnostic messages are actionable for debugging detection failures
+    expected: analyzer-only suite provides broad detector coverage and useful failure diagnostics
+    pass_criteria: matrix suite passes and diagnostic assertions confirm debuggable failure context
+    automated: true
+    automation_path: tests/test_analyzer.py::test_feature27_detector_matrix_positive_and_ambiguous
+    covers:
+      - feature: feature27
+        ac: AC9
