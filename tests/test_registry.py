@@ -1,4 +1,8 @@
 from pathlib import Path
+import importlib.util
+import sys
+
+import pytest
 
 from kinnoo.registry import RegistryBackend, RegistryService
 from kinnoo.registry_backends import LocalFilesystemRegistryBackend
@@ -10,3 +14,62 @@ from kinnoo.registry_backends import LocalFilesystemRegistryBackend
 #
 # def test_registry_version_resolution_latest_and_exact(tmp_path: Path) -> None:
 #     ...
+
+
+def _load_feature26_filesystem_fixture_module():
+	"""Load the feature26 filesystem MCP fixture run module by file path."""
+	fixture_path = (
+		Path(__file__).resolve().parents[1]
+		/ "scratch"
+		/ "feature26-filesystem-mcp-server"
+		/ "run.py"
+	)
+	spec = importlib.util.spec_from_file_location("feature26_filesystem_fixture", fixture_path)
+	assert spec is not None and spec.loader is not None
+	module = importlib.util.module_from_spec(spec)
+	sys.modules[spec.name] = module
+	spec.loader.exec_module(module)
+	return module
+
+
+def test_feature26_filesystem_permissions_runtime_enforcement(tmp_path: Path) -> None:
+	"""Feature26 test238: read-only default blocks writes/creates; explicit allow enables operations."""
+	fixture = _load_feature26_filesystem_fixture_module()
+
+	default_permissions = fixture.permissions_from_manifest({})
+	default_gate = fixture.FilesystemPermissionGate(default_permissions, tmp_path)
+
+	blocked_target = tmp_path / "notes.txt"
+	with pytest.raises(fixture.FilesystemPermissionError) as write_error:
+		default_gate.assert_allowed("write", blocked_target)
+	assert "read-only mode" in str(write_error.value)
+
+	with pytest.raises(fixture.FilesystemPermissionError) as create_error:
+		default_gate.assert_allowed("create", blocked_target)
+	assert "read-only mode" in str(create_error.value)
+
+	allowed_root = tmp_path / "allowed"
+	allowed_root.mkdir(parents=True, exist_ok=True)
+	allowed_permissions = fixture.permissions_from_manifest(
+		{
+			"permissions": {
+				"read_only": False,
+				"allow_write": True,
+				"allow_create": True,
+				"allowed_paths": ["allowed"],
+			}
+		}
+	)
+	allow_gate = fixture.FilesystemPermissionGate(allowed_permissions, tmp_path)
+
+	allowed_target = allowed_root / "doc.txt"
+	resolved_target = allow_gate.assert_allowed("write", allowed_target)
+	assert resolved_target == allowed_target.resolve()
+
+	created_target = allow_gate.assert_allowed("create", allowed_target)
+	assert created_target == allowed_target.resolve()
+
+	outside_target = tmp_path / "outside.txt"
+	with pytest.raises(fixture.FilesystemPermissionError) as sandbox_error:
+		allow_gate.assert_allowed("write", outside_target)
+	assert "allowed_paths sandbox" in str(sandbox_error.value)
