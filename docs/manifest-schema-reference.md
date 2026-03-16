@@ -161,6 +161,7 @@ How inclusion works:
 - directory paths are bundled recursively (for example, `data/` includes all nested files and folders)
 - specifying a top-level folder is valid when you have multiple subfolders
 - paths must stay within the agent root (path traversal such as `../` is rejected)
+- manifests without `assets` remain fully compatible with pre-Feature22 pack/install behavior
 
 What can be included:
 

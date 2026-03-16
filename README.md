@@ -211,6 +211,18 @@ List behavior:
 	- `| size: <human-readable>`
 - Size formatting is shared across commands and uses stable units (`B`, `KB`, `MB`, `GB`).
 
+## Asset Bundling Compatibility (Feature22)
+
+Feature22 adds optional manifest-driven asset bundling via `assets`.
+
+Compatibility guarantees:
+
+- Agents that do not declare `assets` continue to use the same pack/install behavior as pre-Feature22 flows.
+- `assets.paths` accepts file paths and directory paths relative to the agent root.
+- Directory paths are bundled recursively; declaring a base folder includes nested files/subfolders.
+- `assets.bundle: false` keeps asset metadata but skips asset payload inclusion in the archive.
+- `assets.max_bundle_size_mb` overrides the default 100 MB warning threshold when provided.
+
 ## Input Safety Guard (Feature18)
 
 Feature18 adds an input safety guard to `kinnoo run` before agent execution.
