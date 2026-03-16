@@ -3164,7 +3164,7 @@ tasks:
       - 'step4: Add tests for service-type hints and optional health-check suggestions'
     dependencies: [task158]
     tests: [test247, test248]
-    status: not-started
+    status: needs-review
 
   - id: task162
     title: "Feature27 analyzer validation suite and import reusability gate"
