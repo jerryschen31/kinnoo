@@ -2877,7 +2877,7 @@ tasks:
       - 'step4: Keep schema additions modular for feature25 runtime health-check consumption'
     dependencies: [task50]
     tests: [test222, test225]
-    status: not-started
+    status: needs-review
 
   - id: task147
     title: "Feature24 validator rules for services objects and duplicates"
