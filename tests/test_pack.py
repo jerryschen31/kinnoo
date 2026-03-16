@@ -640,3 +640,99 @@ assets:
     override_output = f"{override_result.stdout}\n{override_result.stderr}"
     assert override_result.returncode == 0
     assert "Warning: archive is large" in override_output
+
+
+def test_feature22_pack_warns_on_secret_like_asset_filenames(tmp_path):
+    agent = tmp_path / "asset-secret-filenames"
+    agent.mkdir()
+    (agent / "secrets").mkdir(parents=True)
+    (agent / "secrets" / ".env").write_text("DUMMY=1\n", encoding="utf-8")
+    (agent / "secrets" / "id_rsa").write_text("not-real-key\n", encoding="utf-8")
+
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: asset-secret-filenames
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+assets:
+  paths:
+    - secrets
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.py").write_text("print('hello')\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    result = subprocess.run(
+        KINNOO_CLI + ["pack", str(agent)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0
+    assert "Asset security sweep warnings:" in output
+    assert "secrets/.env: secret-like filename (.env)" in output
+    assert "secrets/id_rsa: secret-like filename (id_rsa)" in output
+
+
+def test_feature22_pack_text_secret_scan_warning_only_with_binary_skip(tmp_path):
+    agent = tmp_path / "asset-text-and-binary-scan"
+    agent.mkdir()
+    (agent / "assets").mkdir(parents=True)
+    (agent / "assets" / "token.txt").write_text(
+        "api_key = sk_test_token_123456789\n",
+        encoding="utf-8",
+    )
+    (agent / "assets" / "blob.bin").write_bytes(b"\x00\x01\x02\x03")
+
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: asset-text-and-binary-scan
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+assets:
+  paths:
+    - assets
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.py").write_text("print('hello')\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    result = subprocess.run(
+        KINNOO_CLI + ["pack", str(agent)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0
+    assert "Asset security sweep warnings:" in output
+    assert "assets/token.txt: credential-like text pattern (API key assignment)" in output
+    assert "assets/blob.bin: skipped binary file for text credential scan" in output
+    assert "heuristic credential scan over assets - warning-only" in output

@@ -12,7 +12,7 @@ import yaml
 
 from .archive import LocalArchiveBackend
 from .checksum import write_checksum_sidecar_for_archive
-from .code_sweep import sweep_env_var_exposure
+from .code_sweep import sweep_asset_credential_risks, sweep_env_var_exposure
 from .schema import normalize_env_vars
 from .size_format import format_size_human_readable, size_in_megabytes
 
@@ -303,6 +303,19 @@ def pack_agent(agent_dir: str, bump: str | None = None) -> int:
 
     if not assets_bundle_enabled:
         print("[kinnoo pack] Asset bundling disabled by assets.bundle=false")
+
+    asset_scan_warnings = sweep_asset_credential_risks(
+        agent_dir=Path(abs_agent_dir),
+        asset_file_paths=[absolute_path for _, absolute_path in asset_files],
+    )
+    if asset_scan_warnings:
+        print("Asset security sweep warnings:", file=sys.stderr)
+        for warning in asset_scan_warnings:
+            print(f"- {warning}", file=sys.stderr)
+        print(
+            "(heuristic credential scan over assets - warning-only; may produce false positives)",
+            file=sys.stderr,
+        )
 
     print(f"[kinnoo pack] Packaging agent directory: {agent_dir}")
     wheels_dir = tempfile.TemporaryDirectory(prefix="kinnoo_wheels_")
