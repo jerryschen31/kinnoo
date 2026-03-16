@@ -3,6 +3,21 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v0.12.0] - 2026-03-16
+### Added
+- Implemented Feature25 "Service Health Checks - Runtime Preflight" with HTTP, TCP, and process probes integrated into `kinnoo run` and `--preflight` flows.
+- Added interactive/non-interactive health-check decision behavior so failed checks can warn-and-proceed in interactive mode and fail-fast in non-interactive mode.
+- Implemented Feature26 "MCP Server Packages & Client Templates" with first-party filesystem and GitHub MCP server package fixtures and `mcp-client` init template support.
+- Added concrete MCP client template handshake demonstration using JSON-RPC over stdio (`initialize` and `tools/list`) plus workflow guidance in generated README.
+
+### Changed
+- Extended filesystem MCP runtime enforcement coverage to validate `tools/call` handler-path permission behavior (read-only blocking, allowlist sandbox checks).
+- Updated manifest/review governance state for feature26 to review-ready alignment.
+
+### Quality
+- Feature25 and Feature26 follow-up validation completed with full regression pass: `238 passed, 1 skipped`.
+
+
 ## [v0.11.0] - 2026-03-16
 ### Added
 - Implemented Feature24 "Service Declarations - Manifest Schema" with optional `services` manifest support.
