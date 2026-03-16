@@ -2952,7 +2952,7 @@ tasks:
       - 'step4: Implement process-name check using pgrep (or cross-platform equivalent fallback) and return actionable guidance messages'
     dependencies: [task149]
     tests: [test228, test229, test230]
-    status: not-started
+    status: needs-review
 
   - id: task151
     title: "Feature25 integrate service checks into run and preflight output"

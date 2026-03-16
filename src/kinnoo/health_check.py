@@ -1,0 +1,278 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+import socket
+import subprocess
+from urllib import error as urllib_error
+from urllib import request as urllib_request
+
+from .schema import (
+	DEFAULT_HTTP_HEALTH_CHECK_TIMEOUT_SECONDS,
+	DEFAULT_TCP_HEALTH_CHECK_TIMEOUT_SECONDS,
+)
+
+
+@dataclass(frozen=True)
+class HealthCheckResult:
+	"""Normalized health-check result for downstream renderers and policies."""
+
+	service_name: str
+	service_type: str
+	method: str
+	healthy: bool
+	message: str
+	guidance: str
+
+
+def _as_float_timeout(value: object, *, default: float) -> float:
+	if value is None:
+		return default
+	try:
+		timeout = float(value)
+	except (TypeError, ValueError):
+		return default
+	if timeout <= 0:
+		return default
+	return timeout
+
+
+def _check_http(
+	service_name: str,
+	service_type: str,
+	*,
+	url: str,
+	timeout_seconds: float,
+) -> HealthCheckResult:
+	timeout_label = f"{timeout_seconds:g}s"
+	try:
+		request = urllib_request.Request(url=url, method="GET")
+		with urllib_request.urlopen(request, timeout=timeout_seconds) as response:
+			status = getattr(response, "status", None)
+			if isinstance(status, int) and 200 <= status <= 299:
+				return HealthCheckResult(
+					service_name=service_name,
+					service_type=service_type,
+					method="http",
+					healthy=True,
+					message=(
+						f"HTTP health check passed for {url} (status {status}, timeout {timeout_label})"
+					),
+					guidance="No action needed.",
+				)
+
+			return HealthCheckResult(
+				service_name=service_name,
+				service_type=service_type,
+				method="http",
+				healthy=False,
+				message=(
+					f"HTTP health check failed for {url}: unexpected status {status} "
+					f"(timeout {timeout_label})"
+				),
+				guidance="Verify the endpoint is healthy and returns HTTP 2xx.",
+			)
+	except urllib_error.HTTPError as exc:
+		return HealthCheckResult(
+			service_name=service_name,
+			service_type=service_type,
+			method="http",
+			healthy=False,
+			message=(
+				f"HTTP health check failed for {url}: status {exc.code} "
+				f"(timeout {timeout_label})"
+			),
+			guidance="Verify the endpoint is healthy and returns HTTP 2xx.",
+		)
+	except urllib_error.URLError as exc:
+		if isinstance(exc.reason, TimeoutError):
+			return HealthCheckResult(
+				service_name=service_name,
+				service_type=service_type,
+				method="http",
+				healthy=False,
+				message=(
+					f"HTTP health check failed for {url}: timed out after {timeout_label}"
+				),
+				guidance="Increase timeout or ensure the service responds faster.",
+			)
+		return HealthCheckResult(
+			service_name=service_name,
+			service_type=service_type,
+			method="http",
+			healthy=False,
+			message=(
+				f"HTTP health check failed for {url}: {exc.reason} "
+				f"(timeout {timeout_label})"
+			),
+			guidance="Confirm URL, host reachability, and service availability.",
+		)
+	except TimeoutError:
+		return HealthCheckResult(
+			service_name=service_name,
+			service_type=service_type,
+			method="http",
+			healthy=False,
+			message=f"HTTP health check failed for {url}: timed out after {timeout_label}",
+			guidance="Increase timeout or ensure the service responds faster.",
+		)
+
+
+def _check_tcp(
+	service_name: str,
+	service_type: str,
+	*,
+	port: int,
+	timeout_seconds: float,
+) -> HealthCheckResult:
+	timeout_label = f"{timeout_seconds:g}s"
+	try:
+		with socket.create_connection(("127.0.0.1", int(port)), timeout=timeout_seconds):
+			return HealthCheckResult(
+				service_name=service_name,
+				service_type=service_type,
+				method="tcp",
+				healthy=True,
+				message=(
+					"TCP health check passed for "
+					f"127.0.0.1:{port} (timeout {timeout_label})"
+				),
+				guidance="No action needed.",
+			)
+	except TimeoutError:
+		return HealthCheckResult(
+			service_name=service_name,
+			service_type=service_type,
+			method="tcp",
+			healthy=False,
+			message=(
+				"TCP health check failed for "
+				f"127.0.0.1:{port}: timed out after {timeout_label}"
+			),
+			guidance="Increase timeout or ensure the target port is reachable.",
+		)
+	except OSError as exc:
+		return HealthCheckResult(
+			service_name=service_name,
+			service_type=service_type,
+			method="tcp",
+			healthy=False,
+			message=(
+				"TCP health check failed for "
+				f"127.0.0.1:{port}: {exc} (timeout {timeout_label})"
+			),
+			guidance="Ensure the service is running and listening on the expected localhost port.",
+		)
+
+
+def _check_process(service_name: str, service_type: str, *, process_name: str) -> HealthCheckResult:
+	result = subprocess.run(
+		["pgrep", "-f", process_name],
+		capture_output=True,
+		text=True,
+	)
+	if result.returncode == 0 and result.stdout.strip():
+		return HealthCheckResult(
+			service_name=service_name,
+			service_type=service_type,
+			method="process",
+			healthy=True,
+			message=f"Process health check passed for pattern '{process_name}'.",
+			guidance="No action needed.",
+		)
+
+	return HealthCheckResult(
+		service_name=service_name,
+		service_type=service_type,
+		method="process",
+		healthy=False,
+		message=f"Process health check failed for pattern '{process_name}'.",
+		guidance=(
+			"Start the required process, or update services[].health_check.process_name "
+			"to match the running command."
+		),
+	)
+
+
+def run_service_health_check(service: dict[str, object]) -> HealthCheckResult:
+	"""Run one service health check using feature24 service declarations."""
+
+	service_name = str(service.get("name", "<unknown-service>"))
+	service_type = str(service.get("type", "<unknown-type>"))
+
+	health_check = service.get("health_check")
+	if not isinstance(health_check, dict):
+		return HealthCheckResult(
+			service_name=service_name,
+			service_type=service_type,
+			method="unknown",
+			healthy=False,
+			message="Service health check configuration is missing.",
+			guidance="Add services[].health_check with a supported method (http, tcp, process).",
+		)
+
+	method = str(health_check.get("method", "")).strip().lower()
+	if method == "http":
+		url = str(health_check.get("url", "")).strip()
+		if not url:
+			return HealthCheckResult(
+				service_name=service_name,
+				service_type=service_type,
+				method="http",
+				healthy=False,
+				message="HTTP health check failed: missing services[].health_check.url.",
+				guidance="Set services[].health_check.url to the service health endpoint.",
+			)
+		timeout_seconds = _as_float_timeout(
+			health_check.get("timeout_seconds"),
+			default=DEFAULT_HTTP_HEALTH_CHECK_TIMEOUT_SECONDS,
+		)
+		return _check_http(
+			service_name,
+			service_type,
+			url=url,
+			timeout_seconds=timeout_seconds,
+		)
+
+	if method == "tcp":
+		port_value = health_check.get("port")
+		if not isinstance(port_value, int):
+			return HealthCheckResult(
+				service_name=service_name,
+				service_type=service_type,
+				method="tcp",
+				healthy=False,
+				message="TCP health check failed: missing or invalid services[].health_check.port.",
+				guidance="Set services[].health_check.port to a localhost TCP port number.",
+			)
+		timeout_seconds = _as_float_timeout(
+			health_check.get("timeout_seconds"),
+			default=DEFAULT_TCP_HEALTH_CHECK_TIMEOUT_SECONDS,
+		)
+		return _check_tcp(
+			service_name,
+			service_type,
+			port=port_value,
+			timeout_seconds=timeout_seconds,
+		)
+
+	if method == "process":
+		process_name = str(health_check.get("process_name", "")).strip()
+		if not process_name:
+			return HealthCheckResult(
+				service_name=service_name,
+				service_type=service_type,
+				method="process",
+				healthy=False,
+				message="Process health check failed: missing services[].health_check.process_name.",
+				guidance="Set services[].health_check.process_name to a stable process pattern.",
+			)
+		return _check_process(service_name, service_type, process_name=process_name)
+
+	return HealthCheckResult(
+		service_name=service_name,
+		service_type=service_type,
+		method=method or "unknown",
+		healthy=False,
+		message=f"Unsupported health check method '{method or '<empty>'}'.",
+		guidance="Use one of: http, tcp, process.",
+	)
