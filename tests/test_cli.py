@@ -1164,6 +1164,8 @@ def test_feature23_sigint_graceful_shutdown_with_escalation(tmp_path):
 
 def test_feature25_run_checks_all_declared_services_before_entrypoint(tmp_path):
     import socket
+    import subprocess
+    import time
     import threading
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -1241,7 +1243,7 @@ def test_feature25_run_checks_all_declared_services_before_entrypoint(tmp_path):
                 "    type: local-process",
                 "    health_check:",
                 "      method: process",
-                "      process_name: feature25-missing-process",
+                "      process_name: feature25-running-process",
             ]
         )
         + "\n",
@@ -1249,8 +1251,19 @@ def test_feature25_run_checks_all_declared_services_before_entrypoint(tmp_path):
     )
 
     cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    fixture_process = subprocess.Popen(
+        [
+            sys.executable,
+            "-c",
+            "import time; time.sleep(20)",
+            "feature25-running-process",
+        ],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
 
     try:
+        time.sleep(0.2)
         result = subprocess.run(
             [sys.executable, str(cli_path), "run", str(agent_dir), "hello"],
             capture_output=True,
@@ -1265,7 +1278,7 @@ def test_feature25_run_checks_all_declared_services_before_entrypoint(tmp_path):
         assert "service 'local-db'" in output
         assert "service 'local-redis'" in output
         assert "(type: local-process, method: process)" in output
-        assert "[kinnoo] guidance:" in output
+        assert "[kinnoo] service check [PASS]" in output
         assert "feature25-entrypoint-ran" in output
 
         if (
@@ -1276,6 +1289,8 @@ def test_feature25_run_checks_all_declared_services_before_entrypoint(tmp_path):
             entrypoint_index = result.stdout.index("feature25-entrypoint-ran")
             assert health_section_index < entrypoint_index
     finally:
+        fixture_process.terminate()
+        fixture_process.wait(timeout=5)
         stop_accept.set()
         tcp_socket.close()
         http_server.shutdown()
