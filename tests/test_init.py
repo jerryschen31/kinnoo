@@ -529,6 +529,20 @@ def test_feature21_dependency_policy_alignment(tmp_path):
         )
 
 
+def test_feature21_pydantic_ai_framework_native_template(tmp_path):
+    agent_name = "feature21-pydantic-ai-native"
+    code, out, err = run_cli(["init", agent_name, "--framework", "pydantic-ai"], cwd=tmp_path)
+    assert code == 0, err
+
+    run_text = (tmp_path / agent_name / "run.py").read_text()
+    assert "from pydantic_ai import Agent" in run_text
+    assert "Agent(" in run_text
+    assert "_run_framework_mode" in run_text
+    assert "KINNOO_TEST_SAFE_MODE" in run_text
+    assert "test-safe response" in run_text
+    assert "Placeholder scaffold for pydantic-ai workflow" not in run_text
+
+
 def test_feature9_init_manifest_includes_description_and_author(tmp_path):
     """test75: init-generated manifest includes description and author placeholders."""
     agent_name = "feature9-init-agent"
