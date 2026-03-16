@@ -777,3 +777,34 @@ def test_feature26_filesystem_mcp_fixture_valid_and_packable(tmp_path: Path) -> 
         assert "kinnoo.yaml" in names
         assert "run.py" in names
         assert "requirements.txt" in names
+
+
+def test_feature26_github_mcp_fixture_valid_and_packable(tmp_path: Path) -> None:
+    """Feature26 test239: github mcp-server fixture validates and packs."""
+    source_fixture = Path(__file__).resolve().parents[1] / "scratch" / "feature26-github-mcp-server"
+    fixture_dir = tmp_path / "feature26-github-mcp-server"
+    shutil.copytree(source_fixture, fixture_dir)
+
+    manifest_path = fixture_dir / "kinnoo.yaml"
+    is_valid, errors = validate(str(manifest_path))
+    assert is_valid is True, f"Expected github mcp fixture manifest to validate; errors: {errors}"
+    assert errors == []
+
+    env = _pack_env(tmp_path)
+    result = subprocess.run(
+        KINNOO_CLI + ["pack", str(fixture_dir)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert result.returncode == 0, f"kinnoo pack failed for github mcp fixture: {result.stderr}"
+
+    archive = _canonical_archive_path(tmp_path, "github-mcp-server", "1.0.0")
+    assert archive.exists(), "Expected .kno archive for github mcp fixture"
+
+    with zipfile.ZipFile(archive, "r") as zf:
+        names = set(zf.namelist())
+        assert "kinnoo.yaml" in names
+        assert "run.py" in names
+        assert "requirements.txt" in names
