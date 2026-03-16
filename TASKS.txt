@@ -3110,7 +3110,7 @@ tasks:
       - 'step4: Add baseline tests for module/API existence and report-section structure'
     dependencies: []
     tests: [test243, test249, test250]
-    status: needs-review
+    status: completed
 
   - id: task159
     title: "Feature27 entrypoint runtime framework detectors"
@@ -3128,7 +3128,7 @@ tasks:
       - 'step4: Add tests for positive and ambiguous detection paths with actionable diagnostics'
     dependencies: [task158]
     tests: [test244]
-    status: needs-review
+    status: completed
 
   - id: task160
     title: "Feature27 dependencies and env var detectors"
@@ -3146,7 +3146,7 @@ tasks:
       - 'step4: Add tests covering detection accuracy and noisy/partial input cases'
     dependencies: [task158]
     tests: [test245, test246]
-    status: needs-review
+    status: completed
 
   - id: task161
     title: "Feature27 assets and services detectors"
@@ -3164,7 +3164,7 @@ tasks:
       - 'step4: Add tests for service-type hints and optional health-check suggestions'
     dependencies: [task158]
     tests: [test247, test248]
-    status: needs-review
+    status: completed
 
   - id: task162
     title: "Feature27 analyzer validation suite and import reusability gate"
@@ -3184,4 +3184,4 @@ tasks:
       - 'step4: Capture AC coverage evidence and prepare tasks for TechLead review'
     dependencies: [task159, task160, task161]
     tests: [test251]
-    status: needs-review
+    status: completed
