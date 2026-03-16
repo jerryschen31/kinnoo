@@ -2952,7 +2952,7 @@ tasks:
       - 'step4: Implement process-name check using pgrep (or cross-platform equivalent fallback) and return actionable guidance messages'
     dependencies: [task149]
     tests: [test228, test229, test230]
-    status: needs-review
+    status: completed
 
   - id: task151
     title: "Feature25 integrate service checks into run and preflight output"
@@ -2971,7 +2971,7 @@ tasks:
       - 'step4: Keep output human-readable and deterministic for multi-service manifests'
     dependencies: [task150, task97]
     tests: [test231, test232]
-    status: needs-review
+    status: completed
 
   - id: task152
     title: "Feature25 interactive and non-interactive failure policy"
@@ -2990,7 +2990,7 @@ tasks:
       - 'step4: Keep prompt and exit-code behavior consistent with existing confirmation patterns'
     dependencies: [task151]
     tests: [test233, test234]
-    status: needs-review
+    status: completed
 
   - id: task153
     title: "Feature25 AC coverage and no-services regression gate"
@@ -3010,4 +3010,4 @@ tasks:
       - 'step4: Capture command evidence and set tasks ready for TechLead review'
     dependencies: [task150, task151, task152]
     tests: [test228, test229, test230, test231, test232, test233, test234, test235]
-    status: needs-review
+    status: completed
