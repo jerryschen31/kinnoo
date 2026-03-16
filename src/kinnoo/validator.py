@@ -162,6 +162,9 @@ def _collect_validation_errors(data: dict[str, Any]) -> list[str]:
                         f"Field 'env_vars[{index}]' must be a non-empty string."
                     )
 
+        if optional_field == "model" and value.strip() == "":
+            errors.append("Field 'model' must be a non-empty string.")
+
     return errors
 
 

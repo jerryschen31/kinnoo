@@ -34,12 +34,26 @@ def main():
     init_parser.add_argument("agent_name", nargs="?", help="Name of the agent to create")
     init_parser.add_argument(
         "--framework",
-        choices=["gemini", "chatgpt", "claude-chat"],
-        help="(Optional) Pre-populate agent with LLM framework template (gemini, chatgpt, claude-chat)"
+        choices=["gemini", "chatgpt", "claude-chat", "pydantic-ai", "langgraph", "openai-agents"],
+        help=(
+            "(Optional) Pre-populate agent with LLM framework template "
+            "(gemini, chatgpt, claude-chat, pydantic-ai, langgraph, openai-agents)"
+        )
     )
 
     # Add 'run' subcommand
-    run_parser = subparsers.add_parser("run", help="Run a kinnoo agent")
+    run_parser = subparsers.add_parser(
+        "run",
+        help="Run a kinnoo agent",
+        formatter_class=argparse.RawTextHelpFormatter,
+        description="Run an agent with a single input, no input, or pass-through args.",
+        epilog=(
+            "Examples:\n"
+            "  kinnoo run <agent-dir> '<input>'\n"
+            "  kinnoo run <agent-dir>\n"
+            "  kinnoo run <agent-dir> -- -e <some-string> -p <some-file-path> -u <some-url>"
+        ),
+    )
     run_parser.add_argument("agent_dir", nargs="?", help="Path to agent directory")
     run_parser.add_argument("input", nargs="?", help="Input string to pass to the agent entrypoint")
     run_parser.add_argument(
