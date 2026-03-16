@@ -69,6 +69,59 @@ def _collect_additional_files(manifest: dict) -> list[str]:
 
     return additional
 
+
+def _path_within_root(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
+def _collect_asset_files(manifest: dict, agent_root: Path) -> tuple[list[tuple[str, Path]], bool]:
+    assets = manifest.get("assets")
+    if not isinstance(assets, dict):
+        return [], True
+
+    bundle_enabled = assets.get("bundle", True)
+    if bundle_enabled is False:
+        return [], False
+
+    declared_paths = assets.get("paths", [])
+    if not isinstance(declared_paths, list):
+        # Validator should prevent this; keep pack logic resilient.
+        return [], True
+
+    resolved_files: list[tuple[str, Path]] = []
+    for declared in declared_paths:
+        declared_path = Path(str(declared))
+        candidate = (agent_root / declared_path).resolve(strict=False)
+        if not _path_within_root(candidate, agent_root):
+            raise ValueError(
+                f"Asset path '{declared}' escapes agent directory and is not allowed."
+            )
+
+        if not candidate.exists():
+            print(
+                f"Warning: Declared asset path '{declared}' was not found and will be skipped.",
+                file=sys.stderr,
+            )
+            continue
+
+        if candidate.is_file():
+            arcname = candidate.relative_to(agent_root).as_posix()
+            resolved_files.append((arcname, candidate))
+            continue
+
+        if candidate.is_dir():
+            for child in sorted(candidate.rglob("*")):
+                if not child.is_file():
+                    continue
+                arcname = child.relative_to(agent_root).as_posix()
+                resolved_files.append((arcname, child))
+
+    return resolved_files, True
+
 def _read_requirements(requirements_path: Path) -> list[str]:
     requirements: list[str] = []
     for raw_line in requirements_path.read_text().splitlines():
@@ -224,6 +277,18 @@ def pack_agent(agent_dir: str, bump: str | None = None) -> int:
             return 1
         safe_additional_paths.append((relative_path, candidate_path))
 
+    try:
+        asset_files, assets_bundle_enabled = _collect_asset_files(
+            manifest=manifest,
+            agent_root=Path(abs_agent_dir),
+        )
+    except ValueError as error:
+        print(f"Error: {error}", file=sys.stderr)
+        return 1
+
+    if not assets_bundle_enabled:
+        print("[kinnoo pack] Asset bundling disabled by assets.bundle=false")
+
     print(f"[kinnoo pack] Packaging agent directory: {agent_dir}")
     wheels_dir = tempfile.TemporaryDirectory(prefix="kinnoo_wheels_")
 
@@ -274,11 +339,24 @@ def pack_agent(agent_dir: str, bump: str | None = None) -> int:
 
     staged_archive_path = Path(wheels_dir.name) / archive_name
     with zipfile.ZipFile(staged_archive_path, "w", zipfile.ZIP_DEFLATED) as archive_file:
+        archived_entries: set[str] = set()
+
         archive_file.write(kinnoo_yaml_path, arcname="kinnoo.yaml")
+        archived_entries.add("kinnoo.yaml")
         archive_file.write(entrypoint_path, arcname=os.path.basename(entrypoint_path))
+        archived_entries.add(os.path.basename(entrypoint_path))
         archive_file.write(requirements_path, arcname="requirements.txt")
+        archived_entries.add("requirements.txt")
         for relative_path, absolute_path in safe_additional_paths:
+            if relative_path in archived_entries:
+                continue
             archive_file.write(absolute_path, arcname=relative_path)
+            archived_entries.add(relative_path)
+        for arcname, absolute_path in asset_files:
+            if arcname in archived_entries:
+                continue
+            archive_file.write(absolute_path, arcname=arcname)
+            archived_entries.add(arcname)
         for wheel_path in wheel_files:
             archive_file.write(wheel_path, arcname=f"wheels/{os.path.basename(wheel_path)}")
         if missing_wheels_report_path is not None:
