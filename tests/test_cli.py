@@ -1280,3 +1280,141 @@ def test_feature25_run_checks_all_declared_services_before_entrypoint(tmp_path):
         tcp_socket.close()
         http_server.shutdown()
         http_server.server_close()
+
+
+def _write_feature25_service_policy_agent(tmp_path: Path, *, process_name: str) -> Path:
+    agent_dir = tmp_path / "feature25-policy-agent"
+    agent_dir.mkdir()
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    (agent_dir / "README.md").write_text("feature25 policy fixture", encoding="utf-8")
+    (agent_dir / "tools").mkdir()
+    (agent_dir / "prompts").mkdir()
+    (agent_dir / "run.py").write_text(
+        "print('feature25-policy-entrypoint-ran')\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: feature25-policy-agent",
+                "version: 0.1.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "    language: python",
+                "    version: \">=3.10\"",
+                "    type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "    type: text",
+                "outputs:",
+                "    type: text",
+                "services:",
+                "  - name: local-redis",
+                "    type: local-process",
+                "    health_check:",
+                "      method: process",
+                f"      process_name: {process_name}",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    venv_python = agent_dir / ".venv" / "bin" / "python"
+    venv_python.parent.mkdir(parents=True, exist_ok=True)
+    venv_python.write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+    venv_python.chmod(0o755)
+
+    return agent_dir
+
+
+def test_feature25_non_interactive_aborts_on_unhealthy_service(tmp_path, monkeypatch, capsys):
+    from kinnoo import run_command
+
+    agent_dir = _write_feature25_service_policy_agent(
+        tmp_path,
+        process_name="feature25-missing-process-non-interactive",
+    )
+
+    monkeypatch.setattr(run_command.sys.stdin, "isatty", lambda: False)
+    exit_code = run_command.run_agent(str(agent_dir), "hello")
+
+    captured = capsys.readouterr()
+    output = f"{captured.out}\n{captured.err}"
+    assert exit_code != 0
+    assert "service 'local-redis'" in output
+    assert "Non-interactive mode: aborting due to unhealthy service check." in output
+    assert "feature25-policy-entrypoint-ran" not in output
+
+
+def test_feature25_interactive_prompt_allows_proceed_or_abort(tmp_path, monkeypatch, capsys):
+    import builtins
+
+    from kinnoo.health_check import HealthCheckResult
+    from kinnoo import run_command
+
+    agent_dir = _write_feature25_service_policy_agent(
+        tmp_path,
+        process_name="feature25-missing-process-interactive",
+    )
+
+    monkeypatch.setattr(run_command.sys.stdin, "isatty", lambda: True)
+    monkeypatch.setattr(
+        run_command,
+        "_run_service_checks",
+        lambda _manifest: [
+            HealthCheckResult(
+                service_name="local-redis",
+                service_type="local-process",
+                method="process",
+                healthy=False,
+                message="Process health check failed for pattern 'feature25-missing-process-interactive'.",
+                guidance=(
+                    "Start the required process, or update services[].health_check.process_name "
+                    "to match the running command."
+                ),
+            )
+        ],
+    )
+
+    prompts: list[str] = []
+
+    def _proceed_prompt(message: str) -> str:
+        prompts.append(message)
+        return "y"
+
+    popen_calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
+
+    class _FakeProcess:
+        def __init__(self) -> None:
+            self.returncode = 0
+
+        def communicate(self) -> None:
+            print("feature25-policy-entrypoint-ran")
+
+    def _fake_popen(*args: object, **kwargs: object) -> _FakeProcess:
+        popen_calls.append((args, kwargs))
+        return _FakeProcess()
+
+    monkeypatch.setattr(run_command.subprocess, "Popen", _fake_popen)
+    monkeypatch.setattr(builtins, "input", _proceed_prompt)
+    proceed_code = run_command.run_agent(str(agent_dir), "hello")
+    proceed_captured = capsys.readouterr()
+    proceed_output = f"{proceed_captured.out}\n{proceed_captured.err}"
+
+    assert proceed_code == 0, proceed_output
+    assert prompts, "Expected an interactive unhealthy-service prompt"
+    assert prompts[0] == "Service local-redis is not healthy. Proceed anyway? [y/N] "
+    assert "feature25-policy-entrypoint-ran" in proceed_output
+    assert popen_calls, "Expected entrypoint launch when interactive user proceeds"
+
+    def _abort_prompt(_message: str) -> str:
+        return ""
+
+    monkeypatch.setattr(builtins, "input", _abort_prompt)
+    abort_code = run_command.run_agent(str(agent_dir), "hello")
+    abort_captured = capsys.readouterr()
+    abort_output = f"{abort_captured.out}\n{abort_captured.err}"
+
+    assert abort_code != 0
+    assert "feature25-policy-entrypoint-ran" not in abort_output

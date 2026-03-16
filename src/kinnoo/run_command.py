@@ -704,6 +704,28 @@ def run_agent(
         for service_result in service_results:
             _render_service_check_for_run(service_result)
 
+    unhealthy_service_results = [
+        service_result for service_result in service_results if not service_result.healthy
+    ]
+    if unhealthy_service_results:
+        if not sys.stdin.isatty():
+            print(
+                "Non-interactive mode: aborting due to unhealthy service check.",
+                file=sys.stderr,
+            )
+            return finalize(1)
+
+        # Prompt once per unhealthy service so users can decide to proceed with explicit context.
+        for service_result in unhealthy_service_results:
+            try:
+                response = input(
+                    f"Service {service_result.service_name} is not healthy. Proceed anyway? [y/N] "
+                ).strip().lower()
+            except (KeyboardInterrupt, EOFError):
+                return finalize(1)
+            if response != "y":
+                return finalize(1)
+
     # Evaluate the user input before entrypoint execution; this is warning-based and never hard-rejects
     # when a user explicitly confirms in interactive mode.
     if not no_guard:
