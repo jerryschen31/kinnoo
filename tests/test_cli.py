@@ -1160,3 +1160,123 @@ def test_feature23_sigint_graceful_shutdown_with_escalation(tmp_path):
         if process.poll() is None:
             process.terminate()
             process.wait(timeout=3)
+
+
+def test_feature25_run_checks_all_declared_services_before_entrypoint(tmp_path):
+    import socket
+    import threading
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    class HealthHandler(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:  # noqa: N802
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"ok")
+
+        def log_message(self, format: str, *args: object) -> None:  # noqa: A003
+            del format, args
+
+    http_server = ThreadingHTTPServer(("127.0.0.1", 0), HealthHandler)
+    http_host, http_port = http_server.server_address
+    http_thread = threading.Thread(target=http_server.serve_forever, daemon=True)
+    http_thread.start()
+
+    tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    tcp_socket.bind(("127.0.0.1", 0))
+    tcp_socket.listen(1)
+    tcp_port = tcp_socket.getsockname()[1]
+    stop_accept = threading.Event()
+
+    def _accept_loop() -> None:
+        while not stop_accept.is_set():
+            try:
+                tcp_socket.settimeout(0.1)
+                conn, _ = tcp_socket.accept()
+                conn.close()
+            except TimeoutError:
+                continue
+            except OSError:
+                break
+
+    tcp_thread = threading.Thread(target=_accept_loop, daemon=True)
+    tcp_thread.start()
+
+    agent_dir = tmp_path / "feature25-run-agent"
+    agent_dir.mkdir()
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    (agent_dir / "README.md").write_text("feature25 run fixture", encoding="utf-8")
+    (agent_dir / "tools").mkdir()
+    (agent_dir / "prompts").mkdir()
+    (agent_dir / "run.py").write_text(
+        "print('feature25-entrypoint-ran')\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: feature25-run-agent",
+                "version: 0.1.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "    language: python",
+                "    version: \">=3.10\"",
+                "    type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "    type: text",
+                "outputs:",
+                "    type: text",
+                "services:",
+                "  - name: local-api",
+                "    type: api",
+                "    health_check:",
+                "      method: http",
+                f"      url: http://{http_host}:{http_port}/health",
+                "  - name: local-db",
+                "    type: database",
+                "    health_check:",
+                "      method: tcp",
+                f"      port: {tcp_port}",
+                "  - name: local-redis",
+                "    type: local-process",
+                "    health_check:",
+                "      method: process",
+                "      process_name: feature25-missing-process",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+
+    try:
+        result = subprocess.run(
+            [sys.executable, str(cli_path), "run", str(agent_dir), "hello"],
+            capture_output=True,
+            text=True,
+            cwd=tmp_path,
+        )
+        output = f"{result.stdout}\n{result.stderr}"
+
+        assert result.returncode == 0
+        assert "[kinnoo] Service health checks:" in output
+        assert "service 'local-api'" in output
+        assert "service 'local-db'" in output
+        assert "service 'local-redis'" in output
+        assert "(type: local-process, method: process)" in output
+        assert "[kinnoo] guidance:" in output
+        assert "feature25-entrypoint-ran" in output
+
+        if (
+            "[kinnoo] Service health checks:" in result.stdout
+            and "feature25-entrypoint-ran" in result.stdout
+        ):
+            health_section_index = result.stdout.index("[kinnoo] Service health checks:")
+            entrypoint_index = result.stdout.index("feature25-entrypoint-ran")
+            assert health_section_index < entrypoint_index
+    finally:
+        stop_accept.set()
+        tcp_socket.close()
+        http_server.shutdown()
+        http_server.server_close()
