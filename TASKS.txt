@@ -3092,3 +3092,96 @@ tasks:
     dependencies: [task154, task155, task156]
     tests: [test236, test237, test238, test239, test240, test241, test242]
     status: completed
+
+  - id: task158
+    title: "Feature27 analyzer core API and report model"
+    type: task
+    description: |
+      Create the analyzer module foundation with a stable public API
+      `analyze_project(project_dir) -> AnalysisReport` and composable detector
+      interfaces that return value, confidence, and evidence metadata.
+    files:
+      - src/kinnoo/analyzer.py
+      - tests/test_analyzer.py
+    steps:
+      - 'step1: Define analyzer report/data model for inferred fields, confidence metadata, and warnings'
+      - 'step2: Implement public analyze_project(project_dir) entrypoint with detector orchestration hooks'
+      - 'step3: Keep detector contracts independent and composable for future extension'
+      - 'step4: Add baseline tests for module/API existence and report-section structure'
+    dependencies: []
+    tests: [test243, test249, test250]
+    status: completed
+
+  - id: task159
+    title: "Feature27 entrypoint runtime framework detectors"
+    type: task
+    description: |
+      Implement entrypoint, runtime, and framework detectors with confidence-based
+      outcomes and uncertainty handling for ambiguous project layouts.
+    files:
+      - src/kinnoo/analyzer.py
+      - tests/test_analyzer.py
+    steps:
+      - 'step1: Implement _detect_entrypoint for common Python layouts and __main__ discovery'
+      - 'step2: Implement _detect_runtime for language/version/type and runtime port hints'
+      - 'step3: Implement _detect_framework via imports/usages with uncertainty-safe outputs'
+      - 'step4: Add tests for positive and ambiguous detection paths with actionable diagnostics'
+    dependencies: [task158]
+    tests: [test244]
+    status: completed
+
+  - id: task160
+    title: "Feature27 dependencies and env var detectors"
+    type: task
+    description: |
+      Implement dependency and environment-variable inference using stdlib-first
+      parsing so analyzer output is normalized, deduplicated, and confidence-scored.
+    files:
+      - src/kinnoo/analyzer.py
+      - tests/test_analyzer.py
+    steps:
+      - 'step1: Implement _detect_dependencies from requirements.txt and pyproject.toml dependencies'
+      - 'step2: Normalize package names/constraints and merge duplicates safely'
+      - 'step3: Implement _detect_env_vars for getenv/environ patterns with deduplication'
+      - 'step4: Add tests covering detection accuracy and noisy/partial input cases'
+    dependencies: [task158]
+    tests: [test245, test246]
+    status: completed
+
+  - id: task161
+    title: "Feature27 assets and services detectors"
+    type: task
+    description: |
+      Implement asset and service detectors that infer likely bundle candidates and
+      service declarations with path-safety filtering and health-check hints.
+    files:
+      - src/kinnoo/analyzer.py
+      - tests/test_analyzer.py
+    steps:
+      - 'step1: Implement _detect_assets for model/data artifacts and directory candidates'
+      - 'step2: Add path-safety filtering so traversal and unsafe candidates are excluded/warned'
+      - 'step3: Implement _detect_services from recognizable connection patterns'
+      - 'step4: Add tests for service-type hints and optional health-check suggestions'
+    dependencies: [task158]
+    tests: [test247, test248]
+    status: completed
+
+  - id: task162
+    title: "Feature27 analyzer validation suite and import reusability gate"
+    type: task
+    description: |
+      Add comprehensive analyzer-only tests that cover positive and uncertain cases
+      across all detectors and prove analyzer reuse readiness for feature19 import
+      workflows without duplicating inference logic in command modules.
+    files:
+      - src/kinnoo/analyzer.py
+      - tests/test_analyzer.py
+      - tests/test_regression_v1.py
+    steps:
+      - 'step1: Add detector matrix tests covering positive and ambiguous scenarios for each detector'
+      - 'step2: Validate that failure diagnostics are actionable for debugging detector behavior'
+      - 'step3: Add focused regression gate proving analyzer can be invoked as a reusable library path'
+      - 'step4: Capture AC coverage evidence and prepare tasks for TechLead review'
+    dependencies: [task159, task160, task161]
+    tests: [test251]
+    status: completed
