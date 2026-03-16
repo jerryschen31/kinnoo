@@ -142,7 +142,10 @@ def _collect_validation_errors(data: dict[str, Any]) -> list[str]:
 
         if not isinstance(value, expected_type):
             actual = type(value).__name__
-            expected = expected_type.__name__
+            if isinstance(expected_type, tuple):
+                expected = " or ".join(t.__name__ for t in expected_type)
+            else:
+                expected = expected_type.__name__
             errors.append(
                 f"Field '{optional_field}' must be of type {expected}, "
                 f"got {actual}."
@@ -164,6 +167,22 @@ def _collect_validation_errors(data: dict[str, Any]) -> list[str]:
 
         if optional_field == "model" and value.strip() == "":
             errors.append("Field 'model' must be a non-empty string.")
+
+        if optional_field == "assets.max_bundle_size_mb" and isinstance(value, bool):
+            errors.append("Field 'assets.max_bundle_size_mb' must be of type int or float, got bool.")
+
+        if optional_field == "assets.paths":
+            for index, asset_path in enumerate(value):
+                if not isinstance(asset_path, str):
+                    actual = type(asset_path).__name__
+                    errors.append(
+                        f"Field 'assets.paths[{index}]' must be of type str, got {actual}."
+                    )
+                    continue
+                if asset_path.strip() == "":
+                    errors.append(
+                        f"Field 'assets.paths[{index}]' must be a non-empty string."
+                    )
 
     return errors
 
