@@ -2475,7 +2475,7 @@ tasks:
       - 'step4: Add/extend parser-focused tests for new and invalid choices'
     dependencies: [task16]
     tests: [test180, test181]
-    status: needs-review
+    status: completed
 
   - id: task127
     title: "Generate framework templates and metadata artifacts"
@@ -2495,7 +2495,7 @@ tasks:
       - 'step4: Add/extend tests for generated file contents and manifest validity'
     dependencies: [task126, task18]
     tests: [test182, test183, test184, test185, test186, test187]
-    status: needs-review
+    status: completed
 
   - id: task128
     title: "Add runnable smoke tests for new frameworks"
@@ -2514,7 +2514,7 @@ tasks:
       - 'step4: Validate contract expectations (input handling/stdout path/env-var guidance) for each framework template'
     dependencies: [task127, task10]
     tests: [test188, test189, test190]
-    status: needs-review
+    status: completed
 
   - id: task129
     title: "Feature21 regression gate for existing frameworks"
@@ -2533,7 +2533,7 @@ tasks:
       - 'step3: Capture regression evidence for handoff/review'
     dependencies: [task126, task127, task128]
     tests: [test191]
-    status: needs-review
+    status: completed
 
   - id: task130
     title: "Feature21 dependency compatibility pinning update"
@@ -2555,7 +2555,7 @@ tasks:
       - 'step4: Ensure AC4 wording and tests stay aligned with implemented version policy'
     dependencies: [task127]
     tests: [test192, test193]
-    status: needs-review
+    status: completed
 
   - id: task131
     title: "Feature21 implement real PydanticAI runnable template"
@@ -2576,7 +2576,7 @@ tasks:
       - 'step4: Add tests asserting framework-native code markers and runnable behavior with basic input'
     dependencies: [task130, task128]
     tests: [test194, test195]
-    status: needs-review
+    status: completed
 
   - id: task132
     title: "Feature21 implement real LangGraph runnable template"
@@ -2597,7 +2597,7 @@ tasks:
       - 'step4: Add tests asserting framework-native graph constructs and runnable behavior with basic input'
     dependencies: [task130, task128]
     tests: [test196, test197]
-    status: needs-review
+    status: completed
 
   - id: task133
     title: "Feature21 implement real OpenAI Agents runnable template"
@@ -2618,7 +2618,7 @@ tasks:
       - 'step4: Add tests asserting framework-native constructs and runnable behavior with basic input'
     dependencies: [task130, task128]
     tests: [test198, test199]
-    status: needs-review
+    status: completed
 
   - id: task134
     title: "Feature21 optional kinnoo.yaml model metadata field"
@@ -2642,4 +2642,4 @@ tasks:
       - 'step4: Add tests for validator acceptance and template generation behavior with/without `model`'
     dependencies: [task127, task50]
     tests: [test200, test201]
-    status: needs-review
+    status: completed

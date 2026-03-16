@@ -273,3 +273,52 @@ In the same pass, run-path UX was reviewed and confirmed:
 - Implement `task130` before `task131`-`task133` so dependency-policy assertions match template output.
 - Implement `task134` with backward compatibility as a hard requirement (`model` optional, non-breaking).
 - Keep feature/task status flow unchanged: SWE moves tasks to `needs-review`; TechLead/human review gates completion.
+
+---
+
+## Tech Lead Agent - Review 2
+
+### Scope reviewed
+
+- Tasks: `task126` through `task134`
+- Feature contract: `feature21` AC1-AC16
+- Evidence sources: manifest link validation, test automation path verification, and focused pytest runs
+
+### Findings (ordered by severity)
+
+1. Medium — feature status is stale relative to implementation progress
+	 - Observation: `feature21` remains `status: not-started` while all linked tasks `task126`-`task134` are `needs-review`.
+	 - Risk: workflow/board state is misleading before merge and can confuse reviewers.
+	 - Recommendation: move `feature21` to `needs-review` now (or `in-progress` if your process requires an intermediate step before review complete).
+
+2. Low — stale wording in task127 no longer fully matches AC4 policy
+	 - Observation: `task127` step text still references major-version-range pinning, while AC4 now allows tested bounded ranges or exact tested pins for pre-1.0 frameworks.
+	 - Risk: subtle mismatch between task intent and accepted policy could cause future drift in follow-up work.
+	 - Recommendation: refresh task127 wording to align with the current AC4 language.
+
+3. Low — feature notes still include an older pinning hint
+	 - Observation: feature21 notes include "Pin major versions..." wording that predates the tested-compatibility policy update.
+	 - Risk: future contributors may follow outdated guidance.
+	 - Recommendation: update note wording to reference tested compatibility ranges (stable major-bounded, pre-1.0 tested bounded or exact tested pins).
+
+### Coverage audit results
+
+- Task/test linkage check:
+	- `task126`-`task134` each have linked tests.
+	- `test180`-`test201` automation paths resolve to existing files and functions.
+- AC coverage check:
+	- AC1-AC16 all have at least one mapped test in `TESTS.txt`.
+	- No uncovered feature21 ACs detected.
+
+### Execution evidence (this review)
+
+- Manifest consistency:
+	- `python3 src/validate_project_manifests.py` -> pass
+- Feature21 focused suites:
+	- `python3 -m pytest tests/test_init.py tests/test_cli.py -k feature21` -> 21 passed
+	- `python3 -m pytest tests/test_regression_v1.py -k "framework or feature21"` -> 1 passed
+
+### Merge recommendation
+
+- Readiness: functionally ready for merge review based on current evidence.
+- Before merge to `phase3/main`, apply the low-cost housekeeping updates above (status + wording alignment) to keep manifests and guidance consistent with implemented behavior.
