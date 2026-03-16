@@ -2761,3 +2761,102 @@ tasks:
     dependencies: [task136, task137, task138, task139]
     tests: [test211]
     status: completed
+
+  - id: task141
+    title: "Feature23 schema support for mcp-server runtime type"
+    type: task
+    description: |
+      Extend schema and validator support so `runtime.type: mcp-server` is
+      accepted alongside `one-shot`, while preserving clear validation errors
+      for unsupported runtime types.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+      - tests/test_validator.py
+    steps:
+      - 'step1: Add `mcp-server` to supported runtime type constants in schema'
+      - 'step2: Keep validator error messaging explicit and actionable for invalid runtime.type values'
+      - 'step3: Add tests for acceptance of `mcp-server` and continued rejection of unknown runtime types'
+      - 'step4: Verify existing manifest validation behavior remains backward compatible for one-shot agents'
+    dependencies: [task50]
+    tests: [test214]
+    status: needs-review
+
+  - id: task142
+    title: "Feature23 supervisor lifecycle and readiness probes"
+    type: task
+    description: |
+      Implement a standalone supervisor module for long-running MCP server
+      processes, including readiness probe strategies and fallback behavior when
+      explicit readiness configuration is absent.
+    files:
+      - src/kinnoo/supervisor.py
+      - src/kinnoo/schema.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Create supervisor API for spawn, readiness wait, stream handling, and shutdown'
+      - 'step2: Support readiness probes for TCP port and stdout marker modes'
+      - 'step3: Implement default readiness fallback (configured TCP when available, otherwise immediate-ready)'
+      - 'step4: Add tests for readiness success/failure and fallback behavior'
+    dependencies: [task141]
+    tests: [test216, test221]
+    status: needs-review
+
+  - id: task143
+    title: "Feature23 run_command integration for mcp-server mode"
+    type: task
+    description: |
+      Integrate supervisor-driven lifecycle into `kinnoo run` for manifests that
+      declare `runtime.type: mcp-server`, ensuring long-running execution mode
+      and real-time stdout/stderr streaming.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Branch run flow by runtime type and route mcp-server execution through supervisor'
+      - 'step2: Ensure mcp-server mode does not use one-shot wait semantics'
+      - 'step3: Preserve real-time stdout/stderr streaming behavior during server runtime'
+      - 'step4: Add integration tests for long-running launch behavior and stream passthrough'
+    dependencies: [task142, task39]
+    tests: [test215, test218]
+    status: needs-review
+
+  - id: task144
+    title: "Feature23 graceful shutdown and trace logging"
+    type: task
+    description: |
+      Implement Ctrl+C signal handling and graceful teardown for mcp-server
+      runtime mode, including timeout-based escalation and trace logging of
+      lifecycle events.
+    files:
+      - src/kinnoo/supervisor.py
+      - src/kinnoo/run_command.py
+      - tests/test_cli.py
+      - tests/test_trust_baseline.py
+    steps:
+      - 'step1: On SIGINT send SIGTERM to server process and wait for exit within timeout'
+      - 'step2: Escalate to SIGKILL when server does not terminate gracefully in time'
+      - 'step3: Record start timestamp, stop timestamp, and final exit code/signal in trace logs'
+      - 'step4: Add tests for graceful and forced shutdown paths plus trace log contents'
+    dependencies: [task143, task100]
+    tests: [test217, test219]
+    status: needs-review
+
+  - id: task145
+    title: "Feature23 regression gate for one-shot runtime"
+    type: task
+    description: |
+      Verify feature23 changes do not regress one-shot runtime behavior and
+      preserve baseline run semantics for existing agents.
+    files:
+      - tests/test_cli.py
+      - tests/test_regression_v1.py
+    steps:
+      - 'step1: Add focused regression test asserting one-shot runtime behavior remains unchanged'
+      - 'step2: Run targeted regression suite for run-related one-shot workflows'
+      - 'step3: Ensure runtime-type branching does not alter one-shot output/exit semantics'
+      - 'step4: Capture evidence for feature23 AC7 before handoff'
+    dependencies: [task143, task144]
+    tests: [test220]
+    status: needs-review

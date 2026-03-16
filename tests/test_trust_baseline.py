@@ -476,3 +476,68 @@ def test_pack_security_sweep_non_blocking(tmp_path: Path) -> None:
     assert clean_result.returncode == 0, clean_output
     assert "Security sweep warnings:" not in clean_output
     assert "[kinnoo pack] Archive created:" in clean_output
+
+
+def _create_mcp_trace_agent(tmp_path: Path, agent_name: str) -> Path:
+    agent_dir = tmp_path / agent_name
+    agent_dir.mkdir()
+
+    (agent_dir / "kinnoo.yaml").write_text(
+        (
+            f"name: {agent_name}\n"
+            "version: 1.0.0\n"
+            "entrypoint: run.py\n"
+            "runtime:\n"
+            "  type: mcp-server\n"
+            "  language: python\n"
+            "  version: \">=3.10\"\n"
+            "  shutdown_timeout_seconds: 0.25\n"
+            "  readiness_probe:\n"
+            "    method: stdout\n"
+            "    marker: SERVER_READY\n"
+            "dependencies: []\n"
+            "inputs:\n"
+            "  type: string\n"
+            "  required: false\n"
+            "outputs:\n"
+            "  type: string\n"
+        ),
+        encoding="utf-8",
+    )
+    (agent_dir / "run.py").write_text(
+        "import time\n"
+        "print('SERVER_READY', flush=True)\n"
+        "time.sleep(0.2)\n"
+        "print('SERVER_STOPPING', flush=True)\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    return agent_dir
+
+
+def test_feature23_trace_log_server_lifecycle_fields(tmp_path: Path) -> None:
+    agent_dir = _create_mcp_trace_agent(tmp_path, "trace-mcp-agent")
+    env = os.environ.copy()
+    env["HOME"] = str(tmp_path)
+    env["PYTHONPATH"] = str(Path(__file__).resolve().parents[1] / "src")
+
+    result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "run", str(agent_dir)],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert result.returncode == 0, f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+
+    log_path = _latest_run_trace_log(tmp_path)
+    payload = json.loads(log_path.read_text(encoding="utf-8"))
+
+    assert payload["runtime_type"] == "mcp-server"
+    assert "start_timestamp" in payload
+    assert "stop_timestamp" in payload
+    assert "server_exit_code" in payload
+    assert "server_exit_signal" in payload
+    assert "shutdown_sigterm_sent" in payload
+    assert "shutdown_sigkill_sent" in payload
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", str(payload["start_timestamp"]))
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", str(payload["stop_timestamp"]))

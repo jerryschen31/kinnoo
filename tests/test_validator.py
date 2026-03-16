@@ -248,6 +248,33 @@ def test_invalid_runtime_type(tmp_path: Path) -> None:
         f"Error should mention 'one-shot'; got: {errors}"
     )
 
+
+def test_feature23_runtime_type_mcp_server_supported(tmp_path: Path) -> None:
+    """Feature23 test214: runtime.type supports mcp-server and rejects unknown values."""
+    valid_data = dict(_VALID_MANIFEST)
+    valid_data["runtime"] = dict(valid_data["runtime"])
+    valid_data["runtime"]["type"] = "mcp-server"
+
+    valid_manifest_path = _write_manifest(valid_data, tmp_path)
+    is_valid, errors = validate(str(valid_manifest_path))
+    assert is_valid is True, f"Expected mcp-server runtime.type to be valid; errors: {errors}"
+    assert errors == []
+
+    invalid_data = dict(_VALID_MANIFEST)
+    invalid_data["runtime"] = dict(invalid_data["runtime"])
+    invalid_data["runtime"]["type"] = "not-a-runtime"
+
+    invalid_manifest_path = tmp_path / "feature23_invalid_runtime.yaml"
+    invalid_manifest_path.write_text(yaml.dump(invalid_data), encoding="utf-8")
+    is_valid, errors = validate(str(invalid_manifest_path))
+    assert is_valid is False, "Expected unsupported runtime.type to fail validation"
+    assert any("runtime.type" in msg for msg in errors), (
+        f"Expected runtime.type guidance in validation errors; got: {errors}"
+    )
+    assert any("one-shot" in msg and "mcp-server" in msg for msg in errors), (
+        f"Expected allowed runtime values guidance; got: {errors}"
+    )
+
 # ---------------------------------------------------------------------------
 # test60 — Manifest loader normalizes "type" field to list (task38)
 # ---------------------------------------------------------------------------
