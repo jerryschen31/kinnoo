@@ -3032,7 +3032,7 @@ tasks:
       - 'step4: Add validation/pack tests to prove fixture is valid and packable as .kno'
     dependencies: [task143, task147]
     tests: [test236, test237]
-    status: needs-review
+    status: completed
 
   - id: task155
     title: "Feature26 filesystem MCP runtime permission enforcement"
@@ -3051,7 +3051,7 @@ tasks:
       - 'step4: Add runtime tests for reject/allow branches with actionable error messaging'
     dependencies: [task154]
     tests: [test238]
-    status: needs-review
+    status: completed
 
   - id: task156
     title: "Feature26 github MCP server package and mcp-client init template"
@@ -3072,7 +3072,7 @@ tasks:
       - 'step4: Ensure template entrypoint follows kinnoo contract (sys.argv[1] input, stdout output) and passes validation'
     dependencies: [task154, task132]
     tests: [test239, test240, test241]
-    status: needs-review
+    status: completed
 
   - id: task157
     title: "Feature26 AC coverage and regression gate"
@@ -3091,4 +3091,4 @@ tasks:
       - 'step4: Capture evidence and set tasks ready for TechLead review'
     dependencies: [task154, task155, task156]
     tests: [test236, test237, test238, test239, test240, test241, test242]
-    status: needs-review
+    status: completed
