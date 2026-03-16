@@ -3051,7 +3051,7 @@ tasks:
       - 'step4: Add runtime tests for reject/allow branches with actionable error messaging'
     dependencies: [task154]
     tests: [test238]
-    status: not-started
+    status: needs-review
 
   - id: task156
     title: "Feature26 github MCP server package and mcp-client init template"
