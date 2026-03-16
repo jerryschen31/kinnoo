@@ -543,6 +543,21 @@ def test_feature21_pydantic_ai_framework_native_template(tmp_path):
     assert "Placeholder scaffold for pydantic-ai workflow" not in run_text
 
 
+def test_feature21_langgraph_framework_native_template(tmp_path):
+    agent_name = "feature21-langgraph-native"
+    code, out, err = run_cli(["init", agent_name, "--framework", "langgraph"], cwd=tmp_path)
+    assert code == 0, err
+
+    run_text = (tmp_path / agent_name / "run.py").read_text()
+    assert "from langgraph.graph import END, START, StateGraph" in run_text
+    assert "class GraphState(TypedDict):" in run_text
+    assert "graph_builder.add_edge(START, \"respond\")" in run_text
+    assert "graph_builder.add_edge(\"respond\", END)" in run_text
+    assert "KINNOO_TEST_SAFE_MODE" in run_text
+    assert "test-safe response" in run_text
+    assert "Placeholder scaffold for LangGraph-style node/edge orchestration" not in run_text
+
+
 def test_feature9_init_manifest_includes_description_and_author(tmp_path):
     """test75: init-generated manifest includes description and author placeholders."""
     agent_name = "feature9-init-agent"

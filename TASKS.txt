@@ -2597,7 +2597,7 @@ tasks:
       - 'step4: Add tests asserting framework-native graph constructs and runnable behavior with basic input'
     dependencies: [task130, task128]
     tests: [test196, test197]
-    status: not-started
+    status: needs-review
 
   - id: task133
     title: "Feature21 implement real OpenAI Agents runnable template"
