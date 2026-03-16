@@ -792,7 +792,7 @@ features:
       ```
 
       Use cases: local vector DBs, embedding files, reference documents, model weights.
-    tasks: []
+    tasks: [task135, task136, task137, task138, task139, task140]
     acceptance_criteria:
       - id: AC1
         description: "Manifest validator accepts an optional `assets` field as an object with `paths` (list[string]), optional `bundle` (bool, default true), and optional `max_bundle_size_mb` (number, default 100). Invalid structure produces clear errors."
