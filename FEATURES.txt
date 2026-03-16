@@ -1004,7 +1004,7 @@ features:
       - "Manifest `permissions` section is MCP-server-specific; validate only when `runtime.type: mcp-server`."
     owner: techlead-agent
     dependencies: [feature23, feature21]
-    status: not-started
+    status: needs-review
 
   - id: feature27
     title: "Project Analyzer Module — Manifest Field Inference"

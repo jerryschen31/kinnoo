@@ -345,27 +345,77 @@ KINNOO_TEST_SAFE_MODE=1 python run.py "Hello OpenAI Agents!"
 ```
 '''
 
-MCP_CLIENT_RUN_PY = '''import os
+MCP_CLIENT_RUN_PY = '''import json
+import os
 import sys
 import asyncio
-from pathlib import Path
+
+
+def _jsonrpc_request(request_id, method, params):
+  return {
+    "jsonrpc": "2.0",
+    "id": request_id,
+    "method": method,
+    "params": params,
+  }
+
+
+async def _request_over_stdio(process, request):
+  payload = json.dumps(request) + "\\n"
+  process.stdin.write(payload.encode("utf-8"))
+  await process.stdin.drain()
+
+  raw_response = await process.stdout.readline()
+  if not raw_response:
+    raise RuntimeError("MCP server closed stdout before responding")
+  return json.loads(raw_response.decode("utf-8"))
+
+
+async def _demo_stdio_connection(input_text):
+  """Demonstrate an MCP JSON-RPC stdio session with a concrete request/response flow.
+
+  Set KINNOO_MCP_SERVER_CMD to a shell command that starts an MCP server speaking
+  newline-delimited JSON-RPC on stdin/stdout.
+  """
+  server_cmd = os.getenv("KINNOO_MCP_SERVER_CMD", "").strip()
+  if not server_cmd:
+    print(
+      f"[mcp-client template] input={input_text} | "
+      "Set KINNOO_MCP_SERVER_CMD to run a live MCP stdio handshake demo"
+    )
+    return
+
+  process = await asyncio.create_subprocess_shell(
+    server_cmd,
+    stdin=asyncio.subprocess.PIPE,
+    stdout=asyncio.subprocess.PIPE,
+    stderr=asyncio.subprocess.PIPE,
+  )
+
+  try:
+    initialize = _jsonrpc_request(
+      request_id=1,
+      method="initialize",
+      params={"clientInfo": {"name": "kinnoo-mcp-client-template", "version": "0.1.0"}},
+    )
+    init_response = await _request_over_stdio(process, initialize)
+
+    tools_list = _jsonrpc_request(request_id=2, method="tools/list", params={})
+    list_response = await _request_over_stdio(process, tools_list)
+
+    print(
+      "[mcp-client template] "
+      f"initialize_ok={'error' not in init_response} "
+      f"tools_list_ok={'error' not in list_response} "
+      f"input={input_text}"
+    )
+  finally:
+    process.terminate()
+    await process.wait()
 
 
 async def main(input_text):
-  """Minimal MCP client template that preserves Kinnoo runtime contract.
-
-  This scaffold demonstrates where MCP server startup/connection logic should live
-  while remaining deterministic for local test execution.
-  """
-  server_archive_path = os.getenv("KINNOO_MCP_SERVER_ARCHIVE", "./filesystem-mcp-server.kno")
-  server_dir_hint = Path(server_archive_path).stem
-
-  # Connection placeholder: replace this with your framework-specific MCP client.
-  print(
-    f"[mcp-client template] input={input_text} | "
-    f"server_archive={server_archive_path} | "
-    f"server_dir_hint={server_dir_hint}"
-  )
+  await _demo_stdio_connection(input_text)
 
 
 if __name__ == '__main__':
@@ -388,11 +438,13 @@ This scaffold demonstrates a Kinnoo-compatible MCP client template.
    - `python src/kinnoo/cli.py pack <mcp-server-dir>`
 2. Install MCP server package:
    - `python src/kinnoo/cli.py install <mcp-server>.kno`
-3. Run this client template:
-   - `python run.py "list available files"`
+3. Start your MCP server in stdio mode and export its launch command:
+  - `export KINNOO_MCP_SERVER_CMD="python path/to/mcp_server.py"`
+4. Run this client template:
+  - `python run.py "list available files"`
 
 ## Optional Environment Variables
-- `KINNOO_MCP_SERVER_ARCHIVE` (default: `./filesystem-mcp-server.kno`)
+- `KINNOO_MCP_SERVER_CMD` command to launch an MCP stdio server process
 
 ## Contract Notes
 - Input is read from `sys.argv[1]`

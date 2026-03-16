@@ -645,11 +645,14 @@ def test_feature26_mcp_client_template_generation(tmp_path):
     run_text = (agent_dir / "run.py").read_text(encoding="utf-8")
     readme_text = (agent_dir / "README.md").read_text(encoding="utf-8")
 
-    assert "KINNOO_MCP_SERVER_ARCHIVE" in run_text
-    assert "mcp-client template" in run_text
+    assert "KINNOO_MCP_SERVER_CMD" in run_text
+    assert "initialize" in run_text
+    assert "tools/list" in run_text
+    assert "_request_over_stdio" in run_text
     assert "Suggested End-to-End Workflow" in readme_text
     assert "kinnoo/cli.py pack" in readme_text
     assert "kinnoo/cli.py install" in readme_text
+    assert "KINNOO_MCP_SERVER_CMD" in readme_text
 
 
 def test_feature26_mcp_client_template_contract_and_validation(tmp_path):
