@@ -2971,7 +2971,7 @@ tasks:
       - 'step4: Keep output human-readable and deterministic for multi-service manifests'
     dependencies: [task150, task97]
     tests: [test231, test232]
-    status: not-started
+    status: needs-review
 
   - id: task152
     title: "Feature25 interactive and non-interactive failure policy"
