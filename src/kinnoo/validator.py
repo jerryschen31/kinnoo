@@ -30,6 +30,7 @@ from .schema import (
     NAME_PATTERN,
     OPTIONAL_FIELD_TYPES,
     REQUIRED_FIELDS,
+    SERVICE_TYPE_ALIASES,
     SEMVER_PATTERN,
     SUPPORTED_HEALTH_CHECK_METHODS,
     SUPPORTED_RUNTIME_TYPES,
@@ -120,6 +121,9 @@ def _collect_services_shape_errors(data: dict[str, Any]) -> list[str]:
                 f"Field 'services[{index}].type' has unsupported value: '{service_type}'. "
                 f"Allowed values: {supported}."
             )
+        elif isinstance(service_type, str):
+            # Canonicalization keeps semantic equivalence explicit for alias values.
+            service_type = SERVICE_TYPE_ALIASES.get(service_type, service_type)
 
         health_check = service.get("health_check")
         if health_check is None:
@@ -129,6 +133,12 @@ def _collect_services_shape_errors(data: dict[str, Any]) -> list[str]:
             actual = type(health_check).__name__
             errors.append(
                 f"Field 'services[{index}].health_check' must be of type dict, got {actual}."
+            )
+            continue
+
+        if "method" not in health_check:
+            errors.append(
+                f"Missing required field: 'services[{index}].health_check.method' when health_check is declared."
             )
             continue
 
