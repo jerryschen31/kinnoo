@@ -965,7 +965,7 @@ features:
       - "Implement health checkers as a small interface (check method → pass/fail + message) in a dedicated module (src/kinnoo/health_check.py)."
     owner: techlead-agent
     dependencies: [feature24, feature14]
-    status: not-started
+    status: completed
 
   - id: feature26
     title: "MCP Server Packages & Client Templates"
