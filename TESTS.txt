@@ -3680,3 +3680,99 @@ tests:
     covers:
       - feature: feature23
         ac: AC8
+
+  - id: test222
+    title: Feature24 validator accepts optional services list
+    type: unit
+    preconditions: validator module supports feature24 services schema
+    steps:
+      - step1: Validate manifest fixture containing a `services` list with valid service objects
+      - step2: Validate equivalent fixture without a services section
+    expected: validator accepts both services-enabled and services-absent manifests
+    pass_criteria: both fixtures pass validation with no services-related errors
+    automated: true
+    automation_path: tests/test_validator.py::test_feature24_services_optional_list_is_accepted
+    covers:
+      - feature: feature24
+        ac: AC1
+
+  - id: test223
+    title: Feature24 validator enforces service required fields and allowed types
+    type: unit
+    preconditions: validator module includes service object checks
+    steps:
+      - step1: Validate fixture missing `name` and/or `type` in service entry
+      - step2: Validate fixture with unsupported service `type`
+    expected: validator returns clear errors for missing required fields and invalid service types
+    pass_criteria: errors explicitly identify missing `name`/`type` and list allowed service types
+    automated: true
+    automation_path: tests/test_validator.py::test_feature24_service_required_fields_and_type_validation
+    covers:
+      - feature: feature24
+        ac: AC2
+      - feature: feature24
+        ac: AC4
+
+  - id: test224
+    title: Feature24 validator enforces health_check methods and method-specific fields
+    type: unit
+    preconditions: validator module includes health_check validation for services
+    steps:
+      - step1: Validate fixtures using each supported health_check method (http, tcp, process)
+      - step2: Validate fixtures with missing method-specific fields (url, port, process_name)
+      - step3: Validate fixture with unsupported health_check method
+    expected: valid method-specific fixtures pass, invalid combinations fail with actionable errors
+    pass_criteria: validator accepts correct method payloads and rejects invalid method/field combinations with allowed-values guidance
+    automated: true
+    automation_path: tests/test_validator.py::test_feature24_health_check_method_specific_validation
+    covers:
+      - feature: feature24
+        ac: AC3
+      - feature: feature24
+        ac: AC4
+
+  - id: test225
+    title: Feature24 regression no-services manifests remain valid
+    type: integration
+    preconditions: baseline V2/V3 fixtures without services section
+    steps:
+      - step1: Execute existing validator coverage on manifests that omit `services`
+      - step2: Verify no new validation errors are introduced by feature24 schema changes
+    expected: manifests without services behave identically to pre-feature24 behavior
+    pass_criteria: no-services fixtures pass unchanged and regression suite remains green
+    automated: true
+    automation_path: tests/test_validator.py::test_feature24_no_services_regression_unchanged
+    covers:
+      - feature: feature24
+        ac: AC5
+
+  - id: test226
+    title: Feature24 inspect displays service declarations and health-check config
+    type: integration
+    preconditions: inspect command supports manifests containing services
+    steps:
+      - step1: Run `kinnoo inspect` on agent fixture declaring multiple services
+      - step2: Verify output includes service names, service types, and health-check configuration fields
+      - step3: Verify output remains human-readable and stable when some health_check fields are absent
+    expected: inspect output surfaces declared service metadata in readable form
+    pass_criteria: inspect output includes expected service names/types/method details for declared services
+    automated: true
+    automation_path: tests/test_cli_inspect.py::test_feature24_inspect_displays_services
+    covers:
+      - feature: feature24
+        ac: AC6
+
+  - id: test227
+    title: Feature24 validator rejects duplicate service names
+    type: unit
+    preconditions: validator module supports duplicate service-name detection
+    steps:
+      - step1: Validate fixture containing two services with the same name
+      - step2: Verify error messaging identifies duplicate naming conflict
+    expected: duplicate service names are rejected with explicit validation errors
+    pass_criteria: validation fails and errors mention duplicate service name constraint
+    automated: true
+    automation_path: tests/test_validator.py::test_feature24_duplicate_service_names_rejected
+    covers:
+      - feature: feature24
+        ac: AC7
