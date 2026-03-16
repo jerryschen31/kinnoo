@@ -128,7 +128,7 @@ if __name__ == '__main__':
   asyncio.run(main(input_text))
 '''
 
-PYDANTIC_AI_REQUIREMENTS = "pydantic-ai>=0.1,<1.0\n"
+PYDANTIC_AI_REQUIREMENTS = "pydantic-ai>=0.0,<0.1\n"
 
 PYDANTIC_AI_README = '''# {name}
 
@@ -159,7 +159,7 @@ if __name__ == '__main__':
   asyncio.run(main(input_text))
 '''
 
-LANGGRAPH_REQUIREMENTS = "langgraph>=0.2,<1.0\n"
+LANGGRAPH_REQUIREMENTS = "langgraph>=0.2,<0.3\n"
 
 LANGGRAPH_README = '''# {name}
 
@@ -190,7 +190,7 @@ if __name__ == '__main__':
   asyncio.run(main(input_text))
 '''
 
-OPENAI_AGENTS_REQUIREMENTS = "openai-agents>=0.1,<1.0\n"
+OPENAI_AGENTS_REQUIREMENTS = "openai-agents>=0.1,<0.2\n"
 
 OPENAI_AGENTS_README = '''# {name}
 
