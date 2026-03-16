@@ -3146,7 +3146,7 @@ tasks:
       - 'step4: Add tests covering detection accuracy and noisy/partial input cases'
     dependencies: [task158]
     tests: [test245, test246]
-    status: not-started
+    status: needs-review
 
   - id: task161
     title: "Feature27 assets and services detectors"
