@@ -134,6 +134,48 @@ Safe troubleshooting:
 - confirm those names are set in process environment or `.env`
 - when prompted, enter values interactively without echoing values into logs
 
+### Feature22 assets bundling (`assets`)
+
+Feature22 adds an optional `assets` object to declare static files/directories that should be bundled with the agent archive.
+
+Supported schema:
+
+```yaml
+assets:
+  paths:
+    - data/embeddings.npz
+    - data/reference_docs/
+    - models/classifier.onnx
+  bundle: true
+  max_bundle_size_mb: 100
+```
+
+Field semantics:
+
+- `assets.paths` (optional): list of relative paths rooted at the agent directory. Each item may be a file or directory path.
+- `assets.bundle` (optional): boolean, default `true`. When `false`, declared assets are retained as metadata but are not included in the `.kno` archive.
+- `assets.max_bundle_size_mb` (optional): number, default `100`. Overrides the pack warning threshold for total archive size.
+
+How inclusion works:
+
+- directory paths are bundled recursively (for example, `data/` includes all nested files and folders)
+- specifying a top-level folder is valid when you have multiple subfolders
+- paths must stay within the agent root (path traversal such as `../` is rejected)
+
+What can be included:
+
+- reference documents (for example markdown, txt, pdf)
+- embeddings or vector artifacts
+- local model files and weights
+- runtime lookup tables, prompt libraries, and other static resources needed at runtime
+
+Security sweep behavior for assets:
+
+- pack performs filename-based checks for likely secret-bearing files and emits warnings
+- pack performs regex-based checks on size-limited UTF-8 text assets and emits warnings for likely credentials
+- binary assets are skipped for regex text scanning
+- findings are warning-only during pack (heuristic, may produce false positives)
+
 ---
 
 ## Concrete Examples
@@ -220,6 +262,7 @@ Notice that both examples look nearly identical from the CLI's perspective — `
 | inputs.type      | yes      | string       | e.g., "text"                                    |
 | outputs.type     | yes      | string       | e.g., "text"                                    |
 | framework        | no       | string       | optional, e.g., "langchain", "crewai"           |
+| assets           | no       | object       | optional; keys: `paths` (list[string]), `bundle` (bool, default true), `max_bundle_size_mb` (number, default 100) |
 | description      | no       | string       | optional metadata                                 |
 | author           | no       | string       | optional metadata                                 |
 | license          | no       | string       | optional metadata                                 |

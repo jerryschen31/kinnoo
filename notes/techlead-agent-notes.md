@@ -2,6 +2,11 @@
 
 ## Phase 3 Feature Definition (2026-03-13)
 
+### Feature22 scan policy update (2026-03-15)
+
+- Approved direction: asset credential detection during `kinnoo pack` remains warning-only because packing is a local operation.
+- Follow-up design note: evaluate stricter/blocking secret scans at `kinnoo publish` time for registry-bound artifacts.
+
 Created 10 features (feature20–feature29) for Phase 3: "Share any agent. Run it with its full stack."
 
 ### Decomposition from Phase 3 Notes (6 high-level → 10 features)
