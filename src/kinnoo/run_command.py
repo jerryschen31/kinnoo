@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 
 import yaml
 
+from .health_check import HealthCheckResult, run_service_health_check
 from .schema import normalize_env_vars
 from .supervisor import (
     infer_readiness_config,
@@ -90,6 +91,49 @@ def _load_agent_dotenv(dotenv_path: Path) -> dict[str, str]:
 def _emit_preflight_line(passed: bool, message: str) -> None:
     status = "PASS" if passed else "FAIL"
     print(f"- [{status}] {message}")
+
+
+def _load_declared_services(manifest: dict | None) -> list[dict[str, object]]:
+    if not isinstance(manifest, dict):
+        return []
+
+    declared_services = manifest.get("services")
+    if not isinstance(declared_services, list):
+        return []
+
+    normalized_services: list[dict[str, object]] = []
+    for service_entry in declared_services:
+        if isinstance(service_entry, dict):
+            normalized_services.append(service_entry)
+    return normalized_services
+
+
+def _run_service_checks(manifest: dict | None) -> list[HealthCheckResult]:
+    results: list[HealthCheckResult] = []
+    for declared_service in _load_declared_services(manifest):
+        results.append(run_service_health_check(declared_service))
+    return results
+
+
+def _render_service_check_for_preflight(result: HealthCheckResult) -> None:
+    detail = (
+        f"service '{result.service_name}' (type: {result.service_type}, method: {result.method}) "
+        f"{result.message}"
+    )
+    _emit_preflight_line(result.healthy, detail)
+    if not result.healthy:
+        print(f"  - Guidance: {result.guidance}")
+
+
+def _render_service_check_for_run(result: HealthCheckResult) -> None:
+    status = "PASS" if result.healthy else "FAIL"
+    detail = (
+        f"service '{result.service_name}' (type: {result.service_type}, method: {result.method}) "
+        f"{result.message}"
+    )
+    print(f"[kinnoo] service check [{status}] {detail}", flush=True)
+    if not result.healthy:
+        print(f"[kinnoo] guidance: {result.guidance}", flush=True)
 
 
 def _parse_runtime_version(value: str) -> tuple[int, ...] | None:
@@ -395,6 +439,16 @@ def run_preflight(agent_dir_arg: str) -> int:
     _emit_preflight_line(entrypoint_ok, entrypoint_message)
     _emit_preflight_line(dependencies_ok, dependencies_message)
 
+    service_results: list[HealthCheckResult] = []
+    service_checks_ok = True
+    if manifest_valid and manifest is not None:
+        service_results = _run_service_checks(manifest)
+        if service_results:
+            print("Service health checks:")
+            for service_result in service_results:
+                _render_service_check_for_preflight(service_result)
+            service_checks_ok = all(service_result.healthy for service_result in service_results)
+
     if manifest_valid and manifest is not None:
         if not runtime_constraint_ok:
             print("  - Action: use a Python interpreter that satisfies runtime.version in kinnoo.yaml")
@@ -404,6 +458,8 @@ def run_preflight(agent_dir_arg: str) -> int:
             print("  - Action: ensure manifest entrypoint exists and is readable")
         if not dependencies_ok:
             print("  - Action: create agent .venv and install requirements (for example: kinnoo run <agent-dir> '<input>')")
+        if service_results and not service_checks_ok:
+            print("  - Action: make unhealthy services reachable or update services[].health_check settings")
 
     skipped_entrypoint = agent_dir_exists and manifest_exists and manifest_valid
     _emit_preflight_line(skipped_entrypoint, "entrypoint execution path skipped in preflight mode")
@@ -416,6 +472,7 @@ def run_preflight(agent_dir_arg: str) -> int:
         and env_vars_ok
         and entrypoint_ok
         and dependencies_ok
+        and service_checks_ok
     ):
         print("Ready to run")
         print("Preflight result: PASS")
@@ -431,6 +488,8 @@ def run_preflight(agent_dir_arg: str) -> int:
         print("- entrypoint: ensure manifest entrypoint exists and is readable")
     if not dependencies_ok:
         print("- dependencies: create .venv and install requirements")
+    if service_results and not service_checks_ok:
+        print("- services: fix failing service checks or adjust services[].health_check configuration")
 
     print("Preflight result: FAIL")
     return 1
@@ -638,6 +697,12 @@ def run_agent(
             resolved_env_vars[env_var_name] = prompted_value
 
     trace_forbidden_values.extend(resolved_env_vars.values())
+
+    service_results = _run_service_checks(manifest if isinstance(manifest, dict) else None)
+    if service_results:
+        print("[kinnoo] Service health checks:", flush=True)
+        for service_result in service_results:
+            _render_service_check_for_run(service_result)
 
     # Evaluate the user input before entrypoint execution; this is warning-based and never hard-rejects
     # when a user explicitly confirms in interactive mode.
