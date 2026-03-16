@@ -754,3 +754,34 @@ def test_feature21_langgraph_basic_run(tmp_path):
     assert run_result.stdout.strip() != ""
     assert "[langgraph template] test-safe response: hello" in run_result.stdout
     assert "Traceback" not in run_result.stderr
+
+
+def test_feature21_openai_agents_basic_run(tmp_path):
+    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    agent_name = "feature21-openai-agents-basic-run"
+    init_result = subprocess.run(
+        [sys.executable, str(cli_path), "init", agent_name, "--framework", "openai-agents"],
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+    )
+    assert init_result.returncode == 0, init_result.stderr
+
+    agent_dir = tmp_path / agent_name
+    # Keep task133 run deterministic and network-independent.
+    (agent_dir / "requirements.txt").write_text("")
+
+    env = os.environ.copy()
+    env["KINNOO_TEST_SAFE_MODE"] = "1"
+
+    run_result = subprocess.run(
+        [sys.executable, str(cli_path), "run", str(agent_dir), "hello"],
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=tmp_path,
+    )
+    assert run_result.returncode == 0, run_result.stderr
+    assert run_result.stdout.strip() != ""
+    assert "[openai-agents template] test-safe response: hello" in run_result.stdout
+    assert "Traceback" not in run_result.stderr
