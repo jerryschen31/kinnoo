@@ -2780,7 +2780,7 @@ tasks:
       - 'step4: Verify existing manifest validation behavior remains backward compatible for one-shot agents'
     dependencies: [task50]
     tests: [test214]
-    status: not-started
+    status: needs-review
 
   - id: task142
     title: "Feature23 supervisor lifecycle and readiness probes"
