@@ -2740,7 +2740,7 @@ tasks:
       - 'step4: Add tests for filename warnings, regex warnings, binary-file skip behavior, and non-blocking continuation'
     dependencies: [task136, task103]
     tests: [test212, test213]
-    status: not-started
+    status: needs-review
 
   - id: task140
     title: "Feature22 documentation and regression gate"
