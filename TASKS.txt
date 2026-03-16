@@ -3010,4 +3010,4 @@ tasks:
       - 'step4: Capture command evidence and set tasks ready for TechLead review'
     dependencies: [task150, task151, task152]
     tests: [test228, test229, test230, test231, test232, test233, test234, test235]
-    status: not-started
+    status: needs-review
