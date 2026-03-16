@@ -2820,7 +2820,7 @@ tasks:
       - 'step4: Add integration tests for long-running launch behavior and stream passthrough'
     dependencies: [task142, task39]
     tests: [test215, test218]
-    status: not-started
+    status: needs-review
 
   - id: task144
     title: "Feature23 graceful shutdown and trace logging"
