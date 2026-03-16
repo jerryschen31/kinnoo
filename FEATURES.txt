@@ -926,7 +926,7 @@ features:
       - "SWE agent should add new schema constants (SUPPORTED_SERVICE_TYPES, SUPPORTED_HEALTH_CHECK_METHODS) to schema.py following existing patterns."
     owner: techlead-agent
     dependencies: [feature9]
-    status: needs-review
+    status: completed
 
   - id: feature25
     title: "Service Health Checks — Runtime Preflight"
@@ -941,7 +941,7 @@ features:
       - Interactive mode: warn on failed checks, prompt user to proceed or abort
       - Non-interactive mode: fail-fast on any failed health check
       - `--preflight` mode: report all service health check results without executing
-    tasks: []
+    tasks: [task150, task151, task152, task153]
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo run` checks health of all declared services before executing the agent. Failed checks display service name, type, and actionable guidance."

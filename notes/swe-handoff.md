@@ -1,65 +1,67 @@
-## SWE Handoff - Feature24 Service Declarations (Schema)
+## SWE Handoff - Feature25 Service Health Checks (Runtime Preflight)
 
 ### Context
-- Feature: feature24 "Service Declarations - Manifest Schema"
-- Goal: add optional `services` manifest schema support and validator/inspect behavior.
-- Scope: schema + validator + inspect output only. Runtime health-check execution is feature25.
+- Feature: feature25 "Service Health Checks - Runtime Preflight"
+- Goal: execute manifest-declared service health checks during `kinnoo run` and integrate results into `--preflight` output.
+- Scope: runtime health-check execution and run/preflight behavior only. Service declaration schema is already delivered in feature24.
 
 ### Tasks To Implement (Ordered)
-1. `task146` - schema constants and manifest shape support
-2. `task147` - validator enforcement for services objects, methods, and duplicates
-3. `task148` - inspect output for declared services
-4. `task149` - AC coverage + targeted regression gate
+1. `task150` - health-check module and checker primitives (HTTP/TCP/process)
+2. `task151` - integrate service checks into run + preflight output
+3. `task152` - interactive vs non-interactive failure policy
+4. `task153` - AC coverage + no-services regression gate
 
 ### Dependency Chain
-- `task146` -> `task147` -> `task148` -> `task149`
+- `task150` -> `task151` -> `task152` -> `task153`
 
 ### Design Constraints
-- Keep feature24 schema-only. Do not add runtime health-check execution logic in run flow.
-- Add schema constants in `src/kinnoo/schema.py`:
-	- `SUPPORTED_SERVICE_TYPES`
-	- `SUPPORTED_HEALTH_CHECK_METHODS`
-- Preserve backward compatibility: manifests without `services` must continue to pass unchanged.
-- Validation errors must be explicit and actionable, and include allowed values for invalid enums.
-- Duplicate `services[].name` values must fail validation deterministically.
-- `kinnoo inspect` output must stay human-readable and include services data only when declared.
+- Reuse feature24 service declarations; do not redesign schema in feature25.
+- Keep dependency footprint minimal: use stdlib (`urllib.request`, `socket`, subprocess/pgrep).
+- Timeouts must be configurable while preserving defaults:
+	- HTTP: 5s default
+	- TCP: 3s default
+- Failed check output must include service name, service type, and actionable guidance.
+- `--preflight` must report service checks without executing the agent entrypoint.
+- Preserve backward compatibility: manifests without `services` must behave exactly as before.
 
 ### Files Expected To Change
-- `src/kinnoo/schema.py`
-- `src/kinnoo/validator.py`
-- `src/kinnoo/inspect_command.py`
-- `tests/test_validator.py`
-- `tests/test_cli_inspect.py`
-- Optional regression touchpoint: `tests/test_regression_v1.py` (if needed for explicit no-services guard)
+- `src/kinnoo/health_check.py` (new)
+- `src/kinnoo/run_command.py`
+- `src/kinnoo/cli.py`
+- `tests/test_health_check.py` (new)
+- `tests/test_run_preflight.py`
+- `tests/test_cli.py`
+- `tests/test_regression_v1.py`
 
 ### AC-to-Test Mapping
-- AC1 -> `test222`
-- AC2 -> `test223`
-- AC3 -> `test224`
-- AC4 -> `test223`, `test224`
-- AC5 -> `test225`
-- AC6 -> `test226`
-- AC7 -> `test227`
+- AC1 -> `test231`
+- AC2 -> `test228`
+- AC3 -> `test229`
+- AC4 -> `test230`
+- AC5 -> `test233`, `test234`
+- AC6 -> `test232`
+- AC7 -> `test235`
+- AC8 -> `test234`
 
 ### Suggested Implementation Notes
-- Validate `services` as list of objects.
-- For each service:
-	- required fields: `name`, `type`
-	- `type` in allowed service types
-	- optional `health_check` object
-	- when `health_check.method` is set:
-		- `tcp` requires `port`
-		- `http` requires `url`
-		- `process` requires `process_name`
-- Keep error path names specific (for example, service index + field path) so debugging is easy.
+- Introduce a small checker interface in `health_check.py` returning a normalized result object.
+- Keep service-check result rendering deterministic to make tests stable.
+- For process checks, prefer `pgrep -f <name>` behavior compatible with current test environment.
+- Interactive behavior should be explicit and testable:
+	- Warning prompt: `Service <name> is not healthy. Proceed anyway? [y/N]`
+	- `y` proceeds, default/non-yes aborts.
+- Non-interactive mode should fail-fast on first unhealthy service to avoid ambiguous runtime state.
 
 ### Validation Commands (SWE)
 - `python3 src/validate_project_manifests.py`
-- `python3 -m pytest tests/test_validator.py -k feature24`
-- `python3 -m pytest tests/test_cli_inspect.py -k feature24`
+- `python3 -m pytest tests/test_health_check.py -k feature25`
+- `python3 -m pytest tests/test_run_preflight.py -k feature25`
+- `python3 -m pytest tests/test_cli.py -k feature25`
+- `python3 -m pytest tests/test_regression_v1.py -k feature25`
 - `python3 -m pytest` (final regression gate)
 
 ### Done Criteria
-- All feature24 ACs covered by automated tests (`test222`-`test227`).
-- Manifest validator passes with updated FEATURES/TASKS/TESTS references.
-- No regressions for manifests without `services`.
+- All feature25 ACs covered by automated tests (`test228`-`test235`).
+- Preflight output includes service health checks and still skips entrypoint execution.
+- Interactive/non-interactive behavior matches AC policy exactly.
+- No regressions for no-services agents.

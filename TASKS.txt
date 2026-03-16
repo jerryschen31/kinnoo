@@ -2877,7 +2877,7 @@ tasks:
       - 'step4: Keep schema additions modular for feature25 runtime health-check consumption'
     dependencies: [task50]
     tests: [test222, test225]
-    status: needs-review
+    status: completed
 
   - id: task147
     title: "Feature24 validator rules for services objects and duplicates"
@@ -2895,7 +2895,7 @@ tasks:
       - 'step4: Reject duplicate service names within a manifest and emit deterministic error text'
     dependencies: [task146]
     tests: [test223, test224, test227]
-    status: needs-review
+    status: completed
 
   - id: task148
     title: "Feature24 inspect output support for declared services"
@@ -2913,7 +2913,7 @@ tasks:
       - 'step4: Keep existing inspect output stable for manifests without services'
     dependencies: [task147, task63]
     tests: [test226]
-    status: needs-review
+    status: completed
 
   - id: task149
     title: "Feature24 AC coverage and regression gate"
@@ -2932,4 +2932,82 @@ tasks:
       - 'step4: Capture evidence and mark tasks ready for TechLead review'
     dependencies: [task147, task148]
     tests: [test222, test223, test224, test225, test226, test227]
-    status: needs-review
+    status: completed
+
+  - id: task150
+    title: "Feature25 health-check module and checker primitives"
+    type: task
+    description: |
+      Create a dedicated service health-check module with checker functions for
+      HTTP, TCP, and process checks, including configurable timeout support and
+      actionable result messages that can be rendered by run/preflight flows.
+    files:
+      - src/kinnoo/health_check.py
+      - src/kinnoo/schema.py
+      - tests/test_health_check.py
+    steps:
+      - 'step1: Create src/kinnoo/health_check.py with a small checker interface and result model'
+      - 'step2: Implement HTTP GET check using urllib.request with default 5s timeout and override support'
+      - 'step3: Implement TCP localhost socket probe with default 3s timeout and override support'
+      - 'step4: Implement process-name check using pgrep (or cross-platform equivalent fallback) and return actionable guidance messages'
+    dependencies: [task149]
+    tests: [test228, test229, test230]
+    status: not-started
+
+  - id: task151
+    title: "Feature25 integrate service checks into run and preflight output"
+    type: task
+    description: |
+      Integrate service health checks into `kinnoo run` and `kinnoo run --preflight`
+      so all declared services are evaluated and reported before agent execution.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/cli.py
+      - tests/test_run_preflight.py
+    steps:
+      - 'step1: Load declared services from manifest and execute health checks for all entries before runtime execution'
+      - 'step2: Ensure failures include service name, service type, and actionable guidance in output'
+      - 'step3: Extend --preflight output to include per-service health results alongside existing checks'
+      - 'step4: Keep output human-readable and deterministic for multi-service manifests'
+    dependencies: [task150, task97]
+    tests: [test231, test232]
+    status: not-started
+
+  - id: task152
+    title: "Feature25 interactive and non-interactive failure policy"
+    type: task
+    description: |
+      Enforce service health-check failure behavior by execution mode: interactive
+      prompts can proceed/abort, while non-interactive runs fail-fast on failure.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: In interactive mode, show warning and prompt "Service <name> is not healthy. Proceed anyway? [y/N]" for failed services'
+      - 'step2: Allow user to proceed even when checks fail and continue to entrypoint execution when confirmed'
+      - 'step3: In non-interactive mode, abort execution immediately when any service health check fails'
+      - 'step4: Keep prompt and exit-code behavior consistent with existing confirmation patterns'
+    dependencies: [task151]
+    tests: [test233, test234]
+    status: not-started
+
+  - id: task153
+    title: "Feature25 AC coverage and no-services regression gate"
+    type: task
+    description: |
+      Complete feature25 acceptance-criteria coverage and verify no-regression
+      behavior for agents that do not declare services.
+    files:
+      - tests/test_health_check.py
+      - tests/test_run_preflight.py
+      - tests/test_cli.py
+      - tests/test_regression_v1.py
+    steps:
+      - 'step1: Add/confirm AC mapping for feature25 tests in TESTS.txt'
+      - 'step2: Run focused feature25 suites for checker logic, preflight rendering, and run-mode behavior'
+      - 'step3: Run no-services regression checks to confirm V2 behavior remains unchanged'
+      - 'step4: Capture command evidence and set tasks ready for TechLead review'
+    dependencies: [task150, task151, task152]
+    tests: [test228, test229, test230, test231, test232, test233, test234, test235]
+    status: not-started
