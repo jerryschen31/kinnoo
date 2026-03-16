@@ -2555,7 +2555,7 @@ tasks:
       - 'step4: Ensure AC4 wording and tests stay aligned with implemented version policy'
     dependencies: [task127]
     tests: [test192, test193]
-    status: not-started
+    status: needs-review
 
   - id: task131
     title: "Feature21 implement real PydanticAI runnable template"
