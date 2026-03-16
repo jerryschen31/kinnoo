@@ -3,6 +3,23 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v0.10.0] - 2026-03-16
+### Added
+- Implemented Feature23 "MCP Server Runtime Type - Schema & Lifecycle".
+- Added `mcp-server` as a supported `runtime.type` value alongside `one-shot`.
+- Added dedicated supervisor lifecycle support for MCP server execution in `kinnoo run`, including readiness gating and long-running process management.
+- Added readiness strategies for explicit `runtime.readiness_probe` modes (`tcp`, `stdout`) with fallback to `runtime.port` TCP probing or immediate-ready when no probe config is provided.
+
+### Changed
+- Extended `kinnoo run` runtime branching to treat `mcp-server` agents as long-running services rather than one-shot executions.
+- Added graceful Ctrl+C handling for MCP server mode: SIGTERM-first shutdown with timeout-based SIGKILL escalation for unresponsive processes.
+- Extended run trace logging for MCP server sessions to include lifecycle metadata (`start_timestamp`, `stop_timestamp`, `server_exit_code`, `server_exit_signal`, `shutdown_sigterm_sent`, `shutdown_sigkill_sent`).
+
+### Quality
+- Added and validated feature23 coverage tests (`test214` through `test221`) across validator support, readiness behavior, streaming, shutdown semantics, trace metadata, fallback behavior, and one-shot regression protection.
+- Executed full regression suite after feature23 integration: `215 passed, 1 skipped`.
+
+
 ## [v0.9.0] - 2026-03-16
 ### Added
 - Implemented Feature22 "Asset Bundling" with manifest-level `assets` support (`paths`, `bundle`, `max_bundle_size_mb`).
