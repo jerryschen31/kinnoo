@@ -258,3 +258,70 @@ def test_missing_manifest_guidance_uses_centralized_template_with_agent_note(tmp
         assert "entrypoint: run.py" in result.stdout
         assert "runtime:" in result.stdout
         assert "dependencies: []" in result.stdout
+
+
+def test_feature22_inspect_displays_asset_paths_and_sizes(tmp_path: Path) -> None:
+        agent_dir = tmp_path / "inspect-asset-agent"
+        agent_dir.mkdir(parents=True, exist_ok=True)
+        (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+        (agent_dir / "assets" / "nested").mkdir(parents=True, exist_ok=True)
+        (agent_dir / "assets" / "nested" / "a.txt").write_text("A\n", encoding="utf-8")
+        (agent_dir / "data").mkdir(parents=True, exist_ok=True)
+        (agent_dir / "data" / "b.txt").write_text("B\n", encoding="utf-8")
+
+        (agent_dir / "kinnoo.yaml").write_text(
+            """
+    name: inspect-asset-agent
+    version: 1.0.0
+    entrypoint: run.py
+    runtime:
+        language: python
+        version: "3.10"
+        type: one-shot
+    dependencies: []
+    inputs:
+        type: string
+    outputs:
+        type: string
+    assets:
+        paths:
+        - assets
+        - data/b.txt
+    """,
+            encoding="utf-8",
+        )
+        (agent_dir / "run.py").write_text("print('ok')\n", encoding="utf-8")
+
+        inspect_dir_result = subprocess.run(
+            [sys.executable, "src/kinnoo/cli.py", "inspect", str(agent_dir)],
+            capture_output=True,
+            text=True,
+        )
+        assert inspect_dir_result.returncode == 0
+        assert "- Asset Paths:" in inspect_dir_result.stdout
+        assert "  - assets" in inspect_dir_result.stdout
+        assert "  - data/b.txt" in inspect_dir_result.stdout
+        assert "- Assets Size:" in inspect_dir_result.stdout
+        assert "assets/nested/a.txt" in inspect_dir_result.stdout
+        assert "data/b.txt" in inspect_dir_result.stdout
+
+        archive_path = tmp_path / "inspect-asset-agent.kno"
+        with zipfile.ZipFile(archive_path, "w") as archive_zip:
+            archive_zip.write(agent_dir / "kinnoo.yaml", arcname="kinnoo.yaml")
+            archive_zip.write(agent_dir / "run.py", arcname="run.py")
+            archive_zip.write(agent_dir / "assets" / "nested" / "a.txt", arcname="assets/nested/a.txt")
+            archive_zip.write(agent_dir / "data" / "b.txt", arcname="data/b.txt")
+
+        inspect_archive_result = subprocess.run(
+            [sys.executable, "src/kinnoo/cli.py", "inspect", str(archive_path)],
+            capture_output=True,
+            text=True,
+        )
+        assert inspect_archive_result.returncode == 0
+        assert "Inspect target type: archive (.kno)" in inspect_archive_result.stdout
+        assert "- Asset Paths:" in inspect_archive_result.stdout
+        assert "  - assets" in inspect_archive_result.stdout
+        assert "  - data/b.txt" in inspect_archive_result.stdout
+        assert "- Assets Size:" in inspect_archive_result.stdout
+        assert "assets/nested/a.txt" in inspect_archive_result.stdout
+        assert "data/b.txt" in inspect_archive_result.stdout

@@ -2643,3 +2643,121 @@ tasks:
     dependencies: [task127, task50]
     tests: [test200, test201]
     status: completed
+
+  - id: task135
+    title: "Feature22 manifest assets schema and validation"
+    type: task
+    description: |
+      Add manifest support for optional `assets` object with `paths`, optional
+      `bundle`, and optional `max_bundle_size_mb` fields. Enforce type and
+      structure validation with clear errors and defaults.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+      - tests/test_validator.py
+    steps:
+      - 'step1: Define assets schema contract in validator/schema and keep backward compatibility for manifests without assets'
+      - 'step2: Validate `assets.paths` as list[string], `assets.bundle` as bool, and `assets.max_bundle_size_mb` as number when present'
+      - 'step3: Apply defaults (`bundle: true`, `max_bundle_size_mb: 100`) in normalized manifest handling'
+      - 'step4: Add tests for valid and invalid assets field structures with field-specific errors'
+    dependencies: [task50]
+    tests: [test202, test203]
+    status: needs-review
+
+  - id: task136
+    title: "Feature22 pack asset path inclusion and safety"
+    type: task
+    description: |
+      Extend pack flow to include declared asset files/directories recursively
+      when bundling is enabled, support bundle opt-out behavior, and enforce
+      path traversal protection plus missing-path warnings.
+    files:
+      - src/kinnoo/pack_command.py
+      - tests/test_pack.py
+    steps:
+      - 'step1: Collect asset paths from `assets.paths` and expand directories recursively into deterministic archive entries'
+      - 'step2: Respect `assets.bundle` default true; when false, skip inclusion and print informational message'
+      - 'step3: Reject traversal paths escaping agent root and warn (non-fatal) for missing declared asset paths'
+      - 'step4: Add tests for inclusion, opt-out, traversal rejection, and missing path warning behavior'
+    dependencies: [task135, task25]
+    tests: [test204, test205, test206, test207]
+    status: needs-review
+
+  - id: task137
+    title: "Feature22 install extraction and inspect visibility"
+    type: task
+    description: |
+      Ensure bundled assets extract into the installed agent directory preserving
+      relative paths and expose asset path/size metadata in inspect output for
+      both source directories and archives.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/inspect_command.py
+      - tests/test_cli_install_extract.py
+      - tests/test_cli_inspect.py
+    steps:
+      - 'step1: Verify/install extraction behavior preserves bundled asset relative paths and directory structure'
+      - 'step2: Extend inspect output to display declared asset paths and computed sizes'
+      - 'step3: Keep behavior stable for both inspect target modes (agent dir and archive)'
+      - 'step4: Add tests for install extraction and inspect asset visibility'
+    dependencies: [task136, task63]
+    tests: [test208, test210]
+    status: needs-review
+
+  - id: task138
+    title: "Feature22 archive size threshold behavior for assets"
+    type: task
+    description: |
+      Apply asset-aware archive size warnings with default 100 MB threshold and
+      optional override from `assets.max_bundle_size_mb`.
+    files:
+      - src/kinnoo/pack_command.py
+      - tests/test_pack.py
+    steps:
+      - 'step1: Read warning threshold from normalized assets config, defaulting to 100 MB'
+      - 'step2: Emit warning only when final archive exceeds configured threshold'
+      - 'step3: Preserve existing size reporting format and deterministic wording'
+      - 'step4: Add tests covering default threshold and custom override threshold behavior'
+    dependencies: [task135, task136, task113]
+    tests: [test209]
+    status: needs-review
+
+  - id: task139
+    title: "Feature22 asset credential warning sweep in pack"
+    type: task
+    description: |
+      Add a non-blocking credential-warning sweep for assets during pack,
+      including filename pattern checks and regex checks over size-limited
+      UTF-8 text files while skipping binary files.
+    files:
+      - src/kinnoo/code_sweep.py
+      - src/kinnoo/pack_command.py
+      - tests/test_pack.py
+    steps:
+      - 'step1: Implement filename-pattern warnings for likely secret-bearing files in asset paths'
+      - 'step2: Implement regex-based text credential checks for size-limited UTF-8 asset files and skip binary files'
+      - 'step3: Keep findings warning-only and include heuristic-scan disclaimer text in output'
+      - 'step4: Add tests for filename warnings, regex warnings, binary-file skip behavior, and non-blocking continuation'
+    dependencies: [task136, task103]
+    tests: [test212, test213]
+    status: needs-review
+
+  - id: task140
+    title: "Feature22 documentation and regression gate"
+    type: task
+    description: |
+      Document assets usage guidance and verify no-assets regressions across
+      pack/install flows.
+    files:
+      - README.md
+      - docs/manifest-schema-reference.md
+      - tests/test_pack.py
+      - tests/test_cli_install.py
+    steps:
+      - 'step1: Add docs showing what asset types can be included and how folder-based inclusion works (including base-folder recursive behavior)'
+      - 'step2: Add regression test proving agents without assets retain pre-feature22 pack/install behavior'
+      - 'step3: Verify docs stay aligned with implemented schema and defaults'
+      - 'step4: Run manifest and regression validations and prepare review evidence'
+    dependencies: [task136, task137, task138, task139]
+    tests: [test211]
+    status: needs-review

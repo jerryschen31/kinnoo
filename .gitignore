@@ -5,7 +5,7 @@ __pycache__/
 *.so
 .Python
 *.egg-info/
-scratch*
+*scratch*
 *.bak
 .env
 dist/
