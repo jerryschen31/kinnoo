@@ -95,8 +95,11 @@ FIELD_TYPES: dict[str, type] = {
     "outputs.type": list,
 }
 
-# The only supported runtime type in this version of kinnoo.
-SUPPORTED_RUNTIME_TYPES: list[str] = ["one-shot"]
+# Supported runtime types in this version of kinnoo.
+SUPPORTED_RUNTIME_TYPES: list[str] = ["one-shot", "mcp-server"]
+
+# Feature23 readiness probe method values for mcp-server runtime workflows.
+SUPPORTED_READINESS_METHODS: list[str] = ["tcp", "stdout"]
 
 # Optional V2 manifest metadata fields (feature9).
 # These are intentionally optional and should not be included in REQUIRED_FIELDS.

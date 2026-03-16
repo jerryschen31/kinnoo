@@ -3,6 +3,9 @@ import sys
 import pytest
 import re
 import types
+import time
+import signal
+import json
 
 def test_cli_installable_and_runnable():
     # This test checks that the CLI is installable and runnable via pyproject.toml
@@ -785,3 +788,375 @@ def test_feature21_openai_agents_basic_run(tmp_path):
     assert run_result.stdout.strip() != ""
     assert "[openai-agents template] test-safe response: hello" in run_result.stdout
     assert "Traceback" not in run_result.stderr
+
+
+def _feature23_write_server_fixture(tmp_path, script_name: str = "feature23_server.py"):
+    server_script = tmp_path / script_name
+    server_script.write_text(
+        """
+import socket
+import sys
+import time
+
+mode = sys.argv[1]
+
+if mode == "tcp":
+    port = int(sys.argv[2])
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    s.bind(("127.0.0.1", port))
+    s.listen(1)
+    print(f"TCP_READY:{port}", flush=True)
+    time.sleep(1.2)
+    s.close()
+elif mode == "stdout":
+    marker = sys.argv[2]
+    time.sleep(0.15)
+    print(marker, flush=True)
+    time.sleep(0.9)
+elif mode == "silent":
+    time.sleep(0.8)
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    return server_script
+
+
+def test_feature23_readiness_probe_tcp_and_stdout_marker(tmp_path):
+    from kinnoo.supervisor import (
+        infer_readiness_config,
+        shutdown_server,
+        start_server,
+        stream_output,
+        wait_until_ready,
+    )
+
+    server_script = _feature23_write_server_fixture(tmp_path)
+
+    tcp_port = 48651
+    tcp_runtime = {
+        "readiness_probe": {
+            "method": "tcp",
+            "port": tcp_port,
+        }
+    }
+    tcp_process = start_server([sys.executable, str(server_script), "tcp", str(tcp_port)])
+    try:
+        tcp_stream_state = stream_output(tcp_process)
+        tcp_ready = wait_until_ready(
+            tcp_process,
+            infer_readiness_config(tcp_runtime),
+            tcp_stream_state,
+        )
+        assert tcp_ready is True
+    finally:
+        shutdown_server(tcp_process)
+
+    stdout_marker = "READY_MARKER_142"
+    stdout_runtime = {
+        "readiness_probe": {
+            "method": "stdout",
+            "marker": stdout_marker,
+        }
+    }
+    stdout_process = start_server([sys.executable, str(server_script), "stdout", stdout_marker])
+    try:
+        stdout_stream_state = stream_output(stdout_process)
+        stdout_ready = wait_until_ready(
+            stdout_process,
+            infer_readiness_config(stdout_runtime),
+            stdout_stream_state,
+        )
+        assert stdout_ready is True
+    finally:
+        shutdown_server(stdout_process)
+
+    failing_stdout_runtime = {
+        "readiness_probe": {
+            "method": "stdout",
+            "marker": "THIS_MARKER_NEVER_APPEARS",
+        }
+    }
+    failing_process = start_server([sys.executable, str(server_script), "silent"])
+    try:
+        failing_stream_state = stream_output(failing_process)
+        failing_readiness = infer_readiness_config(failing_stdout_runtime)
+        failing_readiness.timeout_seconds = 0.25
+        failed_ready = wait_until_ready(
+            failing_process,
+            failing_readiness,
+            failing_stream_state,
+        )
+        assert failed_ready is False
+    finally:
+        shutdown_server(failing_process)
+
+
+def test_feature23_default_readiness_fallback_behavior(tmp_path):
+    from kinnoo.supervisor import (
+        infer_readiness_config,
+        shutdown_server,
+        start_server,
+        stream_output,
+        wait_until_ready,
+    )
+
+    server_script = _feature23_write_server_fixture(tmp_path)
+
+    tcp_port = 48652
+    runtime_with_port = {"port": tcp_port}
+    readiness_with_port = infer_readiness_config(runtime_with_port)
+    assert readiness_with_port.mode == "tcp"
+    assert readiness_with_port.port == tcp_port
+
+    tcp_process = start_server([sys.executable, str(server_script), "tcp", str(tcp_port)])
+    try:
+        tcp_stream_state = stream_output(tcp_process)
+        tcp_ready = wait_until_ready(tcp_process, readiness_with_port, tcp_stream_state)
+        assert tcp_ready is True
+    finally:
+        shutdown_server(tcp_process)
+
+    runtime_without_probe_or_port = {}
+    readiness_without_probe_or_port = infer_readiness_config(runtime_without_probe_or_port)
+    assert readiness_without_probe_or_port.mode == "immediate"
+
+    immediate_process = start_server([sys.executable, str(server_script), "silent"])
+    try:
+        immediate_stream_state = stream_output(immediate_process)
+        immediate_ready = wait_until_ready(
+            immediate_process,
+            readiness_without_probe_or_port,
+            immediate_stream_state,
+        )
+        assert immediate_ready is True
+    finally:
+        shutdown_server(immediate_process)
+
+
+def _feature23_write_mcp_agent_fixture(tmp_path, script_name: str = "feature23_mcp_agent.py"):
+    agent_dir = tmp_path / "feature23-mcp-agent"
+    agent_dir.mkdir()
+    agent_script = agent_dir / script_name
+    agent_script.write_text(
+        """
+import signal
+import sys
+import time
+
+mode = sys.argv[1] if len(sys.argv) > 1 else "normal"
+running = True
+
+def _stop(*_args):
+    global running
+    running = False
+
+signal.signal(signal.SIGTERM, _stop)
+
+print("SERVER_READY", flush=True)
+print("server-stderr-start", file=sys.stderr, flush=True)
+counter = 0
+while running:
+    print(f"server-stdout-tick:{counter}", flush=True)
+    print(f"server-stderr-tick:{counter}", file=sys.stderr, flush=True)
+    counter += 1
+    time.sleep(0.1)
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    (agent_dir / "README.md").write_text("feature23 mcp fixture", encoding="utf-8")
+    (agent_dir / "tools").mkdir()
+    (agent_dir / "prompts").mkdir()
+    (agent_dir / "kinnoo.yaml").write_text(
+        f"""
+name: feature23-mcp-agent
+version: 0.1.0
+entrypoint: {script_name}
+runtime:
+    language: python
+    version: ">=3.10"
+    type: mcp-server
+    readiness_probe:
+        method: stdout
+        marker: SERVER_READY
+dependencies: []
+inputs:
+    type: text
+    required: false
+outputs:
+    type: text
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    return agent_dir
+
+
+def test_feature23_run_mcp_server_long_running_mode(tmp_path):
+    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    agent_dir = _feature23_write_mcp_agent_fixture(tmp_path)
+
+    process = subprocess.Popen(
+        [sys.executable, str(cli_path), "run", str(agent_dir)],
+        cwd=tmp_path,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    try:
+        time.sleep(0.5)
+        assert process.poll() is None, "mcp-server runtime exited too early"
+    finally:
+        process.terminate()
+        process.wait(timeout=3)
+
+
+def test_feature23_mcp_server_streams_stdout_stderr(tmp_path):
+    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    agent_dir = _feature23_write_mcp_agent_fixture(tmp_path)
+
+    process = subprocess.Popen(
+        [sys.executable, str(cli_path), "run", str(agent_dir)],
+        cwd=tmp_path,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+
+    stdout_lines: list[str] = []
+    stderr_lines: list[str] = []
+    saw_stdout_stream = False
+    saw_stderr_stream = False
+    start = time.monotonic()
+
+    try:
+        while (time.monotonic() - start) < 3.0 and (not saw_stdout_stream or not saw_stderr_stream):
+            if not saw_stdout_stream and process.stdout is not None:
+                line = process.stdout.readline()
+                if line:
+                    stdout_lines.append(line)
+                    if "server-stdout" in line:
+                        saw_stdout_stream = True
+            if not saw_stderr_stream and process.stderr is not None:
+                line = process.stderr.readline()
+                if line:
+                    stderr_lines.append(line)
+                    if "server-stderr" in line:
+                        saw_stderr_stream = True
+            if process.poll() is not None:
+                break
+
+        assert process.poll() is None, "mcp-server process ended before streaming assertions"
+        assert saw_stdout_stream, f"Expected server stdout streaming line in: {stdout_lines!r}"
+        assert saw_stderr_stream, f"Expected server stderr streaming line in: {stderr_lines!r}"
+    finally:
+        process.terminate()
+        process.wait(timeout=3)
+
+
+def _feature23_write_stubborn_mcp_agent_fixture(tmp_path, script_name: str = "feature23_stubborn_mcp.py"):
+    agent_dir = tmp_path / "feature23-stubborn-mcp-agent"
+    agent_dir.mkdir()
+    marker_file = agent_dir / "term-marker.txt"
+    agent_script = agent_dir / script_name
+    agent_script.write_text(
+        f"""
+import signal
+import time
+from pathlib import Path
+
+marker_file = Path(r"{marker_file}")
+
+def _on_sigterm(*_args):
+    marker_file.write_text("SIGTERM_RECEIVED", encoding="utf-8")
+    print("SIGTERM_RECEIVED", flush=True)
+
+signal.signal(signal.SIGTERM, _on_sigterm)
+print("SERVER_READY", flush=True)
+while True:
+    time.sleep(0.1)
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    (agent_dir / "README.md").write_text("feature23 stubborn mcp fixture", encoding="utf-8")
+    (agent_dir / "tools").mkdir()
+    (agent_dir / "prompts").mkdir()
+    (agent_dir / "kinnoo.yaml").write_text(
+        f"""
+name: feature23-stubborn-mcp-agent
+version: 0.1.0
+entrypoint: {script_name}
+runtime:
+    language: python
+    version: ">=3.10"
+    type: mcp-server
+    shutdown_timeout_seconds: 0.25
+    readiness_probe:
+        method: stdout
+        marker: SERVER_READY
+dependencies: []
+inputs:
+    type: text
+    required: false
+outputs:
+    type: text
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    return agent_dir, marker_file
+
+
+def test_feature23_sigint_graceful_shutdown_with_escalation(tmp_path):
+    agent_dir, marker_file = _feature23_write_stubborn_mcp_agent_fixture(tmp_path)
+
+    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    env = os.environ.copy()
+    env["HOME"] = str(tmp_path)
+    env["PYTHONPATH"] = str(Path(__file__).resolve().parents[1] / "src")
+
+    process = subprocess.Popen(
+        [sys.executable, str(cli_path), "run", str(agent_dir)],
+        cwd=tmp_path,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=env,
+    )
+
+    logs_dir = tmp_path / ".kinnoo" / "logs"
+    try:
+        ready_seen = False
+        deadline = time.monotonic() + 5.0
+        while time.monotonic() < deadline and not ready_seen:
+            if process.stdout is not None:
+                line = process.stdout.readline()
+                if "SERVER_READY" in line:
+                    ready_seen = True
+            if process.poll() is not None:
+                break
+
+        assert ready_seen, "mcp-server fixture did not reach ready state before SIGINT"
+
+        process.send_signal(signal.SIGINT)
+        process.wait(timeout=6)
+
+        assert process.returncode != 0
+        assert marker_file.exists(), "Expected SIGTERM handler marker file to verify SIGTERM-first shutdown"
+
+        log_files = sorted(logs_dir.glob("run.*.log"))
+        assert log_files, f"Expected run trace log in {logs_dir}"
+        payload = json.loads(log_files[-1].read_text(encoding="utf-8"))
+
+        assert payload["runtime_type"] == "mcp-server"
+        assert payload.get("shutdown_sigterm_sent") is True
+        assert payload.get("shutdown_sigkill_sent") is True
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            process.wait(timeout=3)
