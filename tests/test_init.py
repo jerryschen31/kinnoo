@@ -558,6 +558,21 @@ def test_feature21_langgraph_framework_native_template(tmp_path):
     assert "Placeholder scaffold for LangGraph-style node/edge orchestration" not in run_text
 
 
+def test_feature21_openai_agents_framework_native_template(tmp_path):
+    agent_name = "feature21-openai-agents-native"
+    code, out, err = run_cli(["init", agent_name, "--framework", "openai-agents"], cwd=tmp_path)
+    assert code == 0, err
+
+    run_text = (tmp_path / agent_name / "run.py").read_text()
+    assert "from agents import Agent" in run_text
+    assert "from agents import Runner" in run_text
+    assert "return Agent(" in run_text
+    assert "await Runner.run(agent, input_text)" in run_text
+    assert "KINNOO_TEST_SAFE_MODE" in run_text
+    assert "test-safe response" in run_text
+    assert "Placeholder scaffold for OpenAI Agents handoff/guardrail flow" not in run_text
+
+
 def test_feature9_init_manifest_includes_description_and_author(tmp_path):
     """test75: init-generated manifest includes description and author placeholders."""
     agent_name = "feature9-init-agent"

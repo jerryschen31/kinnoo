@@ -2618,7 +2618,7 @@ tasks:
       - 'step4: Add tests asserting framework-native constructs and runnable behavior with basic input'
     dependencies: [task130, task128]
     tests: [test198, test199]
-    status: not-started
+    status: needs-review
 
   - id: task134
     title: "Feature21 optional kinnoo.yaml model metadata field"
