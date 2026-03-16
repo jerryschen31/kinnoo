@@ -980,7 +980,7 @@ features:
 
       The goal is to ship one complete reference pair (MCP server archive + MCP client
       template) as proof-of-concept before expanding the MCP catalog.
-    tasks: []
+    tasks: [task154, task155, task156, task157]
     acceptance_criteria:
       - id: AC1
         description: "A Filesystem MCP server agent exists in the project as a packable agent with `runtime.type: mcp-server` that passes validation and can be packed into a `.kno` archive."
