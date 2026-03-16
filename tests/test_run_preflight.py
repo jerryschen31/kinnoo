@@ -2,6 +2,9 @@ import subprocess
 import sys
 from pathlib import Path
 import os
+import socket
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
 CLI_PATH = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
@@ -355,3 +358,109 @@ def test_preflight_checklist_and_ready_summary(tmp_path: Path) -> None:
     assert "Remediation summary:" in fail_output
     assert "- dependencies: create .venv and install requirements" in fail_output
     assert "Ready to run" not in fail_output
+
+
+def test_feature25_preflight_includes_service_health_results(tmp_path: Path) -> None:
+    class HealthHandler(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:  # noqa: N802
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"ok")
+
+        def log_message(self, format: str, *args: object) -> None:  # noqa: A003
+            del format, args
+
+    http_server = ThreadingHTTPServer(("127.0.0.1", 0), HealthHandler)
+    http_host, http_port = http_server.server_address
+    http_thread = threading.Thread(target=http_server.serve_forever, daemon=True)
+    http_thread.start()
+
+    tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    tcp_socket.bind(("127.0.0.1", 0))
+    tcp_socket.listen(1)
+    tcp_port = tcp_socket.getsockname()[1]
+    stop_accept = threading.Event()
+
+    def _accept_loop() -> None:
+        while not stop_accept.is_set():
+            try:
+                tcp_socket.settimeout(0.1)
+                conn, _ = tcp_socket.accept()
+                conn.close()
+            except TimeoutError:
+                continue
+            except OSError:
+                break
+
+    tcp_thread = threading.Thread(target=_accept_loop, daemon=True)
+    tcp_thread.start()
+
+    agent_dir = tmp_path / "feature25-preflight-agent"
+    agent_dir.mkdir(parents=True, exist_ok=True)
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    (agent_dir / "run.py").write_text(
+        "from pathlib import Path\n"
+        "Path('feature25-entrypoint.flag').write_text('ran', encoding='utf-8')\n"
+        "print('feature25-entrypoint-ran')\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: feature25-preflight-agent",
+                "version: 1.0.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.10\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+                "services:",
+                "  - name: local-api",
+                "    type: api",
+                "    health_check:",
+                "      method: http",
+                f"      url: http://{http_host}:{http_port}/health",
+                "  - name: local-db",
+                "    type: database",
+                "    health_check:",
+                "      method: tcp",
+                f"      port: {tcp_port}",
+                "  - name: local-redis",
+                "    type: local-process",
+                "    health_check:",
+                "      method: process",
+                "      process_name: feature25-missing-process",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    try:
+        result = subprocess.run(
+            [sys.executable, str(CLI_PATH), "run", str(agent_dir), "--preflight"],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+        )
+        output = f"{result.stdout}\n{result.stderr}"
+
+        assert result.returncode != 0
+        assert "Service health checks:" in output
+        assert "[PASS] service 'local-api'" in output
+        assert "[PASS] service 'local-db'" in output
+        assert "[FAIL] service 'local-redis'" in output
+        assert "(type: local-process, method: process)" in output
+        assert "Guidance:" in output
+        assert "Preflight result: FAIL" in output
+        assert not (tmp_path / "feature25-entrypoint.flag").exists()
+    finally:
+        stop_accept.set()
+        tcp_socket.close()
+        http_server.shutdown()
+        http_server.server_close()

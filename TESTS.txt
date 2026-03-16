@@ -3776,3 +3776,131 @@ tests:
     covers:
       - feature: feature24
         ac: AC7
+
+  - id: test228
+    title: Feature25 HTTP health check validates 2xx and timeout behavior
+    type: unit
+    preconditions: health_check module with HTTP checker available
+    steps:
+      - step1: Execute HTTP checker against a local endpoint returning 2xx
+      - step2: Execute HTTP checker against a local endpoint returning non-2xx
+      - step3: Execute HTTP checker with short timeout against a delayed endpoint and with configured timeout override
+    expected: 2xx passes, non-2xx fails, and timeout handling is enforced with clear messages
+    pass_criteria: checker returns pass for 2xx; fail for non-2xx/timeout; output reflects configured timeout value
+    automated: true
+    automation_path: tests/test_health_check.py::test_feature25_http_health_check_2xx_and_timeout
+    covers:
+      - feature: feature25
+        ac: AC2
+
+  - id: test229
+    title: Feature25 TCP health check validates localhost port probe and timeout
+    type: unit
+    preconditions: health_check module with TCP checker available
+    steps:
+      - step1: Execute TCP checker against an open localhost port
+      - step2: Execute TCP checker against a closed localhost port
+      - step3: Execute checker with configured timeout override
+    expected: open port passes, closed port fails, and timeout behavior is configurable
+    pass_criteria: checker pass/fail results align with port availability and report timeout details
+    automated: true
+    automation_path: tests/test_health_check.py::test_feature25_tcp_health_check_localhost_and_timeout
+    covers:
+      - feature: feature25
+        ac: AC3
+
+  - id: test230
+    title: Feature25 process health check verifies running process by name
+    type: unit
+    preconditions: health_check module with process checker available
+    steps:
+      - step1: Start a known process fixture and run process-name health check
+      - step2: Run process-name health check for a non-existent process
+    expected: running process is detected and missing process is reported as unhealthy
+    pass_criteria: process checker returns pass for active process and fail with guidance for missing process
+    automated: true
+    automation_path: tests/test_health_check.py::test_feature25_process_health_check
+    covers:
+      - feature: feature25
+        ac: AC4
+
+  - id: test231
+    title: Feature25 run checks all declared services before execution
+    type: integration
+    preconditions: agent fixture declares multiple services with mixed health-check methods
+    steps:
+      - step1: Run `python src/kinnoo/cli.py run <agent-dir> "input"` with services declared
+      - step2: Verify each declared service is checked before entrypoint execution
+      - step3: Verify failed checks print service name, service type, and actionable guidance
+    expected: all services are evaluated pre-execution and output contains actionable diagnostics
+    pass_criteria: output shows one health result per declared service before entrypoint output
+    automated: true
+    automation_path: tests/test_cli.py::test_feature25_run_checks_all_declared_services_before_entrypoint
+    covers:
+      - feature: feature25
+        ac: AC1
+
+  - id: test232
+    title: Feature25 preflight output includes service health check results
+    type: integration
+    preconditions: agent fixture declares services and existing preflight checks are available
+    steps:
+      - step1: Run `python src/kinnoo/cli.py run <agent-dir> --preflight`
+      - step2: Verify service health check results are present alongside existing preflight checklist lines
+      - step3: Verify preflight mode does not execute entrypoint
+    expected: preflight output includes service-level pass/fail lines and preserves pre-existing checks
+    pass_criteria: output includes service health section and no entrypoint side-effects
+    automated: true
+    automation_path: tests/test_run_preflight.py::test_feature25_preflight_includes_service_health_results
+    covers:
+      - feature: feature25
+        ac: AC6
+
+  - id: test233
+    title: Feature25 non-interactive mode aborts on failed service checks
+    type: integration
+    preconditions: run invoked in non-interactive context with at least one failing service health check
+    steps:
+      - step1: Run `python src/kinnoo/cli.py run <agent-dir> "input"` in non-interactive mode with failing service check
+      - step2: Verify run exits before entrypoint execution
+    expected: failed service check hard-fails non-interactive execution
+    pass_criteria: exit code non-zero, output indicates abort due to unhealthy service, entrypoint not executed
+    automated: true
+    automation_path: tests/test_cli.py::test_feature25_non_interactive_aborts_on_unhealthy_service
+    covers:
+      - feature: feature25
+        ac: AC5
+
+  - id: test234
+    title: Feature25 interactive mode allows proceed on failed service checks
+    type: integration
+    preconditions: interactive run with at least one failing service check and simulated user confirmation
+    steps:
+      - step1: Run `python src/kinnoo/cli.py run <agent-dir> "input"` with interactive input responding `y` to prompt
+      - step2: Verify warning prompt text matches expected format and execution continues
+      - step3: Repeat with default/no response path and verify abort behavior
+    expected: user can proceed despite health-check failure, and default response remains safe
+    pass_criteria: proceed path executes entrypoint; default path aborts; prompt text is `Service <name> is not healthy. Proceed anyway? [y/N]`
+    automated: true
+    automation_path: tests/test_cli.py::test_feature25_interactive_prompt_allows_proceed_or_abort
+    covers:
+      - feature: feature25
+        ac: AC5
+      - feature: feature25
+        ac: AC8
+
+  - id: test235
+    title: Feature25 no-services manifests preserve prior run behavior
+    type: integration
+    preconditions: baseline one-shot agent fixture without services declaration
+    steps:
+      - step1: Run baseline agent with `python src/kinnoo/cli.py run <agent-dir> "input"`
+      - step2: Verify output/exit behavior matches pre-feature25 expectations
+      - step3: Verify no service-health section is emitted when services are absent
+    expected: agents without services are unaffected by feature25 changes
+    pass_criteria: baseline run passes with unchanged behavior and no health-check side-effects
+    automated: true
+    automation_path: tests/test_regression_v1.py::test_feature25_no_services_regression_unchanged
+    covers:
+      - feature: feature25
+        ac: AC7

@@ -1,5 +1,7 @@
 import subprocess
 import sys
+import tempfile
+from pathlib import Path
 
 
 # [agent] Run this regression gate before opening/merging PRs that change CLI behavior,
@@ -134,6 +136,86 @@ def test_feature24_ac_coverage_and_no_services_regression_gate():
     )
     assert result.returncode == 0, (
         "Feature24 regression gate failed for AC coverage and no-services compatibility.\n"
+        f"STDOUT:\n{result.stdout}\n"
+        f"STDERR:\n{result.stderr}"
+    )
+
+
+def test_feature25_no_services_regression_unchanged():
+    """Regression test: agents without services remain behaviorally unchanged."""
+    repo_root = Path(__file__).resolve().parents[1]
+    cli_path = repo_root / "src" / "kinnoo" / "cli.py"
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+        agent_dir = temp_path / "feature25-no-services-agent"
+        agent_dir.mkdir(parents=True, exist_ok=True)
+
+        (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+        (agent_dir / "README.md").write_text("feature25 no-services fixture", encoding="utf-8")
+        (agent_dir / "tools").mkdir()
+        (agent_dir / "prompts").mkdir()
+        (agent_dir / "run.py").write_text(
+            "import sys\n"
+            "print(f\"no-services-entrypoint:{sys.argv[1] if len(sys.argv) > 1 else ''}\")\n",
+            encoding="utf-8",
+        )
+        (agent_dir / "kinnoo.yaml").write_text(
+            "\n".join(
+                [
+                    "name: feature25-no-services-agent",
+                    "version: 0.1.0",
+                    "entrypoint: run.py",
+                    "runtime:",
+                    "    language: python",
+                    "    version: \">=3.10\"",
+                    "    type: one-shot",
+                    "dependencies: []",
+                    "inputs:",
+                    "    type: text",
+                    "outputs:",
+                    "    type: text",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        result = subprocess.run(
+            [sys.executable, str(cli_path), "run", str(agent_dir), "hello"],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+        )
+        output = f"{result.stdout}\n{result.stderr}"
+
+        assert result.returncode == 0, output
+        assert "no-services-entrypoint:hello" in output
+        assert "Service health checks:" not in output
+
+
+def test_feature25_ac_coverage_and_no_services_regression_gate():
+    """Regression gate for feature25 AC coverage and no-services compatibility."""
+    command = [
+        sys.executable,
+        "-m",
+        "pytest",
+        "tests/test_health_check.py::test_feature25_http_health_check_2xx_and_timeout",
+        "tests/test_health_check.py::test_feature25_tcp_health_check_localhost_and_timeout",
+        "tests/test_health_check.py::test_feature25_process_health_check",
+        "tests/test_cli.py::test_feature25_run_checks_all_declared_services_before_entrypoint",
+        "tests/test_run_preflight.py::test_feature25_preflight_includes_service_health_results",
+        "tests/test_cli.py::test_feature25_non_interactive_aborts_on_unhealthy_service",
+        "tests/test_cli.py::test_feature25_interactive_prompt_allows_proceed_or_abort",
+        "tests/test_regression_v1.py::test_feature25_no_services_regression_unchanged",
+    ]
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, (
+        "Feature25 regression gate failed for AC coverage and no-services compatibility.\n"
         f"STDOUT:\n{result.stdout}\n"
         f"STDERR:\n{result.stderr}"
     )
