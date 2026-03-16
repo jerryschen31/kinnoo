@@ -3032,7 +3032,7 @@ tasks:
       - 'step4: Add validation/pack tests to prove fixture is valid and packable as .kno'
     dependencies: [task143, task147]
     tests: [test236, test237]
-    status: not-started
+    status: needs-review
 
   - id: task155
     title: "Feature26 filesystem MCP runtime permission enforcement"
