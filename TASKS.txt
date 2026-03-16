@@ -3110,7 +3110,7 @@ tasks:
       - 'step4: Add baseline tests for module/API existence and report-section structure'
     dependencies: []
     tests: [test243, test249, test250]
-    status: not-started
+    status: needs-review
 
   - id: task159
     title: "Feature27 entrypoint runtime framework detectors"
