@@ -102,7 +102,26 @@ SUPPORTED_RUNTIME_TYPES: list[str] = ["one-shot", "mcp-server"]
 SUPPORTED_READINESS_METHODS: list[str] = ["tcp", "stdout"]
 
 # Feature24 service declaration types for optional manifest services entries.
-SUPPORTED_SERVICE_TYPES: list[str] = ["postgres", "redis", "http-api", "process"]
+SUPPORTED_SERVICE_TYPES: list[str] = [
+    "mcp-server",
+    "vector-db",
+    "database",
+    "api",
+    "local-process",
+    # Backward-compatible aliases accepted by validator.
+    "postgres",
+    "redis",
+    "http-api",
+    "process",
+]
+
+# Backward-compatibility aliases mapped to canonical feature24 taxonomy.
+SERVICE_TYPE_ALIASES: dict[str, str] = {
+    "postgres": "database",
+    "redis": "database",
+    "http-api": "api",
+    "process": "local-process",
+}
 
 # Feature24 health-check method values for service declarations.
 SUPPORTED_HEALTH_CHECK_METHODS: list[str] = ["tcp", "http", "process"]

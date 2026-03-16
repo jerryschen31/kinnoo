@@ -349,21 +349,25 @@ def test_feature24_inspect_displays_services(tmp_path: Path) -> None:
                         "  type: string",
                         "services:",
                         "  - name: primary-db",
-                        "    type: postgres",
+                        "    type: database",
                         "    health_check:",
                         "      method: tcp",
                         "      port: 5432",
                         "  - name: cache",
-                        "    type: redis",
+                        "    type: vector-db",
                         "    health_check:",
                         "      method: process",
                         "      process_name: redis-server",
                         "  - name: external-api",
-                        "    type: http-api",
+                        "    type: api",
                         "    health_check:",
                         "      method: http",
                         "      url: http://localhost:8080/health",
+                        "  - name: mcp-gateway",
+                        "    type: mcp-server",
                         "  - name: telemetry",
+                        "    type: local-process",
+                        "  - name: legacy-worker",
                         "    type: process",
                         "",
                     ]
@@ -378,15 +382,17 @@ def test_feature24_inspect_displays_services(tmp_path: Path) -> None:
 
                 assert result.returncode == 0
                 assert "- Services:" in result.stdout
-                assert "  - primary-db (postgres)" in result.stdout
+                assert "  - primary-db (database)" in result.stdout
                 assert "    - health_check.method: tcp" in result.stdout
                 assert "    - health_check.port: 5432" in result.stdout
-                assert "  - cache (redis)" in result.stdout
+                assert "  - cache (vector-db)" in result.stdout
                 assert "    - health_check.method: process" in result.stdout
                 assert "    - health_check.process_name: redis-server" in result.stdout
-                assert "  - external-api (http-api)" in result.stdout
+                assert "  - external-api (api)" in result.stdout
                 assert "    - health_check.method: http" in result.stdout
                 assert "    - health_check.url: http://localhost:8080/health" in result.stdout
-                assert "  - telemetry (process)" in result.stdout
+                assert "  - mcp-gateway (mcp-server)" in result.stdout
+                assert "  - telemetry (local-process)" in result.stdout
+                assert "  - legacy-worker (process)" in result.stdout
                 # Service without health_check should not emit placeholder/noise lines.
                 assert "health_check: (none)" not in result.stdout

@@ -902,15 +902,16 @@ features:
       ```
 
       Supported service types: mcp-server, vector-db, database, api, local-process.
+      Compatibility aliases accepted: postgres, redis, http-api, process.
       Supported health check methods: http, tcp, process.
     tasks: [task146, task147, task148, task149]
     acceptance_criteria:
       - id: AC1
         description: "Manifest validator accepts an optional `services` field as a list of service objects."
       - id: AC2
-        description: "Each service object requires `name` (string) and `type` (string from allowed set: mcp-server, vector-db, database, api, local-process). Missing fields produce clear errors."
+        description: "Each service object requires `name` (string) and `type` (string from allowed set: mcp-server, vector-db, database, api, local-process; compatibility aliases: postgres, redis, http-api, process). Missing fields produce clear errors."
       - id: AC3
-        description: "Each service object accepts an optional `health_check` object with `method` (string from: http, tcp, process) and method-specific fields (`port` for tcp, `url` for http, `process_name` for process)."
+        description: "Each service object accepts an optional `health_check` object; when `health_check` is present, `method` is required (string from: http, tcp, process) and method-specific fields apply (`port` for tcp, `url` for http, `process_name` for process)."
       - id: AC4
         description: "Invalid service type or health check method produces a clear error listing the allowed values."
       - id: AC5
@@ -925,7 +926,7 @@ features:
       - "SWE agent should add new schema constants (SUPPORTED_SERVICE_TYPES, SUPPORTED_HEALTH_CHECK_METHODS) to schema.py following existing patterns."
     owner: techlead-agent
     dependencies: [feature9]
-    status: not-started
+    status: needs-review
 
   - id: feature25
     title: "Service Health Checks — Runtime Preflight"
