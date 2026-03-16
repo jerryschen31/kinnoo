@@ -96,6 +96,7 @@ OPTIONAL_FIELDS: list[str] = [
     "license",
     "env_vars",
     "inputs.required",
+    "model",
 ]
 
 # Expected types for optional V2 fields when present.
@@ -106,6 +107,7 @@ OPTIONAL_FIELD_TYPES: dict[str, type] = {
     "license": str,
     "env_vars": list,
     "inputs.required": bool,
+    "model": str,
 }
 
 # Regex for a valid semver string: MAJOR.MINOR.PATCH with optional pre-release
