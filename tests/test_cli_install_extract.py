@@ -51,3 +51,77 @@ def test_install_extracts_archive(tmp_path):
     assert (agent_dir / "kinnoo.yaml").exists()
     assert (agent_dir / "run.py").exists()
     assert f"Extracted '{archive_path.name}' to '{agent_dir}'" in result.stdout
+
+
+def test_feature22_install_extracts_assets_with_relative_paths(tmp_path):
+    source_agent_dir = tmp_path / "asset-agent"
+    source_agent_dir.mkdir()
+
+    (source_agent_dir / "assets" / "nested").mkdir(parents=True)
+    (source_agent_dir / "assets" / "nested" / "note.txt").write_text(
+        "asset payload\n",
+        encoding="utf-8",
+    )
+    (source_agent_dir / "data").mkdir(parents=True)
+    (source_agent_dir / "data" / "config.json").write_text(
+        '{"ok": true}\n',
+        encoding="utf-8",
+    )
+
+    manifest = (
+        "name: asset-agent\n"
+        "version: 1.0.0\n"
+        "entrypoint: run.py\n"
+        "runtime:\n"
+        "  type: one-shot\n"
+        "  language: python\n"
+        "  version: \"3.10\"\n"
+        "dependencies: []\n"
+        "inputs:\n"
+        "  type: string\n"
+        "outputs:\n"
+        "  type: string\n"
+        "assets:\n"
+        "  paths:\n"
+        "    - assets\n"
+        "    - data/config.json\n"
+    )
+    (source_agent_dir / "kinnoo.yaml").write_text(manifest, encoding="utf-8")
+    (source_agent_dir / "run.py").write_text("print('asset-agent-ok')\n", encoding="utf-8")
+    (source_agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+
+    cli_path = os.path.abspath("src/kinnoo/cli.py")
+    pack_env = os.environ.copy()
+    pack_env["KINNOO_ARCHIVE_ROOT"] = str(tmp_path / "archive-root")
+
+    pack_result = subprocess.run(
+        [sys.executable, cli_path, "pack", str(source_agent_dir)],
+        capture_output=True,
+        text=True,
+        env=pack_env,
+    )
+    assert pack_result.returncode == 0, pack_result.stderr
+
+    archive_path = tmp_path / "archive-root" / "asset-agent" / "1.0.0" / "asset-agent.kno"
+    assert archive_path.exists()
+
+    install_result = subprocess.run(
+        [sys.executable, cli_path, "install", str(archive_path), "--yes"],
+        capture_output=True,
+        text=True,
+        env=pack_env,
+    )
+    assert install_result.returncode == 0, install_result.stderr
+
+    installed_dir = archive_path.with_suffix("")
+    assert installed_dir.exists()
+    assert (installed_dir / "assets" / "nested" / "note.txt").exists()
+    assert (installed_dir / "data" / "config.json").exists()
+
+    run_result = subprocess.run(
+        [sys.executable, str(installed_dir / "run.py")],
+        capture_output=True,
+        text=True,
+    )
+    assert run_result.returncode == 0
+    assert "asset-agent-ok" in run_result.stdout
