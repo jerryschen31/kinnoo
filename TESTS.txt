@@ -3200,3 +3200,171 @@ tests:
     covers:
       - feature: feature21
         ac: AC8
+
+  - id: test192
+    title: Feature21 requirements use tested compatibility ranges
+    type: unit
+    preconditions: pydantic-ai/langgraph/openai-agents templates can be generated
+    steps:
+      - step1: Generate each framework template via `kinnoo init <name> --framework <framework>`
+      - step2: Inspect generated requirements.txt for each framework
+      - step3: Verify constraints follow AC4 policy for tested compatibility ranges
+    expected: Requirements constraints match tested range policy and avoid placeholder pins
+    pass_criteria: Stable major dependencies are major-bounded; pre-1.0 are tested-bounded or exact tested pins
+    automated: true
+    automation_path: tests/test_init.py::test_feature21_requirements_tested_compatibility_ranges
+    covers:
+      - feature: feature21
+        ac: AC4
+
+  - id: test193
+    title: Feature21 dependency policy and implementation alignment
+    type: unit
+    preconditions: feature21 AC4 policy and template generation tests exist
+    steps:
+      - step1: Validate AC4 wording enforces tested compatibility policy
+      - step2: Cross-check requirements assertions in tests reflect AC4 policy
+      - step3: Fail if policy text and template assertions diverge
+    expected: Policy language and template/test assertions are consistent
+    pass_criteria: No drift between AC4 policy and asserted generated requirements behavior
+    automated: true
+    automation_path: tests/test_init.py::test_feature21_dependency_policy_alignment
+    covers:
+      - feature: feature21
+        ac: AC4
+
+  - id: test194
+    title: Feature21 PydanticAI template has framework-native run implementation
+    type: integration
+    preconditions: pydantic-ai template generation available
+    steps:
+      - step1: Generate `pydantic-ai` template
+      - step2: Inspect run.py for framework-native constructs (agent/model/tool usage)
+      - step3: Verify implementation is not placeholder-only hello-world flow
+    expected: run.py contains real framework-native building blocks
+    pass_criteria: Required framework-native markers are present and placeholder-only flow is absent
+    automated: true
+    automation_path: tests/test_init.py::test_feature21_pydantic_ai_framework_native_template
+    covers:
+      - feature: feature21
+        ac: AC13
+
+  - id: test195
+    title: Feature21 PydanticAI template basic run succeeds
+    type: integration
+    preconditions: pydantic-ai template generated; deterministic test-safe runtime path available
+    steps:
+      - step1: Run `kinnoo init <name> --framework pydantic-ai`
+      - step2: Execute `kinnoo run <dir> "hello"` under test-safe configuration
+      - step3: Verify deterministic non-empty output and successful exit
+    expected: Template runs successfully with basic input in test-safe mode
+    pass_criteria: run exits 0 with deterministic non-empty output
+    automated: true
+    automation_path: tests/test_cli.py::test_feature21_pydantic_ai_basic_run
+    covers:
+      - feature: feature21
+        ac: AC10
+      - feature: feature21
+        ac: AC13
+
+  - id: test196
+    title: Feature21 LangGraph template has framework-native run implementation
+    type: integration
+    preconditions: langgraph template generation available
+    steps:
+      - step1: Generate `langgraph` template
+      - step2: Inspect run.py for graph/state constructs
+      - step3: Verify implementation is not placeholder-only hello-world flow
+    expected: run.py contains real graph-based framework constructs
+    pass_criteria: Graph/state markers are present and placeholder-only flow is absent
+    automated: true
+    automation_path: tests/test_init.py::test_feature21_langgraph_framework_native_template
+    covers:
+      - feature: feature21
+        ac: AC14
+
+  - id: test197
+    title: Feature21 LangGraph template basic run succeeds
+    type: integration
+    preconditions: langgraph template generated; deterministic test-safe runtime path available
+    steps:
+      - step1: Run `kinnoo init <name> --framework langgraph`
+      - step2: Execute `kinnoo run <dir> "hello"` under test-safe configuration
+      - step3: Verify deterministic non-empty output and successful exit
+    expected: Template runs successfully with basic input in test-safe mode
+    pass_criteria: run exits 0 with deterministic non-empty output
+    automated: true
+    automation_path: tests/test_cli.py::test_feature21_langgraph_basic_run
+    covers:
+      - feature: feature21
+        ac: AC11
+      - feature: feature21
+        ac: AC14
+
+  - id: test198
+    title: Feature21 OpenAI Agents template has framework-native run implementation
+    type: integration
+    preconditions: openai-agents template generation available
+    steps:
+      - step1: Generate `openai-agents` template
+      - step2: Inspect run.py for agent workflow/tool/handoff constructs
+      - step3: Verify implementation is not placeholder-only hello-world flow
+    expected: run.py contains real openai-agents framework-native constructs
+    pass_criteria: Workflow/tool/handoff markers are present and placeholder-only flow is absent
+    automated: true
+    automation_path: tests/test_init.py::test_feature21_openai_agents_framework_native_template
+    covers:
+      - feature: feature21
+        ac: AC15
+
+  - id: test199
+    title: Feature21 OpenAI Agents template basic run succeeds
+    type: integration
+    preconditions: openai-agents template generated; deterministic test-safe runtime path available
+    steps:
+      - step1: Run `kinnoo init <name> --framework openai-agents`
+      - step2: Execute `kinnoo run <dir> "hello"` under test-safe configuration
+      - step3: Verify deterministic non-empty output and successful exit
+    expected: Template runs successfully with basic input in test-safe mode
+    pass_criteria: run exits 0 with deterministic non-empty output
+    automated: true
+    automation_path: tests/test_cli.py::test_feature21_openai_agents_basic_run
+    covers:
+      - feature: feature21
+        ac: AC12
+      - feature: feature21
+        ac: AC15
+
+  - id: test200
+    title: Feature21 validator accepts optional manifest model metadata field
+    type: unit
+    preconditions: validator/schema support optional metadata fields and manifest fixtures are available
+    steps:
+      - step1: Validate manifest fixture including `model` as a non-empty string
+      - step2: Validate manifest fixture omitting `model` entirely
+      - step3: Validate manifest fixture with invalid non-string `model` value
+    expected: Optional model metadata is accepted when valid and rejected with clear error when invalid
+    pass_criteria: Valid-with-model and omitted-model fixtures pass; invalid-model fixture fails with field-specific error
+    automated: true
+    automation_path: tests/test_validator.py::test_feature21_optional_model_metadata_field
+    covers:
+      - feature: feature21
+        ac: AC16
+
+  - id: test201
+    title: Feature21 known framework templates include model metadata when available
+    type: integration
+    preconditions: framework template generation is available for feature21 frameworks
+    steps:
+      - step1: Generate templates for frameworks with known default model values
+      - step2: Inspect generated kinnoo.yaml for optional `model` field values
+      - step3: Verify templates without a known default can omit `model` without validation failure
+    expected: Model metadata appears in generated manifests only when known and remains optional otherwise
+    pass_criteria: Known-model templates include expected model metadata; unknown-model templates still pass manifest validation
+    automated: true
+    automation_path: tests/test_init.py::test_feature21_templates_emit_optional_model_metadata_when_known
+    covers:
+      - feature: feature21
+        ac: AC5
+      - feature: feature21
+        ac: AC16

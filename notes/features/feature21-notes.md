@@ -187,3 +187,89 @@ Run these before marking tasks `needs-review`:
 - Set `task126`..`task129` to `in-progress` when implementation begins.
 - Move each task to `needs-review` only after linked tests pass with evidence.
 - Do not set feature status to `completed`; completion is TechLead review + approval gate.
+
+---
+
+## Human and TechLead Review 1 - additional tasks
+
+### Review context and decisions
+
+During review after `task126`-`task129`, two gaps were identified:
+
+1. Dependency policy quality gap:
+	 A generic pre-1.0 constraint style (for example broad `<1.0` patterns) was considered too weak for stability.
+2. Template realism gap:
+	 New framework templates needed to be framework-native runnable implementations, not placeholder hello-world shells.
+
+A second review pass then added a third requirement:
+
+3. Manifest metadata gap:
+	 `kinnoo.yaml` should support an optional `model` field when the underlying default model is known.
+
+In the same pass, run-path UX was reviewed and confirmed:
+
+4. Pass-through args:
+	 `kinnoo run <agent-dir> -- <args...>` behavior already worked and had coverage, but `run --help` needed clearer pass-through discoverability text.
+
+### Additional tasks added
+
+- `task130` — Feature21 dependency compatibility pinning update
+	- Why: move from placeholder version policy to tested compatibility ranges.
+	- Scope: update template dependency constraints and add policy-alignment checks.
+	- Linked tests: `test192`, `test193`.
+
+- `task131` — Feature21 implement real PydanticAI runnable template
+	- Why: ensure generated `pydantic-ai` scaffold is framework-native and runnable in test-safe mode.
+	- Linked tests: `test194`, `test195`.
+
+- `task132` — Feature21 implement real LangGraph runnable template
+	- Why: ensure generated `langgraph` scaffold uses graph/state constructs and runs in test-safe mode.
+	- Linked tests: `test196`, `test197`.
+
+- `task133` — Feature21 implement real OpenAI Agents runnable template
+	- Why: ensure generated `openai-agents` scaffold uses native agent workflow constructs and runs in test-safe mode.
+	- Linked tests: `test198`, `test199`.
+
+- `task134` — Feature21 optional `kinnoo.yaml` model metadata field
+	- Why: support optional `model` metadata when known without breaking existing manifests.
+	- Scope: schema + validator + template emission logic.
+	- Linked tests: `test200`, `test201`.
+
+### Additional tests added in manifests
+
+- `test192`: requirements use tested compatibility ranges (AC4 policy enforcement)
+- `test193`: dependency policy text/implementation alignment
+- `test194`: PydanticAI template contains framework-native constructs
+- `test195`: PydanticAI basic run succeeds in test-safe mode
+- `test196`: LangGraph template contains framework-native constructs
+- `test197`: LangGraph basic run succeeds in test-safe mode
+- `test198`: OpenAI Agents template contains framework-native constructs
+- `test199`: OpenAI Agents basic run succeeds in test-safe mode
+- `test200`: validator behavior for optional manifest `model` metadata
+- `test201`: template generation emits `model` metadata when known
+
+### Additional AC updates captured
+
+- AC4 updated to tested compatibility range policy.
+- AC13/AC14/AC15 added for framework-native implementation requirements.
+- AC16 added for optional manifest `model` metadata behavior.
+
+### Pass-through argument review outcome
+
+- Behavioral status: pass-through argument forwarding was already implemented and covered by existing tests.
+- UX/documentation status: `kinnoo run` help text was updated to include explicit separator example:
+	- `kinnoo run <agent-dir> -- -e <some-string> -p <some-file-path> -u <some-url>`
+- Code-level verification: targeted CLI tests were run for pass-through forwarding and usage/help text.
+
+### Validation evidence for this review batch
+
+- `python3 src/validate_project_manifests.py` -> passed after adding `task130`-`task134` and `test192`-`test201`.
+- Focused CLI verification:
+	- `python3 -m pytest tests/test_cli.py -k "run_pass_through_args_forwarded_verbatim or run_help_includes_pass_through_separator_usage or run_usage_includes_feature20_modes"`
+	- Result: selected tests passed.
+
+### Notes for next implementation cycle
+
+- Implement `task130` before `task131`-`task133` so dependency-policy assertions match template output.
+- Implement `task134` with backward compatibility as a hard requirement (`model` optional, non-breaking).
+- Keep feature/task status flow unchanged: SWE moves tasks to `needs-review`; TechLead/human review gates completion.

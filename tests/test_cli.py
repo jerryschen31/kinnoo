@@ -523,6 +523,17 @@ def test_run_usage_includes_feature20_modes():
     assert "kinnoo run <agent-dir> -- <args...>" in result.stderr
 
 
+def test_run_help_includes_pass_through_separator_usage():
+    result = subprocess.run(
+        [sys.executable, "-m", "kinnoo.cli", "run", "--help"],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert "kinnoo run <agent-dir> -- -e <some-string> -p <some-file-path> -u <some-url>" in result.stdout
+
+
 def test_run_missing_entrypoint(tmp_path):
     """Test kinnoo run with missing entrypoint file prints error and aborts."""
     agent_dir = tmp_path / "test-agent"

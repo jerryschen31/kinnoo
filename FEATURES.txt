@@ -728,7 +728,7 @@ features:
       `requirements.txt`, `kinnoo.yaml`, and `README.md`. All templates follow
       a common contract (accept input via sys.argv[1], print output to stdout,
       env vars for API keys) so the kinnoo run/pack/install flow works unchanged.
-    tasks: []
+    tasks: [task126, task127, task128, task129, task130, task131, task132, task133, task134]
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo init my-agent --framework pydantic-ai` creates a directory with PydanticAI agent scaffold including typed tools and multi-model support boilerplate."
@@ -737,7 +737,7 @@ features:
       - id: AC3
         description: "`kinnoo init my-agent --framework openai-agents` creates a directory with OpenAI Agent SDK scaffold including agent handoffs and guardrails boilerplate."
       - id: AC4
-        description: "Each template's `requirements.txt` pins the framework dependency to a major version (e.g., `pydantic-ai>=0.1,<1.0`) to reduce upstream breakage."
+        description: "Each template's `requirements.txt` uses tested compatibility ranges: when a framework has stable major versions, use bounded major constraints (for example `>=1.2,<2.0`); for pre-1.0 frameworks, use an explicitly tested bounded range or exact tested pin."
       - id: AC5
         description: "Each template's `kinnoo.yaml` passes feature1 validator and sets the `framework` field to the appropriate value."
       - id: AC6
@@ -754,6 +754,14 @@ features:
         description: "A generated `langgraph` template passes a basic runnable smoke test: after `kinnoo init`, running `kinnoo run <dir> \"hello\"` with test-safe configuration executes and emits non-empty stdout without template-level errors."
       - id: AC12
         description: "A generated `openai-agents` template passes a basic runnable smoke test: after `kinnoo init`, running `kinnoo run <dir> \"hello\"` with test-safe configuration executes and emits non-empty stdout without template-level errors."
+      - id: AC13
+        description: "The `pydantic-ai` template uses actual framework-native constructs in `run.py` (agent/model/tool workflow), not a dummy hello-print placeholder."
+      - id: AC14
+        description: "The `langgraph` template uses actual framework-native constructs in `run.py` (state model plus graph/node execution), not a dummy hello-print placeholder."
+      - id: AC15
+        description: "The `openai-agents` template uses actual framework-native constructs in `run.py` (agent/handoff or tool workflow), not a dummy hello-print placeholder."
+      - id: AC16
+        description: "Generated `kinnoo.yaml` may include an optional `model` metadata field when a template has a known default underlying model (for example `claude-sonnet-4-5`), and validators/templates handle this field consistently."
     notes:
       - "REGRESSION RISK: modifying the `--framework` choices list in cli.py and init_command.py. SWE agent must run `test_init.py` and `test_cli.py` regression tests."
       - "Define templates in templates.py following existing GEMINI_RUN_PY / CHATGPT_RUN_PY pattern."
