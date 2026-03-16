@@ -2702,7 +2702,7 @@ tasks:
       - 'step4: Add tests for install extraction and inspect asset visibility'
     dependencies: [task136, task63]
     tests: [test208, test210]
-    status: not-started
+    status: needs-review
 
   - id: task138
     title: "Feature22 archive size threshold behavior for assets"
