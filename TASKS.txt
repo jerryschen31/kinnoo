@@ -2681,7 +2681,7 @@ tasks:
       - 'step4: Add tests for inclusion, opt-out, traversal rejection, and missing path warning behavior'
     dependencies: [task135, task25]
     tests: [test204, test205, test206, test207]
-    status: not-started
+    status: needs-review
 
   - id: task137
     title: "Feature22 install extraction and inspect visibility"
