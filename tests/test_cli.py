@@ -785,3 +785,148 @@ def test_feature21_openai_agents_basic_run(tmp_path):
     assert run_result.stdout.strip() != ""
     assert "[openai-agents template] test-safe response: hello" in run_result.stdout
     assert "Traceback" not in run_result.stderr
+
+
+def _feature23_write_server_fixture(tmp_path, script_name: str = "feature23_server.py"):
+    server_script = tmp_path / script_name
+    server_script.write_text(
+        """
+import socket
+import sys
+import time
+
+mode = sys.argv[1]
+
+if mode == "tcp":
+    port = int(sys.argv[2])
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    s.bind(("127.0.0.1", port))
+    s.listen(1)
+    print(f"TCP_READY:{port}", flush=True)
+    time.sleep(1.2)
+    s.close()
+elif mode == "stdout":
+    marker = sys.argv[2]
+    time.sleep(0.15)
+    print(marker, flush=True)
+    time.sleep(0.9)
+elif mode == "silent":
+    time.sleep(0.8)
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    return server_script
+
+
+def test_feature23_readiness_probe_tcp_and_stdout_marker(tmp_path):
+    from kinnoo.supervisor import (
+        infer_readiness_config,
+        shutdown_server,
+        start_server,
+        stream_output,
+        wait_until_ready,
+    )
+
+    server_script = _feature23_write_server_fixture(tmp_path)
+
+    tcp_port = 48651
+    tcp_runtime = {
+        "readiness_probe": {
+            "method": "tcp",
+            "port": tcp_port,
+        }
+    }
+    tcp_process = start_server([sys.executable, str(server_script), "tcp", str(tcp_port)])
+    try:
+        tcp_stream_state = stream_output(tcp_process)
+        tcp_ready = wait_until_ready(
+            tcp_process,
+            infer_readiness_config(tcp_runtime),
+            tcp_stream_state,
+        )
+        assert tcp_ready is True
+    finally:
+        shutdown_server(tcp_process)
+
+    stdout_marker = "READY_MARKER_142"
+    stdout_runtime = {
+        "readiness_probe": {
+            "method": "stdout",
+            "marker": stdout_marker,
+        }
+    }
+    stdout_process = start_server([sys.executable, str(server_script), "stdout", stdout_marker])
+    try:
+        stdout_stream_state = stream_output(stdout_process)
+        stdout_ready = wait_until_ready(
+            stdout_process,
+            infer_readiness_config(stdout_runtime),
+            stdout_stream_state,
+        )
+        assert stdout_ready is True
+    finally:
+        shutdown_server(stdout_process)
+
+    failing_stdout_runtime = {
+        "readiness_probe": {
+            "method": "stdout",
+            "marker": "THIS_MARKER_NEVER_APPEARS",
+        }
+    }
+    failing_process = start_server([sys.executable, str(server_script), "silent"])
+    try:
+        failing_stream_state = stream_output(failing_process)
+        failing_readiness = infer_readiness_config(failing_stdout_runtime)
+        failing_readiness.timeout_seconds = 0.25
+        failed_ready = wait_until_ready(
+            failing_process,
+            failing_readiness,
+            failing_stream_state,
+        )
+        assert failed_ready is False
+    finally:
+        shutdown_server(failing_process)
+
+
+def test_feature23_default_readiness_fallback_behavior(tmp_path):
+    from kinnoo.supervisor import (
+        infer_readiness_config,
+        shutdown_server,
+        start_server,
+        stream_output,
+        wait_until_ready,
+    )
+
+    server_script = _feature23_write_server_fixture(tmp_path)
+
+    tcp_port = 48652
+    runtime_with_port = {"port": tcp_port}
+    readiness_with_port = infer_readiness_config(runtime_with_port)
+    assert readiness_with_port.mode == "tcp"
+    assert readiness_with_port.port == tcp_port
+
+    tcp_process = start_server([sys.executable, str(server_script), "tcp", str(tcp_port)])
+    try:
+        tcp_stream_state = stream_output(tcp_process)
+        tcp_ready = wait_until_ready(tcp_process, readiness_with_port, tcp_stream_state)
+        assert tcp_ready is True
+    finally:
+        shutdown_server(tcp_process)
+
+    runtime_without_probe_or_port = {}
+    readiness_without_probe_or_port = infer_readiness_config(runtime_without_probe_or_port)
+    assert readiness_without_probe_or_port.mode == "immediate"
+
+    immediate_process = start_server([sys.executable, str(server_script), "silent"])
+    try:
+        immediate_stream_state = stream_output(immediate_process)
+        immediate_ready = wait_until_ready(
+            immediate_process,
+            readiness_without_probe_or_port,
+            immediate_stream_state,
+        )
+        assert immediate_ready is True
+    finally:
+        shutdown_server(immediate_process)

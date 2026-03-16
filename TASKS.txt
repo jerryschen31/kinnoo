@@ -2800,7 +2800,7 @@ tasks:
       - 'step4: Add tests for readiness success/failure and fallback behavior'
     dependencies: [task141]
     tests: [test216, test221]
-    status: not-started
+    status: needs-review
 
   - id: task143
     title: "Feature23 run_command integration for mcp-server mode"
