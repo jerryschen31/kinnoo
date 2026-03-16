@@ -9,6 +9,8 @@ import getpass
 from typing import Iterable
 import re
 import json
+import signal
+import time
 from datetime import datetime, timezone
 
 import yaml
@@ -16,6 +18,7 @@ import yaml
 from .schema import normalize_env_vars
 from .supervisor import (
     infer_readiness_config,
+    shutdown_server_with_report,
     shutdown_server,
     start_server,
     stream_output,
@@ -438,6 +441,7 @@ def _write_run_trace_log(
     manifest: dict | None,
     exit_code: int,
     forbidden_values: Iterable[str] | None = None,
+    lifecycle: dict[str, object] | None = None,
 ) -> None:
     now_utc = datetime.now(timezone.utc)
     timestamp_json = now_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -468,6 +472,8 @@ def _write_run_trace_log(
         "runtime_type": runtime_type,
         "exit_code": int(exit_code),
     }
+    if runtime_type == "mcp-server" and lifecycle is not None:
+        log_payload.update(lifecycle)
 
     logs_dir = Path.home() / ".kinnoo" / "logs"
     log_file = logs_dir / f"run.{timestamp_filename}.log"
@@ -506,6 +512,7 @@ def run_agent(
 
     agent_dir = Path(agent_dir_arg).resolve()
     trace_manifest: dict | None = None
+    trace_lifecycle: dict[str, object] | None = None
     trace_forbidden_values: list[str] = []
     if input_arg is not None:
         trace_forbidden_values.append(input_arg)
@@ -517,6 +524,7 @@ def run_agent(
             manifest=trace_manifest,
             exit_code=exit_code,
             forbidden_values=trace_forbidden_values,
+            lifecycle=trace_lifecycle,
         )
         return exit_code
 
@@ -694,6 +702,12 @@ def run_agent(
     runtime_type = runtime_section.get("type") if isinstance(runtime_section.get("type"), str) else "one-shot"
 
     if runtime_type == "mcp-server":
+        shutdown_timeout_value = runtime_section.get("shutdown_timeout_seconds", 3.0)
+        if isinstance(shutdown_timeout_value, (int, float)) and shutdown_timeout_value > 0:
+            shutdown_timeout_seconds = float(shutdown_timeout_value)
+        else:
+            shutdown_timeout_seconds = 3.0
+
         def _stdout_callback(line: str) -> None:
             sys.stdout.write(line)
             sys.stdout.flush()
@@ -727,11 +741,55 @@ def run_agent(
             shutdown_server(process)
             return finalize(1)
 
+        server_start = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        shutdown_sigterm_sent = False
+        shutdown_sigkill_sent = False
+        return_code: int
+        interrupted = False
+
+        previous_sigint_handler = signal.getsignal(signal.SIGINT)
+
+        def _sigint_handler(_signum, _frame):
+            nonlocal interrupted
+            interrupted = True
+
+        signal.signal(signal.SIGINT, _sigint_handler)
+
         try:
-            return_code = process.wait()
-        except KeyboardInterrupt:
-            # Task144 adds explicit SIGINT lifecycle behavior and trace assertions.
-            return_code = shutdown_server(process)
+            while True:
+                if interrupted:
+                    shutdown_report = shutdown_server_with_report(
+                        process,
+                        timeout_seconds=shutdown_timeout_seconds,
+                    )
+                    return_code = shutdown_report.exit_code
+                    shutdown_sigterm_sent = shutdown_report.sigterm_sent
+                    shutdown_sigkill_sent = shutdown_report.sigkill_sent
+                    break
+
+                polled_code = process.poll()
+                if polled_code is not None:
+                    return_code = int(polled_code)
+                    break
+                time.sleep(0.05)
+        finally:
+            signal.signal(signal.SIGINT, previous_sigint_handler)
+
+        server_stop = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        server_signal = None
+        if return_code < 0:
+            try:
+                server_signal = signal.Signals(-return_code).name
+            except Exception:
+                server_signal = f"SIG{-return_code}"
+        trace_lifecycle = {
+            "start_timestamp": server_start,
+            "stop_timestamp": server_stop,
+            "server_exit_code": int(return_code),
+            "server_exit_signal": server_signal,
+            "shutdown_sigterm_sent": shutdown_sigterm_sent,
+            "shutdown_sigkill_sent": shutdown_sigkill_sent,
+        }
 
         if stream_state.stdout_thread is not None:
             stream_state.stdout_thread.join(timeout=0.2)
