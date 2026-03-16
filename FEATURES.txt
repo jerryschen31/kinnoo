@@ -772,45 +772,59 @@ features:
     status: completed
 
   - id: feature22
-    title: "Data & Asset Bundling"
+    title: "Asset Bundling"
     description: |
-      Add a manifest `data` section for declaring data files and directories to be
-      bundled alongside agent code. Declared data is included in the `.kno` archive
-      during `kinnoo pack` and extracted during `kinnoo install`. Size warnings are
-      displayed when data pushes the archive beyond configurable thresholds.
+      Add a manifest `assets` section for declaring static files and directories to be
+      bundled alongside agent code. Declared assets are included in the `.kno` archive
+      during `kinnoo pack` and extracted during `kinnoo install` when bundling is enabled.
+      Size warnings are displayed when bundled assets push the archive beyond configurable
+      thresholds.
 
       Manifest syntax:
       ```yaml
-      data:
-        - path: data/embeddings.npz
-        - path: data/reference_docs/
-        - path: models/classifier.onnx
+      assets:
+        paths:
+          - data/embeddings.npz
+          - data/reference_docs/
+          - models/classifier.onnx
+        bundle: true
+        max_bundle_size_mb: 100
       ```
 
       Use cases: local vector DBs, embedding files, reference documents, model weights.
     tasks: []
     acceptance_criteria:
       - id: AC1
-        description: "Manifest validator accepts an optional `data` field as a list of objects, each with a `path` string. Non-list or invalid item structure produces clear errors."
+        description: "Manifest validator accepts an optional `assets` field as an object with `paths` (list[string]), optional `bundle` (bool, default true), and optional `max_bundle_size_mb` (number, default 100). Invalid structure produces clear errors."
       - id: AC2
-        description: "`kinnoo pack` includes all declared data paths (files and directories) in the archive under their original relative paths."
+        description: "`kinnoo pack` includes all declared asset paths (files and directories, recursively) in the archive under their original relative paths when `assets.bundle` is true (default)."
       - id: AC3
-        description: "`kinnoo pack` rejects data paths that use path traversal (e.g., `../secret`) with a clear security error."
+        description: "`kinnoo pack` skips asset inclusion when `assets.bundle: false` and prints a clear informational message that asset bundling is disabled."
       - id: AC4
-        description: "`kinnoo pack` warns if declared data path does not exist in the agent directory."
+        description: "`kinnoo pack` rejects asset paths that use path traversal (e.g., `../secret`) with a clear security error."
       - id: AC5
-        description: "`kinnoo install` extracts data files and directories to their correct relative paths in the installed agent directory."
+        description: "`kinnoo pack` warns if a declared asset path does not exist in the agent directory."
       - id: AC6
-        description: "`kinnoo pack` warns when total archive size exceeds 100 MB (default) or a configurable `max_bundle_size_mb` from manifest."
+        description: "`kinnoo install` extracts bundled asset files and directories to their correct relative paths in the installed agent directory."
       - id: AC7
-        description: "`kinnoo inspect` displays declared data paths and their sizes when inspecting an agent or archive."
+        description: "`kinnoo pack` warns when total archive size exceeds 100 MB by default, or the configured `assets.max_bundle_size_mb` when present."
       - id: AC8
-        description: "Agents without a `data` section are unaffected — pack/install behavior is identical to V2 (regression check required)."
+        description: "`kinnoo inspect` displays declared asset paths and their sizes when inspecting an agent or archive."
+      - id: AC9
+        description: "Agents without an `assets` section are unaffected — pack/install behavior is identical to V2 (regression check required)."
+      - id: AC10
+        description: "`kinnoo pack` performs a filename-based secret check for asset paths and warns on known credential-like patterns (for example `.env`, `.pem`, `.key`, `id_rsa`, `credentials.json`, `*.p12`, `*.pfx`)."
+      - id: AC11
+        description: "`kinnoo pack` performs a regex-based credential scan on text asset files (UTF-8, size-limited), warns on likely secret patterns, and skips binary files for this scan."
+      - id: AC12
+        description: "Asset credential scan findings are non-blocking warnings during pack, with a disclaimer that heuristic scanning may produce false positives and is not a substitute for manual review."
     notes:
       - "REGRESSION RISK: changes pack and install archive handling. SWE agent must run `test_pack.py`, `test_cli_install.py`, and `test_cli_install_extract.py` regression tests."
-      - "Reuse existing `files` inclusion logic where possible but keep `data` semantically separate for clearer UX."
+      - "Use `assets` naming in manifest for clarity and future extensibility; `data/` remains a valid folder name users can reference in `assets.paths`."
+      - "Reuse existing `files` inclusion logic where possible but keep `assets` semantically separate for clearer UX."
       - "Enforce deterministic archive paths to avoid install-time path mismatches."
-      - "Path traversal check already exists in pack_command.py for extra files — extend it to data paths."
+      - "Path traversal check already exists in pack_command.py for extra files — extend it to asset paths."
+      - "Asset scanning at pack-time is warning-only for local workflows; consider stricter/blocking checks during publish in a future feature."
     owner: techlead-agent
     dependencies: [feature5, feature8]
     status: not-started
