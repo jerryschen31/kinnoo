@@ -729,24 +729,7 @@ def run_agent(
             )
             return finalize(1)
 
-        stream_state = stream_output(
-            process,
-            stdout_callback=_stdout_callback,
-            stderr_callback=_stderr_callback,
-        )
-        readiness = infer_readiness_config(runtime_section)
-        is_ready = wait_until_ready(process, readiness, stream_state)
-        if not is_ready:
-            _print_safe_error("Error: mcp-server failed readiness probe and did not become ready")
-            shutdown_server(process)
-            return finalize(1)
-
-        server_start = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        shutdown_sigterm_sent = False
-        shutdown_sigkill_sent = False
-        return_code: int
         interrupted = False
-
         previous_sigint_handler = signal.getsignal(signal.SIGINT)
 
         def _sigint_handler(_signum, _frame):
@@ -756,6 +739,23 @@ def run_agent(
         signal.signal(signal.SIGINT, _sigint_handler)
 
         try:
+            stream_state = stream_output(
+                process,
+                stdout_callback=_stdout_callback,
+                stderr_callback=_stderr_callback,
+            )
+            readiness = infer_readiness_config(runtime_section)
+            is_ready = wait_until_ready(process, readiness, stream_state)
+            if not is_ready:
+                _print_safe_error("Error: mcp-server failed readiness probe and did not become ready")
+                shutdown_server(process)
+                return finalize(1)
+
+            server_start = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            shutdown_sigterm_sent = False
+            shutdown_sigkill_sent = False
+            return_code: int
+
             while True:
                 if interrupted:
                     shutdown_report = shutdown_server_with_report(
@@ -772,31 +772,31 @@ def run_agent(
                     return_code = int(polled_code)
                     break
                 time.sleep(0.05)
+
+            server_stop = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            server_signal = None
+            if return_code < 0:
+                try:
+                    server_signal = signal.Signals(-return_code).name
+                except Exception:
+                    server_signal = f"SIG{-return_code}"
+            trace_lifecycle = {
+                "start_timestamp": server_start,
+                "stop_timestamp": server_stop,
+                "server_exit_code": int(return_code),
+                "server_exit_signal": server_signal,
+                "shutdown_sigterm_sent": shutdown_sigterm_sent,
+                "shutdown_sigkill_sent": shutdown_sigkill_sent,
+            }
+
+            if stream_state.stdout_thread is not None:
+                stream_state.stdout_thread.join(timeout=0.2)
+            if stream_state.stderr_thread is not None:
+                stream_state.stderr_thread.join(timeout=0.2)
+
+            return finalize(return_code)
         finally:
             signal.signal(signal.SIGINT, previous_sigint_handler)
-
-        server_stop = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        server_signal = None
-        if return_code < 0:
-            try:
-                server_signal = signal.Signals(-return_code).name
-            except Exception:
-                server_signal = f"SIG{-return_code}"
-        trace_lifecycle = {
-            "start_timestamp": server_start,
-            "stop_timestamp": server_stop,
-            "server_exit_code": int(return_code),
-            "server_exit_signal": server_signal,
-            "shutdown_sigterm_sent": shutdown_sigterm_sent,
-            "shutdown_sigkill_sent": shutdown_sigkill_sent,
-        }
-
-        if stream_state.stdout_thread is not None:
-            stream_state.stdout_thread.join(timeout=0.2)
-        if stream_state.stderr_thread is not None:
-            stream_state.stderr_thread.join(timeout=0.2)
-
-        return finalize(return_code)
 
     try:
         process = subprocess.Popen(
