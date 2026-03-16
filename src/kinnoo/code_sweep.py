@@ -16,6 +16,9 @@ EXPOSURE_PATTERNS: list[tuple[str, str]] = [
 ASSET_FILENAME_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"^\.env($|\.)", re.IGNORECASE), "secret-like filename (.env)"),
     (re.compile(r"\.pem$", re.IGNORECASE), "secret-like filename (.pem)"),
+    (re.compile(r"\.key$", re.IGNORECASE), "secret-like filename (.key)"),
+    (re.compile(r"\.p12$", re.IGNORECASE), "secret-like filename (*.p12)"),
+    (re.compile(r"\.pfx$", re.IGNORECASE), "secret-like filename (*.pfx)"),
     (re.compile(r"^id_rsa(\.pub)?$", re.IGNORECASE), "secret-like filename (id_rsa)"),
     (re.compile(r"credentials?", re.IGNORECASE), "secret-like filename (credential marker)"),
 ]
