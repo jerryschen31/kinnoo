@@ -120,3 +120,68 @@ def test_feature27_detect_entrypoint_runtime_framework_with_uncertainty(tmp_path
     assert ambiguous_payload["confidence"]["framework"]["score"] < 0.5
     warning_text = " ".join(ambiguous_payload["warnings"]).lower()
     assert "ambiguous" in warning_text
+
+
+def test_feature27_detect_dependencies_from_requirements_and_pyproject(tmp_path: Path) -> None:
+    """test245: dependency detector merges requirements and pyproject with normalization/dedup."""
+    project_dir = tmp_path / "feature27-dependency-layout"
+    project_dir.mkdir(parents=True, exist_ok=True)
+
+    (project_dir / "requirements.txt").write_text(
+        "requests>=2.31\n"
+        "PyYAML==6.0\n"
+        "# comment line\n"
+        "\n",
+        encoding="utf-8",
+    )
+    (project_dir / "pyproject.toml").write_text(
+        "[project]\n"
+        "name = 'dep-layout'\n"
+        "dependencies = ['requests>=2.30', 'tomli>=2.0']\n"
+        "\n"
+        "[project.optional-dependencies]\n"
+        "dev = ['pytest>=8.0']\n",
+        encoding="utf-8",
+    )
+
+    payload = analyze_project(project_dir).as_dict()
+    dependencies = payload["inferred"]["dependencies"]
+
+    assert "requests>=2.30" in dependencies or "requests>=2.31" in dependencies
+    assert "pyyaml==6.0" in dependencies
+    assert "tomli>=2.0" in dependencies
+    assert "pytest>=8.0" in dependencies
+    assert dependencies == sorted(set(dependencies))
+    assert payload["confidence"]["dependencies"]["score"] >= 0.8
+
+
+def test_feature27_detect_env_vars_patterns_and_dedup(tmp_path: Path) -> None:
+    """test246: env var detector handles getenv/environ access and deduplicates names."""
+    project_dir = tmp_path / "feature27-env-layout"
+    project_dir.mkdir(parents=True, exist_ok=True)
+
+    (project_dir / "run.py").write_text(
+        "import os\n"
+        "token = os.getenv('API_TOKEN')\n"
+        "key = os.environ['OPENAI_API_KEY']\n"
+        "region = os.environ.get('AWS_REGION')\n"
+        "token_again = os.getenv('API_TOKEN', '')\n",
+        encoding="utf-8",
+    )
+    (project_dir / "worker.py").write_text(
+        "import os\n"
+        "project = os.environ.get('GOOGLE_CLOUD_PROJECT')\n",
+        encoding="utf-8",
+    )
+
+    payload = analyze_project(project_dir).as_dict()
+    env_vars = payload["inferred"]["env_vars"]
+
+    assert env_vars == sorted(env_vars)
+    assert env_vars == [
+        "API_TOKEN",
+        "AWS_REGION",
+        "GOOGLE_CLOUD_PROJECT",
+        "OPENAI_API_KEY",
+    ]
+    assert payload["confidence"]["env_vars"]["score"] >= 0.8

@@ -264,21 +264,217 @@ def _detect_framework(project_dir: Path) -> DetectorResult:
     )
 
 
+def _normalize_package_name(name: str) -> str:
+    return re.sub(r"[-_.]+", "-", name.strip().lower())
+
+
+def _split_requirement_name_and_constraint(requirement: str) -> tuple[str, str]:
+    # Keep parsing intentionally narrow/deterministic: name + optional tail constraints.
+    requirement = requirement.strip()
+    if not requirement:
+        return "", ""
+
+    marker_index = requirement.find(";")
+    if marker_index >= 0:
+        requirement = requirement[:marker_index].strip()
+
+    # Remove extras from name while keeping version constraint suffix intact.
+    match = re.match(r"^([A-Za-z0-9_.-]+)(?:\[[^\]]+\])?(.*)$", requirement)
+    if not match:
+        return "", ""
+
+    name = _normalize_package_name(match.group(1))
+    constraint = match.group(2).strip()
+    return name, constraint
+
+
+def _collect_requirements_dependencies(project_dir: Path) -> tuple[dict[str, set[str]], list[str]]:
+    requirements_path = project_dir / "requirements.txt"
+    requirements: dict[str, set[str]] = {}
+    evidence: list[str] = []
+
+    if not requirements_path.exists():
+        return requirements, evidence
+
+    try:
+        lines = requirements_path.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeDecodeError):
+        return requirements, evidence
+
+    for line in lines:
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if stripped.startswith(("-r", "--requirement", "-c", "--constraint", "-e", "--editable")):
+            continue
+        if "://" in stripped:
+            continue
+
+        name, constraint = _split_requirement_name_and_constraint(stripped)
+        if not name:
+            continue
+
+        requirements.setdefault(name, set()).add(constraint)
+        evidence.append(f"requirements.txt:{name}{constraint}")
+
+    return requirements, evidence
+
+
+def _collect_pyproject_dependencies(project_dir: Path) -> tuple[dict[str, set[str]], list[str]]:
+    pyproject_path = project_dir / "pyproject.toml"
+    dependencies: dict[str, set[str]] = {}
+    evidence: list[str] = []
+
+    if tomllib is None or not pyproject_path.exists():
+        return dependencies, evidence
+
+    try:
+        data = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
+        return dependencies, evidence
+
+    project_table = data.get("project")
+    if not isinstance(project_table, dict):
+        return dependencies, evidence
+
+    def add_dep(raw_dep: str, source_label: str) -> None:
+        name, constraint = _split_requirement_name_and_constraint(raw_dep)
+        if not name:
+            return
+        dependencies.setdefault(name, set()).add(constraint)
+        evidence.append(f"{source_label}:{name}{constraint}")
+
+    for dep in project_table.get("dependencies", []):
+        if isinstance(dep, str) and dep.strip():
+            add_dep(dep, "pyproject.project.dependencies")
+
+    optional = project_table.get("optional-dependencies")
+    if isinstance(optional, dict):
+        for group_name, dep_list in optional.items():
+            if not isinstance(dep_list, list):
+                continue
+            for dep in dep_list:
+                if isinstance(dep, str) and dep.strip():
+                    add_dep(dep, f"pyproject.project.optional-dependencies.{group_name}")
+
+    return dependencies, evidence
+
+
+def _format_dependency_output(dependency_map: dict[str, set[str]]) -> list[str]:
+    formatted: list[str] = []
+    for package in sorted(dependency_map.keys()):
+        constraints = sorted(constraint for constraint in dependency_map[package] if constraint)
+        if constraints:
+            formatted.append(f"{package}{constraints[0]}")
+        else:
+            formatted.append(package)
+    return formatted
+
+
 def _detect_dependencies(project_dir: Path) -> DetectorResult:
+    requirements_map, requirements_evidence = _collect_requirements_dependencies(project_dir)
+    pyproject_map, pyproject_evidence = _collect_pyproject_dependencies(project_dir)
+
+    merged: dict[str, set[str]] = {}
+    for source in (requirements_map, pyproject_map):
+        for package, constraints in source.items():
+            merged.setdefault(package, set()).update(constraints)
+
+    dependencies = _format_dependency_output(merged)
+    evidence_items = requirements_evidence + pyproject_evidence
+
+    if dependencies:
+        source_count = int(bool(requirements_evidence)) + int(bool(pyproject_evidence))
+        confidence = 0.92 if source_count == 2 else 0.82
+        return DetectorResult(
+            value=dependencies,
+            confidence=confidence,
+            evidence=f"Detected {len(dependencies)} dependencies from {source_count} source(s): {'; '.join(evidence_items)}",
+            warning=None,
+        )
+
     return DetectorResult(
         value=[],
         confidence=0.0,
-        evidence=f"dependency detector not implemented for {project_dir.name}",
-        warning="Could not infer dependencies yet; review requirements manually.",
+        evidence="No dependencies found in requirements.txt or pyproject.toml.",
+        warning="Could not infer dependencies; review requirements.txt and pyproject.toml.",
     )
 
 
+def _literal_string(node: ast.AST | None) -> str | None:
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    return None
+
+
+def _extract_env_var_names(tree: ast.AST) -> set[str]:
+    names: set[str] = set()
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name):
+                if node.func.value.id == "os" and node.func.attr == "getenv" and node.args:
+                    key = _literal_string(node.args[0])
+                    if key:
+                        names.add(key)
+
+            # Match os.environ.get("VAR")
+            if (
+                isinstance(node.func, ast.Attribute)
+                and node.func.attr == "get"
+                and isinstance(node.func.value, ast.Attribute)
+                and isinstance(node.func.value.value, ast.Name)
+                and node.func.value.value.id == "os"
+                and node.func.value.attr == "environ"
+                and node.args
+            ):
+                key = _literal_string(node.args[0])
+                if key:
+                    names.add(key)
+
+        if isinstance(node, ast.Subscript):
+            # Match os.environ["VAR"]
+            if (
+                isinstance(node.value, ast.Attribute)
+                and isinstance(node.value.value, ast.Name)
+                and node.value.value.id == "os"
+                and node.value.attr == "environ"
+            ):
+                key = _literal_string(node.slice)
+                if key:
+                    names.add(key)
+
+    return names
+
+
 def _detect_env_vars(project_dir: Path) -> DetectorResult:
+    env_names: set[str] = set()
+    parsed_files = 0
+
+    for python_path in _iter_python_files(project_dir):
+        try:
+            source = python_path.read_text(encoding="utf-8")
+            tree = ast.parse(source)
+        except (OSError, UnicodeDecodeError, SyntaxError):
+            continue
+
+        parsed_files += 1
+        env_names.update(_extract_env_var_names(tree))
+
+    inferred = sorted(name for name in env_names if name)
+    if inferred:
+        return DetectorResult(
+            value=inferred,
+            confidence=0.88,
+            evidence=f"Detected {len(inferred)} unique env var names across {parsed_files} python file(s).",
+            warning=None,
+        )
+
     return DetectorResult(
         value=[],
         confidence=0.0,
-        evidence=f"env-var detector not implemented for {project_dir.name}",
-        warning="Could not infer env vars yet; review source for required variables.",
+        evidence=f"No env var patterns detected across {parsed_files} python file(s).",
+        warning="Could not infer env vars from source patterns; verify required environment variables manually.",
     )
 
 
