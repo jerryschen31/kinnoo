@@ -26,6 +26,13 @@ SUPPORTED_FRAMEWORKS = [
     "openai-agents",
 ]
 
+KNOWN_FRAMEWORK_DEFAULT_MODELS = {
+    "gemini": "gemini-2.5-flash-lite",
+    "chatgpt": "gpt-5-nano",
+    "claude-chat": "claude-sonnet-4-20250514",
+    "pydantic-ai": "openai:gpt-4o-mini",
+}
+
 def init_agent(name: str, target_dir: Path, framework: Optional[str] = None):
     agent_dir = target_dir / name
     if agent_dir.exists():
@@ -37,6 +44,9 @@ def init_agent(name: str, target_dir: Path, framework: Optional[str] = None):
     manifest_content = KINNOO_YAML_TEMPLATE.format(name=name)
     if framework is not None:
         manifest_content += f"framework: {framework}\n"
+        default_model = KNOWN_FRAMEWORK_DEFAULT_MODELS.get(framework)
+        if default_model is not None:
+            manifest_content += f"model: {default_model}\n"
 
     framework_templates = {
         "gemini": (GEMINI_RUN_PY, GEMINI_REQUIREMENTS, GEMINI_README),

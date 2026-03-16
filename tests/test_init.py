@@ -573,6 +573,42 @@ def test_feature21_openai_agents_framework_native_template(tmp_path):
     assert "Placeholder scaffold for OpenAI Agents handoff/guardrail flow" not in run_text
 
 
+def test_feature21_templates_emit_optional_model_metadata_when_known(tmp_path):
+    import yaml
+    from kinnoo.validator import validate
+
+    expected_models = {
+        "gemini": "gemini-2.5-flash-lite",
+        "chatgpt": "gpt-5-nano",
+        "claude-chat": "claude-sonnet-4-20250514",
+        "pydantic-ai": "openai:gpt-4o-mini",
+    }
+
+    for framework, expected_model in expected_models.items():
+        agent_name = f"feature21-model-known-{framework}"
+        code, out, err = run_cli(["init", agent_name, "--framework", framework], cwd=tmp_path)
+        assert code == 0, err
+
+        manifest_path = tmp_path / agent_name / "kinnoo.yaml"
+        is_valid, errors = validate(str(manifest_path))
+        assert is_valid, errors
+
+        manifest_data = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+        assert manifest_data.get("model") == expected_model
+
+    for framework in ["langgraph", "openai-agents"]:
+        agent_name = f"feature21-model-unknown-{framework}"
+        code, out, err = run_cli(["init", agent_name, "--framework", framework], cwd=tmp_path)
+        assert code == 0, err
+
+        manifest_path = tmp_path / agent_name / "kinnoo.yaml"
+        is_valid, errors = validate(str(manifest_path))
+        assert is_valid, errors
+
+        manifest_data = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+        assert "model" not in manifest_data
+
+
 def test_feature9_init_manifest_includes_description_and_author(tmp_path):
     """test75: init-generated manifest includes description and author placeholders."""
     agent_name = "feature9-init-agent"

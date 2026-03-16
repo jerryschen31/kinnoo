@@ -368,6 +368,35 @@ def test_feature9_invalid_optional_field_types_are_rejected(tmp_path: Path) -> N
     )
 
 
+def test_feature21_optional_model_metadata_field(tmp_path: Path) -> None:
+    with_model = dict(_VALID_MANIFEST)
+    with_model["model"] = "gpt-5-nano"
+    with_model_path = _write_manifest(with_model, tmp_path)
+
+    is_valid, errors = validate(str(with_model_path))
+    assert is_valid is True, f"Expected valid model metadata to pass; errors: {errors}"
+    assert errors == []
+
+    without_model = dict(_VALID_MANIFEST)
+    without_model_path = tmp_path / "feature21_without_model.yaml"
+    without_model_path.write_text(yaml.dump(without_model), encoding="utf-8")
+
+    is_valid, errors = validate(str(without_model_path))
+    assert is_valid is True, f"Expected omitted optional model metadata to pass; errors: {errors}"
+    assert errors == []
+
+    invalid_model = dict(_VALID_MANIFEST)
+    invalid_model["model"] = 123
+    invalid_model_path = tmp_path / "feature21_invalid_model.yaml"
+    invalid_model_path.write_text(yaml.dump(invalid_model), encoding="utf-8")
+
+    is_valid, errors = validate(str(invalid_model_path))
+    assert is_valid is False, "Expected invalid non-string model metadata to fail"
+    assert any("Field 'model' must be of type str" in msg for msg in errors), (
+        f"Expected model type error; got: {errors}"
+    )
+
+
 def test_feature9_env_vars_items_must_be_non_empty_strings(tmp_path: Path) -> None:
     # [agent] test76 validates env_vars non-empty string item constraints.
     invalid_env_vars = dict(_VALID_MANIFEST)
