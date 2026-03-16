@@ -112,3 +112,28 @@ def test_feature23_no_regression_for_one_shot_runtime():
         f"STDOUT:\n{result.stdout}\n"
         f"STDERR:\n{result.stderr}"
     )
+
+
+def test_feature24_ac_coverage_and_no_services_regression_gate():
+    """Regression gate for feature24 AC coverage and no-services compatibility."""
+    command = [
+        sys.executable,
+        "-m",
+        "pytest",
+        "tests/test_validator.py::test_feature24_services_optional_list_is_accepted",
+        "tests/test_validator.py::test_feature24_service_required_fields_and_type_validation",
+        "tests/test_validator.py::test_feature24_health_check_method_specific_validation",
+        "tests/test_validator.py::test_feature24_no_services_regression_unchanged",
+        "tests/test_validator.py::test_feature24_duplicate_service_names_rejected",
+        "tests/test_cli_inspect.py::test_feature24_inspect_displays_services",
+    ]
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, (
+        "Feature24 regression gate failed for AC coverage and no-services compatibility.\n"
+        f"STDOUT:\n{result.stdout}\n"
+        f"STDERR:\n{result.stderr}"
+    )
