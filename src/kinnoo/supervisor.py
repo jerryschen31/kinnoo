@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import socket
+import signal
 import subprocess
 import threading
 import time
@@ -29,6 +30,13 @@ class StreamState:
     stderr_lines: deque[str]
     stdout_thread: threading.Thread | None
     stderr_thread: threading.Thread | None
+
+
+@dataclass
+class ShutdownReport:
+    exit_code: int
+    sigterm_sent: bool
+    sigkill_sent: bool
 
 
 def infer_readiness_config(runtime_section: dict) -> ReadinessConfig:
@@ -161,14 +169,35 @@ def wait_until_ready(
     return False
 
 
-def shutdown_server(process: subprocess.Popen[str], timeout_seconds: float = 3.0) -> int:
-    """Attempt graceful termination first, then force kill if needed."""
+def shutdown_server_with_report(
+    process: subprocess.Popen[str],
+    timeout_seconds: float = 3.0,
+) -> ShutdownReport:
+    """Attempt SIGTERM first, then escalate to SIGKILL when required."""
     if process.poll() is not None:
-        return int(process.returncode or 0)
+        return ShutdownReport(
+            exit_code=int(process.returncode or 0),
+            sigterm_sent=False,
+            sigkill_sent=False,
+        )
 
-    process.terminate()
+    process.send_signal(signal.SIGTERM)
     try:
-        return process.wait(timeout=max(0.1, timeout_seconds))
+        exit_code = process.wait(timeout=max(0.1, timeout_seconds))
+        return ShutdownReport(
+            exit_code=int(exit_code),
+            sigterm_sent=True,
+            sigkill_sent=False,
+        )
     except subprocess.TimeoutExpired:
-        process.kill()
-        return process.wait()
+        process.send_signal(signal.SIGKILL)
+        return ShutdownReport(
+            exit_code=int(process.wait()),
+            sigterm_sent=True,
+            sigkill_sent=True,
+        )
+
+
+def shutdown_server(process: subprocess.Popen[str], timeout_seconds: float = 3.0) -> int:
+    """Backward-compatible shutdown API returning only process exit code."""
+    return shutdown_server_with_report(process, timeout_seconds=timeout_seconds).exit_code
