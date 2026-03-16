@@ -249,3 +249,84 @@ def test_feature27_detect_services_with_health_check_hints(tmp_path: Path) -> No
     assert health_service["health_check_hint"] == "GET /health"
     assert "health_check_hint" not in status_service
     assert payload["confidence"]["services"]["score"] >= 0.7
+
+
+def test_feature27_detector_matrix_positive_and_ambiguous(tmp_path: Path) -> None:
+    """test251: matrix-style detector coverage validates positive/ambiguous outcomes and diagnostics."""
+    positive = tmp_path / "feature27-matrix-positive"
+    positive.mkdir(parents=True, exist_ok=True)
+    (positive / "models").mkdir()
+    (positive / "data").mkdir()
+    (positive / "models" / "agent.onnx").write_text("model", encoding="utf-8")
+    (positive / "data" / "dataset.csv").write_text("a,b\n1,2\n", encoding="utf-8")
+    (positive / "requirements.txt").write_text("requests>=2.31\n", encoding="utf-8")
+    (positive / "pyproject.toml").write_text(
+        "[project]\n"
+        "name = 'matrix-positive'\n"
+        "requires-python = '>=3.11'\n"
+        "dependencies = ['tomli>=2.0']\n",
+        encoding="utf-8",
+    )
+    (positive / "run.py").write_text(
+        "import openai\n"
+        "import os\n"
+        "PORT = 8080\n"
+        "API_KEY = os.getenv('OPENAI_API_KEY')\n"
+        "REDIS_URL = 'redis://localhost:6379/0'\n"
+        "HEALTH_URL = 'https://service.example.com/healthz'\n"
+        "MODEL_PATH = 'models/agent.onnx'\n"
+        "if __name__ == '__main__':\n"
+        "    print('ok')\n",
+        encoding="utf-8",
+    )
+
+    positive_payload = analyze_project(positive).as_dict()
+    assert positive_payload["inferred"]["entrypoint"] == "run.py"
+    assert positive_payload["inferred"]["runtime"]["language"] == "python"
+    assert positive_payload["inferred"]["runtime"]["type"] == "one-shot"
+    assert positive_payload["inferred"]["framework"] == "chatgpt"
+    assert "requests>=2.31" in positive_payload["inferred"]["dependencies"]
+    assert "tomli>=2.0" in positive_payload["inferred"]["dependencies"]
+    assert "OPENAI_API_KEY" in positive_payload["inferred"]["env_vars"]
+    assert "models/agent.onnx" in positive_payload["inferred"]["assets"]
+    assert any(service["type"] == "redis" for service in positive_payload["inferred"]["services"])
+    assert any(
+        service.get("health_check_hint") == "GET /healthz"
+        for service in positive_payload["inferred"]["services"]
+        if service["type"] == "http"
+    )
+    assert all(meta["score"] > 0.0 for meta in positive_payload["confidence"].values())
+
+    ambiguous = tmp_path / "feature27-matrix-ambiguous"
+    ambiguous.mkdir(parents=True, exist_ok=True)
+    (ambiguous / "app.py").write_text(
+        "import openai\n"
+        "if __name__ == '__main__':\n"
+        "    print('app')\n"
+        "UNSAFE_PATH = '../outside/secrets.txt'\n",
+        encoding="utf-8",
+    )
+    (ambiguous / "worker.py").write_text(
+        "import anthropic\n"
+        "if __name__ == '__main__':\n"
+        "    print('worker')\n",
+        encoding="utf-8",
+    )
+
+    ambiguous_payload = analyze_project(ambiguous).as_dict()
+    assert ambiguous_payload["inferred"]["entrypoint"] is None
+    assert ambiguous_payload["inferred"]["framework"] is None
+    assert ambiguous_payload["inferred"]["dependencies"] == []
+    assert ambiguous_payload["inferred"]["env_vars"] == []
+    assert ambiguous_payload["confidence"]["entrypoint"]["score"] < 0.5
+    assert ambiguous_payload["confidence"]["framework"]["score"] < 0.5
+
+    diagnostics_text = " ".join(ambiguous_payload["warnings"] + [
+        ambiguous_payload["confidence"]["entrypoint"]["evidence"],
+        ambiguous_payload["confidence"]["framework"]["evidence"],
+        ambiguous_payload["confidence"]["dependencies"]["evidence"],
+        ambiguous_payload["confidence"]["assets"]["evidence"],
+    ]).lower()
+    assert "ambiguous" in diagnostics_text
+    assert "dependencies" in diagnostics_text or "requirements.txt" in diagnostics_text
+    assert "unsafe asset path" in diagnostics_text or "assets" in diagnostics_text
