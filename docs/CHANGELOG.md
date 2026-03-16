@@ -3,6 +3,26 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v0.9.0] - 2026-03-16
+### Added
+- Implemented Feature22 "Asset Bundling" with manifest-level `assets` support (`paths`, `bundle`, `max_bundle_size_mb`).
+- Added recursive asset inclusion during `kinnoo pack` for declared files/directories when bundling is enabled.
+- Added install-time extraction support so bundled assets are restored to their original relative paths.
+- Added inspect visibility for declared asset paths and asset size details.
+
+### Security
+- Added path-traversal protection for declared asset paths during packing.
+- Added non-blocking asset credential risk sweep with filename-pattern warnings and size-limited UTF-8 text pattern scanning.
+- Expanded filename warning coverage to align with feature22 examples, including `.key`, `*.p12`, and `*.pfx`.
+
+### Changed
+- `kinnoo pack` now honors `assets.bundle: false` as an explicit opt-out while keeping manifest declarations intact.
+- Archive large-size warnings now support per-agent override via `assets.max_bundle_size_mb`.
+
+### Quality
+- Feature22-focused validation and regression suites passed across validator, pack, install extract, inspect, and regression gate coverage.
+
+
 ## [v0.8.0] - 2026-03-15
 ### Added
 - Implemented Feature20 "Flexible Runtime Inputs" for `kinnoo run`.
