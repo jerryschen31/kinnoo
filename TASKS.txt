@@ -2895,7 +2895,7 @@ tasks:
       - 'step4: Reject duplicate service names within a manifest and emit deterministic error text'
     dependencies: [task146]
     tests: [test223, test224, test227]
-    status: not-started
+    status: needs-review
 
   - id: task148
     title: "Feature24 inspect output support for declared services"
