@@ -12,6 +12,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from kinnoo.validator import validate  # noqa: E402
+from kinnoo.schema import normalize_manifest_defaults  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -448,3 +449,70 @@ def test_inputs_required_non_boolean_rejected(tmp_path: Path) -> None:
         assert any("type bool" in msg for msg in errors), (
             f"Expected bool type error for inputs.required; got: {errors}"
         )
+
+
+def test_feature22_assets_schema_accepts_valid_and_defaults(tmp_path: Path) -> None:
+    with_paths_only = dict(_VALID_MANIFEST)
+    with_paths_only["assets"] = {"paths": ["data/docs", "data/file.txt"]}
+    p_with_paths_only = tmp_path / "feature22_assets_paths_only.yaml"
+    p_with_paths_only.write_text(yaml.dump(with_paths_only), encoding="utf-8")
+
+    is_valid, errors = validate(str(p_with_paths_only))
+    assert is_valid is True, f"Expected assets.paths-only manifest to pass; errors: {errors}"
+    assert errors == []
+
+    normalized_paths_only = normalize_manifest_defaults(with_paths_only)
+    assert normalized_paths_only["assets"]["bundle"] is True
+    assert normalized_paths_only["assets"]["max_bundle_size_mb"] == 100
+
+    with_explicit_values = dict(_VALID_MANIFEST)
+    with_explicit_values["assets"] = {
+        "paths": ["data"],
+        "bundle": False,
+        "max_bundle_size_mb": 256,
+    }
+    p_with_explicit_values = tmp_path / "feature22_assets_explicit.yaml"
+    p_with_explicit_values.write_text(yaml.dump(with_explicit_values), encoding="utf-8")
+
+    is_valid, errors = validate(str(p_with_explicit_values))
+    assert is_valid is True, f"Expected explicit assets config to pass; errors: {errors}"
+    assert errors == []
+
+    normalized_explicit = normalize_manifest_defaults(with_explicit_values)
+    assert normalized_explicit["assets"]["bundle"] is False
+    assert normalized_explicit["assets"]["max_bundle_size_mb"] == 256
+
+
+def test_feature22_assets_schema_rejects_invalid_structure(tmp_path: Path) -> None:
+    bad_paths = dict(_VALID_MANIFEST)
+    bad_paths["assets"] = {"paths": "data"}
+    p_bad_paths = tmp_path / "feature22_assets_bad_paths.yaml"
+    p_bad_paths.write_text(yaml.dump(bad_paths), encoding="utf-8")
+
+    is_valid, errors = validate(str(p_bad_paths))
+    assert is_valid is False, "Expected non-list assets.paths to fail"
+    assert any("Field 'assets.paths' must be of type list" in msg for msg in errors), (
+        f"Expected assets.paths type error; got: {errors}"
+    )
+
+    bad_bundle = dict(_VALID_MANIFEST)
+    bad_bundle["assets"] = {"paths": ["data"], "bundle": "yes"}
+    p_bad_bundle = tmp_path / "feature22_assets_bad_bundle.yaml"
+    p_bad_bundle.write_text(yaml.dump(bad_bundle), encoding="utf-8")
+
+    is_valid, errors = validate(str(p_bad_bundle))
+    assert is_valid is False, "Expected non-bool assets.bundle to fail"
+    assert any("Field 'assets.bundle' must be of type bool" in msg for msg in errors), (
+        f"Expected assets.bundle type error; got: {errors}"
+    )
+
+    bad_max_bundle_size = dict(_VALID_MANIFEST)
+    bad_max_bundle_size["assets"] = {"paths": ["data"], "max_bundle_size_mb": "large"}
+    p_bad_max_bundle_size = tmp_path / "feature22_assets_bad_max_bundle_size.yaml"
+    p_bad_max_bundle_size.write_text(yaml.dump(bad_max_bundle_size), encoding="utf-8")
+
+    is_valid, errors = validate(str(p_bad_max_bundle_size))
+    assert is_valid is False, "Expected invalid assets.max_bundle_size_mb type to fail"
+    assert any("Field 'assets.max_bundle_size_mb' must be of type" in msg for msg in errors), (
+        f"Expected assets.max_bundle_size_mb type error; got: {errors}"
+    )
