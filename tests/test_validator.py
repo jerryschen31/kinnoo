@@ -543,3 +543,257 @@ def test_feature22_assets_schema_rejects_invalid_structure(tmp_path: Path) -> No
     assert any("Field 'assets.max_bundle_size_mb' must be of type" in msg for msg in errors), (
         f"Expected assets.max_bundle_size_mb type error; got: {errors}"
     )
+
+
+def test_feature24_services_optional_list_is_accepted(tmp_path: Path) -> None:
+    """Feature24 test222: services is optional and valid list payloads are accepted."""
+    with_services = dict(_VALID_MANIFEST)
+    with_services["services"] = [
+        {
+            "name": "primary-db",
+            "type": "postgres",
+            "health_check": {
+                "method": "tcp",
+                "port": 5432,
+            },
+        },
+        {
+            "name": "worker",
+            "type": "process",
+            "health_check": {
+                "method": "process",
+                "process_name": "python",
+            },
+        },
+    ]
+
+    with_services_path = _write_manifest(with_services, tmp_path)
+    is_valid, errors = validate(str(with_services_path))
+    assert is_valid is True, f"Expected valid services list to pass; errors: {errors}"
+    assert errors == []
+
+    without_services = dict(_VALID_MANIFEST)
+    without_services_path = tmp_path / "feature24_without_services.yaml"
+    without_services_path.write_text(yaml.dump(without_services), encoding="utf-8")
+
+    is_valid, errors = validate(str(without_services_path))
+    assert is_valid is True, f"Expected manifest without services to pass; errors: {errors}"
+    assert errors == []
+
+
+def test_feature24_no_services_regression_unchanged(tmp_path: Path) -> None:
+    """Feature24 test225: no-services manifests keep existing pass behavior."""
+    baseline = dict(_VALID_MANIFEST)
+    baseline["assets"] = {"paths": ["docs"]}
+    baseline["env_vars"] = ["KINNOO_ENV"]
+
+    manifest_path = tmp_path / "feature24_no_services_regression.yaml"
+    manifest_path.write_text(yaml.dump(baseline), encoding="utf-8")
+
+    is_valid, errors = validate(str(manifest_path))
+    assert is_valid is True, (
+        "Expected manifest without services to remain valid after feature24 schema updates; "
+        f"errors: {errors}"
+    )
+    assert errors == []
+
+
+def test_feature24_service_required_fields_and_type_validation(tmp_path: Path) -> None:
+    """Feature24 test223: required service fields and allowed service types."""
+    missing_name = dict(_VALID_MANIFEST)
+    missing_name["services"] = [{"type": "postgres"}]
+    missing_name_path = tmp_path / "feature24_missing_service_name.yaml"
+    missing_name_path.write_text(yaml.dump(missing_name), encoding="utf-8")
+
+    is_valid, errors = validate(str(missing_name_path))
+    assert is_valid is False, "Expected missing services[].name to fail"
+    assert any("Missing required field: 'services[0].name'" in msg for msg in errors), (
+        f"Expected missing service name error; got: {errors}"
+    )
+
+    missing_type = dict(_VALID_MANIFEST)
+    missing_type["services"] = [{"name": "primary-db"}]
+    missing_type_path = tmp_path / "feature24_missing_service_type.yaml"
+    missing_type_path.write_text(yaml.dump(missing_type), encoding="utf-8")
+
+    is_valid, errors = validate(str(missing_type_path))
+    assert is_valid is False, "Expected missing services[].type to fail"
+    assert any("Missing required field: 'services[0].type'" in msg for msg in errors), (
+        f"Expected missing service type error; got: {errors}"
+    )
+
+    unsupported_type = dict(_VALID_MANIFEST)
+    unsupported_type["services"] = [{"name": "cache", "type": "sqlite"}]
+    unsupported_type_path = tmp_path / "feature24_unsupported_service_type.yaml"
+    unsupported_type_path.write_text(yaml.dump(unsupported_type), encoding="utf-8")
+
+    is_valid, errors = validate(str(unsupported_type_path))
+    assert is_valid is False, "Expected unsupported services[].type to fail"
+    assert any("services[0].type" in msg and "unsupported value" in msg for msg in errors), (
+        f"Expected unsupported service type error; got: {errors}"
+    )
+    assert any("mcp-server" in msg and "vector-db" in msg and "database" in msg and "api" in msg and "local-process" in msg for msg in errors), (
+        f"Expected allowed service type guidance in error; got: {errors}"
+    )
+
+    taxonomy_types = dict(_VALID_MANIFEST)
+    taxonomy_types["services"] = [
+        {"name": "mcp-gateway", "type": "mcp-server"},
+        {"name": "vectors", "type": "vector-db"},
+        {"name": "main-db", "type": "database"},
+        {"name": "public-api", "type": "api"},
+        {"name": "worker", "type": "local-process"},
+    ]
+    taxonomy_types_path = tmp_path / "feature24_taxonomy_types.yaml"
+    taxonomy_types_path.write_text(yaml.dump(taxonomy_types), encoding="utf-8")
+
+    is_valid, errors = validate(str(taxonomy_types_path))
+    assert is_valid is True, f"Expected canonical feature24 service taxonomy values to pass; errors: {errors}"
+    assert errors == []
+
+    process_alias = dict(_VALID_MANIFEST)
+    process_alias["services"] = [{"name": "legacy-worker", "type": "process"}]
+    process_alias_path = tmp_path / "feature24_process_alias.yaml"
+    process_alias_path.write_text(yaml.dump(process_alias), encoding="utf-8")
+
+    is_valid, errors = validate(str(process_alias_path))
+    assert is_valid is True, f"Expected 'process' alias to be accepted as local-process equivalent; errors: {errors}"
+    assert errors == []
+
+
+def test_feature24_health_check_method_specific_validation(tmp_path: Path) -> None:
+    """Feature24 test224: validate allowed health-check methods and required method fields."""
+    valid_tcp = dict(_VALID_MANIFEST)
+    valid_tcp["services"] = [
+        {
+            "name": "db",
+            "type": "postgres",
+            "health_check": {"method": "tcp", "port": 5432},
+        }
+    ]
+    valid_tcp_path = tmp_path / "feature24_valid_tcp_health_check.yaml"
+    valid_tcp_path.write_text(yaml.dump(valid_tcp), encoding="utf-8")
+
+    is_valid, errors = validate(str(valid_tcp_path))
+    assert is_valid is True, f"Expected tcp health_check payload to pass; errors: {errors}"
+    assert errors == []
+
+    valid_http = dict(_VALID_MANIFEST)
+    valid_http["services"] = [
+        {
+            "name": "api",
+            "type": "http-api",
+            "health_check": {"method": "http", "url": "http://localhost:8080/health"},
+        }
+    ]
+    valid_http_path = tmp_path / "feature24_valid_http_health_check.yaml"
+    valid_http_path.write_text(yaml.dump(valid_http), encoding="utf-8")
+
+    is_valid, errors = validate(str(valid_http_path))
+    assert is_valid is True, f"Expected http health_check payload to pass; errors: {errors}"
+    assert errors == []
+
+    valid_process = dict(_VALID_MANIFEST)
+    valid_process["services"] = [
+        {
+            "name": "worker",
+            "type": "process",
+            "health_check": {"method": "process", "process_name": "python"},
+        }
+    ]
+    valid_process_path = tmp_path / "feature24_valid_process_health_check.yaml"
+    valid_process_path.write_text(yaml.dump(valid_process), encoding="utf-8")
+
+    is_valid, errors = validate(str(valid_process_path))
+    assert is_valid is True, f"Expected process health_check payload to pass; errors: {errors}"
+    assert errors == []
+
+    missing_method = dict(_VALID_MANIFEST)
+    missing_method["services"] = [
+        {"name": "db", "type": "database", "health_check": {"port": 5432}}
+    ]
+    missing_method_path = tmp_path / "feature24_missing_health_method.yaml"
+    missing_method_path.write_text(yaml.dump(missing_method), encoding="utf-8")
+
+    is_valid, errors = validate(str(missing_method_path))
+    assert is_valid is False, "Expected health_check without method to fail"
+    assert any("health_check.method" in msg and "when health_check is declared" in msg for msg in errors), (
+        f"Expected missing health_check.method guidance; got: {errors}"
+    )
+
+    missing_tcp_port = dict(_VALID_MANIFEST)
+    missing_tcp_port["services"] = [
+        {"name": "db", "type": "postgres", "health_check": {"method": "tcp"}}
+    ]
+    missing_tcp_port_path = tmp_path / "feature24_missing_tcp_port.yaml"
+    missing_tcp_port_path.write_text(yaml.dump(missing_tcp_port), encoding="utf-8")
+
+    is_valid, errors = validate(str(missing_tcp_port_path))
+    assert is_valid is False, "Expected tcp health_check without port to fail"
+    assert any("health_check.port" in msg and "method is 'tcp'" in msg for msg in errors), (
+        f"Expected missing tcp.port guidance; got: {errors}"
+    )
+
+    missing_http_url = dict(_VALID_MANIFEST)
+    missing_http_url["services"] = [
+        {"name": "api", "type": "http-api", "health_check": {"method": "http"}}
+    ]
+    missing_http_url_path = tmp_path / "feature24_missing_http_url.yaml"
+    missing_http_url_path.write_text(yaml.dump(missing_http_url), encoding="utf-8")
+
+    is_valid, errors = validate(str(missing_http_url_path))
+    assert is_valid is False, "Expected http health_check without url to fail"
+    assert any("health_check.url" in msg and "method is 'http'" in msg for msg in errors), (
+        f"Expected missing http.url guidance; got: {errors}"
+    )
+
+    missing_process_name = dict(_VALID_MANIFEST)
+    missing_process_name["services"] = [
+        {"name": "worker", "type": "process", "health_check": {"method": "process"}}
+    ]
+    missing_process_name_path = tmp_path / "feature24_missing_process_name.yaml"
+    missing_process_name_path.write_text(yaml.dump(missing_process_name), encoding="utf-8")
+
+    is_valid, errors = validate(str(missing_process_name_path))
+    assert is_valid is False, "Expected process health_check without process_name to fail"
+    assert any(
+        "health_check.process_name" in msg and "method is 'process'" in msg
+        for msg in errors
+    ), f"Expected missing process_name guidance; got: {errors}"
+
+    unsupported_method = dict(_VALID_MANIFEST)
+    unsupported_method["services"] = [
+        {
+            "name": "api",
+            "type": "http-api",
+            "health_check": {"method": "grpc"},
+        }
+    ]
+    unsupported_method_path = tmp_path / "feature24_unsupported_health_method.yaml"
+    unsupported_method_path.write_text(yaml.dump(unsupported_method), encoding="utf-8")
+
+    is_valid, errors = validate(str(unsupported_method_path))
+    assert is_valid is False, "Expected unsupported health_check method to fail"
+    assert any("health_check.method" in msg and "unsupported value" in msg for msg in errors), (
+        f"Expected unsupported method error; got: {errors}"
+    )
+    assert any("tcp" in msg and "http" in msg and "process" in msg for msg in errors), (
+        f"Expected allowed health-check method guidance; got: {errors}"
+    )
+
+
+def test_feature24_duplicate_service_names_rejected(tmp_path: Path) -> None:
+    """Feature24 test227: duplicate service names are rejected deterministically."""
+    duplicate_names = dict(_VALID_MANIFEST)
+    duplicate_names["services"] = [
+        {"name": "primary-db", "type": "postgres"},
+        {"name": "primary-db", "type": "redis"},
+    ]
+    duplicate_names_path = tmp_path / "feature24_duplicate_service_names.yaml"
+    duplicate_names_path.write_text(yaml.dump(duplicate_names), encoding="utf-8")
+
+    is_valid, errors = validate(str(duplicate_names_path))
+    assert is_valid is False, "Expected duplicate services[].name values to fail"
+    assert any("Duplicate service name not allowed: 'primary-db'." in msg for msg in errors), (
+        f"Expected duplicate service-name error; got: {errors}"
+    )
