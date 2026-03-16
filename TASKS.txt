@@ -3128,7 +3128,7 @@ tasks:
       - 'step4: Add tests for positive and ambiguous detection paths with actionable diagnostics'
     dependencies: [task158]
     tests: [test244]
-    status: not-started
+    status: needs-review
 
   - id: task160
     title: "Feature27 dependencies and env var detectors"
