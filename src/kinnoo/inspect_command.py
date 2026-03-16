@@ -257,6 +257,41 @@ def _print_asset_metadata(
             print(f"  - {rel_path} ({format_size_human_readable(size_bytes)})")
 
 
+def _print_services_metadata(manifest_data: dict[str, Any]) -> None:
+    """Render optional services declarations in a stable, human-readable shape."""
+    services = manifest_data.get("services")
+    if not isinstance(services, list) or not services:
+        return
+
+    print("- Services:")
+    for index, service in enumerate(services):
+        if not isinstance(service, dict):
+            print(f"  - service[{index}]: (invalid service entry)")
+            continue
+
+        name = service.get("name")
+        service_type = service.get("type")
+        safe_name = name if isinstance(name, str) and name.strip() else f"service[{index}]"
+        safe_type = service_type if isinstance(service_type, str) and service_type.strip() else "(missing)"
+        print(f"  - {safe_name} ({safe_type})")
+
+        health_check = service.get("health_check")
+        if not isinstance(health_check, dict):
+            continue
+
+        method = health_check.get("method")
+        if isinstance(method, str) and method.strip():
+            print(f"    - health_check.method: {method}")
+
+        # Print method-specific fields only when present to preserve readability.
+        if "port" in health_check:
+            print(f"    - health_check.port: {health_check['port']}")
+        if "url" in health_check:
+            print(f"    - health_check.url: {health_check['url']}")
+        if "process_name" in health_check:
+            print(f"    - health_check.process_name: {health_check['process_name']}")
+
+
 def _print_inspect_output(
     target_label: str,
     manifest_data: dict[str, Any],
@@ -303,6 +338,8 @@ def _print_inspect_output(
                 print(f"  - {env_var_name}")
         else:
             print("- Env Vars: (none)")
+
+    _print_services_metadata(normalized)
 
     _print_asset_metadata(normalized, asset_file_sizes or {})
 

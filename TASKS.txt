@@ -2860,3 +2860,76 @@ tasks:
     dependencies: [task143, task144]
     tests: [test220]
     status: completed
+
+  - id: task146
+    title: "Feature24 schema constants and manifest shape support for services"
+    type: task
+    description: |
+      Add schema-level support for optional `services` declarations and health-check
+      method/service-type constants used by validator and inspect flows.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+    steps:
+      - 'step1: Add SUPPORTED_SERVICE_TYPES and SUPPORTED_HEALTH_CHECK_METHODS constants in schema.py'
+      - 'step2: Add optional-field typing support for services and nested health_check payloads'
+      - 'step3: Keep feature9 compatibility: manifests without services remain valid'
+      - 'step4: Keep schema additions modular for feature25 runtime health-check consumption'
+    dependencies: [task50]
+    tests: [test222, test225]
+    status: needs-review
+
+  - id: task147
+    title: "Feature24 validator rules for services objects and duplicates"
+    type: task
+    description: |
+      Implement validator enforcement for `services` entries including required fields,
+      allowed values, method-specific health-check fields, and duplicate-name detection.
+    files:
+      - src/kinnoo/validator.py
+      - tests/test_validator.py
+    steps:
+      - 'step1: Validate services is a list of objects with required name/type'
+      - 'step2: Validate service type and health_check.method against allowed sets with clear error messaging'
+      - 'step3: Validate method-specific fields (tcp.port, http.url, process.process_name) when method is declared'
+      - 'step4: Reject duplicate service names within a manifest and emit deterministic error text'
+    dependencies: [task146]
+    tests: [test223, test224, test227]
+    status: needs-review
+
+  - id: task148
+    title: "Feature24 inspect output support for declared services"
+    type: task
+    description: |
+      Extend `kinnoo inspect` output so declared services are rendered in human-readable
+      form with service name, service type, and health-check configuration.
+    files:
+      - src/kinnoo/inspect_command.py
+      - tests/test_cli_inspect.py
+    steps:
+      - 'step1: Add services display section to inspect output for agent dirs and archives'
+      - 'step2: Render health-check method plus method-specific fields when present'
+      - 'step3: Omit empty/missing optional health-check details while preserving readability'
+      - 'step4: Keep existing inspect output stable for manifests without services'
+    dependencies: [task147, task63]
+    tests: [test226]
+    status: needs-review
+
+  - id: task149
+    title: "Feature24 AC coverage and regression gate"
+    type: task
+    description: |
+      Complete feature24 coverage with focused validator/inspect tests and run targeted
+      regression checks to ensure no behavior drift for manifests without services.
+    files:
+      - tests/test_validator.py
+      - tests/test_cli_inspect.py
+      - tests/test_regression_v1.py
+    steps:
+      - 'step1: Add/confirm feature24 AC mapping for test222-test227 in TESTS.txt alignment'
+      - 'step2: Run focused suite for validator and inspect service-declaration behavior'
+      - 'step3: Run regression checks for manifests lacking services to confirm unchanged behavior'
+      - 'step4: Capture evidence and mark tasks ready for TechLead review'
+    dependencies: [task147, task148]
+    tests: [test222, test223, test224, test225, test226, test227]
+    status: needs-review

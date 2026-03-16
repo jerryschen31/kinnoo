@@ -30,8 +30,11 @@ from .schema import (
     NAME_PATTERN,
     OPTIONAL_FIELD_TYPES,
     REQUIRED_FIELDS,
+    SERVICE_TYPE_ALIASES,
     SEMVER_PATTERN,
+    SUPPORTED_HEALTH_CHECK_METHODS,
     SUPPORTED_RUNTIME_TYPES,
+    SUPPORTED_SERVICE_TYPES,
 )
 
 from .schema import normalize_manifest_defaults, normalize_type_field
@@ -62,6 +65,137 @@ def _get_nested(data: dict[str, Any], dotted_key: str) -> tuple[bool, Any]:
             return False, None
         node = node[part]
     return True, node
+
+
+def _collect_services_shape_errors(data: dict[str, Any]) -> list[str]:
+    """Validate optional services structure and nested value types.
+
+    Task146 scope is schema-shape support only. Required-field checks, enum
+    validation, and duplicate-name validation are implemented in task147.
+    """
+    errors: list[str] = []
+    found, services = _get_nested(data, "services")
+    if not found:
+        return errors
+
+    if not isinstance(services, list):
+        return errors
+
+    seen_service_names: set[str] = set()
+    duplicate_service_names: set[str] = set()
+
+    for index, service in enumerate(services):
+        if not isinstance(service, dict):
+            actual = type(service).__name__
+            errors.append(
+                f"Field 'services[{index}]' must be of type dict, got {actual}."
+            )
+            continue
+
+        if "name" not in service:
+            errors.append(f"Missing required field: 'services[{index}].name'")
+        if "type" not in service:
+            errors.append(f"Missing required field: 'services[{index}].type'")
+
+        service_name = service.get("name")
+        if service_name is not None and not isinstance(service_name, str):
+            actual = type(service_name).__name__
+            errors.append(
+                f"Field 'services[{index}].name' must be of type str, got {actual}."
+            )
+        elif isinstance(service_name, str):
+            if service_name in seen_service_names:
+                duplicate_service_names.add(service_name)
+            else:
+                seen_service_names.add(service_name)
+
+        service_type = service.get("type")
+        if service_type is not None and not isinstance(service_type, str):
+            actual = type(service_type).__name__
+            errors.append(
+                f"Field 'services[{index}].type' must be of type str, got {actual}."
+            )
+        elif isinstance(service_type, str) and service_type not in SUPPORTED_SERVICE_TYPES:
+            supported = ", ".join(f"'{value}'" for value in SUPPORTED_SERVICE_TYPES)
+            errors.append(
+                f"Field 'services[{index}].type' has unsupported value: '{service_type}'. "
+                f"Allowed values: {supported}."
+            )
+        elif isinstance(service_type, str):
+            # Canonicalization keeps semantic equivalence explicit for alias values.
+            service_type = SERVICE_TYPE_ALIASES.get(service_type, service_type)
+
+        health_check = service.get("health_check")
+        if health_check is None:
+            continue
+
+        if not isinstance(health_check, dict):
+            actual = type(health_check).__name__
+            errors.append(
+                f"Field 'services[{index}].health_check' must be of type dict, got {actual}."
+            )
+            continue
+
+        if "method" not in health_check:
+            errors.append(
+                f"Missing required field: 'services[{index}].health_check.method' when health_check is declared."
+            )
+            continue
+
+        method = health_check.get("method")
+        if method is not None and not isinstance(method, str):
+            actual = type(method).__name__
+            errors.append(
+                f"Field 'services[{index}].health_check.method' must be of type str, got {actual}."
+            )
+        elif isinstance(method, str) and method not in SUPPORTED_HEALTH_CHECK_METHODS:
+            supported = ", ".join(
+                f"'{value}'" for value in SUPPORTED_HEALTH_CHECK_METHODS
+            )
+            errors.append(
+                f"Field 'services[{index}].health_check.method' has unsupported value: '{method}'. "
+                f"Allowed values: {supported}."
+            )
+
+        url = health_check.get("url")
+        if url is not None and not isinstance(url, str):
+            actual = type(url).__name__
+            errors.append(
+                f"Field 'services[{index}].health_check.url' must be of type str, got {actual}."
+            )
+
+        process_name = health_check.get("process_name")
+        if process_name is not None and not isinstance(process_name, str):
+            actual = type(process_name).__name__
+            errors.append(
+                f"Field 'services[{index}].health_check.process_name' must be of type str, got {actual}."
+            )
+
+        port = health_check.get("port")
+        if port is not None and (isinstance(port, bool) or not isinstance(port, int)):
+            actual = type(port).__name__
+            errors.append(
+                f"Field 'services[{index}].health_check.port' must be of type int, got {actual}."
+            )
+
+        if method == "tcp" and "port" not in health_check:
+            errors.append(
+                f"Missing required field: 'services[{index}].health_check.port' when method is 'tcp'."
+            )
+        if method == "http" and "url" not in health_check:
+            errors.append(
+                f"Missing required field: 'services[{index}].health_check.url' when method is 'http'."
+            )
+        if method == "process" and "process_name" not in health_check:
+            errors.append(
+                f"Missing required field: 'services[{index}].health_check.process_name' when method is 'process'."
+            )
+
+    # Emit deterministic duplicate errors by sorting names.
+    for duplicate_name in sorted(duplicate_service_names):
+        errors.append(f"Duplicate service name not allowed: '{duplicate_name}'.")
+
+    return errors
 
 
 # ---------------------------------------------------------------------------
@@ -183,6 +317,8 @@ def _collect_validation_errors(data: dict[str, Any]) -> list[str]:
                     errors.append(
                         f"Field 'assets.paths[{index}]' must be a non-empty string."
                     )
+
+    errors.extend(_collect_services_shape_errors(data))
 
     return errors
 

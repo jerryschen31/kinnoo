@@ -3,6 +3,27 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v0.11.0] - 2026-03-16
+### Added
+- Implemented Feature24 "Service Declarations - Manifest Schema" with optional `services` manifest support.
+- Added canonical service type taxonomy support: `mcp-server`, `vector-db`, `database`, `api`, `local-process`.
+- Added backward-compatible service type aliases: `postgres`, `redis`, `http-api`, `process`.
+- Added inspect output support for declared services, including service names, types, and health-check configuration fields.
+
+### Changed
+- Extended validator checks for `services` objects:
+  - required fields (`name`, `type`)
+  - allowed-value validation for service types and health-check methods
+  - method-specific health-check field requirements (`port`, `url`, `process_name`)
+  - duplicate service-name rejection
+- Enforced that `health_check.method` is required whenever `health_check` is declared.
+- Updated feature24 acceptance criteria text to align canonical values and compatibility alias policy.
+
+### Quality
+- Feature24 focused AC/reconciliation suite passed: `7 passed`.
+- Full regression suite passed after feature24 updates: `222 passed, 1 skipped`.
+
+
 ## [v0.10.0] - 2026-03-16
 ### Added
 - Implemented Feature23 "MCP Server Runtime Type - Schema & Lifecycle".
