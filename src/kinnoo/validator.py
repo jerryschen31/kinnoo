@@ -31,7 +31,9 @@ from .schema import (
     OPTIONAL_FIELD_TYPES,
     REQUIRED_FIELDS,
     SEMVER_PATTERN,
+    SUPPORTED_HEALTH_CHECK_METHODS,
     SUPPORTED_RUNTIME_TYPES,
+    SUPPORTED_SERVICE_TYPES,
 )
 
 from .schema import normalize_manifest_defaults, normalize_type_field
@@ -78,6 +80,9 @@ def _collect_services_shape_errors(data: dict[str, Any]) -> list[str]:
     if not isinstance(services, list):
         return errors
 
+    seen_service_names: set[str] = set()
+    duplicate_service_names: set[str] = set()
+
     for index, service in enumerate(services):
         if not isinstance(service, dict):
             actual = type(service).__name__
@@ -86,18 +91,34 @@ def _collect_services_shape_errors(data: dict[str, Any]) -> list[str]:
             )
             continue
 
+        if "name" not in service:
+            errors.append(f"Missing required field: 'services[{index}].name'")
+        if "type" not in service:
+            errors.append(f"Missing required field: 'services[{index}].type'")
+
         service_name = service.get("name")
         if service_name is not None and not isinstance(service_name, str):
             actual = type(service_name).__name__
             errors.append(
                 f"Field 'services[{index}].name' must be of type str, got {actual}."
             )
+        elif isinstance(service_name, str):
+            if service_name in seen_service_names:
+                duplicate_service_names.add(service_name)
+            else:
+                seen_service_names.add(service_name)
 
         service_type = service.get("type")
         if service_type is not None and not isinstance(service_type, str):
             actual = type(service_type).__name__
             errors.append(
                 f"Field 'services[{index}].type' must be of type str, got {actual}."
+            )
+        elif isinstance(service_type, str) and service_type not in SUPPORTED_SERVICE_TYPES:
+            supported = ", ".join(f"'{value}'" for value in SUPPORTED_SERVICE_TYPES)
+            errors.append(
+                f"Field 'services[{index}].type' has unsupported value: '{service_type}'. "
+                f"Allowed values: {supported}."
             )
 
         health_check = service.get("health_check")
@@ -116,6 +137,14 @@ def _collect_services_shape_errors(data: dict[str, Any]) -> list[str]:
             actual = type(method).__name__
             errors.append(
                 f"Field 'services[{index}].health_check.method' must be of type str, got {actual}."
+            )
+        elif isinstance(method, str) and method not in SUPPORTED_HEALTH_CHECK_METHODS:
+            supported = ", ".join(
+                f"'{value}'" for value in SUPPORTED_HEALTH_CHECK_METHODS
+            )
+            errors.append(
+                f"Field 'services[{index}].health_check.method' has unsupported value: '{method}'. "
+                f"Allowed values: {supported}."
             )
 
         url = health_check.get("url")
@@ -138,6 +167,23 @@ def _collect_services_shape_errors(data: dict[str, Any]) -> list[str]:
             errors.append(
                 f"Field 'services[{index}].health_check.port' must be of type int, got {actual}."
             )
+
+        if method == "tcp" and "port" not in health_check:
+            errors.append(
+                f"Missing required field: 'services[{index}].health_check.port' when method is 'tcp'."
+            )
+        if method == "http" and "url" not in health_check:
+            errors.append(
+                f"Missing required field: 'services[{index}].health_check.url' when method is 'http'."
+            )
+        if method == "process" and "process_name" not in health_check:
+            errors.append(
+                f"Missing required field: 'services[{index}].health_check.process_name' when method is 'process'."
+            )
+
+    # Emit deterministic duplicate errors by sorting names.
+    for duplicate_name in sorted(duplicate_service_names):
+        errors.append(f"Duplicate service name not allowed: '{duplicate_name}'.")
 
     return errors
 
