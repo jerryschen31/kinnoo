@@ -39,6 +39,21 @@ def _warning_threshold_mb_from_env() -> float:
     return parsed
 
 
+def _warning_threshold_mb_for_manifest(manifest: dict) -> float:
+    assets = manifest.get("assets")
+    if isinstance(assets, dict):
+        asset_threshold = assets.get("max_bundle_size_mb")
+        if (
+            isinstance(asset_threshold, (int, float))
+            and not isinstance(asset_threshold, bool)
+            and asset_threshold > 0
+        ):
+            # Feature22: assets threshold overrides the default/env threshold.
+            return float(asset_threshold)
+
+    return _warning_threshold_mb_from_env()
+
+
 def _bump_core_semver(version: str, bump: str) -> str | None:
     match = _CORE_SEMVER_PATTERN.fullmatch(version.strip())
     if match is None:
@@ -382,7 +397,7 @@ def pack_agent(agent_dir: str, bump: str | None = None) -> int:
     archive_size_human = format_size_human_readable(archive_size_bytes)
     print(f"[kinnoo pack] Archive size: {archive_size_human}")
 
-    warning_threshold_mb = _warning_threshold_mb_from_env()
+    warning_threshold_mb = _warning_threshold_mb_for_manifest(manifest)
     archive_size_mb = size_in_megabytes(archive_size_bytes)
     if archive_size_mb > warning_threshold_mb:
         # Keep warning text stable for docs/tests and operator guidance.
