@@ -648,6 +648,10 @@ def test_feature22_pack_warns_on_secret_like_asset_filenames(tmp_path):
     (agent / "secrets").mkdir(parents=True)
     (agent / "secrets" / ".env").write_text("DUMMY=1\n", encoding="utf-8")
     (agent / "secrets" / "id_rsa").write_text("not-real-key\n", encoding="utf-8")
+    (agent / "secrets" / "tls.key").write_text("not-real-tls-key\n", encoding="utf-8")
+    (agent / "secrets" / "certificate.p12").write_text("not-real-p12\n", encoding="utf-8")
+    (agent / "secrets" / "cert-store.pfx").write_text("not-real-pfx\n", encoding="utf-8")
+    (agent / "secrets" / "credentials.json").write_text("{}\n", encoding="utf-8")
 
     (agent / "kinnoo.yaml").write_text(
         """
@@ -686,6 +690,10 @@ assets:
     assert "Asset security sweep warnings:" in output
     assert "secrets/.env: secret-like filename (.env)" in output
     assert "secrets/id_rsa: secret-like filename (id_rsa)" in output
+    assert "secrets/tls.key: secret-like filename (.key)" in output
+    assert "secrets/certificate.p12: secret-like filename (*.p12)" in output
+    assert "secrets/cert-store.pfx: secret-like filename (*.pfx)" in output
+    assert "secrets/credentials.json: secret-like filename (credential marker)" in output
 
 
 def test_feature22_pack_text_secret_scan_warning_only_with_binary_skip(tmp_path):

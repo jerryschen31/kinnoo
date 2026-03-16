@@ -67,3 +67,90 @@ assets:
 A few open questions for you:
 1. **`max_bundle_size_mb`** — should this go inside the `assets` block (e.g., `assets.max_size_mb`) or stay top-level? The existing AC6 mentions it as a top-level manifest field.
 2. **Severity of credential scan hits** — should finding a known secret pattern (e.g., `-----BEGIN RSA PRIVATE KEY-----` in a data file) be a **blocking error** that aborts pack, or just a **warning** like the code sweep? My current proposal says non-blocking, but a private key header is pretty damning.
+
+## Tech Lead Review
+
+### Verdict
+
+Feature22 implementation quality is strong and functionally aligned with the planned scope. Core assets schema, pack inclusion/opt-out, traversal protection, install extraction, inspect visibility, and warning-only credential scanning are implemented and tested. Regression suites passed.
+
+Recommendation: approve feature22 for merge after addressing the medium-severity alignment item below (or explicitly accepting it as a scoped defer).
+
+### Findings (ordered by severity)
+
+1. **Medium — AC10 implementation is narrower than AC10 wording**
+   - AC10 states warnings should cover known credential-like filename patterns including examples such as `.key`, `*.p12`, `*.pfx`.
+   - Current implementation patterns in `src/kinnoo/code_sweep.py` only include `.env`, `.pem`, `id_rsa`, and `credential`-name matches.
+   - Current tests for AC10 in `tests/test_pack.py` only assert `.env` and `id_rsa` warnings.
+   - Impact: AC10 is only partially satisfied relative to the documented example set.
+   - Suggested fix:
+     - Extend `ASSET_FILENAME_PATTERNS` to include `.key`, `.p12`, `.pfx` (and optionally `id_ed25519`).
+     - Expand `test_feature22_pack_warns_on_secret_like_asset_filenames` to assert at least one of the newly required extensions.
+
+2. **Low — Feature status lifecycle is stale in FEATURES manifest**
+   - `feature22` status is still `not-started` in `FEATURES.txt` while all linked tasks `task135`-`task140` are `needs-review`.
+   - Impact: process/traceability mismatch in project status reporting.
+   - Suggested fix: move feature status to `in-progress` or `needs-review` to match current implementation state.
+
+3. **Low — Task140 listed test file mismatch**
+   - `task140` files list includes `tests/test_cli_install.py`, but its linked regression test `test211` is implemented in `tests/test_regression_v1.py`.
+   - Impact: small manifest/documentation drift; no runtime impact.
+   - Suggested fix: update `task140.files` to include `tests/test_regression_v1.py` (and keep `tests/test_cli_install.py` only if truly touched).
+
+### Task Review
+
+- Reviewed tasks: `task135`, `task136`, `task137`, `task138`, `task139`, `task140`
+- Current statuses: all six are `needs-review`
+- Implementation files reflect intended decomposition:
+  - Schema/validation: `src/kinnoo/schema.py`, `src/kinnoo/validator.py`
+  - Pack behavior: `src/kinnoo/pack_command.py`
+  - Inspect/install behavior: `src/kinnoo/inspect_command.py`, `src/kinnoo/install_command.py`
+  - Security sweep: `src/kinnoo/code_sweep.py`
+
+### AC Coverage Check (feature22 AC1-AC12)
+
+All acceptance criteria have at least one mapped automated test in `TESTS.txt`:
+
+- AC1: test202, test203
+- AC2: test204
+- AC3: test205
+- AC4: test206
+- AC5: test207
+- AC6: test208
+- AC7: test209
+- AC8: test210
+- AC9: test211
+- AC10: test212
+- AC11: test213
+- AC12: test213
+
+Automation-path spot check confirms corresponding test functions exist across:
+
+- `tests/test_validator.py`
+- `tests/test_pack.py`
+- `tests/test_cli_install_extract.py`
+- `tests/test_cli_inspect.py`
+- `tests/test_regression_v1.py`
+
+### Regression Evidence
+
+Executed focused feature22 + regression suites:
+
+- `python3 -m pytest tests/test_validator.py -k feature22`
+- `python3 -m pytest tests/test_pack.py -k feature22`
+- `python3 -m pytest tests/test_cli_install_extract.py -k feature22`
+- `python3 -m pytest tests/test_cli_inspect.py -k feature22`
+- `python3 -m pytest tests/test_regression_v1.py`
+  - Result: **4 passed**
+
+Executed full high-risk regression suites called out in feature22 notes:
+
+- `python3 -m pytest tests/test_pack.py tests/test_cli_install.py tests/test_cli_install_extract.py`
+  - Result: **22 passed**
+
+### Merge Recommendation
+
+- Functional readiness: **Yes**
+- Regression readiness: **Yes**
+- Final recommendation: **Approve with one medium-severity follow-up**
+  - Either patch AC10 filename pattern coverage before merge, or explicitly document that AC10 example list is illustrative and narrower implementation is accepted for this phase.
