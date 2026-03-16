@@ -2780,7 +2780,7 @@ tasks:
       - 'step4: Verify existing manifest validation behavior remains backward compatible for one-shot agents'
     dependencies: [task50]
     tests: [test214]
-    status: needs-review
+    status: completed
 
   - id: task142
     title: "Feature23 supervisor lifecycle and readiness probes"
@@ -2800,7 +2800,7 @@ tasks:
       - 'step4: Add tests for readiness success/failure and fallback behavior'
     dependencies: [task141]
     tests: [test216, test221]
-    status: needs-review
+    status: completed
 
   - id: task143
     title: "Feature23 run_command integration for mcp-server mode"
@@ -2820,7 +2820,7 @@ tasks:
       - 'step4: Add integration tests for long-running launch behavior and stream passthrough'
     dependencies: [task142, task39]
     tests: [test215, test218]
-    status: needs-review
+    status: completed
 
   - id: task144
     title: "Feature23 graceful shutdown and trace logging"
@@ -2841,7 +2841,7 @@ tasks:
       - 'step4: Add tests for graceful and forced shutdown paths plus trace log contents'
     dependencies: [task143, task100]
     tests: [test217, test219]
-    status: needs-review
+    status: completed
 
   - id: task145
     title: "Feature23 regression gate for one-shot runtime"
@@ -2859,4 +2859,4 @@ tasks:
       - 'step4: Capture evidence for feature23 AC7 before handoff'
     dependencies: [task143, task144]
     tests: [test220]
-    status: needs-review
+    status: completed
