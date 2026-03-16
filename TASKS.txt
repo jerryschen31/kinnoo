@@ -3011,3 +3011,84 @@ tasks:
     dependencies: [task150, task151, task152]
     tests: [test228, test229, test230, test231, test232, test233, test234, test235]
     status: completed
+
+  - id: task154
+    title: "Feature26 filesystem MCP server package and permissions schema"
+    type: task
+    description: |
+      Add a first-party Filesystem MCP server agent fixture that is packable with
+      `runtime.type: mcp-server`, and enforce filesystem permissions schema in
+      manifest validation for mcp-server manifests.
+    files:
+      - src/kinnoo/validator.py
+      - src/kinnoo/schema.py
+      - scratch/
+      - tests/test_validator.py
+      - tests/test_pack.py
+    steps:
+      - 'step1: Add Filesystem MCP server reference agent fixture with mcp-server runtime and packable layout'
+      - 'step2: Add validator rules for permissions schema keys: read_only, allow_write, allow_create, allowed_paths'
+      - 'step3: Enforce permissions schema only when runtime.type is mcp-server'
+      - 'step4: Add validation/pack tests to prove fixture is valid and packable as .kno'
+    dependencies: [task143, task147]
+    tests: [test236, test237]
+    status: needs-review
+
+  - id: task155
+    title: "Feature26 filesystem MCP runtime permission enforcement"
+    type: task
+    description: |
+      Implement filesystem MCP server runtime guardrails so read-only mode rejects
+      write/create tool calls by default, with opt-in behavior controlled by
+      permissions fields in the server manifest.
+    files:
+      - scratch/
+      - tests/
+    steps:
+      - 'step1: Implement permission gate in filesystem MCP server wrapper, not kinnoo CLI core'
+      - 'step2: Enforce default read_only true behavior when permissions are omitted'
+      - 'step3: Allow write/create only when explicit manifest permissions permit them'
+      - 'step4: Add runtime tests for reject/allow branches with actionable error messaging'
+    dependencies: [task154]
+    tests: [test238]
+    status: needs-review
+
+  - id: task156
+    title: "Feature26 github MCP server package and mcp-client init template"
+    type: task
+    description: |
+      Add GitHub MCP server reference packaging plus a new `--framework mcp-client`
+      init template that demonstrates connecting to an MCP server and includes
+      end-to-end workflow instructions.
+    files:
+      - src/kinnoo/init_command.py
+      - src/kinnoo/templates.py
+      - tests/test_init.py
+      - scratch/
+    steps:
+      - 'step1: Add GitHub MCP server reference agent fixture with packable manifest and entrypoint'
+      - 'step2: Extend framework choices to include mcp-client and generate template files'
+      - 'step3: Ensure template README documents connection workflow to MCP servers'
+      - 'step4: Ensure template entrypoint follows kinnoo contract (sys.argv[1] input, stdout output) and passes validation'
+    dependencies: [task154, task132]
+    tests: [test239, test240, test241]
+    status: needs-review
+
+  - id: task157
+    title: "Feature26 AC coverage and regression gate"
+    type: task
+    description: |
+      Close feature26 acceptance criteria with focused tests and a regression gate
+      covering framework-template stability and MCP permissions validation behavior.
+    files:
+      - tests/test_validator.py
+      - tests/test_init.py
+      - tests/test_regression_v1.py
+    steps:
+      - 'step1: Add/confirm AC mapping for feature26 tests in TESTS.txt'
+      - 'step2: Run focused tests for filesystem/github MCP package fixtures and mcp-client template generation'
+      - 'step3: Run focused regression for existing init frameworks to avoid template regressions'
+      - 'step4: Capture evidence and set tasks ready for TechLead review'
+    dependencies: [task154, task155, task156]
+    tests: [test236, test237, test238, test239, test240, test241, test242]
+    status: needs-review

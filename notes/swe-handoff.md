@@ -1,67 +1,62 @@
-## SWE Handoff - Feature25 Service Health Checks (Runtime Preflight)
+## SWE Handoff - Feature26 MCP Server Packages & Client Templates
 
 ### Context
-- Feature: feature25 "Service Health Checks - Runtime Preflight"
-- Goal: execute manifest-declared service health checks during `kinnoo run` and integrate results into `--preflight` output.
-- Scope: runtime health-check execution and run/preflight behavior only. Service declaration schema is already delivered in feature24.
+- Feature: feature26 "MCP Server Packages & Client Templates"
+- Goal: ship a proof-of-concept reference pair (MCP server package + mcp-client template) and enforce mcp-server permissions schema/runtime behavior.
+- Scope: reference MCP server fixtures, permissions validation/enforcement, and new `--framework mcp-client` template generation.
 
 ### Tasks To Implement (Ordered)
-1. `task150` - health-check module and checker primitives (HTTP/TCP/process)
-2. `task151` - integrate service checks into run + preflight output
-3. `task152` - interactive vs non-interactive failure policy
-4. `task153` - AC coverage + no-services regression gate
+1. `task154` - Filesystem MCP server fixture + permissions schema validation
+2. `task155` - Filesystem runtime permission enforcement (read-only default)
+3. `task156` - GitHub MCP server fixture + `mcp-client` init template
+4. `task157` - AC coverage and focused regression gate
 
 ### Dependency Chain
-- `task150` -> `task151` -> `task152` -> `task153`
+- `task154` -> `task155` -> `task156` -> `task157`
 
 ### Design Constraints
-- Reuse feature24 service declarations; do not redesign schema in feature25.
-- Keep dependency footprint minimal: use stdlib (`urllib.request`, `socket`, subprocess/pgrep).
-- Timeouts must be configurable while preserving defaults:
-	- HTTP: 5s default
-	- TCP: 3s default
-- Failed check output must include service name, service type, and actionable guidance.
-- `--preflight` must report service checks without executing the agent entrypoint.
-- Preserve backward compatibility: manifests without `services` must behave exactly as before.
+- Build on feature23 mcp-server runtime support; do not regress one-shot runtime paths.
+- `permissions` validation is MCP-server specific: enforce only when `runtime.type: mcp-server`.
+- Filesystem permission enforcement belongs in MCP server wrapper logic, not kinnoo CLI core.
+- Read-only must be default-safe: reject write/create unless explicitly enabled.
+- Adding `mcp-client` framework must not break existing framework templates.
 
 ### Files Expected To Change
-- `src/kinnoo/health_check.py` (new)
-- `src/kinnoo/run_command.py`
-- `src/kinnoo/cli.py`
-- `tests/test_health_check.py` (new)
-- `tests/test_run_preflight.py`
-- `tests/test_cli.py`
+- `src/kinnoo/validator.py`
+- `src/kinnoo/schema.py`
+- `src/kinnoo/init_command.py`
+- `src/kinnoo/templates.py`
+- `tests/test_validator.py`
+- `tests/test_pack.py`
+- `tests/test_init.py`
 - `tests/test_regression_v1.py`
+- MCP fixture workspace paths under `scratch/` (reference server fixtures)
 
 ### AC-to-Test Mapping
-- AC1 -> `test231`
-- AC2 -> `test228`
-- AC3 -> `test229`
-- AC4 -> `test230`
-- AC5 -> `test233`, `test234`
-- AC6 -> `test232`
-- AC7 -> `test235`
-- AC8 -> `test234`
+- AC1 -> `test236`
+- AC2 -> `test237`
+- AC3 -> `test238`
+- AC4 -> `test239`
+- AC5 -> `test240`, `test242`
+- AC6 -> `test241`, `test242`
+- AC7 -> `test237`
 
 ### Suggested Implementation Notes
-- Introduce a small checker interface in `health_check.py` returning a normalized result object.
-- Keep service-check result rendering deterministic to make tests stable.
-- For process checks, prefer `pgrep -f <name>` behavior compatible with current test environment.
-- Interactive behavior should be explicit and testable:
-	- Warning prompt: `Service <name> is not healthy. Proceed anyway? [y/N]`
-	- `y` proceeds, default/non-yes aborts.
-- Non-interactive mode should fail-fast on first unhealthy service to avoid ambiguous runtime state.
+- Keep fixture manifests explicit and minimal; include only fields needed for valid pack/install behavior.
+- Validate unknown `permissions` keys deterministically with actionable error messages.
+- For runtime permissions, test both deny-by-default and explicit allow paths.
+- In template README, include clear setup/run steps for connecting client template to packaged MCP server.
 
 ### Validation Commands (SWE)
 - `python3 src/validate_project_manifests.py`
-- `python3 -m pytest tests/test_health_check.py -k feature25`
-- `python3 -m pytest tests/test_run_preflight.py -k feature25`
-- `python3 -m pytest tests/test_cli.py -k feature25`
-- `python3 -m pytest tests/test_regression_v1.py -k feature25`
+- `python3 -m pytest tests/test_validator.py -k feature26`
+- `python3 -m pytest tests/test_pack.py -k feature26`
+- `python3 -m pytest tests/test_init.py -k feature26`
+- `python3 -m pytest tests/test_regression_v1.py -k feature26`
 - `python3 -m pytest` (final regression gate)
 
 ### Done Criteria
-- All feature25 ACs covered by automated tests (`test228`-`test235`).
-- Preflight output includes service health checks and still skips entrypoint execution.
-- Interactive/non-interactive behavior matches AC policy exactly.
-- No regressions for no-services agents.
+- All feature26 ACs are covered by automated tests (`test236`-`test242`).
+- Filesystem and GitHub MCP server fixtures are validation-clean and packable.
+- `mcp-client` template generation is contract-compliant and documented.
+- Existing framework template behavior remains regression-safe.

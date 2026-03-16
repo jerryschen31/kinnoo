@@ -126,6 +126,20 @@ SERVICE_TYPE_ALIASES: dict[str, str] = {
 # Feature24 health-check method values for service declarations.
 SUPPORTED_HEALTH_CHECK_METHODS: list[str] = ["tcp", "http", "process"]
 
+# Feature26 manifest permissions keys for runtime.type == mcp-server.
+MCP_SERVER_PERMISSION_KEYS: list[str] = [
+    "read_only",
+    "allow_write",
+    "allow_create",
+    "allowed_paths",
+]
+
+MCP_SERVER_PERMISSION_BOOL_FIELDS: list[str] = [
+    "read_only",
+    "allow_write",
+    "allow_create",
+]
+
 # Feature25 default timeout values for runtime service health checks.
 DEFAULT_HTTP_HEALTH_CHECK_TIMEOUT_SECONDS: float = 5.0
 DEFAULT_TCP_HEALTH_CHECK_TIMEOUT_SECONDS: float = 3.0

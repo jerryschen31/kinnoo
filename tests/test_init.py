@@ -628,3 +628,52 @@ def test_feature9_init_manifest_includes_description_and_author(tmp_path):
     assert "author" in manifest
     assert isinstance(manifest["author"], str)
     assert manifest["author"].strip() != ""
+
+
+def test_feature26_mcp_client_template_generation(tmp_path):
+    """Feature26 test240: init generates mcp-client template and workflow README."""
+    agent_name = "feature26-mcp-client-template"
+    code, out, err = run_cli(["init", agent_name, "--framework", "mcp-client"], cwd=tmp_path)
+    assert code == 0, err
+
+    agent_dir = tmp_path / agent_name
+    assert (agent_dir / "kinnoo.yaml").exists()
+    assert (agent_dir / "run.py").exists()
+    assert (agent_dir / "requirements.txt").exists()
+    assert (agent_dir / "README.md").exists()
+
+    run_text = (agent_dir / "run.py").read_text(encoding="utf-8")
+    readme_text = (agent_dir / "README.md").read_text(encoding="utf-8")
+
+    assert "KINNOO_MCP_SERVER_CMD" in run_text
+    assert "initialize" in run_text
+    assert "tools/list" in run_text
+    assert "_request_over_stdio" in run_text
+    assert "Suggested End-to-End Workflow" in readme_text
+    assert "kinnoo/cli.py pack" in readme_text
+    assert "kinnoo/cli.py install" in readme_text
+    assert "KINNOO_MCP_SERVER_CMD" in readme_text
+
+
+def test_feature26_mcp_client_template_contract_and_validation(tmp_path):
+    """Feature26 test241: generated mcp-client template follows runtime contract."""
+    from kinnoo.validator import validate
+
+    agent_name = "feature26-mcp-client-contract"
+    code, out, err = run_cli(["init", agent_name, "--framework", "mcp-client"], cwd=tmp_path)
+    assert code == 0, err
+
+    agent_dir = tmp_path / agent_name
+    manifest_path = agent_dir / "kinnoo.yaml"
+    is_valid, errors = validate(str(manifest_path))
+    assert is_valid is True, errors
+    assert errors == []
+
+    run_path = agent_dir / "run.py"
+    run_text = run_path.read_text(encoding="utf-8")
+    assert "sys.argv[1]" in run_text
+    assert "print(" in run_text
+
+    result = subprocess.run([sys.executable, str(run_path), "contract-input"], capture_output=True, text=True)
+    assert result.returncode == 0
+    assert "contract-input" in result.stdout

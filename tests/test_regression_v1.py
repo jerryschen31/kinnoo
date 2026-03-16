@@ -219,3 +219,29 @@ def test_feature25_ac_coverage_and_no_services_regression_gate():
         f"STDOUT:\n{result.stdout}\n"
         f"STDERR:\n{result.stderr}"
     )
+
+
+def test_feature26_framework_template_regression_gate():
+    """Regression gate: existing init frameworks remain stable after adding mcp-client."""
+    command = [
+        sys.executable,
+        "-m",
+        "pytest",
+        "tests/test_init.py::test_framework_templates_generate_correct_files",
+        "tests/test_init.py::test_framework_valid",
+        "tests/test_init.py::test_framework_manifests_pass_validation",
+        "tests/test_init.py::test_feature21_regression_existing_frameworks_unchanged",
+        "tests/test_init.py::test_feature26_mcp_client_template_generation",
+        "tests/test_init.py::test_feature26_mcp_client_template_contract_and_validation",
+        "tests/test_validator.py::test_feature26_permissions_schema_validation",
+    ]
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, (
+        "Feature26 regression gate failed for framework template stability and permissions validation.\n"
+        f"STDOUT:\n{result.stdout}\n"
+        f"STDERR:\n{result.stderr}"
+    )
