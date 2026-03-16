@@ -827,7 +827,7 @@ features:
       - "Asset scanning at pack-time is warning-only for local workflows; consider stricter/blocking checks during publish in a future feature."
     owner: techlead-agent
     dependencies: [feature5, feature8]
-    status: not-started
+    status: completed
 
   - id: feature23
     title: "MCP Server Runtime Type — Schema & Lifecycle"

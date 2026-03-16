@@ -2662,7 +2662,7 @@ tasks:
       - 'step4: Add tests for valid and invalid assets field structures with field-specific errors'
     dependencies: [task50]
     tests: [test202, test203]
-    status: needs-review
+    status: completed
 
   - id: task136
     title: "Feature22 pack asset path inclusion and safety"
@@ -2681,7 +2681,7 @@ tasks:
       - 'step4: Add tests for inclusion, opt-out, traversal rejection, and missing path warning behavior'
     dependencies: [task135, task25]
     tests: [test204, test205, test206, test207]
-    status: needs-review
+    status: completed
 
   - id: task137
     title: "Feature22 install extraction and inspect visibility"
@@ -2702,7 +2702,7 @@ tasks:
       - 'step4: Add tests for install extraction and inspect asset visibility'
     dependencies: [task136, task63]
     tests: [test208, test210]
-    status: needs-review
+    status: completed
 
   - id: task138
     title: "Feature22 archive size threshold behavior for assets"
@@ -2720,7 +2720,7 @@ tasks:
       - 'step4: Add tests covering default threshold and custom override threshold behavior'
     dependencies: [task135, task136, task113]
     tests: [test209]
-    status: needs-review
+    status: completed
 
   - id: task139
     title: "Feature22 asset credential warning sweep in pack"
@@ -2740,7 +2740,7 @@ tasks:
       - 'step4: Add tests for filename warnings, regex warnings, binary-file skip behavior, and non-blocking continuation'
     dependencies: [task136, task103]
     tests: [test212, test213]
-    status: needs-review
+    status: completed
 
   - id: task140
     title: "Feature22 documentation and regression gate"
@@ -2760,4 +2760,4 @@ tasks:
       - 'step4: Run manifest and regression validations and prepare review evidence'
     dependencies: [task136, task137, task138, task139]
     tests: [test211]
-    status: needs-review
+    status: completed
