@@ -2662,7 +2662,7 @@ tasks:
       - 'step4: Add tests for valid and invalid assets field structures with field-specific errors'
     dependencies: [task50]
     tests: [test202, test203]
-    status: not-started
+    status: needs-review
 
   - id: task136
     title: "Feature22 pack asset path inclusion and safety"
