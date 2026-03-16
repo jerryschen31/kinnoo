@@ -14,6 +14,13 @@ from datetime import datetime, timezone
 import yaml
 
 from .schema import normalize_env_vars
+from .supervisor import (
+    infer_readiness_config,
+    shutdown_server,
+    start_server,
+    stream_output,
+    wait_until_ready,
+)
 from .validator import validate
 
 
@@ -682,6 +689,56 @@ def run_agent(
     if input_arg is not None:
         process_args.append(input_arg)
     process_args.extend(runtime_pass_through_args)
+
+    runtime_section = manifest.get("runtime") if isinstance(manifest.get("runtime"), dict) else {}
+    runtime_type = runtime_section.get("type") if isinstance(runtime_section.get("type"), str) else "one-shot"
+
+    if runtime_type == "mcp-server":
+        def _stdout_callback(line: str) -> None:
+            sys.stdout.write(line)
+            sys.stdout.flush()
+
+        def _stderr_callback(line: str) -> None:
+            sys.stderr.write(line)
+            sys.stderr.flush()
+
+        try:
+            process = start_server(
+                process_args,
+                cwd=agent_dir,
+                env=subprocess_env,
+            )
+        except Exception as error:
+            _print_safe_error(
+                f"Error: Failed to launch mcp-server process: {error}",
+                secret_values=resolved_env_vars.values(),
+            )
+            return finalize(1)
+
+        stream_state = stream_output(
+            process,
+            stdout_callback=_stdout_callback,
+            stderr_callback=_stderr_callback,
+        )
+        readiness = infer_readiness_config(runtime_section)
+        is_ready = wait_until_ready(process, readiness, stream_state)
+        if not is_ready:
+            _print_safe_error("Error: mcp-server failed readiness probe and did not become ready")
+            shutdown_server(process)
+            return finalize(1)
+
+        try:
+            return_code = process.wait()
+        except KeyboardInterrupt:
+            # Task144 adds explicit SIGINT lifecycle behavior and trace assertions.
+            return_code = shutdown_server(process)
+
+        if stream_state.stdout_thread is not None:
+            stream_state.stdout_thread.join(timeout=0.2)
+        if stream_state.stderr_thread is not None:
+            stream_state.stderr_thread.join(timeout=0.2)
+
+        return finalize(return_code)
 
     try:
         process = subprocess.Popen(

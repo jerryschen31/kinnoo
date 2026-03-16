@@ -3,6 +3,7 @@ import sys
 import pytest
 import re
 import types
+import time
 
 def test_cli_installable_and_runnable():
     # This test checks that the CLI is installable and runnable via pyproject.toml
@@ -930,3 +931,125 @@ def test_feature23_default_readiness_fallback_behavior(tmp_path):
         assert immediate_ready is True
     finally:
         shutdown_server(immediate_process)
+
+
+def _feature23_write_mcp_agent_fixture(tmp_path, script_name: str = "feature23_mcp_agent.py"):
+    agent_dir = tmp_path / "feature23-mcp-agent"
+    agent_dir.mkdir()
+    agent_script = agent_dir / script_name
+    agent_script.write_text(
+        """
+import signal
+import sys
+import time
+
+mode = sys.argv[1] if len(sys.argv) > 1 else "normal"
+running = True
+
+def _stop(*_args):
+    global running
+    running = False
+
+signal.signal(signal.SIGTERM, _stop)
+
+print("SERVER_READY", flush=True)
+print("server-stderr-start", file=sys.stderr, flush=True)
+counter = 0
+while running:
+    print(f"server-stdout-tick:{counter}", flush=True)
+    print(f"server-stderr-tick:{counter}", file=sys.stderr, flush=True)
+    counter += 1
+    time.sleep(0.1)
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    (agent_dir / "README.md").write_text("feature23 mcp fixture", encoding="utf-8")
+    (agent_dir / "tools").mkdir()
+    (agent_dir / "prompts").mkdir()
+    (agent_dir / "kinnoo.yaml").write_text(
+        f"""
+name: feature23-mcp-agent
+version: 0.1.0
+entrypoint: {script_name}
+runtime:
+    language: python
+    version: ">=3.10"
+    type: mcp-server
+    readiness_probe:
+        method: stdout
+        marker: SERVER_READY
+dependencies: []
+inputs:
+    type: text
+    required: false
+outputs:
+    type: text
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    return agent_dir
+
+
+def test_feature23_run_mcp_server_long_running_mode(tmp_path):
+    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    agent_dir = _feature23_write_mcp_agent_fixture(tmp_path)
+
+    process = subprocess.Popen(
+        [sys.executable, str(cli_path), "run", str(agent_dir)],
+        cwd=tmp_path,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    try:
+        time.sleep(0.5)
+        assert process.poll() is None, "mcp-server runtime exited too early"
+    finally:
+        process.terminate()
+        process.wait(timeout=3)
+
+
+def test_feature23_mcp_server_streams_stdout_stderr(tmp_path):
+    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    agent_dir = _feature23_write_mcp_agent_fixture(tmp_path)
+
+    process = subprocess.Popen(
+        [sys.executable, str(cli_path), "run", str(agent_dir)],
+        cwd=tmp_path,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+
+    stdout_lines: list[str] = []
+    stderr_lines: list[str] = []
+    saw_stdout_stream = False
+    saw_stderr_stream = False
+    start = time.monotonic()
+
+    try:
+        while (time.monotonic() - start) < 3.0 and (not saw_stdout_stream or not saw_stderr_stream):
+            if not saw_stdout_stream and process.stdout is not None:
+                line = process.stdout.readline()
+                if line:
+                    stdout_lines.append(line)
+                    if "server-stdout" in line:
+                        saw_stdout_stream = True
+            if not saw_stderr_stream and process.stderr is not None:
+                line = process.stderr.readline()
+                if line:
+                    stderr_lines.append(line)
+                    if "server-stderr" in line:
+                        saw_stderr_stream = True
+            if process.poll() is not None:
+                break
+
+        assert process.poll() is None, "mcp-server process ended before streaming assertions"
+        assert saw_stdout_stream, f"Expected server stdout streaming line in: {stdout_lines!r}"
+        assert saw_stderr_stream, f"Expected server stderr streaming line in: {stderr_lines!r}"
+    finally:
+        process.terminate()
+        process.wait(timeout=3)
