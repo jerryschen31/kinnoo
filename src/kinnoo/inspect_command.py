@@ -158,11 +158,111 @@ def _archive_checksum_for_display(archive_path: Path) -> str | None:
     return expected_checksum
 
 
+def _path_within_root(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
+def _declared_asset_paths(manifest_data: dict[str, Any]) -> list[str]:
+    assets = manifest_data.get("assets")
+    if not isinstance(assets, dict):
+        return []
+
+    paths = assets.get("paths", [])
+    if not isinstance(paths, list):
+        return []
+
+    normalized: list[str] = []
+    for item in paths:
+        text = str(item).strip()
+        if text:
+            normalized.append(text)
+    return normalized
+
+
+def _asset_file_sizes_for_directory(
+    manifest_data: dict[str, Any],
+    directory_path: Path,
+) -> dict[str, int]:
+    file_sizes: dict[str, int] = {}
+    for declared_path in _declared_asset_paths(manifest_data):
+        candidate = (directory_path / declared_path).resolve(strict=False)
+        if not _path_within_root(candidate, directory_path):
+            continue
+
+        if candidate.is_file():
+            rel = candidate.relative_to(directory_path).as_posix()
+            file_sizes[rel] = candidate.stat().st_size
+            continue
+
+        if candidate.is_dir():
+            for child in sorted(candidate.rglob("*")):
+                if not child.is_file():
+                    continue
+                rel = child.relative_to(directory_path).as_posix()
+                file_sizes[rel] = child.stat().st_size
+
+    return file_sizes
+
+
+def _asset_file_sizes_for_archive(
+    manifest_data: dict[str, Any],
+    archive_path: Path,
+) -> dict[str, int]:
+    file_sizes: dict[str, int] = {}
+    declared_paths = [path.strip("/") for path in _declared_asset_paths(manifest_data)]
+    if not declared_paths:
+        return file_sizes
+
+    try:
+        with zipfile.ZipFile(archive_path, "r") as archive_zip:
+            for member in archive_zip.infolist():
+                member_name = member.filename.strip("/")
+                if not member_name or member.is_dir():
+                    continue
+
+                for declared in declared_paths:
+                    if not declared:
+                        continue
+                    if member_name == declared or member_name.startswith(f"{declared}/"):
+                        file_sizes[member_name] = member.file_size
+                        break
+    except (OSError, zipfile.BadZipFile):
+        return {}
+
+    return file_sizes
+
+
+def _print_asset_metadata(
+    manifest_data: dict[str, Any],
+    asset_file_sizes: dict[str, int],
+) -> None:
+    declared_paths = _declared_asset_paths(manifest_data)
+    if not declared_paths:
+        return
+
+    print("- Asset Paths:")
+    for declared_path in declared_paths:
+        print(f"  - {declared_path}")
+
+    total_size = sum(asset_file_sizes.values())
+    print(f"- Assets Size: {format_size_human_readable(total_size)}")
+
+    if asset_file_sizes:
+        print("- Asset Files:")
+        for rel_path, size_bytes in sorted(asset_file_sizes.items()):
+            print(f"  - {rel_path} ({format_size_human_readable(size_bytes)})")
+
+
 def _print_inspect_output(
     target_label: str,
     manifest_data: dict[str, Any],
     archive_checksum: str | None = None,
     archive_size_human: str | None = None,
+    asset_file_sizes: dict[str, int] | None = None,
 ) -> None:
     normalized = _normalize_manifest_for_display(manifest_data)
 
@@ -204,6 +304,8 @@ def _print_inspect_output(
         else:
             print("- Env Vars: (none)")
 
+    _print_asset_metadata(normalized, asset_file_sizes or {})
+
 
 def _inspect_archive_target(archive_path: Path) -> int:
     manifest_data = read_manifest_from_kno_archive(archive_path)
@@ -217,11 +319,13 @@ def _inspect_archive_target(archive_path: Path) -> int:
 
     archive_size_human = format_size_human_readable(archive_path.stat().st_size)
     archive_checksum = _archive_checksum_for_display(archive_path)
+    asset_file_sizes = _asset_file_sizes_for_archive(manifest_data, archive_path)
     _print_inspect_output(
         "archive (.kno)",
         manifest_data,
         archive_checksum=archive_checksum,
         archive_size_human=archive_size_human,
+        asset_file_sizes=asset_file_sizes,
     )
 
     return 0
@@ -248,7 +352,8 @@ def _inspect_directory_target(directory_path: Path) -> int:
         _print_manifest_validation_errors(errors)
         return 1
 
-    _print_inspect_output("directory", manifest_data)
+    asset_file_sizes = _asset_file_sizes_for_directory(manifest_data, directory_path)
+    _print_inspect_output("directory", manifest_data, asset_file_sizes=asset_file_sizes)
 
     declared_env_vars = _env_var_names_for_display(_normalize_manifest_for_display(manifest_data))
     sweep_warnings = sweep_env_var_exposure(directory_path, declared_env_vars)
