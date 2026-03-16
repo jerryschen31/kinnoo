@@ -2576,7 +2576,7 @@ tasks:
       - 'step4: Add tests asserting framework-native code markers and runnable behavior with basic input'
     dependencies: [task130, task128]
     tests: [test194, test195]
-    status: not-started
+    status: needs-review
 
   - id: task132
     title: "Feature21 implement real LangGraph runnable template"
