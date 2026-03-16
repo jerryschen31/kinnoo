@@ -2841,7 +2841,7 @@ tasks:
       - 'step4: Add tests for graceful and forced shutdown paths plus trace log contents'
     dependencies: [task143, task100]
     tests: [test217, test219]
-    status: not-started
+    status: needs-review
 
   - id: task145
     title: "Feature23 regression gate for one-shot runtime"
