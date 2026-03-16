@@ -11,10 +11,27 @@ from kinnoo.templates import (
     KINNOO_YAML_TEMPLATE, RUN_PY_TEMPLATE, REQUIREMENTS_TXT_TEMPLATE, README_MD_TEMPLATE,
     GEMINI_RUN_PY, GEMINI_REQUIREMENTS, GEMINI_README,
     CHATGPT_RUN_PY, CHATGPT_REQUIREMENTS, CHATGPT_README,
-    CLAUDE_RUN_PY, CLAUDE_REQUIREMENTS, CLAUDE_README
+    CLAUDE_RUN_PY, CLAUDE_REQUIREMENTS, CLAUDE_README,
+    PYDANTIC_AI_RUN_PY, PYDANTIC_AI_REQUIREMENTS, PYDANTIC_AI_README,
+    LANGGRAPH_RUN_PY, LANGGRAPH_REQUIREMENTS, LANGGRAPH_README,
+    OPENAI_AGENTS_RUN_PY, OPENAI_AGENTS_REQUIREMENTS, OPENAI_AGENTS_README,
 )
 
-SUPPORTED_FRAMEWORKS = ["gemini", "chatgpt", "claude-chat"]
+SUPPORTED_FRAMEWORKS = [
+    "gemini",
+    "chatgpt",
+    "claude-chat",
+    "pydantic-ai",
+    "langgraph",
+    "openai-agents",
+]
+
+KNOWN_FRAMEWORK_DEFAULT_MODELS = {
+    "gemini": "gemini-2.5-flash-lite",
+    "chatgpt": "gpt-5-nano",
+    "claude-chat": "claude-sonnet-4-20250514",
+    "pydantic-ai": "openai:gpt-4o-mini",
+}
 
 def init_agent(name: str, target_dir: Path, framework: Optional[str] = None):
     agent_dir = target_dir / name
@@ -23,20 +40,30 @@ def init_agent(name: str, target_dir: Path, framework: Optional[str] = None):
     agent_dir.mkdir()
     (agent_dir / "tools").mkdir()
     (agent_dir / "prompts").mkdir()
+
+    manifest_content = KINNOO_YAML_TEMPLATE.format(name=name)
+    if framework is not None:
+        manifest_content += f"framework: {framework}\n"
+        default_model = KNOWN_FRAMEWORK_DEFAULT_MODELS.get(framework)
+        if default_model is not None:
+            manifest_content += f"model: {default_model}\n"
+
+    framework_templates = {
+        "gemini": (GEMINI_RUN_PY, GEMINI_REQUIREMENTS, GEMINI_README),
+        "chatgpt": (CHATGPT_RUN_PY, CHATGPT_REQUIREMENTS, CHATGPT_README),
+        "claude-chat": (CLAUDE_RUN_PY, CLAUDE_REQUIREMENTS, CLAUDE_README),
+        "pydantic-ai": (PYDANTIC_AI_RUN_PY, PYDANTIC_AI_REQUIREMENTS, PYDANTIC_AI_README),
+        "langgraph": (LANGGRAPH_RUN_PY, LANGGRAPH_REQUIREMENTS, LANGGRAPH_README),
+        "openai-agents": (OPENAI_AGENTS_RUN_PY, OPENAI_AGENTS_REQUIREMENTS, OPENAI_AGENTS_README),
+    }
+
     # Write files
-    (agent_dir / "kinnoo.yaml").write_text(KINNOO_YAML_TEMPLATE.format(name=name))
-    if framework == "gemini":
-        (agent_dir / "run.py").write_text(GEMINI_RUN_PY)
-        (agent_dir / "requirements.txt").write_text(GEMINI_REQUIREMENTS)
-        (agent_dir / "README.md").write_text(GEMINI_README.format(name=name))
-    elif framework == "chatgpt":
-        (agent_dir / "run.py").write_text(CHATGPT_RUN_PY)
-        (agent_dir / "requirements.txt").write_text(CHATGPT_REQUIREMENTS)
-        (agent_dir / "README.md").write_text(CHATGPT_README.format(name=name))
-    elif framework == "claude-chat":
-        (agent_dir / "run.py").write_text(CLAUDE_RUN_PY)
-        (agent_dir / "requirements.txt").write_text(CLAUDE_REQUIREMENTS)
-        (agent_dir / "README.md").write_text(CLAUDE_README.format(name=name))
+    (agent_dir / "kinnoo.yaml").write_text(manifest_content)
+    if framework in framework_templates:
+        run_template, requirements_template, readme_template = framework_templates[framework]
+        (agent_dir / "run.py").write_text(run_template)
+        (agent_dir / "requirements.txt").write_text(requirements_template)
+        (agent_dir / "README.md").write_text(readme_template.format(name=name))
     else:
         (agent_dir / "run.py").write_text(RUN_PY_TEMPLATE)
         (agent_dir / "requirements.txt").write_text(REQUIREMENTS_TXT_TEMPLATE)
