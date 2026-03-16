@@ -558,3 +558,85 @@ assets:
         names = set(zf.namelist())
         assert "assets/present.txt" in names
         assert "assets/missing.txt" not in names
+
+
+def test_feature22_pack_size_warning_uses_assets_threshold(tmp_path):
+    default_agent = tmp_path / "asset-threshold-default"
+    default_agent.mkdir()
+    (default_agent / "kinnoo.yaml").write_text(
+        """
+name: asset-threshold-default
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+assets:
+  paths: []
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (default_agent / "run.py").write_text("print('hello')\n", encoding="utf-8")
+    (default_agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    default_env = _pack_env(tmp_path)
+    default_env.pop("KINNOO_PACK_WARN_THRESHOLD_MB", None)
+    default_result = subprocess.run(
+        KINNOO_CLI + ["pack", str(default_agent)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=default_env,
+    )
+    default_output = f"{default_result.stdout}\n{default_result.stderr}"
+    assert default_result.returncode == 0
+    assert "Warning: archive is large" not in default_output
+
+    override_agent = tmp_path / "asset-threshold-override"
+    override_agent.mkdir()
+    (override_agent / "assets").mkdir()
+    (override_agent / "assets" / "tiny.txt").write_text("tiny\n", encoding="utf-8")
+    (override_agent / "kinnoo.yaml").write_text(
+        """
+name: asset-threshold-override
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+assets:
+  max_bundle_size_mb: 0.000001
+  paths:
+    - assets
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (override_agent / "run.py").write_text("print('hello')\n", encoding="utf-8")
+    (override_agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    override_env = _pack_env(tmp_path)
+    override_env.pop("KINNOO_PACK_WARN_THRESHOLD_MB", None)
+    override_result = subprocess.run(
+        KINNOO_CLI + ["pack", str(override_agent)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=override_env,
+    )
+    override_output = f"{override_result.stdout}\n{override_result.stderr}"
+    assert override_result.returncode == 0
+    assert "Warning: archive is large" in override_output
