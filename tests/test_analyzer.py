@@ -65,3 +65,58 @@ def test_feature27_analyzer_reusable_for_feature19_import_flow(tmp_path: Path) -
     assert set(adapter_payload.keys()) == {"inferred", "confidence", "warnings"}
     assert "entrypoint" in adapter_payload["inferred"]
     assert "runtime" in adapter_payload["inferred"]
+
+
+def test_feature27_detect_entrypoint_runtime_framework_with_uncertainty(tmp_path: Path) -> None:
+    """test244: detectors infer clear layouts and downgrade confidence for ambiguous ones."""
+    clear_project = tmp_path / "feature27-clear-layout"
+    clear_project.mkdir(parents=True, exist_ok=True)
+    (clear_project / "run.py").write_text(
+        "import openai\n"
+        "RUNTIME_PORT = 8765\n"
+        "\n"
+        "if __name__ == '__main__':\n"
+        "    print('ok')\n",
+        encoding="utf-8",
+    )
+    (clear_project / "pyproject.toml").write_text(
+        "[project]\n"
+        "name = 'clear-layout'\n"
+        "requires-python = '>=3.11'\n",
+        encoding="utf-8",
+    )
+
+    clear_payload = analyze_project(clear_project).as_dict()
+    assert clear_payload["inferred"]["entrypoint"] == "run.py"
+    assert clear_payload["inferred"]["runtime"]["language"] == "python"
+    assert clear_payload["inferred"]["runtime"]["type"] == "one-shot"
+    assert clear_payload["inferred"]["runtime"]["version"] == ">=3.11"
+    assert clear_payload["inferred"]["runtime"]["port"] == 8765
+    assert clear_payload["inferred"]["framework"] == "chatgpt"
+    assert clear_payload["confidence"]["entrypoint"]["score"] >= 0.9
+    assert clear_payload["confidence"]["runtime"]["score"] >= 0.8
+    assert clear_payload["confidence"]["framework"]["score"] >= 0.8
+
+    ambiguous_project = tmp_path / "feature27-ambiguous-layout"
+    ambiguous_project.mkdir(parents=True, exist_ok=True)
+    (ambiguous_project / "app.py").write_text(
+        "import openai\n"
+        "if __name__ == '__main__':\n"
+        "    print('app')\n",
+        encoding="utf-8",
+    )
+    (ambiguous_project / "worker.py").write_text(
+        "import anthropic\n"
+        "if __name__ == '__main__':\n"
+        "    print('worker')\n",
+        encoding="utf-8",
+    )
+
+    ambiguous_payload = analyze_project(ambiguous_project).as_dict()
+    assert ambiguous_payload["inferred"]["entrypoint"] is None
+    assert ambiguous_payload["inferred"]["framework"] is None
+    assert ambiguous_payload["confidence"]["entrypoint"]["score"] < 0.5
+    assert ambiguous_payload["confidence"]["runtime"]["score"] < 0.6
+    assert ambiguous_payload["confidence"]["framework"]["score"] < 0.5
+    warning_text = " ".join(ambiguous_payload["warnings"]).lower()
+    assert "ambiguous" in warning_text
