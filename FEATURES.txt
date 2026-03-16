@@ -769,7 +769,7 @@ features:
       - "One smoke test per template: `kinnoo init` + validate generated manifest."
     owner: techlead-agent
     dependencies: [feature4]
-    status: not-started
+    status: completed
 
   - id: feature22
     title: "Data & Asset Bundling"
