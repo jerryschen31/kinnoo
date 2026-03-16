@@ -876,7 +876,7 @@ features:
       - "Readiness probe options: TCP port (manifest field `runtime.port`), stdout marker string, or skip (immediate-ready)."
     owner: techlead-agent
     dependencies: [feature3, feature9]
-    status: needs-review
+    status: completed
 
   - id: feature24
     title: "Service Declarations — Manifest Schema"
