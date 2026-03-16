@@ -1053,7 +1053,7 @@ features:
       - "Deferred implementation planning lives in notes/tasks-todo-later.md and notes/tests-todo-later.md while feature23-feature26 are implemented first."
     owner: techlead-agent
     dependencies: [feature20, feature22, feature23, feature24, feature26]
-    status: not-started
+    status: completed
 
   - id: feature28
     title: "Registry Backend Abstraction & Remote Client"
