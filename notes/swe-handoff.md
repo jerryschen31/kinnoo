@@ -1,105 +1,107 @@
-## Feature27 SWE Handoff - Project Analyzer Module (task158-task162)
+## Feature19 SWE Handoff - In-Place Import Onboarding (task163-task167)
 
 ### Scope
-Implement feature27 by delivering a reusable analyzer library in `src/kinnoo/analyzer.py` that infers manifest-relevant metadata from existing projects and returns a structured report for future `kinnoo import` workflows.
+Implement feature19 as an in-place onboarding workflow:
+`kinnoo import [path]` (default `.`) writes `kinnoo.yaml` into an existing
+project using feature27 analyzer inference and a confirm-first wizard.
 
 ### Scope Tightening (Important)
-- Implement analyzer as a pure library module only. Do not add CLI commands, interactive prompts, or file-writing behavior.
-- Keep detection heuristics deterministic and stdlib-only.
-- Use confidence-based outputs for uncertainty; avoid raising errors for ambiguous detection unless inputs are invalid (e.g., missing project path).
-- Keep V1 heuristic coverage intentionally narrow and explicit; avoid broad fuzzy matching that causes unstable tests.
+- Do not implement copy/scaffold-clone behavior.
+- Import is metadata-layer only: in-place `kinnoo.yaml` generation plus optional
+  wrapper file when explicitly selected by user.
+- Reuse `analyze_project()` as the single inference backend. Do not duplicate
+  detector heuristics in import command code.
+- Keep entrypoint mismatch behavior warning-first and non-blocking by default.
+- Ensure interruption/failure safety leaves no partial artifacts.
 
 ### Task Order and Grouping
-Single SWE agent can implement all tasks in one sequence because they are tightly coupled and build on shared analyzer internals.
+Single SWE agent can implement all tasks in order because they share one command
+surface and one test module.
 
-1. `task158` - Analyzer core API and report model
-2. `task159` - Entrypoint/runtime/framework detectors
-3. `task160` - Dependencies/env var detectors
-4. `task161` - Assets/services detectors
-5. `task162` - Analyzer matrix tests and reusability gate
+1. `task163` - Import CLI surface and path resolution
+2. `task164` - In-place write + collision + rollback
+3. `task165` - Analyzer integration + confirm-first wizard
+4. `task166` - Conditional schema prompts + entrypoint bridge option
+5. `task167` - Interrupt safety + in-place runnability regression gate
 
 ### Dependencies
-- `task159` depends on `task158`
-- `task160` depends on `task158`
-- `task161` depends on `task158`
-- `task162` depends on `task159`, `task160`, `task161`
+- `task164` depends on `task163`
+- `task165` depends on `task162`, `task163`
+- `task166` depends on `task165`
+- `task167` depends on `task164`, `task166`
 
 ### Design Constraints
-- Keep detector functions independent and composable.
-- Use stdlib-first parsing (`ast`, `pathlib`, `re`, `tomllib`) and avoid heavy dependencies.
-- Do not couple analyzer logic to CLI behavior; analyzer must be importable/reusable as a library path.
-- Return confidence and evidence/diagnostic metadata instead of hard-failing on ambiguous inputs.
-
-### Report Contract (V1)
-`analyze_project(project_dir)` should return a single structured report with these stable sections:
-1. `inferred`:
-	- Manifest-shaped inferred fields (entrypoint, runtime, framework, dependencies, env_vars, assets, services).
-2. `confidence`:
-	- Per-field confidence and concise evidence strings.
-3. `warnings`:
-	- Actionable todo/gap messages for unresolved or low-confidence fields.
-
-Notes:
-- Keep field names stable for tests.
-- Empty sections are allowed but keys must always exist.
+- Command signature: `kinnoo import [path]` only; no destination directory.
+- Default target path is current working directory.
+- Existing project files must not be modified (except created/updated
+  `kinnoo.yaml`, and optional wrapper when user explicitly accepts).
+- Error and help text should be clear and actionable.
+- Prompt minimization is required: show detected values first, ask follow-ups
+  only for unresolved/low-confidence fields.
 
 ### Files Expected to Change
-- `src/kinnoo/analyzer.py`
-- `tests/test_analyzer.py`
-- `tests/test_regression_v1.py` (only if needed for focused feature27 regression gate wiring)
+- `src/kinnoo/cli.py`
+- `src/kinnoo/import_command.py` (new)
+- `src/kinnoo/schema.py` (only if needed for prompt-gating helpers)
+- `tests/test_cli_import.py` (new)
+- `tests/test_regression_v1.py` (feature19 focused regression gate)
 
 ### Per-Task Deliverables
-1. `task158`:
-	- Create module, public API, and report schema.
-	- Add detector orchestration skeleton (detectors may be stubs initially).
-2. `task159`:
-	- Implement `_detect_entrypoint`, `_detect_runtime`, `_detect_framework`.
-	- Include explicit uncertainty paths (confidence downgrade + warning).
-3. `task160`:
-	- Implement `_detect_dependencies` from `requirements.txt` + `pyproject.toml`.
-	- Implement `_detect_env_vars` for `os.getenv`, `os.environ[...]`, and `.get()` access forms.
-4. `task161`:
-	- Implement `_detect_assets` for common artifact extensions and directories with path-safety filtering.
-	- Implement `_detect_services` from recognizable endpoint patterns and optional health-check hints.
-5. `task162`:
-	- Add analyzer matrix tests (positive + ambiguous) across all detectors.
-	- Add focused reusability gate proving analyzer can be called by a non-CLI adapter path.
+1. `task163`:
+- Add import subcommand parser and usage/help wiring.
+- Implement default `.` path behavior and invalid argument handling.
+- Add tests for omitted path and invalid forms.
 
-### Out of Scope (Feature27)
-- No `kinnoo import` command implementation.
-- No manifest writing/generation.
-- No new dependencies beyond stdlib.
-- No network calls or live service probing.
-- No runtime execution side effects in analyzer.
+2. `task164`:
+- Implement in-place manifest write path.
+- Add collision protections for existing `kinnoo.yaml` unless explicit override.
+- Add rollback cleanup for failure scenarios after write begins.
+- Prove no scaffold-copy behavior.
+
+3. `task165`:
+- Integrate analyzer results into manifest generation.
+- Implement confirm-first wizard flow.
+- Prompt only for missing/ambiguous fields.
+
+4. `task166`:
+- Add conditional prompts for runtime/services/permissions fields only when
+  unresolved or low-confidence.
+- Implement entrypoint mismatch warning.
+- Add optional wrapper-generation branch that is opt-in.
+
+5. `task167`:
+- Handle Ctrl+C/EOF safely with non-zero exit.
+- Ensure no partial artifact remains on interruption.
+- Add in-place runnability gate and feature19 regression protection.
+
+### Out of Scope (Feature19)
+- Remote URL import (`kinnoo import https://...`).
+- Deep framework-specific translators.
+- Runtime shims as a required import path.
+- Any broad analyzer heuristic expansion beyond feature27 contract.
 
 ### Test Plan (from TESTS.txt)
-- `test243`: analyzer public API and detector hooks (AC1)
-- `test244`: entrypoint/runtime/framework uncertainty handling (AC2)
-- `test245`: requirements + pyproject dependency normalization (AC3)
-- `test246`: env var pattern detection and deduplication (AC4)
-- `test247`: asset candidate inference with path-safety filtering (AC5)
-- `test248`: service inference with health-check hints (AC6)
-- `test249`: report sections contract: inferred/confidence/warnings (AC7)
-- `test250`: feature19-style reusability path without logic duplication (AC8)
-- `test251`: detector matrix positive/ambiguous coverage with diagnostics (AC9)
+- `test252`, `test253`: AC1 argument/default behavior
+- `test254`: AC2 in-place write and no copy behavior
+- `test255`: AC5 rollback on failure
+- `test256`: AC7 collision safety
+- `test257`: AC3 analyzer-backed inference and warnings
+- `test258`: AC4 confirm-first wizard prompt minimization
+- `test259`: AC9 conditional schema-extension prompts
+- `test260`: AC10 warning-first entrypoint bridge with optional wrapper
+- `test261`: AC6 Ctrl+C/EOF safety
+- `test262`: AC8 in-place runnability after import
 
 ### Execution Notes for SWE
-- Build fixture-based tests first to lock expected report contract.
-- Implement detectors incrementally and keep each detector unit-testable in isolation.
-- Ensure warning text is actionable (what was missing, why confidence dropped, what to check).
-- Keep behavior deterministic where possible for stable tests.
-- Use small in-repo fixtures under tests to avoid brittle filesystem assumptions.
-- Prefer explicit parser helpers per detector over one large monolithic scanner.
-- Keep detector failure modes visible in warnings; do not suppress exceptions silently.
+- Implement `tests/test_cli_import.py` early to lock behavior contract.
+- Use fixture projects under `tests/` for deterministic inference and prompt flow.
+- Keep user-facing warning text stable enough for test assertions.
+- Prefer small helper functions in import module (path resolution, prompt policy,
+  rollback cleanup, wrapper generation) to keep logic testable.
 
 ### Definition of Done
-- All ACs for feature27 are mapped to passing automated tests (`test243`-`test251`).
-- `python3 src/validate_project_manifests.py` passes after any manifest edits.
-- Focused analyzer tests pass, then full `python3 -m pytest` regression passes.
-- Task statuses should move to `needs-review` when SWE implementation is complete.
-
-### Suggested SWE Execution Sequence
-1. Write failing tests for report contract + API (`test243`, `test249`).
-2. Implement task158 minimal API until those pass.
-3. Implement detector groups in order: task159 -> task160 -> task161 with corresponding tests.
-4. Finish matrix/reusability gates (`test250`, `test251`) and run full regression.
+- All ACs (AC1-AC10) are covered by passing tests `test252`-`test262`.
+- `python3 src/validate_project_manifests.py` passes.
+- Focused feature19 tests pass.
+- Full `python3 -m pytest` regression passes before handoff to TechLead review.
+- Tasks move to `needs-review` when SWE completes implementation.
