@@ -28,6 +28,10 @@ outputs:
 """
 
 
+class ImportWizardInterrupted(Exception):
+    """Raised when import wizard input is interrupted by EOF or Ctrl+C."""
+
+
 def _resolve_import_target(target_path_arg: str | None) -> Path:
     """Resolve the import target path, defaulting to the current directory."""
     if target_path_arg is None:
@@ -43,11 +47,13 @@ def _build_manifest_text(target_path: Path) -> str:
 
 
 def _prompt_with_default(prompt: str, default: str) -> str:
-    """Read a prompt value and gracefully fallback in non-interactive test runs."""
+    """Read a prompt value and raise when wizard interaction is interrupted."""
     try:
         value = input(prompt)
-    except EOFError:
-        return default
+    except EOFError as exc:
+        raise ImportWizardInterrupted("EOF") from exc
+    except KeyboardInterrupt as exc:
+        raise ImportWizardInterrupted("CTRL_C") from exc
     value = value.strip()
     return value if value else default
 
@@ -356,6 +362,8 @@ def _write_manifest_in_place(target_path: Path, manifest_text: str) -> None:
 def import_agent(target_path_arg: str | None) -> int:
     """Import a project in-place by writing kinnoo.yaml safely into target root."""
     target_path = _resolve_import_target(target_path_arg)
+    manifest_path = target_path / "kinnoo.yaml"
+    generated_wrapper_path: Path | None = None
 
     if not target_path.exists():
         print(f"Error: import target does not exist: {target_path}")
@@ -365,42 +373,55 @@ def import_agent(target_path_arg: str | None) -> int:
         print(f"Error: import target must be a directory: {target_path}")
         return 1
 
-    report = analyze_project(target_path).as_dict()
-    _show_detected_values(report)
+    try:
+        report = analyze_project(target_path).as_dict()
+        _show_detected_values(report)
 
-    warning_messages = report.get("warnings", [])
-    if warning_messages:
-        print("Analyzer warnings:")
-        for warning in warning_messages:
-            print(f"  - {warning}")
+        warning_messages = report.get("warnings", [])
+        if warning_messages:
+            print("Analyzer warnings:")
+            for warning in warning_messages:
+                print(f"  - {warning}")
 
-    confirmed = _prompt_with_default("Proceed with detected values? [Y/n]: ", "y").lower()
-    if confirmed not in {"y", "yes"}:
-        print("Import cancelled by user.")
+        confirmed = _prompt_with_default("Proceed with detected values? [Y/n]: ", "y").lower()
+        if confirmed not in {"y", "yes"}:
+            print("Import cancelled by user.")
+            return 1
+
+        manifest_text = _build_manifest_from_analysis(target_path, report)
+        selected_entrypoint = _extract_entrypoint_from_manifest(manifest_text)
+        entrypoint_warning = _assess_entrypoint_contract(target_path, selected_entrypoint)
+        if entrypoint_warning:
+            print(f"Entrypoint compatibility warning: {entrypoint_warning}")
+            if _prompt_yes_no("Generate optional wrapper entrypoint bridge? [y/N]: ", False):
+                if not selected_entrypoint:
+                    print("Error: cannot generate wrapper without a valid entrypoint.")
+                    return 1
+                try:
+                    wrapper_entrypoint = _generate_entrypoint_wrapper(target_path, selected_entrypoint)
+                    generated_wrapper_path = target_path / wrapper_entrypoint
+                except Exception as exc:
+                    print(f"Error: optional wrapper generation failed: {exc}")
+                    return 1
+                manifest_text = _replace_manifest_entrypoint(manifest_text, wrapper_entrypoint)
+    except ImportWizardInterrupted:
+        if manifest_path.exists():
+            manifest_path.unlink()
+        if generated_wrapper_path and generated_wrapper_path.exists():
+            generated_wrapper_path.unlink()
+        print("Import interrupted (Ctrl+C/EOF). No partial artifacts were left behind.")
         return 1
-
-    manifest_text = _build_manifest_from_analysis(target_path, report)
-    selected_entrypoint = _extract_entrypoint_from_manifest(manifest_text)
-    entrypoint_warning = _assess_entrypoint_contract(target_path, selected_entrypoint)
-    if entrypoint_warning:
-        print(f"Entrypoint compatibility warning: {entrypoint_warning}")
-        if _prompt_yes_no("Generate optional wrapper entrypoint bridge? [y/N]: ", False):
-            if not selected_entrypoint:
-                print("Error: cannot generate wrapper without a valid entrypoint.")
-                return 1
-            try:
-                wrapper_entrypoint = _generate_entrypoint_wrapper(target_path, selected_entrypoint)
-            except Exception as exc:
-                print(f"Error: optional wrapper generation failed: {exc}")
-                return 1
-            manifest_text = _replace_manifest_entrypoint(manifest_text, wrapper_entrypoint)
 
     try:
         _write_manifest_in_place(target_path, manifest_text)
     except FileExistsError as exc:
+        if generated_wrapper_path and generated_wrapper_path.exists():
+            generated_wrapper_path.unlink()
         print(f"Error: {exc}")
         return 1
     except Exception as exc:
+        if generated_wrapper_path and generated_wrapper_path.exists():
+            generated_wrapper_path.unlink()
         print(f"Error: import failed and rolled back partial artifacts: {exc}")
         return 1
 
