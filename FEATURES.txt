@@ -1071,7 +1071,7 @@ features:
       `KINNOO_REGISTRY_URL`.
 
       This is the client-side foundation for the remote registry. The server is feature29.
-    tasks: []
+    tasks: [task168, task169, task170, task171, task172, task173]
     acceptance_criteria:
       - id: AC1
         description: "A `RegistryBackend` protocol exists defining methods: `publish(archive_path) -> result`, `resolve(name, version) -> archive_path`, `search(query) -> list`, `list_agents() -> list`."
