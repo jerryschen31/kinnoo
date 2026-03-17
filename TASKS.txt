@@ -3224,7 +3224,7 @@ tasks:
       - 'step4: Add rollback cleanup path for failures after write start'
     dependencies: [task163]
     tests: [test254, test255, test256]
-    status: not-started
+    status: needs-review
 
   - id: task165
     title: "Feature19 analyzer integration and confirm-first wizard"
