@@ -385,3 +385,124 @@ analyzer investment directly.
 **Next step:** If you agree with this direction, I'll rewrite the feature19 description,
 ACs, and create tasks. The scope is actually *smaller* than the current spec (no file
 copying, no directory creation), so implementation should be leaner.
+
+---
+
+## Tech Lead Review 1
+
+### Verdict
+
+Feature19 is **not approved for merge yet**. Implementation is close, but there are
+blocking behavior gaps versus AC intent and the full regression suite is currently red.
+
+### Findings (ordered by severity)
+
+1. **High - Import flow is not automation-safe and fails on non-interactive stdin paths.**
+   - Evidence: [src/kinnoo/import_command.py](src/kinnoo/import_command.py#L386) always prompts and treats EOF as interrupt; several tests invoke import without stdin input and expect default accept behavior.
+   - Failing tests: [tests/test_cli_import.py](tests/test_cli_import.py#L12), [tests/test_cli_import.py](tests/test_cli_import.py#L45), [tests/test_cli_import.py](tests/test_cli_import.py#L124), [tests/test_cli_import.py](tests/test_cli_import.py#L158), [tests/test_cli_import.py](tests/test_cli_import.py#L183)
+   - Impact: Breaks developer/CI ergonomics and causes multiple AC-aligned tests to fail before manifest generation path is reached.
+
+2. **Medium - Prompt minimization logic asks for services when none are inferred (false positive prompting).**
+   - Evidence: [src/kinnoo/import_command.py](src/kinnoo/import_command.py#L77) + [src/kinnoo/import_command.py](src/kinnoo/import_command.py#L279). Empty list `[]` is treated as resolvable value for missing-check but still forced by low-confidence branch.
+   - Impact: Violates confirm-first/prompt-minimization intent (AC4), contributes to unexpected EOF interruptions in tests.
+
+3. **Medium - Collision safety check happens too late (after wizard interaction).**
+   - Evidence: existing-manifest guard is inside write path [src/kinnoo/import_command.py](src/kinnoo/import_command.py#L340), not at command preflight stage.
+   - Failing symptom: [tests/test_cli_import.py](tests/test_cli_import.py#L91) receives interrupt path instead of immediate collision message.
+   - Impact: Poor UX; user is prompted unnecessarily before deterministic early failure.
+
+4. **Medium - AC7 explicit override path is not implemented.**
+   - Evidence: no `--force`/explicit override option exists in import command parser/handler; collision message references override concept only textually.
+   - Impact: Partial AC7 fulfillment (prevention exists, explicit force/confirm path does not).
+
+5. **Low - Wrapper prompt can trigger in low-confidence scenarios where entrypoint file is missing, increasing interruption risk.**
+   - Evidence: warning branch at [src/kinnoo/import_command.py](src/kinnoo/import_command.py#L395) prompts wrapper option for all warning cases, including non-existent entrypoint situations.
+   - Impact: Adds avoidable prompt branch and contributes to scripted input mismatch in low-confidence test paths.
+
+### AC Coverage Assessment
+
+- **Traceability status:** AC1-AC10 each have mapped tests (`test252`-`test262`) in [TESTS.txt](TESTS.txt).
+- **Execution status:** Coverage exists on paper, but implementation does not currently satisfy all mapped behaviors due to the failing feature19 test subset.
+- **Task linkage status:** `task163`-`task167` are correctly set to `needs-review` in [TASKS.txt](TASKS.txt#L3190).
+
+### Full Regression Result
+
+- Command run: `python3 -m pytest`
+- Result: **7 failed, 252 passed, 1 skipped**
+- Failures are all in [tests/test_cli_import.py](tests/test_cli_import.py):
+  - [tests/test_cli_import.py](tests/test_cli_import.py#L12)
+  - [tests/test_cli_import.py](tests/test_cli_import.py#L45)
+  - [tests/test_cli_import.py](tests/test_cli_import.py#L70)
+  - [tests/test_cli_import.py](tests/test_cli_import.py#L91)
+  - [tests/test_cli_import.py](tests/test_cli_import.py#L124)
+  - [tests/test_cli_import.py](tests/test_cli_import.py#L158)
+  - [tests/test_cli_import.py](tests/test_cli_import.py#L183)
+
+### Recommended Fix Plan for SWE
+
+1. Add a non-interactive-safe path for confirmation defaults (or explicit non-interactive flag semantics) so import can run deterministically under automated test harnesses.
+2. Refine `_should_prompt_field()` behavior for list-like fields so empty inferred service lists do not force unnecessary prompts.
+3. Move `kinnoo.yaml` collision check to early preflight before any interactive prompts.
+4. Implement explicit override path for AC7 (flag or confirmation mode), and add/adjust tests to verify both default-safe and explicit-override behaviors.
+5. Narrow wrapper prompt conditions so missing entrypoint files do not trigger optional wrapper prompt flow.
+
+### Merge Recommendation
+
+- Keep feature19 tasks in `needs-review` and return to SWE for fixes.
+- Re-run focused import tests, then full `python3 -m pytest` before requesting Tech Lead Review 2.
+
+# Feature19 TechLead Review 1 - remediation pass (SWE agent)
+
+## Summary
+- Fixed automation-safety for import wizard in non-interactive contexts by defaulting on EOF instead of hard-interrupting.
+- Fixed prompt-minimization false positives by skipping prompts for empty inferred list values (especially `services: []`).
+- Moved collision safety to preflight, before any wizard interaction.
+- Added explicit AC7 override path: `kinnoo import [path] --force`.
+- Narrowed wrapper prompt to true entrypoint contract mismatch warnings only.
+
+## Tests and results
+- `python3 -m pytest tests/test_cli_import.py` -> `11 passed`
+
+## Teaching notes
+- For CI-safe interactive tooling, EOF behavior should be mode-aware: non-interactive contexts generally require deterministic defaults rather than interruption semantics.
+- Prompt-minimization logic should treat "none detected" list values as resolved state, not as missing values.
+- Safety checks with deterministic outcomes (like collision detection) should run in preflight so users do not spend effort answering prompts before guaranteed failure paths.
+
+## Tech Lead Review 2
+
+### Verdict
+
+Feature19 is **approved for merge** to `phase3/main`.
+
+### Verification Summary
+
+- Reviewed remediation deltas in `import_command` and CLI wiring:
+   - non-interactive-safe prompt defaults,
+   - preflight collision guard,
+   - explicit `--force` override path,
+   - conditional wrapper prompt narrowing,
+   - prompt minimization fix for empty inferred lists.
+- Confirmed feature19 task set (`task163`-`task167`) now matches implemented behavior and test evidence.
+
+### Test Evidence
+
+- Focused feature19 suite:
+   - `python3 -m pytest tests/test_cli_import.py`
+   - result: `11 passed`
+- Full regression:
+   - `python3 -m pytest`
+   - result: `259 passed, 1 skipped`
+
+### AC Coverage Assessment
+
+- AC1-AC10 remain fully mapped to `test252`-`test262` and are now passing as implemented.
+- No unresolved blocking gaps found in the prior Tech Lead Review 1 findings.
+
+### Merge Recommendation
+
+- Proceed with merge.
+- Post-approval governance updates completed:
+   - feature19 status advanced to `completed`.
+   - tasks `task163`-`task167` advanced to `completed`.
+   - project version bumped to `v0.12.1`.
+   - changelog updated with feature19 implementation notes and test evidence.

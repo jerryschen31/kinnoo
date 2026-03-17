@@ -245,3 +245,24 @@ def test_feature26_framework_template_regression_gate():
         f"STDOUT:\n{result.stdout}\n"
         f"STDERR:\n{result.stderr}"
     )
+
+
+def test_feature19_import_interrupt_and_runnability_regression_gate():
+    """Regression gate for task167 interruption safety and in-place runnability."""
+    command = [
+        sys.executable,
+        "-m",
+        "pytest",
+        "tests/test_cli_import.py::test_feature19_interrupt_cleanup_and_exit_code",
+        "tests/test_cli_import.py::test_feature19_imported_project_runs_in_place",
+    ]
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, (
+        "Feature19 regression gate failed for interruption safety and runnability.\n"
+        f"STDOUT:\n{result.stdout}\n"
+        f"STDERR:\n{result.stderr}"
+    )
