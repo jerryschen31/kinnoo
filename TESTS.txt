@@ -4339,3 +4339,115 @@ tests:
     covers:
       - feature: feature19
         ac: AC8
+
+  - id: test263
+    title: Feature31 validator accepts runtime.language nodejs
+    type: unit
+    preconditions: validator module is available; manifest fixture with runtime.language set to nodejs
+    steps:
+      - step1: Create a valid manifest with runtime.language set to nodejs and runtime.type set to one-shot
+      - step2: Run validator against the manifest
+      - step3: Verify validation passes with no runtime.language errors
+    expected: nodejs runtime language is treated as valid manifest input
+    pass_criteria: validator returns success and no runtime.language rejection error
+    automated: true
+    automation_path: tests/test_validator.py::test_feature31_runtime_language_nodejs_is_valid
+    covers:
+      - feature: feature31
+        ac: AC1
+
+  - id: test264
+    title: Feature31 validator rejects unsupported runtime.language values with clear message
+    type: unit
+    preconditions: validator module is available; manifest fixture with unsupported runtime.language value
+    steps:
+      - step1: Create manifest with runtime.language set to unsupported value (for example ruby)
+      - step2: Run validator against the manifest
+      - step3: Verify validation fails with actionable runtime.language guidance
+    expected: unsupported runtime language is rejected clearly
+    pass_criteria: validator returns failure and error output names runtime.language with supported values guidance
+    automated: true
+    automation_path: tests/test_validator.py::test_feature31_runtime_language_rejects_unsupported_values
+    covers:
+      - feature: feature31
+        ac: AC1
+
+  - id: test265
+    title: Feature31 run executes nodejs entrypoint with input and streams output
+    type: integration
+    preconditions: node >=22 available; fixture node agent with valid kinnoo.yaml and entrypoint
+    steps:
+      - step1: Run kinnoo run on fixture node agent with test input string
+      - step2: Verify node entrypoint receives input argument and emits stdout/stderr lines
+      - step3: Verify kinnoo run streams output and returns entrypoint exit code
+    expected: nodejs runtime execution parity with existing python run behavior
+    pass_criteria: command succeeds, input is passed correctly, streamed output appears, and exit code is propagated
+    automated: true
+    automation_path: tests/test_cli.py::test_feature31_run_nodejs_entrypoint_streams_and_propagates_exit
+    covers:
+      - feature: feature31
+        ac: AC2
+
+  - id: test266
+    title: Feature31 install resolves node dependencies via npm default and pnpm override
+    type: integration
+    preconditions: fixture node agent package.json exists; npm available; pnpm scenario mockable or available
+    steps:
+      - step1: Run install path for node agent with runtime.package_manager omitted and verify npm path is used
+      - step2: Run install path with runtime.package_manager set to pnpm and verify pnpm path is used
+      - step3: Simulate dependency install failure and verify actionable error output
+    expected: node dependency install behavior follows package-manager configuration and reports errors clearly
+    pass_criteria: npm default and pnpm override both execute expected command path; failure mode includes actionable guidance
+    automated: true
+    automation_path: tests/test_install.py::test_feature31_node_dependency_install_npm_and_pnpm
+    covers:
+      - feature: feature31
+        ac: AC3
+
+  - id: test267
+    title: Feature31 pack excludes node_modules and preserves package metadata lockfiles
+    type: integration
+    preconditions: fixture node agent includes node_modules, package.json, and lockfile(s)
+    steps:
+      - step1: Run kinnoo pack on fixture node agent
+      - step2: Inspect archive contents for absence of node_modules and presence of package.json plus lockfile(s)
+      - step3: Run install flow using archive and verify dependency restore path uses preserved metadata
+    expected: archive remains reproducible without bundling node_modules
+    pass_criteria: node_modules is excluded, package metadata is present, and install can restore dependencies from preserved manifests
+    automated: true
+    automation_path: tests/test_pack.py::test_feature31_pack_node_modules_excluded_lockfiles_preserved
+    covers:
+      - feature: feature31
+        ac: AC4
+
+  - id: test268
+    title: Feature31 node preflight fails fast for missing toolchain or unsupported version
+    type: integration
+    preconditions: preflight-capable run/install path; controllable node version and package-manager availability checks
+    steps:
+      - step1: Execute node preflight with node missing and verify failure guidance
+      - step2: Execute node preflight with node below required version and verify version guidance
+      - step3: Execute node preflight with configured package manager missing and verify actionable diagnostics
+    expected: preflight catches node toolchain readiness issues before execution
+    pass_criteria: each failure mode exits non-zero with clear remediation guidance
+    automated: true
+    automation_path: tests/test_run_preflight.py::test_feature31_node_preflight_toolchain_guards
+    covers:
+      - feature: feature31
+        ac: AC5
+
+  - id: test269
+    title: Feature31 introduces no regression in python run pack install workflows
+    type: integration
+    preconditions: existing python fixture agents and baseline regression suite are available
+    steps:
+      - step1: Execute python runtime run-path regression checks
+      - step2: Execute python pack/install regression checks
+      - step3: Compare behavior and outputs against pre-feature31 expectations
+    expected: python workflows remain functionally unchanged after nodejs runtime additions
+    pass_criteria: python run, pack, and install tests continue passing with no behavior regressions
+    automated: true
+    automation_path: tests/test_regression_v1.py::test_feature31_python_runtime_regression_gate
+    covers:
+      - feature: feature31
+        ac: AC6

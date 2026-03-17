@@ -3285,3 +3285,126 @@ tasks:
     dependencies: [task164, task166]
     tests: [test261, test262]
     status: completed
+
+  - id: task168
+    title: "Feature31 schema and validator support for runtime.language nodejs"
+    type: task
+    description: |
+      Extend manifest schema/validator to support `runtime.language: nodejs`
+      with clear validation errors for unsupported runtime language values.
+      Preserve existing python validation behavior and error quality.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+      - tests/test_validator.py
+    steps:
+      - 'step1: Add nodejs to supported runtime language constants and validator checks'
+      - 'step2: Ensure unsupported runtime.language values return actionable errors'
+      - 'step3: Verify existing python manifests remain valid without changes'
+      - 'step4: Add focused validator tests for nodejs acceptance and invalid-language rejection'
+    dependencies: []
+    tests: [test263, test264]
+    status: not-started
+
+  - id: task169
+    title: "Feature31 run path for Node.js entrypoints"
+    type: task
+    description: |
+      Add Node.js execution support to kinnoo run so nodejs agents execute via
+      `node <entrypoint> <input>` with parity for stdout/stderr streaming and
+      argument passing behavior.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Branch runtime execution flow by runtime.language in run command'
+      - 'step2: Execute node entrypoint with input argument contract matching python path semantics'
+      - 'step3: Preserve real-time stdout/stderr streaming and exit-code propagation'
+      - 'step4: Add integration test covering node run success path and streamed output'
+    dependencies: [task168]
+    tests: [test265]
+    status: not-started
+
+  - id: task170
+    title: "Feature31 Node.js dependency install via npm or pnpm"
+    type: task
+    description: |
+      Add Node.js dependency installation support to kinnoo install with
+      package manager selection (`npm` default, `pnpm` optional) and actionable
+      failure handling for install errors.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/schema.py
+      - tests/test_install.py
+    steps:
+      - 'step1: Implement package-manager resolution for nodejs runtime installs'
+      - 'step2: Run npm/pnpm install in agent directory with clear command/error reporting'
+      - 'step3: Ensure install path remains a no-op for python agents'
+      - 'step4: Add tests for npm default, pnpm override, and actionable failure output'
+    dependencies: [task168]
+    tests: [test266]
+    status: not-started
+
+  - id: task171
+    title: "Feature31 pack/install archive behavior for node_modules and lockfiles"
+    type: task
+    description: |
+      Update package assembly rules for nodejs agents so archives exclude
+      node_modules while preserving package manifests and lockfiles needed for
+      reproducible installs.
+    files:
+      - src/kinnoo/pack_command.py
+      - src/kinnoo/install_command.py
+      - tests/test_pack.py
+      - tests/test_install.py
+    steps:
+      - 'step1: Exclude node_modules during archive collection for nodejs runtime agents'
+      - 'step2: Preserve package.json and lockfiles in archive output'
+      - 'step3: Verify install uses preserved metadata to restore dependencies'
+      - 'step4: Add archive-content test that asserts exclusion/inclusion behavior'
+    dependencies: [task168, task170]
+    tests: [test267]
+    status: not-started
+
+  - id: task172
+    title: "Feature31 Node.js preflight checks"
+    type: task
+    description: |
+      Extend preflight/runtime checks to validate Node.js toolchain readiness:
+      node executable presence, version constraint (>=22), and selected package
+      manager availability before nodejs run/install flows.
+    files:
+      - src/kinnoo/health_check.py
+      - src/kinnoo/run_command.py
+      - src/kinnoo/install_command.py
+      - tests/test_run_preflight.py
+    steps:
+      - 'step1: Add node binary detection and version parsing checks for nodejs runtime'
+      - 'step2: Add package manager executable checks for npm/pnpm based on manifest configuration'
+      - 'step3: Emit actionable guidance when checks fail (install/upgrade commands)'
+      - 'step4: Add tests for success and failure preflight paths with clear diagnostics'
+    dependencies: [task168]
+    tests: [test268]
+    status: not-started
+
+  - id: task173
+    title: "Feature31 python runtime regression gate"
+    type: task
+    description: |
+      Add regression coverage proving feature31 changes do not alter existing
+      python run/pack/install behavior. This task is the safety gate before
+      feature31 review handoff.
+    files:
+      - tests/test_cli.py
+      - tests/test_pack.py
+      - tests/test_install.py
+      - tests/test_regression_v1.py
+    steps:
+      - 'step1: Add or update targeted regression assertions across run/pack/install python paths'
+      - 'step2: Execute regression suite slices focused on python runtime behavior'
+      - 'step3: Document any behavior deltas and ensure parity with pre-feature31 expectations'
+      - 'step4: Attach regression evidence to task completion notes for techlead review'
+    dependencies: [task169, task170, task171, task172]
+    tests: [test269]
+    status: not-started
