@@ -176,3 +176,98 @@ def test_feature19_confirm_first_wizard_prompt_minimization(tmp_path):
     assert "Detected values from analyzer:" in combined_output
     assert "Proceed with detected values?" in combined_output
     assert "Provide value for" not in combined_output
+
+
+def test_feature19_conditional_prompts_for_runtime_services_permissions(tmp_path):
+    high_confidence_project = tmp_path / "feature19-conditional-prompts-high"
+    high_confidence_project.mkdir(parents=True, exist_ok=True)
+    (high_confidence_project / "run.py").write_text(
+        "import sys\n"
+        "import openai\n"
+        "service_url = 'https://api.example.com/health'\n"
+        "if __name__ == '__main__':\n"
+        "    print(sys.argv[1] if len(sys.argv) > 1 else 'ok')\n",
+        encoding="utf-8",
+    )
+
+    high_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(high_confidence_project)],
+        input="y\n",
+        capture_output=True,
+        text=True,
+    )
+
+    assert high_result.returncode == 0
+    high_output = high_result.stdout + high_result.stderr
+    assert "Provide value for runtime.type" not in high_output
+    assert "Provide services" not in high_output
+    assert "Configure permissions for mcp-server" not in high_output
+
+    low_confidence_project = tmp_path / "feature19-conditional-prompts-low"
+    low_confidence_project.mkdir(parents=True, exist_ok=True)
+    (low_confidence_project / "README.md").write_text("no python files yet\n", encoding="utf-8")
+
+    low_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(low_confidence_project)],
+        input="y\nrun.py\nmcp-server\n\napi,database\ny\ny\nn\nn\n/tmp\n",
+        capture_output=True,
+        text=True,
+    )
+
+    assert low_result.returncode == 0
+    low_output = low_result.stdout + low_result.stderr
+    assert "Provide value for runtime.type" in low_output
+    assert "Provide services" in low_output
+    assert "Configure permissions for mcp-server" in low_output
+
+    low_manifest = (low_confidence_project / "kinnoo.yaml").read_text(encoding="utf-8")
+    assert "runtime:" in low_manifest
+    assert "type: mcp-server" in low_manifest
+    assert "services:" in low_manifest
+    assert "permissions:" in low_manifest
+
+
+def test_feature19_entrypoint_warning_and_optional_wrapper(tmp_path):
+    no_wrapper_project = tmp_path / "feature19-wrapper-default"
+    no_wrapper_project.mkdir(parents=True, exist_ok=True)
+    (no_wrapper_project / "run.py").write_text(
+        "def run():\n"
+        "    print('no argv contract')\n",
+        encoding="utf-8",
+    )
+
+    no_wrapper_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(no_wrapper_project)],
+        input="y\n\n\nn\n",
+        capture_output=True,
+        text=True,
+    )
+
+    assert no_wrapper_result.returncode == 0
+    no_wrapper_output = no_wrapper_result.stdout + no_wrapper_result.stderr
+    assert "Entrypoint compatibility warning:" in no_wrapper_output
+    assert "Generate optional wrapper entrypoint bridge?" in no_wrapper_output
+    assert not (no_wrapper_project / "kinnoo_wrapper.py").exists()
+
+    wrapper_project = tmp_path / "feature19-wrapper-opt-in"
+    wrapper_project.mkdir(parents=True, exist_ok=True)
+    (wrapper_project / "run.py").write_text(
+        "def run():\n"
+        "    print('no argv contract')\n",
+        encoding="utf-8",
+    )
+
+    wrapper_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(wrapper_project)],
+        input="y\n\n\ny\n",
+        capture_output=True,
+        text=True,
+    )
+
+    assert wrapper_result.returncode == 0
+    wrapper_output = wrapper_result.stdout + wrapper_result.stderr
+    assert "Entrypoint compatibility warning:" in wrapper_output
+    assert (wrapper_project / "kinnoo_wrapper.py").exists()
+
+    wrapper_manifest = (wrapper_project / "kinnoo.yaml").read_text(encoding="utf-8")
+    assert "entrypoint: kinnoo_wrapper.py" in wrapper_manifest
