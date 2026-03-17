@@ -32,6 +32,14 @@ class ImportWizardInterrupted(Exception):
     """Raised when import wizard input is interrupted by EOF or Ctrl+C."""
 
 
+class PromptSession:
+    """Track wizard input behavior to support automation-safe defaults."""
+
+    def __init__(self) -> None:
+        self.answers_received = 0
+        self.non_interactive = not os.isatty(0)
+
+
 def _resolve_import_target(target_path_arg: str | None) -> Path:
     """Resolve the import target path, defaulting to the current directory."""
     if target_path_arg is None:
@@ -46,14 +54,19 @@ def _build_manifest_text(target_path: Path) -> str:
     return manifest
 
 
-def _prompt_with_default(prompt: str, default: str) -> str:
+def _prompt_with_default(prompt: str, default: str, session: PromptSession | None = None) -> str:
     """Read a prompt value and raise when wizard interaction is interrupted."""
     try:
         value = input(prompt)
     except EOFError as exc:
+        # In non-interactive automation, allow default-driven progression.
+        if session and session.non_interactive:
+            return default
         raise ImportWizardInterrupted("EOF") from exc
     except KeyboardInterrupt as exc:
         raise ImportWizardInterrupted("CTRL_C") from exc
+    if session:
+        session.answers_received += 1
     value = value.strip()
     return value if value else default
 
@@ -77,12 +90,15 @@ def _get_confidence(report: dict[str, Any], field_name: str) -> float:
 def _should_prompt_field(report: dict[str, Any], field_name: str, current_value: Any) -> bool:
     if current_value in (None, ""):
         return True
+    if isinstance(current_value, list) and not current_value:
+        # Empty inferred list means "none detected" and should not force prompts.
+        return False
     return _get_confidence(report, field_name) < 0.6
 
 
-def _prompt_yes_no(prompt: str, default: bool) -> bool:
+def _prompt_yes_no(prompt: str, default: bool, session: PromptSession | None = None) -> bool:
     default_str = "y" if default else "n"
-    value = _prompt_with_default(prompt, default_str).strip().lower()
+    value = _prompt_with_default(prompt, default_str, session=session).strip().lower()
     if value in {"y", "yes"}:
         return True
     if value in {"n", "no"}:
@@ -140,10 +156,11 @@ def _normalize_inferred_services(services_value: Any) -> list[dict[str, Any]]:
     return normalized
 
 
-def _prompt_services(default_services: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _prompt_services(default_services: list[dict[str, Any]], session: PromptSession | None = None) -> list[dict[str, Any]]:
     raw = _prompt_with_default(
         "Provide services (comma-separated service types, blank for none): ",
         "",
+        session=session,
     )
     if not raw.strip():
         return default_services
@@ -162,13 +179,14 @@ def _prompt_services(default_services: list[dict[str, Any]]) -> list[dict[str, A
     return services
 
 
-def _prompt_permissions() -> dict[str, Any]:
-    read_only = _prompt_yes_no("permissions.read_only? [Y/n]: ", True)
-    allow_write = _prompt_yes_no("permissions.allow_write? [y/N]: ", False)
-    allow_create = _prompt_yes_no("permissions.allow_create? [y/N]: ", False)
+def _prompt_permissions(session: PromptSession | None = None) -> dict[str, Any]:
+    read_only = _prompt_yes_no("permissions.read_only? [Y/n]: ", True, session=session)
+    allow_write = _prompt_yes_no("permissions.allow_write? [y/N]: ", False, session=session)
+    allow_create = _prompt_yes_no("permissions.allow_create? [y/N]: ", False, session=session)
     allowed_paths_raw = _prompt_with_default(
         "permissions.allowed_paths (comma-separated, blank for none): ",
         "",
+        session=session,
     )
     allowed_paths = [value.strip() for value in allowed_paths_raw.split(",") if value.strip()]
     return {
@@ -247,7 +265,12 @@ def _generate_entrypoint_wrapper(target_path: Path, original_entrypoint: str) ->
     return wrapper_name
 
 
-def _build_manifest_from_analysis(target_path: Path, report: dict[str, Any]) -> str:
+def _build_manifest_from_analysis(
+    target_path: Path,
+    report: dict[str, Any],
+    *,
+    session: PromptSession | None = None,
+) -> str:
     inferred = report.get("inferred", {})
 
     name = target_path.name.replace("_", "-").lower() or "imported-agent"
@@ -265,24 +288,32 @@ def _build_manifest_from_analysis(target_path: Path, report: dict[str, Any]) -> 
     permissions: dict[str, Any] | None = None
 
     if _should_prompt_field(report, "entrypoint", entrypoint):
-        entrypoint = _prompt_with_default("Provide value for entrypoint [run.py]: ", "run.py")
+        entrypoint = _prompt_with_default("Provide value for entrypoint [run.py]: ", "run.py", session=session)
 
     if _should_prompt_field(report, "runtime", runtime_type):
-        runtime_type = _prompt_with_default("Provide value for runtime.type [one-shot]: ", "one-shot")
+        runtime_type = _prompt_with_default(
+            "Provide value for runtime.type [one-shot]: ",
+            "one-shot",
+            session=session,
+        )
     elif runtime_type is None:
         runtime_type = "one-shot"
 
     if _should_prompt_field(report, "framework", framework):
-        framework_input = _prompt_with_default("Provide value for framework (optional): ", "")
+        framework_input = _prompt_with_default(
+            "Provide value for framework (optional): ",
+            "",
+            session=session,
+        )
         framework = framework_input or None
 
     if _should_prompt_field(report, "services", services):
-        services = _prompt_services(services)
+        services = _prompt_services(services, session=session)
 
     runtime_prompt_needed = _should_prompt_field(report, "runtime", runtime.get("type"))
     if runtime_type == "mcp-server" and runtime_prompt_needed:
-        if _prompt_yes_no("Configure permissions for mcp-server? [y/N]: ", False):
-            permissions = _prompt_permissions()
+        if _prompt_yes_no("Configure permissions for mcp-server? [y/N]: ", False, session=session):
+            permissions = _prompt_permissions(session=session)
 
     dependency_lines = "\n".join(f"  - {item}" for item in dependencies)
     if not dependency_lines:
@@ -337,9 +368,9 @@ def _build_manifest_from_analysis(target_path: Path, report: dict[str, Any]) -> 
     return "\n".join(manifest_lines) + "\n"
 
 
-def _write_manifest_in_place(target_path: Path, manifest_text: str) -> None:
+def _write_manifest_in_place(target_path: Path, manifest_text: str, *, force: bool = False) -> None:
     manifest_path = target_path / "kinnoo.yaml"
-    if manifest_path.exists():
+    if manifest_path.exists() and not force:
         raise FileExistsError(
             "Import aborted: kinnoo.yaml already exists. "
             "Use an explicit override path in a later import step before overwriting."
@@ -359,7 +390,7 @@ def _write_manifest_in_place(target_path: Path, manifest_text: str) -> None:
         raise
 
 
-def import_agent(target_path_arg: str | None) -> int:
+def import_agent(target_path_arg: str | None, *, force: bool = False) -> int:
     """Import a project in-place by writing kinnoo.yaml safely into target root."""
     target_path = _resolve_import_target(target_path_arg)
     manifest_path = target_path / "kinnoo.yaml"
@@ -373,6 +404,15 @@ def import_agent(target_path_arg: str | None) -> int:
         print(f"Error: import target must be a directory: {target_path}")
         return 1
 
+    if manifest_path.exists() and not force:
+        print(
+            "Error: Import aborted: kinnoo.yaml already exists. "
+            "Use --force to explicitly override and overwrite."
+        )
+        return 1
+
+    session = PromptSession()
+
     try:
         report = analyze_project(target_path).as_dict()
         _show_detected_values(report)
@@ -383,17 +423,26 @@ def import_agent(target_path_arg: str | None) -> int:
             for warning in warning_messages:
                 print(f"  - {warning}")
 
-        confirmed = _prompt_with_default("Proceed with detected values? [Y/n]: ", "y").lower()
+        confirmed = _prompt_with_default(
+            "Proceed with detected values? [Y/n]: ",
+            "y",
+            session=session,
+        ).lower()
         if confirmed not in {"y", "yes"}:
             print("Import cancelled by user.")
             return 1
 
-        manifest_text = _build_manifest_from_analysis(target_path, report)
+        manifest_text = _build_manifest_from_analysis(target_path, report, session=session)
         selected_entrypoint = _extract_entrypoint_from_manifest(manifest_text)
         entrypoint_warning = _assess_entrypoint_contract(target_path, selected_entrypoint)
         if entrypoint_warning:
             print(f"Entrypoint compatibility warning: {entrypoint_warning}")
-            if _prompt_yes_no("Generate optional wrapper entrypoint bridge? [y/N]: ", False):
+            wrapper_eligible = "may not follow kinnoo one-shot CLI contract" in entrypoint_warning
+            if wrapper_eligible and _prompt_yes_no(
+                "Generate optional wrapper entrypoint bridge? [y/N]: ",
+                False,
+                session=session,
+            ):
                 if not selected_entrypoint:
                     print("Error: cannot generate wrapper without a valid entrypoint.")
                     return 1
@@ -413,7 +462,7 @@ def import_agent(target_path_arg: str | None) -> int:
         return 1
 
     try:
-        _write_manifest_in_place(target_path, manifest_text)
+        _write_manifest_in_place(target_path, manifest_text, force=force)
     except FileExistsError as exc:
         if generated_wrapper_path and generated_wrapper_path.exists():
             generated_wrapper_path.unlink()

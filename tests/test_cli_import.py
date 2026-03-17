@@ -120,6 +120,17 @@ def test_feature19_import_collision_requires_explicit_override(tmp_path):
     assert "override" in combined
     assert manifest_path.read_text(encoding="utf-8") == existing_manifest
 
+    force_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(project_dir), "--force"],
+        input="y\nrun.py\none-shot\n\n",
+        capture_output=True,
+        text=True,
+    )
+
+    assert force_result.returncode == 0
+    assert "Imported project in-place:" in force_result.stdout
+    assert manifest_path.read_text(encoding="utf-8") != existing_manifest
+
 
 def test_feature19_import_uses_analyzer_inference_and_warnings(tmp_path):
     project_dir = tmp_path / "feature19-analyzer-integration-project"
@@ -211,7 +222,7 @@ def test_feature19_conditional_prompts_for_runtime_services_permissions(tmp_path
 
     low_result = subprocess.run(
         [sys.executable, str(CLI_PATH), "import", str(low_confidence_project)],
-        input="y\nrun.py\nmcp-server\n\napi,database\ny\ny\nn\nn\n/tmp\n",
+        input="y\nrun.py\nmcp-server\n\ny\ny\nn\nn\n/tmp\n",
         capture_output=True,
         text=True,
     )
@@ -219,13 +230,12 @@ def test_feature19_conditional_prompts_for_runtime_services_permissions(tmp_path
     assert low_result.returncode == 0
     low_output = low_result.stdout + low_result.stderr
     assert "Provide value for runtime.type" in low_output
-    assert "Provide services" in low_output
+    assert "Provide services" not in low_output
     assert "Configure permissions for mcp-server" in low_output
 
     low_manifest = (low_confidence_project / "kinnoo.yaml").read_text(encoding="utf-8")
     assert "runtime:" in low_manifest
     assert "type: mcp-server" in low_manifest
-    assert "services:" in low_manifest
     assert "permissions:" in low_manifest
 
 
@@ -240,7 +250,7 @@ def test_feature19_entrypoint_warning_and_optional_wrapper(tmp_path):
 
     no_wrapper_result = subprocess.run(
         [sys.executable, str(CLI_PATH), "import", str(no_wrapper_project)],
-        input="y\n\n\nn\n",
+        input="y\n\nn\n",
         capture_output=True,
         text=True,
     )
@@ -261,7 +271,7 @@ def test_feature19_entrypoint_warning_and_optional_wrapper(tmp_path):
 
     wrapper_result = subprocess.run(
         [sys.executable, str(CLI_PATH), "import", str(wrapper_project)],
-        input="y\n\n\ny\n",
+        input="y\n\ny\n",
         capture_output=True,
         text=True,
     )
@@ -278,13 +288,9 @@ def test_feature19_entrypoint_warning_and_optional_wrapper(tmp_path):
 def test_feature19_interrupt_cleanup_and_exit_code(tmp_path):
     eof_project = tmp_path / "feature19-interrupt-eof"
     eof_project.mkdir(parents=True, exist_ok=True)
-    (eof_project / "run.py").write_text(
-        "import sys\n"
-        "if __name__ == '__main__':\n"
-        "    print(sys.argv[1] if len(sys.argv) > 1 else 'ok')\n",
-        encoding="utf-8",
-    )
+    (eof_project / "README.md").write_text("force unresolved prompts\n", encoding="utf-8")
 
+    # Non-interactive EOF should follow defaults for automation-safe behavior.
     eof_result = subprocess.run(
         [sys.executable, str(CLI_PATH), "import", str(eof_project)],
         input="",
@@ -292,11 +298,8 @@ def test_feature19_interrupt_cleanup_and_exit_code(tmp_path):
         text=True,
     )
 
-    eof_output = eof_result.stdout + eof_result.stderr
-    assert eof_result.returncode != 0
-    assert "interrupted" in eof_output.lower()
-    assert not (eof_project / "kinnoo.yaml").exists()
-    assert not (eof_project / "kinnoo_wrapper.py").exists()
+    assert eof_result.returncode == 0
+    assert (eof_project / "kinnoo.yaml").exists()
 
     sigint_project = tmp_path / "feature19-interrupt-sigint"
     sigint_project.mkdir(parents=True, exist_ok=True)

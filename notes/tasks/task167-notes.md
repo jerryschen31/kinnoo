@@ -27,3 +27,18 @@
 - Interactive CLI flows become more robust when interruption (`Ctrl+C`, `EOF`) is modeled as a first-class control path rather than a generic exception.
 - For migration/onboarding commands that can generate multiple artifacts, cleanup should be transaction-like: if final commit fails, remove intermediate artifacts too.
 - Integration tests for interactive CLIs should treat prompt transcripts as contracts; when prompt policy changes, update scripted input streams intentionally rather than relying on implicit EOF fallbacks.
+
+## TechLead review remediation
+- Addressed automation-safety for non-interactive stdin:
+  - EOF now follows defaults in non-interactive mode so CI/test harnesses can run import deterministically without scripted answers.
+- Addressed prompt minimization regression:
+  - Empty inferred list values (notably `services: []`) no longer force follow-up prompts.
+- Addressed collision preflight UX:
+  - Existing `kinnoo.yaml` is now checked before wizard prompts and returns immediate actionable error.
+- Implemented explicit override path for AC7:
+  - Added `kinnoo import [path] --force` to explicitly override an existing manifest.
+- Narrowed optional wrapper prompt behavior:
+  - Wrapper offer now appears only for true entrypoint contract mismatch warnings, not missing-entrypoint warnings.
+
+## Verification after remediation
+- `python3 -m pytest tests/test_cli_import.py` -> `11 passed`
