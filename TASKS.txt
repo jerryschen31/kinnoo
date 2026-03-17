@@ -3244,7 +3244,7 @@ tasks:
       - 'step4: Add tests proving analyzer invocation and prompt minimization behavior'
     dependencies: [task162, task163]
     tests: [test257, test258]
-    status: not-started
+    status: needs-review
 
   - id: task166
     title: "Feature19 schema-conditional prompts and entrypoint bridge handling"
