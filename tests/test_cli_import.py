@@ -20,7 +20,7 @@ def test_feature19_import_defaults_to_current_directory(tmp_path):
     )
 
     assert result.returncode == 0
-    assert "Starting import analysis for:" in result.stdout
+    assert "Detected values from analyzer:" in result.stdout
     assert "Usage:" not in result.stderr
 
 
@@ -117,3 +117,62 @@ def test_feature19_import_collision_requires_explicit_override(tmp_path):
     assert "already exists" in combined
     assert "override" in combined
     assert manifest_path.read_text(encoding="utf-8") == existing_manifest
+
+
+def test_feature19_import_uses_analyzer_inference_and_warnings(tmp_path):
+    project_dir = tmp_path / "feature19-analyzer-integration-project"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "run.py").write_text(
+        "import openai\n"
+        "import anthropic\n"
+        "import os\n"
+        "token = os.getenv('API_TOKEN')\n"
+        "if __name__ == '__main__':\n"
+        "    print('ok')\n",
+        encoding="utf-8",
+    )
+    (project_dir / "requirements.txt").write_text("requests==2.31.0\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(project_dir)],
+        input="y\nchatgpt\n",
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    combined_output = (result.stdout + result.stderr).lower()
+    assert "detected values from analyzer" in combined_output
+    assert "analyzer warnings" in combined_output
+    assert "ambiguous" in combined_output
+
+    manifest_text = (project_dir / "kinnoo.yaml").read_text(encoding="utf-8")
+    assert "entrypoint: run.py" in manifest_text
+    assert "framework: chatgpt" in manifest_text
+    assert "requests==2.31.0" in manifest_text
+    assert "api_token" in manifest_text.lower()
+
+
+def test_feature19_confirm_first_wizard_prompt_minimization(tmp_path):
+    project_dir = tmp_path / "feature19-confirm-first-project"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "run.py").write_text(
+        "import openai\n"
+        "if __name__ == '__main__':\n"
+        "    print('ok')\n",
+        encoding="utf-8",
+    )
+    (project_dir / "requirements.txt").write_text("tomli>=2.0\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(project_dir)],
+        input="y\n",
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    combined_output = result.stdout + result.stderr
+    assert "Detected values from analyzer:" in combined_output
+    assert "Proceed with detected values?" in combined_output
+    assert "Provide value for" not in combined_output
