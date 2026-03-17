@@ -4163,3 +4163,179 @@ tests:
     covers:
       - feature: feature27
         ac: AC9
+
+  - id: test252
+    title: Feature19 import defaults to current directory when path argument omitted
+    type: integration
+    preconditions: kinnoo CLI includes import subcommand and target fixture project directory
+    steps:
+      - step1: Run python src/kinnoo/cli.py import from within fixture project directory with no path argument
+      - step2: Verify command resolves target as current directory
+      - step3: Verify command proceeds to analysis/confirmation flow instead of argument error
+    expected: import command treats omitted path as current directory
+    pass_criteria: command does not require explicit path and no missing-argument usage error is emitted
+    automated: true
+    automation_path: tests/test_cli_import.py::test_feature19_import_defaults_to_current_directory
+    covers:
+      - feature: feature19
+        ac: AC1
+
+  - id: test253
+    title: Feature19 import rejects invalid arguments with clear usage help
+    type: integration
+    preconditions: kinnoo CLI includes import subcommand
+    steps:
+      - step1: Run python src/kinnoo/cli.py import with invalid argument forms
+      - step2: Capture stderr/stdout usage and error output
+      - step3: Verify process exits non-zero
+    expected: invalid invocation returns actionable usage/help output
+    pass_criteria: output includes usage guidance and exit code is non-zero for invalid forms
+    automated: true
+    automation_path: tests/test_cli_import.py::test_feature19_import_invalid_args_show_usage
+    covers:
+      - feature: feature19
+        ac: AC1
+
+  - id: test254
+    title: Feature19 import writes kinnoo.yaml in-place without scaffold copying
+    type: integration
+    preconditions: fixture project without kinnoo.yaml and with existing source layout
+    steps:
+      - step1: Run python src/kinnoo/cli.py import <fixture-path> through confirm flow
+      - step2: Verify kinnoo.yaml is created in fixture root
+      - step3: Verify no duplicate scaffold files/directories are generated
+    expected: import adds only in-place manifest metadata without cloning project structure
+    pass_criteria: kinnoo.yaml exists in target root and no copied scaffold tree is present
+    automated: true
+    automation_path: tests/test_cli_import.py::test_feature19_import_writes_manifest_in_place
+    covers:
+      - feature: feature19
+        ac: AC2
+
+  - id: test255
+    title: Feature19 import rolls back partial artifacts on failure
+    type: integration
+    preconditions: fixture and injected failure point after write begins
+    steps:
+      - step1: Trigger import flow with simulated failure after partial artifact creation
+      - step2: Inspect target directory for partially written kinnoo.yaml or wrapper files
+      - step3: Verify command exits non-zero with rollback message
+    expected: partial artifacts are cleaned up when import fails
+    pass_criteria: no partial import artifacts remain and command reports failure clearly
+    automated: true
+    automation_path: tests/test_cli_import.py::test_feature19_import_failure_rolls_back_partial_output
+    covers:
+      - feature: feature19
+        ac: AC5
+
+  - id: test256
+    title: Feature19 import collision safety prevents overwrite without explicit path
+    type: integration
+    preconditions: fixture project already contains kinnoo.yaml
+    steps:
+      - step1: Run python src/kinnoo/cli.py import <fixture-path> without force/confirm override
+      - step2: Verify import aborts with actionable collision message
+      - step3: Optionally run explicit override path and verify controlled overwrite behavior
+    expected: default import path does not overwrite existing manifest silently
+    pass_criteria: non-override mode exits non-zero and existing manifest remains unchanged
+    automated: true
+    automation_path: tests/test_cli_import.py::test_feature19_import_collision_requires_explicit_override
+    covers:
+      - feature: feature19
+        ac: AC7
+
+  - id: test257
+    title: Feature19 import uses feature27 analyzer output with confidence warnings
+    type: integration
+    preconditions: analyzer module available and fixture with inferable plus ambiguous fields
+    steps:
+      - step1: Run import flow and capture analyzer invocation path
+      - step2: Verify generated manifest values are derived from analyzer inferred output
+      - step3: Verify confidence-aware warnings are surfaced for low-confidence fields
+    expected: import inference is analyzer-backed and warning-aware
+    pass_criteria: analyzer call path is exercised and warning metadata appears for ambiguous fields
+    automated: true
+    automation_path: tests/test_cli_import.py::test_feature19_import_uses_analyzer_inference_and_warnings
+    covers:
+      - feature: feature19
+        ac: AC3
+
+  - id: test258
+    title: Feature19 wizard is confirm-first and prompts only unresolved fields
+    type: integration
+    preconditions: fixture with mostly inferable fields and a small ambiguous subset
+    steps:
+      - step1: Run interactive import with scripted input stream
+      - step2: Verify first prompt presents full detected-values confirmation
+      - step3: Verify follow-up prompts are emitted only for missing/ambiguous fields
+    expected: wizard minimizes prompt count and follows confirm-first UX
+    pass_criteria: prompt transcript shows initial summary confirmation then only unresolved-field prompts
+    automated: true
+    automation_path: tests/test_cli_import.py::test_feature19_confirm_first_wizard_prompt_minimization
+    covers:
+      - feature: feature19
+        ac: AC4
+
+  - id: test259
+    title: Feature19 schema-extension prompts are conditional on inference confidence
+    type: integration
+    preconditions: fixtures covering high-confidence and low-confidence cases for runtime.type services and permissions
+    steps:
+      - step1: Run import on high-confidence fixture and capture prompt transcript
+      - step2: Run import on low-confidence fixture and capture prompt transcript
+      - step3: Compare whether schema-extension prompts are skipped or asked conditionally
+    expected: schema-extension prompts appear only when needed by confidence/missing-value rules
+    pass_criteria: high-confidence run skips extension prompts while low-confidence run prompts for required fields
+    automated: true
+    automation_path: tests/test_cli_import.py::test_feature19_conditional_prompts_for_runtime_services_permissions
+    covers:
+      - feature: feature19
+        ac: AC9
+
+  - id: test260
+    title: Feature19 entrypoint mismatch is warning-first with optional wrapper path
+    type: integration
+    preconditions: fixture entrypoint intentionally violates kinnoo input/output contract
+    steps:
+      - step1: Run import flow and verify entrypoint compatibility assessment
+      - step2: Verify non-blocking warning is shown and import can proceed without wrapper
+      - step3: Verify optional wrapper generation path is offered and works when selected
+    expected: entrypoint mismatch does not hard-fail import by default
+    pass_criteria: warning is emitted, default flow remains successful, wrapper option path is available
+    automated: true
+    automation_path: tests/test_cli_import.py::test_feature19_entrypoint_warning_and_optional_wrapper
+    covers:
+      - feature: feature19
+        ac: AC10
+
+  - id: test261
+    title: Feature19 interrupt safety leaves no partial artifacts on Ctrl+C or EOF
+    type: integration
+    preconditions: interactive import flow running on fixture project
+    steps:
+      - step1: Trigger Ctrl+C and EOF interruption during wizard confirmation
+      - step2: Verify command exits non-zero
+      - step3: Verify no partial kinnoo.yaml or wrapper artifact remains
+    expected: import interruption exits safely and cleanly
+    pass_criteria: interruption paths return non-zero and leave target project unchanged by partial artifacts
+    automated: true
+    automation_path: tests/test_cli_import.py::test_feature19_interrupt_cleanup_and_exit_code
+    covers:
+      - feature: feature19
+        ac: AC6
+
+  - id: test262
+    title: Feature19 imported project runs in-place through kinnoo run
+    type: integration
+    preconditions: fixture project successfully imported in-place with generated kinnoo.yaml
+    steps:
+      - step1: Execute python src/kinnoo/cli.py run <fixture-path> "test input" after import
+      - step2: Verify run path succeeds using in-place project layout
+      - step3: Verify expected output is produced without requiring copied scaffold
+    expected: imported project is runnable via standard in-place kinnoo run flow
+    pass_criteria: run command exits zero and outputs expected response from imported project
+    automated: true
+    automation_path: tests/test_cli_import.py::test_feature19_imported_project_runs_in_place
+    covers:
+      - feature: feature19
+        ac: AC8

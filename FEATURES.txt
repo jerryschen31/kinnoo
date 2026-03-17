@@ -644,39 +644,44 @@ features:
   - id: feature19
     title: "kinnoo import — Analyzer-backed onboarding wizard"
     description: |
-      Add a guided onboarding flow for existing agents: `kinnoo import
-      <existing-agent-path> <new-agent-dir>`. The command uses static analysis
-      from feature27's analyzer module to infer kinnoo.yaml fields, then runs an
-      interactive confirmation wizard. The wizard first presents detected values
-      and only asks follow-up questions for fields that could not be inferred.
+      Add a guided onboarding flow for existing agents: `kinnoo import [path]`
+      (default `.`). The command uses static analysis from feature27's analyzer
+      module to infer kinnoo.yaml fields, then runs an interactive confirmation
+      wizard. The wizard first presents detected values and only asks follow-up
+      questions for fields that could not be inferred.
 
-      The flow creates a Kinnoo-compatible scaffold, writes `kinnoo.yaml` with
-      safe defaults and confidence-aware warnings, copies required artifacts for
-      run/pack flows, and leaves the source project unchanged.
-    tasks: []
+      The flow writes `kinnoo.yaml` in-place with safe defaults and
+      confidence-aware warnings, keeps the source project layout unchanged, and
+      avoids file copying/scaffold cloning. Entrypoint compatibility gaps are
+      warning-first and non-blocking, with an optional wrapper generation path.
+    tasks: [task163, task164, task165, task166, task167]
     acceptance_criteria:
       - id: AC1
-        description: "`kinnoo import <existing-agent-path> <new-agent-dir>` validates arguments and prints clear usage/help when arguments are missing."
+        description: "`kinnoo import [path]` validates arguments, defaults to current directory when omitted, and prints clear usage/help when arguments are invalid."
       - id: AC2
-        description: "Import creates a new Kinnoo agent directory with required files (`kinnoo.yaml`, `requirements.txt`, entrypoint, README, `tools/`, `prompts/`) and does not modify the original source project."
+        description: "Import writes `kinnoo.yaml` in the target project directory without copying project files or creating a duplicate Kinnoo scaffold; existing source files are not modified."
       - id: AC3
         description: "`kinnoo import` invokes feature27 analyzer detectors and generates `kinnoo.yaml` with inferred fields plus confidence-aware warnings when a field cannot be inferred confidently."
       - id: AC4
         description: "Interactive wizard behavior is confirm-first: detected values are shown for user confirmation, and prompts are only shown for missing/ambiguous fields."
       - id: AC5
-        description: "If import fails at any step, partial output in `<new-agent-dir>` is cleaned up (or rolled back) so users are not left with a broken half-created agent."
+        description: "If import fails at any step, partial output in the target project (for example partially written `kinnoo.yaml` or wrapper artifacts) is cleaned up (or rolled back) so users are not left with a broken half-created setup."
       - id: AC6
         description: "If user interrupts (Ctrl+C/EOF) during interactive confirmation, import exits safely with non-zero status and leaves no partial artifacts."
       - id: AC7
         description: "Collision and safety checks prevent overwrites unless an explicit force/confirm path is used; error messages remain clear and actionable."
       - id: AC8
-        description: "Imported agent can be executed via `kinnoo run <new-agent-dir> \"<input>\"` after standard dependency installation path."
+        description: "Imported agent can be executed in-place via `kinnoo run <path> \"<input>\"` (or `kinnoo run . \"<input>\"`) after standard dependency installation path."
       - id: AC9
         description: "For schema fields introduced in features23-26 (for example `runtime.type: mcp-server`, `services`, and MCP permissions), wizard prompts are conditional: ask only when analyzers cannot infer values or when detector confidence is below threshold."
+      - id: AC10
+        description: "If entrypoint analysis indicates kinnoo input/output contract mismatch, import emits a clear non-blocking warning and offers an optional wrapper generation path instead of failing by default."
     notes:
       - "Redesign scope: import UX should minimize prompt count; default behavior is accept detected values with one confirmation step."
       - "feature27 analyzers are the single inference backend for import; avoid duplicating heuristics inside import_command."
       - "Import summary should clearly separate: detected values, user-overrides, and unresolved TODO/warnings."
+      - "Primary UX model is in-place onboarding (metadata layer), not project copying."
+      - "Optional wrapper generation is opt-in and only for entrypoint compatibility gaps."
       - "Deferred implementation planning lives in notes/tasks-todo-later.md and notes/tests-todo-later.md while feature23-feature26 are implemented first."
     owner: techlead-agent
     dependencies: [feature2, feature3, feature9, feature27]

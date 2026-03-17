@@ -3185,3 +3185,103 @@ tasks:
     dependencies: [task159, task160, task161]
     tests: [test251]
     status: completed
+
+  - id: task163
+    title: "Feature19 import CLI surface and path resolution"
+    type: task
+    description: |
+      Add the `kinnoo import [path]` command surface to the CLI with default
+      current-directory behavior and strict argument validation for invalid
+      or unsupported invocation forms.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/import_command.py
+      - tests/test_cli_import.py
+    steps:
+      - 'step1: Add import subcommand parser and usage text aligned with in-place import model'
+      - 'step2: Resolve target path with default `.` behavior when argument is omitted'
+      - 'step3: Reject invalid argument forms and emit clear actionable usage/help output'
+      - 'step4: Add focused CLI tests for default path and invalid argument cases'
+    dependencies: [task158]
+    tests: [test252, test253]
+    status: not-started
+
+  - id: task164
+    title: "Feature19 in-place manifest write, collision safety, and rollback"
+    type: task
+    description: |
+      Implement safe in-place output behavior for import: write `kinnoo.yaml`
+      into target projects without scaffold copying, prevent accidental
+      overwrite, and ensure rollback of partial artifacts when failures occur.
+    files:
+      - src/kinnoo/import_command.py
+      - src/kinnoo/validator.py
+      - tests/test_cli_import.py
+    steps:
+      - 'step1: Generate and write kinnoo.yaml in target project directory only'
+      - 'step2: Implement collision checks for existing kinnoo.yaml and explicit force/confirm path'
+      - 'step3: Ensure no scaffold-copy behavior and no source file mutation'
+      - 'step4: Add rollback cleanup path for failures after write start'
+    dependencies: [task163]
+    tests: [test254, test255, test256]
+    status: not-started
+
+  - id: task165
+    title: "Feature19 analyzer integration and confirm-first wizard"
+    type: task
+    description: |
+      Integrate feature27 analyzer output into import generation and implement
+      confirm-first wizard flow that minimizes prompts by asking only for
+      missing or ambiguous fields.
+    files:
+      - src/kinnoo/import_command.py
+      - src/kinnoo/analyzer.py
+      - tests/test_cli_import.py
+    steps:
+      - 'step1: Invoke analyze_project as the single inference backend for import'
+      - 'step2: Map inferred/confidence/warnings data into generated manifest fields'
+      - 'step3: Implement one-shot confirmation view and prompt only unresolved/ambiguous fields'
+      - 'step4: Add tests proving analyzer invocation and prompt minimization behavior'
+    dependencies: [task162, task163]
+    tests: [test257, test258]
+    status: not-started
+
+  - id: task166
+    title: "Feature19 schema-conditional prompts and entrypoint bridge handling"
+    type: task
+    description: |
+      Implement conditional prompting for feature23-26 schema extensions and
+      warning-first entrypoint compatibility handling with optional wrapper
+      generation rather than default hard failure.
+    files:
+      - src/kinnoo/import_command.py
+      - src/kinnoo/schema.py
+      - tests/test_cli_import.py
+    steps:
+      - 'step1: Prompt for runtime.type/services/permissions only when analyzer confidence is low or values are missing'
+      - 'step2: Detect entrypoint contract mismatch and emit non-blocking warning'
+      - 'step3: Offer optional wrapper generation path and keep default flow non-blocking'
+      - 'step4: Add tests for conditional prompt gating and wrapper-option behavior'
+    dependencies: [task165]
+    tests: [test259, test260]
+    status: not-started
+
+  - id: task167
+    title: "Feature19 interruption safety and in-place runnability gate"
+    type: task
+    description: |
+      Add interruption-safe import termination semantics and validate that
+      imported projects run in-place with the standard kinnoo execution path.
+    files:
+      - src/kinnoo/import_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli_import.py
+      - tests/test_regression_v1.py
+    steps:
+      - 'step1: Handle Ctrl+C/EOF during wizard as safe non-zero exit'
+      - 'step2: Ensure interruption paths leave no partial artifacts'
+      - 'step3: Add integration gate that validates in-place import output runs via kinnoo run'
+      - 'step4: Add feature19 regression gate wiring to avoid future UX regressions'
+    dependencies: [task164, task166]
+    tests: [test261, test262]
+    status: not-started

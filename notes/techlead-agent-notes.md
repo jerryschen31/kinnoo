@@ -20,6 +20,21 @@
 - Sequencing update (explicit): implement feature23-feature26 first, then feature27, then feature19.
 - Manifest updates validated with `python3 src/validate_project_manifests.py` (pass).
 
+### Feature19 import model refinement (2026-03-16)
+
+- Updated `feature19` to in-place onboarding: `kinnoo import [path]` (default `.`), no `<new-agent-dir>` argument.
+- Removed copy/scaffold-clone expectation from ACs; import now writes `kinnoo.yaml` into target project without modifying existing source files.
+- Added explicit acceptance criterion for entrypoint compatibility handling: warning-first, non-blocking default, optional wrapper generation path.
+- Directional rationale: maximize adoption by adding kinnoo metadata to existing projects instead of requiring a duplicate project tree.
+
+### Feature19 implementation planning (2026-03-16)
+
+- Added task decomposition for feature19: `task163`-`task167` in `TASKS.txt`.
+- Added test plan for feature19: `test252`-`test262` in `TESTS.txt` with AC coverage mapping for AC1-AC10.
+- Updated `FEATURES.txt` feature19 `tasks` list to include `task163`-`task167`.
+- Corrected feature19 AC5 wording to reflect in-place rollback semantics (no `<new-agent-dir>` model).
+- Replaced `notes/swe-handoff.md` with a dedicated feature19 SWE handoff brief.
+
 Created 10 features (feature20–feature29) for Phase 3: "Share any agent. Run it with its full stack."
 
 ### Decomposition from Phase 3 Notes (6 high-level → 10 features)
