@@ -3204,7 +3204,7 @@ tasks:
       - 'step4: Add focused CLI tests for default path and invalid argument cases'
     dependencies: [task158]
     tests: [test252, test253]
-    status: not-started
+    status: needs-review
 
   - id: task164
     title: "Feature19 in-place manifest write, collision safety, and rollback"
