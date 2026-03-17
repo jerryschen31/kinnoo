@@ -3264,7 +3264,7 @@ tasks:
       - 'step4: Add tests for conditional prompt gating and wrapper-option behavior'
     dependencies: [task165]
     tests: [test259, test260]
-    status: not-started
+    status: needs-review
 
   - id: task167
     title: "Feature19 interruption safety and in-place runnability gate"
