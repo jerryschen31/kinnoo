@@ -177,6 +177,11 @@ def main():
         nargs="?",
         help="(Optional) Path to existing project directory (defaults to current directory)",
     )
+    import_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite existing kinnoo.yaml in target directory",
+    )
 
     # Pre-parse sys.argv for missing args to print custom usage before argparse error
     if len(sys.argv) > 1 and sys.argv[1] == "run":
@@ -340,13 +345,14 @@ def main():
 
     elif args.command == "import":
         target_path_arg = getattr(args, "path", None)
+        force = bool(getattr(args, "force", False))
 
         try:
             from kinnoo.import_command import import_agent
         except ImportError:
             from .import_command import import_agent
 
-        exit_code = import_agent(target_path_arg=target_path_arg)
+        exit_code = import_agent(target_path_arg=target_path_arg, force=force)
         sys.exit(exit_code)
 
 if __name__ == "__main__":
