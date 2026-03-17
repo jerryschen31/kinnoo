@@ -1,6 +1,8 @@
 import subprocess
 import sys
 import os
+import signal
+import time
 from pathlib import Path
 
 
@@ -271,3 +273,86 @@ def test_feature19_entrypoint_warning_and_optional_wrapper(tmp_path):
 
     wrapper_manifest = (wrapper_project / "kinnoo.yaml").read_text(encoding="utf-8")
     assert "entrypoint: kinnoo_wrapper.py" in wrapper_manifest
+
+
+def test_feature19_interrupt_cleanup_and_exit_code(tmp_path):
+    eof_project = tmp_path / "feature19-interrupt-eof"
+    eof_project.mkdir(parents=True, exist_ok=True)
+    (eof_project / "run.py").write_text(
+        "import sys\n"
+        "if __name__ == '__main__':\n"
+        "    print(sys.argv[1] if len(sys.argv) > 1 else 'ok')\n",
+        encoding="utf-8",
+    )
+
+    eof_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(eof_project)],
+        input="",
+        capture_output=True,
+        text=True,
+    )
+
+    eof_output = eof_result.stdout + eof_result.stderr
+    assert eof_result.returncode != 0
+    assert "interrupted" in eof_output.lower()
+    assert not (eof_project / "kinnoo.yaml").exists()
+    assert not (eof_project / "kinnoo_wrapper.py").exists()
+
+    sigint_project = tmp_path / "feature19-interrupt-sigint"
+    sigint_project.mkdir(parents=True, exist_ok=True)
+    (sigint_project / "run.py").write_text(
+        "import sys\n"
+        "if __name__ == '__main__':\n"
+        "    print(sys.argv[1] if len(sys.argv) > 1 else 'ok')\n",
+        encoding="utf-8",
+    )
+
+    process = subprocess.Popen(
+        [sys.executable, str(CLI_PATH), "import", str(sigint_project)],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    time.sleep(0.2)
+    if process.poll() is None:
+        process.send_signal(signal.SIGINT)
+    sigint_stdout, sigint_stderr = process.communicate(timeout=5)
+
+    sigint_output = sigint_stdout + sigint_stderr
+    assert process.returncode != 0
+    assert "interrupted" in sigint_output.lower()
+    assert not (sigint_project / "kinnoo.yaml").exists()
+    assert not (sigint_project / "kinnoo_wrapper.py").exists()
+
+
+def test_feature19_imported_project_runs_in_place(tmp_path):
+    project_dir = tmp_path / "feature19-import-runnable"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "requirements.txt").write_text("\n", encoding="utf-8")
+    (project_dir / "run.py").write_text(
+        "import sys\n"
+        "if __name__ == '__main__':\n"
+        "    print(f\"imported-runnable:{sys.argv[1] if len(sys.argv) > 1 else ''}\")\n",
+        encoding="utf-8",
+    )
+
+    import_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(project_dir)],
+        input="y\n\n\n",
+        capture_output=True,
+        text=True,
+    )
+
+    assert import_result.returncode == 0
+    assert (project_dir / "kinnoo.yaml").exists()
+
+    run_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "run", str(project_dir), "hello-import"],
+        capture_output=True,
+        text=True,
+    )
+
+    combined_output = run_result.stdout + run_result.stderr
+    assert run_result.returncode == 0
+    assert "imported-runnable:hello-import" in combined_output
