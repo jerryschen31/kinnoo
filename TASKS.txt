@@ -3204,7 +3204,7 @@ tasks:
       - 'step4: Add focused CLI tests for default path and invalid argument cases'
     dependencies: [task158]
     tests: [test252, test253]
-    status: not-started
+    status: completed
 
   - id: task164
     title: "Feature19 in-place manifest write, collision safety, and rollback"
@@ -3224,7 +3224,7 @@ tasks:
       - 'step4: Add rollback cleanup path for failures after write start'
     dependencies: [task163]
     tests: [test254, test255, test256]
-    status: not-started
+    status: completed
 
   - id: task165
     title: "Feature19 analyzer integration and confirm-first wizard"
@@ -3244,7 +3244,7 @@ tasks:
       - 'step4: Add tests proving analyzer invocation and prompt minimization behavior'
     dependencies: [task162, task163]
     tests: [test257, test258]
-    status: not-started
+    status: completed
 
   - id: task166
     title: "Feature19 schema-conditional prompts and entrypoint bridge handling"
@@ -3264,7 +3264,7 @@ tasks:
       - 'step4: Add tests for conditional prompt gating and wrapper-option behavior'
     dependencies: [task165]
     tests: [test259, test260]
-    status: not-started
+    status: completed
 
   - id: task167
     title: "Feature19 interruption safety and in-place runnability gate"
@@ -3284,4 +3284,4 @@ tasks:
       - 'step4: Add feature19 regression gate wiring to avoid future UX regressions'
     dependencies: [task164, task166]
     tests: [test261, test262]
-    status: not-started
+    status: completed

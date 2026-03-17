@@ -3,6 +3,23 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v0.12.1] - 2026-03-16
+### Added
+- Implemented Feature19 "kinnoo import - Analyzer-backed onboarding wizard" for in-place project onboarding.
+- Added `kinnoo import [path]` flow (default `.`) that analyzes existing projects and generates `kinnoo.yaml` without scaffold-copy behavior.
+- Added confirm-first import wizard behavior with analyzer-driven defaults, conditional follow-up prompts, and confidence-aware warning display.
+- Added optional entrypoint bridge generation path (`kinnoo_wrapper.py`) for legacy scripts that do not meet one-shot CLI contract expectations.
+
+### Changed
+- Added collision preflight and explicit override support via `kinnoo import [path] --force`.
+- Improved non-interactive import safety by defaulting EOF prompts in automation contexts while preserving Ctrl+C interruption handling.
+- Refined prompt minimization logic to avoid unnecessary prompts when inferred list fields are intentionally empty (for example `services: []`).
+
+### Quality
+- Feature19 focused import suite passes: `11 passed` (`tests/test_cli_import.py`).
+- Full regression suite passes after remediation: `259 passed, 1 skipped`.
+
+
 ## [v0.12.0] - 2026-03-16
 ### Added
 - Implemented Feature25 "Service Health Checks - Runtime Preflight" with HTTP, TCP, and process probes integrated into `kinnoo run` and `--preflight` flows.

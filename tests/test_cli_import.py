@@ -1,0 +1,361 @@
+import subprocess
+import sys
+import os
+import signal
+import time
+from pathlib import Path
+
+
+CLI_PATH = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+
+
+def test_feature19_import_defaults_to_current_directory(tmp_path):
+    project_dir = tmp_path / "feature19-default-path-project"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "run.py").write_text("print('hello')\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import"],
+        cwd=project_dir,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert "Detected values from analyzer:" in result.stdout
+    assert "Usage:" not in result.stderr
+
+
+def test_feature19_import_invalid_args_show_usage(tmp_path):
+    project_dir = tmp_path / "feature19-invalid-args-project"
+    project_dir.mkdir(parents=True, exist_ok=True)
+
+    result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(project_dir), "extra-arg"],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode != 0
+    combined = (result.stdout + result.stderr).lower()
+    assert "usage:" in combined
+    assert "import" in combined
+
+
+def test_feature19_import_writes_manifest_in_place(tmp_path):
+    project_dir = tmp_path / "feature19-write-in-place-project"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "run.py").write_text("print('hello from existing project')\n", encoding="utf-8")
+    (project_dir / "notes.txt").write_text("keep me unchanged\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(project_dir)],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert "Imported project in-place:" in result.stdout
+    manifest_path = project_dir / "kinnoo.yaml"
+    assert manifest_path.exists()
+    manifest_text = manifest_path.read_text(encoding="utf-8")
+    assert "entrypoint: run.py" in manifest_text
+    assert "runtime:" in manifest_text
+    # Ensure no scaffold-copy behavior: only existing files plus kinnoo.yaml.
+    assert not (project_dir / "prompts").exists()
+    assert not (project_dir / "tools").exists()
+    assert (project_dir / "notes.txt").read_text(encoding="utf-8") == "keep me unchanged\n"
+
+
+def test_feature19_import_failure_rolls_back_partial_output(tmp_path):
+    project_dir = tmp_path / "feature19-rollback-project"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "run.py").write_text("print('rollback project')\n", encoding="utf-8")
+
+    env = dict(os.environ)
+    env["KINNOO_IMPORT_FAIL_AFTER_WRITE"] = "1"
+
+    result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(project_dir)],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert result.returncode != 0
+    combined = (result.stdout + result.stderr).lower()
+    assert "rolled back partial artifacts" in combined
+    assert not (project_dir / "kinnoo.yaml").exists()
+
+
+def test_feature19_import_collision_requires_explicit_override(tmp_path):
+    project_dir = tmp_path / "feature19-collision-project"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    existing_manifest = (
+        "name: existing-agent\n"
+        "version: 1.0.0\n"
+        "entrypoint: run.py\n"
+        "runtime:\n"
+        "  type: one-shot\n"
+        "  language: python\n"
+        "  version: \">=3.10\"\n"
+        "dependencies: []\n"
+        "inputs:\n"
+        "  type: string\n"
+        "outputs:\n"
+        "  type: string\n"
+    )
+    manifest_path = project_dir / "kinnoo.yaml"
+    manifest_path.write_text(existing_manifest, encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(project_dir)],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode != 0
+    combined = (result.stdout + result.stderr).lower()
+    assert "already exists" in combined
+    assert "override" in combined
+    assert manifest_path.read_text(encoding="utf-8") == existing_manifest
+
+    force_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(project_dir), "--force"],
+        input="y\nrun.py\none-shot\n\n",
+        capture_output=True,
+        text=True,
+    )
+
+    assert force_result.returncode == 0
+    assert "Imported project in-place:" in force_result.stdout
+    assert manifest_path.read_text(encoding="utf-8") != existing_manifest
+
+
+def test_feature19_import_uses_analyzer_inference_and_warnings(tmp_path):
+    project_dir = tmp_path / "feature19-analyzer-integration-project"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "run.py").write_text(
+        "import openai\n"
+        "import anthropic\n"
+        "import os\n"
+        "token = os.getenv('API_TOKEN')\n"
+        "if __name__ == '__main__':\n"
+        "    print('ok')\n",
+        encoding="utf-8",
+    )
+    (project_dir / "requirements.txt").write_text("requests==2.31.0\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(project_dir)],
+        input="y\nchatgpt\n",
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    combined_output = (result.stdout + result.stderr).lower()
+    assert "detected values from analyzer" in combined_output
+    assert "analyzer warnings" in combined_output
+    assert "ambiguous" in combined_output
+
+    manifest_text = (project_dir / "kinnoo.yaml").read_text(encoding="utf-8")
+    assert "entrypoint: run.py" in manifest_text
+    assert "framework: chatgpt" in manifest_text
+    assert "requests==2.31.0" in manifest_text
+    assert "api_token" in manifest_text.lower()
+
+
+def test_feature19_confirm_first_wizard_prompt_minimization(tmp_path):
+    project_dir = tmp_path / "feature19-confirm-first-project"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "run.py").write_text(
+        "import openai\n"
+        "if __name__ == '__main__':\n"
+        "    print('ok')\n",
+        encoding="utf-8",
+    )
+    (project_dir / "requirements.txt").write_text("tomli>=2.0\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(project_dir)],
+        input="y\n",
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    combined_output = result.stdout + result.stderr
+    assert "Detected values from analyzer:" in combined_output
+    assert "Proceed with detected values?" in combined_output
+    assert "Provide value for" not in combined_output
+
+
+def test_feature19_conditional_prompts_for_runtime_services_permissions(tmp_path):
+    high_confidence_project = tmp_path / "feature19-conditional-prompts-high"
+    high_confidence_project.mkdir(parents=True, exist_ok=True)
+    (high_confidence_project / "run.py").write_text(
+        "import sys\n"
+        "import openai\n"
+        "service_url = 'https://api.example.com/health'\n"
+        "if __name__ == '__main__':\n"
+        "    print(sys.argv[1] if len(sys.argv) > 1 else 'ok')\n",
+        encoding="utf-8",
+    )
+
+    high_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(high_confidence_project)],
+        input="y\n",
+        capture_output=True,
+        text=True,
+    )
+
+    assert high_result.returncode == 0
+    high_output = high_result.stdout + high_result.stderr
+    assert "Provide value for runtime.type" not in high_output
+    assert "Provide services" not in high_output
+    assert "Configure permissions for mcp-server" not in high_output
+
+    low_confidence_project = tmp_path / "feature19-conditional-prompts-low"
+    low_confidence_project.mkdir(parents=True, exist_ok=True)
+    (low_confidence_project / "README.md").write_text("no python files yet\n", encoding="utf-8")
+
+    low_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(low_confidence_project)],
+        input="y\nrun.py\nmcp-server\n\ny\ny\nn\nn\n/tmp\n",
+        capture_output=True,
+        text=True,
+    )
+
+    assert low_result.returncode == 0
+    low_output = low_result.stdout + low_result.stderr
+    assert "Provide value for runtime.type" in low_output
+    assert "Provide services" not in low_output
+    assert "Configure permissions for mcp-server" in low_output
+
+    low_manifest = (low_confidence_project / "kinnoo.yaml").read_text(encoding="utf-8")
+    assert "runtime:" in low_manifest
+    assert "type: mcp-server" in low_manifest
+    assert "permissions:" in low_manifest
+
+
+def test_feature19_entrypoint_warning_and_optional_wrapper(tmp_path):
+    no_wrapper_project = tmp_path / "feature19-wrapper-default"
+    no_wrapper_project.mkdir(parents=True, exist_ok=True)
+    (no_wrapper_project / "run.py").write_text(
+        "def run():\n"
+        "    print('no argv contract')\n",
+        encoding="utf-8",
+    )
+
+    no_wrapper_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(no_wrapper_project)],
+        input="y\n\nn\n",
+        capture_output=True,
+        text=True,
+    )
+
+    assert no_wrapper_result.returncode == 0
+    no_wrapper_output = no_wrapper_result.stdout + no_wrapper_result.stderr
+    assert "Entrypoint compatibility warning:" in no_wrapper_output
+    assert "Generate optional wrapper entrypoint bridge?" in no_wrapper_output
+    assert not (no_wrapper_project / "kinnoo_wrapper.py").exists()
+
+    wrapper_project = tmp_path / "feature19-wrapper-opt-in"
+    wrapper_project.mkdir(parents=True, exist_ok=True)
+    (wrapper_project / "run.py").write_text(
+        "def run():\n"
+        "    print('no argv contract')\n",
+        encoding="utf-8",
+    )
+
+    wrapper_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(wrapper_project)],
+        input="y\n\ny\n",
+        capture_output=True,
+        text=True,
+    )
+
+    assert wrapper_result.returncode == 0
+    wrapper_output = wrapper_result.stdout + wrapper_result.stderr
+    assert "Entrypoint compatibility warning:" in wrapper_output
+    assert (wrapper_project / "kinnoo_wrapper.py").exists()
+
+    wrapper_manifest = (wrapper_project / "kinnoo.yaml").read_text(encoding="utf-8")
+    assert "entrypoint: kinnoo_wrapper.py" in wrapper_manifest
+
+
+def test_feature19_interrupt_cleanup_and_exit_code(tmp_path):
+    eof_project = tmp_path / "feature19-interrupt-eof"
+    eof_project.mkdir(parents=True, exist_ok=True)
+    (eof_project / "README.md").write_text("force unresolved prompts\n", encoding="utf-8")
+
+    # Non-interactive EOF should follow defaults for automation-safe behavior.
+    eof_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(eof_project)],
+        input="",
+        capture_output=True,
+        text=True,
+    )
+
+    assert eof_result.returncode == 0
+    assert (eof_project / "kinnoo.yaml").exists()
+
+    sigint_project = tmp_path / "feature19-interrupt-sigint"
+    sigint_project.mkdir(parents=True, exist_ok=True)
+    (sigint_project / "run.py").write_text(
+        "import sys\n"
+        "if __name__ == '__main__':\n"
+        "    print(sys.argv[1] if len(sys.argv) > 1 else 'ok')\n",
+        encoding="utf-8",
+    )
+
+    process = subprocess.Popen(
+        [sys.executable, str(CLI_PATH), "import", str(sigint_project)],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    time.sleep(0.2)
+    if process.poll() is None:
+        process.send_signal(signal.SIGINT)
+    sigint_stdout, sigint_stderr = process.communicate(timeout=5)
+
+    sigint_output = sigint_stdout + sigint_stderr
+    assert process.returncode != 0
+    assert "interrupted" in sigint_output.lower()
+    assert not (sigint_project / "kinnoo.yaml").exists()
+    assert not (sigint_project / "kinnoo_wrapper.py").exists()
+
+
+def test_feature19_imported_project_runs_in_place(tmp_path):
+    project_dir = tmp_path / "feature19-import-runnable"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "requirements.txt").write_text("\n", encoding="utf-8")
+    (project_dir / "run.py").write_text(
+        "import sys\n"
+        "if __name__ == '__main__':\n"
+        "    print(f\"imported-runnable:{sys.argv[1] if len(sys.argv) > 1 else ''}\")\n",
+        encoding="utf-8",
+    )
+
+    import_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(project_dir)],
+        input="y\n\n\n",
+        capture_output=True,
+        text=True,
+    )
+
+    assert import_result.returncode == 0
+    assert (project_dir / "kinnoo.yaml").exists()
+
+    run_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "run", str(project_dir), "hello-import"],
+        capture_output=True,
+        text=True,
+    )
+
+    combined_output = run_result.stdout + run_result.stderr
+    assert run_result.returncode == 0
+    assert "imported-runnable:hello-import" in combined_output

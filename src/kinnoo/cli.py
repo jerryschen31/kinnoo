@@ -23,6 +23,8 @@ RUN_USAGE_TEXT = (
     "       kinnoo run <agent-dir> -- <args...>"
 )
 
+IMPORT_USAGE_TEXT = "Usage: kinnoo import [path]"
+
 def main():
     import os
     parser = argparse.ArgumentParser(prog="kinnoo", description="Kinnoo CLI")
@@ -163,6 +165,22 @@ def main():
         "query",
         nargs="?",
         help="Search query to match against agent name and description",
+    )
+
+    # Add 'import' subcommand
+    import_parser = subparsers.add_parser(
+        "import",
+        help="Import an existing project in-place and prepare kinnoo metadata",
+    )
+    import_parser.add_argument(
+        "path",
+        nargs="?",
+        help="(Optional) Path to existing project directory (defaults to current directory)",
+    )
+    import_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite existing kinnoo.yaml in target directory",
     )
 
     # Pre-parse sys.argv for missing args to print custom usage before argparse error
@@ -323,6 +341,18 @@ def main():
             from .search_command import search_agents
 
         exit_code = search_agents(query=query, source=source)
+        sys.exit(exit_code)
+
+    elif args.command == "import":
+        target_path_arg = getattr(args, "path", None)
+        force = bool(getattr(args, "force", False))
+
+        try:
+            from kinnoo.import_command import import_agent
+        except ImportError:
+            from .import_command import import_agent
+
+        exit_code = import_agent(target_path_arg=target_path_arg, force=force)
         sys.exit(exit_code)
 
 if __name__ == "__main__":
