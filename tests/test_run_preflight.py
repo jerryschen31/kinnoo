@@ -464,3 +464,95 @@ def test_feature25_preflight_includes_service_health_results(tmp_path: Path) -> 
         tcp_socket.close()
         http_server.shutdown()
         http_server.server_close()
+
+
+def test_feature31_node_preflight_toolchain_guards(tmp_path: Path) -> None:
+    def _write_node_agent(agent_dir: Path, *, runtime_version: str, package_manager: str | None = None) -> None:
+        agent_dir.mkdir(parents=True, exist_ok=True)
+        package_manager_lines: list[str] = []
+        if package_manager is not None:
+            package_manager_lines = [f"  package_manager: {package_manager}"]
+
+        manifest_lines = [
+            "name: feature31-node-preflight-agent",
+            "version: 1.0.0",
+            "entrypoint: run.js",
+            "runtime:",
+            "  language: nodejs",
+            f"  version: '{runtime_version}'",
+            *package_manager_lines,
+            "  type: one-shot",
+            "dependencies: []",
+            "inputs:",
+            "  type: string",
+            "outputs:",
+            "  type: string",
+        ]
+        (agent_dir / "kinnoo.yaml").write_text("\n".join(manifest_lines) + "\n", encoding="utf-8")
+        (agent_dir / "run.js").write_text("console.log('ok');\n", encoding="utf-8")
+        (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+
+    # Step 1: node missing from PATH should fail with node guidance.
+    missing_node_agent = tmp_path / "feature31-node-missing"
+    _write_node_agent(missing_node_agent, runtime_version=">=22")
+
+    empty_bin = tmp_path / "empty-bin"
+    empty_bin.mkdir(parents=True, exist_ok=True)
+    missing_node_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "run", str(missing_node_agent), "--preflight"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env={**os.environ, "PATH": str(empty_bin)},
+    )
+    missing_node_output = f"{missing_node_result.stdout}\n{missing_node_result.stderr}"
+    assert missing_node_result.returncode != 0
+    assert "node executable not found in PATH" in missing_node_output
+    assert "Action: install or upgrade Node.js so runtime.version in kinnoo.yaml is satisfied" in missing_node_output
+
+    fake_bin = tmp_path / "fake-bin"
+    fake_bin.mkdir(parents=True, exist_ok=True)
+
+    # Step 2: node below required version should fail with version guidance.
+    low_node_script = fake_bin / "node"
+    low_node_script.write_text("#!/bin/sh\necho v20.11.0\n", encoding="utf-8")
+    low_node_script.chmod(0o755)
+    npm_script = fake_bin / "npm"
+    npm_script.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    npm_script.chmod(0o755)
+
+    low_version_agent = tmp_path / "feature31-node-low-version"
+    _write_node_agent(low_version_agent, runtime_version=">=22")
+    low_version_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "run", str(low_version_agent), "--preflight"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env={**os.environ, "PATH": str(fake_bin)},
+    )
+    low_version_output = f"{low_version_result.stdout}\n{low_version_result.stderr}"
+    assert low_version_result.returncode != 0
+    assert "current Node 20.11.0 does not satisfy runtime.version '>=22'" in low_version_output
+    assert "runtime version: install or upgrade Node.js to satisfy runtime.version" in low_version_output
+
+    # Step 3: configured package manager missing should fail with actionable diagnostics.
+    good_node_script = fake_bin / "node"
+    good_node_script.write_text("#!/bin/sh\necho v22.4.1\n", encoding="utf-8")
+    good_node_script.chmod(0o755)
+    pnpm_path = fake_bin / "pnpm"
+    if pnpm_path.exists():
+        pnpm_path.unlink()
+
+    missing_pm_agent = tmp_path / "feature31-node-missing-pm"
+    _write_node_agent(missing_pm_agent, runtime_version=">=22", package_manager="pnpm")
+    missing_pm_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "run", str(missing_pm_agent), "--preflight"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env={**os.environ, "PATH": str(fake_bin)},
+    )
+    missing_pm_output = f"{missing_pm_result.stdout}\n{missing_pm_result.stderr}"
+    assert missing_pm_result.returncode != 0
+    assert "node package manager 'pnpm' not found in PATH" in missing_pm_output
+    assert "Action: install the configured Node package manager and ensure it is on PATH" in missing_pm_output

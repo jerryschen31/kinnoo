@@ -18,6 +18,7 @@ try:
     )
     from kinnoo.registry import RegistryService, parse_install_target_spec
     from kinnoo.registry_backends import MockFilesystemRegistryBackend
+    from kinnoo.health_check import check_node_package_manager_availability, check_node_runtime_constraint
     from kinnoo.schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars
     from kinnoo.inspect_command import read_manifest_from_kno_archive
     from kinnoo.validator import validate
@@ -30,6 +31,7 @@ except ImportError:
     )
     from .registry import RegistryService, parse_install_target_spec
     from .registry_backends import MockFilesystemRegistryBackend
+    from .health_check import check_node_package_manager_availability, check_node_runtime_constraint
     from .schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars
     from .inspect_command import read_manifest_from_kno_archive
     from .validator import validate
@@ -115,9 +117,29 @@ def _resolve_node_package_manager(runtime: dict[str, object]) -> tuple[str | Non
 
 
 def _install_node_dependencies(target_dir: Path, runtime: dict[str, object]) -> int:
+    runtime_version = runtime.get("version")
+    runtime_constraint = str(runtime_version) if runtime_version is not None else ""
+    runtime_ok, runtime_message = check_node_runtime_constraint(runtime_constraint)
+    if not runtime_ok:
+        print(f"Error: {runtime_message}", file=sys.stderr)
+        print(
+            "Error: Install a compatible Node.js runtime and retry installation.",
+            file=sys.stderr,
+        )
+        return 1
+
     package_manager, resolution_error = _resolve_node_package_manager(runtime)
     if package_manager is None:
         print(f"Error: {resolution_error}", file=sys.stderr)
+        return 1
+
+    package_manager_ok, package_manager_message = check_node_package_manager_availability(package_manager)
+    if not package_manager_ok:
+        print(f"Error: {package_manager_message}", file=sys.stderr)
+        print(
+            "Error: Install the configured package manager and ensure it is available on PATH.",
+            file=sys.stderr,
+        )
         return 1
 
     package_json_path = target_dir / "package.json"
