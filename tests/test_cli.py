@@ -1098,6 +1098,129 @@ def test_feature32_attach_daemon_session_controls(monkeypatch, tmp_path, capsys)
     assert "attach requires an interactive TTY session" in combined_output
 
 
+def test_feature32_logs_daemon_tail_and_follow(monkeypatch, tmp_path, capsys):
+    import kinnoo.run_command as run_command
+
+    tail_agent = tmp_path / "feature32-logs-tail-agent"
+    tail_agent.mkdir()
+    tail_log = tail_agent / ".kinnoo" / "daemon.log"
+    tail_log.parent.mkdir(parents=True, exist_ok=True)
+    tail_log.write_text("line-1\nline-2\nline-3\n", encoding="utf-8")
+    (tail_agent / ".kinnoo" / "daemon-state.json").write_text(
+        json.dumps(
+            {
+                "pid": 44001,
+                "runtime_type": "daemon",
+                "runtime_language": "python",
+                "log_path": str(tail_log),
+                "state_version": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    follow_agent = tmp_path / "feature32-logs-follow-agent"
+    follow_agent.mkdir()
+    follow_log = follow_agent / ".kinnoo" / "daemon.log"
+    follow_log.parent.mkdir(parents=True, exist_ok=True)
+    follow_log.write_text("startup-line\n", encoding="utf-8")
+    (follow_agent / ".kinnoo" / "daemon-state.json").write_text(
+        json.dumps(
+            {
+                "pid": 44002,
+                "runtime_type": "daemon",
+                "runtime_language": "nodejs",
+                "log_path": str(follow_log),
+                "state_version": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    missing_log_agent = tmp_path / "feature32-logs-missing-log-agent"
+    missing_log_agent.mkdir()
+    missing_log_path = missing_log_agent / ".kinnoo" / "daemon.log"
+    missing_log_path.parent.mkdir(parents=True, exist_ok=True)
+    (missing_log_agent / ".kinnoo" / "daemon-state.json").write_text(
+        json.dumps(
+            {
+                "pid": 44003,
+                "runtime_type": "daemon",
+                "runtime_language": "python",
+                "log_path": str(missing_log_path),
+                "state_version": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    non_running_follow_agent = tmp_path / "feature32-logs-non-running-agent"
+    non_running_follow_agent.mkdir()
+    non_running_log = non_running_follow_agent / ".kinnoo" / "daemon.log"
+    non_running_log.parent.mkdir(parents=True, exist_ok=True)
+    non_running_log.write_text("last-known\n", encoding="utf-8")
+    (non_running_follow_agent / ".kinnoo" / "daemon-state.json").write_text(
+        json.dumps(
+            {
+                "pid": 44004,
+                "runtime_type": "daemon",
+                "runtime_language": "python",
+                "log_path": str(non_running_log),
+                "state_version": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    pid_calls = {"follow": 0}
+    appended_follow_line = {"done": False}
+
+    def fake_pid_running(pid: int) -> bool:
+        if pid == 44001:
+            return True
+        if pid == 44002:
+            pid_calls["follow"] += 1
+            return pid_calls["follow"] <= 2
+        if pid == 44003:
+            return True
+        if pid == 44004:
+            return False
+        return False
+
+    def fake_sleep(_seconds: float) -> None:
+        if not appended_follow_line["done"]:
+            with follow_log.open("a", encoding="utf-8") as handle:
+                handle.write("follow-line\n")
+            appended_follow_line["done"] = True
+
+    monkeypatch.setattr(run_command, "daemon_pid_is_running", fake_pid_running)
+    monkeypatch.setattr(run_command.time, "sleep", fake_sleep)
+
+    tail_exit = run_command.logs_agent(str(tail_agent), follow=False, tail_lines=2)
+    follow_exit = run_command.logs_agent(str(follow_agent), follow=True, tail_lines=1)
+    missing_log_exit = run_command.logs_agent(str(missing_log_agent), follow=False, tail_lines=5)
+    non_running_follow_exit = run_command.logs_agent(
+        str(non_running_follow_agent),
+        follow=True,
+        tail_lines=5,
+    )
+
+    captured = capsys.readouterr()
+    combined_output = f"{captured.out}\n{captured.err}"
+
+    assert tail_exit == 0, combined_output
+    assert follow_exit == 0, combined_output
+    assert missing_log_exit == 1, combined_output
+    assert non_running_follow_exit == 1, combined_output
+    assert "[daemon.log] line-2" in combined_output
+    assert "[daemon.log] line-3" in combined_output
+    assert "[daemon.log] startup-line" in combined_output
+    assert "[daemon.log] follow-line" in combined_output
+    assert "daemon exited; follow mode ended" in combined_output
+    assert "daemon log file not found" in combined_output
+    assert "follow mode requires an active daemon" in combined_output
+
+
 def test_run_missing_entrypoint(tmp_path):
     """Test kinnoo run with missing entrypoint file prints error and aborts."""
     agent_dir = tmp_path / "test-agent"
