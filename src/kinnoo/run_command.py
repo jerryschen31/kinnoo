@@ -25,11 +25,14 @@ from .health_check import (
 from .schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars
 from .supervisor import (
     build_daemon_state_payload,
+    clear_daemon_state,
     daemon_log_path,
+    daemon_state_path,
     infer_readiness_config,
     shutdown_server_with_report,
     shutdown_server,
     start_server,
+    stop_daemon_pid,
     stream_output,
     wait_until_ready,
     write_daemon_state,
@@ -789,6 +792,54 @@ def _write_run_trace_log(
     except Exception as error:
         _print_safe_error(f"Warning: Failed to write run trace log '{log_file}': {error}")
         return
+
+
+def stop_agent(agent_dir_arg: str) -> int:
+    """Stop a tracked daemon process using persisted control-plane metadata."""
+    agent_dir = Path(agent_dir_arg).resolve()
+    if not agent_dir.exists() or not agent_dir.is_dir():
+        _print_safe_error(f"Error: agent directory not found: {agent_dir}")
+        return 1
+
+    state_path = daemon_state_path(agent_dir)
+    if not state_path.exists():
+        _print_safe_error(
+            f"Error: daemon state file not found: {state_path}. Start daemon with 'kinnoo run {agent_dir} <input>' first."
+        )
+        return 1
+
+    try:
+        state_payload = json.loads(state_path.read_text(encoding="utf-8"))
+    except Exception as error:
+        _print_safe_error(f"Error: failed to read daemon state metadata: {error}")
+        return 1
+
+    pid_value = state_payload.get("pid") if isinstance(state_payload, dict) else None
+    if not isinstance(pid_value, int):
+        _print_safe_error("Error: daemon state metadata is missing a valid integer pid")
+        return 1
+
+    stop_report = stop_daemon_pid(pid=pid_value)
+    if not stop_report.terminated:
+        _print_safe_error(
+            "Error: daemon process did not stop after SIGTERM and SIGKILL fallback; "
+            f"manual intervention required for pid {pid_value}"
+        )
+        return 1
+
+    clear_daemon_state(agent_dir)
+
+    if stop_report.already_stopped:
+        print(f"[kinnoo] daemon already not running: pid={pid_value}")
+        print("[kinnoo] cleared stale daemon state metadata")
+        return 0
+
+    if stop_report.sigkill_sent:
+        print(f"[kinnoo] daemon stopped with fallback SIGKILL: pid={pid_value}")
+    else:
+        print(f"[kinnoo] daemon stopped gracefully with SIGTERM: pid={pid_value}")
+    print("[kinnoo] daemon state metadata cleared")
+    return 0
 
 
 def run_agent(

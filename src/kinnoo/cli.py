@@ -83,6 +83,13 @@ def main():
         help="Path to a JSON file payload for agents expecting structured input",
     )
 
+    # Add 'stop' subcommand
+    stop_parser = subparsers.add_parser(
+        "stop",
+        help="Stop a running daemon agent",
+    )
+    stop_parser.add_argument("agent_dir", nargs="?", help="Path to daemon agent directory")
+
     # Add 'install' subcommand
     install_parser = subparsers.add_parser(
         "install",
@@ -287,6 +294,20 @@ def main():
             force=force,
             assume_yes=assume_yes,
         )
+        sys.exit(exit_code)
+
+    elif args.command == "stop":
+        agent_dir = getattr(args, "agent_dir", None)
+        if agent_dir is None:
+            print("Usage: kinnoo stop <agent-dir>", file=sys.stderr)
+            sys.exit(1)
+
+        try:
+            from kinnoo.run_command import stop_agent
+        except ImportError:
+            from .run_command import stop_agent
+
+        exit_code = stop_agent(agent_dir)
         sys.exit(exit_code)
 
     elif args.command == "pack":
