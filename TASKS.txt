@@ -3531,7 +3531,7 @@ tasks:
       - 'step4: Add integration tests for python and node daemon start semantics'
     dependencies: [task178]
     tests: [test277]
-    status: not-started
+    status: needs-review
 
   - id: task180
     title: "Feature32 daemon stop command and graceful termination"

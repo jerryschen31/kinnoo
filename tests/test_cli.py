@@ -816,6 +816,103 @@ outputs:
     assert secret_input not in invalid_result.stderr
 
 
+@pytest.mark.parametrize(
+    ("runtime_language", "entrypoint_name", "entrypoint_contents"),
+    [
+        (
+            "python",
+            "run.py",
+            "import time\nwhile True:\n    time.sleep(60)\n",
+        ),
+        (
+            "nodejs",
+            "run.js",
+            "setInterval(() => {}, 60000);\n",
+        ),
+    ],
+)
+def test_feature32_run_daemon_start_persists_state(
+    monkeypatch,
+    tmp_path,
+    capsys,
+    runtime_language,
+    entrypoint_name,
+    entrypoint_contents,
+):
+    agent_dir = tmp_path / f"feature32-daemon-{runtime_language}-agent"
+    agent_dir.mkdir()
+    (agent_dir / "requirements.txt").write_text("")
+    (agent_dir / entrypoint_name).write_text(entrypoint_contents, encoding="utf-8")
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                f"name: feature32-daemon-{runtime_language}-agent",
+                "version: 0.1.0",
+                f"entrypoint: {entrypoint_name}",
+                "runtime:",
+                f"    language: {runtime_language}",
+                "    version: \">=3.10\"" if runtime_language == "python" else "    version: \">=22\"",
+                "    type: daemon",
+                "dependencies: []",
+                "inputs:",
+                "    type: text",
+                "outputs:",
+                "    type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    if runtime_language == "python":
+        # Pre-create minimal venv layout so test does not invoke real venv.create,
+        # which internally uses subprocess.Popen with additional kwargs.
+        venv_python = agent_dir / ".venv" / "bin" / "python"
+        venv_python.parent.mkdir(parents=True, exist_ok=True)
+        venv_python.write_text("", encoding="utf-8")
+
+    class _FakeDaemonPopen:
+        def __init__(self, args, cwd=None, stdout=None, stderr=None, env=None, start_new_session=False):
+            self.args = args
+            self.cwd = cwd
+            self.stdout = stdout
+            self.stderr = stderr
+            self.env = env
+            self.start_new_session = start_new_session
+            self.pid = 54321 if runtime_language == "python" else 65432
+
+    import kinnoo.run_command as run_command
+
+    monkeypatch.setattr(run_command.subprocess, "Popen", _FakeDaemonPopen)
+
+    exit_code = run_command.run_agent(
+        agent_dir_arg=str(agent_dir),
+        input_arg="hello-daemon",
+        no_guard=True,
+    )
+
+    captured = capsys.readouterr()
+    combined_output = f"{captured.out}\n{captured.err}"
+
+    assert exit_code == 0, combined_output
+    assert "daemon started" in combined_output
+    assert "control hints" in combined_output
+
+    state_path = agent_dir / ".kinnoo" / "daemon-state.json"
+    log_path = agent_dir / ".kinnoo" / "daemon.log"
+    assert state_path.exists(), "Expected daemon state file to be persisted"
+    assert log_path.exists(), "Expected daemon log file to be created"
+
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    assert state["runtime_type"] == "daemon"
+    assert state["runtime_language"] == runtime_language
+    assert state["agent_dir"] == str(agent_dir.resolve())
+    assert state["entrypoint"] == entrypoint_name
+    assert state["pid"] in (54321, 65432)
+    assert state["state_version"] == 1
+    assert state["command"][0] == ("node" if runtime_language == "nodejs" else str(agent_dir / ".venv" / "bin" / "python"))
+
+
 def test_run_missing_entrypoint(tmp_path):
     """Test kinnoo run with missing entrypoint file prints error and aborts."""
     agent_dir = tmp_path / "test-agent"
