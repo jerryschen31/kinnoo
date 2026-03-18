@@ -3344,7 +3344,7 @@ tasks:
       - 'step4: Add tests for npm default, pnpm override, and actionable failure output'
     dependencies: [task168]
     tests: [test266]
-    status: not-started
+    status: needs-review
 
   - id: task171
     title: "Feature31 pack/install archive behavior for node_modules and lockfiles"
