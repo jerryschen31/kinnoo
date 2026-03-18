@@ -1,4 +1,4 @@
-## SWE Handoff: feature32 - Daemon Runtime Type + Process Controls
+## SWE Handoff
 
 ### Scope
 Implement feature32 from [FEATURES.txt](FEATURES.txt) using tasks task178-task183 from [TASKS.txt](TASKS.txt). This is the daemon lifecycle/control-plane layer for Phase 4 and must preserve existing one-shot and mcp-server behavior.
@@ -49,9 +49,9 @@ Add generic daemon runtime support with operator lifecycle controls (`run` start
 - Run targeted tests for test276-test281.
 - Run daemon-focused regression slices for python + node compatibility paths.
 - Run full regression before handoff completion:
-	- python3 -m pytest
+  - python3 -m pytest
 - Validate manifests after task/test updates:
-	- python3 src/validate_project_manifests.py
+  - python3 src/validate_project_manifests.py
 
 ### Status Workflow Guidance
 - Move tasks task178-task183 from not-started -> in-progress when implementation begins.
