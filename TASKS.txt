@@ -3304,7 +3304,7 @@ tasks:
       - 'step4: Add focused validator tests for nodejs acceptance and invalid-language rejection'
     dependencies: []
     tests: [test263, test264]
-    status: not-started
+    status: needs-review
 
   - id: task169
     title: "Feature31 run path for Node.js entrypoints"
@@ -3407,4 +3407,87 @@ tasks:
       - 'step4: Attach regression evidence to task completion notes for techlead review'
     dependencies: [task169, task170, task171, task172]
     tests: [test269]
+    status: not-started
+
+  - id: task174
+    title: "Feature42 schema and validator support for json input/output types"
+    type: task
+    description: |
+      Extend schema/validator support so `inputs.type` and `outputs.type`
+      accept `json` in addition to existing values. Keep validation errors
+      explicit for unsupported types and preserve current backward compatibility.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+      - tests/test_validator.py
+    steps:
+      - 'step1: Add json to supported input and output type enums/constants in schema and validator paths'
+      - 'step2: Ensure unsupported input/output types fail with actionable error messages naming allowed values'
+      - 'step3: Verify existing manifests using text input/output continue validating unchanged'
+      - 'step4: Add focused unit tests for json acceptance and invalid type rejection'
+    dependencies: []
+    tests: [test270, test271]
+    status: not-started
+
+  - id: task175
+    title: "Feature42 run path JSON input modes"
+    type: task
+    description: |
+      Add JSON input delivery modes for run command so agents declaring
+      `inputs.type: json` can receive structured payloads via inline JSON and
+      JSON file sources while preserving existing text input behavior.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/run_command.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add CLI input flags for json payloads (inline and file-based) with clear precedence and usage errors'
+      - 'step2: Parse/validate JSON inputs before process execution and surface deterministic parse diagnostics'
+      - 'step3: Pass normalized JSON payload to agent subprocess in a stable contract-compatible form'
+      - 'step4: Add integration tests for inline json mode and json-file mode across runtime paths'
+    dependencies: [task174]
+    tests: [test272, test273]
+    status: not-started
+
+  - id: task176
+    title: "Feature42 json output contract enforcement"
+    type: task
+    description: |
+      Enforce JSON output contract for agents declaring `outputs.type: json` by
+      validating emitted payloads and returning actionable errors when output is
+      malformed or incompatible with JSON expectations.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/inspect_command.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add output validation path that checks emitted payload for valid JSON when outputs.type is json'
+      - 'step2: Preserve streamed output behavior while providing deterministic failure semantics on invalid json output'
+      - 'step3: Ensure diagnostics include parse context safely without leaking secret values'
+      - 'step4: Add integration coverage for valid json output pass and invalid json output failure'
+    dependencies: [task175]
+    tests: [test274]
+    status: not-started
+
+  - id: task177
+    title: "Feature42 docs preflight inspect and regression gates"
+    type: task
+    description: |
+      Document JSON I/O runtime contract and add regression checks proving text
+      workflows remain unchanged while JSON contract behavior is visible in
+      inspect, preflight, and help output.
+    files:
+      - README.md
+      - docs/manifest-schema-reference.md
+      - src/kinnoo/run_command.py
+      - src/kinnoo/inspect_command.py
+      - tests/test_docs.py
+      - tests/test_regression_v1.py
+    steps:
+      - 'step1: Update command/help/docs with explicit guidance for json input and output contract usage'
+      - 'step2: Ensure inspect/preflight surface json contract expectations clearly for operators'
+      - 'step3: Add regression tests covering legacy text flows for python and node agents'
+      - 'step4: Add docs regression assertions for feature42 contract coverage'
+    dependencies: [task174, task175, task176]
+    tests: [test275]
     status: not-started

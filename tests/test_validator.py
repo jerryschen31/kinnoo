@@ -275,6 +275,37 @@ def test_feature23_runtime_type_mcp_server_supported(tmp_path: Path) -> None:
         f"Expected allowed runtime values guidance; got: {errors}"
     )
 
+
+def test_feature31_runtime_language_nodejs_is_valid(tmp_path: Path) -> None:
+    """Feature31 test263: nodejs is accepted as a supported runtime.language value."""
+    data = dict(_VALID_MANIFEST)
+    data["runtime"] = dict(data["runtime"])
+    data["runtime"]["language"] = "nodejs"
+
+    manifest_path = _write_manifest(data, tmp_path)
+    is_valid, errors = validate(str(manifest_path))
+
+    assert is_valid is True, f"Expected runtime.language=nodejs to be valid; errors: {errors}"
+    assert not any("runtime.language" in message for message in errors)
+
+
+def test_feature31_runtime_language_rejects_unsupported_values(tmp_path: Path) -> None:
+    """Feature31 test264: unsupported runtime.language values return actionable guidance."""
+    data = dict(_VALID_MANIFEST)
+    data["runtime"] = dict(data["runtime"])
+    data["runtime"]["language"] = "ruby"
+
+    manifest_path = _write_manifest(data, tmp_path)
+    is_valid, errors = validate(str(manifest_path))
+
+    assert is_valid is False, "Expected unsupported runtime.language value to fail validation"
+    assert any("runtime.language" in message for message in errors), (
+        f"Expected runtime.language guidance in errors; got: {errors}"
+    )
+    assert any("python" in message and "nodejs" in message for message in errors), (
+        f"Expected supported runtime languages in error message; got: {errors}"
+    )
+
 # ---------------------------------------------------------------------------
 # test60 — Manifest loader normalizes "type" field to list (task38)
 # ---------------------------------------------------------------------------
