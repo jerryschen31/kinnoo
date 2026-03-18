@@ -465,6 +465,72 @@ def test_feature33_extension_fields_type_and_path_safety(tmp_path: Path) -> None
         f"Expected state_dirs path safety error; got: {errors}"
     )
 
+
+def test_feature33_openclaw_framework_specific_validation(tmp_path: Path) -> None:
+    """Feature33 test284: framework=openclaw triggers targeted validation rules."""
+    valid_openclaw = dict(_VALID_MANIFEST)
+    valid_openclaw["framework"] = "openclaw"
+    valid_openclaw["runtime"] = dict(valid_openclaw["runtime"])
+    valid_openclaw["runtime"]["language"] = "nodejs"
+    valid_openclaw["runtime"]["type"] = "daemon"
+    valid_openclaw["runtime"]["package_manager"] = "pnpm"
+    valid_openclaw["channels"] = ["stdio", "events"]
+    valid_openclaw["skills"] = ["skills/openclaw/core.md"]
+    valid_openclaw["state_dirs"] = ["state/openclaw"]
+
+    valid_openclaw_path = tmp_path / "feature33_openclaw_valid.yaml"
+    valid_openclaw_path.write_text(yaml.dump(valid_openclaw), encoding="utf-8")
+
+    is_valid, errors = validate(str(valid_openclaw_path))
+    assert is_valid is True, (
+        "Expected valid framework=openclaw manifest to pass targeted validation; "
+        f"errors: {errors}"
+    )
+    assert errors == []
+
+    invalid_openclaw = dict(_VALID_MANIFEST)
+    invalid_openclaw["framework"] = "openclaw"
+    invalid_openclaw["runtime"] = dict(invalid_openclaw["runtime"])
+    invalid_openclaw["runtime"]["package_manager"] = "yarn"
+    invalid_openclaw["channels"] = ["events"]
+
+    invalid_openclaw_path = tmp_path / "feature33_openclaw_invalid.yaml"
+    invalid_openclaw_path.write_text(yaml.dump(invalid_openclaw), encoding="utf-8")
+
+    is_valid, errors = validate(str(invalid_openclaw_path))
+    assert is_valid is False, "Expected invalid framework=openclaw fixture to fail"
+    assert any("framework is 'openclaw'" in message for message in errors), (
+        f"Expected openclaw-targeted diagnostics; got: {errors}"
+    )
+    assert any("runtime.language" in message and "nodejs" in message for message in errors), (
+        f"Expected openclaw runtime.language guidance; got: {errors}"
+    )
+    assert any("runtime.type" in message and "daemon" in message for message in errors), (
+        f"Expected openclaw runtime.type guidance; got: {errors}"
+    )
+    assert any("runtime.package_manager" in message and "openclaw" in message for message in errors), (
+        f"Expected openclaw runtime.package_manager guidance; got: {errors}"
+    )
+    assert any("channels" in message and "stdio" in message for message in errors), (
+        f"Expected openclaw channels guidance; got: {errors}"
+    )
+
+    non_openclaw_control = dict(_VALID_MANIFEST)
+    non_openclaw_control["framework"] = "custom-framework"
+    non_openclaw_control["runtime"] = dict(non_openclaw_control["runtime"])
+    non_openclaw_control["runtime"]["package_manager"] = "npm"
+    non_openclaw_control["channels"] = ["events"]
+
+    non_openclaw_control_path = tmp_path / "feature33_non_openclaw_control.yaml"
+    non_openclaw_control_path.write_text(yaml.dump(non_openclaw_control), encoding="utf-8")
+
+    is_valid, errors = validate(str(non_openclaw_control_path))
+    assert is_valid is True, (
+        "Expected framework-specific rules to be gated to framework=openclaw only; "
+        f"errors: {errors}"
+    )
+    assert errors == []
+
 # ---------------------------------------------------------------------------
 # test60 — Manifest loader normalizes "type" field to list (task38)
 # ---------------------------------------------------------------------------
