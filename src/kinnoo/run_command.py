@@ -11,6 +11,7 @@ import re
 import json
 import signal
 import time
+import threading
 from datetime import datetime, timezone
 
 import yaml
@@ -369,6 +370,56 @@ def _manifest_declares_json_input(manifest: dict) -> bool:
             for item in declared_type
         )
     return False
+
+
+def _manifest_declares_json_output(manifest: dict) -> bool:
+    outputs_section = manifest.get("outputs")
+    if not isinstance(outputs_section, dict):
+        return False
+
+    declared_type = outputs_section.get("type")
+    if isinstance(declared_type, str):
+        return declared_type.strip().lower() == "json"
+    if isinstance(declared_type, list):
+        return any(
+            isinstance(item, str) and item.strip().lower() == "json"
+            for item in declared_type
+        )
+    return False
+
+
+def _stream_and_capture_process_output(process: subprocess.Popen) -> tuple[str, str]:
+    stdout_chunks: list[str] = []
+    stderr_chunks: list[str] = []
+
+    def _pump(stream, target_stream, chunks: list[str]) -> None:
+        if stream is None:
+            return
+        for line in iter(stream.readline, ""):
+            chunks.append(line)
+            target_stream.write(line)
+            target_stream.flush()
+        stream.close()
+
+    stdout_thread = threading.Thread(
+        target=_pump,
+        args=(process.stdout, sys.stdout, stdout_chunks),
+        daemon=True,
+    )
+    stderr_thread = threading.Thread(
+        target=_pump,
+        args=(process.stderr, sys.stderr, stderr_chunks),
+        daemon=True,
+    )
+
+    stdout_thread.start()
+    stderr_thread.start()
+
+    process.wait()
+    stdout_thread.join()
+    stderr_thread.join()
+
+    return "".join(stdout_chunks), "".join(stderr_chunks)
 
 
 def _load_json_payload_from_file(json_file_arg: str, secret_values: Iterable[str]) -> object:
@@ -951,6 +1002,10 @@ def run_agent(
     process_args.extend(runtime_pass_through_args)
 
     runtime_type = runtime_section.get("type") if isinstance(runtime_section.get("type"), str) else "one-shot"
+    enforce_json_output_contract = (
+        runtime_type != "mcp-server"
+        and _manifest_declares_json_output(manifest if isinstance(manifest, dict) else {})
+    )
 
     if runtime_type == "mcp-server":
         shutdown_timeout_value = runtime_section.get("shutdown_timeout_seconds", 3.0)
@@ -1050,6 +1105,32 @@ def run_agent(
             signal.signal(signal.SIGINT, previous_sigint_handler)
 
     try:
+        if enforce_json_output_contract:
+            process = subprocess.Popen(
+                process_args,
+                cwd=agent_dir,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=subprocess_env,
+                text=True,
+                bufsize=1,
+            )
+            captured_stdout, _captured_stderr = _stream_and_capture_process_output(process)
+            if process.returncode != 0:
+                return finalize(process.returncode)
+
+            try:
+                json.loads(captured_stdout)
+            except json.JSONDecodeError as error:
+                _print_safe_error(
+                    "Error: outputs.type=json contract violation: stdout is not valid JSON "
+                    f"(line {error.lineno}, column {error.colno}: {error.msg})",
+                    secret_values=resolved_env_vars.values(),
+                )
+                return finalize(1)
+
+            return finalize(process.returncode)
+
         process = subprocess.Popen(
             process_args,
             cwd=agent_dir,

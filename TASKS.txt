@@ -3467,7 +3467,7 @@ tasks:
       - 'step4: Add integration coverage for valid json output pass and invalid json output failure'
     dependencies: [task175]
     tests: [test274]
-    status: not-started
+    status: needs-review
 
   - id: task177
     title: "Feature42 docs preflight inspect and regression gates"
