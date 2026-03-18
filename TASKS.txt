@@ -3427,7 +3427,7 @@ tasks:
       - 'step4: Add focused unit tests for json acceptance and invalid type rejection'
     dependencies: []
     tests: [test270, test271]
-    status: needs-review
+    status: completed
 
   - id: task175
     title: "Feature42 run path JSON input modes"
@@ -3447,7 +3447,7 @@ tasks:
       - 'step4: Add integration tests for inline json mode and json-file mode across runtime paths'
     dependencies: [task174]
     tests: [test272, test273]
-    status: needs-review
+    status: completed
 
   - id: task176
     title: "Feature42 json output contract enforcement"
@@ -3467,7 +3467,7 @@ tasks:
       - 'step4: Add integration coverage for valid json output pass and invalid json output failure'
     dependencies: [task175]
     tests: [test274]
-    status: needs-review
+    status: completed
 
   - id: task177
     title: "Feature42 docs preflight inspect and regression gates"
@@ -3490,4 +3490,4 @@ tasks:
       - 'step4: Add docs regression assertions for feature42 contract coverage'
     dependencies: [task174, task175, task176]
     tests: [test275]
-    status: needs-review
+    status: completed

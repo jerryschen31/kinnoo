@@ -3,6 +3,25 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v0.14.0] - 2026-03-17
+### Added
+- Implemented Feature42 "JSON Input/Output Types for Agent Interop" with first-class manifest contract support for `inputs.type: json` and `outputs.type: json`.
+- Added structured run input modes for JSON payload delivery:
+  - inline payloads via `--json-input`
+  - file-backed payloads via `--json-file`
+- Added one-shot runtime output contract enforcement for `outputs.type: json`, including deterministic parse diagnostics for invalid JSON stdout.
+- Added inspect/preflight/help visibility for JSON contract expectations, including operator guidance for structured input and output validation behavior.
+
+### Changed
+- Extended validator I/O type guidance to include `json` as an allowed manifest type while preserving rejection behavior for unsupported values.
+- Documented the Feature42 JSON contract in `README.md` and `docs/manifest-schema-reference.md` with additive compatibility guidance for existing text workflows.
+
+### Quality
+- Feature42 focused gate passed (`7 passed`) across validator, run JSON modes, output contract enforcement, docs coverage, and regression gate assertions.
+- Full-suite regression after Feature42 implementation: `273 passed, 1 skipped` (`python3 -m pytest`).
+- Merge commit: TBD (populate after merge to `phase4/main`).
+
+
 ## [v0.13.0] - 2026-03-17
 ### Added
 - Implemented Feature31 "Node.js Runtime Support (Foundation)" for first-class `runtime.language: nodejs` execution and install workflows.
