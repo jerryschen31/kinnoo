@@ -1240,7 +1240,7 @@ features:
       - "Reuses existing supervisor and health-check modules as the control-plane base."
     owner: techlead-agent
     dependencies: [feature31]
-    status: not-started
+    status: completed
 
   - id: feature33
     title: "Manifest Schema Extensions for OpenClaw/JS Agents"
@@ -1249,7 +1249,7 @@ features:
       Add support for package-manager declaration, channel metadata, skill path metadata,
       and mutable state directory declarations. Keep schema framework-agnostic while enabling
       OpenClaw-specific validation behavior behind `framework: openclaw`.
-    tasks: []
+    tasks: [task184, task185, task186, task187, task188]
     acceptance_criteria:
       - id: AC1
         description: "Schema accepts `runtime.package_manager` with supported values (`npm`, `pnpm`) and validates invalid values with clear errors."

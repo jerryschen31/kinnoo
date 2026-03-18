@@ -4645,3 +4645,83 @@ tests:
     covers:
       - feature: feature32
         ac: AC6
+
+  - id: test282
+    title: Feature33 runtime.package_manager accepts npm and pnpm and rejects unsupported values
+    type: unit
+    preconditions: validator module available; manifest fixtures with runtime.package_manager set to npm, pnpm, and invalid values
+    steps:
+      - step1: Validate manifest fixture with runtime.package_manager set to npm
+      - step2: Validate manifest fixture with runtime.package_manager set to pnpm
+      - step3: Validate fixture with unsupported package manager value and capture error guidance
+    expected: supported values pass and unsupported values fail with clear allowed-values diagnostics
+    pass_criteria: npm and pnpm fixtures pass validation; unsupported value fails with explicit runtime.package_manager guidance
+    automated: true
+    automation_path: tests/test_validator.py::test_feature33_runtime_package_manager_validation
+    covers:
+      - feature: feature33
+        ac: AC1
+
+  - id: test283
+    title: Feature33 channels skills and state_dirs enforce strict types and path safety
+    type: unit
+    preconditions: validator module available; fixtures for valid and invalid channels skills state_dirs payloads
+    steps:
+      - step1: Validate manifest with correctly typed channels skills and state_dirs structures
+      - step2: Validate fixtures with type mismatches for channels skills and state_dirs members
+      - step3: Validate fixtures containing unsafe path patterns (absolute or traversal paths)
+    expected: valid structures are accepted and invalid type/path inputs return deterministic actionable errors
+    pass_criteria: valid fixture passes; invalid type and unsafe path fixtures fail with field-specific diagnostics
+    automated: true
+    automation_path: tests/test_validator.py::test_feature33_extension_fields_type_and_path_safety
+    covers:
+      - feature: feature33
+        ac: AC2
+
+  - id: test284
+    title: Feature33 framework openclaw triggers targeted validation rules and diagnostics
+    type: unit
+    preconditions: validator module available; openclaw framework fixtures for valid and invalid extension combinations
+    steps:
+      - step1: Validate manifest fixture using framework openclaw with valid extension field usage
+      - step2: Validate openclaw fixture with invalid framework-specific field usage
+      - step3: Assert returned diagnostics are framework-targeted and reference openclaw expectations
+    expected: openclaw-specific rules execute only in openclaw context and provide targeted guidance
+    pass_criteria: valid openclaw fixture passes; invalid openclaw fixture fails with framework-targeted error messages
+    automated: true
+    automation_path: tests/test_validator.py::test_feature33_openclaw_framework_specific_validation
+    covers:
+      - feature: feature33
+        ac: AC3
+
+  - id: test285
+    title: Feature33 extension fields remain optional and non-breaking for non-openclaw manifests
+    type: integration
+    preconditions: existing python and node manifest fixtures plus non-openclaw extension-field fixtures
+    steps:
+      - step1: Validate baseline manifests that omit all feature33 extension fields
+      - step2: Validate non-openclaw manifests that include extension fields in valid shape
+      - step3: Run regression assertions ensuring existing manifest validation behavior remains unchanged
+    expected: feature33 fields are additive and do not regress non-openclaw validation behavior
+    pass_criteria: baseline and non-openclaw fixtures pass where expected and no backward-compatibility regressions are introduced
+    automated: true
+    automation_path: tests/test_regression_v1.py::test_feature33_non_openclaw_optional_nonbreaking_regression_gate
+    covers:
+      - feature: feature33
+        ac: AC4
+
+  - id: test286
+    title: Feature33 docs include manifest extension reference and examples for OpenClaw and generic Node agents
+    type: integration
+    preconditions: docs updated with feature33 schema reference content
+    steps:
+      - step1: Verify docs describe runtime.package_manager channels skills and state_dirs fields with constraints
+      - step2: Verify docs include an OpenClaw example manifest using framework openclaw
+      - step3: Verify docs include a generic Node.js example and optional-field guidance for non-openclaw frameworks
+    expected: manifest documentation clearly explains feature33 behavior and provides actionable examples
+    pass_criteria: required feature33 field references and both example categories are present in documentation
+    automated: true
+    automation_path: tests/test_docs.py::test_feature33_manifest_extension_docs_examples
+    covers:
+      - feature: feature33
+        ac: AC5
