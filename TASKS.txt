@@ -3386,7 +3386,7 @@ tasks:
       - 'step4: Add tests for success and failure preflight paths with clear diagnostics'
     dependencies: [task168]
     tests: [test268]
-    status: not-started
+    status: needs-review
 
   - id: task173
     title: "Feature31 python runtime regression gate"
