@@ -90,6 +90,13 @@ def main():
     )
     stop_parser.add_argument("agent_dir", nargs="?", help="Path to daemon agent directory")
 
+    # Add 'attach' subcommand
+    attach_parser = subparsers.add_parser(
+        "attach",
+        help="Attach to a running daemon agent session",
+    )
+    attach_parser.add_argument("agent_dir", nargs="?", help="Path to daemon agent directory")
+
     # Add 'install' subcommand
     install_parser = subparsers.add_parser(
         "install",
@@ -308,6 +315,20 @@ def main():
             from .run_command import stop_agent
 
         exit_code = stop_agent(agent_dir)
+        sys.exit(exit_code)
+
+    elif args.command == "attach":
+        agent_dir = getattr(args, "agent_dir", None)
+        if agent_dir is None:
+            print("Usage: kinnoo attach <agent-dir>", file=sys.stderr)
+            sys.exit(1)
+
+        try:
+            from kinnoo.run_command import attach_agent
+        except ImportError:
+            from .run_command import attach_agent
+
+        exit_code = attach_agent(agent_dir)
         sys.exit(exit_code)
 
     elif args.command == "pack":
