@@ -375,6 +375,43 @@ def test_feature32_runtime_type_daemon_validation(tmp_path: Path) -> None:
         for message in errors
     ), f"Expected allowed runtime type guidance in errors; got: {errors}"
 
+
+def test_feature33_runtime_package_manager_validation(tmp_path: Path) -> None:
+    """Feature33 test282: runtime.package_manager accepts npm/pnpm and rejects others."""
+    for package_manager in ("npm", "pnpm"):
+        valid_data = dict(_VALID_MANIFEST)
+        valid_data["runtime"] = dict(valid_data["runtime"])
+        valid_data["runtime"]["language"] = "nodejs"
+        valid_data["runtime"]["package_manager"] = package_manager
+
+        valid_path = tmp_path / f"feature33_runtime_package_manager_{package_manager}.yaml"
+        valid_path.write_text(yaml.dump(valid_data), encoding="utf-8")
+
+        is_valid, errors = validate(str(valid_path))
+        assert is_valid is True, (
+            f"Expected runtime.package_manager={package_manager!r} to pass validation; "
+            f"errors: {errors}"
+        )
+        assert errors == []
+
+    invalid_data = dict(_VALID_MANIFEST)
+    invalid_data["runtime"] = dict(invalid_data["runtime"])
+    invalid_data["runtime"]["language"] = "nodejs"
+    invalid_data["runtime"]["package_manager"] = "yarn"
+
+    invalid_path = tmp_path / "feature33_runtime_package_manager_invalid.yaml"
+    invalid_path.write_text(yaml.dump(invalid_data), encoding="utf-8")
+
+    is_valid, errors = validate(str(invalid_path))
+    assert is_valid is False, "Expected unsupported runtime.package_manager value to fail"
+    assert any(
+        "runtime.package_manager" in message and "unsupported value" in message
+        for message in errors
+    ), f"Expected runtime.package_manager unsupported-value guidance; got: {errors}"
+    assert any("npm" in message and "pnpm" in message for message in errors), (
+        f"Expected allowed runtime.package_manager values in error message; got: {errors}"
+    )
+
 # ---------------------------------------------------------------------------
 # test60 — Manifest loader normalizes "type" field to list (task38)
 # ---------------------------------------------------------------------------
