@@ -3304,7 +3304,7 @@ tasks:
       - 'step4: Add focused validator tests for nodejs acceptance and invalid-language rejection'
     dependencies: []
     tests: [test263, test264]
-    status: needs-review
+    status: completed
 
   - id: task169
     title: "Feature31 run path for Node.js entrypoints"
@@ -3324,7 +3324,7 @@ tasks:
       - 'step4: Add integration test covering node run success path and streamed output'
     dependencies: [task168]
     tests: [test265]
-    status: needs-review
+    status: completed
 
   - id: task170
     title: "Feature31 Node.js dependency install via npm or pnpm"
@@ -3344,7 +3344,7 @@ tasks:
       - 'step4: Add tests for npm default, pnpm override, and actionable failure output'
     dependencies: [task168]
     tests: [test266]
-    status: needs-review
+    status: completed
 
   - id: task171
     title: "Feature31 pack/install archive behavior for node_modules and lockfiles"
@@ -3365,7 +3365,7 @@ tasks:
       - 'step4: Add archive-content test that asserts exclusion/inclusion behavior'
     dependencies: [task168, task170]
     tests: [test267]
-    status: needs-review
+    status: completed
 
   - id: task172
     title: "Feature31 Node.js preflight checks"
@@ -3386,7 +3386,7 @@ tasks:
       - 'step4: Add tests for success and failure preflight paths with clear diagnostics'
     dependencies: [task168]
     tests: [test268]
-    status: needs-review
+    status: completed
 
   - id: task173
     title: "Feature31 python runtime regression gate"
@@ -3407,7 +3407,7 @@ tasks:
       - 'step4: Attach regression evidence to task completion notes for techlead review'
     dependencies: [task169, task170, task171, task172]
     tests: [test269]
-    status: needs-review
+    status: completed
 
   - id: task174
     title: "Feature42 schema and validator support for json input/output types"

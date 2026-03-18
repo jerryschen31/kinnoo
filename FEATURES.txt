@@ -1213,7 +1213,7 @@ features:
       - "TypeScript entrypoint transpilation support is deferred; start with .js/.mjs execution."
     owner: techlead-agent
     dependencies: []
-    status: not-started
+    status: completed
 
   - id: feature32
     title: "Daemon Runtime Type + Process Controls"
