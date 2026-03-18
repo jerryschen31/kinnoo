@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v0.16.0] - 2026-03-18
+### Added
+- Implemented Feature33 "Manifest Schema Extensions for OpenClaw/JS Agents" with optional schema fields: `runtime.package_manager`, `channels`, `skills`, and `state_dirs`.
+- Added framework-targeted validation path for `framework: openclaw` with explicit diagnostics and required-field guidance.
+- Added manifest documentation examples for OpenClaw daemon and generic Node.js one-shot workflows.
+
+### Changed
+- Extended validator path-safety checks for `skills` and `state_dirs` entries (relative-only, no parent traversal).
+- Preserved non-openclaw compatibility: new fields are optional/non-breaking for existing manifests.
+
+### Quality
+- Feature33 acceptance criteria gate validated across `test282`-`test286`.
+- Full regression suite validation after review: `285 passed, 1 skipped` (`python3 -m pytest`).
+- Merge commit: TBD (populate after merge to `phase4/main`).
+
+
 ## [v0.15.0] - 2026-03-18
 ### Added
 - Implemented Feature32 "Daemon Runtime Type + Process Controls" with first-class `runtime.type: daemon` manifest support.
