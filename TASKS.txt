@@ -3447,7 +3447,7 @@ tasks:
       - 'step4: Add integration tests for inline json mode and json-file mode across runtime paths'
     dependencies: [task174]
     tests: [test272, test273]
-    status: not-started
+    status: needs-review
 
   - id: task176
     title: "Feature42 json output contract enforcement"
