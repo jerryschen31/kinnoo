@@ -4451,3 +4451,101 @@ tests:
     covers:
       - feature: feature31
         ac: AC6
+
+  - id: test270
+    title: Feature42 validator accepts inputs.type json and outputs.type json
+    type: unit
+    preconditions: validator module available; manifest fixtures with json input/output type declarations
+    steps:
+      - step1: Create valid manifest fixture with inputs.type set to json and outputs.type set to json
+      - step2: Run validator against fixture
+      - step3: Verify validation passes with no input/output type rejection errors
+    expected: json is accepted as a supported manifest I/O contract type
+    pass_criteria: validator returns success for json input/output typed manifest
+    automated: true
+    automation_path: tests/test_validator.py::test_feature42_manifest_accepts_json_input_output_types
+    covers:
+      - feature: feature42
+        ac: AC1
+
+  - id: test271
+    title: Feature42 validator rejects unsupported input output type values with clear guidance
+    type: unit
+    preconditions: validator module available; manifest fixture with unsupported input or output type
+    steps:
+      - step1: Create manifest fixture with unsupported inputs.type or outputs.type value
+      - step2: Run validator and capture errors
+      - step3: Verify error names offending field and lists supported values including json
+    expected: unsupported I/O types are rejected deterministically with actionable guidance
+    pass_criteria: validation fails and error message clearly identifies allowed input/output types
+    automated: true
+    automation_path: tests/test_validator.py::test_feature42_manifest_rejects_unsupported_io_types
+    covers:
+      - feature: feature42
+        ac: AC1
+
+  - id: test272
+    title: Feature42 run supports inline json input mode
+    type: integration
+    preconditions: fixture agent declares inputs.type json; run command json-inline flag is available
+    steps:
+      - step1: Execute kinnoo run with inline json payload mode against fixture agent
+      - step2: Verify payload parses before execution and is delivered to entrypoint in normalized form
+      - step3: Verify command completes successfully with expected structured behavior
+    expected: inline json payload mode works as a first-class input contract
+    pass_criteria: run exits zero and fixture confirms receipt of expected JSON payload
+    automated: true
+    automation_path: tests/test_cli.py::test_feature42_run_inline_json_input_mode
+    covers:
+      - feature: feature42
+        ac: AC2
+
+  - id: test273
+    title: Feature42 run supports file-based json input mode
+    type: integration
+    preconditions: fixture agent declares inputs.type json; json payload file is available
+    steps:
+      - step1: Execute kinnoo run with json file input mode against fixture agent
+      - step2: Verify file payload parses and invalid file/json errors are surfaced clearly
+      - step3: Verify parsed payload reaches entrypoint and execution path succeeds
+    expected: file-based json input mode supports structured payload workflows
+    pass_criteria: valid file path succeeds with expected payload delivery; invalid json path errors are actionable
+    automated: true
+    automation_path: tests/test_cli.py::test_feature42_run_json_file_input_mode
+    covers:
+      - feature: feature42
+        ac: AC2
+
+  - id: test274
+    title: Feature42 outputs.type json enforces valid json output contract
+    type: integration
+    preconditions: fixture agents declare outputs.type json; one emits valid json and one emits invalid json
+    steps:
+      - step1: Run valid-json fixture and verify output contract passes
+      - step2: Run invalid-json fixture and verify deterministic non-zero failure with parse guidance
+      - step3: Verify diagnostics remain secret-safe and do not leak unrelated values
+    expected: json output contract is enforced when declared and failures are explicit
+    pass_criteria: valid output succeeds; invalid json output fails with actionable parse diagnostics
+    automated: true
+    automation_path: tests/test_cli.py::test_feature42_json_output_contract_enforcement
+    covers:
+      - feature: feature42
+        ac: AC3
+
+  - id: test275
+    title: Feature42 inspect preflight docs and text-flow regression gate
+    type: integration
+    preconditions: feature42 contract docs/help and inspect/preflight surfaces are implemented
+    steps:
+      - step1: Verify inspect/preflight/help output includes json contract guidance for input and output behavior
+      - step2: Run baseline text input/output workflows for python and node fixtures
+      - step3: Confirm legacy text paths remain unchanged while json contract is additive
+    expected: operator-facing guidance is clear and existing text workflows are not regressed
+    pass_criteria: json guidance appears in expected surfaces and baseline text run/pack/install paths continue passing
+    automated: true
+    automation_path: tests/test_regression_v1.py::test_feature42_json_contract_guidance_and_text_regression_gate
+    covers:
+      - feature: feature42
+        ac: AC4
+      - feature: feature42
+        ac: AC5
