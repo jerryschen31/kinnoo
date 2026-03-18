@@ -3573,7 +3573,7 @@ tasks:
       - 'step4: Add integration tests for successful attach and expected guarded failures'
     dependencies: [task179]
     tests: [test279]
-    status: not-started
+    status: needs-review
 
   - id: task182
     title: "Feature32 daemon logs command and contextual output"

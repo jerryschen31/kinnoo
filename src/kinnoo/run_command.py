@@ -26,6 +26,7 @@ from .schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars
 from .supervisor import (
     build_daemon_state_payload,
     clear_daemon_state,
+    daemon_pid_is_running,
     daemon_log_path,
     daemon_state_path,
     infer_readiness_config,
@@ -840,6 +841,95 @@ def stop_agent(agent_dir_arg: str) -> int:
         print(f"[kinnoo] daemon stopped gracefully with SIGTERM: pid={pid_value}")
     print("[kinnoo] daemon state metadata cleared")
     return 0
+
+
+def attach_agent(agent_dir_arg: str) -> int:
+    """Attach to a running daemon session by bridging the daemon log stream interactively."""
+    agent_dir = Path(agent_dir_arg).resolve()
+    if not agent_dir.exists() or not agent_dir.is_dir():
+        _print_safe_error(f"Error: agent directory not found: {agent_dir}")
+        return 1
+
+    state_path = daemon_state_path(agent_dir)
+    if not state_path.exists():
+        _print_safe_error(
+            f"Error: daemon state file not found: {state_path}. Start daemon with 'kinnoo run {agent_dir} <input>' first."
+        )
+        return 1
+
+    try:
+        state_payload = json.loads(state_path.read_text(encoding="utf-8"))
+    except Exception as error:
+        _print_safe_error(f"Error: failed to read daemon state metadata: {error}")
+        return 1
+
+    if not isinstance(state_payload, dict):
+        _print_safe_error("Error: daemon state metadata is malformed")
+        return 1
+
+    runtime_type = state_payload.get("runtime_type")
+    if runtime_type != "daemon":
+        _print_safe_error(
+            f"Error: attach is unsupported for runtime.type '{runtime_type}'. Only daemon runtime supports attach."
+        )
+        return 1
+
+    runtime_language = state_payload.get("runtime_language")
+    if runtime_language not in ("python", "nodejs"):
+        _print_safe_error(
+            f"Error: attach is unsupported for runtime.language '{runtime_language}'. Supported values: python, nodejs"
+        )
+        return 1
+
+    pid_value = state_payload.get("pid")
+    if not isinstance(pid_value, int):
+        _print_safe_error("Error: daemon state metadata is missing a valid integer pid")
+        return 1
+
+    if not daemon_pid_is_running(pid_value):
+        _print_safe_error(
+            f"Error: daemon is not running for pid {pid_value}. Restart daemon before attach."
+        )
+        return 1
+
+    if not sys.stdin.isatty() or not sys.stdout.isatty():
+        _print_safe_error("Error: attach requires an interactive TTY session")
+        return 1
+
+    log_path_value = state_payload.get("log_path")
+    if isinstance(log_path_value, str) and log_path_value.strip():
+        log_path = Path(log_path_value)
+    else:
+        log_path = daemon_log_path(agent_dir)
+
+    if not log_path.exists() or not log_path.is_file():
+        _print_safe_error(f"Error: daemon log file not found for attach: {log_path}")
+        return 1
+
+    print(f"[kinnoo] attach session started for pid={pid_value}")
+    print(f"[kinnoo] streaming daemon log: {log_path}")
+    print("[kinnoo] press Ctrl+C to detach")
+
+    try:
+        with log_path.open("r", encoding="utf-8", errors="replace") as log_file:
+            while True:
+                line = log_file.readline()
+                if line:
+                    sys.stdout.write(line)
+                    sys.stdout.flush()
+                    continue
+
+                if not daemon_pid_is_running(pid_value):
+                    print("[kinnoo] daemon exited; attach session ending")
+                    return 0
+
+                time.sleep(0.1)
+    except KeyboardInterrupt:
+        print("[kinnoo] attach session detached by operator")
+        return 0
+    except Exception as error:
+        _print_safe_error(f"Error: attach session failed: {error}")
+        return 1
 
 
 def run_agent(
