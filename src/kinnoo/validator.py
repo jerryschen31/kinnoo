@@ -300,6 +300,51 @@ def _is_safe_relative_manifest_path(path_value: str) -> bool:
     return not candidate.is_absolute() and ".." not in candidate.parts
 
 
+def _collect_openclaw_framework_errors(data: dict[str, Any]) -> list[str]:
+    """Validate framework-specific rules for manifests declaring framework=openclaw."""
+    errors: list[str] = []
+
+    framework_found, framework_value = _get_nested(data, "framework")
+    if not framework_found or not isinstance(framework_value, str):
+        return errors
+    if framework_value != "openclaw":
+        return errors
+
+    runtime_language_found, runtime_language_value = _get_nested(data, "runtime.language")
+    if runtime_language_found and runtime_language_value != "nodejs":
+        errors.append(
+            "Field 'runtime.language' must be 'nodejs' when framework is 'openclaw'."
+        )
+
+    runtime_type_found, runtime_type_value = _get_nested(data, "runtime.type")
+    if runtime_type_found and runtime_type_value != "daemon":
+        errors.append(
+            "Field 'runtime.type' must be 'daemon' when framework is 'openclaw'."
+        )
+
+    package_manager_found, package_manager_value = _get_nested(
+        data, "runtime.package_manager"
+    )
+    if not package_manager_found:
+        errors.append(
+            "Field 'runtime.package_manager' is required when framework is 'openclaw'. "
+            "Supported values: 'npm', 'pnpm'."
+        )
+    elif isinstance(package_manager_value, str) and package_manager_value not in SUPPORTED_NODE_PACKAGE_MANAGERS:
+        # Keep framework-targeted guidance even when generic runtime validation also reports unsupported values.
+        errors.append(
+            "Field 'runtime.package_manager' must be one of 'npm', 'pnpm' when framework is 'openclaw'."
+        )
+
+    channels_found, channels_value = _get_nested(data, "channels")
+    if channels_found and isinstance(channels_value, list) and "stdio" not in channels_value:
+        errors.append(
+            "Field 'channels' must include 'stdio' when framework is 'openclaw'."
+        )
+
+    return errors
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -480,6 +525,7 @@ def _collect_validation_errors(data: dict[str, Any]) -> list[str]:
     errors.extend(_collect_services_shape_errors(data))
     errors.extend(_collect_mcp_server_permissions_errors(data))
     errors.extend(_collect_io_type_errors(data))
+    errors.extend(_collect_openclaw_framework_errors(data))
 
     return errors
 
