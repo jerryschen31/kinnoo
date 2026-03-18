@@ -20,6 +20,8 @@ except ImportError:
 RUN_USAGE_TEXT = (
     "Usage: kinnoo run <agent-dir> '<input>'\n"
     "       kinnoo run <agent-dir>\n"
+    "       kinnoo run <agent-dir> --json-input '<json>'\n"
+    "       kinnoo run <agent-dir> --json-file <json-file>\n"
     "       kinnoo run <agent-dir> -- <args...>"
 )
 
@@ -67,6 +69,16 @@ def main():
         "--no-guard",
         action="store_true",
         help="Disable input safety check for CI/automation pipelines",
+    )
+    run_parser.add_argument(
+        "--json-input",
+        dest="json_input",
+        help="Inline JSON payload for agents expecting structured input",
+    )
+    run_parser.add_argument(
+        "--json-file",
+        dest="json_file",
+        help="Path to a JSON file payload for agents expecting structured input",
     )
 
     # Add 'install' subcommand
@@ -239,6 +251,8 @@ def main():
         exit_code = run_agent(
             agent_dir_arg=args.agent_dir,
             input_arg=input_arg,
+            json_input_arg=getattr(args, "json_input", None),
+            json_file_arg=getattr(args, "json_file", None),
             preflight=preflight_mode,
             no_guard=bool(getattr(args, "no_guard", False)),
             pass_through_args=pass_through_args,
