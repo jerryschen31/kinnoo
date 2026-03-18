@@ -98,6 +98,12 @@ FIELD_TYPES: dict[str, type] = {
 # Supported runtime types in this version of kinnoo.
 SUPPORTED_RUNTIME_TYPES: list[str] = ["one-shot", "mcp-server"]
 
+# Supported runtime languages in this version of kinnoo.
+SUPPORTED_RUNTIME_LANGUAGES: list[str] = ["python", "nodejs"]
+
+# Supported Node.js package managers for runtime.language == nodejs.
+SUPPORTED_NODE_PACKAGE_MANAGERS: list[str] = ["npm", "pnpm"]
+
 # Feature23 readiness probe method values for mcp-server runtime workflows.
 SUPPORTED_READINESS_METHODS: list[str] = ["tcp", "stdout"]
 

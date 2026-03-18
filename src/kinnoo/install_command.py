@@ -18,7 +18,8 @@ try:
     )
     from kinnoo.registry import RegistryService, parse_install_target_spec
     from kinnoo.registry_backends import MockFilesystemRegistryBackend
-    from kinnoo.schema import normalize_env_vars
+    from kinnoo.health_check import check_node_package_manager_availability, check_node_runtime_constraint
+    from kinnoo.schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars
     from kinnoo.inspect_command import read_manifest_from_kno_archive
     from kinnoo.validator import validate
 except ImportError:
@@ -30,7 +31,8 @@ except ImportError:
     )
     from .registry import RegistryService, parse_install_target_spec
     from .registry_backends import MockFilesystemRegistryBackend
-    from .schema import normalize_env_vars
+    from .health_check import check_node_package_manager_availability, check_node_runtime_constraint
+    from .schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars
     from .inspect_command import read_manifest_from_kno_archive
     from .validator import validate
 
@@ -93,6 +95,81 @@ def _is_offline_mode_enabled() -> bool:
     kinnoo_offline = os.environ.get("KINNOO_OFFLINE", "").strip().lower()
     pip_no_index = os.environ.get("PIP_NO_INDEX", "").strip().lower()
     return kinnoo_offline in offline_values or pip_no_index in offline_values
+
+
+def _resolve_node_package_manager(runtime: dict[str, object]) -> tuple[str | None, str | None]:
+    package_manager_value = runtime.get("package_manager")
+    if package_manager_value is None:
+        return "npm", None
+
+    if not isinstance(package_manager_value, str) or not package_manager_value.strip():
+        return None, "runtime.package_manager must be a non-empty string when provided for nodejs runtime"
+
+    normalized = package_manager_value.strip().lower()
+    if normalized not in SUPPORTED_NODE_PACKAGE_MANAGERS:
+        supported = ", ".join(SUPPORTED_NODE_PACKAGE_MANAGERS)
+        return None, (
+            f"runtime.package_manager '{package_manager_value}' is not supported. "
+            f"Supported values: {supported}"
+        )
+
+    return normalized, None
+
+
+def _install_node_dependencies(target_dir: Path, runtime: dict[str, object]) -> int:
+    runtime_version = runtime.get("version")
+    runtime_constraint = str(runtime_version) if runtime_version is not None else ""
+    runtime_ok, runtime_message = check_node_runtime_constraint(runtime_constraint)
+    if not runtime_ok:
+        print(f"Error: {runtime_message}", file=sys.stderr)
+        print(
+            "Error: Install a compatible Node.js runtime and retry installation.",
+            file=sys.stderr,
+        )
+        return 1
+
+    package_manager, resolution_error = _resolve_node_package_manager(runtime)
+    if package_manager is None:
+        print(f"Error: {resolution_error}", file=sys.stderr)
+        return 1
+
+    package_manager_ok, package_manager_message = check_node_package_manager_availability(package_manager)
+    if not package_manager_ok:
+        print(f"Error: {package_manager_message}", file=sys.stderr)
+        print(
+            "Error: Install the configured package manager and ensure it is available on PATH.",
+            file=sys.stderr,
+        )
+        return 1
+
+    package_json_path = target_dir / "package.json"
+    if not package_json_path.exists():
+        print(
+            "Error: Node.js runtime install requires package.json in the extracted agent directory.",
+            file=sys.stderr,
+        )
+        return 1
+
+    install_command = [package_manager, "install"]
+    install_result = subprocess.run(
+        install_command,
+        capture_output=True,
+        text=True,
+        cwd=target_dir,
+    )
+    if install_result.returncode != 0:
+        command_label = " ".join(install_command)
+        print(
+            f"Error: Node dependency installation failed while running '{command_label}'. "
+            "Verify your package manager setup and package.json dependencies.",
+            file=sys.stderr,
+        )
+        if install_result.stderr:
+            print(install_result.stderr, file=sys.stderr)
+        return install_result.returncode
+
+    print(f"[kinnoo install] Node dependencies installed successfully via {package_manager}.")
+    return 0
 
 
 def install_agent(
@@ -306,6 +383,15 @@ def _install_from_archive_path(
         return 1
 
     print("[kinnoo install] Manifest validated successfully.")
+
+    runtime_language = "python"
+    if isinstance(runtime, dict):
+        runtime_language_value = runtime.get("language")
+        if isinstance(runtime_language_value, str) and runtime_language_value.strip():
+            runtime_language = runtime_language_value.strip().lower()
+
+    if runtime_language == "nodejs":
+        return _install_node_dependencies(target_dir=target_dir, runtime=runtime if isinstance(runtime, dict) else {})
 
     wheels_dir = target_dir / "wheels"
     venv_dir = target_dir / ".venv"

@@ -22,6 +22,13 @@ class WheelBuildError(Exception):
 
 _CORE_SEMVER_PATTERN = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
 _DEFAULT_WARN_THRESHOLD_MB = 100.0
+_NODE_METADATA_FILES = [
+    "package.json",
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "npm-shrinkwrap.json",
+    "yarn.lock",
+]
 
 
 def _warning_threshold_mb_from_env() -> float:
@@ -91,6 +98,19 @@ def _path_within_root(path: Path, root: Path) -> bool:
         return True
     except ValueError:
         return False
+
+
+def _contains_node_modules(relative_path: str) -> bool:
+    return "node_modules" in Path(relative_path).parts
+
+
+def _collect_node_metadata_files(agent_root: Path) -> list[tuple[str, Path]]:
+    metadata_files: list[tuple[str, Path]] = []
+    for filename in _NODE_METADATA_FILES:
+        candidate = agent_root / filename
+        if candidate.exists() and candidate.is_file():
+            metadata_files.append((filename, candidate))
+    return metadata_files
 
 
 def _collect_asset_files(manifest: dict, agent_root: Path) -> tuple[list[tuple[str, Path]], bool]:
@@ -229,6 +249,13 @@ def pack_agent(agent_dir: str, bump: str | None = None) -> int:
     with open(kinnoo_yaml_path, "r") as manifest_file:
         manifest = yaml.safe_load(manifest_file)
 
+    runtime_language = "python"
+    runtime_section = manifest.get("runtime") if isinstance(manifest, dict) else None
+    if isinstance(runtime_section, dict):
+        runtime_language_value = runtime_section.get("language")
+        if isinstance(runtime_language_value, str) and runtime_language_value.strip():
+            runtime_language = runtime_language_value.strip().lower()
+
     declared_env_vars = normalize_env_vars(manifest.get("env_vars") if isinstance(manifest, dict) else None)
     sweep_warnings = sweep_env_var_exposure(Path(abs_agent_dir), declared_env_vars)
     if sweep_warnings:
@@ -283,6 +310,12 @@ def pack_agent(agent_dir: str, bump: str | None = None) -> int:
     additional_files = _collect_additional_files(manifest)
     safe_additional_paths: list[tuple[str, str]] = []
     for relative_path in additional_files:
+        if runtime_language == "nodejs" and _contains_node_modules(relative_path):
+            print(
+                f"Warning: Skipping '{relative_path}' because node_modules must not be bundled for nodejs agents.",
+                file=sys.stderr,
+            )
+            continue
         candidate_path = os.path.abspath(os.path.join(abs_agent_dir, relative_path))
         if not candidate_path.startswith(abs_agent_dir + os.sep):
             print(f"Error: Additional file path '{relative_path}' escapes agent directory.", file=sys.stderr)
@@ -303,6 +336,29 @@ def pack_agent(agent_dir: str, bump: str | None = None) -> int:
 
     if not assets_bundle_enabled:
         print("[kinnoo pack] Asset bundling disabled by assets.bundle=false")
+
+    if runtime_language == "nodejs":
+        filtered_asset_files: list[tuple[str, Path]] = []
+        for arcname, absolute_path in asset_files:
+            if _contains_node_modules(arcname):
+                print(
+                    f"Warning: Skipping asset '{arcname}' because node_modules must not be bundled for nodejs agents.",
+                    file=sys.stderr,
+                )
+                continue
+            filtered_asset_files.append((arcname, absolute_path))
+        asset_files = filtered_asset_files
+
+    node_metadata_files: list[tuple[str, Path]] = []
+    if runtime_language == "nodejs":
+        node_metadata_files = _collect_node_metadata_files(Path(abs_agent_dir))
+        package_json_present = any(path == "package.json" for path, _ in node_metadata_files)
+        if not package_json_present:
+            print(
+                "Error: Node.js agents must include package.json for reproducible install behavior.",
+                file=sys.stderr,
+            )
+            return 1
 
     asset_scan_warnings = sweep_asset_credential_risks(
         agent_dir=Path(abs_agent_dir),
@@ -385,6 +441,11 @@ def pack_agent(agent_dir: str, bump: str | None = None) -> int:
                 continue
             archive_file.write(absolute_path, arcname=arcname)
             archived_entries.add(arcname)
+        for relative_path, absolute_path in node_metadata_files:
+            if relative_path in archived_entries:
+                continue
+            archive_file.write(absolute_path, arcname=relative_path)
+            archived_entries.add(relative_path)
         for wheel_path in wheel_files:
             archive_file.write(wheel_path, arcname=f"wheels/{os.path.basename(wheel_path)}")
         if missing_wheels_report_path is not None:

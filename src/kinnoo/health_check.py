@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
+import shutil
 import socket
 import subprocess
 from urllib import error as urllib_error
@@ -10,6 +12,9 @@ from .schema import (
 	DEFAULT_HTTP_HEALTH_CHECK_TIMEOUT_SECONDS,
 	DEFAULT_TCP_HEALTH_CHECK_TIMEOUT_SECONDS,
 )
+
+
+_RUN_SUBPROCESS = subprocess.run
 
 
 @dataclass(frozen=True)
@@ -165,7 +170,7 @@ def _check_tcp(
 
 
 def _check_process(service_name: str, service_type: str, *, process_name: str) -> HealthCheckResult:
-	result = subprocess.run(
+	result = _RUN_SUBPROCESS(
 		["pgrep", "-f", process_name],
 		capture_output=True,
 		text=True,
@@ -275,4 +280,143 @@ def run_service_health_check(service: dict[str, object]) -> HealthCheckResult:
 		healthy=False,
 		message=f"Unsupported health check method '{method or '<empty>'}'.",
 		guidance="Use one of: http, tcp, process.",
+	)
+
+
+def _parse_numeric_version(version: str) -> tuple[int, ...] | None:
+	if not version:
+		return None
+
+	if not re.fullmatch(r"\d+(?:\.\d+)*", version):
+		return None
+
+	return tuple(int(part) for part in version.split("."))
+
+
+def _parse_node_version_output(version_output: str) -> tuple[int, ...] | None:
+	match = re.search(r"v?(\d+(?:\.\d+)*)", version_output.strip())
+	if match is None:
+		return None
+	return _parse_numeric_version(match.group(1))
+
+
+def _compare_versions(left: tuple[int, ...], right: tuple[int, ...]) -> int:
+	max_len = max(len(left), len(right))
+	padded_left = left + (0,) * (max_len - len(left))
+	padded_right = right + (0,) * (max_len - len(right))
+	if padded_left < padded_right:
+		return -1
+	if padded_left > padded_right:
+		return 1
+	return 0
+
+
+def _version_constraint_satisfied(constraint: str, current_version: tuple[int, ...]) -> bool:
+	normalized_constraint = constraint.strip()
+	if not normalized_constraint:
+		return False
+
+	operator = "=="
+	value = normalized_constraint
+	for candidate in (">=", "<=", "==", ">", "<"):
+		if normalized_constraint.startswith(candidate):
+			operator = candidate
+			value = normalized_constraint[len(candidate):].strip()
+			break
+
+	required_version = _parse_numeric_version(value)
+	if required_version is None:
+		return False
+
+	comparison = _compare_versions(current_version, required_version)
+	if operator == "==":
+		return comparison == 0
+	if operator == ">=":
+		return comparison >= 0
+	if operator == "<=":
+		return comparison <= 0
+	if operator == ">":
+		return comparison > 0
+	if operator == "<":
+		return comparison < 0
+	return False
+
+
+def check_node_runtime_constraint(runtime_constraint: str) -> tuple[bool, str]:
+	node_executable = shutil.which("node")
+	if node_executable is None:
+		return False, "runtime version check failed: node executable not found in PATH"
+
+	try:
+		version_result = _RUN_SUBPROCESS(
+			[node_executable, "--version"],
+			capture_output=True,
+			text=True,
+		)
+	except OSError as error:
+		return False, f"runtime version check failed: unable to execute node --version: {error}"
+
+	if version_result.returncode != 0:
+		stderr = version_result.stderr.strip()
+		stderr_suffix = f" ({stderr})" if stderr else ""
+		return False, f"runtime version check failed: node --version failed{stderr_suffix}"
+
+	current_version = _parse_node_version_output(version_result.stdout or "")
+	if current_version is None:
+		return (
+			False,
+			(
+				"runtime version check failed: could not parse Node version from "
+				f"output '{(version_result.stdout or '').strip()}'"
+			),
+		)
+
+	normalized = runtime_constraint.strip()
+	if not normalized:
+		return False, "runtime version check failed: runtime.version constraint is empty"
+
+	constraints = [segment.strip() for segment in normalized.split(",") if segment.strip()]
+	if not constraints:
+		return False, "runtime version check failed: runtime.version constraint is empty"
+
+	invalid_constraints: list[str] = []
+	for constraint in constraints:
+		if not _version_constraint_satisfied(constraint, current_version):
+			invalid_constraints.append(constraint)
+
+	current_label = ".".join(str(part) for part in current_version)
+	if invalid_constraints:
+		constraint_label = ", ".join(constraints)
+		return (
+			False,
+			(
+				"runtime version check failed: "
+				f"current Node {current_label} does not satisfy runtime.version '{constraint_label}'"
+			),
+		)
+
+	return (
+		True,
+		(
+			"runtime version check passed: "
+			f"current Node {current_label} satisfies runtime.version '{normalized}'"
+		),
+	)
+
+
+def check_node_package_manager_availability(package_manager: str) -> tuple[bool, str]:
+	normalized = package_manager.strip().lower()
+	if not normalized:
+		return False, "dependency readiness check failed: runtime.package_manager is empty"
+
+	resolved_path = shutil.which(normalized)
+	if resolved_path is None:
+		return (
+			False,
+			f"dependency readiness check failed: node package manager '{normalized}' not found in PATH",
+		)
+
+	return (
+		True,
+		f"dependency readiness check passed: node package manager '{normalized}' is available at {resolved_path}",
 	)

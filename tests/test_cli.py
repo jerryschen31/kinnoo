@@ -537,6 +537,74 @@ def test_run_help_includes_pass_through_separator_usage():
     assert "kinnoo run <agent-dir> -- -e <some-string> -p <some-file-path> -u <some-url>" in result.stdout
 
 
+def test_feature31_run_nodejs_entrypoint_streams_and_propagates_exit(monkeypatch, tmp_path, capsys):
+    agent_dir = tmp_path / "feature31-node-agent"
+    agent_dir.mkdir()
+    (agent_dir / "requirements.txt").write_text("")
+    (agent_dir / "run.js").write_text("console.log('placeholder');\n", encoding="utf-8")
+    (agent_dir / "kinnoo.yaml").write_text(
+        """
+name: feature31-node-agent
+version: 0.1.0
+entrypoint: run.js
+runtime:
+    language: nodejs
+    version: ">=22"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+"""
+    )
+
+    captured: dict[str, object] = {}
+
+    class _FakePopen:
+        def __init__(self, args, cwd=None, stdout=None, stderr=None, env=None):
+            captured["args"] = args
+            captured["cwd"] = cwd
+            captured["env"] = env
+            self._stdout = stdout
+            self._stderr = stderr
+            self.returncode = 17
+
+        def communicate(self):
+            if self._stdout is not None:
+                self._stdout.write("node-stdout-line\n")
+                self._stdout.flush()
+            if self._stderr is not None:
+                self._stderr.write("node-stderr-line\n")
+                self._stderr.flush()
+
+    import kinnoo.run_command as run_command
+
+    monkeypatch.setattr(run_command.subprocess, "Popen", _FakePopen)
+
+    exit_code = run_command.run_agent(
+        agent_dir_arg=str(agent_dir),
+        input_arg="hello-node",
+        no_guard=True,
+        pass_through_args=["--flag", "value"],
+    )
+
+    output = capsys.readouterr()
+
+    assert exit_code == 17
+    assert captured["args"] == [
+        "node",
+        str(agent_dir / "run.js"),
+        "hello-node",
+        "--flag",
+        "value",
+    ]
+    assert str(captured["cwd"]) == str(agent_dir.resolve())
+    assert "node-stdout-line" in output.out
+    assert "node-stderr-line" in output.err
+    assert not (agent_dir / ".venv").exists()
+
+
 def test_run_missing_entrypoint(tmp_path):
     """Test kinnoo run with missing entrypoint file prints error and aborts."""
     agent_dir = tmp_path / "test-agent"
