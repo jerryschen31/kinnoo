@@ -3365,7 +3365,7 @@ tasks:
       - 'step4: Add archive-content test that asserts exclusion/inclusion behavior'
     dependencies: [task168, task170]
     tests: [test267]
-    status: not-started
+    status: needs-review
 
   - id: task172
     title: "Feature31 Node.js preflight checks"
