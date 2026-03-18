@@ -96,7 +96,7 @@ FIELD_TYPES: dict[str, type] = {
 }
 
 # Supported runtime types in this version of kinnoo.
-SUPPORTED_RUNTIME_TYPES: list[str] = ["one-shot", "mcp-server"]
+SUPPORTED_RUNTIME_TYPES: list[str] = ["one-shot", "mcp-server", "daemon"]
 
 # Supported runtime languages in this version of kinnoo.
 SUPPORTED_RUNTIME_LANGUAGES: list[str] = ["python", "nodejs"]
