@@ -375,6 +375,162 @@ def test_feature32_runtime_type_daemon_validation(tmp_path: Path) -> None:
         for message in errors
     ), f"Expected allowed runtime type guidance in errors; got: {errors}"
 
+
+def test_feature33_runtime_package_manager_validation(tmp_path: Path) -> None:
+    """Feature33 test282: runtime.package_manager accepts npm/pnpm and rejects others."""
+    for package_manager in ("npm", "pnpm"):
+        valid_data = dict(_VALID_MANIFEST)
+        valid_data["runtime"] = dict(valid_data["runtime"])
+        valid_data["runtime"]["language"] = "nodejs"
+        valid_data["runtime"]["package_manager"] = package_manager
+
+        valid_path = tmp_path / f"feature33_runtime_package_manager_{package_manager}.yaml"
+        valid_path.write_text(yaml.dump(valid_data), encoding="utf-8")
+
+        is_valid, errors = validate(str(valid_path))
+        assert is_valid is True, (
+            f"Expected runtime.package_manager={package_manager!r} to pass validation; "
+            f"errors: {errors}"
+        )
+        assert errors == []
+
+    invalid_data = dict(_VALID_MANIFEST)
+    invalid_data["runtime"] = dict(invalid_data["runtime"])
+    invalid_data["runtime"]["language"] = "nodejs"
+    invalid_data["runtime"]["package_manager"] = "yarn"
+
+    invalid_path = tmp_path / "feature33_runtime_package_manager_invalid.yaml"
+    invalid_path.write_text(yaml.dump(invalid_data), encoding="utf-8")
+
+    is_valid, errors = validate(str(invalid_path))
+    assert is_valid is False, "Expected unsupported runtime.package_manager value to fail"
+    assert any(
+        "runtime.package_manager" in message and "unsupported value" in message
+        for message in errors
+    ), f"Expected runtime.package_manager unsupported-value guidance; got: {errors}"
+    assert any("npm" in message and "pnpm" in message for message in errors), (
+        f"Expected allowed runtime.package_manager values in error message; got: {errors}"
+    )
+
+
+def test_feature33_extension_fields_type_and_path_safety(tmp_path: Path) -> None:
+    """Feature33 test283: channels/skills/state_dirs enforce type and path safety."""
+    valid_data = dict(_VALID_MANIFEST)
+    valid_data["runtime"] = dict(valid_data["runtime"])
+    valid_data["runtime"]["language"] = "nodejs"
+    valid_data["channels"] = ["stdio", "events"]
+    valid_data["skills"] = ["skills/openclaw/core.md", "skills/shared/prompts.md"]
+    valid_data["state_dirs"] = ["state/cache", "state/memory"]
+
+    valid_path = tmp_path / "feature33_extension_fields_valid.yaml"
+    valid_path.write_text(yaml.dump(valid_data), encoding="utf-8")
+
+    is_valid, errors = validate(str(valid_path))
+    assert is_valid is True, f"Expected valid feature33 extension fields to pass; errors: {errors}"
+    assert errors == []
+
+    invalid_types = dict(_VALID_MANIFEST)
+    invalid_types["channels"] = "stdio"
+    invalid_types["skills"] = ["skills/ok.md", 123]
+    invalid_types["state_dirs"] = ["state/cache", None]
+
+    invalid_types_path = tmp_path / "feature33_extension_fields_invalid_types.yaml"
+    invalid_types_path.write_text(yaml.dump(invalid_types), encoding="utf-8")
+
+    is_valid, errors = validate(str(invalid_types_path))
+    assert is_valid is False, "Expected invalid extension field types to fail"
+    assert any("Field 'channels' must be of type list" in message for message in errors), (
+        f"Expected channels list type error; got: {errors}"
+    )
+    assert any("Field 'skills[1]' must be of type str" in message for message in errors), (
+        f"Expected skills item type error; got: {errors}"
+    )
+    assert any("Field 'state_dirs[1]' must be of type str" in message for message in errors), (
+        f"Expected state_dirs item type error; got: {errors}"
+    )
+
+    unsafe_paths = dict(_VALID_MANIFEST)
+    unsafe_paths["skills"] = ["/absolute/skills/core.md"]
+    unsafe_paths["state_dirs"] = ["../outside-state"]
+
+    unsafe_paths_path = tmp_path / "feature33_extension_fields_unsafe_paths.yaml"
+    unsafe_paths_path.write_text(yaml.dump(unsafe_paths), encoding="utf-8")
+
+    is_valid, errors = validate(str(unsafe_paths_path))
+    assert is_valid is False, "Expected unsafe paths in extension fields to fail"
+    assert any("Field 'skills[0]'" in message and "relative path" in message for message in errors), (
+        f"Expected skills path safety error; got: {errors}"
+    )
+    assert any("Field 'state_dirs[0]'" in message and "relative path" in message for message in errors), (
+        f"Expected state_dirs path safety error; got: {errors}"
+    )
+
+
+def test_feature33_openclaw_framework_specific_validation(tmp_path: Path) -> None:
+    """Feature33 test284: framework=openclaw triggers targeted validation rules."""
+    valid_openclaw = dict(_VALID_MANIFEST)
+    valid_openclaw["framework"] = "openclaw"
+    valid_openclaw["runtime"] = dict(valid_openclaw["runtime"])
+    valid_openclaw["runtime"]["language"] = "nodejs"
+    valid_openclaw["runtime"]["type"] = "daemon"
+    valid_openclaw["runtime"]["package_manager"] = "pnpm"
+    valid_openclaw["channels"] = ["stdio", "events"]
+    valid_openclaw["skills"] = ["skills/openclaw/core.md"]
+    valid_openclaw["state_dirs"] = ["state/openclaw"]
+
+    valid_openclaw_path = tmp_path / "feature33_openclaw_valid.yaml"
+    valid_openclaw_path.write_text(yaml.dump(valid_openclaw), encoding="utf-8")
+
+    is_valid, errors = validate(str(valid_openclaw_path))
+    assert is_valid is True, (
+        "Expected valid framework=openclaw manifest to pass targeted validation; "
+        f"errors: {errors}"
+    )
+    assert errors == []
+
+    invalid_openclaw = dict(_VALID_MANIFEST)
+    invalid_openclaw["framework"] = "openclaw"
+    invalid_openclaw["runtime"] = dict(invalid_openclaw["runtime"])
+    invalid_openclaw["runtime"]["package_manager"] = "yarn"
+    invalid_openclaw["channels"] = ["events"]
+
+    invalid_openclaw_path = tmp_path / "feature33_openclaw_invalid.yaml"
+    invalid_openclaw_path.write_text(yaml.dump(invalid_openclaw), encoding="utf-8")
+
+    is_valid, errors = validate(str(invalid_openclaw_path))
+    assert is_valid is False, "Expected invalid framework=openclaw fixture to fail"
+    assert any("framework is 'openclaw'" in message for message in errors), (
+        f"Expected openclaw-targeted diagnostics; got: {errors}"
+    )
+    assert any("runtime.language" in message and "nodejs" in message for message in errors), (
+        f"Expected openclaw runtime.language guidance; got: {errors}"
+    )
+    assert any("runtime.type" in message and "daemon" in message for message in errors), (
+        f"Expected openclaw runtime.type guidance; got: {errors}"
+    )
+    assert any("runtime.package_manager" in message and "openclaw" in message for message in errors), (
+        f"Expected openclaw runtime.package_manager guidance; got: {errors}"
+    )
+    assert any("channels" in message and "stdio" in message for message in errors), (
+        f"Expected openclaw channels guidance; got: {errors}"
+    )
+
+    non_openclaw_control = dict(_VALID_MANIFEST)
+    non_openclaw_control["framework"] = "custom-framework"
+    non_openclaw_control["runtime"] = dict(non_openclaw_control["runtime"])
+    non_openclaw_control["runtime"]["package_manager"] = "npm"
+    non_openclaw_control["channels"] = ["events"]
+
+    non_openclaw_control_path = tmp_path / "feature33_non_openclaw_control.yaml"
+    non_openclaw_control_path.write_text(yaml.dump(non_openclaw_control), encoding="utf-8")
+
+    is_valid, errors = validate(str(non_openclaw_control_path))
+    assert is_valid is True, (
+        "Expected framework-specific rules to be gated to framework=openclaw only; "
+        f"errors: {errors}"
+    )
+    assert errors == []
+
 # ---------------------------------------------------------------------------
 # test60 — Manifest loader normalizes "type" field to list (task38)
 # ---------------------------------------------------------------------------

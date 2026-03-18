@@ -3510,7 +3510,7 @@ tasks:
       - 'step4: Add focused validator tests for daemon acceptance and invalid type rejection'
     dependencies: [task168]
     tests: [test276]
-    status: needs-review
+    status: completed
 
   - id: task179
     title: "Feature32 daemon start path and persisted state"
@@ -3531,7 +3531,7 @@ tasks:
       - 'step4: Add integration tests for python and node daemon start semantics'
     dependencies: [task178]
     tests: [test277]
-    status: needs-review
+    status: completed
 
   - id: task180
     title: "Feature32 daemon stop command and graceful termination"
@@ -3552,7 +3552,7 @@ tasks:
       - 'step4: Add integration coverage for graceful stop and fallback stop paths'
     dependencies: [task179]
     tests: [test278]
-    status: needs-review
+    status: completed
 
   - id: task181
     title: "Feature32 daemon attach interactive control"
@@ -3573,7 +3573,7 @@ tasks:
       - 'step4: Add integration tests for successful attach and expected guarded failures'
     dependencies: [task179]
     tests: [test279]
-    status: needs-review
+    status: completed
 
   - id: task182
     title: "Feature32 daemon logs command and contextual output"
@@ -3594,7 +3594,7 @@ tasks:
       - 'step4: Add integration tests for tail and follow behavior across daemon runtimes'
     dependencies: [task179]
     tests: [test280]
-    status: needs-review
+    status: completed
 
   - id: task183
     title: "Feature32 supervisor health state diagnostics and regression gate"
@@ -3616,4 +3616,103 @@ tasks:
       - 'step4: Add regression gate for daemon controls against existing python/node workflows'
     dependencies: [task179, task180, task181, task182]
     tests: [test281]
+    status: completed
+
+  - id: task184
+    title: "Feature33 runtime.package_manager schema and validator support"
+    type: task
+    description: |
+      Extend manifest schema and validator support for `runtime.package_manager`
+      so Node.js manifests can declare `npm` or `pnpm` explicitly with
+      deterministic validation errors for unsupported values.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+      - tests/test_validator.py
+    steps:
+      - 'step1: Add runtime.package_manager schema contract with allowed values npm and pnpm'
+      - 'step2: Enforce validator errors for invalid package manager values with clear allowed-values guidance'
+      - 'step3: Ensure behavior is additive and does not change manifests that omit package manager'
+      - 'step4: Add focused validator tests for valid and invalid runtime.package_manager values'
+    dependencies: [task168]
+    tests: [test282]
+    status: needs-review
+
+  - id: task185
+    title: "Feature33 channels skills and state_dirs type/path validation"
+    type: task
+    description: |
+      Add schema and validator handling for optional `channels`, `skills`, and
+      `state_dirs` fields with strict type checking and path safety validation
+      suitable for OpenClaw and generic JS/TS agents.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+      - tests/test_validator.py
+    steps:
+      - 'step1: Define schema shapes for channels, skills, and state_dirs fields as optional metadata blocks'
+      - 'step2: Enforce strict type validation for list/object members with actionable error messages'
+      - 'step3: Add path safety checks for skills/state_dirs entries (relative-only and traversal-safe)'
+      - 'step4: Add validator tests covering valid payloads and representative type/path failures'
+    dependencies: [task184]
+    tests: [test283]
+    status: needs-review
+
+  - id: task186
+    title: "Feature33 framework openclaw targeted validation rules"
+    type: task
+    description: |
+      Implement framework-targeted validation behavior so manifests that declare
+      `framework: openclaw` receive OpenClaw-specific diagnostics and structural
+      guidance while remaining within the generic kinnoo schema model.
+    files:
+      - src/kinnoo/validator.py
+      - tests/test_validator.py
+    steps:
+      - 'step1: Add openclaw-specific validation branch keyed off framework=openclaw'
+      - 'step2: Emit framework-targeted error messages for invalid OpenClaw field usage'
+      - 'step3: Keep diagnostics deterministic and scoped to relevant fields only'
+      - 'step4: Add tests proving openclaw-specific rules execute only when framework is openclaw'
+    dependencies: [task185]
+    tests: [test284]
+    status: needs-review
+
+  - id: task187
+    title: "Feature33 non-openclaw compatibility and non-breaking guard"
+    type: task
+    description: |
+      Ensure new manifest extension fields remain optional and non-breaking for
+      non-openclaw manifests so existing Python and generic Node.js workflows
+      remain valid without requiring new fields.
+    files:
+      - src/kinnoo/validator.py
+      - tests/test_validator.py
+      - tests/test_regression_v1.py
+    steps:
+      - 'step1: Verify validator accepts manifests with no new feature33 fields'
+      - 'step2: Verify non-openclaw manifests can include or omit extension fields without framework-only failures'
+      - 'step3: Add regression checks for existing python and node manifest fixtures'
+      - 'step4: Add guard tests ensuring no backward-incompatible validation drift'
+    dependencies: [task184, task185, task186]
+    tests: [test285]
+    status: needs-review
+
+  - id: task188
+    title: "Feature33 manifest docs updates for OpenClaw and generic Node examples"
+    type: task
+    description: |
+      Update manifest reference documentation with concrete examples for
+      OpenClaw and generic Node.js agents using new feature33 fields so
+      schema behavior is clear and operator-facing guidance is actionable.
+    files:
+      - docs/manifest-schema-reference.md
+      - README.md
+      - tests/test_docs.py
+    steps:
+      - 'step1: Document runtime.package_manager channels skills and state_dirs fields with constraints and examples'
+      - 'step2: Add one OpenClaw example manifest and one generic Node.js example manifest'
+      - 'step3: Clarify optional/non-breaking behavior when framework is not openclaw'
+      - 'step4: Add docs tests asserting feature33 field guidance and examples are present'
+    dependencies: [task184, task185, task186, task187]
+    tests: [test286]
     status: needs-review

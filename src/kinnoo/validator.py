@@ -20,6 +20,7 @@ Usage::
 from __future__ import annotations
 
 import re
+from pathlib import PurePosixPath
 from pathlib import Path
 from typing import Any
 
@@ -36,6 +37,7 @@ from .schema import (
     SEMVER_PATTERN,
     SUPPORTED_HEALTH_CHECK_METHODS,
     SUPPORTED_INPUT_TYPES,
+    SUPPORTED_NODE_PACKAGE_MANAGERS,
     SUPPORTED_OUTPUT_TYPES,
     SUPPORTED_RUNTIME_LANGUAGES,
     SUPPORTED_RUNTIME_TYPES,
@@ -292,6 +294,57 @@ def _collect_io_type_errors(data: dict[str, Any]) -> list[str]:
     return errors
 
 
+def _is_safe_relative_manifest_path(path_value: str) -> bool:
+    """Return True when a manifest path is relative and traversal-safe."""
+    candidate = PurePosixPath(path_value)
+    return not candidate.is_absolute() and ".." not in candidate.parts
+
+
+def _collect_openclaw_framework_errors(data: dict[str, Any]) -> list[str]:
+    """Validate framework-specific rules for manifests declaring framework=openclaw."""
+    errors: list[str] = []
+
+    framework_found, framework_value = _get_nested(data, "framework")
+    if not framework_found or not isinstance(framework_value, str):
+        return errors
+    if framework_value != "openclaw":
+        return errors
+
+    runtime_language_found, runtime_language_value = _get_nested(data, "runtime.language")
+    if runtime_language_found and runtime_language_value != "nodejs":
+        errors.append(
+            "Field 'runtime.language' must be 'nodejs' when framework is 'openclaw'."
+        )
+
+    runtime_type_found, runtime_type_value = _get_nested(data, "runtime.type")
+    if runtime_type_found and runtime_type_value != "daemon":
+        errors.append(
+            "Field 'runtime.type' must be 'daemon' when framework is 'openclaw'."
+        )
+
+    package_manager_found, package_manager_value = _get_nested(
+        data, "runtime.package_manager"
+    )
+    if not package_manager_found:
+        errors.append(
+            "Field 'runtime.package_manager' is required when framework is 'openclaw'. "
+            "Supported values: 'npm', 'pnpm'."
+        )
+    elif isinstance(package_manager_value, str) and package_manager_value not in SUPPORTED_NODE_PACKAGE_MANAGERS:
+        # Keep framework-targeted guidance even when generic runtime validation also reports unsupported values.
+        errors.append(
+            "Field 'runtime.package_manager' must be one of 'npm', 'pnpm' when framework is 'openclaw'."
+        )
+
+    channels_found, channels_value = _get_nested(data, "channels")
+    if channels_found and isinstance(channels_value, list) and "stdio" not in channels_value:
+        errors.append(
+            "Field 'channels' must include 'stdio' when framework is 'openclaw'."
+        )
+
+    return errors
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -371,6 +424,19 @@ def _collect_validation_errors(data: dict[str, Any]) -> list[str]:
                 f"Supported values: {supported}."
             )
 
+    runtime_package_manager_found, runtime_package_manager_value = _get_nested(
+        data, "runtime.package_manager"
+    )
+    if runtime_package_manager_found and isinstance(runtime_package_manager_value, str):
+        if runtime_package_manager_value not in SUPPORTED_NODE_PACKAGE_MANAGERS:
+            supported = ", ".join(
+                f"'{value}'" for value in SUPPORTED_NODE_PACKAGE_MANAGERS
+            )
+            errors.append(
+                f"Field 'runtime.package_manager' has unsupported value: '{runtime_package_manager_value}'. "
+                f"Supported values: {supported}."
+            )
+
     # 4e. Optional V2 fields (feature9).
     # Validate optional metadata when present while preserving V1 compatibility.
     for optional_field, expected_type in OPTIONAL_FIELD_TYPES.items():
@@ -422,9 +488,44 @@ def _collect_validation_errors(data: dict[str, Any]) -> list[str]:
                         f"Field 'assets.paths[{index}]' must be a non-empty string."
                     )
 
+        if optional_field == "channels":
+            for index, channel_name in enumerate(value):
+                if not isinstance(channel_name, str):
+                    actual = type(channel_name).__name__
+                    errors.append(
+                        f"Field 'channels[{index}]' must be of type str, got {actual}."
+                    )
+                    continue
+                if channel_name.strip() == "":
+                    errors.append(
+                        f"Field 'channels[{index}]' must be a non-empty string."
+                    )
+
+        if optional_field in ("skills", "state_dirs"):
+            for index, declared_path in enumerate(value):
+                if not isinstance(declared_path, str):
+                    actual = type(declared_path).__name__
+                    errors.append(
+                        f"Field '{optional_field}[{index}]' must be of type str, got {actual}."
+                    )
+                    continue
+
+                normalized_path = declared_path.strip()
+                if normalized_path == "":
+                    errors.append(
+                        f"Field '{optional_field}[{index}]' must be a non-empty string."
+                    )
+                    continue
+
+                if not _is_safe_relative_manifest_path(normalized_path):
+                    errors.append(
+                        f"Field '{optional_field}[{index}]' must be a relative path without parent traversal segments."
+                    )
+
     errors.extend(_collect_services_shape_errors(data))
     errors.extend(_collect_mcp_server_permissions_errors(data))
     errors.extend(_collect_io_type_errors(data))
+    errors.extend(_collect_openclaw_framework_errors(data))
 
     return errors
 
