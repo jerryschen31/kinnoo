@@ -1,3 +1,4 @@
+import os
 import subprocess
 import sys
 import tempfile
@@ -266,3 +267,85 @@ def test_feature19_import_interrupt_and_runnability_regression_gate():
         f"STDOUT:\n{result.stdout}\n"
         f"STDERR:\n{result.stderr}"
     )
+
+
+def test_feature31_python_runtime_regression_gate():
+    """Regression gate: feature31 Node support must not alter Python run/pack/install behavior."""
+    repo_root = Path(__file__).resolve().parents[1]
+    cli_path = repo_root / "src" / "kinnoo" / "cli.py"
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+        archive_root = temp_path / "archive-root"
+        env = os.environ.copy()
+        env["KINNOO_ARCHIVE_ROOT"] = str(archive_root)
+
+        agent_dir = temp_path / "feature31-python-agent"
+        agent_dir.mkdir(parents=True, exist_ok=True)
+        (agent_dir / "kinnoo.yaml").write_text(
+            "\n".join(
+                [
+                    "name: feature31-python-agent",
+                    "version: 1.0.0",
+                    "entrypoint: run.py",
+                    "runtime:",
+                    "  language: python",
+                    "  version: \">=3.10\"",
+                    "  type: one-shot",
+                    "dependencies: []",
+                    "inputs:",
+                    "  type: text",
+                    "outputs:",
+                    "  type: text",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (agent_dir / "run.py").write_text(
+            "import sys\n"
+            "print(f\"feature31-python-output:{sys.argv[1] if len(sys.argv) > 1 else ''}\")\n",
+            encoding="utf-8",
+        )
+        (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+
+        pack_result = subprocess.run(
+            [sys.executable, str(cli_path), "pack", str(agent_dir)],
+            cwd=temp_path,
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert pack_result.returncode == 0, (
+            "Feature31 python regression gate failed during pack.\n"
+            f"STDOUT:\n{pack_result.stdout}\n"
+            f"STDERR:\n{pack_result.stderr}"
+        )
+
+        archive_path = archive_root / "feature31-python-agent" / "1.0.0" / "feature31-python-agent.kno"
+        assert archive_path.exists(), "Expected packed archive for feature31 python regression gate"
+
+        installed_dir = temp_path / "feature31-python-installed"
+        install_result = subprocess.run(
+            [sys.executable, str(cli_path), "install", str(archive_path), str(installed_dir), "--yes"],
+            cwd=temp_path,
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert install_result.returncode == 0, (
+            "Feature31 python regression gate failed during install.\n"
+            f"STDOUT:\n{install_result.stdout}\n"
+            f"STDERR:\n{install_result.stderr}"
+        )
+
+        run_result = subprocess.run(
+            [sys.executable, str(cli_path), "run", str(installed_dir), "hello-python"],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        output = f"{run_result.stdout}\n{run_result.stderr}"
+        assert run_result.returncode == 0, output
+        assert "feature31-python-output:hello-python" in output
