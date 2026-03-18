@@ -55,6 +55,8 @@ def main():
             "Examples:\n"
             "  kinnoo run <agent-dir> '<input>'\n"
             "  kinnoo run <agent-dir>\n"
+            "  kinnoo run <agent-dir> --json-input '{\"task\":\"ping\"}'\n"
+            "  kinnoo run <agent-dir> --json-file ./payload.json\n"
             "  kinnoo run <agent-dir> -- -e <some-string> -p <some-file-path> -u <some-url>"
         ),
     )

@@ -261,3 +261,31 @@ def test_feature18_docs_cover_input_safety_guard() -> None:
     assert "Protocol" in combined_text
     assert "type-aware" in combined_lower
     assert "non-blocking" in combined_lower
+
+
+def test_feature42_docs_cover_json_contract_guidance() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    schema_doc = repo_root / "docs" / "manifest-schema-reference.md"
+    readme_doc = repo_root / "README.md"
+
+    schema_text = schema_doc.read_text(encoding="utf-8")
+    readme_text = readme_doc.read_text(encoding="utf-8")
+    combined_text = f"{schema_text}\n{readme_text}"
+    combined_lower = combined_text.lower()
+
+    assert "JSON I/O Contract (Feature42)" in combined_text
+    assert "--json-input" in combined_text
+    assert "--json-file" in combined_text
+    assert "outputs.type" in combined_text
+    assert "stdout must be valid JSON" in combined_text
+
+    assert "kinnoo inspect" in combined_text
+    assert "Input Types" in combined_text
+    assert "Output Types" in combined_text
+    assert "JSON Contract" in combined_text
+
+    assert "kinnoo run <agent-dir> --preflight" in combined_text
+    assert "manifest I/O contract" in combined_text
+
+    assert "text workflows remain" in combined_lower
+    assert "unchanged" in combined_lower
