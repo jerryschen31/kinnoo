@@ -5,6 +5,8 @@ import tempfile
 import json
 from pathlib import Path
 
+import yaml
+
 
 # [agent] Run this regression gate before opening/merging PRs that change CLI behavior,
 # command modules, packaging/install flows, or shared test utilities; it verifies V1
@@ -555,4 +557,98 @@ def test_feature32_daemon_health_state_regression_gate(tmp_path, monkeypatch, ca
     mcp_output = f"{mcp_capture.out}\n{mcp_capture.err}"
     assert mcp_code == 0, mcp_output
     assert "daemon lifecycle state" not in mcp_output
+
+
+def test_feature33_non_openclaw_optional_nonbreaking_regression_gate(tmp_path):
+    """Regression gate: feature33 fields are optional/non-breaking for non-openclaw manifests."""
+    from kinnoo.validator import validate
+
+    def _write_manifest(agent_name: str, manifest: dict) -> Path:
+        manifest_path = tmp_path / f"{agent_name}.yaml"
+        manifest_path.write_text(yaml.dump(manifest), encoding="utf-8")
+        return manifest_path
+
+    baseline_python = {
+        "name": "feature33-baseline-python",
+        "version": "1.0.0",
+        "entrypoint": "run.py",
+        "runtime": {
+            "language": "python",
+            "version": ">=3.10",
+            "type": "one-shot",
+        },
+        "dependencies": [],
+        "inputs": {"type": "text"},
+        "outputs": {"type": "text"},
+    }
+
+    baseline_node = {
+        "name": "feature33-baseline-node",
+        "version": "1.0.0",
+        "entrypoint": "run.js",
+        "runtime": {
+            "language": "nodejs",
+            "version": ">=20.0.0",
+            "type": "one-shot",
+        },
+        "dependencies": [],
+        "inputs": {"type": "text"},
+        "outputs": {"type": "text"},
+    }
+
+    non_openclaw_with_extensions = {
+        "name": "feature33-non-openclaw-with-extensions",
+        "version": "1.0.0",
+        "entrypoint": "run.js",
+        "framework": "custom-framework",
+        "runtime": {
+            "language": "nodejs",
+            "version": ">=20.0.0",
+            "type": "one-shot",
+            "package_manager": "pnpm",
+        },
+        "channels": ["events"],
+        "skills": ["skills/non-openclaw/skill.md"],
+        "state_dirs": ["state/non-openclaw"],
+        "dependencies": [],
+        "inputs": {"type": "text"},
+        "outputs": {"type": "text"},
+    }
+
+    frameworkless_with_extensions = {
+        "name": "feature33-frameworkless-with-extensions",
+        "version": "1.0.0",
+        "entrypoint": "run.js",
+        "runtime": {
+            "language": "nodejs",
+            "version": ">=20.0.0",
+            "type": "one-shot",
+            "package_manager": "npm",
+        },
+        "channels": ["events"],
+        "skills": ["skills/common/skill.md"],
+        "state_dirs": ["state/common"],
+        "dependencies": [],
+        "inputs": {"type": "text"},
+        "outputs": {"type": "text"},
+    }
+
+    fixtures = [
+        ("baseline_python", baseline_python),
+        ("baseline_node", baseline_node),
+        ("non_openclaw_with_extensions", non_openclaw_with_extensions),
+        ("frameworkless_with_extensions", frameworkless_with_extensions),
+    ]
+
+    for fixture_name, manifest_data in fixtures:
+        manifest_path = _write_manifest(fixture_name, manifest_data)
+        is_valid, errors = validate(str(manifest_path))
+        assert is_valid is True, (
+            f"Expected fixture {fixture_name!r} to remain valid for non-openclaw compatibility; "
+            f"errors: {errors}"
+        )
+        assert not any("framework is 'openclaw'" in message for message in errors), (
+            f"Did not expect openclaw-targeted diagnostics for fixture {fixture_name!r}; "
+            f"errors: {errors}"
+        )
 
