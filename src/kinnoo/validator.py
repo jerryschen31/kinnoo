@@ -35,6 +35,7 @@ from .schema import (
     SERVICE_TYPE_ALIASES,
     SEMVER_PATTERN,
     SUPPORTED_HEALTH_CHECK_METHODS,
+    SUPPORTED_RUNTIME_LANGUAGES,
     SUPPORTED_RUNTIME_TYPES,
     SUPPORTED_SERVICE_TYPES,
 )
@@ -326,7 +327,17 @@ def _collect_validation_errors(data: dict[str, Any]) -> list[str]:
                 f"Only {supported} is supported in this version of kinnoo."
             )
 
-    # 4d. Optional V2 fields (feature9).
+    # 4d. runtime.language — must be a supported runtime language
+    runtime_language_found, runtime_language_value = _get_nested(data, "runtime.language")
+    if runtime_language_found and isinstance(runtime_language_value, str):
+        if runtime_language_value not in SUPPORTED_RUNTIME_LANGUAGES:
+            supported = ", ".join(f"'{value}'" for value in SUPPORTED_RUNTIME_LANGUAGES)
+            errors.append(
+                f"Field 'runtime.language' has unsupported value: '{runtime_language_value}'. "
+                f"Supported values: {supported}."
+            )
+
+    # 4e. Optional V2 fields (feature9).
     # Validate optional metadata when present while preserving V1 compatibility.
     for optional_field, expected_type in OPTIONAL_FIELD_TYPES.items():
         found, value = _get_nested(data, optional_field)
