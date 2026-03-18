@@ -412,6 +412,59 @@ def test_feature33_runtime_package_manager_validation(tmp_path: Path) -> None:
         f"Expected allowed runtime.package_manager values in error message; got: {errors}"
     )
 
+
+def test_feature33_extension_fields_type_and_path_safety(tmp_path: Path) -> None:
+    """Feature33 test283: channels/skills/state_dirs enforce type and path safety."""
+    valid_data = dict(_VALID_MANIFEST)
+    valid_data["runtime"] = dict(valid_data["runtime"])
+    valid_data["runtime"]["language"] = "nodejs"
+    valid_data["channels"] = ["stdio", "events"]
+    valid_data["skills"] = ["skills/openclaw/core.md", "skills/shared/prompts.md"]
+    valid_data["state_dirs"] = ["state/cache", "state/memory"]
+
+    valid_path = tmp_path / "feature33_extension_fields_valid.yaml"
+    valid_path.write_text(yaml.dump(valid_data), encoding="utf-8")
+
+    is_valid, errors = validate(str(valid_path))
+    assert is_valid is True, f"Expected valid feature33 extension fields to pass; errors: {errors}"
+    assert errors == []
+
+    invalid_types = dict(_VALID_MANIFEST)
+    invalid_types["channels"] = "stdio"
+    invalid_types["skills"] = ["skills/ok.md", 123]
+    invalid_types["state_dirs"] = ["state/cache", None]
+
+    invalid_types_path = tmp_path / "feature33_extension_fields_invalid_types.yaml"
+    invalid_types_path.write_text(yaml.dump(invalid_types), encoding="utf-8")
+
+    is_valid, errors = validate(str(invalid_types_path))
+    assert is_valid is False, "Expected invalid extension field types to fail"
+    assert any("Field 'channels' must be of type list" in message for message in errors), (
+        f"Expected channels list type error; got: {errors}"
+    )
+    assert any("Field 'skills[1]' must be of type str" in message for message in errors), (
+        f"Expected skills item type error; got: {errors}"
+    )
+    assert any("Field 'state_dirs[1]' must be of type str" in message for message in errors), (
+        f"Expected state_dirs item type error; got: {errors}"
+    )
+
+    unsafe_paths = dict(_VALID_MANIFEST)
+    unsafe_paths["skills"] = ["/absolute/skills/core.md"]
+    unsafe_paths["state_dirs"] = ["../outside-state"]
+
+    unsafe_paths_path = tmp_path / "feature33_extension_fields_unsafe_paths.yaml"
+    unsafe_paths_path.write_text(yaml.dump(unsafe_paths), encoding="utf-8")
+
+    is_valid, errors = validate(str(unsafe_paths_path))
+    assert is_valid is False, "Expected unsafe paths in extension fields to fail"
+    assert any("Field 'skills[0]'" in message and "relative path" in message for message in errors), (
+        f"Expected skills path safety error; got: {errors}"
+    )
+    assert any("Field 'state_dirs[0]'" in message and "relative path" in message for message in errors), (
+        f"Expected state_dirs path safety error; got: {errors}"
+    )
+
 # ---------------------------------------------------------------------------
 # test60 — Manifest loader normalizes "type" field to list (task38)
 # ---------------------------------------------------------------------------
