@@ -932,6 +932,111 @@ def attach_agent(agent_dir_arg: str) -> int:
         return 1
 
 
+def _render_daemon_log_line(line: str, source_label: str) -> str:
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return f"[{timestamp}] [{source_label}] {line.rstrip()}"
+
+
+def logs_agent(agent_dir_arg: str, follow: bool = False, tail_lines: int = 20) -> int:
+    """Show daemon logs with deterministic timestamp/source context and optional follow mode."""
+    agent_dir = Path(agent_dir_arg).resolve()
+    if not agent_dir.exists() or not agent_dir.is_dir():
+        _print_safe_error(f"Error: agent directory not found: {agent_dir}")
+        return 1
+
+    if tail_lines < 1:
+        _print_safe_error("Error: --tail must be a positive integer")
+        return 1
+
+    state_path = daemon_state_path(agent_dir)
+    if not state_path.exists():
+        _print_safe_error(
+            f"Error: daemon state file not found: {state_path}. Start daemon with 'kinnoo run {agent_dir} <input>' first."
+        )
+        return 1
+
+    try:
+        state_payload = json.loads(state_path.read_text(encoding="utf-8"))
+    except Exception as error:
+        _print_safe_error(f"Error: failed to read daemon state metadata: {error}")
+        return 1
+
+    if not isinstance(state_payload, dict):
+        _print_safe_error("Error: daemon state metadata is malformed")
+        return 1
+
+    runtime_type = state_payload.get("runtime_type")
+    if runtime_type != "daemon":
+        _print_safe_error(
+            f"Error: logs is unsupported for runtime.type '{runtime_type}'. Only daemon runtime supports logs."
+        )
+        return 1
+
+    pid_value = state_payload.get("pid")
+    if not isinstance(pid_value, int):
+        _print_safe_error("Error: daemon state metadata is missing a valid integer pid")
+        return 1
+
+    log_path_value = state_payload.get("log_path")
+    if isinstance(log_path_value, str) and log_path_value.strip():
+        log_path = Path(log_path_value)
+    else:
+        log_path = daemon_log_path(agent_dir)
+
+    if not log_path.exists() or not log_path.is_file():
+        _print_safe_error(
+            f"Error: daemon log file not found: {log_path}. Restart daemon to recreate log output."
+        )
+        return 1
+
+    try:
+        all_lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except Exception as error:
+        _print_safe_error(f"Error: failed to read daemon log file '{log_path}': {error}")
+        return 1
+
+    daemon_running = daemon_pid_is_running(pid_value)
+    if follow and not daemon_running:
+        _print_safe_error(
+            f"Error: daemon is not running for pid {pid_value}; follow mode requires an active daemon."
+        )
+        return 1
+
+    source_label = log_path.name
+    print(f"[kinnoo] daemon logs source: {log_path}")
+    print(f"[kinnoo] mode: {'follow' if follow else 'tail'} (tail={tail_lines})")
+    if not daemon_running:
+        print(f"[kinnoo] daemon not running for pid {pid_value}; showing last available log lines")
+
+    recent_lines = all_lines[-tail_lines:]
+    for line in recent_lines:
+        print(_render_daemon_log_line(line, source_label))
+
+    if not follow:
+        return 0
+
+    try:
+        with log_path.open("r", encoding="utf-8", errors="replace") as log_file:
+            log_file.seek(0, os.SEEK_END)
+            while True:
+                line = log_file.readline()
+                if line:
+                    print(_render_daemon_log_line(line, source_label))
+                    continue
+
+                if not daemon_pid_is_running(pid_value):
+                    print("[kinnoo] daemon exited; follow mode ended")
+                    return 0
+
+                time.sleep(0.1)
+    except KeyboardInterrupt:
+        print("[kinnoo] log follow interrupted by operator")
+        return 0
+    except Exception as error:
+        _print_safe_error(f"Error: daemon log follow failed: {error}")
+        return 1
+
+
 def run_agent(
     agent_dir_arg: str,
     input_arg: str | None,

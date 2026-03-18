@@ -3594,7 +3594,7 @@ tasks:
       - 'step4: Add integration tests for tail and follow behavior across daemon runtimes'
     dependencies: [task179]
     tests: [test280]
-    status: not-started
+    status: needs-review
 
   - id: task183
     title: "Feature32 supervisor health state diagnostics and regression gate"
