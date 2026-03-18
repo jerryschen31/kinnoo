@@ -11,6 +11,7 @@ import re
 import json
 import signal
 import time
+import threading
 from datetime import datetime, timezone
 
 import yaml
@@ -355,6 +356,157 @@ def _manifest_inputs_required(manifest: dict) -> bool:
     return True
 
 
+def _manifest_declares_json_input(manifest: dict) -> bool:
+    inputs_section = manifest.get("inputs")
+    if not isinstance(inputs_section, dict):
+        return False
+
+    declared_type = inputs_section.get("type")
+    if isinstance(declared_type, str):
+        return declared_type.strip().lower() == "json"
+    if isinstance(declared_type, list):
+        return any(
+            isinstance(item, str) and item.strip().lower() == "json"
+            for item in declared_type
+        )
+    return False
+
+
+def _manifest_declares_json_output(manifest: dict) -> bool:
+    outputs_section = manifest.get("outputs")
+    if not isinstance(outputs_section, dict):
+        return False
+
+    declared_type = outputs_section.get("type")
+    if isinstance(declared_type, str):
+        return declared_type.strip().lower() == "json"
+    if isinstance(declared_type, list):
+        return any(
+            isinstance(item, str) and item.strip().lower() == "json"
+            for item in declared_type
+        )
+    return False
+
+
+def _manifest_declared_io_types(manifest: dict, section_name: str) -> list[str]:
+    section = manifest.get(section_name)
+    if not isinstance(section, dict):
+        return []
+
+    declared_type = section.get("type")
+    if isinstance(declared_type, str):
+        value = declared_type.strip().lower()
+        return [value] if value else []
+    if isinstance(declared_type, list):
+        normalized: list[str] = []
+        for item in declared_type:
+            if not isinstance(item, str):
+                continue
+            value = item.strip().lower()
+            if value and value not in normalized:
+                normalized.append(value)
+        return normalized
+    return []
+
+
+def _stream_and_capture_process_output(process: subprocess.Popen) -> tuple[str, str]:
+    stdout_chunks: list[str] = []
+    stderr_chunks: list[str] = []
+
+    def _pump(stream, target_stream, chunks: list[str]) -> None:
+        if stream is None:
+            return
+        for line in iter(stream.readline, ""):
+            chunks.append(line)
+            target_stream.write(line)
+            target_stream.flush()
+        stream.close()
+
+    stdout_thread = threading.Thread(
+        target=_pump,
+        args=(process.stdout, sys.stdout, stdout_chunks),
+        daemon=True,
+    )
+    stderr_thread = threading.Thread(
+        target=_pump,
+        args=(process.stderr, sys.stderr, stderr_chunks),
+        daemon=True,
+    )
+
+    stdout_thread.start()
+    stderr_thread.start()
+
+    process.wait()
+    stdout_thread.join()
+    stderr_thread.join()
+
+    return "".join(stdout_chunks), "".join(stderr_chunks)
+
+
+def _load_json_payload_from_file(json_file_arg: str, secret_values: Iterable[str]) -> object:
+    json_path = Path(json_file_arg).resolve()
+    if not json_path.exists():
+        raise ValueError(f"Error: JSON input file not found: {json_path}")
+    if not json_path.is_file():
+        raise ValueError(f"Error: JSON input path is not a file: {json_path}")
+
+    try:
+        raw_payload = json_path.read_text(encoding="utf-8")
+    except Exception as error:
+        raise ValueError(f"Error: Failed to read JSON input file '{json_path}': {error}") from error
+
+    if _contains_forbidden_value(raw_payload, secret_values):
+        raise ValueError("Error: JSON input file contains sensitive values that must not be echoed")
+
+    try:
+        return json.loads(raw_payload)
+    except json.JSONDecodeError as error:
+        raise ValueError(
+            "Error: Invalid JSON in --json-file payload "
+            f"at line {error.lineno}, column {error.colno}: {error.msg}"
+        ) from error
+
+
+def _resolve_effective_input_arg(
+    *,
+    manifest: dict,
+    input_arg: str | None,
+    json_input_arg: str | None,
+    json_file_arg: str | None,
+    secret_values: Iterable[str],
+) -> str | None:
+    if json_input_arg is not None and json_file_arg is not None:
+        raise ValueError("Error: --json-input and --json-file are mutually exclusive")
+
+    json_mode_selected = json_input_arg is not None or json_file_arg is not None
+    if json_mode_selected and input_arg is not None:
+        raise ValueError("Error: positional <input> cannot be used with --json-input or --json-file")
+
+    if not json_mode_selected:
+        return input_arg
+
+    if not _manifest_declares_json_input(manifest):
+        raise ValueError(
+            "Error: JSON input mode requires manifest inputs.type to include 'json'"
+        )
+
+    payload: object
+    if json_input_arg is not None:
+        try:
+            payload = json.loads(json_input_arg)
+        except json.JSONDecodeError as error:
+            raise ValueError(
+                "Error: Invalid JSON in --json-input payload "
+                f"at line {error.lineno}, column {error.colno}: {error.msg}"
+            ) from error
+    else:
+        assert json_file_arg is not None
+        payload = _load_json_payload_from_file(json_file_arg, secret_values)
+
+    # Canonical JSON string keeps subprocess contract deterministic across modes.
+    return json.dumps(payload, separators=(",", ":"), sort_keys=True)
+
+
 def _infer_pass_through_input_type(param_name: str) -> str:
     type_by_flag = {
         "-u": "url",
@@ -418,6 +570,7 @@ def run_preflight(agent_dir_arg: str) -> int:
                 manifest = loaded_manifest
 
     runtime_language = "python"
+    runtime_type = "one-shot"
     runtime_section: dict[str, object] = {}
     if isinstance(manifest, dict):
         candidate_runtime = manifest.get("runtime")
@@ -426,6 +579,9 @@ def run_preflight(agent_dir_arg: str) -> int:
             runtime_language_value = runtime_section.get("language")
             if isinstance(runtime_language_value, str) and runtime_language_value.strip():
                 runtime_language = runtime_language_value.strip().lower()
+            runtime_type_value = runtime_section.get("type")
+            if isinstance(runtime_type_value, str) and runtime_type_value.strip():
+                runtime_type = runtime_type_value.strip().lower()
 
     runtime_constraint_ok = False
     runtime_message = "runtime version check failed: manifest validation prerequisite not met"
@@ -478,6 +634,28 @@ def run_preflight(agent_dir_arg: str) -> int:
     _emit_preflight_line(env_vars_ok, env_vars_message)
     _emit_preflight_line(entrypoint_ok, entrypoint_message)
     _emit_preflight_line(dependencies_ok, dependencies_message)
+
+    io_contract_ok = False
+    io_contract_message = "manifest I/O contract unavailable: manifest validation prerequisite not met"
+    if manifest_valid and manifest is not None:
+        input_types = _manifest_declared_io_types(manifest, "inputs")
+        output_types = _manifest_declared_io_types(manifest, "outputs")
+        input_label = ", ".join(input_types) if input_types else "(none)"
+        output_label = ", ".join(output_types) if output_types else "(none)"
+
+        contract_notes: list[str] = []
+        if "json" in input_types:
+            contract_notes.append("use --json-input or --json-file for structured input")
+        if runtime_type != "mcp-server" and "json" in output_types:
+            contract_notes.append("stdout must be valid JSON when outputs.type includes json")
+
+        io_contract_message = (
+            f"manifest I/O contract: inputs.type [{input_label}], outputs.type [{output_label}]"
+        )
+        if contract_notes:
+            io_contract_message = f"{io_contract_message}; {'; '.join(contract_notes)}"
+        io_contract_ok = True
+    _emit_preflight_line(io_contract_ok, io_contract_message)
 
     service_results: list[HealthCheckResult] = []
     service_checks_ok = True
@@ -613,6 +791,8 @@ def _write_run_trace_log(
 def run_agent(
     agent_dir_arg: str,
     input_arg: str | None,
+    json_input_arg: str | None = None,
+    json_file_arg: str | None = None,
     preflight: bool = False,
     no_guard: bool = False,
     pass_through_args: list[str] | None = None,
@@ -670,6 +850,18 @@ def run_agent(
     runtime_language_raw = runtime_section.get("language") if isinstance(runtime_section.get("language"), str) else "python"
     runtime_language = runtime_language_raw.strip().lower() or "python"
 
+    try:
+        effective_input_arg = _resolve_effective_input_arg(
+            manifest=manifest if isinstance(manifest, dict) else {},
+            input_arg=input_arg,
+            json_input_arg=json_input_arg,
+            json_file_arg=json_file_arg,
+            secret_values=trace_forbidden_values,
+        )
+    except ValueError as error:
+        _print_safe_error(str(error), secret_values=trace_forbidden_values)
+        return finalize(1)
+
     python_exe: Path | None = None
     if runtime_language == "python":
         venv_dir = agent_dir / ".venv"
@@ -725,7 +917,7 @@ def run_agent(
         return finalize(1)
 
     inputs_required = _manifest_inputs_required(manifest)
-    if input_arg is None and inputs_required:
+    if effective_input_arg is None and inputs_required:
         _print_safe_error("Error: input is required for kinnoo run unless --preflight is used")
         return finalize(1)
 
@@ -809,8 +1001,8 @@ def run_agent(
         guard = get_default_guard()
         aggregate_warnings = []
 
-        if input_arg is not None:
-            guard_result = guard.check(input_arg, "text")
+        if effective_input_arg is not None:
+            guard_result = guard.check(effective_input_arg, "text")
             aggregate_warnings.extend(guard_result.warnings)
 
         pass_through_inputs = _build_pass_through_guard_inputs(runtime_pass_through_args)
@@ -852,11 +1044,15 @@ def run_agent(
         process_args = ["node", str(entrypoint_path)]
     else:
         process_args = [str(python_exe), str(entrypoint_path)]
-    if input_arg is not None:
-        process_args.append(input_arg)
+    if effective_input_arg is not None:
+        process_args.append(effective_input_arg)
     process_args.extend(runtime_pass_through_args)
 
     runtime_type = runtime_section.get("type") if isinstance(runtime_section.get("type"), str) else "one-shot"
+    enforce_json_output_contract = (
+        runtime_type != "mcp-server"
+        and _manifest_declares_json_output(manifest if isinstance(manifest, dict) else {})
+    )
 
     if runtime_type == "mcp-server":
         shutdown_timeout_value = runtime_section.get("shutdown_timeout_seconds", 3.0)
@@ -956,6 +1152,32 @@ def run_agent(
             signal.signal(signal.SIGINT, previous_sigint_handler)
 
     try:
+        if enforce_json_output_contract:
+            process = subprocess.Popen(
+                process_args,
+                cwd=agent_dir,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=subprocess_env,
+                text=True,
+                bufsize=1,
+            )
+            captured_stdout, _captured_stderr = _stream_and_capture_process_output(process)
+            if process.returncode != 0:
+                return finalize(process.returncode)
+
+            try:
+                json.loads(captured_stdout)
+            except json.JSONDecodeError as error:
+                _print_safe_error(
+                    "Error: outputs.type=json contract violation: stdout is not valid JSON "
+                    f"(line {error.lineno}, column {error.colno}: {error.msg})",
+                    secret_values=resolved_env_vars.values(),
+                )
+                return finalize(1)
+
+            return finalize(process.returncode)
+
         process = subprocess.Popen(
             process_args,
             cwd=agent_dir,
