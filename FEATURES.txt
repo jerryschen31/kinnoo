@@ -1468,3 +1468,31 @@ features:
     owner: techlead-agent
     dependencies: [feature39]
     status: not-started
+
+  - id: feature42
+    title: "JSON Input/Output Types for Agent Interop"
+    description: |
+      Add first-class `json` support for manifest input/output contracts so agents
+      can exchange structured payloads with MCP servers and other agents without
+      lossy text-only serialization assumptions. Extend schema validation and run
+      command interfaces to accept JSON payloads and enforce JSON output contracts
+      when declared in `kinnoo.yaml`.
+    tasks: [task174, task175, task176, task177]
+    acceptance_criteria:
+      - id: AC1
+        description: "Manifest validation accepts `inputs.type: json` and `outputs.type: json` as supported values and rejects unsupported type values with clear guidance."
+      - id: AC2
+        description: "`kinnoo run` supports structured JSON input delivery (inline JSON and file-based JSON payload modes) for agents declaring `inputs.type: json`."
+      - id: AC3
+        description: "For agents declaring `outputs.type: json`, run flow validates emitted payloads as JSON and reports deterministic actionable errors when output is not valid JSON."
+      - id: AC4
+        description: "Inspect/preflight and command help output clearly show JSON contract expectations (input shape source, output validation behavior)."
+      - id: AC5
+        description: "Existing text input/output behavior remains backward-compatible for Python and Node.js agent workflows."
+    notes:
+      - "Scope is contract-level JSON support; schema-level JSON shape typing and JSON Schema validation are deferred."
+      - "Design should preserve no-secret-values invariant in diagnostics while still surfacing JSON parse errors safely."
+      - "Supports both local one-shot and future daemon/MCP-oriented structured message workflows."
+    owner: techlead-agent
+    dependencies: [feature20, feature31]
+    status: not-started
