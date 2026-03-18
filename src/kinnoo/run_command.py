@@ -17,9 +17,11 @@ from datetime import datetime, timezone
 import yaml
 
 from .health_check import (
+    DaemonLifecycleResult,
     HealthCheckResult,
     check_node_package_manager_availability,
     check_node_runtime_constraint,
+    classify_daemon_lifecycle_state,
     run_service_health_check,
 )
 from .schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars
@@ -674,6 +676,34 @@ def run_preflight(agent_dir_arg: str) -> int:
                 _render_service_check_for_preflight(service_result)
             service_checks_ok = all(service_result.healthy for service_result in service_results)
 
+    daemon_lifecycle_result: DaemonLifecycleResult | None = None
+    daemon_state_ok = True
+    if runtime_type == "daemon" and manifest_valid and manifest is not None:
+        state_path = daemon_state_path(agent_dir)
+        has_state_metadata = state_path.exists()
+        process_running = False
+        if has_state_metadata:
+            try:
+                state_payload = json.loads(state_path.read_text(encoding="utf-8"))
+                pid_value = state_payload.get("pid") if isinstance(state_payload, dict) else None
+                if isinstance(pid_value, int):
+                    process_running = daemon_pid_is_running(pid_value)
+            except Exception:
+                process_running = False
+
+        daemon_lifecycle_result = classify_daemon_lifecycle_state(
+            has_state_metadata=has_state_metadata,
+            process_running=process_running,
+            service_results=service_results,
+        )
+        daemon_state_ok = daemon_lifecycle_result.healthy
+        _emit_preflight_line(
+            daemon_lifecycle_result.healthy,
+            f"daemon lifecycle state [{daemon_lifecycle_result.state}]: {daemon_lifecycle_result.message}",
+        )
+        if not daemon_lifecycle_result.healthy:
+            print(f"  - Guidance: {daemon_lifecycle_result.guidance}")
+
     if manifest_valid and manifest is not None:
         if not runtime_constraint_ok:
             if runtime_language == "nodejs":
@@ -691,6 +721,8 @@ def run_preflight(agent_dir_arg: str) -> int:
                 print("  - Action: create agent .venv and install requirements (for example: kinnoo run <agent-dir> '<input>')")
         if service_results and not service_checks_ok:
             print("  - Action: make unhealthy services reachable or update services[].health_check settings")
+        if daemon_lifecycle_result is not None and not daemon_lifecycle_result.healthy:
+            print(f"  - Action: {daemon_lifecycle_result.guidance}")
 
     skipped_entrypoint = agent_dir_exists and manifest_exists and manifest_valid
     _emit_preflight_line(skipped_entrypoint, "entrypoint execution path skipped in preflight mode")
@@ -704,6 +736,7 @@ def run_preflight(agent_dir_arg: str) -> int:
         and entrypoint_ok
         and dependencies_ok
         and service_checks_ok
+        and daemon_state_ok
     ):
         print("Ready to run")
         print("Preflight result: PASS")
@@ -727,6 +760,8 @@ def run_preflight(agent_dir_arg: str) -> int:
             print("- dependencies: create .venv and install requirements")
     if service_results and not service_checks_ok:
         print("- services: fix failing service checks or adjust services[].health_check configuration")
+    if daemon_lifecycle_result is not None and not daemon_lifecycle_result.healthy:
+        print(f"- daemon: {daemon_lifecycle_result.guidance}")
 
     print("Preflight result: FAIL")
     return 1
