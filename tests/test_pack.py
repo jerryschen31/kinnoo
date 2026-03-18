@@ -813,6 +813,17 @@ def test_feature26_github_mcp_fixture_valid_and_packable(tmp_path: Path) -> None
 def test_feature31_pack_node_modules_excluded_lockfiles_preserved(monkeypatch, tmp_path: Path) -> None:
     from kinnoo import install_command
 
+    monkeypatch.setattr(
+        install_command,
+        "check_node_runtime_constraint",
+        lambda _constraint: (True, "runtime version check passed: current Node 22.0.0 satisfies runtime.version '>=22'"),
+    )
+    monkeypatch.setattr(
+        install_command,
+        "check_node_package_manager_availability",
+        lambda _package_manager: (True, "dependency readiness check passed: node package manager is available"),
+    )
+
     agent = tmp_path / "feature31-node-pack"
     agent.mkdir()
     (agent / "node_modules" / "left-pad").mkdir(parents=True)

@@ -14,6 +14,9 @@ from .schema import (
 )
 
 
+_RUN_SUBPROCESS = subprocess.run
+
+
 @dataclass(frozen=True)
 class HealthCheckResult:
 	"""Normalized health-check result for downstream renderers and policies."""
@@ -167,7 +170,7 @@ def _check_tcp(
 
 
 def _check_process(service_name: str, service_type: str, *, process_name: str) -> HealthCheckResult:
-	result = subprocess.run(
+	result = _RUN_SUBPROCESS(
 		["pgrep", "-f", process_name],
 		capture_output=True,
 		text=True,
@@ -345,7 +348,7 @@ def check_node_runtime_constraint(runtime_constraint: str) -> tuple[bool, str]:
 		return False, "runtime version check failed: node executable not found in PATH"
 
 	try:
-		version_result = subprocess.run(
+		version_result = _RUN_SUBPROCESS(
 			[node_executable, "--version"],
 			capture_output=True,
 			text=True,

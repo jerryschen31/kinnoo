@@ -80,6 +80,23 @@ def _node_manifest_yaml(package_manager: str | None = None) -> str:
 def test_feature31_node_dependency_install_npm_and_pnpm(monkeypatch, tmp_path, capsys):
     from kinnoo import install_command
 
+    monkeypatch.setattr(
+        install_command,
+        "check_node_runtime_constraint",
+        lambda _constraint: (True, "runtime version check passed: current Node 22.0.0 satisfies runtime.version '>=22'"),
+    )
+
+    def _fake_package_manager_check(package_manager: str):
+        if package_manager == "pnpm":
+            return True, "dependency readiness check passed: node package manager 'pnpm' is available at /mock/pnpm"
+        return True, "dependency readiness check passed: node package manager 'npm' is available at /mock/npm"
+
+    monkeypatch.setattr(
+        install_command,
+        "check_node_package_manager_availability",
+        _fake_package_manager_check,
+    )
+
     calls: list[tuple[list[str], Path | None]] = []
     state = {"fail_pnpm": False}
 
