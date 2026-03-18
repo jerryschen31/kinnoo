@@ -605,6 +605,139 @@ outputs:
     assert not (agent_dir / ".venv").exists()
 
 
+def test_feature42_run_inline_json_input_mode(tmp_path):
+    agent_dir = tmp_path / "feature42-json-inline-agent"
+    agent_dir.mkdir()
+    (agent_dir / "requirements.txt").write_text("")
+    (agent_dir / "kinnoo.yaml").write_text(
+        """
+name: feature42-json-inline-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: json
+outputs:
+    type: text
+"""
+    )
+    (agent_dir / "run.py").write_text(
+        "import json\n"
+        "import sys\n"
+        "payload = json.loads(sys.argv[1])\n"
+        "print(json.dumps(payload, sort_keys=True, separators=(',', ':')))\n"
+    )
+    (agent_dir / "README.md").write_text("feature42 inline json mode")
+    (agent_dir / "tools").mkdir()
+    (agent_dir / "prompts").mkdir()
+
+    inline_payload = '{"z":1,"a":{"k":"v"}}'
+    result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(agent_dir),
+            "--json-input",
+            inline_payload,
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert '{"a":{"k":"v"},"z":1}' in result.stdout
+
+
+def test_feature42_run_json_file_input_mode(tmp_path):
+    agent_dir = tmp_path / "feature42-json-file-agent"
+    agent_dir.mkdir()
+    (agent_dir / "requirements.txt").write_text("")
+    (agent_dir / "kinnoo.yaml").write_text(
+        """
+name: feature42-json-file-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: json
+outputs:
+    type: text
+"""
+    )
+    (agent_dir / "run.py").write_text(
+        "import json\n"
+        "import sys\n"
+        "payload = json.loads(sys.argv[1])\n"
+        "print('ok:' + payload['message'])\n"
+    )
+    (agent_dir / "README.md").write_text("feature42 json-file mode")
+    (agent_dir / "tools").mkdir()
+    (agent_dir / "prompts").mkdir()
+
+    valid_payload_file = tmp_path / "payload.json"
+    valid_payload_file.write_text('{"message":"hello-from-file"}', encoding="utf-8")
+
+    valid_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(agent_dir),
+            "--json-file",
+            str(valid_payload_file),
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert valid_result.returncode == 0, valid_result.stderr
+    assert "ok:hello-from-file" in valid_result.stdout
+
+    missing_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(agent_dir),
+            "--json-file",
+            str(tmp_path / "missing.json"),
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert missing_result.returncode != 0
+    assert "JSON input file not found" in missing_result.stderr
+
+    invalid_payload_file = tmp_path / "invalid_payload.json"
+    invalid_payload_file.write_text('{"message":', encoding="utf-8")
+
+    invalid_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(agent_dir),
+            "--json-file",
+            str(invalid_payload_file),
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert invalid_result.returncode != 0
+    assert "Invalid JSON in --json-file payload" in invalid_result.stderr
+
+
 def test_run_missing_entrypoint(tmp_path):
     """Test kinnoo run with missing entrypoint file prints error and aborts."""
     agent_dir = tmp_path / "test-agent"
