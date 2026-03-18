@@ -17,19 +17,28 @@ from datetime import datetime, timezone
 import yaml
 
 from .health_check import (
+    DaemonLifecycleResult,
     HealthCheckResult,
     check_node_package_manager_availability,
     check_node_runtime_constraint,
+    classify_daemon_lifecycle_state,
     run_service_health_check,
 )
 from .schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars
 from .supervisor import (
+    build_daemon_state_payload,
+    clear_daemon_state,
+    daemon_pid_is_running,
+    daemon_log_path,
+    daemon_state_path,
     infer_readiness_config,
     shutdown_server_with_report,
     shutdown_server,
     start_server,
+    stop_daemon_pid,
     stream_output,
     wait_until_ready,
+    write_daemon_state,
 )
 from .validator import validate
 
@@ -667,6 +676,34 @@ def run_preflight(agent_dir_arg: str) -> int:
                 _render_service_check_for_preflight(service_result)
             service_checks_ok = all(service_result.healthy for service_result in service_results)
 
+    daemon_lifecycle_result: DaemonLifecycleResult | None = None
+    daemon_state_ok = True
+    if runtime_type == "daemon" and manifest_valid and manifest is not None:
+        state_path = daemon_state_path(agent_dir)
+        has_state_metadata = state_path.exists()
+        process_running = False
+        if has_state_metadata:
+            try:
+                state_payload = json.loads(state_path.read_text(encoding="utf-8"))
+                pid_value = state_payload.get("pid") if isinstance(state_payload, dict) else None
+                if isinstance(pid_value, int):
+                    process_running = daemon_pid_is_running(pid_value)
+            except Exception:
+                process_running = False
+
+        daemon_lifecycle_result = classify_daemon_lifecycle_state(
+            has_state_metadata=has_state_metadata,
+            process_running=process_running,
+            service_results=service_results,
+        )
+        daemon_state_ok = daemon_lifecycle_result.healthy
+        _emit_preflight_line(
+            daemon_lifecycle_result.healthy,
+            f"daemon lifecycle state [{daemon_lifecycle_result.state}]: {daemon_lifecycle_result.message}",
+        )
+        if not daemon_lifecycle_result.healthy:
+            print(f"  - Guidance: {daemon_lifecycle_result.guidance}")
+
     if manifest_valid and manifest is not None:
         if not runtime_constraint_ok:
             if runtime_language == "nodejs":
@@ -684,6 +721,8 @@ def run_preflight(agent_dir_arg: str) -> int:
                 print("  - Action: create agent .venv and install requirements (for example: kinnoo run <agent-dir> '<input>')")
         if service_results and not service_checks_ok:
             print("  - Action: make unhealthy services reachable or update services[].health_check settings")
+        if daemon_lifecycle_result is not None and not daemon_lifecycle_result.healthy:
+            print(f"  - Action: {daemon_lifecycle_result.guidance}")
 
     skipped_entrypoint = agent_dir_exists and manifest_exists and manifest_valid
     _emit_preflight_line(skipped_entrypoint, "entrypoint execution path skipped in preflight mode")
@@ -697,6 +736,7 @@ def run_preflight(agent_dir_arg: str) -> int:
         and entrypoint_ok
         and dependencies_ok
         and service_checks_ok
+        and daemon_state_ok
     ):
         print("Ready to run")
         print("Preflight result: PASS")
@@ -720,6 +760,8 @@ def run_preflight(agent_dir_arg: str) -> int:
             print("- dependencies: create .venv and install requirements")
     if service_results and not service_checks_ok:
         print("- services: fix failing service checks or adjust services[].health_check configuration")
+    if daemon_lifecycle_result is not None and not daemon_lifecycle_result.healthy:
+        print(f"- daemon: {daemon_lifecycle_result.guidance}")
 
     print("Preflight result: FAIL")
     return 1
@@ -786,6 +828,248 @@ def _write_run_trace_log(
     except Exception as error:
         _print_safe_error(f"Warning: Failed to write run trace log '{log_file}': {error}")
         return
+
+
+def stop_agent(agent_dir_arg: str) -> int:
+    """Stop a tracked daemon process using persisted control-plane metadata."""
+    agent_dir = Path(agent_dir_arg).resolve()
+    if not agent_dir.exists() or not agent_dir.is_dir():
+        _print_safe_error(f"Error: agent directory not found: {agent_dir}")
+        return 1
+
+    state_path = daemon_state_path(agent_dir)
+    if not state_path.exists():
+        _print_safe_error(
+            f"Error: daemon state file not found: {state_path}. Start daemon with 'kinnoo run {agent_dir} <input>' first."
+        )
+        return 1
+
+    try:
+        state_payload = json.loads(state_path.read_text(encoding="utf-8"))
+    except Exception as error:
+        _print_safe_error(f"Error: failed to read daemon state metadata: {error}")
+        return 1
+
+    pid_value = state_payload.get("pid") if isinstance(state_payload, dict) else None
+    if not isinstance(pid_value, int):
+        _print_safe_error("Error: daemon state metadata is missing a valid integer pid")
+        return 1
+
+    stop_report = stop_daemon_pid(pid=pid_value)
+    if not stop_report.terminated:
+        _print_safe_error(
+            "Error: daemon process did not stop after SIGTERM and SIGKILL fallback; "
+            f"manual intervention required for pid {pid_value}"
+        )
+        return 1
+
+    clear_daemon_state(agent_dir)
+
+    if stop_report.already_stopped:
+        print(f"[kinnoo] daemon already not running: pid={pid_value}")
+        print("[kinnoo] cleared stale daemon state metadata")
+        return 0
+
+    if stop_report.sigkill_sent:
+        print(f"[kinnoo] daemon stopped with fallback SIGKILL: pid={pid_value}")
+    else:
+        print(f"[kinnoo] daemon stopped gracefully with SIGTERM: pid={pid_value}")
+    print("[kinnoo] daemon state metadata cleared")
+    return 0
+
+
+def attach_agent(agent_dir_arg: str) -> int:
+    """Attach to a running daemon session by bridging the daemon log stream interactively."""
+    agent_dir = Path(agent_dir_arg).resolve()
+    if not agent_dir.exists() or not agent_dir.is_dir():
+        _print_safe_error(f"Error: agent directory not found: {agent_dir}")
+        return 1
+
+    state_path = daemon_state_path(agent_dir)
+    if not state_path.exists():
+        _print_safe_error(
+            f"Error: daemon state file not found: {state_path}. Start daemon with 'kinnoo run {agent_dir} <input>' first."
+        )
+        return 1
+
+    try:
+        state_payload = json.loads(state_path.read_text(encoding="utf-8"))
+    except Exception as error:
+        _print_safe_error(f"Error: failed to read daemon state metadata: {error}")
+        return 1
+
+    if not isinstance(state_payload, dict):
+        _print_safe_error("Error: daemon state metadata is malformed")
+        return 1
+
+    runtime_type = state_payload.get("runtime_type")
+    if runtime_type != "daemon":
+        _print_safe_error(
+            f"Error: attach is unsupported for runtime.type '{runtime_type}'. Only daemon runtime supports attach."
+        )
+        return 1
+
+    runtime_language = state_payload.get("runtime_language")
+    if runtime_language not in ("python", "nodejs"):
+        _print_safe_error(
+            f"Error: attach is unsupported for runtime.language '{runtime_language}'. Supported values: python, nodejs"
+        )
+        return 1
+
+    pid_value = state_payload.get("pid")
+    if not isinstance(pid_value, int):
+        _print_safe_error("Error: daemon state metadata is missing a valid integer pid")
+        return 1
+
+    if not daemon_pid_is_running(pid_value):
+        _print_safe_error(
+            f"Error: daemon is not running for pid {pid_value}. Restart daemon before attach."
+        )
+        return 1
+
+    if not sys.stdin.isatty() or not sys.stdout.isatty():
+        _print_safe_error("Error: attach requires an interactive TTY session")
+        return 1
+
+    log_path_value = state_payload.get("log_path")
+    if isinstance(log_path_value, str) and log_path_value.strip():
+        log_path = Path(log_path_value)
+    else:
+        log_path = daemon_log_path(agent_dir)
+
+    if not log_path.exists() or not log_path.is_file():
+        _print_safe_error(f"Error: daemon log file not found for attach: {log_path}")
+        return 1
+
+    print(f"[kinnoo] attach session started for pid={pid_value}")
+    print(f"[kinnoo] streaming daemon log: {log_path}")
+    print("[kinnoo] press Ctrl+C to detach")
+
+    try:
+        with log_path.open("r", encoding="utf-8", errors="replace") as log_file:
+            while True:
+                line = log_file.readline()
+                if line:
+                    sys.stdout.write(line)
+                    sys.stdout.flush()
+                    continue
+
+                if not daemon_pid_is_running(pid_value):
+                    print("[kinnoo] daemon exited; attach session ending")
+                    return 0
+
+                time.sleep(0.1)
+    except KeyboardInterrupt:
+        print("[kinnoo] attach session detached by operator")
+        return 0
+    except Exception as error:
+        _print_safe_error(f"Error: attach session failed: {error}")
+        return 1
+
+
+def _render_daemon_log_line(line: str, source_label: str) -> str:
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return f"[{timestamp}] [{source_label}] {line.rstrip()}"
+
+
+def logs_agent(agent_dir_arg: str, follow: bool = False, tail_lines: int = 20) -> int:
+    """Show daemon logs with deterministic timestamp/source context and optional follow mode."""
+    agent_dir = Path(agent_dir_arg).resolve()
+    if not agent_dir.exists() or not agent_dir.is_dir():
+        _print_safe_error(f"Error: agent directory not found: {agent_dir}")
+        return 1
+
+    if tail_lines < 1:
+        _print_safe_error("Error: --tail must be a positive integer")
+        return 1
+
+    state_path = daemon_state_path(agent_dir)
+    if not state_path.exists():
+        _print_safe_error(
+            f"Error: daemon state file not found: {state_path}. Start daemon with 'kinnoo run {agent_dir} <input>' first."
+        )
+        return 1
+
+    try:
+        state_payload = json.loads(state_path.read_text(encoding="utf-8"))
+    except Exception as error:
+        _print_safe_error(f"Error: failed to read daemon state metadata: {error}")
+        return 1
+
+    if not isinstance(state_payload, dict):
+        _print_safe_error("Error: daemon state metadata is malformed")
+        return 1
+
+    runtime_type = state_payload.get("runtime_type")
+    if runtime_type != "daemon":
+        _print_safe_error(
+            f"Error: logs is unsupported for runtime.type '{runtime_type}'. Only daemon runtime supports logs."
+        )
+        return 1
+
+    pid_value = state_payload.get("pid")
+    if not isinstance(pid_value, int):
+        _print_safe_error("Error: daemon state metadata is missing a valid integer pid")
+        return 1
+
+    log_path_value = state_payload.get("log_path")
+    if isinstance(log_path_value, str) and log_path_value.strip():
+        log_path = Path(log_path_value)
+    else:
+        log_path = daemon_log_path(agent_dir)
+
+    if not log_path.exists() or not log_path.is_file():
+        _print_safe_error(
+            f"Error: daemon log file not found: {log_path}. Restart daemon to recreate log output."
+        )
+        return 1
+
+    try:
+        all_lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except Exception as error:
+        _print_safe_error(f"Error: failed to read daemon log file '{log_path}': {error}")
+        return 1
+
+    daemon_running = daemon_pid_is_running(pid_value)
+    if follow and not daemon_running:
+        _print_safe_error(
+            f"Error: daemon is not running for pid {pid_value}; follow mode requires an active daemon."
+        )
+        return 1
+
+    source_label = log_path.name
+    print(f"[kinnoo] daemon logs source: {log_path}")
+    print(f"[kinnoo] mode: {'follow' if follow else 'tail'} (tail={tail_lines})")
+    if not daemon_running:
+        print(f"[kinnoo] daemon not running for pid {pid_value}; showing last available log lines")
+
+    recent_lines = all_lines[-tail_lines:]
+    for line in recent_lines:
+        print(_render_daemon_log_line(line, source_label))
+
+    if not follow:
+        return 0
+
+    try:
+        with log_path.open("r", encoding="utf-8", errors="replace") as log_file:
+            log_file.seek(0, os.SEEK_END)
+            while True:
+                line = log_file.readline()
+                if line:
+                    print(_render_daemon_log_line(line, source_label))
+                    continue
+
+                if not daemon_pid_is_running(pid_value):
+                    print("[kinnoo] daemon exited; follow mode ended")
+                    return 0
+
+                time.sleep(0.1)
+    except KeyboardInterrupt:
+        print("[kinnoo] log follow interrupted by operator")
+        return 0
+    except Exception as error:
+        _print_safe_error(f"Error: daemon log follow failed: {error}")
+        return 1
 
 
 def run_agent(
@@ -1050,9 +1334,47 @@ def run_agent(
 
     runtime_type = runtime_section.get("type") if isinstance(runtime_section.get("type"), str) else "one-shot"
     enforce_json_output_contract = (
-        runtime_type != "mcp-server"
+        runtime_type not in ("mcp-server", "daemon")
         and _manifest_declares_json_output(manifest if isinstance(manifest, dict) else {})
     )
+
+    if runtime_type == "daemon":
+        # Daemon mode must detach from the caller terminal and persist control-plane state.
+        try:
+            log_path = daemon_log_path(agent_dir)
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            with log_path.open("a", encoding="utf-8") as daemon_log:
+                process = subprocess.Popen(
+                    process_args,
+                    cwd=agent_dir,
+                    stdout=daemon_log,
+                    stderr=subprocess.STDOUT,
+                    env=subprocess_env,
+                    start_new_session=True,
+                )
+
+            state_payload = build_daemon_state_payload(
+                agent_dir=agent_dir,
+                runtime_language=runtime_language,
+                runtime_type=runtime_type,
+                entrypoint=str(entrypoint),
+                process_id=process.pid,
+                process_args=process_args,
+                log_path=log_path,
+            )
+            state_path = write_daemon_state(agent_dir, state_payload)
+        except Exception as error:
+            _print_safe_error(
+                f"Error: Failed to launch daemon process: {error}",
+                secret_values=resolved_env_vars.values(),
+            )
+            return finalize(1)
+
+        print(f"[kinnoo] daemon started: pid={process.pid}")
+        print(f"[kinnoo] daemon state file: {state_path}")
+        print(f"[kinnoo] daemon log file: {log_path}")
+        print("[kinnoo] control hints: use 'kinnoo stop <agent-dir>' to terminate")
+        return finalize(0)
 
     if runtime_type == "mcp-server":
         shutdown_timeout_value = runtime_section.get("shutdown_timeout_seconds", 3.0)

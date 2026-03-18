@@ -3491,3 +3491,129 @@ tasks:
     dependencies: [task174, task175, task176]
     tests: [test275]
     status: completed
+
+  - id: task178
+    title: "Feature32 daemon runtime schema and validation"
+    type: task
+    description: |
+      Extend schema/validator support so `runtime.type: daemon` is accepted as
+      a first-class runtime mode while preserving existing runtime type support
+      and actionable validation errors for unsupported values.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+      - tests/test_validator.py
+    steps:
+      - 'step1: Add daemon to supported runtime.type values in schema/validator paths'
+      - 'step2: Keep unsupported runtime.type errors explicit with allowed values guidance'
+      - 'step3: Verify one-shot and mcp-server validation behavior remains backward compatible'
+      - 'step4: Add focused validator tests for daemon acceptance and invalid type rejection'
+    dependencies: [task168]
+    tests: [test276]
+    status: needs-review
+
+  - id: task179
+    title: "Feature32 daemon start path and persisted state"
+    type: task
+    description: |
+      Implement daemon start behavior in run flow so `kinnoo run` launches
+      daemon agents in the background, returns terminal control, and persists
+      deterministic process metadata required for subsequent control commands.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/run_command.py
+      - src/kinnoo/supervisor.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add daemon runtime branch for background process launch in run flow'
+      - 'step2: Persist daemon PID/state metadata in a stable location for lifecycle commands'
+      - 'step3: Emit clear operator output confirming daemon start and control hints'
+      - 'step4: Add integration tests for python and node daemon start semantics'
+    dependencies: [task178]
+    tests: [test277]
+    status: needs-review
+
+  - id: task180
+    title: "Feature32 daemon stop command and graceful termination"
+    type: task
+    description: |
+      Add `kinnoo stop <agent>` lifecycle control that terminates tracked daemon
+      processes with SIGTERM-first behavior and deterministic fallback when the
+      process does not exit promptly.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/run_command.py
+      - src/kinnoo/supervisor.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add stop subcommand and argument parsing with usage/error handling'
+      - 'step2: Resolve daemon metadata and send SIGTERM with bounded wait semantics'
+      - 'step3: Apply deterministic fallback behavior for unresponsive daemons and clear diagnostics'
+      - 'step4: Add integration coverage for graceful stop and fallback stop paths'
+    dependencies: [task179]
+    tests: [test278]
+    status: needs-review
+
+  - id: task181
+    title: "Feature32 daemon attach interactive control"
+    type: task
+    description: |
+      Add `kinnoo attach <agent>` operator flow so supported daemon runtimes can
+      be interactively attached to active sessions with robust non-interactive
+      safeguards and actionable unsupported-mode diagnostics.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/run_command.py
+      - src/kinnoo/supervisor.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add attach subcommand and daemon session discovery from persisted state'
+      - 'step2: Implement attach bridge for runtimes that expose interactive streams'
+      - 'step3: Return deterministic errors for non-running daemon, unsupported mode, and non-tty contexts'
+      - 'step4: Add integration tests for successful attach and expected guarded failures'
+    dependencies: [task179]
+    tests: [test279]
+    status: needs-review
+
+  - id: task182
+    title: "Feature32 daemon logs command and contextual output"
+    type: task
+    description: |
+      Add `kinnoo logs <agent>` command to stream or tail daemon logs with clear
+      source and timestamp context, including deterministic handling for missing
+      log files and non-running daemon states.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/run_command.py
+      - src/kinnoo/supervisor.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add logs subcommand and options for follow/tail behavior'
+      - 'step2: Ensure log output preserves source and timestamp context per line'
+      - 'step3: Handle absent or rotated logs with actionable guidance'
+      - 'step4: Add integration tests for tail and follow behavior across daemon runtimes'
+    dependencies: [task179]
+    tests: [test280]
+    status: needs-review
+
+  - id: task183
+    title: "Feature32 supervisor health state diagnostics and regression gate"
+    type: task
+    description: |
+      Integrate daemon lifecycle state with supervisor/health checks so operators
+      get deterministic healthy, unhealthy, and not-running diagnostics while
+      preserving backward compatibility for existing one-shot and mcp-server flows.
+    files:
+      - src/kinnoo/health_check.py
+      - src/kinnoo/run_command.py
+      - src/kinnoo/supervisor.py
+      - tests/test_run_preflight.py
+      - tests/test_regression_v1.py
+    steps:
+      - 'step1: Add daemon state evaluation hooks for not-running, unhealthy, and healthy states'
+      - 'step2: Surface actionable diagnostics consistently across run/preflight/control commands'
+      - 'step3: Add compatibility assertions proving one-shot and mcp-server behavior remains unchanged'
+      - 'step4: Add regression gate for daemon controls against existing python/node workflows'
+    dependencies: [task179, task180, task181, task182]
+    tests: [test281]
+    status: needs-review

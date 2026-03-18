@@ -1221,7 +1221,7 @@ features:
       Add a generic daemon runtime mode for long-running agents. Extend kinnoo lifecycle
       controls with start/stop semantics and operator tooling (`attach` and `logs`) so
       daemon agents are observable and manageable for both Python and Node.js runtimes.
-    tasks: []
+    tasks: [task178, task179, task180, task181, task182, task183]
     acceptance_criteria:
       - id: AC1
         description: "Manifest validation accepts `runtime.type: daemon` and preserves support for existing runtime types."

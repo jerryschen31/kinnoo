@@ -4549,3 +4549,99 @@ tests:
         ac: AC4
       - feature: feature42
         ac: AC5
+
+  - id: test276
+    title: Feature32 validator accepts daemon runtime type and preserves existing runtime support
+    type: unit
+    preconditions: validator module available; manifest fixtures for daemon, one-shot, and mcp-server runtime types
+    steps:
+      - step1: Validate manifest fixture with runtime.type set to daemon
+      - step2: Validate fixtures using existing runtime types (one-shot and mcp-server)
+      - step3: Validate unsupported runtime.type and capture error guidance
+    expected: daemon runtime type is accepted and unsupported values are rejected with clear guidance without regressing existing runtime types
+    pass_criteria: daemon fixture passes; existing runtime fixtures continue passing; unsupported runtime fixture fails with actionable allowed-values error
+    automated: true
+    automation_path: tests/test_validator.py::test_feature32_runtime_type_daemon_validation
+    covers:
+      - feature: feature32
+        ac: AC1
+
+  - id: test277
+    title: Feature32 run daemon mode starts background process and persists lifecycle state
+    type: integration
+    preconditions: daemon-capable fixtures for python and node runtimes; writable lifecycle metadata path
+    steps:
+      - step1: Execute kinnoo run for daemon fixture and verify command returns terminal control
+      - step2: Verify daemon process is running and PID/state metadata is persisted deterministically
+      - step3: Verify operator-facing output includes daemon control hints
+    expected: daemon run launches in background with reliable persisted control-plane state
+    pass_criteria: run exits cleanly after start, daemon remains running, and state metadata contains runtime/source details needed for control commands
+    automated: true
+    automation_path: tests/test_cli.py::test_feature32_run_daemon_start_persists_state
+    covers:
+      - feature: feature32
+        ac: AC2
+
+  - id: test278
+    title: Feature32 stop command gracefully terminates daemon with deterministic fallback
+    type: integration
+    preconditions: running daemon process with persisted metadata; controllable signal/timeout behavior in test harness
+    steps:
+      - step1: Execute kinnoo stop for responsive daemon and verify SIGTERM graceful shutdown path
+      - step2: Execute kinnoo stop for unresponsive daemon and verify deterministic fallback behavior
+      - step3: Verify lifecycle metadata is updated/cleared appropriately after stop
+    expected: stop command handles normal and unresponsive daemon shutdown paths predictably
+    pass_criteria: responsive daemon stops gracefully, unresponsive daemon follows documented fallback, and command output provides actionable diagnostics
+    automated: true
+    automation_path: tests/test_cli.py::test_feature32_stop_daemon_graceful_and_fallback
+    covers:
+      - feature: feature32
+        ac: AC3
+
+  - id: test279
+    title: Feature32 attach command supports interactive daemon sessions with guarded failure modes
+    type: integration
+    preconditions: running daemon fixture that supports interactive session attach; tty and non-tty test contexts available
+    steps:
+      - step1: Execute kinnoo attach for running supported daemon and verify interactive stream bridge
+      - step2: Execute attach for non-running daemon and verify deterministic not-running diagnostics
+      - step3: Execute attach in unsupported or non-interactive contexts and verify guarded error output
+    expected: attach works when supported and fails safely with clear diagnostics when preconditions are not met
+    pass_criteria: supported attach path succeeds; guarded failure paths are deterministic and actionable
+    automated: true
+    automation_path: tests/test_cli.py::test_feature32_attach_daemon_session_controls
+    covers:
+      - feature: feature32
+        ac: AC4
+
+  - id: test280
+    title: Feature32 logs command streams or tails daemon logs with source and timestamp context
+    type: integration
+    preconditions: running daemon fixture emitting logs; persisted log path available with timestamped entries
+    steps:
+      - step1: Execute kinnoo logs in tail mode and verify recent entries are displayed with source and timestamp context
+      - step2: Execute kinnoo logs in follow mode and verify streaming behavior for new log lines
+      - step3: Execute logs for missing/non-running targets and verify actionable diagnostics
+    expected: logs command provides clear contextual tail/follow visibility for daemon execution
+    pass_criteria: log output includes required context fields and command behavior is deterministic for both active and missing-log states
+    automated: true
+    automation_path: tests/test_cli.py::test_feature32_logs_daemon_tail_and_follow
+    covers:
+      - feature: feature32
+        ac: AC5
+
+  - id: test281
+    title: Feature32 supervisor and health integration reports daemon lifecycle states with actionable diagnostics
+    type: integration
+    preconditions: daemon supervisor and health-check hooks available for healthy, unhealthy, and not-running states
+    steps:
+      - step1: Evaluate daemon status when process is not running and capture diagnostics
+      - step2: Evaluate daemon status under unhealthy condition and verify actionable guidance
+      - step3: Evaluate healthy daemon state and verify success reporting and compatibility with existing runtime checks
+    expected: supervisor/health integration surfaces deterministic state classifications and diagnostics without regressing existing runtime paths
+    pass_criteria: healthy/unhealthy/not-running states are correctly classified with actionable output and regression checks remain green
+    automated: true
+    automation_path: tests/test_regression_v1.py::test_feature32_daemon_health_state_regression_gate
+    covers:
+      - feature: feature32
+        ac: AC6

@@ -83,6 +83,38 @@ def main():
         help="Path to a JSON file payload for agents expecting structured input",
     )
 
+    # Add 'stop' subcommand
+    stop_parser = subparsers.add_parser(
+        "stop",
+        help="Stop a running daemon agent",
+    )
+    stop_parser.add_argument("agent_dir", nargs="?", help="Path to daemon agent directory")
+
+    # Add 'attach' subcommand
+    attach_parser = subparsers.add_parser(
+        "attach",
+        help="Attach to a running daemon agent session",
+    )
+    attach_parser.add_argument("agent_dir", nargs="?", help="Path to daemon agent directory")
+
+    # Add 'logs' subcommand
+    logs_parser = subparsers.add_parser(
+        "logs",
+        help="Show daemon logs (tail or follow)",
+    )
+    logs_parser.add_argument("agent_dir", nargs="?", help="Path to daemon agent directory")
+    logs_parser.add_argument(
+        "--follow",
+        action="store_true",
+        help="Stream new log lines until daemon exits or operator interrupts",
+    )
+    logs_parser.add_argument(
+        "--tail",
+        type=int,
+        default=20,
+        help="Number of recent lines to show before follow/tail output (default: 20)",
+    )
+
     # Add 'install' subcommand
     install_parser = subparsers.add_parser(
         "install",
@@ -286,6 +318,52 @@ def main():
             target_dir_arg=target_dir_arg,
             force=force,
             assume_yes=assume_yes,
+        )
+        sys.exit(exit_code)
+
+    elif args.command == "stop":
+        agent_dir = getattr(args, "agent_dir", None)
+        if agent_dir is None:
+            print("Usage: kinnoo stop <agent-dir>", file=sys.stderr)
+            sys.exit(1)
+
+        try:
+            from kinnoo.run_command import stop_agent
+        except ImportError:
+            from .run_command import stop_agent
+
+        exit_code = stop_agent(agent_dir)
+        sys.exit(exit_code)
+
+    elif args.command == "attach":
+        agent_dir = getattr(args, "agent_dir", None)
+        if agent_dir is None:
+            print("Usage: kinnoo attach <agent-dir>", file=sys.stderr)
+            sys.exit(1)
+
+        try:
+            from kinnoo.run_command import attach_agent
+        except ImportError:
+            from .run_command import attach_agent
+
+        exit_code = attach_agent(agent_dir)
+        sys.exit(exit_code)
+
+    elif args.command == "logs":
+        agent_dir = getattr(args, "agent_dir", None)
+        if agent_dir is None:
+            print("Usage: kinnoo logs <agent-dir> [--tail N] [--follow]", file=sys.stderr)
+            sys.exit(1)
+
+        try:
+            from kinnoo.run_command import logs_agent
+        except ImportError:
+            from .run_command import logs_agent
+
+        exit_code = logs_agent(
+            agent_dir_arg=agent_dir,
+            follow=bool(getattr(args, "follow", False)),
+            tail_lines=int(getattr(args, "tail", 20)),
         )
         sys.exit(exit_code)
 
