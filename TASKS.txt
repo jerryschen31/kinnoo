@@ -3675,7 +3675,7 @@ tasks:
       - 'step4: Add tests proving openclaw-specific rules execute only when framework is openclaw'
     dependencies: [task185]
     tests: [test284]
-    status: not-started
+    status: needs-review
 
   - id: task187
     title: "Feature33 non-openclaw compatibility and non-breaking guard"
