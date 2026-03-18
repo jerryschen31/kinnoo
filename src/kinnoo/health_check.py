@@ -29,6 +29,60 @@ class HealthCheckResult:
 	guidance: str
 
 
+@dataclass(frozen=True)
+class DaemonLifecycleResult:
+	"""Normalized daemon lifecycle state classification for operator diagnostics."""
+
+	state: str
+	healthy: bool
+	message: str
+	guidance: str
+
+
+def classify_daemon_lifecycle_state(
+	*,
+	has_state_metadata: bool,
+	process_running: bool,
+	service_results: list[HealthCheckResult],
+) -> DaemonLifecycleResult:
+	"""Classify daemon lifecycle state as not-running, unhealthy, or healthy."""
+	if not has_state_metadata:
+		return DaemonLifecycleResult(
+			state="not-running",
+			healthy=False,
+			message="daemon state is not-running: no persisted daemon metadata was found",
+			guidance="Start daemon with `kinnoo run <agent-dir> <input>` before checking daemon health.",
+		)
+
+	if not process_running:
+		return DaemonLifecycleResult(
+			state="not-running",
+			healthy=False,
+			message="daemon state is not-running: tracked daemon process is not active",
+			guidance="Restart daemon and verify `kinnoo stop` completed cleanly for any prior stale state.",
+		)
+
+	unhealthy_services = [result.service_name for result in service_results if not result.healthy]
+	if unhealthy_services:
+		service_label = ", ".join(unhealthy_services)
+		return DaemonLifecycleResult(
+			state="unhealthy",
+			healthy=False,
+			message=(
+				"daemon state is unhealthy: process is running but service checks failed for "
+				f"[{service_label}]"
+			),
+			guidance="Resolve failing service checks or update services[].health_check configuration.",
+		)
+
+	return DaemonLifecycleResult(
+		state="healthy",
+		healthy=True,
+		message="daemon state is healthy: process is running and all service checks passed",
+		guidance="No action needed.",
+	)
+
+
 def _as_float_timeout(value: object, *, default: float) -> float:
 	if value is None:
 		return default
