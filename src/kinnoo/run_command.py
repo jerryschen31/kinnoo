@@ -15,8 +15,13 @@ from datetime import datetime, timezone
 
 import yaml
 
-from .health_check import HealthCheckResult, run_service_health_check
-from .schema import normalize_env_vars
+from .health_check import (
+    HealthCheckResult,
+    check_node_package_manager_availability,
+    check_node_runtime_constraint,
+    run_service_health_check,
+)
+from .schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars
 from .supervisor import (
     infer_readiness_config,
     shutdown_server_with_report,
@@ -412,6 +417,16 @@ def run_preflight(agent_dir_arg: str) -> int:
             if isinstance(loaded_manifest, dict):
                 manifest = loaded_manifest
 
+    runtime_language = "python"
+    runtime_section: dict[str, object] = {}
+    if isinstance(manifest, dict):
+        candidate_runtime = manifest.get("runtime")
+        if isinstance(candidate_runtime, dict):
+            runtime_section = candidate_runtime
+            runtime_language_value = runtime_section.get("language")
+            if isinstance(runtime_language_value, str) and runtime_language_value.strip():
+                runtime_language = runtime_language_value.strip().lower()
+
     runtime_constraint_ok = False
     runtime_message = "runtime version check failed: manifest validation prerequisite not met"
     env_vars_ok = False
@@ -421,18 +436,43 @@ def run_preflight(agent_dir_arg: str) -> int:
     dependencies_ok = False
     dependencies_message = "dependency readiness check failed: manifest validation prerequisite not met"
     if manifest_valid and manifest is not None:
-        runtime_version_constraint = str(
-            manifest.get("runtime", {}).get("version", "")
-            if isinstance(manifest.get("runtime", {}), dict)
-            else ""
-        )
-        runtime_constraint_ok, runtime_message = _check_runtime_version_constraint(runtime_version_constraint)
+        runtime_version_constraint = str(runtime_section.get("version", ""))
+        if runtime_language == "nodejs":
+            runtime_constraint_ok, runtime_message = check_node_runtime_constraint(runtime_version_constraint)
+        else:
+            runtime_constraint_ok, runtime_message = _check_runtime_version_constraint(runtime_version_constraint)
 
         env_vars_ok, env_vars_message = _check_preflight_env_vars(manifest, agent_dir)
 
         entrypoint_ok, entrypoint_message = _check_preflight_entrypoint(manifest, agent_dir)
 
-        dependencies_ok, dependencies_message = _check_preflight_dependencies(manifest, agent_dir)
+        if runtime_language == "nodejs":
+            package_manager_raw = runtime_section.get("package_manager")
+            package_manager = "npm"
+            if package_manager_raw is not None:
+                if isinstance(package_manager_raw, str) and package_manager_raw.strip():
+                    normalized_manager = package_manager_raw.strip().lower()
+                    if normalized_manager in SUPPORTED_NODE_PACKAGE_MANAGERS:
+                        package_manager = normalized_manager
+                    else:
+                        supported = ", ".join(SUPPORTED_NODE_PACKAGE_MANAGERS)
+                        dependencies_ok = False
+                        dependencies_message = (
+                            "dependency readiness check failed: "
+                            f"unsupported runtime.package_manager '{package_manager_raw}'. "
+                            f"Supported values: {supported}"
+                        )
+                else:
+                    dependencies_ok = False
+                    dependencies_message = (
+                        "dependency readiness check failed: "
+                        "runtime.package_manager must be a non-empty string when provided"
+                    )
+
+            if dependencies_message == "dependency readiness check failed: manifest validation prerequisite not met":
+                dependencies_ok, dependencies_message = check_node_package_manager_availability(package_manager)
+        else:
+            dependencies_ok, dependencies_message = _check_preflight_dependencies(manifest, agent_dir)
 
     _emit_preflight_line(runtime_constraint_ok, runtime_message)
     _emit_preflight_line(env_vars_ok, env_vars_message)
@@ -451,13 +491,19 @@ def run_preflight(agent_dir_arg: str) -> int:
 
     if manifest_valid and manifest is not None:
         if not runtime_constraint_ok:
-            print("  - Action: use a Python interpreter that satisfies runtime.version in kinnoo.yaml")
+            if runtime_language == "nodejs":
+                print("  - Action: install or upgrade Node.js so runtime.version in kinnoo.yaml is satisfied")
+            else:
+                print("  - Action: use a Python interpreter that satisfies runtime.version in kinnoo.yaml")
         if not env_vars_ok:
             print("  - Action: set missing env vars in your shell environment or agent-local .env file")
         if not entrypoint_ok:
             print("  - Action: ensure manifest entrypoint exists and is readable")
         if not dependencies_ok:
-            print("  - Action: create agent .venv and install requirements (for example: kinnoo run <agent-dir> '<input>')")
+            if runtime_language == "nodejs":
+                print("  - Action: install the configured Node package manager and ensure it is on PATH")
+            else:
+                print("  - Action: create agent .venv and install requirements (for example: kinnoo run <agent-dir> '<input>')")
         if service_results and not service_checks_ok:
             print("  - Action: make unhealthy services reachable or update services[].health_check settings")
 
@@ -481,13 +527,19 @@ def run_preflight(agent_dir_arg: str) -> int:
     print("Not ready to run")
     print("Remediation summary:")
     if not runtime_constraint_ok:
-        print("- runtime version: use a compatible Python interpreter per runtime.version")
+        if runtime_language == "nodejs":
+            print("- runtime version: install or upgrade Node.js to satisfy runtime.version")
+        else:
+            print("- runtime version: use a compatible Python interpreter per runtime.version")
     if not env_vars_ok:
         print("- env vars: provide missing names in environment or .env")
     if not entrypoint_ok:
         print("- entrypoint: ensure manifest entrypoint exists and is readable")
     if not dependencies_ok:
-        print("- dependencies: create .venv and install requirements")
+        if runtime_language == "nodejs":
+            print("- dependencies: install the configured Node package manager and ensure it is on PATH")
+        else:
+            print("- dependencies: create .venv and install requirements")
     if service_results and not service_checks_ok:
         print("- services: fix failing service checks or adjust services[].health_check configuration")
 
