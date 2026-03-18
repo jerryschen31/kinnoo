@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import socket
 import signal
 import subprocess
@@ -7,6 +8,7 @@ import threading
 import time
 from collections import deque
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
@@ -37,6 +39,57 @@ class ShutdownReport:
     exit_code: int
     sigterm_sent: bool
     sigkill_sent: bool
+
+
+def daemon_runtime_dir(agent_dir: Path) -> Path:
+    """Return the deterministic runtime metadata directory for daemon control plane files."""
+    return agent_dir / ".kinnoo"
+
+
+def daemon_state_path(agent_dir: Path) -> Path:
+    """Return the daemon state metadata path for a given agent directory."""
+    return daemon_runtime_dir(agent_dir) / "daemon-state.json"
+
+
+def daemon_log_path(agent_dir: Path) -> Path:
+    """Return the daemon log path for a given agent directory."""
+    return daemon_runtime_dir(agent_dir) / "daemon.log"
+
+
+def write_daemon_state(agent_dir: Path, state: dict[str, object]) -> Path:
+    """Persist daemon state metadata atomically for downstream lifecycle commands."""
+    runtime_dir = daemon_runtime_dir(agent_dir)
+    runtime_dir.mkdir(parents=True, exist_ok=True)
+
+    state_file = daemon_state_path(agent_dir)
+    temp_file = state_file.with_suffix(".tmp")
+    temp_file.write_text(json.dumps(state, sort_keys=True), encoding="utf-8")
+    temp_file.replace(state_file)
+    return state_file
+
+
+def build_daemon_state_payload(
+    *,
+    agent_dir: Path,
+    runtime_language: str,
+    runtime_type: str,
+    entrypoint: str,
+    process_id: int,
+    process_args: list[str],
+    log_path: Path,
+) -> dict[str, object]:
+    """Build deterministic daemon state metadata content."""
+    return {
+        "agent_dir": str(agent_dir),
+        "entrypoint": entrypoint,
+        "runtime_language": runtime_language,
+        "runtime_type": runtime_type,
+        "pid": int(process_id),
+        "command": process_args,
+        "log_path": str(log_path),
+        "started_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "state_version": 1,
+    }
 
 
 def infer_readiness_config(runtime_section: dict) -> ReadinessConfig:

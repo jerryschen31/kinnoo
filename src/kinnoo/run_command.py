@@ -24,12 +24,15 @@ from .health_check import (
 )
 from .schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars
 from .supervisor import (
+    build_daemon_state_payload,
+    daemon_log_path,
     infer_readiness_config,
     shutdown_server_with_report,
     shutdown_server,
     start_server,
     stream_output,
     wait_until_ready,
+    write_daemon_state,
 )
 from .validator import validate
 
@@ -1050,9 +1053,47 @@ def run_agent(
 
     runtime_type = runtime_section.get("type") if isinstance(runtime_section.get("type"), str) else "one-shot"
     enforce_json_output_contract = (
-        runtime_type != "mcp-server"
+        runtime_type not in ("mcp-server", "daemon")
         and _manifest_declares_json_output(manifest if isinstance(manifest, dict) else {})
     )
+
+    if runtime_type == "daemon":
+        # Daemon mode must detach from the caller terminal and persist control-plane state.
+        try:
+            log_path = daemon_log_path(agent_dir)
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            with log_path.open("a", encoding="utf-8") as daemon_log:
+                process = subprocess.Popen(
+                    process_args,
+                    cwd=agent_dir,
+                    stdout=daemon_log,
+                    stderr=subprocess.STDOUT,
+                    env=subprocess_env,
+                    start_new_session=True,
+                )
+
+            state_payload = build_daemon_state_payload(
+                agent_dir=agent_dir,
+                runtime_language=runtime_language,
+                runtime_type=runtime_type,
+                entrypoint=str(entrypoint),
+                process_id=process.pid,
+                process_args=process_args,
+                log_path=log_path,
+            )
+            state_path = write_daemon_state(agent_dir, state_payload)
+        except Exception as error:
+            _print_safe_error(
+                f"Error: Failed to launch daemon process: {error}",
+                secret_values=resolved_env_vars.values(),
+            )
+            return finalize(1)
+
+        print(f"[kinnoo] daemon started: pid={process.pid}")
+        print(f"[kinnoo] daemon state file: {state_path}")
+        print(f"[kinnoo] daemon log file: {log_path}")
+        print("[kinnoo] control hints: use 'kinnoo stop <agent-dir>' to terminate")
+        return finalize(0)
 
     if runtime_type == "mcp-server":
         shutdown_timeout_value = runtime_section.get("shutdown_timeout_seconds", 3.0)
