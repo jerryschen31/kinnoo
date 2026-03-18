@@ -988,6 +988,116 @@ def test_feature32_stop_daemon_graceful_and_fallback(monkeypatch, tmp_path, caps
     assert not fallback_state.exists(), "Expected fallback stop to clear daemon-state metadata"
 
 
+def test_feature32_attach_daemon_session_controls(monkeypatch, tmp_path, capsys):
+    import kinnoo.run_command as run_command
+
+    supported_agent = tmp_path / "feature32-attach-supported-agent"
+    supported_agent.mkdir()
+    supported_log = supported_agent / ".kinnoo" / "daemon.log"
+    supported_log.parent.mkdir(parents=True, exist_ok=True)
+    supported_log.write_text("daemon output line\n", encoding="utf-8")
+    (supported_agent / ".kinnoo" / "daemon-state.json").write_text(
+        json.dumps(
+            {
+                "pid": 43001,
+                "runtime_type": "daemon",
+                "runtime_language": "python",
+                "log_path": str(supported_log),
+                "state_version": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    non_running_agent = tmp_path / "feature32-attach-non-running-agent"
+    non_running_agent.mkdir()
+    (non_running_agent / ".kinnoo").mkdir(parents=True, exist_ok=True)
+    (non_running_agent / ".kinnoo" / "daemon-state.json").write_text(
+        json.dumps(
+            {
+                "pid": 43002,
+                "runtime_type": "daemon",
+                "runtime_language": "nodejs",
+                "state_version": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    unsupported_mode_agent = tmp_path / "feature32-attach-unsupported-agent"
+    unsupported_mode_agent.mkdir()
+    (unsupported_mode_agent / ".kinnoo").mkdir(parents=True, exist_ok=True)
+    (unsupported_mode_agent / ".kinnoo" / "daemon-state.json").write_text(
+        json.dumps(
+            {
+                "pid": 43003,
+                "runtime_type": "one-shot",
+                "runtime_language": "python",
+                "state_version": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    non_tty_agent = tmp_path / "feature32-attach-non-tty-agent"
+    non_tty_agent.mkdir()
+    non_tty_log = non_tty_agent / ".kinnoo" / "daemon.log"
+    non_tty_log.parent.mkdir(parents=True, exist_ok=True)
+    non_tty_log.write_text("", encoding="utf-8")
+    (non_tty_agent / ".kinnoo" / "daemon-state.json").write_text(
+        json.dumps(
+            {
+                "pid": 43004,
+                "runtime_type": "daemon",
+                "runtime_language": "python",
+                "log_path": str(non_tty_log),
+                "state_version": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    pid_status_calls = {"supported": 0}
+
+    def fake_pid_running(pid: int) -> bool:
+        if pid == 43001:
+            pid_status_calls["supported"] += 1
+            # First check confirms running; second check ends attach loop deterministically.
+            return pid_status_calls["supported"] == 1
+        if pid == 43002:
+            return False
+        if pid == 43004:
+            return True
+        return True
+
+    monkeypatch.setattr(run_command, "daemon_pid_is_running", fake_pid_running)
+
+    monkeypatch.setattr(run_command.sys.stdin, "isatty", lambda: True)
+    monkeypatch.setattr(run_command.sys.stdout, "isatty", lambda: True)
+    supported_exit = run_command.attach_agent(str(supported_agent))
+
+    non_running_exit = run_command.attach_agent(str(non_running_agent))
+    unsupported_mode_exit = run_command.attach_agent(str(unsupported_mode_agent))
+
+    monkeypatch.setattr(run_command.sys.stdin, "isatty", lambda: False)
+    monkeypatch.setattr(run_command.sys.stdout, "isatty", lambda: True)
+    non_tty_exit = run_command.attach_agent(str(non_tty_agent))
+
+    captured = capsys.readouterr()
+    combined_output = f"{captured.out}\n{captured.err}"
+
+    assert supported_exit == 0, combined_output
+    assert non_running_exit == 1, combined_output
+    assert unsupported_mode_exit == 1, combined_output
+    assert non_tty_exit == 1, combined_output
+    assert "attach session started" in combined_output
+    assert "daemon output line" in combined_output
+    assert "daemon exited; attach session ending" in combined_output
+    assert "daemon is not running" in combined_output
+    assert "attach is unsupported for runtime.type" in combined_output
+    assert "attach requires an interactive TTY session" in combined_output
+
+
 def test_run_missing_entrypoint(tmp_path):
     """Test kinnoo run with missing entrypoint file prints error and aborts."""
     agent_dir = tmp_path / "test-agent"

@@ -86,6 +86,11 @@ def _pid_is_running(pid: int) -> bool:
     return True
 
 
+def daemon_pid_is_running(pid: int) -> bool:
+    """Return whether a daemon PID currently exists from the local process table."""
+    return _pid_is_running(pid)
+
+
 def stop_daemon_pid(
     pid: int,
     timeout_seconds: float = 3.0,
