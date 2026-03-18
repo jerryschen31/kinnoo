@@ -283,6 +283,27 @@ Inspect and preflight visibility:
 - Inspect metadata includes `Input Types`, `Output Types`, and `JSON Contract` lines when applicable.
 - `kinnoo run <agent-dir> --preflight` prints an explicit manifest I/O contract line, including JSON-mode guidance.
 
+## Feature33 manifest extensions for Node/OpenClaw
+
+Feature33 adds optional manifest fields for Node.js-oriented agent metadata:
+
+- `runtime.package_manager`: allowed values are `npm` or `pnpm`
+- `channels`: list of non-empty strings
+- `skills`: list of non-empty relative paths (no absolute paths or `..` traversal)
+- `state_dirs`: list of non-empty relative paths (no absolute paths or `..` traversal)
+
+OpenClaw-targeted behavior (`framework: openclaw`):
+
+- `runtime.language` must be `nodejs`
+- `runtime.type` must be `daemon`
+- `runtime.package_manager` is required with value `npm` or `pnpm`
+- `channels` must include `stdio`
+
+Non-openclaw compatibility:
+
+- Existing manifests that omit Feature33 fields remain valid.
+- Non-openclaw manifests may include Feature33 fields in valid shape without OpenClaw-only validation failures.
+
 ## Pack/Publish Refactor (Feature13)
 
 Feature13 shifts command responsibilities to an archive-first source model and a mock-registry publish target.
