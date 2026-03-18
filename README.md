@@ -257,6 +257,32 @@ Architecture note:
 
 - The guard is implemented behind an `InputGuard` Protocol and factory (`get_default_guard()`), enabling future replacement with a model-based or hybrid classifier while preserving runtime integration.
 
+## JSON I/O Contract (Feature42)
+
+Feature42 adds manifest-driven structured I/O support while keeping legacy text workflows unchanged.
+
+Manifest contract:
+
+- `inputs.type` can include `json` for structured request payloads.
+- `outputs.type` can include `json` for structured response payloads.
+- Text workflows remain additive-compatible: existing `text` agents and commands keep the same behavior.
+
+Run command usage:
+
+- Inline JSON: `kinnoo run <agent-dir> --json-input '{"task":"ping"}'`
+- File JSON: `kinnoo run <agent-dir> --json-file ./payload.json`
+
+Output contract enforcement:
+
+- When `outputs.type` includes `json` for one-shot runtimes, stdout must be valid JSON.
+- Invalid JSON output fails with parse-context diagnostics (line/column) without echoing secret values.
+
+Inspect and preflight visibility:
+
+- `kinnoo inspect` shows declared input/output types and JSON contract hints.
+- Inspect metadata includes `Input Types`, `Output Types`, and `JSON Contract` lines when applicable.
+- `kinnoo run <agent-dir> --preflight` prints an explicit manifest I/O contract line, including JSON-mode guidance.
+
 ## Pack/Publish Refactor (Feature13)
 
 Feature13 shifts command responsibilities to an archive-first source model and a mock-registry publish target.

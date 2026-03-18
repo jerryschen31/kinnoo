@@ -3490,4 +3490,4 @@ tasks:
       - 'step4: Add docs regression assertions for feature42 contract coverage'
     dependencies: [task174, task175, task176]
     tests: [test275]
-    status: not-started
+    status: needs-review
