@@ -1495,4 +1495,4 @@ features:
       - "Supports both local one-shot and future daemon/MCP-oriented structured message workflows."
     owner: techlead-agent
     dependencies: [feature20, feature31]
-    status: not-started
+    status: completed
