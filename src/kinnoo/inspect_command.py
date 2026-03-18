@@ -292,6 +292,29 @@ def _print_services_metadata(manifest_data: dict[str, Any]) -> None:
             print(f"    - health_check.process_name: {health_check['process_name']}")
 
 
+def _declared_types_for_display(manifest_data: dict[str, Any], section_name: str) -> list[str]:
+    section = manifest_data.get(section_name)
+    if not isinstance(section, dict):
+        return []
+
+    declared_type = section.get("type")
+    if isinstance(declared_type, str):
+        value = declared_type.strip().lower()
+        return [value] if value else []
+
+    if not isinstance(declared_type, list):
+        return []
+
+    normalized: list[str] = []
+    for item in declared_type:
+        if not isinstance(item, str):
+            continue
+        value = item.strip().lower()
+        if value and value not in normalized:
+            normalized.append(value)
+    return normalized
+
+
 def _print_inspect_output(
     target_label: str,
     manifest_data: dict[str, Any],
@@ -306,6 +329,22 @@ def _print_inspect_output(
     print(f"- Name: {normalized['name']}")
     print(f"- Version: {normalized['version']}")
     print(f"- Runtime Type: {normalized['runtime']['type']}")
+
+    input_types = _declared_types_for_display(normalized, "inputs")
+    output_types = _declared_types_for_display(normalized, "outputs")
+    input_label = ", ".join(input_types) if input_types else "(none)"
+    output_label = ", ".join(output_types) if output_types else "(none)"
+    print(f"- Input Types: {input_label}")
+    print(f"- Output Types: {output_label}")
+
+    json_contract_notes: list[str] = []
+    if "json" in input_types:
+        json_contract_notes.append("use --json-input/--json-file for structured input payloads")
+    if normalized["runtime"]["type"] != "mcp-server" and "json" in output_types:
+        json_contract_notes.append("stdout must be valid JSON when outputs.type includes json")
+    if json_contract_notes:
+        print(f"- JSON Contract: {'; '.join(json_contract_notes)}")
+
     if archive_size_human is not None:
         print(f"- Archive Size: {archive_size_human}")
     if archive_checksum is not None:
