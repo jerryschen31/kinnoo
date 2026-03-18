@@ -3695,7 +3695,7 @@ tasks:
       - 'step4: Add guard tests ensuring no backward-incompatible validation drift'
     dependencies: [task184, task185, task186]
     tests: [test285]
-    status: not-started
+    status: needs-review
 
   - id: task188
     title: "Feature33 manifest docs updates for OpenClaw and generic Node examples"
