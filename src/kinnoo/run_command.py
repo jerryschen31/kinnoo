@@ -639,6 +639,10 @@ def run_agent(
         )
         return exit_code
 
+    if not os.access(agent_dir, os.R_OK | os.X_OK):
+        _print_safe_error(f"Error: Permission denied while accessing agent directory: {agent_dir}")
+        return finalize(1)
+
     kinnoo_yaml = agent_dir / "kinnoo.yaml"
 
     if not kinnoo_yaml.exists():

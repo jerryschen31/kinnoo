@@ -1071,7 +1071,7 @@ features:
       `KINNOO_REGISTRY_URL`.
 
       This is the client-side foundation for the remote registry. The server is feature29.
-    tasks: [task168, task169, task170, task171, task172, task173]
+    tasks: []
     acceptance_criteria:
       - id: AC1
         description: "A `RegistryBackend` protocol exists defining methods: `publish(archive_path) -> result`, `resolve(name, version) -> archive_path`, `search(query) -> list`, `list_agents() -> list`."
@@ -1194,7 +1194,7 @@ features:
       install flow, and execution flow to support Node.js while preserving current Python
       behavior. Include Node.js preflight checks (Node >=22 and package manager availability)
       before run/install operations.
-    tasks: []
+    tasks: [task168, task169, task170, task171, task172, task173]
     acceptance_criteria:
       - id: AC1
         description: "Manifest validation accepts `runtime.language: nodejs` and rejects unsupported runtime language values with a clear error."
