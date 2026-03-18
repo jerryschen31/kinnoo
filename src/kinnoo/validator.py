@@ -35,6 +35,8 @@ from .schema import (
     SERVICE_TYPE_ALIASES,
     SEMVER_PATTERN,
     SUPPORTED_HEALTH_CHECK_METHODS,
+    SUPPORTED_INPUT_TYPES,
+    SUPPORTED_OUTPUT_TYPES,
     SUPPORTED_RUNTIME_LANGUAGES,
     SUPPORTED_RUNTIME_TYPES,
     SUPPORTED_SERVICE_TYPES,
@@ -258,6 +260,38 @@ def _collect_mcp_server_permissions_errors(data: dict[str, Any]) -> list[str]:
     return errors
 
 
+def _collect_io_type_errors(data: dict[str, Any]) -> list[str]:
+    """Validate manifest input/output contract type values."""
+    errors: list[str] = []
+
+    io_field_specs: tuple[tuple[str, list[str]], ...] = (
+        ("inputs.type", SUPPORTED_INPUT_TYPES),
+        ("outputs.type", SUPPORTED_OUTPUT_TYPES),
+    )
+
+    for field_name, allowed_values in io_field_specs:
+        found, value = _get_nested(data, field_name)
+        if not found or not isinstance(value, list):
+            continue
+
+        for index, declared_type in enumerate(value):
+            if not isinstance(declared_type, str):
+                actual = type(declared_type).__name__
+                errors.append(
+                    f"Field '{field_name}[{index}]' must be of type str, got {actual}."
+                )
+                continue
+
+            if declared_type not in allowed_values:
+                allowed = ", ".join(f"'{item}'" for item in allowed_values)
+                errors.append(
+                    f"Field '{field_name}' has unsupported value: '{declared_type}'. "
+                    f"Supported values: {allowed}."
+                )
+
+    return errors
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -390,6 +424,7 @@ def _collect_validation_errors(data: dict[str, Any]) -> list[str]:
 
     errors.extend(_collect_services_shape_errors(data))
     errors.extend(_collect_mcp_server_permissions_errors(data))
+    errors.extend(_collect_io_type_errors(data))
 
     return errors
 
