@@ -3510,7 +3510,7 @@ tasks:
       - 'step4: Add focused validator tests for daemon acceptance and invalid type rejection'
     dependencies: [task168]
     tests: [test276]
-    status: not-started
+    status: needs-review
 
   - id: task179
     title: "Feature32 daemon start path and persisted state"
