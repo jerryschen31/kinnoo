@@ -20,6 +20,7 @@ Usage::
 from __future__ import annotations
 
 import re
+from pathlib import PurePosixPath
 from pathlib import Path
 from typing import Any
 
@@ -293,6 +294,12 @@ def _collect_io_type_errors(data: dict[str, Any]) -> list[str]:
     return errors
 
 
+def _is_safe_relative_manifest_path(path_value: str) -> bool:
+    """Return True when a manifest path is relative and traversal-safe."""
+    candidate = PurePosixPath(path_value)
+    return not candidate.is_absolute() and ".." not in candidate.parts
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -434,6 +441,40 @@ def _collect_validation_errors(data: dict[str, Any]) -> list[str]:
                 if asset_path.strip() == "":
                     errors.append(
                         f"Field 'assets.paths[{index}]' must be a non-empty string."
+                    )
+
+        if optional_field == "channels":
+            for index, channel_name in enumerate(value):
+                if not isinstance(channel_name, str):
+                    actual = type(channel_name).__name__
+                    errors.append(
+                        f"Field 'channels[{index}]' must be of type str, got {actual}."
+                    )
+                    continue
+                if channel_name.strip() == "":
+                    errors.append(
+                        f"Field 'channels[{index}]' must be a non-empty string."
+                    )
+
+        if optional_field in ("skills", "state_dirs"):
+            for index, declared_path in enumerate(value):
+                if not isinstance(declared_path, str):
+                    actual = type(declared_path).__name__
+                    errors.append(
+                        f"Field '{optional_field}[{index}]' must be of type str, got {actual}."
+                    )
+                    continue
+
+                normalized_path = declared_path.strip()
+                if normalized_path == "":
+                    errors.append(
+                        f"Field '{optional_field}[{index}]' must be a non-empty string."
+                    )
+                    continue
+
+                if not _is_safe_relative_manifest_path(normalized_path):
+                    errors.append(
+                        f"Field '{optional_field}[{index}]' must be a relative path without parent traversal segments."
                     )
 
     errors.extend(_collect_services_shape_errors(data))
