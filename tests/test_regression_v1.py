@@ -349,3 +349,98 @@ def test_feature31_python_runtime_regression_gate():
         output = f"{run_result.stdout}\n{run_result.stderr}"
         assert run_result.returncode == 0, output
         assert "feature31-python-output:hello-python" in output
+
+
+def test_feature42_json_contract_guidance_and_text_regression_gate():
+    """Regression gate for feature42 docs/help/inspect/preflight guidance and text-flow stability."""
+    repo_root = Path(__file__).resolve().parents[1]
+    cli_path = repo_root / "src" / "kinnoo" / "cli.py"
+    schema_doc = repo_root / "docs" / "manifest-schema-reference.md"
+    readme_doc = repo_root / "README.md"
+
+    docs_text = f"{schema_doc.read_text(encoding='utf-8')}\n{readme_doc.read_text(encoding='utf-8')}"
+    assert "--json-input" in docs_text
+    assert "--json-file" in docs_text
+    assert "stdout must be valid JSON" in docs_text
+
+    run_help_result = subprocess.run(
+        [sys.executable, str(cli_path), "run", "--help"],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    )
+    assert run_help_result.returncode == 0, run_help_result.stderr
+    assert "--json-input" in run_help_result.stdout
+    assert "--json-file" in run_help_result.stdout
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+        agent_dir = temp_path / "feature42-guidance-agent"
+        agent_dir.mkdir(parents=True, exist_ok=True)
+        (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+        (agent_dir / "run.py").write_text("import json\nprint(json.dumps({'ok': True}))\n", encoding="utf-8")
+        (agent_dir / "kinnoo.yaml").write_text(
+            "\n".join(
+                [
+                    "name: feature42-guidance-agent",
+                    "version: 1.0.0",
+                    "entrypoint: run.py",
+                    "runtime:",
+                    "  language: python",
+                    "  version: \">=3.10\"",
+                    "  type: one-shot",
+                    "dependencies: []",
+                    "inputs:",
+                    "  type: json",
+                    "outputs:",
+                    "  type: json",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        preflight_result = subprocess.run(
+            [sys.executable, str(cli_path), "run", str(agent_dir), "--preflight"],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+        )
+        preflight_output = f"{preflight_result.stdout}\n{preflight_result.stderr}"
+        assert preflight_result.returncode == 0, preflight_output
+        assert "manifest I/O contract: inputs.type [json], outputs.type [json]" in preflight_output
+        assert "--json-input or --json-file" in preflight_output
+        assert "stdout must be valid JSON" in preflight_output
+
+        inspect_result = subprocess.run(
+            [sys.executable, str(cli_path), "inspect", str(agent_dir)],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+        )
+        inspect_output = f"{inspect_result.stdout}\n{inspect_result.stderr}"
+        assert inspect_result.returncode == 0, inspect_output
+        assert "- Input Types: json" in inspect_output
+        assert "- Output Types: json" in inspect_output
+        assert "- JSON Contract:" in inspect_output
+
+    regression_command = [
+        sys.executable,
+        "-m",
+        "pytest",
+        "tests/test_regression_v1.py::test_feature31_python_runtime_regression_gate",
+        "tests/test_cli.py::test_feature31_run_nodejs_entrypoint_streams_and_propagates_exit",
+        "tests/test_cli.py::test_run_single_input_backward_compatible",
+        "tests/test_docs.py::test_feature42_docs_cover_json_contract_guidance",
+    ]
+    regression_result = subprocess.run(
+        regression_command,
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    )
+    assert regression_result.returncode == 0, (
+        "Feature42 regression gate failed for guidance surfaces and text flow compatibility.\n"
+        f"STDOUT:\n{regression_result.stdout}\n"
+        f"STDERR:\n{regression_result.stderr}"
+    )

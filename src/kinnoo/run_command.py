@@ -388,6 +388,27 @@ def _manifest_declares_json_output(manifest: dict) -> bool:
     return False
 
 
+def _manifest_declared_io_types(manifest: dict, section_name: str) -> list[str]:
+    section = manifest.get(section_name)
+    if not isinstance(section, dict):
+        return []
+
+    declared_type = section.get("type")
+    if isinstance(declared_type, str):
+        value = declared_type.strip().lower()
+        return [value] if value else []
+    if isinstance(declared_type, list):
+        normalized: list[str] = []
+        for item in declared_type:
+            if not isinstance(item, str):
+                continue
+            value = item.strip().lower()
+            if value and value not in normalized:
+                normalized.append(value)
+        return normalized
+    return []
+
+
 def _stream_and_capture_process_output(process: subprocess.Popen) -> tuple[str, str]:
     stdout_chunks: list[str] = []
     stderr_chunks: list[str] = []
@@ -549,6 +570,7 @@ def run_preflight(agent_dir_arg: str) -> int:
                 manifest = loaded_manifest
 
     runtime_language = "python"
+    runtime_type = "one-shot"
     runtime_section: dict[str, object] = {}
     if isinstance(manifest, dict):
         candidate_runtime = manifest.get("runtime")
@@ -557,6 +579,9 @@ def run_preflight(agent_dir_arg: str) -> int:
             runtime_language_value = runtime_section.get("language")
             if isinstance(runtime_language_value, str) and runtime_language_value.strip():
                 runtime_language = runtime_language_value.strip().lower()
+            runtime_type_value = runtime_section.get("type")
+            if isinstance(runtime_type_value, str) and runtime_type_value.strip():
+                runtime_type = runtime_type_value.strip().lower()
 
     runtime_constraint_ok = False
     runtime_message = "runtime version check failed: manifest validation prerequisite not met"
@@ -609,6 +634,28 @@ def run_preflight(agent_dir_arg: str) -> int:
     _emit_preflight_line(env_vars_ok, env_vars_message)
     _emit_preflight_line(entrypoint_ok, entrypoint_message)
     _emit_preflight_line(dependencies_ok, dependencies_message)
+
+    io_contract_ok = False
+    io_contract_message = "manifest I/O contract unavailable: manifest validation prerequisite not met"
+    if manifest_valid and manifest is not None:
+        input_types = _manifest_declared_io_types(manifest, "inputs")
+        output_types = _manifest_declared_io_types(manifest, "outputs")
+        input_label = ", ".join(input_types) if input_types else "(none)"
+        output_label = ", ".join(output_types) if output_types else "(none)"
+
+        contract_notes: list[str] = []
+        if "json" in input_types:
+            contract_notes.append("use --json-input or --json-file for structured input")
+        if runtime_type != "mcp-server" and "json" in output_types:
+            contract_notes.append("stdout must be valid JSON when outputs.type includes json")
+
+        io_contract_message = (
+            f"manifest I/O contract: inputs.type [{input_label}], outputs.type [{output_label}]"
+        )
+        if contract_notes:
+            io_contract_message = f"{io_contract_message}; {'; '.join(contract_notes)}"
+        io_contract_ok = True
+    _emit_preflight_line(io_contract_ok, io_contract_message)
 
     service_results: list[HealthCheckResult] = []
     service_checks_ok = True

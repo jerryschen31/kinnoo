@@ -45,6 +45,11 @@ The CLI uses this list for two things: showing users what they're about to insta
 
 This describes the **shape of data the agent expects to receive**. For the MVP, only `text` is supported — meaning the agent receives a plain string as its only input (passed as a command-line argument).
 
+Supported values now include:
+- `text` / `string` for plain CLI input
+- `json` for structured payload input
+- `file` for path-oriented workflows
+
 This exists as a field because in future versions it will expand to:
 - `json` — structured data object
 - `file` — a file path
@@ -59,9 +64,22 @@ Declaring this upfront makes agents self-describing and enables the CLI to valid
 
 Same idea, but for what the agent **produces**. For the MVP, `text` means the agent prints a plain string to stdout and exits.
 
+Supported values now include:
+- `text` / `string`
+- `json`
+- `file`
+
 Future values would include `json`, `file`, `stream` (for streaming token output), etc.
 
 Declaring output type is what makes agents composable — if agent A outputs `json` and agent B accepts `json` as input, the CLI can eventually wire them together automatically.
+
+Feature42 runtime contract note:
+- when `outputs.type` includes `json` (for one-shot runtimes), stdout must be valid JSON;
+- malformed JSON output fails deterministically with parse context (line/column).
+
+Feature42 run modes:
+- `kinnoo run <agent-dir> --json-input '<json>'`
+- `kinnoo run <agent-dir> --json-file <json-file>`
 
 ---
 

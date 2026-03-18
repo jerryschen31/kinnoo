@@ -523,6 +523,8 @@ def test_run_usage_includes_feature20_modes():
     assert result.returncode != 0
     assert "Usage: kinnoo run <agent-dir> '<input>'" in result.stderr
     assert "kinnoo run <agent-dir>" in result.stderr
+    assert "kinnoo run <agent-dir> --json-input '<json>'" in result.stderr
+    assert "kinnoo run <agent-dir> --json-file <json-file>" in result.stderr
     assert "kinnoo run <agent-dir> -- <args...>" in result.stderr
 
 
