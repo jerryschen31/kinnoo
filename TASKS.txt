@@ -3324,7 +3324,7 @@ tasks:
       - 'step4: Add integration test covering node run success path and streamed output'
     dependencies: [task168]
     tests: [test265]
-    status: not-started
+    status: needs-review
 
   - id: task170
     title: "Feature31 Node.js dependency install via npm or pnpm"
