@@ -587,46 +587,7 @@ def run_agent(
         )
         return exit_code
 
-    venv_dir = agent_dir / ".venv"
-    requirements = agent_dir / "requirements.txt"
     kinnoo_yaml = agent_dir / "kinnoo.yaml"
-
-    if not venv_dir.exists():
-        try:
-            venv.create(venv_dir, with_pip=True)
-        except PermissionError as error:
-            _print_safe_error(f"Error: Permission denied while creating .venv in {agent_dir}: {error}")
-            return finalize(1)
-        except Exception as error:
-            _print_safe_error(f"Error: Failed to create .venv in {agent_dir}: {error}")
-            return finalize(1)
-
-    if requirements.exists() and requirements.read_text().strip():
-        pip_exe = venv_dir / "bin" / "pip"
-        if not pip_exe.exists():
-            pip_exe = venv_dir / "Scripts" / "pip.exe"
-        if not pip_exe.exists():
-            _print_safe_error(f"Error: pip not found in venv at {pip_exe}")
-            return finalize(1)
-        print("[kinnoo] installing requirements for running agent...")
-        try:
-            install_result = subprocess.run(
-                [str(pip_exe), "install", "-r", str(requirements)],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-        except PermissionError as error:
-            _print_safe_error(f"Error: Permission denied while installing requirements in {agent_dir}: {error}")
-            return finalize(1)
-        except Exception as error:
-            _print_safe_error(f"Error: Failed to install requirements in {agent_dir}: {error}")
-            return finalize(1)
-
-        if install_result.returncode != 0:
-            _print_safe_error(
-                "Error: Failed to install requirements for running agent. Please check your requirements.txt and try again.",
-            )
-            return finalize(install_result.returncode)
 
     if not kinnoo_yaml.exists():
         _print_safe_error(f"Error: kinnoo.yaml not found in {agent_dir}")
@@ -648,6 +609,64 @@ def run_agent(
 
     if isinstance(manifest, dict):
         trace_manifest = manifest
+
+    runtime_section = manifest.get("runtime") if isinstance(manifest.get("runtime"), dict) else {}
+    runtime_language_raw = runtime_section.get("language") if isinstance(runtime_section.get("language"), str) else "python"
+    runtime_language = runtime_language_raw.strip().lower() or "python"
+
+    python_exe: Path | None = None
+    if runtime_language == "python":
+        venv_dir = agent_dir / ".venv"
+        requirements = agent_dir / "requirements.txt"
+
+        if not venv_dir.exists():
+            try:
+                venv.create(venv_dir, with_pip=True)
+            except PermissionError as error:
+                _print_safe_error(f"Error: Permission denied while creating .venv in {agent_dir}: {error}")
+                return finalize(1)
+            except Exception as error:
+                _print_safe_error(f"Error: Failed to create .venv in {agent_dir}: {error}")
+                return finalize(1)
+
+        if requirements.exists() and requirements.read_text().strip():
+            pip_exe = venv_dir / "bin" / "pip"
+            if not pip_exe.exists():
+                pip_exe = venv_dir / "Scripts" / "pip.exe"
+            if not pip_exe.exists():
+                _print_safe_error(f"Error: pip not found in venv at {pip_exe}")
+                return finalize(1)
+            print("[kinnoo] installing requirements for running agent...")
+            try:
+                install_result = subprocess.run(
+                    [str(pip_exe), "install", "-r", str(requirements)],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            except PermissionError as error:
+                _print_safe_error(f"Error: Permission denied while installing requirements in {agent_dir}: {error}")
+                return finalize(1)
+            except Exception as error:
+                _print_safe_error(f"Error: Failed to install requirements in {agent_dir}: {error}")
+                return finalize(1)
+
+            if install_result.returncode != 0:
+                _print_safe_error(
+                    "Error: Failed to install requirements for running agent. Please check your requirements.txt and try again.",
+                )
+                return finalize(install_result.returncode)
+
+        python_exe = venv_dir / "bin" / "python"
+        if not python_exe.exists():
+            python_exe = venv_dir / "Scripts" / "python.exe"
+        if not python_exe.exists():
+            _print_safe_error(f"Error: python not found in venv at {python_exe}")
+            return finalize(1)
+    elif runtime_language != "nodejs":
+        _print_safe_error(
+            f"Error: Unsupported runtime.language '{runtime_language}'. Supported values are: python, nodejs"
+        )
+        return finalize(1)
 
     inputs_required = _manifest_inputs_required(manifest)
     if input_arg is None and inputs_required:
@@ -770,22 +789,17 @@ def run_agent(
         _print_safe_error(f"Error: Entrypoint file '{entrypoint}' not found in {agent_dir}")
         return finalize(1)
 
-    python_exe = venv_dir / "bin" / "python"
-    if not python_exe.exists():
-        python_exe = venv_dir / "Scripts" / "python.exe"
-    if not python_exe.exists():
-        _print_safe_error(f"Error: python not found in venv at {python_exe}")
-        return finalize(1)
-
     subprocess_env = os.environ.copy()
     subprocess_env.update(resolved_env_vars)
 
-    process_args = [str(python_exe), str(entrypoint_path)]
+    if runtime_language == "nodejs":
+        process_args = ["node", str(entrypoint_path)]
+    else:
+        process_args = [str(python_exe), str(entrypoint_path)]
     if input_arg is not None:
         process_args.append(input_arg)
     process_args.extend(runtime_pass_through_args)
 
-    runtime_section = manifest.get("runtime") if isinstance(manifest.get("runtime"), dict) else {}
     runtime_type = runtime_section.get("type") if isinstance(runtime_section.get("type"), str) else "one-shot"
 
     if runtime_type == "mcp-server":
