@@ -913,6 +913,81 @@ def test_feature32_run_daemon_start_persists_state(
     assert state["command"][0] == ("node" if runtime_language == "nodejs" else str(agent_dir / ".venv" / "bin" / "python"))
 
 
+def test_feature32_stop_daemon_graceful_and_fallback(monkeypatch, tmp_path, capsys):
+    import kinnoo.run_command as run_command
+    from kinnoo.supervisor import DaemonStopReport
+
+    graceful_agent = tmp_path / "feature32-stop-graceful-agent"
+    graceful_agent.mkdir()
+    graceful_state = graceful_agent / ".kinnoo" / "daemon-state.json"
+    graceful_state.parent.mkdir(parents=True, exist_ok=True)
+    graceful_state.write_text(
+        json.dumps(
+            {
+                "pid": 42001,
+                "runtime_type": "daemon",
+                "runtime_language": "python",
+                "state_version": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    fallback_agent = tmp_path / "feature32-stop-fallback-agent"
+    fallback_agent.mkdir()
+    fallback_state = fallback_agent / ".kinnoo" / "daemon-state.json"
+    fallback_state.parent.mkdir(parents=True, exist_ok=True)
+    fallback_state.write_text(
+        json.dumps(
+            {
+                "pid": 42002,
+                "runtime_type": "daemon",
+                "runtime_language": "nodejs",
+                "state_version": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    observed_pids: list[int] = []
+
+    def fake_stop_daemon_pid(pid: int, timeout_seconds: float = 3.0, poll_interval_seconds: float = 0.05):
+        del timeout_seconds, poll_interval_seconds
+        observed_pids.append(pid)
+        if pid == 42001:
+            return DaemonStopReport(
+                pid=pid,
+                terminated=True,
+                already_stopped=False,
+                sigterm_sent=True,
+                sigkill_sent=False,
+            )
+        return DaemonStopReport(
+            pid=pid,
+            terminated=True,
+            already_stopped=False,
+            sigterm_sent=True,
+            sigkill_sent=True,
+        )
+
+    monkeypatch.setattr(run_command, "stop_daemon_pid", fake_stop_daemon_pid)
+
+    graceful_exit_code = run_command.stop_agent(str(graceful_agent))
+    fallback_exit_code = run_command.stop_agent(str(fallback_agent))
+
+    captured = capsys.readouterr()
+    combined_output = f"{captured.out}\n{captured.err}"
+
+    assert graceful_exit_code == 0, combined_output
+    assert fallback_exit_code == 0, combined_output
+    assert observed_pids == [42001, 42002]
+    assert "daemon stopped gracefully with SIGTERM: pid=42001" in combined_output
+    assert "daemon stopped with fallback SIGKILL: pid=42002" in combined_output
+    assert "daemon state metadata cleared" in combined_output
+    assert not graceful_state.exists(), "Expected graceful stop to clear daemon-state metadata"
+    assert not fallback_state.exists(), "Expected fallback stop to clear daemon-state metadata"
+
+
 def test_run_missing_entrypoint(tmp_path):
     """Test kinnoo run with missing entrypoint file prints error and aborts."""
     agent_dir = tmp_path / "test-agent"
