@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v0.15.0] - 2026-03-18
+### Added
+- Implemented Feature32 "Daemon Runtime Type + Process Controls" with first-class `runtime.type: daemon` manifest support.
+- Added daemon lifecycle operator commands in CLI: `kinnoo stop`, `kinnoo attach`, and `kinnoo logs`.
+- Added daemon supervisor state persistence (`daemon-state.json`) and execution log persistence (`daemon.log`) under the runtime workspace.
+
+### Changed
+- Extended runtime execution flow to support detached daemon launch semantics while preserving one-shot behavior for existing runtime types.
+- Added daemon lifecycle preflight classification and operator guidance for `not-running`, `unhealthy`, and `healthy` states.
+
+### Quality
+- Feature32 acceptance criteria gate validated across `test276`-`test281`.
+- Full regression suite validation after review: `280 passed, 1 skipped` (`python3 -m pytest`).
+- Merge commit: TBD (populate after merge to `phase4/main`).
+
+
 ## [v0.14.0] - 2026-03-17
 ### Added
 - Implemented Feature42 "JSON Input/Output Types for Agent Interop" with first-class manifest contract support for `inputs.type: json` and `outputs.type: json`.

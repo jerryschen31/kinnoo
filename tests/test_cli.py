@@ -816,6 +816,411 @@ outputs:
     assert secret_input not in invalid_result.stderr
 
 
+@pytest.mark.parametrize(
+    ("runtime_language", "entrypoint_name", "entrypoint_contents"),
+    [
+        (
+            "python",
+            "run.py",
+            "import time\nwhile True:\n    time.sleep(60)\n",
+        ),
+        (
+            "nodejs",
+            "run.js",
+            "setInterval(() => {}, 60000);\n",
+        ),
+    ],
+)
+def test_feature32_run_daemon_start_persists_state(
+    monkeypatch,
+    tmp_path,
+    capsys,
+    runtime_language,
+    entrypoint_name,
+    entrypoint_contents,
+):
+    agent_dir = tmp_path / f"feature32-daemon-{runtime_language}-agent"
+    agent_dir.mkdir()
+    (agent_dir / "requirements.txt").write_text("")
+    (agent_dir / entrypoint_name).write_text(entrypoint_contents, encoding="utf-8")
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                f"name: feature32-daemon-{runtime_language}-agent",
+                "version: 0.1.0",
+                f"entrypoint: {entrypoint_name}",
+                "runtime:",
+                f"    language: {runtime_language}",
+                "    version: \">=3.10\"" if runtime_language == "python" else "    version: \">=22\"",
+                "    type: daemon",
+                "dependencies: []",
+                "inputs:",
+                "    type: text",
+                "outputs:",
+                "    type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    if runtime_language == "python":
+        # Pre-create minimal venv layout so test does not invoke real venv.create,
+        # which internally uses subprocess.Popen with additional kwargs.
+        venv_python = agent_dir / ".venv" / "bin" / "python"
+        venv_python.parent.mkdir(parents=True, exist_ok=True)
+        venv_python.write_text("", encoding="utf-8")
+
+    class _FakeDaemonPopen:
+        def __init__(self, args, cwd=None, stdout=None, stderr=None, env=None, start_new_session=False):
+            self.args = args
+            self.cwd = cwd
+            self.stdout = stdout
+            self.stderr = stderr
+            self.env = env
+            self.start_new_session = start_new_session
+            self.pid = 54321 if runtime_language == "python" else 65432
+
+    import kinnoo.run_command as run_command
+
+    monkeypatch.setattr(run_command.subprocess, "Popen", _FakeDaemonPopen)
+
+    exit_code = run_command.run_agent(
+        agent_dir_arg=str(agent_dir),
+        input_arg="hello-daemon",
+        no_guard=True,
+    )
+
+    captured = capsys.readouterr()
+    combined_output = f"{captured.out}\n{captured.err}"
+
+    assert exit_code == 0, combined_output
+    assert "daemon started" in combined_output
+    assert "control hints" in combined_output
+
+    state_path = agent_dir / ".kinnoo" / "daemon-state.json"
+    log_path = agent_dir / ".kinnoo" / "daemon.log"
+    assert state_path.exists(), "Expected daemon state file to be persisted"
+    assert log_path.exists(), "Expected daemon log file to be created"
+
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    assert state["runtime_type"] == "daemon"
+    assert state["runtime_language"] == runtime_language
+    assert state["agent_dir"] == str(agent_dir.resolve())
+    assert state["entrypoint"] == entrypoint_name
+    assert state["pid"] in (54321, 65432)
+    assert state["state_version"] == 1
+    assert state["command"][0] == ("node" if runtime_language == "nodejs" else str(agent_dir / ".venv" / "bin" / "python"))
+
+
+def test_feature32_stop_daemon_graceful_and_fallback(monkeypatch, tmp_path, capsys):
+    import kinnoo.run_command as run_command
+    from kinnoo.supervisor import DaemonStopReport
+
+    graceful_agent = tmp_path / "feature32-stop-graceful-agent"
+    graceful_agent.mkdir()
+    graceful_state = graceful_agent / ".kinnoo" / "daemon-state.json"
+    graceful_state.parent.mkdir(parents=True, exist_ok=True)
+    graceful_state.write_text(
+        json.dumps(
+            {
+                "pid": 42001,
+                "runtime_type": "daemon",
+                "runtime_language": "python",
+                "state_version": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    fallback_agent = tmp_path / "feature32-stop-fallback-agent"
+    fallback_agent.mkdir()
+    fallback_state = fallback_agent / ".kinnoo" / "daemon-state.json"
+    fallback_state.parent.mkdir(parents=True, exist_ok=True)
+    fallback_state.write_text(
+        json.dumps(
+            {
+                "pid": 42002,
+                "runtime_type": "daemon",
+                "runtime_language": "nodejs",
+                "state_version": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    observed_pids: list[int] = []
+
+    def fake_stop_daemon_pid(pid: int, timeout_seconds: float = 3.0, poll_interval_seconds: float = 0.05):
+        del timeout_seconds, poll_interval_seconds
+        observed_pids.append(pid)
+        if pid == 42001:
+            return DaemonStopReport(
+                pid=pid,
+                terminated=True,
+                already_stopped=False,
+                sigterm_sent=True,
+                sigkill_sent=False,
+            )
+        return DaemonStopReport(
+            pid=pid,
+            terminated=True,
+            already_stopped=False,
+            sigterm_sent=True,
+            sigkill_sent=True,
+        )
+
+    monkeypatch.setattr(run_command, "stop_daemon_pid", fake_stop_daemon_pid)
+
+    graceful_exit_code = run_command.stop_agent(str(graceful_agent))
+    fallback_exit_code = run_command.stop_agent(str(fallback_agent))
+
+    captured = capsys.readouterr()
+    combined_output = f"{captured.out}\n{captured.err}"
+
+    assert graceful_exit_code == 0, combined_output
+    assert fallback_exit_code == 0, combined_output
+    assert observed_pids == [42001, 42002]
+    assert "daemon stopped gracefully with SIGTERM: pid=42001" in combined_output
+    assert "daemon stopped with fallback SIGKILL: pid=42002" in combined_output
+    assert "daemon state metadata cleared" in combined_output
+    assert not graceful_state.exists(), "Expected graceful stop to clear daemon-state metadata"
+    assert not fallback_state.exists(), "Expected fallback stop to clear daemon-state metadata"
+
+
+def test_feature32_attach_daemon_session_controls(monkeypatch, tmp_path, capsys):
+    import kinnoo.run_command as run_command
+
+    supported_agent = tmp_path / "feature32-attach-supported-agent"
+    supported_agent.mkdir()
+    supported_log = supported_agent / ".kinnoo" / "daemon.log"
+    supported_log.parent.mkdir(parents=True, exist_ok=True)
+    supported_log.write_text("daemon output line\n", encoding="utf-8")
+    (supported_agent / ".kinnoo" / "daemon-state.json").write_text(
+        json.dumps(
+            {
+                "pid": 43001,
+                "runtime_type": "daemon",
+                "runtime_language": "python",
+                "log_path": str(supported_log),
+                "state_version": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    non_running_agent = tmp_path / "feature32-attach-non-running-agent"
+    non_running_agent.mkdir()
+    (non_running_agent / ".kinnoo").mkdir(parents=True, exist_ok=True)
+    (non_running_agent / ".kinnoo" / "daemon-state.json").write_text(
+        json.dumps(
+            {
+                "pid": 43002,
+                "runtime_type": "daemon",
+                "runtime_language": "nodejs",
+                "state_version": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    unsupported_mode_agent = tmp_path / "feature32-attach-unsupported-agent"
+    unsupported_mode_agent.mkdir()
+    (unsupported_mode_agent / ".kinnoo").mkdir(parents=True, exist_ok=True)
+    (unsupported_mode_agent / ".kinnoo" / "daemon-state.json").write_text(
+        json.dumps(
+            {
+                "pid": 43003,
+                "runtime_type": "one-shot",
+                "runtime_language": "python",
+                "state_version": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    non_tty_agent = tmp_path / "feature32-attach-non-tty-agent"
+    non_tty_agent.mkdir()
+    non_tty_log = non_tty_agent / ".kinnoo" / "daemon.log"
+    non_tty_log.parent.mkdir(parents=True, exist_ok=True)
+    non_tty_log.write_text("", encoding="utf-8")
+    (non_tty_agent / ".kinnoo" / "daemon-state.json").write_text(
+        json.dumps(
+            {
+                "pid": 43004,
+                "runtime_type": "daemon",
+                "runtime_language": "python",
+                "log_path": str(non_tty_log),
+                "state_version": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    pid_status_calls = {"supported": 0}
+
+    def fake_pid_running(pid: int) -> bool:
+        if pid == 43001:
+            pid_status_calls["supported"] += 1
+            # First check confirms running; second check ends attach loop deterministically.
+            return pid_status_calls["supported"] == 1
+        if pid == 43002:
+            return False
+        if pid == 43004:
+            return True
+        return True
+
+    monkeypatch.setattr(run_command, "daemon_pid_is_running", fake_pid_running)
+
+    monkeypatch.setattr(run_command.sys.stdin, "isatty", lambda: True)
+    monkeypatch.setattr(run_command.sys.stdout, "isatty", lambda: True)
+    supported_exit = run_command.attach_agent(str(supported_agent))
+
+    non_running_exit = run_command.attach_agent(str(non_running_agent))
+    unsupported_mode_exit = run_command.attach_agent(str(unsupported_mode_agent))
+
+    monkeypatch.setattr(run_command.sys.stdin, "isatty", lambda: False)
+    monkeypatch.setattr(run_command.sys.stdout, "isatty", lambda: True)
+    non_tty_exit = run_command.attach_agent(str(non_tty_agent))
+
+    captured = capsys.readouterr()
+    combined_output = f"{captured.out}\n{captured.err}"
+
+    assert supported_exit == 0, combined_output
+    assert non_running_exit == 1, combined_output
+    assert unsupported_mode_exit == 1, combined_output
+    assert non_tty_exit == 1, combined_output
+    assert "attach session started" in combined_output
+    assert "daemon output line" in combined_output
+    assert "daemon exited; attach session ending" in combined_output
+    assert "daemon is not running" in combined_output
+    assert "attach is unsupported for runtime.type" in combined_output
+    assert "attach requires an interactive TTY session" in combined_output
+
+
+def test_feature32_logs_daemon_tail_and_follow(monkeypatch, tmp_path, capsys):
+    import kinnoo.run_command as run_command
+
+    tail_agent = tmp_path / "feature32-logs-tail-agent"
+    tail_agent.mkdir()
+    tail_log = tail_agent / ".kinnoo" / "daemon.log"
+    tail_log.parent.mkdir(parents=True, exist_ok=True)
+    tail_log.write_text("line-1\nline-2\nline-3\n", encoding="utf-8")
+    (tail_agent / ".kinnoo" / "daemon-state.json").write_text(
+        json.dumps(
+            {
+                "pid": 44001,
+                "runtime_type": "daemon",
+                "runtime_language": "python",
+                "log_path": str(tail_log),
+                "state_version": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    follow_agent = tmp_path / "feature32-logs-follow-agent"
+    follow_agent.mkdir()
+    follow_log = follow_agent / ".kinnoo" / "daemon.log"
+    follow_log.parent.mkdir(parents=True, exist_ok=True)
+    follow_log.write_text("startup-line\n", encoding="utf-8")
+    (follow_agent / ".kinnoo" / "daemon-state.json").write_text(
+        json.dumps(
+            {
+                "pid": 44002,
+                "runtime_type": "daemon",
+                "runtime_language": "nodejs",
+                "log_path": str(follow_log),
+                "state_version": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    missing_log_agent = tmp_path / "feature32-logs-missing-log-agent"
+    missing_log_agent.mkdir()
+    missing_log_path = missing_log_agent / ".kinnoo" / "daemon.log"
+    missing_log_path.parent.mkdir(parents=True, exist_ok=True)
+    (missing_log_agent / ".kinnoo" / "daemon-state.json").write_text(
+        json.dumps(
+            {
+                "pid": 44003,
+                "runtime_type": "daemon",
+                "runtime_language": "python",
+                "log_path": str(missing_log_path),
+                "state_version": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    non_running_follow_agent = tmp_path / "feature32-logs-non-running-agent"
+    non_running_follow_agent.mkdir()
+    non_running_log = non_running_follow_agent / ".kinnoo" / "daemon.log"
+    non_running_log.parent.mkdir(parents=True, exist_ok=True)
+    non_running_log.write_text("last-known\n", encoding="utf-8")
+    (non_running_follow_agent / ".kinnoo" / "daemon-state.json").write_text(
+        json.dumps(
+            {
+                "pid": 44004,
+                "runtime_type": "daemon",
+                "runtime_language": "python",
+                "log_path": str(non_running_log),
+                "state_version": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    pid_calls = {"follow": 0}
+    appended_follow_line = {"done": False}
+
+    def fake_pid_running(pid: int) -> bool:
+        if pid == 44001:
+            return True
+        if pid == 44002:
+            pid_calls["follow"] += 1
+            return pid_calls["follow"] <= 2
+        if pid == 44003:
+            return True
+        if pid == 44004:
+            return False
+        return False
+
+    def fake_sleep(_seconds: float) -> None:
+        if not appended_follow_line["done"]:
+            with follow_log.open("a", encoding="utf-8") as handle:
+                handle.write("follow-line\n")
+            appended_follow_line["done"] = True
+
+    monkeypatch.setattr(run_command, "daemon_pid_is_running", fake_pid_running)
+    monkeypatch.setattr(run_command.time, "sleep", fake_sleep)
+
+    tail_exit = run_command.logs_agent(str(tail_agent), follow=False, tail_lines=2)
+    follow_exit = run_command.logs_agent(str(follow_agent), follow=True, tail_lines=1)
+    missing_log_exit = run_command.logs_agent(str(missing_log_agent), follow=False, tail_lines=5)
+    non_running_follow_exit = run_command.logs_agent(
+        str(non_running_follow_agent),
+        follow=True,
+        tail_lines=5,
+    )
+
+    captured = capsys.readouterr()
+    combined_output = f"{captured.out}\n{captured.err}"
+
+    assert tail_exit == 0, combined_output
+    assert follow_exit == 0, combined_output
+    assert missing_log_exit == 1, combined_output
+    assert non_running_follow_exit == 1, combined_output
+    assert "[daemon.log] line-2" in combined_output
+    assert "[daemon.log] line-3" in combined_output
+    assert "[daemon.log] startup-line" in combined_output
+    assert "[daemon.log] follow-line" in combined_output
+    assert "daemon exited; follow mode ended" in combined_output
+    assert "daemon log file not found" in combined_output
+    assert "follow mode requires an active daemon" in combined_output
+
+
 def test_run_missing_entrypoint(tmp_path):
     """Test kinnoo run with missing entrypoint file prints error and aborts."""
     agent_dir = tmp_path / "test-agent"

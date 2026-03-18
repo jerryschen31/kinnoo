@@ -343,6 +343,38 @@ def test_feature42_manifest_rejects_unsupported_io_types(tmp_path: Path) -> None
         f"Expected supported values guidance (including json) in errors; got: {errors}"
     )
 
+
+def test_feature32_runtime_type_daemon_validation(tmp_path: Path) -> None:
+    """Feature32 test276: runtime.type accepts daemon and preserves existing support."""
+    for runtime_type in ("daemon", "one-shot", "mcp-server"):
+        data = dict(_VALID_MANIFEST)
+        data["runtime"] = dict(data["runtime"])
+        data["runtime"]["type"] = runtime_type
+
+        manifest_path = _write_manifest(data, tmp_path)
+        is_valid, errors = validate(str(manifest_path))
+
+        assert is_valid is True, (
+            f"Expected runtime.type={runtime_type!r} to pass validation; errors: {errors}"
+        )
+
+    invalid = dict(_VALID_MANIFEST)
+    invalid["runtime"] = dict(invalid["runtime"])
+    invalid["runtime"]["type"] = "super-daemon"
+
+    invalid_manifest_path = tmp_path / "feature32_invalid_runtime_type.yaml"
+    invalid_manifest_path.write_text(yaml.dump(invalid), encoding="utf-8")
+    is_valid, errors = validate(str(invalid_manifest_path))
+
+    assert is_valid is False, "Expected unsupported runtime.type to fail validation"
+    assert any("runtime.type" in message and "unsupported value" in message for message in errors), (
+        f"Expected runtime.type unsupported guidance; got: {errors}"
+    )
+    assert any(
+        "one-shot" in message and "mcp-server" in message and "daemon" in message
+        for message in errors
+    ), f"Expected allowed runtime type guidance in errors; got: {errors}"
+
 # ---------------------------------------------------------------------------
 # test60 — Manifest loader normalizes "type" field to list (task38)
 # ---------------------------------------------------------------------------

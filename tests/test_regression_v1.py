@@ -2,6 +2,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import json
 from pathlib import Path
 
 
@@ -444,3 +445,114 @@ def test_feature42_json_contract_guidance_and_text_regression_gate():
         f"STDOUT:\n{regression_result.stdout}\n"
         f"STDERR:\n{regression_result.stderr}"
     )
+
+
+def test_feature32_daemon_health_state_regression_gate(tmp_path, monkeypatch, capsys):
+    """Regression gate: daemon lifecycle reports not-running/unhealthy/healthy with compatibility checks."""
+    import kinnoo.run_command as run_command
+
+    def _write_manifest(agent_dir: Path, runtime_type: str) -> None:
+        (agent_dir / "kinnoo.yaml").write_text(
+            "\n".join(
+                [
+                    f"name: {agent_dir.name}",
+                    "version: 1.0.0",
+                    "entrypoint: run.py",
+                    "runtime:",
+                    "  language: python",
+                    "  version: \">=3.10\"",
+                    f"  type: {runtime_type}",
+                    "dependencies: []",
+                    "inputs:",
+                    "  type: text",
+                    "outputs:",
+                    "  type: text",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+        (agent_dir / "run.py").write_text("print('ok')\n", encoding="utf-8")
+
+    healthy_agent = tmp_path / "feature32-daemon-healthy"
+    healthy_agent.mkdir(parents=True, exist_ok=True)
+    _write_manifest(healthy_agent, "daemon")
+    healthy_state = healthy_agent / ".kinnoo" / "daemon-state.json"
+    healthy_state.parent.mkdir(parents=True, exist_ok=True)
+    healthy_state.write_text(json.dumps({"pid": 55001}), encoding="utf-8")
+
+    unhealthy_agent = tmp_path / "feature32-daemon-unhealthy"
+    unhealthy_agent.mkdir(parents=True, exist_ok=True)
+    _write_manifest(unhealthy_agent, "daemon")
+    unhealthy_state = unhealthy_agent / ".kinnoo" / "daemon-state.json"
+    unhealthy_state.parent.mkdir(parents=True, exist_ok=True)
+    unhealthy_state.write_text(json.dumps({"pid": 55002}), encoding="utf-8")
+
+    not_running_agent = tmp_path / "feature32-daemon-not-running"
+    not_running_agent.mkdir(parents=True, exist_ok=True)
+    _write_manifest(not_running_agent, "daemon")
+
+    one_shot_agent = tmp_path / "feature32-one-shot-compat"
+    one_shot_agent.mkdir(parents=True, exist_ok=True)
+    _write_manifest(one_shot_agent, "one-shot")
+
+    mcp_agent = tmp_path / "feature32-mcp-compat"
+    mcp_agent.mkdir(parents=True, exist_ok=True)
+    _write_manifest(mcp_agent, "mcp-server")
+
+    def fake_run_service_checks(manifest: dict | None):
+        if not isinstance(manifest, dict):
+            return []
+        agent_name = str(manifest.get("name", ""))
+        if "unhealthy" in agent_name:
+            return [
+                run_command.HealthCheckResult(
+                    service_name="backend",
+                    service_type="http",
+                    method="http",
+                    healthy=False,
+                    message="mock unhealthy service",
+                    guidance="mock guidance",
+                )
+            ]
+        return []
+
+    def fake_pid_running(pid: int) -> bool:
+        return pid in (55001, 55002)
+
+    monkeypatch.setattr(run_command, "_run_service_checks", fake_run_service_checks)
+    monkeypatch.setattr(run_command, "daemon_pid_is_running", fake_pid_running)
+
+    healthy_code = run_command.run_preflight(str(healthy_agent))
+    healthy_capture = capsys.readouterr()
+    healthy_output = f"{healthy_capture.out}\n{healthy_capture.err}"
+    assert healthy_code == 0, healthy_output
+    assert "daemon lifecycle state [healthy]" in healthy_output
+
+    unhealthy_code = run_command.run_preflight(str(unhealthy_agent))
+    unhealthy_capture = capsys.readouterr()
+    unhealthy_output = f"{unhealthy_capture.out}\n{unhealthy_capture.err}"
+    assert unhealthy_code != 0, unhealthy_output
+    assert "daemon lifecycle state [unhealthy]" in unhealthy_output
+    assert "services[].health_check" in unhealthy_output or "service checks" in unhealthy_output
+
+    not_running_code = run_command.run_preflight(str(not_running_agent))
+    not_running_capture = capsys.readouterr()
+    not_running_output = f"{not_running_capture.out}\n{not_running_capture.err}"
+    assert not_running_code != 0, not_running_output
+    assert "daemon lifecycle state [not-running]" in not_running_output
+    assert "Start daemon" in not_running_output
+
+    one_shot_code = run_command.run_preflight(str(one_shot_agent))
+    one_shot_capture = capsys.readouterr()
+    one_shot_output = f"{one_shot_capture.out}\n{one_shot_capture.err}"
+    assert one_shot_code == 0, one_shot_output
+    assert "daemon lifecycle state" not in one_shot_output
+
+    mcp_code = run_command.run_preflight(str(mcp_agent))
+    mcp_capture = capsys.readouterr()
+    mcp_output = f"{mcp_capture.out}\n{mcp_capture.err}"
+    assert mcp_code == 0, mcp_output
+    assert "daemon lifecycle state" not in mcp_output
+
