@@ -3,6 +3,29 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v0.13.0] - 2026-03-17
+### Added
+- Implemented Feature31 "Node.js Runtime Support (Foundation)" for first-class `runtime.language: nodejs` execution and install workflows.
+- Added node runtime execution path in `kinnoo run` with parity for input forwarding, stdout/stderr streaming, and exit-code propagation.
+- Added node install dependency resolution support using `npm` (default) and `pnpm` (optional via `runtime.package_manager`).
+- Added pack/install safeguards for node agents: exclude `node_modules`, preserve `package.json` and lockfiles for reproducible installs.
+- Added node preflight readiness checks for runtime version constraints and package-manager availability.
+
+### Changed
+- Hardened subprocess test isolation around node version/tool probes to prevent monkeypatch cross-effects in feature31 tests.
+- Improved permission-path handling in run command to produce deterministic permission-denied behavior under restricted directory access.
+
+### Quality
+- Feature31 blocker tests from Tech Lead Review 1 now pass (`5 passed`):
+  - `tests/test_cli.py::test_run_permission_error`
+  - `tests/test_install.py::test_feature31_node_dependency_install_npm_and_pnpm`
+  - `tests/test_pack.py::test_feature31_pack_node_modules_excluded_lockfiles_preserved`
+  - `tests/test_regression_v1.py::test_v1_suite_passes_after_feature7`
+  - `tests/test_regression_v1.py::test_feature20_does_not_regress_v2_behavior`
+- Full suite validation after fixes: `266 passed, 1 skipped` (`python3 -m pytest`).
+- Merge commit: TBD (populate after merge to `phase4/main`).
+
+
 ## [v0.12.1] - 2026-03-16
 ### Added
 - Implemented Feature19 "kinnoo import - Analyzer-backed onboarding wizard" for in-place project onboarding.

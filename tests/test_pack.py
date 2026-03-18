@@ -808,3 +808,107 @@ def test_feature26_github_mcp_fixture_valid_and_packable(tmp_path: Path) -> None
         assert "kinnoo.yaml" in names
         assert "run.py" in names
         assert "requirements.txt" in names
+
+
+def test_feature31_pack_node_modules_excluded_lockfiles_preserved(monkeypatch, tmp_path: Path) -> None:
+    from kinnoo import install_command
+
+    monkeypatch.setattr(
+        install_command,
+        "check_node_runtime_constraint",
+        lambda _constraint: (True, "runtime version check passed: current Node 22.0.0 satisfies runtime.version '>=22'"),
+    )
+    monkeypatch.setattr(
+        install_command,
+        "check_node_package_manager_availability",
+        lambda _package_manager: (True, "dependency readiness check passed: node package manager is available"),
+    )
+
+    agent = tmp_path / "feature31-node-pack"
+    agent.mkdir()
+    (agent / "node_modules" / "left-pad").mkdir(parents=True)
+    (agent / "node_modules" / "left-pad" / "index.js").write_text("module.exports = {};\n", encoding="utf-8")
+    (agent / "data").mkdir()
+    (agent / "data" / "notes.txt").write_text("keep this asset\n", encoding="utf-8")
+
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: feature31-node-pack
+version: 1.0.0
+entrypoint: run.js
+runtime:
+  language: nodejs
+  version: '>=22'
+  type: one-shot
+dependencies: []
+inputs:
+  type: string
+outputs:
+  type: string
+assets:
+  paths:
+    - node_modules
+    - data
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.js").write_text("console.log('node agent');\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+    (agent / "package.json").write_text(
+      '{"name":"feature31-node-pack","version":"1.0.0","dependencies":{"left-pad":"1.3.0"}}\n',
+      encoding="utf-8",
+    )
+    (agent / "package-lock.json").write_text('{"name":"feature31-node-pack","lockfileVersion":3}\n', encoding="utf-8")
+    (agent / "pnpm-lock.yaml").write_text("lockfileVersion: '9.0'\n", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    pack_result = subprocess.run(
+        KINNOO_CLI + ["pack", str(agent)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert pack_result.returncode == 0, f"pack failed: {pack_result.stderr}"
+
+    archive = _canonical_archive_path(tmp_path, "feature31-node-pack", "1.0.0")
+    assert archive.exists(), "Expected .kno archive for feature31 node pack fixture"
+
+    with zipfile.ZipFile(archive, "r") as zf:
+        names = set(zf.namelist())
+        assert "package.json" in names
+        assert "package-lock.json" in names
+        assert "pnpm-lock.yaml" in names
+        assert "data/notes.txt" in names
+        assert not any(name.startswith("node_modules/") for name in names)
+
+    install_calls: list[tuple[list[str], Path | None]] = []
+
+    class _Completed:
+        def __init__(self, returncode: int = 0, stderr_text: str = ""):
+            self.returncode = returncode
+            self.stderr = stderr_text
+            self.stdout = ""
+
+    def _fake_run(command, *args, **kwargs):
+        del args
+        install_calls.append((list(command), kwargs.get("cwd")))
+        executable = Path(command[0]).name
+        if executable == "npm":
+            return _Completed(0)
+        return _Completed(0)
+
+    monkeypatch.setattr(install_command.subprocess, "run", _fake_run)
+
+    install_target = tmp_path / "feature31-node-pack-install"
+    install_result = install_command.install_agent(
+        archive_path=str(archive),
+        target_dir_arg=str(install_target),
+        assume_yes=True,
+    )
+    assert install_result == 0
+    assert (["npm", "install"], install_target.resolve()) in [
+        (command, cwd.resolve() if isinstance(cwd, Path) else cwd)
+        for command, cwd in install_calls
+    ]
