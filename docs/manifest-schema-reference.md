@@ -96,6 +96,36 @@ The CLI's behavior on `kinnoo run` is determined entirely by this field.
 
 ---
 
+### Feature33 manifest extensions (`runtime.package_manager`, `channels`, `skills`, `state_dirs`)
+
+Feature33 adds optional schema fields for OpenClaw-oriented and generic Node.js agent workflows.
+
+- `runtime.package_manager` (optional): string
+  - supported values: `npm`, `pnpm`
+  - if present with any other value, validation fails with allowed-values guidance
+- `channels` (optional): list[string]
+  - each item must be a non-empty string
+- `skills` (optional): list[string]
+  - each item must be a non-empty relative path
+  - absolute paths and parent traversal (`..`) are rejected
+- `state_dirs` (optional): list[string]
+  - each item must be a non-empty relative path
+  - absolute paths and parent traversal (`..`) are rejected
+
+OpenClaw-targeted validation (`framework: openclaw`):
+
+- `runtime.language` must be `nodejs`
+- `runtime.type` must be `daemon`
+- `runtime.package_manager` is required and must be `npm` or `pnpm`
+- `channels` must include `stdio`
+
+Non-openclaw compatibility note:
+
+- manifests that omit these fields remain valid
+- non-openclaw manifests may include these fields in valid shape without triggering OpenClaw-only diagnostics
+
+---
+
 ### Feature9 optional fields (`description`, `author`, `license`, `env_vars`)
 
 Feature9 adds optional metadata fields to `kinnoo.yaml`. These fields are optional-only and do not change validity for existing V1 manifests.
@@ -261,6 +291,64 @@ kinnoo run research-summarizer "Summarize recent advances in fusion energy"
 
 ---
 
+### Example 3 — OpenClaw Node.js daemon manifest
+
+```yaml
+name: openclaw-agent
+version: 1.0.0
+entrypoint: run.js
+framework: openclaw
+runtime:
+  language: nodejs
+  version: ">=20.0.0"
+  type: daemon
+  package_manager: pnpm
+channels:
+  - stdio
+  - events
+skills:
+  - skills/openclaw/core.md
+state_dirs:
+  - state/openclaw
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+```
+
+### Example 4 — Generic Node.js manifest with optional Feature33 fields
+
+```yaml
+name: generic-node-agent
+version: 1.0.0
+entrypoint: run.js
+framework: custom-framework
+runtime:
+  language: nodejs
+  version: ">=20.0.0"
+  type: one-shot
+  package_manager: npm
+channels:
+  - events
+skills:
+  - skills/common/assistant.md
+state_dirs:
+  - state/cache
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+```
+
+Compatibility behavior for Example 4:
+
+- valid extension field shape is accepted
+- OpenClaw-only constraints are not enforced because `framework` is not `openclaw`
+
+---
+
 ## Key Insight: Framework Agnosticism
 
 Notice that both examples look nearly identical from the CLI's perspective — `kinnoo` doesn't know or care that one uses LangChain and the other uses CrewAI. That's the entire point of the `entrypoint` + `inputs/outputs` contract: **the runtime abstraction makes the framework irrelevant to the platform.** The complexity lives inside `run.py` / `agent.py`, not in the manifest.
@@ -276,11 +364,15 @@ Notice that both examples look nearly identical from the CLI's perspective — `
 | entrypoint       | yes      | string       | non-empty file path                             |
 | runtime.language | yes      | string       | e.g., "python"                                  |
 | runtime.version  | yes      | string       | version constraint (e.g., ">=3.10")             |
-| runtime.type     | yes      | string       | must be `"one-shot"` for MVP                    |
+| runtime.type     | yes      | string       | supported values include `one-shot`, `mcp-server`, `daemon` |
+| runtime.package_manager | no | string       | optional; allowed values: `npm`, `pnpm`          |
 | dependencies     | yes      | list[string] | can be empty list                               |
 | inputs.type      | yes      | string       | e.g., "text"                                    |
 | outputs.type     | yes      | string       | e.g., "text"                                    |
 | framework        | no       | string       | optional, e.g., "langchain", "crewai"           |
+| channels         | no       | list[string] | optional; non-empty string items                |
+| skills           | no       | list[string] | optional; relative paths only                   |
+| state_dirs       | no       | list[string] | optional; relative paths only                   |
 | assets           | no       | object       | optional; keys: `paths` (list[string]), `bundle` (bool, default true), `max_bundle_size_mb` (number, default 100) |
 | description      | no       | string       | optional metadata                                 |
 | author           | no       | string       | optional metadata                                 |
