@@ -97,6 +97,24 @@ def main():
     )
     attach_parser.add_argument("agent_dir", nargs="?", help="Path to daemon agent directory")
 
+    # Add 'logs' subcommand
+    logs_parser = subparsers.add_parser(
+        "logs",
+        help="Show daemon logs (tail or follow)",
+    )
+    logs_parser.add_argument("agent_dir", nargs="?", help="Path to daemon agent directory")
+    logs_parser.add_argument(
+        "--follow",
+        action="store_true",
+        help="Stream new log lines until daemon exits or operator interrupts",
+    )
+    logs_parser.add_argument(
+        "--tail",
+        type=int,
+        default=20,
+        help="Number of recent lines to show before follow/tail output (default: 20)",
+    )
+
     # Add 'install' subcommand
     install_parser = subparsers.add_parser(
         "install",
@@ -329,6 +347,24 @@ def main():
             from .run_command import attach_agent
 
         exit_code = attach_agent(agent_dir)
+        sys.exit(exit_code)
+
+    elif args.command == "logs":
+        agent_dir = getattr(args, "agent_dir", None)
+        if agent_dir is None:
+            print("Usage: kinnoo logs <agent-dir> [--tail N] [--follow]", file=sys.stderr)
+            sys.exit(1)
+
+        try:
+            from kinnoo.run_command import logs_agent
+        except ImportError:
+            from .run_command import logs_agent
+
+        exit_code = logs_agent(
+            agent_dir_arg=agent_dir,
+            follow=bool(getattr(args, "follow", False)),
+            tail_lines=int(getattr(args, "tail", 20)),
+        )
         sys.exit(exit_code)
 
     elif args.command == "pack":
