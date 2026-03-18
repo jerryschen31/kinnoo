@@ -306,6 +306,43 @@ def test_feature31_runtime_language_rejects_unsupported_values(tmp_path: Path) -
         f"Expected supported runtime languages in error message; got: {errors}"
     )
 
+
+def test_feature42_manifest_accepts_json_input_output_types(tmp_path: Path) -> None:
+    """Feature42 test270: validator accepts json for inputs.type and outputs.type."""
+    data = dict(_VALID_MANIFEST)
+    data["inputs"] = {"type": "json"}
+    data["outputs"] = {"type": "json"}
+
+    manifest_path = _write_manifest(data, tmp_path)
+    is_valid, errors = validate(str(manifest_path))
+
+    assert is_valid is True, (
+        "Expected inputs.type=json and outputs.type=json to pass validation; "
+        f"errors: {errors}"
+    )
+    assert errors == []
+
+
+def test_feature42_manifest_rejects_unsupported_io_types(tmp_path: Path) -> None:
+    """Feature42 test271: unsupported I/O types are rejected with guidance."""
+    data = dict(_VALID_MANIFEST)
+    data["inputs"] = {"type": "xml"}
+    data["outputs"] = {"type": "binary"}
+
+    manifest_path = _write_manifest(data, tmp_path)
+    is_valid, errors = validate(str(manifest_path))
+
+    assert is_valid is False, "Expected unsupported I/O type values to fail validation"
+    assert any("inputs.type" in message and "unsupported value" in message for message in errors), (
+        f"Expected unsupported inputs.type error; got: {errors}"
+    )
+    assert any("outputs.type" in message and "unsupported value" in message for message in errors), (
+        f"Expected unsupported outputs.type error; got: {errors}"
+    )
+    assert any("json" in message and "text" in message and "string" in message for message in errors), (
+        f"Expected supported values guidance (including json) in errors; got: {errors}"
+    )
+
 # ---------------------------------------------------------------------------
 # test60 — Manifest loader normalizes "type" field to list (task38)
 # ---------------------------------------------------------------------------

@@ -3427,7 +3427,7 @@ tasks:
       - 'step4: Add focused unit tests for json acceptance and invalid type rejection'
     dependencies: []
     tests: [test270, test271]
-    status: not-started
+    status: needs-review
 
   - id: task175
     title: "Feature42 run path JSON input modes"

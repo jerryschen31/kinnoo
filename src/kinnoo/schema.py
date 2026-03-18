@@ -101,6 +101,12 @@ SUPPORTED_RUNTIME_TYPES: list[str] = ["one-shot", "mcp-server"]
 # Supported runtime languages in this version of kinnoo.
 SUPPORTED_RUNTIME_LANGUAGES: list[str] = ["python", "nodejs"]
 
+# Supported manifest I/O contract type values.
+# Keep both 'text' and 'string' for backward compatibility with existing
+# manifests and default normalization behavior.
+SUPPORTED_INPUT_TYPES: list[str] = ["text", "string", "file", "json"]
+SUPPORTED_OUTPUT_TYPES: list[str] = ["text", "string", "file", "json"]
+
 # Supported Node.js package managers for runtime.language == nodejs.
 SUPPORTED_NODE_PACKAGE_MANAGERS: list[str] = ["npm", "pnpm"]
 
