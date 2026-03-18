@@ -36,6 +36,7 @@ from .schema import (
     SEMVER_PATTERN,
     SUPPORTED_HEALTH_CHECK_METHODS,
     SUPPORTED_INPUT_TYPES,
+    SUPPORTED_NODE_PACKAGE_MANAGERS,
     SUPPORTED_OUTPUT_TYPES,
     SUPPORTED_RUNTIME_LANGUAGES,
     SUPPORTED_RUNTIME_TYPES,
@@ -368,6 +369,19 @@ def _collect_validation_errors(data: dict[str, Any]) -> list[str]:
             supported = ", ".join(f"'{value}'" for value in SUPPORTED_RUNTIME_LANGUAGES)
             errors.append(
                 f"Field 'runtime.language' has unsupported value: '{runtime_language_value}'. "
+                f"Supported values: {supported}."
+            )
+
+    runtime_package_manager_found, runtime_package_manager_value = _get_nested(
+        data, "runtime.package_manager"
+    )
+    if runtime_package_manager_found and isinstance(runtime_package_manager_value, str):
+        if runtime_package_manager_value not in SUPPORTED_NODE_PACKAGE_MANAGERS:
+            supported = ", ".join(
+                f"'{value}'" for value in SUPPORTED_NODE_PACKAGE_MANAGERS
+            )
+            errors.append(
+                f"Field 'runtime.package_manager' has unsupported value: '{runtime_package_manager_value}'. "
                 f"Supported values: {supported}."
             )
 
