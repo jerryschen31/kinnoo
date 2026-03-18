@@ -3304,7 +3304,7 @@ tasks:
       - 'step4: Add focused validator tests for nodejs acceptance and invalid-language rejection'
     dependencies: []
     tests: [test263, test264]
-    status: not-started
+    status: needs-review
 
   - id: task169
     title: "Feature31 run path for Node.js entrypoints"
