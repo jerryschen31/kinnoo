@@ -738,6 +738,82 @@ outputs:
     assert "Invalid JSON in --json-file payload" in invalid_result.stderr
 
 
+def test_feature42_json_output_contract_enforcement(tmp_path):
+    valid_agent = tmp_path / "feature42-json-output-valid-agent"
+    valid_agent.mkdir()
+    (valid_agent / "requirements.txt").write_text("")
+    (valid_agent / "kinnoo.yaml").write_text(
+        """
+name: feature42-json-output-valid-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: json
+"""
+    )
+    (valid_agent / "run.py").write_text(
+        "import json\n"
+        "print(json.dumps({'status': 'ok', 'value': 1}, sort_keys=True))\n"
+    )
+    (valid_agent / "README.md").write_text("feature42 valid json output")
+    (valid_agent / "tools").mkdir()
+    (valid_agent / "prompts").mkdir()
+
+    valid_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "run", str(valid_agent), "hello"],
+        capture_output=True,
+        text=True,
+    )
+
+    assert valid_result.returncode == 0, valid_result.stderr
+    assert '{"status": "ok", "value": 1}' in valid_result.stdout
+
+    invalid_agent = tmp_path / "feature42-json-output-invalid-agent"
+    invalid_agent.mkdir()
+    (invalid_agent / "requirements.txt").write_text("")
+    (invalid_agent / "kinnoo.yaml").write_text(
+        """
+name: feature42-json-output-invalid-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: json
+"""
+    )
+    (invalid_agent / "run.py").write_text(
+        "print('not-json-output')\n"
+    )
+    (invalid_agent / "README.md").write_text("feature42 invalid json output")
+    (invalid_agent / "tools").mkdir()
+    (invalid_agent / "prompts").mkdir()
+
+    secret_input = "TOP_SECRET_TOKEN_123"
+    invalid_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "run", str(invalid_agent), secret_input],
+        capture_output=True,
+        text=True,
+    )
+
+    assert invalid_result.returncode != 0
+    assert "outputs.type=json contract violation" in invalid_result.stderr
+    assert "line" in invalid_result.stderr and "column" in invalid_result.stderr
+    assert secret_input not in invalid_result.stderr
+
+
 def test_run_missing_entrypoint(tmp_path):
     """Test kinnoo run with missing entrypoint file prints error and aborts."""
     agent_dir = tmp_path / "test-agent"
