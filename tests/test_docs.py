@@ -289,3 +289,33 @@ def test_feature42_docs_cover_json_contract_guidance() -> None:
 
     assert "text workflows remain" in combined_lower
     assert "unchanged" in combined_lower
+
+
+def test_feature33_manifest_extension_docs_examples() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    schema_doc = repo_root / "docs" / "manifest-schema-reference.md"
+    readme_doc = repo_root / "README.md"
+
+    schema_text = schema_doc.read_text(encoding="utf-8")
+    readme_text = readme_doc.read_text(encoding="utf-8")
+    combined_text = f"{schema_text}\n{readme_text}"
+    combined_lower = combined_text.lower()
+
+    assert "runtime.package_manager" in combined_text
+    assert "channels" in combined_text
+    assert "skills" in combined_text
+    assert "state_dirs" in combined_text
+    assert "npm" in combined_text and "pnpm" in combined_text
+
+    assert "framework: openclaw" in combined_text
+    assert "openclaw-agent" in combined_text
+    assert "type: daemon" in combined_text
+    assert "language: nodejs" in combined_text
+    assert "stdio" in combined_text
+
+    assert "generic-node-agent" in combined_text
+    assert "framework: custom-framework" in combined_text
+    assert "type: one-shot" in combined_text
+
+    assert "non-openclaw" in combined_lower
+    assert "remain valid" in combined_lower
