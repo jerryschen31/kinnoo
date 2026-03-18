@@ -3656,7 +3656,7 @@ tasks:
       - 'step4: Add validator tests covering valid payloads and representative type/path failures'
     dependencies: [task184]
     tests: [test283]
-    status: not-started
+    status: needs-review
 
   - id: task186
     title: "Feature33 framework openclaw targeted validation rules"
