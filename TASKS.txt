@@ -3407,7 +3407,7 @@ tasks:
       - 'step4: Attach regression evidence to task completion notes for techlead review'
     dependencies: [task169, task170, task171, task172]
     tests: [test269]
-    status: not-started
+    status: needs-review
 
   - id: task174
     title: "Feature42 schema and validator support for json input/output types"
