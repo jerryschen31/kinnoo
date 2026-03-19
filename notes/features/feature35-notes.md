@@ -59,3 +59,46 @@ Add first-class `state_dirs` snapshot/restore behavior for mutable runtime state
 - Move tasks task194-task198 from not-started -> in-progress when implementation begins.
 - Move tasks to needs-review after code + tests are complete.
 - Do not set completed until Tech Lead review and merge approval.
+
+## Tech Lead Review 1
+
+Date: 2026-03-19
+Reviewer: Tech Lead Agent
+Verdict: Approved for merge
+
+### Scope Reviewed
+- Feature: feature35 - Mutable State Directories in Pack/Install
+- Tasks: task194, task195, task196, task197, task198
+- Tests: test292, test293, test294, test295, test296
+
+### Task and AC Validation
+- task194 / AC1 (contract + validation): Pass. `state_dirs` supports string and structured entries, with path safety and exclude-shape validation in validator.
+- task195 / AC1 (pack snapshot semantics): Pass. Pack stores mutable state under `state_snapshots/<declared-state-dir>/...` with deterministic layout.
+- task196 / AC2 (install overwrite controls): Pass. Install restores snapshots and warns/preserves existing state by default; explicit `--state-overwrite` enables replacement.
+- task197 / AC3 (exclude patterns): Pass. `state_dirs[].exclude` patterns are applied during snapshot collection; excluded files are omitted and not restored.
+- task198 / AC4+AC5 (docs + regression compatibility): Pass. Docs describe mutable-vs-immutable semantics and regression gate verifies asset-only behavior remains unchanged without `state_dirs`.
+
+### AC Coverage Assessment
+- AC1: Covered by test292 and test293.
+- AC2: Covered by test294.
+- AC3: Covered by test295.
+- AC4: Covered by test296 and docs assertions.
+- AC5: Covered by test296 regression gate.
+
+### Regression Evidence
+- Full suite run executed: `python3 -m pytest`
+	- Result: `1 failed, 296 passed, 1 skipped`
+	- Failure: `tests/test_regression_v1.py::test_v1_suite_passes_after_feature7`
+	- Nested failing case in output: `tests/test_cli.py::test_feature23_mcp_server_streams_stdout_stderr`
+- Focused re-run executed:
+	- `python3 -m pytest tests/test_cli.py::test_feature23_mcp_server_streams_stdout_stderr tests/test_regression_v1.py::test_v1_suite_passes_after_feature7 -q`
+	- Result: `2 passed`
+- Interpretation: observed failure appears flaky/timing-sensitive in legacy MCP stream assertion path and is not specific to feature35 state snapshot behavior.
+
+### Findings, Gaps, and Improvements
+- Medium: Full-suite run did not finish green in this cycle due a flaky legacy regression gate, so merge confidence relies on focused re-run plus feature35-targeted evidence.
+- Low: Metadata consistency gap: feature35 in FEATURES remains `status: not-started` while tasks task194-task198 are `needs-review`.
+- Low: Documentation duplication risk: Feature35 mutable snapshot guidance appears in two README sections and can drift unless consolidated.
+
+### Merge Decision
+- Approved for merge based on implementation evidence and AC coverage, with the noted flaky-test residual risk.
