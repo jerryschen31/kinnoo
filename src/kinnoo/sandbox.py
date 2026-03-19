@@ -10,6 +10,8 @@ class SandboxDecision:
     code: str
     message: str
     remediation: str
+    capability: str | None = None
+    action: str | None = None
 
 
 def _permission_bool(value: object) -> bool:
@@ -117,6 +119,8 @@ def evaluate_sandbox_permissions(
                 remediation=(
                     "Set permissions.network=true or remove network actions before running with --sandbox"
                 ),
+                capability="network",
+                action="network_access",
             )
 
         if capability == "shell" and not _permission_bool(permissions.get("shell")):
@@ -129,6 +133,8 @@ def evaluate_sandbox_permissions(
                 remediation=(
                     "Set permissions.shell=true or remove shell actions before running with --sandbox"
                 ),
+                capability="shell",
+                action="shell_execution",
             )
 
         if capability == "filesystem" and not _filesystem_scope_allows_write(
@@ -144,6 +150,8 @@ def evaluate_sandbox_permissions(
                     "Set permissions.filesystem_scope to 'workspace-write' or 'full', "
                     "or remove write actions before running with --sandbox"
                 ),
+                capability="filesystem",
+                action="filesystem_write",
             )
 
     return SandboxDecision(

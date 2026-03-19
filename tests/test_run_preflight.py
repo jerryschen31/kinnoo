@@ -4,6 +4,7 @@ from pathlib import Path
 import os
 import socket
 import threading
+import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
@@ -464,6 +465,89 @@ def test_feature25_preflight_includes_service_health_results(tmp_path: Path) -> 
         tcp_socket.close()
         http_server.shutdown()
         http_server.server_close()
+
+
+def test_feature39_violation_diagnostics_secret_safe(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "feature39-violation-diagnostics-agent"
+    agent_dir.mkdir(parents=True, exist_ok=True)
+
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: feature39-violation-diagnostics-agent",
+                "version: 1.0.0",
+                "entrypoint: run.js",
+                "runtime:",
+                "  language: nodejs",
+                "  version: \">=20.0.0\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "env_vars:",
+                "  - FEATURE39_SECRET_TOKEN",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+                "permissions:",
+                "  network: true",
+                "  filesystem_scope: read-only",
+                "  shell: false",
+                "  browser: false",
+                "  env_access: []",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    (agent_dir / "run.js").write_text("console.log('should-not-run');\n", encoding="utf-8")
+
+    secret_token = "feature39-secret-token-value"
+    env = dict(os.environ)
+    env["FEATURE39_SECRET_TOKEN"] = secret_token
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(CLI_PATH),
+            "run",
+            str(agent_dir),
+            "hello",
+            "--sandbox",
+            "--",
+            "--exec",
+            secret_token,
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+
+    assert result.returncode != 0
+    assert "classification=policy_violation" in output
+    assert "capability=shell action=shell_execution" in output
+    assert "Remediation:" in output
+    assert "[kinnoo security] violation event:" in output
+    assert secret_token not in output
+
+    violation_trace_path = agent_dir / ".kinnoo" / "violation-events.jsonl"
+    assert violation_trace_path.exists(), output
+
+    trace_lines = [
+        line for line in violation_trace_path.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
+    assert trace_lines, "Expected at least one violation event entry"
+
+    event_payload = json.loads(trace_lines[-1])
+    assert event_payload["event_type"] == "permission_violation"
+    assert event_payload["boundary"] == "run"
+    assert event_payload["classification"] == "policy_violation"
+    assert event_payload["capability"] == "shell"
+    assert event_payload["attempted_action"] == "shell_execution"
+    assert "remediation" in event_payload and event_payload["remediation"]
+    assert secret_token not in trace_lines[-1]
 
 
 def test_feature31_node_preflight_toolchain_guards(tmp_path: Path) -> None:
