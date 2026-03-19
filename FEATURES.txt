@@ -1325,7 +1325,7 @@ features:
       into kinnoo manifests. Detection should combine strong signals (openclaw.json,
       package dependency markers, SOUL.md) with medium-confidence signals (skill folders,
       AGENTS.md/USER.md, memory directory structure).
-    tasks: []
+    tasks: [task199, task200, task201, task202, task203]
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo import` detects OpenClaw projects using weighted evidence and reports confidence/evidence in output."
