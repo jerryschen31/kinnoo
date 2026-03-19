@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v0.20.0] - 2026-03-19
+### Added
+- Implemented Feature38 "JS/TS Static Security Sweep" with cross-language static scanning support for `.js`, `.mjs`, `.ts`, and `.json` artifacts.
+- Added risky JS/TS execution primitive detection (`eval`, `Function` constructor, and child-process execution patterns) with deterministic file/line finding evidence.
+- Added dangerous OpenClaw JSON configuration checks for high-risk settings with targeted warning diagnostics.
+
+### Changed
+- Extended pack-time warning-first security checks to include memory snapshot candidate credential-risk scanning before archive completion.
+- Preserved and regression-validated no-secret-value reporting contract across mixed Python and JS/TS sweep findings.
+
+### Quality
+- Feature38 acceptance criteria gate validated across `test307`-`test311`.
+- Full regression executed for review cycle: `314 passed, 1 skipped` (`python3 -m pytest`).
+- Merge commit: TBD (populate after merge to `phase4/main`).
+
+
 ## [v0.19.0] - 2026-03-19
 ### Added
 - Implemented Feature37 "Node.js Dependency Audit & Lifecycle Script Controls" with install-time Node audit visibility and deterministic severity summary reporting (`critical/high/moderate/low`).
