@@ -496,6 +496,68 @@ def test_feature34_openclaw_readme_setup_guidance(tmp_path):
     assert "node index.mjs" in readme_text
 
 
+def test_feature34_scaffold_deterministic_without_openclaw_cli(tmp_path, monkeypatch):
+    """test291: OpenClaw scaffold is deterministic and does not shell out to external openclaw CLI."""
+    from kinnoo.init_command import init_agent
+
+    agent_name = "feature34-openclaw-deterministic"
+    run_one_root = tmp_path / "deterministic-run-one"
+    run_two_root = tmp_path / "deterministic-run-two"
+    run_one_root.mkdir()
+    run_two_root.mkdir()
+
+    original_run = subprocess.run
+    original_popen = subprocess.Popen
+
+    def _guard_openclaw_invocation(cmd, *args, **kwargs):
+        command_tokens = cmd if isinstance(cmd, (list, tuple)) else [cmd]
+        normalized = [str(token).strip() for token in command_tokens if token is not None]
+        executable = normalized[0] if normalized else ""
+        if os.path.basename(executable) == "openclaw":
+            raise AssertionError("OpenClaw scaffold init must not invoke external openclaw CLI")
+        return original_run(cmd, *args, **kwargs)
+
+    def _guard_openclaw_popen(cmd, *args, **kwargs):
+        command_tokens = cmd if isinstance(cmd, (list, tuple)) else [cmd]
+        normalized = [str(token).strip() for token in command_tokens if token is not None]
+        executable = normalized[0] if normalized else ""
+        if os.path.basename(executable) == "openclaw":
+            raise AssertionError("OpenClaw scaffold init must not invoke external openclaw CLI")
+        return original_popen(cmd, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", _guard_openclaw_invocation)
+    monkeypatch.setattr(subprocess, "Popen", _guard_openclaw_popen)
+
+    init_agent(agent_name, run_one_root, framework="openclaw")
+    init_agent(agent_name, run_two_root, framework="openclaw")
+
+    def _snapshot(agent_dir):
+        snapshot = {}
+        for path in sorted(agent_dir.rglob("*")):
+            if path.is_file():
+                snapshot[path.relative_to(agent_dir).as_posix()] = path.read_text(encoding="utf-8")
+        return snapshot
+
+    first_snapshot = _snapshot(run_one_root / agent_name)
+    second_snapshot = _snapshot(run_two_root / agent_name)
+    assert first_snapshot == second_snapshot
+
+    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    pathless_root = tmp_path / "pathless-cli-run"
+    pathless_root.mkdir()
+
+    env = os.environ.copy()
+    env["PATH"] = ""
+    result = original_run(
+        [sys.executable, str(cli_script), "init", "feature34-openclaw-pathless", "--framework", "openclaw"],
+        cwd=pathless_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+
+
 def test_feature21_regression_existing_frameworks_unchanged(tmp_path):
     expected = {
         "gemini": {

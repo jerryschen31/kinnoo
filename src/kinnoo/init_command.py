@@ -86,6 +86,7 @@ def init_agent(name: str, target_dir: Path, framework: Optional[str] = None):
         (agent_dir / "README.md").write_text(README_MD_TEMPLATE.format(name=name))
 
     if framework == "openclaw":
+        # Keep OpenClaw scaffolding deterministic and offline-safe: template writes only, no shell-outs.
         skills_default_dir = agent_dir / "skills" / "default"
         skills_default_dir.mkdir(parents=True)
         (agent_dir / "memory").mkdir()
