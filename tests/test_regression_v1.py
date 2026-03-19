@@ -963,3 +963,137 @@ def test_feature37_python_install_noop_regression_guard(tmp_path):
     assert run_result.returncode == 0, run_output
     assert "feature37-python-noop:baseline" in run_output
 
+
+def test_feature38_output_format_and_secret_safety_regression_guard(tmp_path):
+    """Regression gate: feature38 findings keep stable output format and never echo raw secret values."""
+    repo_root = Path(__file__).resolve().parents[1]
+    cli_path = repo_root / "src" / "kinnoo" / "cli.py"
+
+    inspect_agent = tmp_path / "feature38-regression-inspect-agent"
+    inspect_agent.mkdir(parents=True, exist_ok=True)
+    (inspect_agent / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: feature38-regression-inspect-agent",
+                "version: 1.0.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \"3.10\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "  type: string",
+                "outputs:",
+                "  type: string",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (inspect_agent / "requirements.txt").write_text("", encoding="utf-8")
+    (inspect_agent / "run.py").write_text(
+        "import os\n"
+        "print(os.environ.get('API_KEY'))\n",
+        encoding="utf-8",
+    )
+
+    js_secret = "ghp_abcdefghijklmnopqrstuvwxyz0123456789AB"
+    openclaw_secret = "sk-abcdefghijklmnopqrstuvwxyz123456"
+
+    (inspect_agent / "danger.js").write_text(
+        "const expr = '2 + 2';\n"
+        "const value = eval(expr);\n"
+        f"const token = '{js_secret}';\n",
+        encoding="utf-8",
+    )
+    (inspect_agent / "openclaw-config.json").write_text(
+        json.dumps(
+            {
+                "openclaw": {
+                    "allow_shell": True,
+                    "tool_policy": "allow_all",
+                },
+                "apiToken": openclaw_secret,
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    inspect_result = subprocess.run(
+        [sys.executable, str(cli_path), "inspect", str(inspect_agent)],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    )
+    inspect_output = f"{inspect_result.stdout}\n{inspect_result.stderr}"
+    assert inspect_result.returncode == 0, inspect_output
+
+    # Output contract assertions for inspect sweep findings.
+    assert "Security sweep:" in inspect_output
+    assert "run.py:2: print() with os.environ access" in inspect_output
+    assert "danger.js:2: risky js execution primitive (eval)" in inspect_output
+    assert "danger.js:3: credential-like pattern (GitHub personal access token)" in inspect_output
+    assert "openclaw-config.json:3: dangerous openclaw config (allow_shell=true enables shell command execution)" in inspect_output
+    assert "openclaw-config.json:4: dangerous openclaw config (tool_policy=allow_all disables tool restrictions)" in inspect_output
+    assert "(heuristic scan — may produce false positives; not a substitute for code review)" in inspect_output
+
+    # No-secret invariant across mixed finding categories.
+    assert js_secret not in inspect_output
+    assert openclaw_secret not in inspect_output
+
+    pack_agent = tmp_path / "feature38-regression-pack-agent"
+    pack_agent.mkdir(parents=True, exist_ok=True)
+    (pack_agent / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: feature38-regression-pack-agent",
+                "version: 1.0.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: '>=3.10'",
+                "  type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+                "state_dirs:",
+                "  - path: memory",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (pack_agent / "requirements.txt").write_text("", encoding="utf-8")
+    (pack_agent / "run.py").write_text("print('ok')\n", encoding="utf-8")
+
+    memory_dir = pack_agent / "memory"
+    memory_dir.mkdir(parents=True, exist_ok=True)
+    memory_secret = "aws_secret_access_key=ABCDEFGHIJKLMNOPQRSTUVWX1234567890"
+    (memory_dir / "snapshot.json").write_text(
+        "{\n"
+        f"  \"checkpoint\": \"{memory_secret}\"\n"
+        "}\n",
+        encoding="utf-8",
+    )
+
+    pack_env = dict(os.environ)
+    pack_env["KINNOO_ARCHIVE_ROOT"] = str(tmp_path / "archive-root")
+    pack_result = subprocess.run(
+        [sys.executable, str(cli_path), "pack", str(pack_agent)],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        env=pack_env,
+    )
+    pack_output = f"{pack_result.stdout}\n{pack_result.stderr}"
+    assert pack_result.returncode == 0, pack_output
+    assert "Memory snapshot security sweep warnings:" in pack_output
+    assert "memory/snapshot.json: credential-like text pattern (AWS secret key assignment)" in pack_output
+    assert "[kinnoo pack] Archive created:" in pack_output
+    assert memory_secret not in pack_output
+
