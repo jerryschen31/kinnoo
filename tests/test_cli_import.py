@@ -463,3 +463,57 @@ def test_feature36_infers_runtime_skills_state_dirs(tmp_path):
     assert "skills/default/SKILL.md" in manifest_text
     assert "state_dirs:" in manifest_text
     assert "- memory" in manifest_text
+
+
+def test_feature36_manifest_valid_or_todo_guidance(tmp_path):
+    complete_project = tmp_path / "feature36-manifest-guidance-complete"
+    complete_project.mkdir(parents=True, exist_ok=True)
+    (complete_project / "run.py").write_text(
+        "import sys\n"
+        "if __name__ == '__main__':\n"
+        "    print(sys.argv[1] if len(sys.argv) > 1 else 'ok')\n",
+        encoding="utf-8",
+    )
+    (complete_project / "openclaw.json").write_text("{}\n", encoding="utf-8")
+    (complete_project / "package.json").write_text(
+        "{\n"
+        "  \"name\": \"feature36-manifest-guidance-complete\",\n"
+        "  \"version\": \"1.0.0\",\n"
+        "  \"dependencies\": {\n"
+        "    \"@openclaw/core\": \"^0.1.0\"\n"
+        "  }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    (complete_project / "skills" / "default").mkdir(parents=True, exist_ok=True)
+    (complete_project / "skills" / "default" / "SKILL.md").write_text("# Default skill\n", encoding="utf-8")
+    (complete_project / "memory").mkdir(parents=True, exist_ok=True)
+
+    complete_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(complete_project)],
+        input="y\n",
+        capture_output=True,
+        text=True,
+    )
+
+    complete_output = complete_result.stdout + complete_result.stderr
+    assert complete_result.returncode == 0
+    assert "Generated manifest validation: PASS" in complete_output
+
+    unresolved_project = tmp_path / "feature36-manifest-guidance-unresolved"
+    unresolved_project.mkdir(parents=True, exist_ok=True)
+    (unresolved_project / "README.md").write_text("import fixture without executable entrypoint\n", encoding="utf-8")
+
+    unresolved_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(unresolved_project)],
+        input="y\n\n\n",
+        capture_output=True,
+        text=True,
+    )
+
+    unresolved_output = unresolved_result.stdout + unresolved_result.stderr
+    assert unresolved_result.returncode == 0
+    assert "Generated manifest validation: PASS" in unresolved_output
+    assert "TODO guidance:" in unresolved_output
+    assert "Verify 'entrypoint' points to an existing executable script in the project root." in unresolved_output
+    assert "does not exist in target project" in unresolved_output
