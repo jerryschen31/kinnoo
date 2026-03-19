@@ -30,6 +30,8 @@ _NODE_METADATA_FILES = [
     "yarn.lock",
 ]
 
+_STATE_SNAPSHOT_PREFIX = "state_snapshots"
+
 
 def _warning_threshold_mb_from_env() -> float:
     raw_value = os.environ.get("KINNOO_PACK_WARN_THRESHOLD_MB")
@@ -156,6 +158,67 @@ def _collect_asset_files(manifest: dict, agent_root: Path) -> tuple[list[tuple[s
                 resolved_files.append((arcname, child))
 
     return resolved_files, True
+
+
+def _iter_declared_state_dir_paths(manifest: dict) -> list[str]:
+    """Return normalized state_dirs root paths from legacy or structured entries."""
+    raw_state_dirs = manifest.get("state_dirs")
+    if not isinstance(raw_state_dirs, list):
+        return []
+
+    normalized_paths: list[str] = []
+    for entry in raw_state_dirs:
+        if isinstance(entry, str):
+            candidate = entry.strip()
+            if candidate:
+                normalized_paths.append(candidate)
+            continue
+
+        if isinstance(entry, dict):
+            path_value = entry.get("path")
+            if isinstance(path_value, str):
+                candidate = path_value.strip()
+                if candidate:
+                    normalized_paths.append(candidate)
+
+    return normalized_paths
+
+
+def _collect_state_snapshot_files(manifest: dict, agent_root: Path) -> list[tuple[str, Path]]:
+    """Collect state_dirs files into deterministic snapshot archive paths.
+
+    Layout is intentionally separated from immutable assets to preserve semantic
+    distinction for future install/restore behavior.
+    """
+    snapshot_files: list[tuple[str, Path]] = []
+
+    for declared_state_root in _iter_declared_state_dir_paths(manifest):
+        state_root_path = (agent_root / Path(declared_state_root)).resolve(strict=False)
+        if not _path_within_root(state_root_path, agent_root):
+            raise ValueError(
+                f"State directory path '{declared_state_root}' escapes agent directory and is not allowed."
+            )
+
+        if not state_root_path.exists():
+            print(
+                f"Warning: Declared state directory '{declared_state_root}' was not found and will be skipped.",
+                file=sys.stderr,
+            )
+            continue
+
+        if state_root_path.is_file():
+            raise ValueError(
+                f"State directory path '{declared_state_root}' must reference a directory, not a file."
+            )
+
+        for child in sorted(state_root_path.rglob("*")):
+            if not child.is_file():
+                continue
+            relative_from_state_root = child.relative_to(state_root_path).as_posix()
+            arcname = f"{_STATE_SNAPSHOT_PREFIX}/{declared_state_root}/{relative_from_state_root}"
+            snapshot_files.append((arcname, child))
+
+    return snapshot_files
 
 def _read_requirements(requirements_path: Path) -> list[str]:
     requirements: list[str] = []
@@ -334,6 +397,15 @@ def pack_agent(agent_dir: str, bump: str | None = None) -> int:
         print(f"Error: {error}", file=sys.stderr)
         return 1
 
+    try:
+        state_snapshot_files = _collect_state_snapshot_files(
+            manifest=manifest,
+            agent_root=Path(abs_agent_dir),
+        )
+    except ValueError as error:
+        print(f"Error: {error}", file=sys.stderr)
+        return 1
+
     if not assets_bundle_enabled:
         print("[kinnoo pack] Asset bundling disabled by assets.bundle=false")
 
@@ -437,6 +509,11 @@ def pack_agent(agent_dir: str, bump: str | None = None) -> int:
             archive_file.write(absolute_path, arcname=relative_path)
             archived_entries.add(relative_path)
         for arcname, absolute_path in asset_files:
+            if arcname in archived_entries:
+                continue
+            archive_file.write(absolute_path, arcname=arcname)
+            archived_entries.add(arcname)
+        for arcname, absolute_path in state_snapshot_files:
             if arcname in archived_entries:
                 continue
             archive_file.write(absolute_path, arcname=arcname)
