@@ -4967,3 +4967,83 @@ tests:
     covers:
       - feature: feature36
         ac: AC5
+
+  - id: test302
+    title: Feature37 node install audit prints deterministic severity summary
+    type: integration
+    preconditions: install flow can identify nodejs runtime agents and execute npm audit or equivalent output parsing
+    steps:
+      - step1: Install a nodejs agent fixture with mocked audit output containing critical high moderate and low counts
+      - step2: Verify install output includes deterministic severity summary fields and values
+      - step3: Verify equivalent python-agent install path does not emit node audit summary
+    expected: node installs show audit severity summary and python installs remain unaffected
+    pass_criteria: output contains critical/high/moderate/low summary for node fixture and no node audit summary for python fixture
+    automated: true
+    automation_path: tests/test_cli_install.py::test_feature37_node_audit_severity_summary
+    covers:
+      - feature: feature37
+        ac: AC1
+
+  - id: test303
+    title: Feature37 critical vulnerability gate blocks by default and supports allow override
+    type: integration
+    preconditions: node install audit severity parsing is available with critical findings classification
+    steps:
+      - step1: Run install on a node fixture where audit reports critical findings without override
+      - step2: Verify install fails with clear remediation guidance including allow-vulnerable option
+      - step3: Re-run with --allow-vulnerable and verify install continues with warning
+    expected: default behavior blocks critical vulnerability installs and explicit override permits continuation
+    pass_criteria: non-override run exits non-zero and override run exits zero while preserving warning visibility
+    automated: true
+    automation_path: tests/test_cli_install.py::test_feature37_critical_gate_default_block_and_allow_override
+    covers:
+      - feature: feature37
+        ac: AC2
+
+  - id: test304
+    title: Feature37 lifecycle script warnings and ignore-scripts mode are enforced for node installs
+    type: integration
+    preconditions: node package metadata lifecycle script detection is wired into install path
+    steps:
+      - step1: Install a node fixture declaring lifecycle scripts and verify warning output prior to install execution
+      - step2: Install same fixture with --ignore-scripts and verify package manager invocation disables script execution
+      - step3: Confirm output clearly records whether scripts were executed or ignored
+    expected: lifecycle-script risk is visible and ignore-scripts policy is enforceable during install
+    pass_criteria: warning appears when scripts are present and ignore-scripts mode produces deterministic script-disabled behavior
+    automated: true
+    automation_path: tests/test_cli_install.py::test_feature37_lifecycle_scripts_warning_and_ignore_scripts_mode
+    covers:
+      - feature: feature37
+        ac: AC3
+
+  - id: test305
+    title: Feature37 audit outcomes and decisions are persisted in machine-readable install trace
+    type: integration
+    preconditions: install trace writer can persist structured install metadata
+    steps:
+      - step1: Execute blocked and override node install scenarios with deterministic audit fixtures
+      - step2: Read resulting install trace artifacts
+      - step3: Verify trace includes audit severity counts lifecycle script metadata and policy decision fields
+    expected: install trace captures audit and decision outcomes in structured machine-readable form
+    pass_criteria: trace schema contains expected fields and values for both blocked and override scenarios without secret leakage
+    automated: true
+    automation_path: tests/test_cli_install.py::test_feature37_install_trace_captures_audit_and_decisions
+    covers:
+      - feature: feature37
+        ac: AC4
+
+  - id: test306
+    title: Feature37 node audit controls do not change python install baseline behavior
+    type: integration
+    preconditions: existing python install regression fixtures are available
+    steps:
+      - step1: Run python-agent install flow under baseline and with feature37-related flags present where applicable
+      - step2: Verify node audit command paths are not invoked for python runtime manifests
+      - step3: Verify install outcomes and user-facing behavior match prior baseline expectations
+    expected: feature37 controls remain node-only with no regression to python install workflows
+    pass_criteria: python install behavior remains unchanged and regression guard passes under full suite
+    automated: true
+    automation_path: tests/test_regression_v1.py::test_feature37_python_install_noop_regression_guard
+    covers:
+      - feature: feature37
+        ac: AC5

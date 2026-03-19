@@ -7,7 +7,18 @@ import venv
 import zipfile
 import re
 import os
+import json
 from pathlib import Path
+
+NODE_LIFECYCLE_SCRIPT_NAMES = {
+    "preinstall",
+    "install",
+    "postinstall",
+    "prepublish",
+    "preprepare",
+    "prepare",
+    "postprepare",
+}
 
 try:
     from kinnoo.checksum import (
@@ -22,6 +33,7 @@ try:
     from kinnoo.schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars
     from kinnoo.inspect_command import read_manifest_from_kno_archive
     from kinnoo.validator import validate
+    from kinnoo.install_trace import write_install_trace
 except ImportError:
     from .checksum import (
         ChecksumParseError,
@@ -35,6 +47,7 @@ except ImportError:
     from .schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars
     from .inspect_command import read_manifest_from_kno_archive
     from .validator import validate
+    from .install_trace import write_install_trace
 
 
 def _read_requirements(requirements_path: Path) -> list[str]:
@@ -116,7 +129,143 @@ def _resolve_node_package_manager(runtime: dict[str, object]) -> tuple[str | Non
     return normalized, None
 
 
-def _install_node_dependencies(target_dir: Path, runtime: dict[str, object]) -> int:
+def _parse_node_audit_severity_counts(raw_output: str) -> dict[str, int]:
+    """Parse npm audit JSON output into deterministic severity counters."""
+    counts = {"critical": 0, "high": 0, "moderate": 0, "low": 0}
+
+    try:
+        payload = json.loads(raw_output)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return counts
+
+    metadata = payload.get("metadata") if isinstance(payload, dict) else None
+    vulnerabilities_meta = metadata.get("vulnerabilities") if isinstance(metadata, dict) else None
+    if isinstance(vulnerabilities_meta, dict):
+        for severity in counts:
+            value = vulnerabilities_meta.get(severity)
+            if isinstance(value, int) and value >= 0:
+                counts[severity] = value
+        return counts
+
+    vulnerabilities = payload.get("vulnerabilities") if isinstance(payload, dict) else None
+    if isinstance(vulnerabilities, dict):
+        for entry in vulnerabilities.values():
+            if not isinstance(entry, dict):
+                continue
+            severity = entry.get("severity")
+            if isinstance(severity, str):
+                normalized = severity.strip().lower()
+                if normalized in counts:
+                    counts[normalized] += 1
+
+    return counts
+
+
+def _run_node_audit_summary(target_dir: Path, package_manager: str) -> dict[str, int]:
+    """Run node dependency audit and print deterministic severity summary."""
+    audit_command = [package_manager, "audit", "--json"]
+    audit_result = subprocess.run(
+        audit_command,
+        capture_output=True,
+        text=True,
+        cwd=target_dir,
+    )
+
+    # npm audit commonly returns non-zero when vulnerabilities are present.
+    audit_output = audit_result.stdout or audit_result.stderr or ""
+    severity_counts = _parse_node_audit_severity_counts(audit_output)
+
+    summary = (
+        "[kinnoo install] Node audit severity summary: "
+        f"critical={severity_counts['critical']} "
+        f"high={severity_counts['high']} "
+        f"moderate={severity_counts['moderate']} "
+        f"low={severity_counts['low']}"
+    )
+    print(summary)
+
+    if not audit_output.strip():
+        print(
+            "Warning: Node audit command produced no parseable output; severity summary defaults to zero counts.",
+            file=sys.stderr,
+        )
+
+    return severity_counts
+
+
+def _detect_node_lifecycle_scripts(package_json_path: Path) -> list[str]:
+    """Return deterministic lifecycle script names declared in package.json."""
+    try:
+        package_payload = json.loads(package_json_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, json.JSONDecodeError):
+        return []
+
+    scripts = package_payload.get("scripts") if isinstance(package_payload, dict) else None
+    if not isinstance(scripts, dict):
+        return []
+
+    declared: list[str] = []
+    for script_name, script_command in scripts.items():
+        if not isinstance(script_name, str) or not isinstance(script_command, str):
+            continue
+        normalized_name = script_name.strip()
+        if not normalized_name or not script_command.strip():
+            continue
+        if normalized_name in NODE_LIFECYCLE_SCRIPT_NAMES:
+            declared.append(normalized_name)
+
+    return sorted(set(declared))
+
+
+def _write_node_install_trace(
+    target_dir: Path,
+    *,
+    package_manager: str,
+    lifecycle_scripts: list[str],
+    allow_vulnerable: bool,
+    ignore_scripts: bool,
+    severity_counts: dict[str, int],
+    outcome: str,
+    decision_reason: str,
+) -> None:
+    """Write machine-readable Node install trace with audit and policy decisions."""
+    trace_payload: dict[str, object] = {
+        "schema_version": "1.0",
+        "runtime_language": "nodejs",
+        "package_manager": package_manager,
+        "lifecycle_scripts": {
+            "detected": bool(lifecycle_scripts),
+            "names": list(lifecycle_scripts),
+            "policy": "ignored" if ignore_scripts else "allowed",
+        },
+        "audit": {
+            "severity_counts": {
+                "critical": int(severity_counts.get("critical", 0)),
+                "high": int(severity_counts.get("high", 0)),
+                "moderate": int(severity_counts.get("moderate", 0)),
+                "low": int(severity_counts.get("low", 0)),
+            }
+        },
+        "decision": {
+            "outcome": outcome,
+            "reason": decision_reason,
+            "allow_vulnerable": allow_vulnerable,
+            "ignore_scripts": ignore_scripts,
+        },
+    }
+
+    trace_path = write_install_trace(target_dir=target_dir, payload=trace_payload)
+    if trace_path is not None:
+        print(f"[kinnoo install] Wrote install trace: '{trace_path}'")
+
+
+def _install_node_dependencies(
+    target_dir: Path,
+    runtime: dict[str, object],
+    *,
+    allow_vulnerable: bool,
+    ignore_scripts: bool,
+) -> int:
     runtime_version = runtime.get("version")
     runtime_constraint = str(runtime_version) if runtime_version is not None else ""
     runtime_ok, runtime_message = check_node_runtime_constraint(runtime_constraint)
@@ -150,7 +299,31 @@ def _install_node_dependencies(target_dir: Path, runtime: dict[str, object]) -> 
         )
         return 1
 
+    lifecycle_scripts = _detect_node_lifecycle_scripts(package_json_path)
+    if lifecycle_scripts:
+        lifecycle_label = ", ".join(lifecycle_scripts)
+        print(
+            "Warning: Detected Node lifecycle scripts in package.json: "
+            f"{lifecycle_label}.",
+            file=sys.stderr,
+        )
+        if ignore_scripts:
+            print(
+                "[kinnoo install] Lifecycle scripts policy: ignored (--ignore-scripts enabled)."
+            )
+        else:
+            print(
+                "Warning: Lifecycle scripts are allowed and may execute during dependency installation.",
+                file=sys.stderr,
+            )
+    elif ignore_scripts:
+        print("[kinnoo install] Lifecycle scripts policy: ignored (--ignore-scripts enabled).")
+    else:
+        print("[kinnoo install] Lifecycle scripts policy: allowed.")
+
     install_command = [package_manager, "install"]
+    if ignore_scripts:
+        install_command.append("--ignore-scripts")
     install_result = subprocess.run(
         install_command,
         capture_output=True,
@@ -169,6 +342,46 @@ def _install_node_dependencies(target_dir: Path, runtime: dict[str, object]) -> 
         return install_result.returncode
 
     print(f"[kinnoo install] Node dependencies installed successfully via {package_manager}.")
+    severity_counts = _run_node_audit_summary(target_dir=target_dir, package_manager=package_manager)
+
+    critical_count = severity_counts.get("critical", 0)
+    if critical_count > 0 and not allow_vulnerable:
+        _write_node_install_trace(
+            target_dir=target_dir,
+            package_manager=package_manager,
+            lifecycle_scripts=lifecycle_scripts,
+            allow_vulnerable=allow_vulnerable,
+            ignore_scripts=ignore_scripts,
+            severity_counts=severity_counts,
+            outcome="blocked",
+            decision_reason="critical_vulnerabilities_blocked",
+        )
+        print(
+            "Error: Critical vulnerabilities were detected in Node dependency audit results. "
+            "Install blocked by default. Re-run with --allow-vulnerable to proceed at your own risk.",
+            file=sys.stderr,
+        )
+        return 1
+
+    decision_reason = "no_critical_vulnerabilities"
+    if critical_count > 0 and allow_vulnerable:
+        decision_reason = "critical_vulnerabilities_overridden"
+        print(
+            "Warning: Continuing install despite critical vulnerabilities because --allow-vulnerable was set.",
+            file=sys.stderr,
+        )
+
+    _write_node_install_trace(
+        target_dir=target_dir,
+        package_manager=package_manager,
+        lifecycle_scripts=lifecycle_scripts,
+        allow_vulnerable=allow_vulnerable,
+        ignore_scripts=ignore_scripts,
+        severity_counts=severity_counts,
+        outcome="allowed",
+        decision_reason=decision_reason,
+    )
+
     return 0
 
 
@@ -260,6 +473,8 @@ def install_agent(
     force: bool = False,
     assume_yes: bool = False,
     overwrite_state: bool = False,
+    allow_vulnerable: bool = False,
+    ignore_scripts: bool = False,
 ) -> int:
     target_spec = parse_install_target_spec(archive_path)
     if target_spec.kind == "invalid":
@@ -302,6 +517,8 @@ def install_agent(
             force=force,
             assume_yes=assume_yes,
             overwrite_state=overwrite_state,
+            allow_vulnerable=allow_vulnerable,
+            ignore_scripts=ignore_scripts,
         )
 
     archive = target_spec.archive_path or Path(archive_path)
@@ -311,6 +528,8 @@ def install_agent(
         force=force,
         assume_yes=assume_yes,
         overwrite_state=overwrite_state,
+        allow_vulnerable=allow_vulnerable,
+        ignore_scripts=ignore_scripts,
     )
 
 
@@ -320,6 +539,8 @@ def _install_from_archive_path(
     force: bool = False,
     assume_yes: bool = False,
     overwrite_state: bool = False,
+    allow_vulnerable: bool = False,
+    ignore_scripts: bool = False,
 ) -> int:
     archive = Path(archive_path)
     if not archive.exists() or not archive.is_file():
@@ -486,7 +707,12 @@ def _install_from_archive_path(
             runtime_language = runtime_language_value.strip().lower()
 
     if runtime_language == "nodejs":
-        return _install_node_dependencies(target_dir=target_dir, runtime=runtime if isinstance(runtime, dict) else {})
+        return _install_node_dependencies(
+            target_dir=target_dir,
+            runtime=runtime if isinstance(runtime, dict) else {},
+            allow_vulnerable=allow_vulnerable,
+            ignore_scripts=ignore_scripts,
+        )
 
     wheels_dir = target_dir / "wheels"
     venv_dir = target_dir / ".venv"

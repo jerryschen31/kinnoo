@@ -142,6 +142,16 @@ def main():
         action="store_true",
         help="Allow state snapshot restore to overwrite existing extracted state directories",
     )
+    install_parser.add_argument(
+        "--allow-vulnerable",
+        action="store_true",
+        help="Allow install to continue when Node audit reports critical vulnerabilities (security risk)",
+    )
+    install_parser.add_argument(
+        "--ignore-scripts",
+        action="store_true",
+        help="Disable Node package lifecycle scripts during dependency installation",
+    )
 
     # Add 'pack' subcommand
     pack_parser = subparsers.add_parser("pack", help="Package an agent directory into a .kno archive")
@@ -314,6 +324,8 @@ def main():
             force = True
         assume_yes = bool(getattr(args, "yes", False))
         overwrite_state = bool(getattr(args, "state_overwrite", False))
+        allow_vulnerable = bool(getattr(args, "allow_vulnerable", False))
+        ignore_scripts = bool(getattr(args, "ignore_scripts", False))
         try:
             from kinnoo.install_command import install_agent
         except ImportError:
@@ -325,6 +337,8 @@ def main():
             force=force,
             assume_yes=assume_yes,
             overwrite_state=overwrite_state,
+            allow_vulnerable=allow_vulnerable,
+            ignore_scripts=ignore_scripts,
         )
         sys.exit(exit_code)
 
