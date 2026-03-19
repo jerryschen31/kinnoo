@@ -4080,7 +4080,7 @@ tasks:
       - 'step4: Add tests for script-detected warning path and ignore-scripts enforcement path'
     dependencies: [task204]
     tests: [test304]
-    status: not-started
+    status: needs-review
 
   - id: task207
     title: "Feature37 machine-readable audit and install decision trace"
