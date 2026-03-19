@@ -4317,4 +4317,4 @@ tasks:
       - 'step4: Add tests asserting actionable diagnostics and explicit no-secret-value protections'
     dependencies: [task215, task216, task217]
     tests: [test316]
-    status: not-started
+    status: needs-review
