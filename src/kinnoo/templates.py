@@ -473,7 +473,29 @@ OPENCLAW_JSON_TEMPLATE = '''{{
 
 OPENCLAW_INDEX_MJS_TEMPLATE = '''const inputText = process.argv[2] ?? "";
 
-console.log(`[openclaw scaffold] input: ${inputText}`);
+const requiredEnvVars = ["OPENCLAW_API_KEY", "KINNOO_TEST_SAFE_MODE"];
+const missingEnvVars = requiredEnvVars.filter((name) => !process.env[name]);
+
+if (missingEnvVars.length > 0) {
+  console.error(`[openclaw scaffold] missing env vars: ${missingEnvVars.join(",")}`);
+  process.exit(1);
+}
+
+const mode = process.env.KINNOO_TEST_SAFE_MODE === "1" ? "test-safe" : "live";
+console.log(`[openclaw scaffold] daemon ready mode=${mode} input=${inputText}`);
+
+const heartbeat = setInterval(() => {
+  // Keep the scaffold alive in daemon mode; lifecycle is controlled by kinnoo stop.
+}, 60_000);
+
+const shutdown = () => {
+  clearInterval(heartbeat);
+  console.log("[openclaw scaffold] daemon stopping");
+  process.exit(0);
+};
+
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);
 '''
 
 OPENCLAW_DEFAULT_SKILL_TEMPLATE = '''# Default Skill
@@ -549,6 +571,9 @@ skills:
   - skills/default
 state_dirs:
   - memory
+env_vars:
+  - OPENCLAW_API_KEY
+  - KINNOO_TEST_SAFE_MODE
 dependencies: []
 inputs:
   type: text
