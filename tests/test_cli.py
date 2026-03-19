@@ -1221,6 +1221,73 @@ def test_feature32_logs_daemon_tail_and_follow(monkeypatch, tmp_path, capsys):
     assert "follow mode requires an active daemon" in combined_output
 
 
+def test_feature34_openclaw_template_smoke_run(tmp_path):
+    """test289: generated OpenClaw scaffold runs via kinnoo run with required env vars configured."""
+    agent_name = "feature34-openclaw-smoke"
+    cli_script = str((Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"))
+
+    init_result = subprocess.run(
+        [sys.executable, cli_script, "init", agent_name, "--framework", "openclaw"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+    assert init_result.returncode == 0, init_result.stderr
+
+    agent_dir = tmp_path / agent_name
+    env = os.environ.copy()
+    env["OPENCLAW_API_KEY"] = "test-openclaw-api-key"
+    env["KINNOO_TEST_SAFE_MODE"] = "1"
+
+    state_path = agent_dir / ".kinnoo" / "daemon-state.json"
+    run_result = subprocess.run(
+        [
+            sys.executable,
+            cli_script,
+            "run",
+            str(agent_dir),
+            "smoke-input",
+            "--no-guard",
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    try:
+        run_output = f"{run_result.stdout}\n{run_result.stderr}"
+        assert run_result.returncode == 0, run_output
+        assert run_output.strip(), "Expected deterministic non-empty run output"
+        assert "[kinnoo] daemon started:" in run_output
+        assert "control hints" in run_output
+
+        log_path = agent_dir / ".kinnoo" / "daemon.log"
+        assert state_path.exists(), "Expected daemon state metadata after run"
+        assert log_path.exists(), "Expected daemon log file after run"
+
+        stop_result = subprocess.run(
+            [sys.executable, cli_script, "stop", str(agent_dir)],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        stop_output = f"{stop_result.stdout}\n{stop_result.stderr}"
+        assert stop_result.returncode == 0, stop_output
+        assert "daemon stopped" in stop_output or "daemon already not running" in stop_output
+        assert not state_path.exists(), "Expected daemon state metadata to be cleared after stop"
+    finally:
+        if state_path.exists():
+            subprocess.run(
+                [sys.executable, cli_script, "stop", str(agent_dir)],
+                cwd=tmp_path,
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+
+
 def test_run_missing_entrypoint(tmp_path):
     """Test kinnoo run with missing entrypoint file prints error and aborts."""
     agent_dir = tmp_path / "test-agent"
