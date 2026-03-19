@@ -4020,4 +4020,4 @@ tasks:
       - 'step4: Add regression gate test protecting non-openclaw import behavior across future changes'
     dependencies: [task199, task200, task201, task202]
     tests: [test301]
-    status: not-started
+    status: needs-review
