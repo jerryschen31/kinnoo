@@ -3636,7 +3636,7 @@ tasks:
       - 'step4: Add focused validator tests for valid and invalid runtime.package_manager values'
     dependencies: [task168]
     tests: [test282]
-    status: needs-review
+    status: completed
 
   - id: task185
     title: "Feature33 channels skills and state_dirs type/path validation"
@@ -3656,7 +3656,7 @@ tasks:
       - 'step4: Add validator tests covering valid payloads and representative type/path failures'
     dependencies: [task184]
     tests: [test283]
-    status: needs-review
+    status: completed
 
   - id: task186
     title: "Feature33 framework openclaw targeted validation rules"
@@ -3675,7 +3675,7 @@ tasks:
       - 'step4: Add tests proving openclaw-specific rules execute only when framework is openclaw'
     dependencies: [task185]
     tests: [test284]
-    status: needs-review
+    status: completed
 
   - id: task187
     title: "Feature33 non-openclaw compatibility and non-breaking guard"
@@ -3695,7 +3695,7 @@ tasks:
       - 'step4: Add guard tests ensuring no backward-incompatible validation drift'
     dependencies: [task184, task185, task186]
     tests: [test285]
-    status: needs-review
+    status: completed
 
   - id: task188
     title: "Feature33 manifest docs updates for OpenClaw and generic Node examples"
@@ -3715,4 +3715,107 @@ tasks:
       - 'step4: Add docs tests asserting feature33 field guidance and examples are present'
     dependencies: [task184, task185, task186, task187]
     tests: [test286]
+    status: completed
+
+  - id: task189
+    title: "Feature34 OpenClaw scaffold file and directory generation"
+    type: task
+    description: |
+      Implement OpenClaw framework scaffold generation for `kinnoo init` so
+      standalone OpenClaw-style projects are created with required identity,
+      runtime, and skills/memory structure.
+    files:
+      - src/kinnoo/templates.py
+      - src/kinnoo/init_command.py
+      - tests/test_init.py
+    steps:
+      - 'step1: Add openclaw template wiring in init command framework routing'
+      - 'step2: Generate package.json openclaw.json index.mjs skills/default/SKILL.md memory AGENTS.md and SOUL.md'
+      - 'step3: Ensure generated directory tree is deterministic and matches expected names/paths'
+      - 'step4: Add scaffold tests validating required files and directories are created'
+    dependencies: [task168, task184, task185, task186]
+    tests: [test287]
+    status: needs-review
+
+  - id: task190
+    title: "Feature34 generated OpenClaw manifest validation contract"
+    type: task
+    description: |
+      Ensure generated kinnoo.yaml for OpenClaw scaffold uses correct framework,
+      runtime, and feature33 extension fields so validation passes reliably.
+    files:
+      - src/kinnoo/templates.py
+      - src/kinnoo/init_command.py
+      - tests/test_init.py
+      - tests/test_validator.py
+    steps:
+      - 'step1: Emit kinnoo.yaml with framework openclaw and Node daemon runtime fields'
+      - 'step2: Include required openclaw validation fields such as runtime.package_manager and stdio channel'
+      - 'step3: Verify manifest passes validator without warnings/errors'
+      - 'step4: Add tests asserting generated manifest schema correctness'
+    dependencies: [task189]
+    tests: [test288]
+    status: needs-review
+
+  - id: task191
+    title: "Feature34 OpenClaw template runnable via kinnoo run"
+    type: task
+    description: |
+      Provide a runnable OpenClaw template entrypoint and test harness so
+      generated projects execute through `kinnoo run` when required env vars
+      are configured, while preserving deterministic test behavior.
+    files:
+      - src/kinnoo/templates.py
+      - src/kinnoo/run_command.py
+      - tests/test_cli.py
+      - tests/test_init.py
+    steps:
+      - 'step1: Implement minimal but real Node entrypoint contract in index.mjs for template run path'
+      - 'step2: Ensure template run path respects required environment variable checks'
+      - 'step3: Add integration test executing kinnoo run against generated openclaw scaffold under test-safe env setup'
+      - 'step4: Confirm output/exit behavior follows one-shot invocation expectations for scaffold smoke run'
+    dependencies: [task189, task190]
+    tests: [test289]
+    status: needs-review
+
+  - id: task192
+    title: "Feature34 OpenClaw template README setup guidance"
+    type: task
+    description: |
+      Update generated OpenClaw README content to include actionable setup
+      instructions for Node prerequisites, dependency install path, and
+      required environment variable names before running.
+    files:
+      - src/kinnoo/templates.py
+      - README.md
+      - tests/test_init.py
+      - tests/test_docs.py
+    steps:
+      - 'step1: Add Node version prerequisite and dependency install guidance to openclaw template README'
+      - 'step2: Document required environment variable names and run commands'
+      - 'step3: Keep instructions concise deterministic and aligned with existing README style'
+      - 'step4: Add tests asserting required setup guidance appears in generated README/docs output'
+    dependencies: [task189]
+    tests: [test290]
+    status: needs-review
+
+  - id: task193
+    title: "Feature34 deterministic scaffold output without openclaw CLI dependency"
+    type: task
+    description: |
+      Guarantee scaffold generation is deterministic and does not shell out to
+      any external `openclaw` binary at init time, preserving offline and CI
+      reliability.
+    files:
+      - src/kinnoo/init_command.py
+      - src/kinnoo/templates.py
+      - tests/test_init.py
+      - tests/test_regression_v1.py
+    steps:
+      - 'step1: Keep framework generation fully template-driven within kinnoo codebase'
+      - 'step2: Add guard tests to detect unintended subprocess calls to openclaw CLI'
+      - 'step3: Add deterministic output assertions for repeat scaffold generation'
+      - 'step4: Add regression gate ensuring existing framework init behavior remains stable'
+    dependencies: [task189, task190, task191, task192]
+    tests: [test291]
     status: needs-review
