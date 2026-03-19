@@ -3960,7 +3960,7 @@ tasks:
       - 'step4: Add tests asserting inferred runtime package manager skills and state_dirs output for representative fixtures'
     dependencies: [task199, task185, task194]
     tests: [test298]
-    status: not-started
+    status: needs-review
 
   - id: task201
     title: "Feature36 identity signal detection for SOUL AGENTS and optional USER docs"
