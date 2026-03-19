@@ -4137,7 +4137,7 @@ tasks:
       - 'step4: Add tests proving JS TS JSON credential patterns are detected with deterministic warning messages'
     dependencies: []
     tests: [test307]
-    status: not-started
+    status: needs-review
 
   - id: task210
     title: "Feature38 risky JS execution primitive detection"
