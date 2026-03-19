@@ -479,6 +479,23 @@ def test_feature34_openclaw_manifest_validation_contract(tmp_path):
     assert "stdio" in manifest_data.get("channels", [])
 
 
+def test_feature34_openclaw_readme_setup_guidance(tmp_path):
+    """test290: generated OpenClaw README includes setup and env guidance."""
+    agent_name = "feature34-openclaw-readme"
+    code, out, err = run_cli(["init", agent_name, "--framework", "openclaw"], cwd=tmp_path)
+    assert code == 0, err
+
+    readme_path = tmp_path / agent_name / "README.md"
+    readme_text = readme_path.read_text(encoding="utf-8")
+
+    assert "Node.js 20+" in readme_text
+    assert "npm install" in readme_text
+    assert "OPENCLAW_API_KEY" in readme_text
+    assert "KINNOO_TEST_SAFE_MODE" in readme_text
+    assert "python src/kinnoo/cli.py run ." in readme_text
+    assert "node index.mjs" in readme_text
+
+
 def test_feature21_regression_existing_frameworks_unchanged(tmp_path):
     expected = {
         "gemini": {
