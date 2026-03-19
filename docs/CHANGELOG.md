@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v0.18.0] - 2026-03-19
+### Added
+- Implemented Feature36 "OpenClaw Import Detection & Manifest Inference" with weighted strong/medium OpenClaw evidence detection surfaced through analyzer confidence metadata.
+- Added OpenClaw import inference for runtime hints (`language: nodejs`, `type: daemon`, package manager), detected `skills` paths, and candidate mutable `state_dirs`.
+- Added identity artifact detection signals for `SOUL.md`, `AGENTS.md`, and optional `USER.md` to improve OpenClaw import diagnostics.
+
+### Changed
+- Extended `kinnoo import` output to report framework confidence metadata and actionable unresolved-field TODO guidance when manifest inference remains partial.
+- Preserved warning-first onboarding behavior for ambiguous detections while keeping operator-confirmed import flow.
+
+### Quality
+- Feature36 acceptance criteria gate validated across `test297`-`test301`.
+- Full regression executed for review cycle: `304 passed, 1 skipped` (`python3 -m pytest`).
+- Merge commit: TBD (populate after merge to `phase4/main`).
+
+
 ## [v0.17.0] - 2026-03-19
 ### Added
 - Implemented Feature35 "Mutable State Directories in Pack/Install" with first-class `state_dirs` snapshot semantics for mutable runtime state.
