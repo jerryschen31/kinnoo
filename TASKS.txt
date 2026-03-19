@@ -4040,7 +4040,7 @@ tasks:
       - 'step4: Add integration tests validating summary output and non-node no-op behavior'
     dependencies: [task165, task168]
     tests: [test302]
-    status: not-started
+    status: needs-review
 
   - id: task205
     title: "Feature37 critical CVE install gate and override control"
