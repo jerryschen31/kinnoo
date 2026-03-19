@@ -3735,7 +3735,7 @@ tasks:
       - 'step4: Add scaffold tests validating required files and directories are created'
     dependencies: [task168, task184, task185, task186]
     tests: [test287]
-    status: needs-review
+    status: completed
 
   - id: task190
     title: "Feature34 generated OpenClaw manifest validation contract"
@@ -3755,7 +3755,7 @@ tasks:
       - 'step4: Add tests asserting generated manifest schema correctness'
     dependencies: [task189]
     tests: [test288]
-    status: needs-review
+    status: completed
 
   - id: task191
     title: "Feature34 OpenClaw template runnable via kinnoo run"
@@ -3776,7 +3776,7 @@ tasks:
       - 'step4: Confirm output/exit behavior follows one-shot invocation expectations for scaffold smoke run'
     dependencies: [task189, task190]
     tests: [test289]
-    status: needs-review
+    status: completed
 
   - id: task192
     title: "Feature34 OpenClaw template README setup guidance"
@@ -3797,7 +3797,7 @@ tasks:
       - 'step4: Add tests asserting required setup guidance appears in generated README/docs output'
     dependencies: [task189]
     tests: [test290]
-    status: needs-review
+    status: completed
 
   - id: task193
     title: "Feature34 deterministic scaffold output without openclaw CLI dependency"
@@ -3818,4 +3818,105 @@ tasks:
       - 'step4: Add regression gate ensuring existing framework init behavior remains stable'
     dependencies: [task189, task190, task191, task192]
     tests: [test291]
+    status: completed
+
+  - id: task194
+    title: "Feature35 state_dirs schema contract and validation rules"
+    type: task
+    description: |
+      Extend schema and validator behavior for mutable state directory handling
+      so `state_dirs` entries are validated for safe relative paths and support
+      structured exclude policy metadata.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+      - tests/test_validator.py
+    steps:
+      - 'step1: Define or extend state_dirs entry contract to support predictable snapshot metadata including exclude patterns'
+      - 'step2: Enforce path-safety validation for state directory roots (relative-only no traversal and no absolute paths)'
+      - 'step3: Validate exclude pattern field shape and reject invalid types or unsafe values'
+      - 'step4: Add validator tests covering positive and negative state_dirs contract cases'
+    dependencies: [task185]
+    tests: [test292]
+    status: needs-review
+
+  - id: task195
+    title: "Feature35 pack snapshot capture for mutable state directories"
+    type: task
+    description: |
+      Implement pack-time state snapshot inclusion for `state_dirs` so mutable
+      runtime folders are archived with deterministic layout separate from
+      immutable assets behavior.
+    files:
+      - src/kinnoo/pack_command.py
+      - src/kinnoo/archive_utils.py
+      - tests/test_pack.py
+    steps:
+      - 'step1: Add pack-time collection of declared state_dirs with deterministic archive paths'
+      - 'step2: Ensure snapshot structure is predictable and does not flatten or rename state roots unexpectedly'
+      - 'step3: Keep existing assets inclusion behavior unchanged for manifests without state_dirs'
+      - 'step4: Add tests verifying expected snapshot layout in produced archives'
+    dependencies: [task194, task27]
+    tests: [test293]
+    status: needs-review
+
+  - id: task196
+    title: "Feature35 install restore flow with overwrite warning and force controls"
+    type: task
+    description: |
+      Implement install-time restore for state snapshots with explicit operator
+      warning before overwrite and deterministic force behavior when overwrite
+      is explicitly approved.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/cli.py
+      - tests/test_install.py
+    steps:
+      - 'step1: Restore packed state snapshot directories during install with predictable destination mapping'
+      - 'step2: Detect pre-existing target state and emit warning without destructive overwrite by default'
+      - 'step3: Respect explicit overwrite or force controls to replace existing state when requested'
+      - 'step4: Add integration tests for no-overwrite default and explicit force overwrite path'
+    dependencies: [task195, task30]
+    tests: [test294]
+    status: needs-review
+
+  - id: task197
+    title: "Feature35 selective snapshot exclusions for state_dirs"
+    type: task
+    description: |
+      Implement `state_dirs[].exclude` support so noisy or sensitive files can
+      be omitted from state snapshots while retaining core warm-start state.
+    files:
+      - src/kinnoo/pack_command.py
+      - src/kinnoo/install_command.py
+      - tests/test_pack.py
+      - tests/test_install.py
+    steps:
+      - 'step1: Apply exclude patterns during state snapshot capture for each declared state directory'
+      - 'step2: Ensure excluded files are omitted while non-excluded files remain in archive snapshots'
+      - 'step3: Verify install restore reflects exclusion policy output without restoring omitted files'
+      - 'step4: Add tests for representative patterns such as memory daily logs and edge cases'
+    dependencies: [task194, task195, task196]
+    tests: [test295]
+    status: needs-review
+
+  - id: task198
+    title: "Feature35 docs and compatibility regression safeguards"
+    type: task
+    description: |
+      Document mutable state snapshot semantics and establish regression guards
+      proving existing asset-only workflows remain backward-compatible when
+      state_dirs are absent.
+    files:
+      - README.md
+      - docs/manifest-schema-reference.md
+      - tests/test_docs.py
+      - tests/test_regression_v1.py
+    steps:
+      - 'step1: Document state_dirs mutable snapshot semantics and distinction from immutable assets'
+      - 'step2: Document overwrite warning and force behavior plus exclude pattern usage guidance'
+      - 'step3: Add docs coverage tests for state_dirs semantics and examples'
+      - 'step4: Add regression tests proving asset bundling behavior remains unchanged for non-state_dirs manifests'
+    dependencies: [task194, task195, task196, task197]
+    tests: [test296]
     status: needs-review

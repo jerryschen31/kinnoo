@@ -531,6 +531,62 @@ def test_feature33_openclaw_framework_specific_validation(tmp_path: Path) -> Non
     )
     assert errors == []
 
+
+def test_feature35_state_dirs_validation_contract(tmp_path: Path) -> None:
+    """Feature35 test292: state_dirs contract validates safe entries and rejects malformed shapes."""
+    valid_data = dict(_VALID_MANIFEST)
+    valid_data["state_dirs"] = [
+        "memory",
+        {
+            "path": "state/cache",
+            "exclude": ["daily/*.log", "scratch/tmp.json"],
+        },
+    ]
+
+    valid_path = tmp_path / "feature35_state_dirs_valid.yaml"
+    valid_path.write_text(yaml.dump(valid_data), encoding="utf-8")
+
+    is_valid, errors = validate(str(valid_path))
+    assert is_valid is True, f"Expected valid state_dirs contract to pass; errors: {errors}"
+    assert errors == []
+
+    invalid_data = dict(_VALID_MANIFEST)
+    invalid_data["state_dirs"] = [
+        "/absolute/path",
+        "../unsafe-traversal",
+        {"path": 42},
+        {"exclude": ["*.log"]},
+        {"path": "state/memory", "exclude": "*.log"},
+        {"path": "state/memory", "exclude": ["../secrets.log", 99]},
+    ]
+
+    invalid_path = tmp_path / "feature35_state_dirs_invalid.yaml"
+    invalid_path.write_text(yaml.dump(invalid_data), encoding="utf-8")
+
+    is_valid, errors = validate(str(invalid_path))
+    assert is_valid is False, "Expected malformed/unsafe state_dirs contract to fail"
+    assert any("Field 'state_dirs[0]'" in message and "relative path" in message for message in errors), (
+        f"Expected absolute path safety error; got: {errors}"
+    )
+    assert any("Field 'state_dirs[1]'" in message and "relative path" in message for message in errors), (
+        f"Expected traversal safety error; got: {errors}"
+    )
+    assert any("Field 'state_dirs[2].path' must be of type str" in message for message in errors), (
+        f"Expected state_dirs path type error; got: {errors}"
+    )
+    assert any("Missing required field: 'state_dirs[3].path'" in message for message in errors), (
+        f"Expected missing path contract error; got: {errors}"
+    )
+    assert any("Field 'state_dirs[4].exclude' must be of type list" in message for message in errors), (
+        f"Expected exclude list type error; got: {errors}"
+    )
+    assert any("Field 'state_dirs[5].exclude[0]'" in message and "relative pattern" in message for message in errors), (
+        f"Expected unsafe exclude pattern error; got: {errors}"
+    )
+    assert any("Field 'state_dirs[5].exclude[1]' must be of type str" in message for message in errors), (
+        f"Expected exclude item type error; got: {errors}"
+    )
+
 # ---------------------------------------------------------------------------
 # test60 — Manifest loader normalizes "type" field to list (task38)
 # ---------------------------------------------------------------------------
