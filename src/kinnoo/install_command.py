@@ -7,6 +7,7 @@ import venv
 import zipfile
 import re
 import os
+import json
 from pathlib import Path
 
 try:
@@ -116,6 +117,68 @@ def _resolve_node_package_manager(runtime: dict[str, object]) -> tuple[str | Non
     return normalized, None
 
 
+def _parse_node_audit_severity_counts(raw_output: str) -> dict[str, int]:
+    """Parse npm audit JSON output into deterministic severity counters."""
+    counts = {"critical": 0, "high": 0, "moderate": 0, "low": 0}
+
+    try:
+        payload = json.loads(raw_output)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return counts
+
+    metadata = payload.get("metadata") if isinstance(payload, dict) else None
+    vulnerabilities_meta = metadata.get("vulnerabilities") if isinstance(metadata, dict) else None
+    if isinstance(vulnerabilities_meta, dict):
+        for severity in counts:
+            value = vulnerabilities_meta.get(severity)
+            if isinstance(value, int) and value >= 0:
+                counts[severity] = value
+        return counts
+
+    vulnerabilities = payload.get("vulnerabilities") if isinstance(payload, dict) else None
+    if isinstance(vulnerabilities, dict):
+        for entry in vulnerabilities.values():
+            if not isinstance(entry, dict):
+                continue
+            severity = entry.get("severity")
+            if isinstance(severity, str):
+                normalized = severity.strip().lower()
+                if normalized in counts:
+                    counts[normalized] += 1
+
+    return counts
+
+
+def _run_node_audit_summary(target_dir: Path, package_manager: str) -> None:
+    """Run node dependency audit and print deterministic severity summary."""
+    audit_command = [package_manager, "audit", "--json"]
+    audit_result = subprocess.run(
+        audit_command,
+        capture_output=True,
+        text=True,
+        cwd=target_dir,
+    )
+
+    # npm audit commonly returns non-zero when vulnerabilities are present.
+    audit_output = audit_result.stdout or audit_result.stderr or ""
+    severity_counts = _parse_node_audit_severity_counts(audit_output)
+
+    summary = (
+        "[kinnoo install] Node audit severity summary: "
+        f"critical={severity_counts['critical']} "
+        f"high={severity_counts['high']} "
+        f"moderate={severity_counts['moderate']} "
+        f"low={severity_counts['low']}"
+    )
+    print(summary)
+
+    if not audit_output.strip():
+        print(
+            "Warning: Node audit command produced no parseable output; severity summary defaults to zero counts.",
+            file=sys.stderr,
+        )
+
+
 def _install_node_dependencies(target_dir: Path, runtime: dict[str, object]) -> int:
     runtime_version = runtime.get("version")
     runtime_constraint = str(runtime_version) if runtime_version is not None else ""
@@ -169,6 +232,7 @@ def _install_node_dependencies(target_dir: Path, runtime: dict[str, object]) -> 
         return install_result.returncode
 
     print(f"[kinnoo install] Node dependencies installed successfully via {package_manager}.")
+    _run_node_audit_summary(target_dir=target_dir, package_manager=package_manager)
     return 0
 
 
