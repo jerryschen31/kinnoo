@@ -230,7 +230,11 @@ def test_install_offline_succeeds_with_complete_wheels(tmp_path):
     assert dependency_check.stdout.strip() == "ok"
 
 
-def _create_node_archive(tmp_path: Path, agent_name: str = "feature37-node-agent") -> Path:
+def _create_node_archive(
+    tmp_path: Path,
+    agent_name: str = "feature37-node-agent",
+    with_lifecycle_scripts: bool = False,
+) -> Path:
     archive_path = tmp_path / f"{agent_name}.kno"
     manifest = (
         f"name: {agent_name}\n"
@@ -247,11 +251,21 @@ def _create_node_archive(tmp_path: Path, agent_name: str = "feature37-node-agent
         "outputs:\n"
         "  type: text\n"
     )
+    scripts_block = ""
+    if with_lifecycle_scripts:
+        scripts_block = (
+            "  \"scripts\": {\n"
+            "    \"prepare\": \"node ./scripts/prepare.mjs\",\n"
+            "    \"postinstall\": \"node ./scripts/postinstall.mjs\"\n"
+            "  },\n"
+        )
+
     package_json = (
         "{\n"
         f"  \"name\": \"{agent_name}\",\n"
         "  \"version\": \"1.0.0\",\n"
         "  \"type\": \"module\",\n"
+        f"{scripts_block}"
         "  \"dependencies\": {\n"
         "    \"left-pad\": \"^1.3.0\"\n"
         "  }\n"
@@ -284,6 +298,9 @@ def _make_fake_node_toolchain(bin_dir: Path) -> None:
     npm_script.write_text(
         "#!/bin/sh\n"
         "if [ \"$1\" = \"install\" ]; then\n"
+        "  if [ -n \"$KINNOO_TEST_NPM_ARGS_LOG\" ]; then\n"
+        "    printf '%s\\n' \"$*\" > \"$KINNOO_TEST_NPM_ARGS_LOG\"\n"
+        "  fi\n"
         "  exit 0\n"
         "fi\n"
         "if [ \"$1\" = \"audit\" ] && [ \"$2\" = \"--json\" ]; then\n"
@@ -374,3 +391,64 @@ def test_feature37_critical_gate_default_block_and_allow_override(tmp_path):
     assert allowed_result.returncode == 0, allowed_output
     assert "Node audit severity summary: critical=1 high=2 moderate=3 low=4" in allowed_output
     assert "Continuing install despite critical vulnerabilities" in allowed_output
+
+
+def test_feature37_lifecycle_scripts_warning_and_ignore_scripts_mode(tmp_path):
+    node_archive = _create_node_archive(
+        tmp_path,
+        agent_name="feature37-node-lifecycle",
+        with_lifecycle_scripts=True,
+    )
+
+    fake_bin = tmp_path / "fake-bin-lifecycle"
+    _make_fake_node_toolchain(fake_bin)
+
+    env = dict(os.environ)
+    env["PATH"] = f"{fake_bin}{os.pathsep}{env.get('PATH', '')}"
+
+    allowed_target_dir = tmp_path / "feature37-node-lifecycle-allowed"
+    allowed_args_log = tmp_path / "npm-allowed-args.log"
+    env["KINNOO_TEST_NPM_ARGS_LOG"] = str(allowed_args_log)
+    allowed_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            str(node_archive),
+            str(allowed_target_dir),
+            "--yes",
+            "--allow-vulnerable",
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    allowed_output = f"{allowed_result.stdout}\n{allowed_result.stderr}"
+    assert allowed_result.returncode == 0, allowed_output
+    assert "Detected Node lifecycle scripts in package.json: postinstall, prepare." in allowed_output
+    assert "Lifecycle scripts are allowed and may execute during dependency installation." in allowed_output
+    assert allowed_args_log.read_text(encoding="utf-8").strip() == "install"
+
+    ignored_target_dir = tmp_path / "feature37-node-lifecycle-ignored"
+    ignored_args_log = tmp_path / "npm-ignored-args.log"
+    env["KINNOO_TEST_NPM_ARGS_LOG"] = str(ignored_args_log)
+    ignored_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            str(node_archive),
+            str(ignored_target_dir),
+            "--yes",
+            "--allow-vulnerable",
+            "--ignore-scripts",
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    ignored_output = f"{ignored_result.stdout}\n{ignored_result.stderr}"
+    assert ignored_result.returncode == 0, ignored_output
+    assert "Detected Node lifecycle scripts in package.json: postinstall, prepare." in ignored_output
+    assert "Lifecycle scripts policy: ignored (--ignore-scripts enabled)." in ignored_output
+    assert ignored_args_log.read_text(encoding="utf-8").strip() == "install --ignore-scripts"
