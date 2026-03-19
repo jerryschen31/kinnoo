@@ -38,6 +38,39 @@ RISKY_JS_PRIMITIVE_PATTERNS: list[tuple[str, str]] = [
 
 JS_TS_SWEEP_EXTENSIONS = {".js", ".mjs", ".ts"}
 
+OPENCLAW_CONFIG_DANGER_PATTERNS: list[tuple[str, str]] = [
+    (
+        r'"allow_?shell"\s*:\s*true',
+        "dangerous openclaw config (allow_shell=true enables shell command execution)",
+    ),
+    (
+        r'"disable_?sandbox"\s*:\s*true',
+        "dangerous openclaw config (disable_sandbox=true removes runtime isolation)",
+    ),
+    (
+        r'"allow_?unsafe_?eval"\s*:\s*true',
+        "dangerous openclaw config (allow_unsafe_eval=true permits dynamic code execution)",
+    ),
+    (
+        r'"auto_?approve(?:_actions)?"\s*:\s*true',
+        "dangerous openclaw config (auto_approve=true bypasses approval gates)",
+    ),
+    (
+        r'"network_access"\s*:\s*"unrestricted"',
+        "dangerous openclaw config (network_access=unrestricted broadens outbound access)",
+    ),
+    (
+        r'"tool_policy"\s*:\s*"allow_all"',
+        "dangerous openclaw config (tool_policy=allow_all disables tool restrictions)",
+    ),
+]
+
+
+def _looks_like_openclaw_config_candidate(source_file: Path, text_preview: str) -> bool:
+    name_marker = "openclaw" in source_file.name.lower()
+    body_marker = '"openclaw"' in text_preview.lower()
+    return name_marker or body_marker
+
 ASSET_FILENAME_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"^\.env($|\.)", re.IGNORECASE), "secret-like filename (.env)"),
     (re.compile(r"\.pem$", re.IGNORECASE), "secret-like filename (.pem)"),
@@ -93,6 +126,10 @@ def sweep_env_var_exposure(agent_dir: Path, declared_env_vars: list[str]) -> lis
         (re.compile(pattern), description)
         for pattern, description in RISKY_JS_PRIMITIVE_PATTERNS
     ]
+    compiled_openclaw_danger_patterns = [
+        (re.compile(pattern, re.IGNORECASE), description)
+        for pattern, description in OPENCLAW_CONFIG_DANGER_PATTERNS
+    ]
 
     for source_file in sorted(agent_dir.rglob("*")):
         if not source_file.is_file():
@@ -106,6 +143,12 @@ def sweep_env_var_exposure(agent_dir: Path, declared_env_vars: list[str]) -> lis
             lines = source_file.read_text(encoding="utf-8").splitlines()
         except Exception:
             continue
+
+        text_preview = "\n".join(lines[:120])
+        is_openclaw_config_candidate = (
+            source_file.suffix.lower() == ".json"
+            and _looks_like_openclaw_config_candidate(source_file, text_preview)
+        )
 
         relative_path = source_file.relative_to(agent_dir)
         for line_number, line_text in enumerate(lines, start=1):
@@ -124,6 +167,14 @@ def sweep_env_var_exposure(agent_dir: Path, declared_env_vars: list[str]) -> lis
             # cross-language false positives from unrelated syntax.
             if source_file.suffix.lower() in JS_TS_SWEEP_EXTENSIONS:
                 for compiled_pattern, description in compiled_risky_js_patterns:
+                    if compiled_pattern.search(line_text):
+                        warning_text = f"{relative_path}:{line_number}: {description}"
+                        if warning_text not in warnings:
+                            warnings.append(warning_text)
+                        break
+
+            if is_openclaw_config_candidate:
+                for compiled_pattern, description in compiled_openclaw_danger_patterns:
                     if compiled_pattern.search(line_text):
                         warning_text = f"{relative_path}:{line_number}: {description}"
                         if warning_text not in warnings:
