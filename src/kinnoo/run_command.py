@@ -1285,6 +1285,7 @@ def run_agent(
         sandbox_decision = evaluate_sandbox_permissions(
             manifest=manifest if isinstance(manifest, dict) else {},
             runtime_type=runtime_type,
+            runtime_language=runtime_language,
             pass_through_args=runtime_pass_through_args,
         )
         if not sandbox_decision.allowed:
