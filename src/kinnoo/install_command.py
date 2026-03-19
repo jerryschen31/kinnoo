@@ -172,11 +172,94 @@ def _install_node_dependencies(target_dir: Path, runtime: dict[str, object]) -> 
     return 0
 
 
+def _iter_state_dir_paths(manifest_data: dict[str, object]) -> list[str]:
+    """Return normalized state directory roots from manifest state_dirs entries."""
+    declared_state_dirs = manifest_data.get("state_dirs")
+    if not isinstance(declared_state_dirs, list):
+        return []
+
+    normalized_paths: list[str] = []
+    for entry in declared_state_dirs:
+        if isinstance(entry, str):
+            candidate = entry.strip()
+            if candidate:
+                normalized_paths.append(candidate)
+            continue
+
+        if isinstance(entry, dict):
+            path_value = entry.get("path")
+            if isinstance(path_value, str):
+                candidate = path_value.strip()
+                if candidate:
+                    normalized_paths.append(candidate)
+
+    return normalized_paths
+
+
+def _restore_state_snapshots(
+    target_dir: Path,
+    manifest_data: dict[str, object],
+    overwrite_state: bool,
+) -> int:
+    """Restore packed state snapshots into runtime state directories.
+
+    Snapshot source layout:
+    - state_snapshots/<declared-state-dir>/...
+    """
+    snapshot_root = target_dir / "state_snapshots"
+    if not snapshot_root.exists() or not snapshot_root.is_dir():
+        return 0
+
+    restored_count = 0
+    skipped_count = 0
+    for state_dir_path in _iter_state_dir_paths(manifest_data):
+        source_state_dir = snapshot_root / state_dir_path
+        if not source_state_dir.exists() or not source_state_dir.is_dir():
+            continue
+
+        destination_state_dir = target_dir / state_dir_path
+        if destination_state_dir.exists() and not overwrite_state:
+            print(
+                "Warning: Existing state directory detected; preserving current state and skipping restore for "
+                f"'{state_dir_path}'. Re-run install with --state-overwrite to replace it.",
+                file=sys.stderr,
+            )
+            skipped_count += 1
+            continue
+
+        if destination_state_dir.exists() and overwrite_state:
+            if destination_state_dir.is_dir():
+                shutil.rmtree(destination_state_dir)
+            else:
+                destination_state_dir.unlink()
+
+        for source_file in sorted(source_state_dir.rglob("*")):
+            if not source_file.is_file():
+                continue
+            relative = source_file.relative_to(source_state_dir)
+            destination_file = destination_state_dir / relative
+            destination_file.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source_file, destination_file)
+
+        restored_count += 1
+
+    if restored_count > 0:
+        print(f"[kinnoo install] Restored state snapshots for {restored_count} state directory(ies).")
+    if skipped_count > 0:
+        print(
+            f"[kinnoo install] Skipped restore for {skipped_count} state directory(ies) due to existing state.",
+            file=sys.stderr,
+        )
+
+    return 0
+
+
 def install_agent(
     archive_path: str,
     target_dir_arg: str | None = None,
     force: bool = False,
     assume_yes: bool = False,
+    overwrite_state: bool = False,
 ) -> int:
     target_spec = parse_install_target_spec(archive_path)
     if target_spec.kind == "invalid":
@@ -218,6 +301,7 @@ def install_agent(
             target_dir_arg=resolved_target_dir_arg,
             force=force,
             assume_yes=assume_yes,
+            overwrite_state=overwrite_state,
         )
 
     archive = target_spec.archive_path or Path(archive_path)
@@ -226,6 +310,7 @@ def install_agent(
         target_dir_arg=target_dir_arg,
         force=force,
         assume_yes=assume_yes,
+        overwrite_state=overwrite_state,
     )
 
 
@@ -234,6 +319,7 @@ def _install_from_archive_path(
     target_dir_arg: str | None = None,
     force: bool = False,
     assume_yes: bool = False,
+    overwrite_state: bool = False,
 ) -> int:
     archive = Path(archive_path)
     if not archive.exists() or not archive.is_file():
@@ -383,6 +469,15 @@ def _install_from_archive_path(
         return 1
 
     print("[kinnoo install] Manifest validated successfully.")
+
+    restore_exit_code = _restore_state_snapshots(
+        target_dir=target_dir,
+        manifest_data=manifest_data,
+        overwrite_state=overwrite_state,
+    )
+    if restore_exit_code != 0:
+        shutil.rmtree(target_dir, ignore_errors=True)
+        return restore_exit_code
 
     runtime_language = "python"
     if isinstance(runtime, dict):
