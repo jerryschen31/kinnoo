@@ -4040,7 +4040,7 @@ tasks:
       - 'step4: Add integration tests validating summary output and non-node no-op behavior'
     dependencies: [task165, task168]
     tests: [test302]
-    status: needs-review
+    status: completed
 
   - id: task205
     title: "Feature37 critical CVE install gate and override control"
@@ -4060,7 +4060,7 @@ tasks:
       - 'step4: Add tests for default block path and explicit override continuation path'
     dependencies: [task204]
     tests: [test303]
-    status: needs-review
+    status: completed
 
   - id: task206
     title: "Feature37 lifecycle script detection warnings and ignore-scripts"
@@ -4080,7 +4080,7 @@ tasks:
       - 'step4: Add tests for script-detected warning path and ignore-scripts enforcement path'
     dependencies: [task204]
     tests: [test304]
-    status: needs-review
+    status: completed
 
   - id: task207
     title: "Feature37 machine-readable audit and install decision trace"
@@ -4099,7 +4099,7 @@ tasks:
       - 'step4: Add tests asserting trace schema and expected decision records for blocked and override installs'
     dependencies: [task205, task206]
     tests: [test305]
-    status: needs-review
+    status: completed
 
   - id: task208
     title: "Feature37 non-node install regression safeguards"
@@ -4117,4 +4117,99 @@ tasks:
       - 'step4: Add explicit regression gate test to prevent future cross-runtime behavior drift'
     dependencies: [task204, task205, task206, task207]
     tests: [test306]
+    status: completed
+
+  - id: task209
+    title: "Feature38 JS TS JSON credential scanning rules"
+    type: task
+    description: |
+      Extend static security sweep coverage to `.js`, `.mjs`, `.ts`, and `.json`
+      files for high-confidence credential and token pattern detection with
+      warning-first reporting.
+    files:
+      - src/kinnoo/code_sweep.py
+      - src/kinnoo/pack_command.py
+      - tests/test_trust_baseline.py
+    steps:
+      - 'step1: Expand sweep file discovery to include js mjs ts and json artifacts while preserving existing Python coverage'
+      - 'step2: Add high-confidence credential/token detectors suitable for JS TS and JSON payloads'
+      - 'step3: Ensure findings are warning-first and redact secret-like values from output'
+      - 'step4: Add tests proving JS TS JSON credential patterns are detected with deterministic warning messages'
+    dependencies: []
+    tests: [test307]
+    status: needs-review
+
+  - id: task210
+    title: "Feature38 risky JS execution primitive detection"
+    type: task
+    description: |
+      Detect high-risk JavaScript and TypeScript execution primitives such as
+      eval-like dynamic execution and shell process spawning and report
+      file/line evidence.
+    files:
+      - src/kinnoo/code_sweep.py
+      - tests/test_trust_baseline.py
+    steps:
+      - 'step1: Add signatures for risky primitives including eval Function constructor and child_process shell-spawn patterns'
+      - 'step2: Emit deterministic finding records with file path and line number evidence'
+      - 'step3: Keep warnings non-blocking and avoid false positives from benign literals where feasible'
+      - 'step4: Add tests asserting file/line evidence is present for flagged risky primitive fixtures'
+    dependencies: [task209]
+    tests: [test308]
+    status: needs-review
+
+  - id: task211
+    title: "Feature38 OpenClaw config danger rule set"
+    type: task
+    description: |
+      Add targeted security checks for dangerous OpenClaw configuration states
+      in JSON artifacts and produce actionable warning guidance.
+    files:
+      - src/kinnoo/code_sweep.py
+      - tests/test_trust_baseline.py
+    steps:
+      - 'step1: Define dangerous OpenClaw config indicators and corresponding warning messages'
+      - 'step2: Parse relevant JSON configuration files and evaluate configured values against the danger rule set'
+      - 'step3: Report findings with path-localized context while preserving warning-first behavior'
+      - 'step4: Add tests covering dangerous config detection and non-dangerous config no-warning baselines'
+    dependencies: [task209]
+    tests: [test309]
+    status: needs-review
+
+  - id: task212
+    title: "Feature38 memory snapshot credential scan before pack"
+    type: task
+    description: |
+      Scan memory snapshot candidates for credential-like patterns during pack
+      workflows and emit warning-first findings before archive creation.
+    files:
+      - src/kinnoo/pack_command.py
+      - src/kinnoo/code_sweep.py
+      - tests/test_pack_robustness.py
+    steps:
+      - 'step1: Integrate sweep hooks for memory snapshot candidate files identified during pack flow'
+      - 'step2: Emit warning-first findings when credential-like patterns are detected in snapshot candidates'
+      - 'step3: Preserve pack completion behavior while clearly surfacing potential security risk'
+      - 'step4: Add tests proving warnings are emitted for risky memory candidates and pack remains non-blocking'
+    dependencies: [task209]
+    tests: [test310]
+    status: needs-review
+
+  - id: task213
+    title: "Feature38 sweep output contract and no-secret regression safeguards"
+    type: task
+    description: |
+      Ensure JS/TS sweep findings remain format-consistent with existing UX and
+      preserve no-secret-value output invariants via regression coverage.
+    files:
+      - src/kinnoo/code_sweep.py
+      - tests/test_regression_v1.py
+      - tests/test_trust_baseline.py
+    steps:
+      - 'step1: Normalize feature38 finding output shape to match existing security sweep conventions'
+      - 'step2: Enforce redaction/no-secret-value safeguards across new JS TS JSON finding categories'
+      - 'step3: Add regression guard validating output format stability across mixed Python and JS sweep inputs'
+      - 'step4: Add regression tests proving secret-like values are never echoed in sweep output'
+    dependencies: [task209, task210, task211, task212]
+    tests: [test311]
     status: needs-review
