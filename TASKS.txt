@@ -4275,7 +4275,7 @@ tasks:
       - 'step4: Add integration tests covering successful sandboxed run and deterministic failure paths'
     dependencies: [task214]
     tests: [test314]
-    status: not-started
+    status: needs-review
 
   - id: task217
     title: "Feature39 cross-runtime permission enforcement for Python and Node"

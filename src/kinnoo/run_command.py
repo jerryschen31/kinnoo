@@ -25,6 +25,7 @@ from .health_check import (
     run_service_health_check,
 )
 from .schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars
+from .sandbox import evaluate_sandbox_permissions
 from .supervisor import (
     build_daemon_state_payload,
     clear_daemon_state,
@@ -1080,6 +1081,7 @@ def run_agent(
     preflight: bool = False,
     no_guard: bool = False,
     pass_through_args: list[str] | None = None,
+    sandbox: bool = False,
 ) -> int:
     runtime_pass_through_args = list(pass_through_args or [])
     if preflight:
@@ -1277,6 +1279,28 @@ def run_agent(
             if response != "y":
                 return finalize(1)
 
+    runtime_type = runtime_section.get("type") if isinstance(runtime_section.get("type"), str) else "one-shot"
+
+    if sandbox:
+        sandbox_decision = evaluate_sandbox_permissions(
+            manifest=manifest if isinstance(manifest, dict) else {},
+            runtime_type=runtime_type,
+            pass_through_args=runtime_pass_through_args,
+        )
+        if not sandbox_decision.allowed:
+            _print_safe_error(
+                "Error: sandbox enforcement failed "
+                f"(classification={sandbox_decision.code}): {sandbox_decision.message}",
+                secret_values=resolved_env_vars.values(),
+            )
+            _print_safe_error(
+                f"Remediation: {sandbox_decision.remediation}",
+                secret_values=resolved_env_vars.values(),
+            )
+            return finalize(1)
+
+        print("[kinnoo] sandbox policy check passed", flush=True)
+
     # Evaluate the user input before entrypoint execution; this is warning-based and never hard-rejects
     # when a user explicitly confirms in interactive mode.
     if not no_guard:
@@ -1332,7 +1356,6 @@ def run_agent(
         process_args.append(effective_input_arg)
     process_args.extend(runtime_pass_through_args)
 
-    runtime_type = runtime_section.get("type") if isinstance(runtime_section.get("type"), str) else "one-shot"
     enforce_json_output_contract = (
         runtime_type not in ("mcp-server", "daemon")
         and _manifest_declares_json_output(manifest if isinstance(manifest, dict) else {})
