@@ -237,3 +237,57 @@ outputs:
 
         kno_path = _canonical_archive_path(tmp_path, "platform-wheel-agent", "1.0.0")
         assert kno_path.exists(), "Expected .kno archive to be created"
+
+
+def test_feature38_memory_snapshot_credential_warning_first(tmp_path):
+        agent_dir = tmp_path / "feature38-memory-snapshot-agent"
+        agent_dir.mkdir()
+
+        (agent_dir / "kinnoo.yaml").write_text(
+                """
+name: feature38-memory-snapshot-agent
+version: 1.0.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: '>=3.10'
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+state_dirs:
+    - path: memory
+""".strip()
+                + "\n"
+        )
+        (agent_dir / "run.py").write_text("print('memory snapshot ok')\n")
+        (agent_dir / "requirements.txt").write_text("")
+
+        memory_dir = agent_dir / "memory"
+        memory_dir.mkdir(parents=True, exist_ok=True)
+        risky_snapshot = "aws_secret_access_key=ABCDEFGHIJKLMNOPQRSTUVWX1234567890"
+        (memory_dir / "snapshot.json").write_text(
+                "{\n"
+                f"  \"checkpoint\": \"{risky_snapshot}\"\n"
+                "}\n",
+                encoding="utf-8",
+        )
+
+        result = subprocess.run(
+                [sys.executable, "src/kinnoo/cli.py", "pack", str(agent_dir)],
+                capture_output=True,
+                text=True,
+                env=_pack_env(tmp_path),
+        )
+
+        output = f"{result.stdout}\n{result.stderr}"
+        assert result.returncode == 0, output
+        assert "Memory snapshot security sweep warnings:" in output
+        assert "memory/snapshot.json:" in output
+        assert "credential-like text pattern (AWS secret key assignment)" in output
+        assert risky_snapshot not in output
+
+        kno_path = _canonical_archive_path(tmp_path, "feature38-memory-snapshot-agent", "1.0.0")
+        assert kno_path.exists(), "Expected .kno archive to be created"

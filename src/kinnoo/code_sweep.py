@@ -239,3 +239,20 @@ def sweep_asset_credential_risks(
                 warnings.append(f"{relative_path}: {description}")
 
     return warnings
+
+
+def sweep_memory_snapshot_credential_risks(
+    agent_dir: Path,
+    snapshot_candidate_paths: list[Path],
+    max_text_scan_bytes: int = DEFAULT_ASSET_TEXT_SCAN_MAX_BYTES,
+) -> list[str]:
+    """Scan state snapshot candidates for credential-like patterns.
+
+    The scan is warning-only and reuses the same safe reporting contract used
+    for asset credential warnings to avoid leaking raw secret values.
+    """
+    return sweep_asset_credential_risks(
+        agent_dir=agent_dir,
+        asset_file_paths=snapshot_candidate_paths,
+        max_text_scan_bytes=max_text_scan_bytes,
+    )

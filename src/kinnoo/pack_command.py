@@ -13,7 +13,11 @@ import yaml
 
 from .archive import LocalArchiveBackend
 from .checksum import write_checksum_sidecar_for_archive
-from .code_sweep import sweep_asset_credential_risks, sweep_env_var_exposure
+from .code_sweep import (
+    sweep_asset_credential_risks,
+    sweep_env_var_exposure,
+    sweep_memory_snapshot_credential_risks,
+)
 from .schema import normalize_env_vars
 from .size_format import format_size_human_readable, size_in_megabytes
 
@@ -516,6 +520,19 @@ def pack_agent(agent_dir: str, bump: str | None = None) -> int:
             print(f"- {warning}", file=sys.stderr)
         print(
             "(heuristic credential scan over assets - warning-only; may produce false positives)",
+            file=sys.stderr,
+        )
+
+    memory_snapshot_scan_warnings = sweep_memory_snapshot_credential_risks(
+        agent_dir=Path(abs_agent_dir),
+        snapshot_candidate_paths=[absolute_path for _, absolute_path in state_snapshot_files],
+    )
+    if memory_snapshot_scan_warnings:
+        print("Memory snapshot security sweep warnings:", file=sys.stderr)
+        for warning in memory_snapshot_scan_warnings:
+            print(f"- {warning}", file=sys.stderr)
+        print(
+            "(heuristic credential scan over memory snapshots - warning-only; may produce false positives)",
             file=sys.stderr,
         )
 
