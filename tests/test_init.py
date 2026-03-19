@@ -420,6 +420,42 @@ def test_feature21_readme_setup_guidance(tmp_path):
             assert term in readme_text
 
 
+def test_feature34_openclaw_scaffold_structure(tmp_path):
+    """test287: openclaw scaffold includes required files and deterministic directories."""
+    agent_name = "feature34-openclaw-agent"
+
+    cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        result = run_kinnoo_init([agent_name, "--framework", "openclaw"])
+    finally:
+        os.chdir(cwd)
+
+    assert result.returncode == 0
+
+    agent_dir = tmp_path / agent_name
+    required_files = [
+        "package.json",
+        "openclaw.json",
+        "index.mjs",
+        "AGENTS.md",
+        "SOUL.md",
+        "skills/default/SKILL.md",
+    ]
+    for relative_path in required_files:
+        target = agent_dir / relative_path
+        assert target.exists() and target.is_file(), f"Missing required file: {relative_path}"
+
+    required_dirs = [
+        "memory",
+        "skills",
+        "skills/default",
+    ]
+    for relative_path in required_dirs:
+        target = agent_dir / relative_path
+        assert target.exists() and target.is_dir(), f"Missing required directory: {relative_path}"
+
+
 def test_feature21_regression_existing_frameworks_unchanged(tmp_path):
     expected = {
         "gemini": {
