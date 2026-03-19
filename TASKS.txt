@@ -3920,3 +3920,104 @@ tasks:
     dependencies: [task194, task195, task196, task197]
     tests: [test296]
     status: needs-review
+
+  - id: task199
+    title: "Feature36 OpenClaw detector evidence and confidence scoring"
+    type: task
+    description: |
+      Extend analyzer detection logic to identify OpenClaw projects using
+      weighted strong and medium signals and emit explicit confidence/evidence
+      metadata for import consumers.
+    files:
+      - src/kinnoo/analyzer.py
+      - tests/test_analyzer.py
+      - tests/test_cli_import.py
+    steps:
+      - 'step1: Implement OpenClaw signal detectors for openclaw.json and package dependency markers as strong evidence'
+      - 'step2: Implement medium-confidence detectors for skills structure and memory directory conventions'
+      - 'step3: Aggregate signals into deterministic confidence output with evidence list'
+      - 'step4: Add analyzer and import-facing tests verifying confidence and evidence reporting behavior'
+    dependencies: [task158, task163, task184]
+    tests: [test297]
+    status: not-started
+
+  - id: task200
+    title: "Feature36 manifest inference for runtime package manager skills and state dirs"
+    type: task
+    description: |
+      Add inference mapping for detected OpenClaw projects so generated manifest
+      suggestions include runtime language/type, package manager, skill paths,
+      and candidate mutable state directories.
+    files:
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/import_command.py
+      - tests/test_analyzer.py
+      - tests/test_cli_import.py
+    steps:
+      - 'step1: Infer nodejs daemon runtime and package manager from project metadata and lockfile/tooling hints'
+      - 'step2: Infer skills entries from discovered SKILL.md paths and map state directories from memory conventions'
+      - 'step3: Ensure inferred field shapes align with feature33 and feature35 manifest contracts'
+      - 'step4: Add tests asserting inferred runtime package manager skills and state_dirs output for representative fixtures'
+    dependencies: [task199, task185, task194]
+    tests: [test298]
+    status: not-started
+
+  - id: task201
+    title: "Feature36 identity signal detection for SOUL AGENTS and optional USER docs"
+    type: task
+    description: |
+      Recognize OpenClaw identity artifacts as explicit inference signals and
+      include them in analyzer evidence output for clearer import diagnostics.
+    files:
+      - src/kinnoo/analyzer.py
+      - tests/test_analyzer.py
+      - tests/test_cli_import.py
+    steps:
+      - 'step1: Add identity signal detectors for SOUL.md AGENTS.md and optional USER.md'
+      - 'step2: Include identity-signal evidence in confidence output with deterministic wording'
+      - 'step3: Ensure missing optional USER.md does not reduce valid OpenClaw detection to failure'
+      - 'step4: Add tests covering identity artifact presence and optional-file behavior'
+    dependencies: [task199]
+    tests: [test299]
+    status: not-started
+
+  - id: task202
+    title: "Feature36 import output validity and unresolved-field guidance"
+    type: task
+    description: |
+      Ensure import-generated kinnoo manifests are valid when inference is
+      complete, or include clear TODO/warning guidance when unresolved fields
+      remain so operators can safely complete onboarding.
+    files:
+      - src/kinnoo/import_command.py
+      - src/kinnoo/validator.py
+      - tests/test_cli_import.py
+      - tests/test_validator.py
+    steps:
+      - 'step1: Wire inferred OpenClaw fields into generated kinnoo.yaml output shape'
+      - 'step2: Emit explicit TODO or warning guidance for unresolved required fields without silent assumptions'
+      - 'step3: Validate generated output against manifest validator when inference completeness allows'
+      - 'step4: Add tests asserting valid generation path and warning-first unresolved guidance path'
+    dependencies: [task200, task201]
+    tests: [test300]
+    status: not-started
+
+  - id: task203
+    title: "Feature36 non-openclaw regression safeguards"
+    type: task
+    description: |
+      Add regression protections proving existing non-OpenClaw analyzer/import
+      workflows continue to behave as before and do not regress due to new
+      OpenClaw-specific detection and inference logic.
+    files:
+      - tests/test_regression_v1.py
+      - tests/test_cli_import.py
+      - tests/test_analyzer.py
+    steps:
+      - 'step1: Add regression fixtures for non-openclaw projects that should not be misclassified as openclaw'
+      - 'step2: Verify existing analyzer-backed import behavior remains stable for Python and generic Node projects'
+      - 'step3: Assert confidence and warning output remains actionable for ambiguous non-openclaw projects'
+      - 'step4: Add regression gate test protecting non-openclaw import behavior across future changes'
+    dependencies: [task199, task200, task201, task202]
+    tests: [test301]
+    status: not-started
