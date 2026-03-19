@@ -10,6 +10,16 @@ import os
 import json
 from pathlib import Path
 
+NODE_LIFECYCLE_SCRIPT_NAMES = {
+    "preinstall",
+    "install",
+    "postinstall",
+    "prepublish",
+    "preprepare",
+    "prepare",
+    "postprepare",
+}
+
 try:
     from kinnoo.checksum import (
         ChecksumParseError,
@@ -181,11 +191,36 @@ def _run_node_audit_summary(target_dir: Path, package_manager: str) -> dict[str,
     return severity_counts
 
 
+def _detect_node_lifecycle_scripts(package_json_path: Path) -> list[str]:
+    """Return deterministic lifecycle script names declared in package.json."""
+    try:
+        package_payload = json.loads(package_json_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, json.JSONDecodeError):
+        return []
+
+    scripts = package_payload.get("scripts") if isinstance(package_payload, dict) else None
+    if not isinstance(scripts, dict):
+        return []
+
+    declared: list[str] = []
+    for script_name, script_command in scripts.items():
+        if not isinstance(script_name, str) or not isinstance(script_command, str):
+            continue
+        normalized_name = script_name.strip()
+        if not normalized_name or not script_command.strip():
+            continue
+        if normalized_name in NODE_LIFECYCLE_SCRIPT_NAMES:
+            declared.append(normalized_name)
+
+    return sorted(set(declared))
+
+
 def _install_node_dependencies(
     target_dir: Path,
     runtime: dict[str, object],
     *,
     allow_vulnerable: bool,
+    ignore_scripts: bool,
 ) -> int:
     runtime_version = runtime.get("version")
     runtime_constraint = str(runtime_version) if runtime_version is not None else ""
@@ -220,7 +255,31 @@ def _install_node_dependencies(
         )
         return 1
 
+    lifecycle_scripts = _detect_node_lifecycle_scripts(package_json_path)
+    if lifecycle_scripts:
+        lifecycle_label = ", ".join(lifecycle_scripts)
+        print(
+            "Warning: Detected Node lifecycle scripts in package.json: "
+            f"{lifecycle_label}.",
+            file=sys.stderr,
+        )
+        if ignore_scripts:
+            print(
+                "[kinnoo install] Lifecycle scripts policy: ignored (--ignore-scripts enabled)."
+            )
+        else:
+            print(
+                "Warning: Lifecycle scripts are allowed and may execute during dependency installation.",
+                file=sys.stderr,
+            )
+    elif ignore_scripts:
+        print("[kinnoo install] Lifecycle scripts policy: ignored (--ignore-scripts enabled).")
+    else:
+        print("[kinnoo install] Lifecycle scripts policy: allowed.")
+
     install_command = [package_manager, "install"]
+    if ignore_scripts:
+        install_command.append("--ignore-scripts")
     install_result = subprocess.run(
         install_command,
         capture_output=True,
@@ -348,6 +407,7 @@ def install_agent(
     assume_yes: bool = False,
     overwrite_state: bool = False,
     allow_vulnerable: bool = False,
+    ignore_scripts: bool = False,
 ) -> int:
     target_spec = parse_install_target_spec(archive_path)
     if target_spec.kind == "invalid":
@@ -391,6 +451,7 @@ def install_agent(
             assume_yes=assume_yes,
             overwrite_state=overwrite_state,
             allow_vulnerable=allow_vulnerable,
+            ignore_scripts=ignore_scripts,
         )
 
     archive = target_spec.archive_path or Path(archive_path)
@@ -401,6 +462,7 @@ def install_agent(
         assume_yes=assume_yes,
         overwrite_state=overwrite_state,
         allow_vulnerable=allow_vulnerable,
+        ignore_scripts=ignore_scripts,
     )
 
 
@@ -411,6 +473,7 @@ def _install_from_archive_path(
     assume_yes: bool = False,
     overwrite_state: bool = False,
     allow_vulnerable: bool = False,
+    ignore_scripts: bool = False,
 ) -> int:
     archive = Path(archive_path)
     if not archive.exists() or not archive.is_file():
@@ -581,6 +644,7 @@ def _install_from_archive_path(
             target_dir=target_dir,
             runtime=runtime if isinstance(runtime, dict) else {},
             allow_vulnerable=allow_vulnerable,
+            ignore_scripts=ignore_scripts,
         )
 
     wheels_dir = target_dir / "wheels"
