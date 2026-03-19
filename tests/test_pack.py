@@ -627,6 +627,82 @@ state_dirs:
         assert all(not name.startswith("state/cache/") for name in names)
 
 
+def test_feature35_state_dirs_exclude_patterns(tmp_path):
+    """Feature35 test295: state_dirs exclude omits targeted files while preserving core snapshot state."""
+    agent = tmp_path / "feature35-state-exclude"
+    agent.mkdir()
+
+    (agent / "memory" / "core").mkdir(parents=True)
+    (agent / "memory" / "daily").mkdir(parents=True)
+    (agent / "memory" / "secrets").mkdir(parents=True)
+    (agent / "memory" / "core" / "profile.json").write_text('{"warm": true}\n', encoding="utf-8")
+    (agent / "memory" / "daily" / "2026-03-19.md").write_text("daily log\n", encoding="utf-8")
+    (agent / "memory" / "secrets" / "tokens.json").write_text('{"token": "redacted"}\n', encoding="utf-8")
+
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: feature35-state-exclude
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+state_dirs:
+  - path: memory
+    exclude:
+      - daily/*.md
+      - secrets/*
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.py").write_text("print('feature35')\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    pack_result = subprocess.run(
+        KINNOO_CLI + ["pack", str(agent)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert pack_result.returncode == 0, f"pack failed: {pack_result.stderr}"
+
+    archive = _canonical_archive_path(tmp_path, "feature35-state-exclude", "1.0.0")
+    assert archive.exists(), "Expected .kno archive to be created"
+
+    with zipfile.ZipFile(archive, "r") as zf:
+        names = set(zf.namelist())
+        assert "state_snapshots/memory/core/profile.json" in names
+        assert "state_snapshots/memory/daily/2026-03-19.md" not in names
+        assert "state_snapshots/memory/secrets/tokens.json" not in names
+
+    install_target = tmp_path / "installed-state-exclude"
+    install_result = subprocess.run(
+      KINNOO_CLI + [
+        "install",
+        str(archive),
+        str(install_target),
+        "--yes",
+      ],
+      cwd=tmp_path,
+      capture_output=True,
+      text=True,
+      env=env,
+    )
+    assert install_result.returncode == 0, install_result.stderr
+    assert (install_target / "memory" / "core" / "profile.json").exists()
+    assert not (install_target / "memory" / "daily" / "2026-03-19.md").exists()
+    assert not (install_target / "memory" / "secrets" / "tokens.json").exists()
+
+
 def test_feature22_pack_size_warning_uses_assets_threshold(tmp_path):
     default_agent = tmp_path / "asset-threshold-default"
     default_agent.mkdir()
