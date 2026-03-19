@@ -27,6 +27,17 @@ CREDENTIAL_PATTERNS: list[tuple[str, str]] = [
     ),
 ]
 
+RISKY_JS_PRIMITIVE_PATTERNS: list[tuple[str, str]] = [
+    (r"\beval\s*\(", "risky js execution primitive (eval)"),
+    (r"\bnew\s+Function\s*\(", "risky js execution primitive (Function constructor)"),
+    (
+        r"\b(?:child_process\.)?(?:exec|execSync|spawn|spawnSync|execFile|execFileSync)\s*\(",
+        "risky js execution primitive (child process execution)",
+    ),
+]
+
+JS_TS_SWEEP_EXTENSIONS = {".js", ".mjs", ".ts"}
+
 ASSET_FILENAME_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"^\.env($|\.)", re.IGNORECASE), "secret-like filename (.env)"),
     (re.compile(r"\.pem$", re.IGNORECASE), "secret-like filename (.pem)"),
@@ -78,6 +89,10 @@ def sweep_env_var_exposure(agent_dir: Path, declared_env_vars: list[str]) -> lis
         (re.compile(pattern, re.IGNORECASE), description)
         for pattern, description in CREDENTIAL_PATTERNS
     ]
+    compiled_risky_js_patterns = [
+        (re.compile(pattern), description)
+        for pattern, description in RISKY_JS_PRIMITIVE_PATTERNS
+    ]
 
     for source_file in sorted(agent_dir.rglob("*")):
         if not source_file.is_file():
@@ -104,6 +119,16 @@ def sweep_env_var_exposure(agent_dir: Path, declared_env_vars: list[str]) -> lis
                     if warning_text not in warnings:
                         warnings.append(warning_text)
                     break
+
+            # Restrict risky execution checks to JS/TS source files to avoid
+            # cross-language false positives from unrelated syntax.
+            if source_file.suffix.lower() in JS_TS_SWEEP_EXTENSIONS:
+                for compiled_pattern, description in compiled_risky_js_patterns:
+                    if compiled_pattern.search(line_text):
+                        warning_text = f"{relative_path}:{line_number}: {description}"
+                        if warning_text not in warnings:
+                            warnings.append(warning_text)
+                        break
 
     return warnings
 
