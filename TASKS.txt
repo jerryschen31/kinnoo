@@ -4099,7 +4099,7 @@ tasks:
       - 'step4: Add tests asserting trace schema and expected decision records for blocked and override installs'
     dependencies: [task205, task206]
     tests: [test305]
-    status: not-started
+    status: needs-review
 
   - id: task208
     title: "Feature37 non-node install regression safeguards"

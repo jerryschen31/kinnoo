@@ -2,6 +2,7 @@ import subprocess
 import sys
 import zipfile
 import os
+import json
 from pathlib import Path
 
 # Test51: kinnoo install usage error
@@ -452,3 +453,94 @@ def test_feature37_lifecycle_scripts_warning_and_ignore_scripts_mode(tmp_path):
     assert "Detected Node lifecycle scripts in package.json: postinstall, prepare." in ignored_output
     assert "Lifecycle scripts policy: ignored (--ignore-scripts enabled)." in ignored_output
     assert ignored_args_log.read_text(encoding="utf-8").strip() == "install --ignore-scripts"
+
+
+def test_feature37_install_trace_captures_audit_and_decisions(tmp_path):
+    node_archive = _create_node_archive(
+        tmp_path,
+        agent_name="feature37-node-trace",
+        with_lifecycle_scripts=True,
+    )
+
+    fake_bin = tmp_path / "fake-bin-trace"
+    _make_fake_node_toolchain(fake_bin)
+
+    env = dict(os.environ)
+    env["PATH"] = f"{fake_bin}{os.pathsep}{env.get('PATH', '')}"
+
+    blocked_target_dir = tmp_path / "feature37-node-trace-blocked"
+    blocked_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "install", str(node_archive), str(blocked_target_dir), "--yes"],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    blocked_output = f"{blocked_result.stdout}\n{blocked_result.stderr}"
+    assert blocked_result.returncode != 0, blocked_output
+
+    blocked_trace_path = blocked_target_dir / ".kinnoo" / "install-trace.json"
+    assert blocked_trace_path.exists(), blocked_output
+    blocked_trace = json.loads(blocked_trace_path.read_text(encoding="utf-8"))
+    assert blocked_trace["schema_version"] == "1.0"
+    assert blocked_trace["runtime_language"] == "nodejs"
+    assert blocked_trace["package_manager"] == "npm"
+    assert blocked_trace["lifecycle_scripts"] == {
+        "detected": True,
+        "names": ["postinstall", "prepare"],
+        "policy": "allowed",
+    }
+    assert blocked_trace["audit"]["severity_counts"] == {
+        "critical": 1,
+        "high": 2,
+        "moderate": 3,
+        "low": 4,
+    }
+    assert blocked_trace["decision"] == {
+        "outcome": "blocked",
+        "reason": "critical_vulnerabilities_blocked",
+        "allow_vulnerable": False,
+        "ignore_scripts": False,
+    }
+
+    allowed_target_dir = tmp_path / "feature37-node-trace-allowed"
+    allowed_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            str(node_archive),
+            str(allowed_target_dir),
+            "--yes",
+            "--allow-vulnerable",
+            "--ignore-scripts",
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    allowed_output = f"{allowed_result.stdout}\n{allowed_result.stderr}"
+    assert allowed_result.returncode == 0, allowed_output
+
+    allowed_trace_path = allowed_target_dir / ".kinnoo" / "install-trace.json"
+    assert allowed_trace_path.exists(), allowed_output
+    allowed_trace = json.loads(allowed_trace_path.read_text(encoding="utf-8"))
+    assert allowed_trace["schema_version"] == "1.0"
+    assert allowed_trace["runtime_language"] == "nodejs"
+    assert allowed_trace["package_manager"] == "npm"
+    assert allowed_trace["lifecycle_scripts"] == {
+        "detected": True,
+        "names": ["postinstall", "prepare"],
+        "policy": "ignored",
+    }
+    assert allowed_trace["audit"]["severity_counts"] == {
+        "critical": 1,
+        "high": 2,
+        "moderate": 3,
+        "low": 4,
+    }
+    assert allowed_trace["decision"] == {
+        "outcome": "allowed",
+        "reason": "critical_vulnerabilities_overridden",
+        "allow_vulnerable": True,
+        "ignore_scripts": True,
+    }
