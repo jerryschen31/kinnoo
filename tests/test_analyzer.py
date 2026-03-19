@@ -330,3 +330,45 @@ def test_feature27_detector_matrix_positive_and_ambiguous(tmp_path: Path) -> Non
     assert "ambiguous" in diagnostics_text
     assert "dependencies" in diagnostics_text or "requirements.txt" in diagnostics_text
     assert "unsafe asset path" in diagnostics_text or "assets" in diagnostics_text
+
+
+def test_feature36_openclaw_weighted_detection_scores(tmp_path: Path) -> None:
+    strong_project = tmp_path / "feature36-openclaw-strong"
+    strong_project.mkdir(parents=True, exist_ok=True)
+    (strong_project / "openclaw.json").write_text("{}\n", encoding="utf-8")
+    (strong_project / "package.json").write_text(
+        "{\n"
+        "  \"name\": \"feature36-openclaw-strong\",\n"
+        "  \"version\": \"1.0.0\",\n"
+        "  \"dependencies\": {\n"
+        "    \"@openclaw/core\": \"^0.1.0\"\n"
+        "  }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    (strong_project / "skills" / "default").mkdir(parents=True, exist_ok=True)
+    (strong_project / "skills" / "default" / "SKILL.md").write_text("# Default skill\n", encoding="utf-8")
+    (strong_project / "memory").mkdir(parents=True, exist_ok=True)
+    (strong_project / "run.py").write_text("print('hello')\n", encoding="utf-8")
+
+    strong_report = analyze_project(strong_project).as_dict()
+    assert strong_report["inferred"]["framework"] == "openclaw"
+    assert strong_report["confidence"]["framework"]["score"] >= 0.6
+    strong_evidence = str(strong_report["confidence"]["framework"]["evidence"]).lower()
+    assert "weighted detection score" in strong_evidence
+    assert "openclaw.json" in strong_evidence
+    assert "package.json" in strong_evidence
+
+    medium_only_project = tmp_path / "feature36-openclaw-medium-only"
+    medium_only_project.mkdir(parents=True, exist_ok=True)
+    (medium_only_project / "skills" / "default").mkdir(parents=True, exist_ok=True)
+    (medium_only_project / "skills" / "default" / "SKILL.md").write_text("# Default skill\n", encoding="utf-8")
+    (medium_only_project / "memory").mkdir(parents=True, exist_ok=True)
+    (medium_only_project / "run.py").write_text("print('hello')\n", encoding="utf-8")
+
+    medium_report = analyze_project(medium_only_project).as_dict()
+    assert medium_report["inferred"]["framework"] is None
+    medium_score = medium_report["confidence"]["framework"]["score"]
+    assert 0.2 <= medium_score < 0.6
+    medium_warnings = " ".join(medium_report["warnings"]).lower()
+    assert "openclaw detection confidence is mixed" in medium_warnings

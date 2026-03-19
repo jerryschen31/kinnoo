@@ -8,6 +8,7 @@ be extended by follow-up tasks without breaking API shape.
 from __future__ import annotations
 
 import ast
+import json
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -221,6 +222,25 @@ def _collect_import_names(project_dir: Path) -> set[str]:
 
 
 def _detect_framework(project_dir: Path) -> DetectorResult:
+    openclaw_signals = _detect_openclaw_weighted_signals(project_dir)
+    openclaw_score = openclaw_signals["score"]
+    openclaw_evidence = openclaw_signals["evidence"]
+
+    if openclaw_score >= 0.6:
+        strong_count = len(openclaw_signals["strong"])
+        medium_count = len(openclaw_signals["medium"])
+        evidence_line = (
+            "OpenClaw weighted detection score "
+            f"{openclaw_score:.2f} (strong={strong_count}, medium={medium_count}). "
+            f"Evidence: {'; '.join(openclaw_evidence)}"
+        )
+        return DetectorResult(
+            value="openclaw",
+            confidence=min(0.98, openclaw_score),
+            evidence=evidence_line,
+            warning=None,
+        )
+
     imports = _collect_import_names(project_dir)
 
     framework_patterns: dict[str, tuple[str, ...]] = {
@@ -250,11 +270,31 @@ def _detect_framework(project_dir: Path) -> DetectorResult:
         )
 
     if len(matched) > 1:
+        evidence_line = f"Multiple framework signals detected: {'; '.join(evidence_details)}."
+        if openclaw_score > 0:
+            evidence_line += (
+                f" OpenClaw weighted score {openclaw_score:.2f}: "
+                f"{'; '.join(openclaw_evidence)}."
+            )
         return DetectorResult(
             value=None,
             confidence=0.3,
-            evidence=f"Multiple framework signals detected: {'; '.join(evidence_details)}.",
+            evidence=evidence_line,
             warning="Framework inference is ambiguous; multiple framework indicators were found.",
+        )
+
+    if openclaw_score >= 0.2:
+        return DetectorResult(
+            value=None,
+            confidence=openclaw_score,
+            evidence=(
+                f"OpenClaw weighted detection score {openclaw_score:.2f} is below inference threshold. "
+                f"Evidence: {'; '.join(openclaw_evidence)}"
+            ),
+            warning=(
+                "OpenClaw detection confidence is mixed; add stronger project markers "
+                "(for example openclaw.json or package dependency markers) to remove ambiguity."
+            ),
         )
 
     return DetectorResult(
@@ -263,6 +303,101 @@ def _detect_framework(project_dir: Path) -> DetectorResult:
         evidence="No known framework import patterns detected.",
         warning="Could not infer framework; no recognized framework imports were found.",
     )
+
+
+def _openclaw_dependency_marker_count(project_dir: Path) -> tuple[int, list[str]]:
+    package_json_path = project_dir / "package.json"
+    if not package_json_path.exists() or not package_json_path.is_file():
+        return 0, []
+
+    try:
+        package_data = json.loads(package_json_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return 0, []
+
+    markers: list[str] = []
+    dependency_sections = [
+        "dependencies",
+        "devDependencies",
+        "peerDependencies",
+        "optionalDependencies",
+    ]
+    for section_name in dependency_sections:
+        section = package_data.get(section_name)
+        if not isinstance(section, dict):
+            continue
+
+        for package_name in sorted(section.keys()):
+            normalized = str(package_name).strip().lower()
+            if not normalized:
+                continue
+            if normalized == "openclaw" or normalized.startswith("@openclaw/") or "openclaw" in normalized:
+                markers.append(f"package.json:{section_name}:{package_name}")
+
+    return len(markers), markers
+
+
+def _openclaw_skills_signal(project_dir: Path) -> tuple[bool, str | None]:
+    skills_root = project_dir / "skills"
+    if not skills_root.exists() or not skills_root.is_dir():
+        return False, None
+
+    skill_markdown_files = sorted(
+        path for path in skills_root.rglob("SKILL.md") if path.is_file()
+    )
+    if not skill_markdown_files:
+        return False, None
+
+    first_match = skill_markdown_files[0]
+    relative = _relative_path(project_dir, first_match)
+    return True, f"skills-structure:{relative}"
+
+
+def _openclaw_memory_signal(project_dir: Path) -> tuple[bool, str | None]:
+    memory_root = project_dir / "memory"
+    if not memory_root.exists() or not memory_root.is_dir():
+        return False, None
+
+    return True, "memory-directory:memory/"
+
+
+def _detect_openclaw_weighted_signals(project_dir: Path) -> dict[str, Any]:
+    """Detect OpenClaw evidence using weighted strong/medium signals.
+
+    Strong signals have higher confidence contribution than medium signals.
+    """
+    strong_evidence: list[str] = []
+    medium_evidence: list[str] = []
+    score = 0.0
+
+    openclaw_json = project_dir / "openclaw.json"
+    if openclaw_json.exists() and openclaw_json.is_file():
+        strong_evidence.append("openclaw.json")
+        score += 0.5
+
+    dependency_marker_count, dependency_evidence = _openclaw_dependency_marker_count(project_dir)
+    if dependency_marker_count > 0:
+        score += 0.4
+        strong_evidence.extend(dependency_evidence)
+
+    has_skills_signal, skills_evidence = _openclaw_skills_signal(project_dir)
+    if has_skills_signal and skills_evidence:
+        score += 0.15
+        medium_evidence.append(skills_evidence)
+
+    has_memory_signal, memory_evidence = _openclaw_memory_signal(project_dir)
+    if has_memory_signal and memory_evidence:
+        score += 0.1
+        medium_evidence.append(memory_evidence)
+
+    normalized_score = min(1.0, score)
+    evidence = strong_evidence + medium_evidence
+    return {
+        "score": normalized_score,
+        "strong": strong_evidence,
+        "medium": medium_evidence,
+        "evidence": evidence,
+    }
 
 
 def _normalize_package_name(name: str) -> str:
