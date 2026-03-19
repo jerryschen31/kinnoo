@@ -34,6 +34,7 @@ try:
     from kinnoo.inspect_command import read_manifest_from_kno_archive
     from kinnoo.validator import validate
     from kinnoo.install_trace import write_install_trace
+    from kinnoo.logging_utils import emit_violation_event_diagnostic
 except ImportError:
     from .checksum import (
         ChecksumParseError,
@@ -48,6 +49,7 @@ except ImportError:
     from .inspect_command import read_manifest_from_kno_archive
     from .validator import validate
     from .install_trace import write_install_trace
+    from .logging_utils import emit_violation_event_diagnostic
 
 
 def _read_requirements(requirements_path: Path) -> list[str]:
@@ -692,6 +694,17 @@ def _install_from_archive_path(
                 "[kinnoo install] Permissions consent acknowledged via --accept-permissions override."
             )
         elif assume_yes:
+            emit_violation_event_diagnostic(
+                {
+                    "event_type": "permission_violation",
+                    "boundary": "install",
+                    "classification": "permissions_consent_required",
+                    "capability": "permissions",
+                    "attempted_action": "non_interactive_install_without_accept_permissions",
+                    "message": "permissions consent override required for non-interactive install",
+                    "remediation": "Re-run with --accept-permissions to acknowledge requested capabilities.",
+                }
+            )
             print(
                 "Error: Manifest declares permissions. Re-run with --accept-permissions to acknowledge requested capabilities in non-interactive mode.",
                 file=sys.stderr,
@@ -703,10 +716,32 @@ def _install_from_archive_path(
                     "This agent declares explicit permissions. Allow requested permissions? [y/N]: "
                 ).strip().lower()
             except EOFError:
+                emit_violation_event_diagnostic(
+                    {
+                        "event_type": "permission_violation",
+                        "boundary": "install",
+                        "classification": "permissions_consent_denied",
+                        "capability": "permissions",
+                        "attempted_action": "interactive_permissions_consent",
+                        "message": "permissions consent not granted",
+                        "remediation": "Re-run install and answer 'y' when prompted for permissions consent.",
+                    }
+                )
                 print("Install aborted: permissions consent not granted.", file=sys.stderr)
                 return 1
 
             if permission_confirmation not in {"y", "yes"}:
+                emit_violation_event_diagnostic(
+                    {
+                        "event_type": "permission_violation",
+                        "boundary": "install",
+                        "classification": "permissions_consent_denied",
+                        "capability": "permissions",
+                        "attempted_action": "interactive_permissions_consent",
+                        "message": "permissions consent not granted",
+                        "remediation": "Re-run install and answer 'y' when prompted for permissions consent.",
+                    }
+                )
                 print("Install aborted: permissions consent not granted.", file=sys.stderr)
                 return 1
 
