@@ -4254,7 +4254,7 @@ tasks:
       - 'step4: Add integration tests for consent accepted denied and non-interactive override paths'
     dependencies: [task214]
     tests: [test313]
-    status: not-started
+    status: needs-review
 
   - id: task216
     title: "Feature39 sandbox execution mode and enforcement backend"
