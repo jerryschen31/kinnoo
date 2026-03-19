@@ -539,6 +539,7 @@ assets:
         + "\n",
         encoding="utf-8",
     )
+
     (agent / "run.py").write_text("print('hello')\n", encoding="utf-8")
     (agent / "requirements.txt").write_text("", encoding="utf-8")
 
@@ -560,6 +561,70 @@ assets:
         names = set(zf.namelist())
         assert "assets/present.txt" in names
         assert "assets/missing.txt" not in names
+
+
+def test_feature35_pack_state_snapshot_layout(tmp_path):
+    """Feature35 test293: pack captures state_dirs snapshots with deterministic layout."""
+    agent = tmp_path / "feature35-state-pack"
+    agent.mkdir()
+
+    (agent / "memory" / "session").mkdir(parents=True)
+    (agent / "memory" / "session" / "journal.md").write_text("state journal\n", encoding="utf-8")
+    (agent / "state" / "cache").mkdir(parents=True)
+    (agent / "state" / "cache" / "index.json").write_text('{"warm": true}\n', encoding="utf-8")
+
+    (agent / "assets").mkdir()
+    (agent / "assets" / "guide.txt").write_text("immutable docs\n", encoding="utf-8")
+
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: feature35-state-pack
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+assets:
+  paths:
+    - assets
+state_dirs:
+  - memory
+  - path: state/cache
+    exclude:
+      - '*.log'
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.py").write_text("print('feature35')\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    result = subprocess.run(
+        KINNOO_CLI + ["pack", str(agent)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert result.returncode == 0, f"pack failed: {result.stderr}"
+
+    archive = _canonical_archive_path(tmp_path, "feature35-state-pack", "1.0.0")
+    assert archive.exists(), "Expected .kno archive to be created"
+
+    with zipfile.ZipFile(archive, "r") as zf:
+        names = sorted(zf.namelist())
+        assert "assets/guide.txt" in names
+        assert "state_snapshots/memory/session/journal.md" in names
+        assert "state_snapshots/state/cache/index.json" in names
+        assert all(not name.startswith("memory/") for name in names)
+        assert all(not name.startswith("state/cache/") for name in names)
 
 
 def test_feature22_pack_size_warning_uses_assets_threshold(tmp_path):
