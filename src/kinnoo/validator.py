@@ -32,9 +32,12 @@ from .schema import (
     MCP_SERVER_PERMISSION_KEYS,
     NAME_PATTERN,
     OPTIONAL_FIELD_TYPES,
+    PERMISSIONS_BOOL_FIELDS,
+    PERMISSIONS_KEYS,
     REQUIRED_FIELDS,
     SERVICE_TYPE_ALIASES,
     SEMVER_PATTERN,
+    SUPPORTED_FILESYSTEM_SCOPES,
     SUPPORTED_HEALTH_CHECK_METHODS,
     SUPPORTED_INPUT_TYPES,
     SUPPORTED_NODE_PACKAGE_MANAGERS,
@@ -206,15 +209,20 @@ def _collect_services_shape_errors(data: dict[str, Any]) -> list[str]:
 
 
 def _collect_mcp_server_permissions_errors(data: dict[str, Any]) -> list[str]:
-    """Validate optional permissions payload for mcp-server manifests only."""
+    """Validate optional permissions payload for legacy and feature39 contracts."""
     errors: list[str] = []
 
     runtime_found, runtime_type = _get_nested(data, "runtime.type")
-    if not runtime_found or runtime_type != "mcp-server":
+    if not runtime_found:
         return errors
 
     permissions_found, permissions = _get_nested(data, "permissions")
     if not permissions_found:
+        return errors
+
+    # Feature26 backward compatibility: non-mcp-server manifests historically
+    # ignored non-dict permissions payloads.
+    if runtime_type != "mcp-server" and not isinstance(permissions, dict):
         return errors
 
     if not isinstance(permissions, dict):
@@ -224,6 +232,70 @@ def _collect_mcp_server_permissions_errors(data: dict[str, Any]) -> list[str]:
         )
         return errors
 
+    feature39_keys = set(PERMISSIONS_KEYS)
+    has_feature39_keys = any(key in feature39_keys for key in permissions)
+
+    # Feature39 explicit permissions contract.
+    if has_feature39_keys or runtime_type != "mcp-server":
+        allowed_keys = feature39_keys
+        allowed_keys_display = ", ".join(f"'{key}'" for key in PERMISSIONS_KEYS)
+
+        for key in sorted(permissions.keys()):
+            if key not in allowed_keys:
+                errors.append(
+                    f"Field 'permissions' contains unsupported key: '{key}'. "
+                    f"Allowed keys: {allowed_keys_display}."
+                )
+
+        for field_name in PERMISSIONS_BOOL_FIELDS:
+            if field_name not in permissions:
+                continue
+            value = permissions[field_name]
+            if not isinstance(value, bool):
+                actual = type(value).__name__
+                errors.append(
+                    f"Field 'permissions.{field_name}' must be of type bool, got {actual}."
+                )
+
+        if "filesystem_scope" in permissions:
+            filesystem_scope = permissions["filesystem_scope"]
+            if not isinstance(filesystem_scope, str):
+                actual = type(filesystem_scope).__name__
+                errors.append(
+                    f"Field 'permissions.filesystem_scope' must be of type str, got {actual}."
+                )
+            elif filesystem_scope not in SUPPORTED_FILESYSTEM_SCOPES:
+                supported_scopes = ", ".join(
+                    f"'{scope}'" for scope in SUPPORTED_FILESYSTEM_SCOPES
+                )
+                errors.append(
+                    "Field 'permissions.filesystem_scope' has unsupported value: "
+                    f"'{filesystem_scope}'. Supported values: {supported_scopes}."
+                )
+
+        if "env_access" in permissions:
+            env_access = permissions["env_access"]
+            if not isinstance(env_access, list):
+                actual = type(env_access).__name__
+                errors.append(
+                    f"Field 'permissions.env_access' must be of type list, got {actual}."
+                )
+            else:
+                for index, env_var_name in enumerate(env_access):
+                    if not isinstance(env_var_name, str):
+                        actual = type(env_var_name).__name__
+                        errors.append(
+                            f"Field 'permissions.env_access[{index}]' must be of type str, got {actual}."
+                        )
+                        continue
+                    if env_var_name.strip() == "":
+                        errors.append(
+                            f"Field 'permissions.env_access[{index}]' must be a non-empty string."
+                        )
+
+        return errors
+
+    # Feature26 legacy mcp-server permissions schema contract.
     allowed_keys = set(MCP_SERVER_PERMISSION_KEYS)
     allowed_keys_display = ", ".join(f"'{key}'" for key in MCP_SERVER_PERMISSION_KEYS)
 

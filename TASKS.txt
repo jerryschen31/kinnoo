@@ -4233,7 +4233,7 @@ tasks:
       - 'step4: Add validator and schema-reference tests for valid and invalid permissions declarations'
     dependencies: []
     tests: [test312]
-    status: not-started
+    status: needs-review
 
   - id: task215
     title: "Feature39 install-time permission disclosure and consent flow"

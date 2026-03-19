@@ -152,6 +152,28 @@ MCP_SERVER_PERMISSION_BOOL_FIELDS: list[str] = [
     "allow_create",
 ]
 
+# Feature39 manifest permissions keys for explicit sandbox policy declarations.
+PERMISSIONS_KEYS: list[str] = [
+    "network",
+    "filesystem_scope",
+    "shell",
+    "browser",
+    "env_access",
+]
+
+PERMISSIONS_BOOL_FIELDS: list[str] = [
+    "network",
+    "shell",
+    "browser",
+]
+
+SUPPORTED_FILESYSTEM_SCOPES: list[str] = [
+    "none",
+    "read-only",
+    "workspace-write",
+    "full",
+]
+
 # Feature25 default timeout values for runtime service health checks.
 DEFAULT_HTTP_HEALTH_CHECK_TIMEOUT_SECONDS: float = 5.0
 DEFAULT_TCP_HEALTH_CHECK_TIMEOUT_SECONDS: float = 3.0
@@ -174,6 +196,7 @@ OPTIONAL_FIELDS: list[str] = [
     "assets.bundle",
     "assets.max_bundle_size_mb",
     "services",
+    "permissions",
 ]
 
 # Expected types for optional V2 fields when present.
@@ -194,6 +217,7 @@ OPTIONAL_FIELD_TYPES: dict[str, object] = {
     "assets.bundle": bool,
     "assets.max_bundle_size_mb": (int, float),
     "services": list,
+    "permissions": dict,
 }
 
 # Regex for a valid semver string: MAJOR.MINOR.PATCH with optional pre-release
