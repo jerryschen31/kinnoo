@@ -4021,3 +4021,100 @@ tasks:
     dependencies: [task199, task200, task201, task202]
     tests: [test301]
     status: completed
+
+  - id: task204
+    title: "Feature37 Node audit summary and severity reporting"
+    type: task
+    description: |
+      Add Node.js dependency audit execution during install for Node agents and
+      surface deterministic severity summaries (critical/high/moderate/low)
+      to operators.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli_install.py
+    steps:
+      - 'step1: Detect Node.js runtime installs and run npm audit or equivalent command in the installed project context'
+      - 'step2: Parse and print deterministic severity summary for critical high moderate and low findings'
+      - 'step3: Keep Python-agent installs on existing path without invoking Node audit tooling'
+      - 'step4: Add integration tests validating summary output and non-node no-op behavior'
+    dependencies: [task165, task168]
+    tests: [test302]
+    status: not-started
+
+  - id: task205
+    title: "Feature37 critical CVE install gate and override control"
+    type: task
+    description: |
+      Enforce critical vulnerability blocking behavior for Node installs by
+      default while supporting explicit operator override with
+      --allow-vulnerable.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli_install.py
+    steps:
+      - 'step1: Add CLI install flag --allow-vulnerable with clear help text describing security implications'
+      - 'step2: Block install when audit reports critical vulnerabilities and override is not set'
+      - 'step3: Permit install continuation when --allow-vulnerable is set while preserving warning visibility'
+      - 'step4: Add tests for default block path and explicit override continuation path'
+    dependencies: [task204]
+    tests: [test303]
+    status: not-started
+
+  - id: task206
+    title: "Feature37 lifecycle script detection warnings and ignore-scripts"
+    type: task
+    description: |
+      Detect package lifecycle scripts for Node installs, warn before execution,
+      and support --ignore-scripts policy mode to reduce install-time execution
+      risk.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli_install.py
+    steps:
+      - 'step1: Detect lifecycle script declarations from package metadata and render warning-first summary'
+      - 'step2: Add CLI install flag --ignore-scripts and pass through equivalent package-manager behavior'
+      - 'step3: Ensure logs and console output clearly show whether scripts were allowed or ignored'
+      - 'step4: Add tests for script-detected warning path and ignore-scripts enforcement path'
+    dependencies: [task204]
+    tests: [test304]
+    status: not-started
+
+  - id: task207
+    title: "Feature37 machine-readable audit and install decision trace"
+    type: task
+    description: |
+      Persist dependency-audit outcomes and operator/policy decisions in a
+      machine-readable install trace for later security review and automation.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/install_trace.py
+      - tests/test_cli_install.py
+    steps:
+      - 'step1: Define deterministic trace schema fields for audit severity counts lifecycle-script detection and decision outcomes'
+      - 'step2: Record block/allow outcomes including whether --allow-vulnerable or --ignore-scripts influenced behavior'
+      - 'step3: Ensure trace captures metadata only and does not leak secret values'
+      - 'step4: Add tests asserting trace schema and expected decision records for blocked and override installs'
+    dependencies: [task205, task206]
+    tests: [test305]
+    status: not-started
+
+  - id: task208
+    title: "Feature37 non-node install regression safeguards"
+    type: task
+    description: |
+      Add regression protections proving Python install workflows remain
+      unchanged when feature37 Node-specific security controls are introduced.
+    files:
+      - tests/test_regression_v1.py
+      - tests/test_cli_install.py
+    steps:
+      - 'step1: Add regression fixtures for Python agents and validate Node audit commands are not invoked'
+      - 'step2: Verify legacy Python install output and behavior remain stable with new flags present'
+      - 'step3: Assert no-op behavior for feature37 controls on non-node manifests'
+      - 'step4: Add explicit regression gate test to prevent future cross-runtime behavior drift'
+    dependencies: [task204, task205, task206, task207]
+    tests: [test306]
+    status: not-started
