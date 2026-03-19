@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 from typing import Optional
 from kinnoo.templates import (
-    KINNOO_YAML_TEMPLATE, RUN_PY_TEMPLATE, REQUIREMENTS_TXT_TEMPLATE, README_MD_TEMPLATE,
+    KINNOO_YAML_TEMPLATE, OPENCLAW_KINNOO_YAML_TEMPLATE, RUN_PY_TEMPLATE, REQUIREMENTS_TXT_TEMPLATE, README_MD_TEMPLATE,
     GEMINI_RUN_PY, GEMINI_REQUIREMENTS, GEMINI_README,
     CHATGPT_RUN_PY, CHATGPT_REQUIREMENTS, CHATGPT_README,
     CLAUDE_RUN_PY, CLAUDE_REQUIREMENTS, CLAUDE_README,
@@ -50,8 +50,13 @@ def init_agent(name: str, target_dir: Path, framework: Optional[str] = None):
     (agent_dir / "tools").mkdir()
     (agent_dir / "prompts").mkdir()
 
-    manifest_content = KINNOO_YAML_TEMPLATE.format(name=name)
-    if framework is not None:
+    # OpenClaw uses a Node.js daemon manifest contract; other frameworks extend the default template.
+    if framework == "openclaw":
+        manifest_content = OPENCLAW_KINNOO_YAML_TEMPLATE.format(name=name)
+    else:
+        manifest_content = KINNOO_YAML_TEMPLATE.format(name=name)
+
+    if framework is not None and framework != "openclaw":
         manifest_content += f"framework: {framework}\n"
         default_model = KNOWN_FRAMEWORK_DEFAULT_MODELS.get(framework)
         if default_model is not None:
