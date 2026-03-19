@@ -8,9 +8,9 @@ from typing import Any
 from urllib.parse import urlsplit
 
 try:
-    from kinnoo.analyzer import analyze_project
+    from kinnoo.analyzer import analyze_project, infer_openclaw_project_hints
 except ImportError:
-    from .analyzer import analyze_project
+    from .analyzer import analyze_project, infer_openclaw_project_hints
 
 
 DEFAULT_IMPORTED_MANIFEST = """name: imported-agent
@@ -290,6 +290,7 @@ def _build_manifest_from_analysis(
     runtime_language = runtime.get("language") or "python"
     runtime_version = runtime.get("version") or ">=3.10"
     runtime_type = runtime.get("type")
+    runtime_package_manager = runtime.get("package_manager") if isinstance(runtime.get("package_manager"), str) else None
 
     framework = inferred.get("framework")
     dependencies = inferred.get("dependencies") if isinstance(inferred.get("dependencies"), list) else []
@@ -316,6 +317,27 @@ def _build_manifest_from_analysis(
             session=session,
         )
         framework = framework_input or None
+
+    inferred_skills: list[str] = []
+    inferred_state_dirs: list[str] = []
+    if framework == "openclaw":
+        openclaw_hints = infer_openclaw_project_hints(target_path)
+        hinted_runtime = openclaw_hints.get("runtime")
+        if isinstance(hinted_runtime, dict):
+            runtime_language = str(hinted_runtime.get("language", runtime_language))
+            runtime_type = str(hinted_runtime.get("type", runtime_type or "daemon"))
+            runtime_version = str(hinted_runtime.get("version", runtime_version))
+            package_manager_hint = hinted_runtime.get("package_manager")
+            if isinstance(package_manager_hint, str) and package_manager_hint:
+                runtime_package_manager = package_manager_hint
+
+        raw_skills = openclaw_hints.get("skills")
+        if isinstance(raw_skills, list):
+            inferred_skills = [value for value in raw_skills if isinstance(value, str) and value.strip()]
+
+        raw_state_dirs = openclaw_hints.get("state_dirs")
+        if isinstance(raw_state_dirs, list):
+            inferred_state_dirs = [value for value in raw_state_dirs if isinstance(value, str) and value.strip()]
 
     if _should_prompt_field(report, "services", services):
         services = _prompt_services(services, session=session)
@@ -346,8 +368,22 @@ def _build_manifest_from_analysis(
         "  type: string",
     ]
 
+    if runtime_package_manager:
+        manifest_lines.insert(6, f"  package_manager: {runtime_package_manager}")
+
     if framework:
         manifest_lines.append(f"framework: {framework}")
+
+    if inferred_skills:
+        manifest_lines.append("skills:")
+        for skill_path in inferred_skills:
+            manifest_lines.append(f"  - {skill_path}")
+
+    if inferred_state_dirs:
+        manifest_lines.append("state_dirs:")
+        for state_dir in inferred_state_dirs:
+            manifest_lines.append(f"  - {state_dir}")
+
     if env_lines:
         manifest_lines.append("env_vars:")
         manifest_lines.append(env_lines)
