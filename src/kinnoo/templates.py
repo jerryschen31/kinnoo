@@ -532,6 +532,30 @@ outputs:
   type: text
 """
 
+OPENCLAW_KINNOO_YAML_TEMPLATE = """name: {name}
+version: 0.1.0
+description: "TODO: Add a short OpenClaw agent description"
+author: "TODO: Add author name"
+entrypoint: index.mjs
+framework: openclaw
+runtime:
+  language: nodejs
+  version: ">=20"
+  type: daemon
+  package_manager: npm
+channels:
+  - stdio
+skills:
+  - skills/default
+state_dirs:
+  - memory
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+"""
+
 RUN_PY_TEMPLATE = """import sys
 import asyncio
 

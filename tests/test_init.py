@@ -456,6 +456,29 @@ def test_feature34_openclaw_scaffold_structure(tmp_path):
         assert target.exists() and target.is_dir(), f"Missing required directory: {relative_path}"
 
 
+def test_feature34_openclaw_manifest_validation_contract(tmp_path):
+    """test288: generated OpenClaw manifest validates and includes required Node daemon fields."""
+    import yaml
+    from kinnoo.validator import validate
+
+    agent_name = "feature34-openclaw-manifest"
+    code, out, err = run_cli(["init", agent_name, "--framework", "openclaw"], cwd=tmp_path)
+    assert code == 0, err
+
+    manifest_path = tmp_path / agent_name / "kinnoo.yaml"
+    is_valid, errors = validate(str(manifest_path))
+    assert is_valid, f"OpenClaw manifest should validate. Errors: {errors}"
+    assert not errors
+
+    manifest_data = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    runtime = manifest_data["runtime"]
+    assert manifest_data.get("framework") == "openclaw"
+    assert runtime.get("language") == "nodejs"
+    assert runtime.get("type") == "daemon"
+    assert runtime.get("package_manager") in {"npm", "pnpm"}
+    assert "stdio" in manifest_data.get("channels", [])
+
+
 def test_feature21_regression_existing_frameworks_unchanged(tmp_path):
     expected = {
         "gemini": {
