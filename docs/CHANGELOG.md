@@ -3,6 +3,24 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v0.19.0] - 2026-03-19
+### Added
+- Implemented Feature37 "Node.js Dependency Audit & Lifecycle Script Controls" with install-time Node audit visibility and deterministic severity summary reporting (`critical/high/moderate/low`).
+- Added machine-readable Node install trace output capturing lifecycle-script detection, severity counts, and policy decisions.
+
+### Changed
+- Enforced default install blocking when Node audit reports critical vulnerabilities, with explicit operator override via `--allow-vulnerable`.
+- Added lifecycle-script policy controls for Node installs with warning-first behavior and `--ignore-scripts` enforcement.
+- Preserved runtime isolation so feature37 controls remain Node-only and do not alter Python install workflows.
+
+### Quality
+- Feature37 acceptance criteria gate validated across `test302`-`test306`.
+- SWE remediation applied for feature37 test-contract mismatch (AC1 summary validation now explicitly opts into AC2 override semantics).
+- Focused verification after remediation: `2 passed` (`python3 -m pytest tests/test_cli_install.py::test_feature37_node_audit_severity_summary tests/test_regression_v1.py::test_v1_suite_passes_after_feature7 -q`).
+- Full regression after remediation: `309 passed, 1 skipped` (`python3 -m pytest`).
+- Merge commit: TBD (populate after merge to `phase4/main`).
+
+
 ## [v0.18.0] - 2026-03-19
 ### Added
 - Implemented Feature36 "OpenClaw Import Detection & Manifest Inference" with weighted strong/medium OpenClaw evidence detection surfaced through analyzer confidence metadata.

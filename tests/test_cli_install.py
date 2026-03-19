@@ -328,7 +328,15 @@ def test_feature37_node_audit_severity_summary(tmp_path):
     node_env["PATH"] = f"{fake_bin}{os.pathsep}{node_env.get('PATH', '')}"
 
     node_result = subprocess.run(
-        [sys.executable, "src/kinnoo/cli.py", "install", str(node_archive), str(node_target_dir), "--yes"],
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            str(node_archive),
+            str(node_target_dir),
+            "--yes",
+            "--allow-vulnerable",
+        ],
         capture_output=True,
         text=True,
         env=node_env,
