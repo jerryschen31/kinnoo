@@ -3919,4 +3919,4 @@ tasks:
       - 'step4: Add regression tests proving asset bundling behavior remains unchanged for non-state_dirs manifests'
     dependencies: [task194, task195, task196, task197]
     tests: [test296]
-    status: not-started
+    status: needs-review
