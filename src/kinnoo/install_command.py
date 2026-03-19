@@ -33,6 +33,7 @@ try:
     from kinnoo.schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars
     from kinnoo.inspect_command import read_manifest_from_kno_archive
     from kinnoo.validator import validate
+    from kinnoo.install_trace import write_install_trace
 except ImportError:
     from .checksum import (
         ChecksumParseError,
@@ -46,6 +47,7 @@ except ImportError:
     from .schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars
     from .inspect_command import read_manifest_from_kno_archive
     from .validator import validate
+    from .install_trace import write_install_trace
 
 
 def _read_requirements(requirements_path: Path) -> list[str]:
@@ -215,6 +217,48 @@ def _detect_node_lifecycle_scripts(package_json_path: Path) -> list[str]:
     return sorted(set(declared))
 
 
+def _write_node_install_trace(
+    target_dir: Path,
+    *,
+    package_manager: str,
+    lifecycle_scripts: list[str],
+    allow_vulnerable: bool,
+    ignore_scripts: bool,
+    severity_counts: dict[str, int],
+    outcome: str,
+    decision_reason: str,
+) -> None:
+    """Write machine-readable Node install trace with audit and policy decisions."""
+    trace_payload: dict[str, object] = {
+        "schema_version": "1.0",
+        "runtime_language": "nodejs",
+        "package_manager": package_manager,
+        "lifecycle_scripts": {
+            "detected": bool(lifecycle_scripts),
+            "names": list(lifecycle_scripts),
+            "policy": "ignored" if ignore_scripts else "allowed",
+        },
+        "audit": {
+            "severity_counts": {
+                "critical": int(severity_counts.get("critical", 0)),
+                "high": int(severity_counts.get("high", 0)),
+                "moderate": int(severity_counts.get("moderate", 0)),
+                "low": int(severity_counts.get("low", 0)),
+            }
+        },
+        "decision": {
+            "outcome": outcome,
+            "reason": decision_reason,
+            "allow_vulnerable": allow_vulnerable,
+            "ignore_scripts": ignore_scripts,
+        },
+    }
+
+    trace_path = write_install_trace(target_dir=target_dir, payload=trace_payload)
+    if trace_path is not None:
+        print(f"[kinnoo install] Wrote install trace: '{trace_path}'")
+
+
 def _install_node_dependencies(
     target_dir: Path,
     runtime: dict[str, object],
@@ -302,6 +346,16 @@ def _install_node_dependencies(
 
     critical_count = severity_counts.get("critical", 0)
     if critical_count > 0 and not allow_vulnerable:
+        _write_node_install_trace(
+            target_dir=target_dir,
+            package_manager=package_manager,
+            lifecycle_scripts=lifecycle_scripts,
+            allow_vulnerable=allow_vulnerable,
+            ignore_scripts=ignore_scripts,
+            severity_counts=severity_counts,
+            outcome="blocked",
+            decision_reason="critical_vulnerabilities_blocked",
+        )
         print(
             "Error: Critical vulnerabilities were detected in Node dependency audit results. "
             "Install blocked by default. Re-run with --allow-vulnerable to proceed at your own risk.",
@@ -309,11 +363,24 @@ def _install_node_dependencies(
         )
         return 1
 
+    decision_reason = "no_critical_vulnerabilities"
     if critical_count > 0 and allow_vulnerable:
+        decision_reason = "critical_vulnerabilities_overridden"
         print(
             "Warning: Continuing install despite critical vulnerabilities because --allow-vulnerable was set.",
             file=sys.stderr,
         )
+
+    _write_node_install_trace(
+        target_dir=target_dir,
+        package_manager=package_manager,
+        lifecycle_scripts=lifecycle_scripts,
+        allow_vulnerable=allow_vulnerable,
+        ignore_scripts=ignore_scripts,
+        severity_counts=severity_counts,
+        outcome="allowed",
+        decision_reason=decision_reason,
+    )
 
     return 0
 
