@@ -4174,7 +4174,7 @@ tasks:
       - 'step4: Add tests covering dangerous config detection and non-dangerous config no-warning baselines'
     dependencies: [task209]
     tests: [test309]
-    status: not-started
+    status: needs-review
 
   - id: task212
     title: "Feature38 memory snapshot credential scan before pack"
