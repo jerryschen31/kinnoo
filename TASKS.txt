@@ -4060,7 +4060,7 @@ tasks:
       - 'step4: Add tests for default block path and explicit override continuation path'
     dependencies: [task204]
     tests: [test303]
-    status: not-started
+    status: needs-review
 
   - id: task206
     title: "Feature37 lifecycle script detection warnings and ignore-scripts"
