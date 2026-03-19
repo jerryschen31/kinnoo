@@ -4000,7 +4000,7 @@ tasks:
       - 'step4: Add tests asserting valid generation path and warning-first unresolved guidance path'
     dependencies: [task200, task201]
     tests: [test300]
-    status: not-started
+    status: needs-review
 
   - id: task203
     title: "Feature36 non-openclaw regression safeguards"

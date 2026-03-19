@@ -12,6 +12,11 @@ try:
 except ImportError:
     from .analyzer import analyze_project, infer_openclaw_project_hints
 
+try:
+    from kinnoo.validator import validate as validate_manifest
+except ImportError:
+    from .validator import validate as validate_manifest
+
 
 DEFAULT_IMPORTED_MANIFEST = """name: imported-agent
 version: 1.0.0
@@ -436,6 +441,57 @@ def _write_manifest_in_place(target_path: Path, manifest_text: str, *, force: bo
         raise
 
 
+def _collect_unresolved_todo_guidance(
+    report: dict[str, Any],
+    entrypoint_warning: str | None,
+) -> list[str]:
+    guidance: list[str] = []
+
+    if _get_confidence(report, "entrypoint") < 0.6:
+        guidance.append("Verify 'entrypoint' points to an existing executable script in the project root.")
+
+    if _get_confidence(report, "runtime") < 0.6:
+        guidance.append("Verify runtime fields (runtime.type, runtime.language, runtime.version) before first run.")
+
+    inferred_framework = report.get("inferred", {}).get("framework")
+    framework_confidence = _get_confidence(report, "framework")
+    if inferred_framework is None and framework_confidence > 0.0:
+        guidance.append(
+            "Framework inference is ambiguous; set 'framework' explicitly if this project depends on one."
+        )
+
+    if entrypoint_warning:
+        guidance.append(entrypoint_warning)
+
+    # Preserve deterministic order while removing duplicates.
+    return list(dict.fromkeys(guidance))
+
+
+def _print_manifest_validation_and_guidance(
+    manifest_path: Path,
+    report: dict[str, Any],
+    entrypoint_warning: str | None,
+) -> None:
+    is_valid, errors = validate_manifest(str(manifest_path))
+    if is_valid:
+        print("Generated manifest validation: PASS")
+    else:
+        print("Generated manifest validation: WARNING")
+        for error in errors:
+            print(f"  - {error}")
+
+    unresolved_guidance = _collect_unresolved_todo_guidance(report, entrypoint_warning)
+    if is_valid and not unresolved_guidance:
+        return
+
+    print("TODO guidance:")
+    for item in unresolved_guidance:
+        print(f"  - {item}")
+
+    if not is_valid:
+        print("  - Update kinnoo.yaml to resolve validation warnings before packaging or distribution.")
+
+
 def import_agent(target_path_arg: str | None, *, force: bool = False) -> int:
     """Import a project in-place by writing kinnoo.yaml safely into target root."""
     target_path = _resolve_import_target(target_path_arg)
@@ -458,6 +514,7 @@ def import_agent(target_path_arg: str | None, *, force: bool = False) -> int:
         return 1
 
     session = PromptSession()
+    entrypoint_warning: str | None = None
 
     try:
         report = analyze_project(target_path).as_dict()
@@ -519,6 +576,12 @@ def import_agent(target_path_arg: str | None, *, force: bool = False) -> int:
             generated_wrapper_path.unlink()
         print(f"Error: import failed and rolled back partial artifacts: {exc}")
         return 1
+
+    _print_manifest_validation_and_guidance(
+        manifest_path,
+        report,
+        entrypoint_warning,
+    )
 
     print(f"Imported project in-place: {target_path}")
     return 0
