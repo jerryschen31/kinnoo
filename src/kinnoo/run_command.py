@@ -26,6 +26,8 @@ from .health_check import (
 )
 from .schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars
 from .sandbox import evaluate_sandbox_permissions
+from .install_trace import write_violation_event
+from .logging_utils import emit_violation_event_diagnostic
 from .supervisor import (
     build_daemon_state_payload,
     clear_daemon_state,
@@ -1289,6 +1291,28 @@ def run_agent(
             pass_through_args=runtime_pass_through_args,
         )
         if not sandbox_decision.allowed:
+            violation_event = {
+                "event_type": "permission_violation",
+                "boundary": "run",
+                "classification": sandbox_decision.code,
+                "runtime_language": runtime_language,
+                "runtime_type": runtime_type,
+                "capability": sandbox_decision.capability or "unspecified",
+                "attempted_action": sandbox_decision.action or "unspecified",
+                "message": sandbox_decision.message,
+                "remediation": sandbox_decision.remediation,
+            }
+            emit_violation_event_diagnostic(
+                violation_event,
+                secret_values=trace_forbidden_values,
+            )
+            violation_trace_path = write_violation_event(
+                target_dir=agent_dir,
+                payload=violation_event,
+            )
+            if violation_trace_path is not None:
+                print(f"[kinnoo] violation event logged: '{violation_trace_path}'", file=sys.stderr)
+
             _print_safe_error(
                 "Error: sandbox enforcement failed "
                 f"(classification={sandbox_decision.code}): {sandbox_decision.message}",
