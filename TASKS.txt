@@ -3755,7 +3755,7 @@ tasks:
       - 'step4: Add tests asserting generated manifest schema correctness'
     dependencies: [task189]
     tests: [test288]
-    status: not-started
+    status: needs-review
 
   - id: task191
     title: "Feature34 OpenClaw template runnable via kinnoo run"
