@@ -652,3 +652,106 @@ def test_feature33_non_openclaw_optional_nonbreaking_regression_gate(tmp_path):
             f"errors: {errors}"
         )
 
+
+def test_feature35_assets_backward_compatibility_without_state_dirs(tmp_path):
+    """Regression gate: manifests without state_dirs preserve asset-only pack/install behavior."""
+    repo_root = Path(__file__).resolve().parents[1]
+    cli_path = repo_root / "src" / "kinnoo" / "cli.py"
+
+    archive_root = tmp_path / "archive-root"
+    env = os.environ.copy()
+    env["KINNOO_ARCHIVE_ROOT"] = str(archive_root)
+
+    agent_dir = tmp_path / "feature35-assets-only"
+    agent_dir.mkdir(parents=True, exist_ok=True)
+
+    (agent_dir / "assets").mkdir(parents=True, exist_ok=True)
+    (agent_dir / "assets" / "guide.txt").write_text("immutable-guide\n", encoding="utf-8")
+    (agent_dir / "run.py").write_text(
+        "import pathlib\n"
+        "asset_path = pathlib.Path(__file__).parent / 'assets' / 'guide.txt'\n"
+        "print(asset_path.read_text(encoding='utf-8').strip())\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: feature35-assets-only",
+                "version: 1.0.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.10\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+                "assets:",
+                "  paths:",
+                "    - assets",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    pack_result = subprocess.run(
+        [sys.executable, str(cli_path), "pack", str(agent_dir)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert pack_result.returncode == 0, (
+        "Feature35 regression gate failed during asset-only pack.\n"
+        f"STDOUT:\n{pack_result.stdout}\n"
+        f"STDERR:\n{pack_result.stderr}"
+    )
+
+    archive_path = archive_root / "feature35-assets-only" / "1.0.0" / "feature35-assets-only.kno"
+    assert archive_path.exists(), "Expected asset-only archive to be created"
+
+    import zipfile
+
+    with zipfile.ZipFile(archive_path, "r") as archive_zip:
+        names = set(archive_zip.namelist())
+        assert "assets/guide.txt" in names
+        assert not any(name.startswith("state_snapshots/") for name in names)
+
+    install_target = tmp_path / "feature35-assets-only-installed"
+    install_result = subprocess.run(
+        [
+            sys.executable,
+            str(cli_path),
+            "install",
+            str(archive_path),
+            str(install_target),
+            "--yes",
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert install_result.returncode == 0, (
+        "Feature35 regression gate failed during asset-only install.\n"
+        f"STDOUT:\n{install_result.stdout}\n"
+        f"STDERR:\n{install_result.stderr}"
+    )
+
+    assert (install_target / "assets" / "guide.txt").read_text(encoding="utf-8").strip() == "immutable-guide"
+
+    run_result = subprocess.run(
+        [sys.executable, str(cli_path), "run", str(install_target), "noop"],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    run_output = f"{run_result.stdout}\n{run_result.stderr}"
+    assert run_result.returncode == 0, run_output
+    assert "immutable-guide" in run_output
+
