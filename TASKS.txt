@@ -3878,7 +3878,7 @@ tasks:
       - 'step4: Add integration tests for no-overwrite default and explicit force overwrite path'
     dependencies: [task195, task30]
     tests: [test294]
-    status: not-started
+    status: needs-review
 
   - id: task197
     title: "Feature35 selective snapshot exclusions for state_dirs"

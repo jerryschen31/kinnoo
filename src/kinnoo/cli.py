@@ -137,6 +137,11 @@ def main():
         action="store_true",
         help="Skip install confirmation prompt (shows summary and proceeds)",
     )
+    install_parser.add_argument(
+        "--state-overwrite",
+        action="store_true",
+        help="Allow state snapshot restore to overwrite existing extracted state directories",
+    )
 
     # Add 'pack' subcommand
     pack_parser = subparsers.add_parser("pack", help="Package an agent directory into a .kno archive")
@@ -308,6 +313,7 @@ def main():
         if "--force" in sys.argv:
             force = True
         assume_yes = bool(getattr(args, "yes", False))
+        overwrite_state = bool(getattr(args, "state_overwrite", False))
         try:
             from kinnoo.install_command import install_agent
         except ImportError:
@@ -318,6 +324,7 @@ def main():
             target_dir_arg=target_dir_arg,
             force=force,
             assume_yes=assume_yes,
+            overwrite_state=overwrite_state,
         )
         sys.exit(exit_code)
 
