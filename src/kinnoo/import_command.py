@@ -73,9 +73,19 @@ def _prompt_with_default(prompt: str, default: str, session: PromptSession | Non
 
 def _show_detected_values(report: dict[str, Any]) -> None:
     inferred = report.get("inferred", {})
+    confidence = report.get("confidence", {})
     print("Detected values from analyzer:")
     for key in ("entrypoint", "runtime", "framework", "dependencies", "env_vars", "services"):
         print(f"  - {key}: {inferred.get(key)}")
+
+    framework_confidence = confidence.get("framework")
+    if isinstance(framework_confidence, dict):
+        score = framework_confidence.get("score", 0.0)
+        evidence = framework_confidence.get("evidence", "")
+        print("Framework confidence metadata:")
+        print(f"  - score: {score:.2f}" if isinstance(score, (int, float)) else f"  - score: {score}")
+        if isinstance(evidence, str) and evidence:
+            print(f"  - evidence: {evidence}")
 
 
 def _get_confidence(report: dict[str, Any], field_name: str) -> float:
