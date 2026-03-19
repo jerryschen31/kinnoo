@@ -478,6 +478,80 @@ def test_pack_security_sweep_non_blocking(tmp_path: Path) -> None:
     assert "[kinnoo pack] Archive created:" in clean_output
 
 
+def test_feature38_scans_jstsjson_credentials(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "feature38-multilang-sweep-agent"
+    agent_dir.mkdir(parents=True, exist_ok=True)
+
+    (agent_dir / "kinnoo.yaml").write_text(
+        (
+            "name: feature38-multilang-sweep-agent\n"
+            "version: 1.0.0\n"
+            "entrypoint: run.py\n"
+            "runtime:\n"
+            "  type: one-shot\n"
+            "  language: python\n"
+            "  version: \"3.10\"\n"
+            "dependencies: []\n"
+            "inputs:\n"
+            "  type: string\n"
+            "outputs:\n"
+            "  type: string\n"
+        ),
+        encoding="utf-8",
+    )
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    (agent_dir / "run.py").write_text("print('ok')\n", encoding="utf-8")
+
+    js_secret = "ghp_abcdefghijklmnopqrstuvwxyz0123456789AB"
+    mjs_secret = "sk-abcdefghijklmnopqrstuvwxyz123456"
+    ts_secret = "xoxb-1234567890-1234567890-abcdefghijklmnopqrstuv"
+    json_secret = "AKIAABCDEFGHIJKLMNOP"
+
+    (agent_dir / "client.js").write_text(
+        f"const token = '{js_secret}';\nconsole.log('client loaded');\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "worker.mjs").write_text(
+        f"export const apiToken = '{mjs_secret}';\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "service.ts").write_text(
+        f"const slackToken = '{ts_secret}';\nexport default slackToken;\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "config.json").write_text(
+        json.dumps(
+            {
+                "aws_access_key_id": json_secret,
+                "api_key": "very-secret-value-12345",
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    inspect_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "inspect", str(agent_dir)],
+        capture_output=True,
+        text=True,
+    )
+
+    output = f"{inspect_result.stdout}\n{inspect_result.stderr}"
+    assert inspect_result.returncode == 0, output
+    assert "Security sweep:" in output
+    assert "client.js:" in output
+    assert "worker.mjs:" in output
+    assert "service.ts:" in output
+    assert "config.json:" in output
+    assert "credential-like pattern" in output
+
+    assert js_secret not in output
+    assert mjs_secret not in output
+    assert ts_secret not in output
+    assert json_secret not in output
+
+
 def _create_mcp_trace_agent(tmp_path: Path, agent_name: str) -> Path:
     agent_dir = tmp_path / agent_name
     agent_dir.mkdir()
