@@ -113,6 +113,21 @@ Install-time transparency and consent:
 	- keeps summary output,
 	- skips confirmation prompt for CI and unattended workflows.
 
+Feature39 install permission disclosure and consent:
+
+- when manifest `permissions` is declared, install summary includes a deterministic permissions section:
+	- network
+	- filesystem scope
+	- shell
+	- browser
+	- env access (names only)
+- interactive installs require explicit permission consent:
+	- `This agent declares explicit permissions. Allow requested permissions? [y/N]:`
+	- default is deny
+- non-interactive installs must use explicit override:
+	- `kinnoo install ... --yes --accept-permissions`
+	- using `--yes` without `--accept-permissions` aborts safely with guidance
+
 Unverified source warning:
 
 - If `<archive>.sha256` is missing, install prints:
