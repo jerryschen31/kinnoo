@@ -3979,7 +3979,7 @@ tasks:
       - 'step4: Add tests covering identity artifact presence and optional-file behavior'
     dependencies: [task199]
     tests: [test299]
-    status: not-started
+    status: needs-review
 
   - id: task202
     title: "Feature36 import output validity and unresolved-field guidance"

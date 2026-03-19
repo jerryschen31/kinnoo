@@ -405,3 +405,52 @@ def test_feature36_openclaw_hint_inference_runtime_package_manager_skills_state_
     assert runtime["version"] == ">=20.0.0"
     assert hints["skills"] == ["skills/default/SKILL.md"]
     assert hints["state_dirs"] == ["memory"]
+
+
+def test_feature36_identity_signal_detection(tmp_path: Path) -> None:
+    with_user_project = tmp_path / "feature36-openclaw-identity-with-user"
+    with_user_project.mkdir(parents=True, exist_ok=True)
+    (with_user_project / "openclaw.json").write_text("{}\n", encoding="utf-8")
+    (with_user_project / "package.json").write_text(
+        "{\n"
+        "  \"name\": \"feature36-openclaw-identity-with-user\",\n"
+        "  \"version\": \"1.0.0\",\n"
+        "  \"dependencies\": {\n"
+        "    \"@openclaw/core\": \"^0.1.0\"\n"
+        "  }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    (with_user_project / "SOUL.md").write_text("# Soul\n", encoding="utf-8")
+    (with_user_project / "AGENTS.md").write_text("# Agents\n", encoding="utf-8")
+    (with_user_project / "USER.md").write_text("# User\n", encoding="utf-8")
+
+    with_user_report = analyze_project(with_user_project).as_dict()
+    with_user_evidence = str(with_user_report["confidence"]["framework"]["evidence"])
+    assert "identity-file:SOUL.md" in with_user_evidence
+    assert "identity-file:AGENTS.md" in with_user_evidence
+    assert "identity-file:USER.md" in with_user_evidence
+
+    no_user_project = tmp_path / "feature36-openclaw-identity-no-user"
+    no_user_project.mkdir(parents=True, exist_ok=True)
+    (no_user_project / "openclaw.json").write_text("{}\n", encoding="utf-8")
+    (no_user_project / "package.json").write_text(
+        "{\n"
+        "  \"name\": \"feature36-openclaw-identity-no-user\",\n"
+        "  \"version\": \"1.0.0\",\n"
+        "  \"dependencies\": {\n"
+        "    \"@openclaw/core\": \"^0.1.0\"\n"
+        "  }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    (no_user_project / "SOUL.md").write_text("# Soul\n", encoding="utf-8")
+    (no_user_project / "AGENTS.md").write_text("# Agents\n", encoding="utf-8")
+
+    no_user_report = analyze_project(no_user_project).as_dict()
+    no_user_evidence = str(no_user_report["confidence"]["framework"]["evidence"])
+    assert no_user_report["inferred"]["framework"] == "openclaw"
+    assert no_user_report["confidence"]["framework"]["score"] >= 0.6
+    assert "identity-file:SOUL.md" in no_user_evidence
+    assert "identity-file:AGENTS.md" in no_user_evidence
+    assert "identity-file:USER.md" not in no_user_evidence
