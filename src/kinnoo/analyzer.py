@@ -361,6 +361,37 @@ def _openclaw_memory_signal(project_dir: Path) -> tuple[bool, str | None]:
     return True, "memory-directory:memory/"
 
 
+def _openclaw_identity_signal(project_dir: Path) -> tuple[float, list[str]]:
+    """Detect OpenClaw identity artifacts as explicit medium-confidence signals."""
+    score = 0.0
+    evidence: list[str] = []
+
+    soul_path = project_dir / "SOUL.md"
+    agents_path = project_dir / "AGENTS.md"
+    user_path = project_dir / "USER.md"
+
+    has_soul = soul_path.exists() and soul_path.is_file()
+    has_agents = agents_path.exists() and agents_path.is_file()
+    has_user = user_path.exists() and user_path.is_file()
+
+    if has_soul and has_agents:
+        score += 0.2
+        evidence.extend(["identity-file:SOUL.md", "identity-file:AGENTS.md"])
+    elif has_soul:
+        score += 0.1
+        evidence.append("identity-file:SOUL.md")
+    elif has_agents:
+        score += 0.1
+        evidence.append("identity-file:AGENTS.md")
+
+    # USER.md is optional context and only increases confidence when present.
+    if has_user:
+        score += 0.05
+        evidence.append("identity-file:USER.md")
+
+    return score, evidence
+
+
 def _detect_openclaw_weighted_signals(project_dir: Path) -> dict[str, Any]:
     """Detect OpenClaw evidence using weighted strong/medium signals.
 
@@ -389,6 +420,11 @@ def _detect_openclaw_weighted_signals(project_dir: Path) -> dict[str, Any]:
     if has_memory_signal and memory_evidence:
         score += 0.1
         medium_evidence.append(memory_evidence)
+
+    identity_score, identity_evidence = _openclaw_identity_signal(project_dir)
+    if identity_score > 0:
+        score += identity_score
+        medium_evidence.extend(identity_evidence)
 
     normalized_score = min(1.0, score)
     evidence = strong_evidence + medium_evidence
