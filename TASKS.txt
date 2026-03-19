@@ -3898,7 +3898,7 @@ tasks:
       - 'step4: Add tests for representative patterns such as memory daily logs and edge cases'
     dependencies: [task194, task195, task196]
     tests: [test295]
-    status: not-started
+    status: needs-review
 
   - id: task198
     title: "Feature35 docs and compatibility regression safeguards"

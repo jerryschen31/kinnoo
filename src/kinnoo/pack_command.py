@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import zipfile
+from fnmatch import fnmatch
 from pathlib import Path
 
 import yaml
@@ -184,6 +185,72 @@ def _iter_declared_state_dir_paths(manifest: dict) -> list[str]:
     return normalized_paths
 
 
+def _iter_declared_state_dirs_with_excludes(
+    manifest: dict,
+) -> list[tuple[str, list[str]]]:
+    """Return normalized state_dirs entries with optional exclude patterns."""
+    raw_state_dirs = manifest.get("state_dirs")
+    if not isinstance(raw_state_dirs, list):
+        return []
+
+    normalized_entries: list[tuple[str, list[str]]] = []
+    for entry in raw_state_dirs:
+        if isinstance(entry, str):
+            candidate = entry.strip()
+            if candidate:
+                normalized_entries.append((candidate, []))
+            continue
+
+        if not isinstance(entry, dict):
+            continue
+
+        path_value = entry.get("path")
+        if not isinstance(path_value, str):
+            continue
+
+        candidate = path_value.strip()
+        if not candidate:
+            continue
+
+        excludes: list[str] = []
+        raw_excludes = entry.get("exclude")
+        if isinstance(raw_excludes, list):
+            for pattern in raw_excludes:
+                if not isinstance(pattern, str):
+                    continue
+                normalized_pattern = pattern.strip()
+                if normalized_pattern:
+                    excludes.append(normalized_pattern)
+
+        normalized_entries.append((candidate, excludes))
+
+    return normalized_entries
+
+
+def _matches_state_exclude_pattern(relative_path: str, pattern: str) -> bool:
+    normalized_path = relative_path.replace("\\", "/")
+    normalized_pattern = pattern.replace("\\", "/")
+
+    if normalized_pattern.startswith("./"):
+        normalized_pattern = normalized_pattern[2:]
+
+    if normalized_pattern.endswith("/"):
+        prefix = normalized_pattern.rstrip("/")
+        return normalized_path == prefix or normalized_path.startswith(prefix + "/")
+
+    return fnmatch(normalized_path, normalized_pattern)
+
+
+def _is_excluded_state_snapshot_path(
+    relative_path: str,
+    exclude_patterns: list[str],
+) -> bool:
+    for pattern in exclude_patterns:
+        if _matches_state_exclude_pattern(relative_path, pattern):
+            return True
+    return False
+
+
 def _collect_state_snapshot_files(manifest: dict, agent_root: Path) -> list[tuple[str, Path]]:
     """Collect state_dirs files into deterministic snapshot archive paths.
 
@@ -192,7 +259,9 @@ def _collect_state_snapshot_files(manifest: dict, agent_root: Path) -> list[tupl
     """
     snapshot_files: list[tuple[str, Path]] = []
 
-    for declared_state_root in _iter_declared_state_dir_paths(manifest):
+    for declared_state_root, exclude_patterns in _iter_declared_state_dirs_with_excludes(
+        manifest
+    ):
         state_root_path = (agent_root / Path(declared_state_root)).resolve(strict=False)
         if not _path_within_root(state_root_path, agent_root):
             raise ValueError(
@@ -215,6 +284,11 @@ def _collect_state_snapshot_files(manifest: dict, agent_root: Path) -> list[tupl
             if not child.is_file():
                 continue
             relative_from_state_root = child.relative_to(state_root_path).as_posix()
+            if _is_excluded_state_snapshot_path(
+                relative_path=relative_from_state_root,
+                exclude_patterns=exclude_patterns,
+            ):
+                continue
             arcname = f"{_STATE_SNAPSHOT_PREFIX}/{declared_state_root}/{relative_from_state_root}"
             snapshot_files.append((arcname, child))
 
