@@ -755,3 +755,95 @@ def test_feature35_assets_backward_compatibility_without_state_dirs(tmp_path):
     assert run_result.returncode == 0, run_output
     assert "immutable-guide" in run_output
 
+
+def test_feature36_non_openclaw_import_regression_guard(tmp_path):
+    """Regression gate: non-openclaw analyzer/import behavior remains stable."""
+    from kinnoo.analyzer import analyze_project
+
+    repo_root = Path(__file__).resolve().parents[1]
+    cli_path = repo_root / "src" / "kinnoo" / "cli.py"
+
+    python_project = tmp_path / "feature36-non-openclaw-python"
+    python_project.mkdir(parents=True, exist_ok=True)
+    (python_project / "run.py").write_text(
+        "import openai\n"
+        "import sys\n"
+        "if __name__ == '__main__':\n"
+        "    print(sys.argv[1] if len(sys.argv) > 1 else 'ok')\n",
+        encoding="utf-8",
+    )
+    (python_project / "requirements.txt").write_text("openai\n", encoding="utf-8")
+
+    python_report = analyze_project(python_project).as_dict()
+    assert python_report["inferred"]["framework"] == "chatgpt"
+    assert python_report["confidence"]["framework"]["score"] >= 0.8
+
+    python_import_result = subprocess.run(
+        [sys.executable, str(cli_path), "import", str(python_project)],
+        input="y\n",
+        capture_output=True,
+        text=True,
+    )
+    python_output = f"{python_import_result.stdout}\n{python_import_result.stderr}"
+    assert python_import_result.returncode == 0, python_output
+    assert "framework: openclaw" not in python_output.lower()
+    python_manifest_text = (python_project / "kinnoo.yaml").read_text(encoding="utf-8")
+    assert "framework: chatgpt" in python_manifest_text
+    assert "framework: openclaw" not in python_manifest_text
+
+    node_project = tmp_path / "feature36-non-openclaw-node"
+    node_project.mkdir(parents=True, exist_ok=True)
+    (node_project / "index.mjs").write_text("console.log('hello node');\n", encoding="utf-8")
+    (node_project / "package.json").write_text(
+        json.dumps(
+            {
+                "name": "feature36-non-openclaw-node",
+                "version": "1.0.0",
+                "type": "module",
+                "dependencies": {"express": "^4.21.0"},
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    node_report = analyze_project(node_project).as_dict()
+    assert node_report["inferred"]["framework"] is None
+    assert node_report["confidence"]["framework"]["score"] == 0.0
+
+    node_import_result = subprocess.run(
+        [sys.executable, str(cli_path), "import", str(node_project)],
+        input="y\nrun.py\none-shot\n\n",
+        capture_output=True,
+        text=True,
+    )
+    node_output = f"{node_import_result.stdout}\n{node_import_result.stderr}"
+    assert node_import_result.returncode == 0, node_output
+    assert "analyzer warnings" in node_output.lower()
+    assert "framework: openclaw" not in node_output.lower()
+    node_manifest_text = (node_project / "kinnoo.yaml").read_text(encoding="utf-8")
+    assert "framework: openclaw" not in node_manifest_text
+
+    ambiguous_python_project = tmp_path / "feature36-non-openclaw-ambiguous-python"
+    ambiguous_python_project.mkdir(parents=True, exist_ok=True)
+    (ambiguous_python_project / "run.py").write_text(
+        "import openai\n"
+        "import anthropic\n"
+        "if __name__ == '__main__':\n"
+        "    print('ambiguous')\n",
+        encoding="utf-8",
+    )
+
+    ambiguous_import_result = subprocess.run(
+        [sys.executable, str(cli_path), "import", str(ambiguous_python_project)],
+        input="y\nchatgpt\n",
+        capture_output=True,
+        text=True,
+    )
+    ambiguous_output = f"{ambiguous_import_result.stdout}\n{ambiguous_import_result.stderr}"
+    assert ambiguous_import_result.returncode == 0, ambiguous_output
+    assert "analyzer warnings" in ambiguous_output.lower()
+    assert "ambiguous" in ambiguous_output.lower()
+    assert "framework: openclaw" not in ambiguous_output.lower()
+
