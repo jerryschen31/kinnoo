@@ -2184,3 +2184,109 @@ def test_feature25_interactive_prompt_allows_proceed_or_abort(tmp_path, monkeypa
 
     assert abort_code != 0
     assert "feature25-policy-entrypoint-ran" not in abort_output
+
+
+def test_feature39_run_sandbox_permission_enforcement(tmp_path):
+    allowed_agent_dir = tmp_path / "feature39-sandbox-allowed-agent"
+    allowed_agent_dir.mkdir()
+    (allowed_agent_dir / "requirements.txt").write_text("")
+    (allowed_agent_dir / "kinnoo.yaml").write_text(
+        """
+name: feature39-sandbox-allowed-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+permissions:
+    network: true
+    filesystem_scope: read-only
+    shell: false
+    browser: false
+    env_access: []
+"""
+    )
+    (allowed_agent_dir / "run.py").write_text("print('feature39-sandbox-allowed-ran')\n")
+    (allowed_agent_dir / "README.md").write_text("feature39 sandbox allowed agent")
+    (allowed_agent_dir / "tools").mkdir()
+    (allowed_agent_dir / "prompts").mkdir()
+
+    allowed_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(allowed_agent_dir),
+            "hello",
+            "--sandbox",
+            "--",
+            "--url",
+            "https://example.com",
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    allowed_output = f"{allowed_result.stdout}\n{allowed_result.stderr}"
+    assert allowed_result.returncode == 0, allowed_output
+    assert "sandbox policy check passed" in allowed_output
+    assert "feature39-sandbox-allowed-ran" in allowed_output
+
+    denied_agent_dir = tmp_path / "feature39-sandbox-denied-agent"
+    denied_agent_dir.mkdir()
+    (denied_agent_dir / "requirements.txt").write_text("")
+    (denied_agent_dir / "kinnoo.yaml").write_text(
+        """
+name: feature39-sandbox-denied-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+permissions:
+    network: true
+    filesystem_scope: read-only
+    shell: false
+    browser: false
+    env_access: []
+"""
+    )
+    (denied_agent_dir / "run.py").write_text("print('feature39-sandbox-denied-should-not-run')\n")
+    (denied_agent_dir / "README.md").write_text("feature39 sandbox denied agent")
+    (denied_agent_dir / "tools").mkdir()
+    (denied_agent_dir / "prompts").mkdir()
+
+    denied_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(denied_agent_dir),
+            "hello",
+            "--sandbox",
+            "--",
+            "--exec",
+            "echo denied",
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    denied_output = f"{denied_result.stdout}\n{denied_result.stderr}"
+    assert denied_result.returncode != 0, denied_output
+    assert "classification=policy_violation" in denied_output
+    assert "capability=shell action=shell_execution" in denied_output
+    assert "Remediation:" in denied_output
+    assert "feature39-sandbox-denied-should-not-run" not in denied_output
