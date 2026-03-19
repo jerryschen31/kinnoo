@@ -3858,7 +3858,7 @@ tasks:
       - 'step4: Add tests verifying expected snapshot layout in produced archives'
     dependencies: [task194, task27]
     tests: [test293]
-    status: not-started
+    status: needs-review
 
   - id: task196
     title: "Feature35 install restore flow with overwrite warning and force controls"
