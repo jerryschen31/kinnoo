@@ -67,8 +67,21 @@ def evaluate_sandbox_permissions(
     *,
     manifest: dict[str, Any],
     runtime_type: str,
+    runtime_language: str,
     pass_through_args: list[str],
 ) -> SandboxDecision:
+    if runtime_language not in {"python", "nodejs"}:
+        return SandboxDecision(
+            allowed=False,
+            code="backend_unsupported_runtime_language",
+            message=(
+                "sandbox mode supports runtime.language='python' and 'nodejs' only in this version"
+            ),
+            remediation=(
+                "Use runtime.language='python' or 'nodejs', or run without --sandbox"
+            ),
+        )
+
     if runtime_type != "one-shot":
         return SandboxDecision(
             allowed=False,
