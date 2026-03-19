@@ -4212,4 +4212,4 @@ tasks:
       - 'step4: Add regression tests proving secret-like values are never echoed in sweep output'
     dependencies: [task209, task210, task211, task212]
     tests: [test311]
-    status: not-started
+    status: needs-review
