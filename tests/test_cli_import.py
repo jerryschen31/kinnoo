@@ -417,3 +417,49 @@ def test_feature36_openclaw_detection_weighted_confidence_output(tmp_path):
     assert medium_result.returncode == 0
     assert "openclaw detection confidence is mixed" in medium_output.lower()
     assert "weighted detection score" in medium_output.lower()
+
+
+def test_feature36_infers_runtime_skills_state_dirs(tmp_path):
+    project_dir = tmp_path / "feature36-openclaw-inference"
+    project_dir.mkdir(parents=True, exist_ok=True)
+
+    (project_dir / "run.py").write_text(
+        "import sys\n"
+        "if __name__ == '__main__':\n"
+        "    print(sys.argv[1] if len(sys.argv) > 1 else 'ok')\n",
+        encoding="utf-8",
+    )
+    (project_dir / "openclaw.json").write_text("{}\n", encoding="utf-8")
+    (project_dir / "package.json").write_text(
+        "{\n"
+        "  \"name\": \"feature36-openclaw-inference\",\n"
+        "  \"version\": \"1.0.0\",\n"
+        "  \"dependencies\": {\n"
+        "    \"@openclaw/core\": \"^0.1.0\"\n"
+        "  }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    (project_dir / "pnpm-lock.yaml").write_text("lockfileVersion: '9.0'\n", encoding="utf-8")
+    (project_dir / "skills" / "default").mkdir(parents=True, exist_ok=True)
+    (project_dir / "skills" / "default" / "SKILL.md").write_text("# Default skill\n", encoding="utf-8")
+    (project_dir / "memory" / "daily").mkdir(parents=True, exist_ok=True)
+    (project_dir / "memory" / "daily" / "journal.md").write_text("entry\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(project_dir)],
+        input="y\n",
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+    manifest_text = (project_dir / "kinnoo.yaml").read_text(encoding="utf-8")
+    assert "framework: openclaw" in manifest_text
+    assert "language: nodejs" in manifest_text
+    assert "type: daemon" in manifest_text
+    assert "package_manager: pnpm" in manifest_text
+    assert "skills:" in manifest_text
+    assert "skills/default/SKILL.md" in manifest_text
+    assert "state_dirs:" in manifest_text
+    assert "- memory" in manifest_text

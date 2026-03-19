@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from kinnoo.analyzer import AnalysisReport, analyze_project
+from kinnoo.analyzer import AnalysisReport, analyze_project, infer_openclaw_project_hints
 
 
 def _create_minimal_project_fixture(base_dir: Path) -> Path:
@@ -372,3 +372,36 @@ def test_feature36_openclaw_weighted_detection_scores(tmp_path: Path) -> None:
     assert 0.2 <= medium_score < 0.6
     medium_warnings = " ".join(medium_report["warnings"]).lower()
     assert "openclaw detection confidence is mixed" in medium_warnings
+
+
+def test_feature36_openclaw_hint_inference_runtime_package_manager_skills_state_dirs(tmp_path: Path) -> None:
+    project_dir = tmp_path / "feature36-openclaw-hints"
+    project_dir.mkdir(parents=True, exist_ok=True)
+
+    (project_dir / "openclaw.json").write_text("{}\n", encoding="utf-8")
+    (project_dir / "package.json").write_text(
+        "{\n"
+        "  \"name\": \"feature36-openclaw-hints\",\n"
+        "  \"version\": \"1.0.0\",\n"
+        "  \"dependencies\": {\n"
+        "    \"@openclaw/core\": \"^0.1.0\"\n"
+        "  }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    (project_dir / "pnpm-lock.yaml").write_text("lockfileVersion: '9.0'\n", encoding="utf-8")
+    (project_dir / "skills" / "default").mkdir(parents=True, exist_ok=True)
+    (project_dir / "skills" / "default" / "SKILL.md").write_text("# Default skill\n", encoding="utf-8")
+    (project_dir / "memory").mkdir(parents=True, exist_ok=True)
+
+    hints = infer_openclaw_project_hints(project_dir)
+    runtime = hints["runtime"]
+
+    assert hints["confidence"] >= 0.6
+    assert "openclaw.json" in hints["evidence"]
+    assert runtime["language"] == "nodejs"
+    assert runtime["type"] == "daemon"
+    assert runtime["package_manager"] == "pnpm"
+    assert runtime["version"] == ">=20.0.0"
+    assert hints["skills"] == ["skills/default/SKILL.md"]
+    assert hints["state_dirs"] == ["memory"]

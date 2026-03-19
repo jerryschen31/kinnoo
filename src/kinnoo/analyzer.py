@@ -400,6 +400,66 @@ def _detect_openclaw_weighted_signals(project_dir: Path) -> dict[str, Any]:
     }
 
 
+def _detect_node_package_manager(project_dir: Path) -> str:
+    if (project_dir / "pnpm-lock.yaml").exists():
+        return "pnpm"
+    return "npm"
+
+
+def _infer_openclaw_skill_paths(project_dir: Path) -> list[str]:
+    skills_root = project_dir / "skills"
+    if not skills_root.exists() or not skills_root.is_dir():
+        return []
+
+    inferred_skills = sorted(
+        _relative_path(project_dir, path)
+        for path in skills_root.rglob("SKILL.md")
+        if path.is_file()
+    )
+    return inferred_skills
+
+
+def _infer_openclaw_state_dirs(project_dir: Path) -> list[str]:
+    candidates: list[str] = []
+
+    memory_root = project_dir / "memory"
+    if memory_root.exists() and memory_root.is_dir():
+        candidates.append("memory")
+
+    state_root = project_dir / "state"
+    if state_root.exists() and state_root.is_dir():
+        candidates.append("state")
+
+    return candidates
+
+
+def infer_openclaw_project_hints(project_dir: str | Path) -> dict[str, Any]:
+    """Infer OpenClaw runtime and structure hints for import workflows.
+
+    This helper is intentionally additive and does not alter the stable
+    `analyze_project()` report key contract from feature27.
+    """
+    resolved_project_dir = _validate_project_dir(project_dir)
+    signals = _detect_openclaw_weighted_signals(resolved_project_dir)
+
+    package_manager = _detect_node_package_manager(resolved_project_dir)
+    skills = _infer_openclaw_skill_paths(resolved_project_dir)
+    state_dirs = _infer_openclaw_state_dirs(resolved_project_dir)
+
+    return {
+        "confidence": float(signals["score"]),
+        "evidence": list(signals["evidence"]),
+        "runtime": {
+            "language": "nodejs",
+            "type": "daemon",
+            "package_manager": package_manager,
+            "version": ">=20.0.0",
+        },
+        "skills": skills,
+        "state_dirs": state_dirs,
+    }
+
+
 def _normalize_package_name(name: str) -> str:
     return re.sub(r"[-_.]+", "-", name.strip().lower())
 
