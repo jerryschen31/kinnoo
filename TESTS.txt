@@ -4887,3 +4887,83 @@ tests:
         ac: AC4
       - feature: feature35
         ac: AC5
+
+  - id: test297
+    title: Feature36 import detects openclaw projects with weighted confidence and explicit evidence output
+    type: integration
+    preconditions: analyzer-backed import flow available with OpenClaw signal detectors
+    steps:
+      - step1: Run kinnoo import against fixtures containing strong and medium OpenClaw signals
+      - step2: Inspect analyzer/import output for confidence level and evidence lines
+      - step3: Verify confidence scoring reflects weighted signal strength rather than binary detection only
+    expected: import reports OpenClaw detection with confidence/evidence output that is deterministic and actionable
+    pass_criteria: output includes OpenClaw detection plus confidence/evidence metadata aligned with weighted signals
+    automated: true
+    automation_path: tests/test_cli_import.py::test_feature36_openclaw_detection_weighted_confidence_output
+    covers:
+      - feature: feature36
+        ac: AC1
+
+  - id: test298
+    title: Feature36 inference maps runtime package manager skills and state_dirs from openclaw project structure
+    type: integration
+    preconditions: analyzer can inspect OpenClaw fixtures with package metadata skills and memory paths
+    steps:
+      - step1: Run kinnoo import on representative OpenClaw project fixtures
+      - step2: Inspect generated/inferred manifest fields for runtime language runtime type and package manager
+      - step3: Verify inferred skills and candidate state_dirs match discovered project paths
+    expected: inferred manifest fields reflect OpenClaw runtime and structure with correct schema shape
+    pass_criteria: runtime package manager skills and state_dirs inference matches expected fixture evidence
+    automated: true
+    automation_path: tests/test_cli_import.py::test_feature36_infers_runtime_skills_state_dirs
+    covers:
+      - feature: feature36
+        ac: AC2
+
+  - id: test299
+    title: Feature36 identity artifacts SOUL AGENTS and optional USER are recognized as explicit inference signals
+    type: unit
+    preconditions: analyzer identity detectors for OpenClaw files are implemented
+    steps:
+      - step1: Analyze fixtures containing SOUL.md AGENTS.md and optional USER.md combinations
+      - step2: Verify identity artifacts are surfaced in evidence output
+      - step3: Confirm missing optional USER.md does not invalidate otherwise strong OpenClaw detection
+    expected: identity files are recognized as explicit signals with stable evidence reporting
+    pass_criteria: evidence output consistently reflects SOUL/AGENTS signals and handles optional USER correctly
+    automated: true
+    automation_path: tests/test_analyzer.py::test_feature36_identity_signal_detection
+    covers:
+      - feature: feature36
+        ac: AC3
+
+  - id: test300
+    title: Feature36 generated kinnoo manifest is valid or emits clear unresolved TODO and warning guidance
+    type: integration
+    preconditions: import command can generate kinnoo.yaml from analyzer inference output
+    steps:
+      - step1: Run import on fixture with complete inference data and validate generated manifest
+      - step2: Run import on fixture with intentionally incomplete inference data
+      - step3: Verify unresolved path emits explicit TODO/warning guidance without silent defaults
+    expected: complete inference generates valid manifest and incomplete inference provides actionable unresolved guidance
+    pass_criteria: either validator passes for generated manifest or output includes clear TODO/warning instructions for unresolved fields
+    automated: true
+    automation_path: tests/test_cli_import.py::test_feature36_manifest_valid_or_todo_guidance
+    covers:
+      - feature: feature36
+        ac: AC4
+
+  - id: test301
+    title: Feature36 openclaw import enhancements do not regress non-openclaw analyzer-backed import behavior
+    type: integration
+    preconditions: existing non-openclaw import fixtures and baseline analyzer behavior are available
+    steps:
+      - step1: Execute analyzer/import flows for existing Python and generic Node non-openclaw fixtures
+      - step2: Verify projects are not misclassified as openclaw and baseline behavior remains stable
+      - step3: Confirm outputs remain warning-first and actionable for ambiguous non-openclaw cases
+    expected: non-openclaw import behavior remains unchanged and stable after feature36 additions
+    pass_criteria: no non-openclaw misclassification and existing analyzer-backed import outputs continue to pass baseline assertions
+    automated: true
+    automation_path: tests/test_regression_v1.py::test_feature36_non_openclaw_import_regression_guard
+    covers:
+      - feature: feature36
+        ac: AC5

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from kinnoo.analyzer import AnalysisReport, analyze_project
+from kinnoo.analyzer import AnalysisReport, analyze_project, infer_openclaw_project_hints
 
 
 def _create_minimal_project_fixture(base_dir: Path) -> Path:
@@ -330,3 +330,127 @@ def test_feature27_detector_matrix_positive_and_ambiguous(tmp_path: Path) -> Non
     assert "ambiguous" in diagnostics_text
     assert "dependencies" in diagnostics_text or "requirements.txt" in diagnostics_text
     assert "unsafe asset path" in diagnostics_text or "assets" in diagnostics_text
+
+
+def test_feature36_openclaw_weighted_detection_scores(tmp_path: Path) -> None:
+    strong_project = tmp_path / "feature36-openclaw-strong"
+    strong_project.mkdir(parents=True, exist_ok=True)
+    (strong_project / "openclaw.json").write_text("{}\n", encoding="utf-8")
+    (strong_project / "package.json").write_text(
+        "{\n"
+        "  \"name\": \"feature36-openclaw-strong\",\n"
+        "  \"version\": \"1.0.0\",\n"
+        "  \"dependencies\": {\n"
+        "    \"@openclaw/core\": \"^0.1.0\"\n"
+        "  }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    (strong_project / "skills" / "default").mkdir(parents=True, exist_ok=True)
+    (strong_project / "skills" / "default" / "SKILL.md").write_text("# Default skill\n", encoding="utf-8")
+    (strong_project / "memory").mkdir(parents=True, exist_ok=True)
+    (strong_project / "run.py").write_text("print('hello')\n", encoding="utf-8")
+
+    strong_report = analyze_project(strong_project).as_dict()
+    assert strong_report["inferred"]["framework"] == "openclaw"
+    assert strong_report["confidence"]["framework"]["score"] >= 0.6
+    strong_evidence = str(strong_report["confidence"]["framework"]["evidence"]).lower()
+    assert "weighted detection score" in strong_evidence
+    assert "openclaw.json" in strong_evidence
+    assert "package.json" in strong_evidence
+
+    medium_only_project = tmp_path / "feature36-openclaw-medium-only"
+    medium_only_project.mkdir(parents=True, exist_ok=True)
+    (medium_only_project / "skills" / "default").mkdir(parents=True, exist_ok=True)
+    (medium_only_project / "skills" / "default" / "SKILL.md").write_text("# Default skill\n", encoding="utf-8")
+    (medium_only_project / "memory").mkdir(parents=True, exist_ok=True)
+    (medium_only_project / "run.py").write_text("print('hello')\n", encoding="utf-8")
+
+    medium_report = analyze_project(medium_only_project).as_dict()
+    assert medium_report["inferred"]["framework"] is None
+    medium_score = medium_report["confidence"]["framework"]["score"]
+    assert 0.2 <= medium_score < 0.6
+    medium_warnings = " ".join(medium_report["warnings"]).lower()
+    assert "openclaw detection confidence is mixed" in medium_warnings
+
+
+def test_feature36_openclaw_hint_inference_runtime_package_manager_skills_state_dirs(tmp_path: Path) -> None:
+    project_dir = tmp_path / "feature36-openclaw-hints"
+    project_dir.mkdir(parents=True, exist_ok=True)
+
+    (project_dir / "openclaw.json").write_text("{}\n", encoding="utf-8")
+    (project_dir / "package.json").write_text(
+        "{\n"
+        "  \"name\": \"feature36-openclaw-hints\",\n"
+        "  \"version\": \"1.0.0\",\n"
+        "  \"dependencies\": {\n"
+        "    \"@openclaw/core\": \"^0.1.0\"\n"
+        "  }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    (project_dir / "pnpm-lock.yaml").write_text("lockfileVersion: '9.0'\n", encoding="utf-8")
+    (project_dir / "skills" / "default").mkdir(parents=True, exist_ok=True)
+    (project_dir / "skills" / "default" / "SKILL.md").write_text("# Default skill\n", encoding="utf-8")
+    (project_dir / "memory").mkdir(parents=True, exist_ok=True)
+
+    hints = infer_openclaw_project_hints(project_dir)
+    runtime = hints["runtime"]
+
+    assert hints["confidence"] >= 0.6
+    assert "openclaw.json" in hints["evidence"]
+    assert runtime["language"] == "nodejs"
+    assert runtime["type"] == "daemon"
+    assert runtime["package_manager"] == "pnpm"
+    assert runtime["version"] == ">=20.0.0"
+    assert hints["skills"] == ["skills/default/SKILL.md"]
+    assert hints["state_dirs"] == ["memory"]
+
+
+def test_feature36_identity_signal_detection(tmp_path: Path) -> None:
+    with_user_project = tmp_path / "feature36-openclaw-identity-with-user"
+    with_user_project.mkdir(parents=True, exist_ok=True)
+    (with_user_project / "openclaw.json").write_text("{}\n", encoding="utf-8")
+    (with_user_project / "package.json").write_text(
+        "{\n"
+        "  \"name\": \"feature36-openclaw-identity-with-user\",\n"
+        "  \"version\": \"1.0.0\",\n"
+        "  \"dependencies\": {\n"
+        "    \"@openclaw/core\": \"^0.1.0\"\n"
+        "  }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    (with_user_project / "SOUL.md").write_text("# Soul\n", encoding="utf-8")
+    (with_user_project / "AGENTS.md").write_text("# Agents\n", encoding="utf-8")
+    (with_user_project / "USER.md").write_text("# User\n", encoding="utf-8")
+
+    with_user_report = analyze_project(with_user_project).as_dict()
+    with_user_evidence = str(with_user_report["confidence"]["framework"]["evidence"])
+    assert "identity-file:SOUL.md" in with_user_evidence
+    assert "identity-file:AGENTS.md" in with_user_evidence
+    assert "identity-file:USER.md" in with_user_evidence
+
+    no_user_project = tmp_path / "feature36-openclaw-identity-no-user"
+    no_user_project.mkdir(parents=True, exist_ok=True)
+    (no_user_project / "openclaw.json").write_text("{}\n", encoding="utf-8")
+    (no_user_project / "package.json").write_text(
+        "{\n"
+        "  \"name\": \"feature36-openclaw-identity-no-user\",\n"
+        "  \"version\": \"1.0.0\",\n"
+        "  \"dependencies\": {\n"
+        "    \"@openclaw/core\": \"^0.1.0\"\n"
+        "  }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    (no_user_project / "SOUL.md").write_text("# Soul\n", encoding="utf-8")
+    (no_user_project / "AGENTS.md").write_text("# Agents\n", encoding="utf-8")
+
+    no_user_report = analyze_project(no_user_project).as_dict()
+    no_user_evidence = str(no_user_report["confidence"]["framework"]["evidence"])
+    assert no_user_report["inferred"]["framework"] == "openclaw"
+    assert no_user_report["confidence"]["framework"]["score"] >= 0.6
+    assert "identity-file:SOUL.md" in no_user_evidence
+    assert "identity-file:AGENTS.md" in no_user_evidence
+    assert "identity-file:USER.md" not in no_user_evidence
