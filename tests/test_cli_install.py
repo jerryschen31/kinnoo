@@ -228,3 +228,106 @@ def test_install_offline_succeeds_with_complete_wheels(tmp_path):
     )
     assert dependency_check.returncode == 0, dependency_check.stderr
     assert dependency_check.stdout.strip() == "ok"
+
+
+def _create_node_archive(tmp_path: Path, agent_name: str = "feature37-node-agent") -> Path:
+    archive_path = tmp_path / f"{agent_name}.kno"
+    manifest = (
+        f"name: {agent_name}\n"
+        "version: 1.0.0\n"
+        "entrypoint: index.mjs\n"
+        "runtime:\n"
+        "  type: daemon\n"
+        "  language: nodejs\n"
+        "  version: \">=20.0.0\"\n"
+        "  package_manager: npm\n"
+        "dependencies: []\n"
+        "inputs:\n"
+        "  type: text\n"
+        "outputs:\n"
+        "  type: text\n"
+    )
+    package_json = (
+        "{\n"
+        f"  \"name\": \"{agent_name}\",\n"
+        "  \"version\": \"1.0.0\",\n"
+        "  \"type\": \"module\",\n"
+        "  \"dependencies\": {\n"
+        "    \"left-pad\": \"^1.3.0\"\n"
+        "  }\n"
+        "}\n"
+    )
+    with zipfile.ZipFile(archive_path, "w") as archive:
+        archive.writestr("kinnoo.yaml", manifest)
+        archive.writestr("index.mjs", "console.log('hello node')\n")
+        archive.writestr("package.json", package_json)
+    return archive_path
+
+
+def _make_fake_node_toolchain(bin_dir: Path) -> None:
+    bin_dir.mkdir(parents=True, exist_ok=True)
+
+    node_script = bin_dir / "node"
+    node_script.write_text(
+        "#!/bin/sh\n"
+        "if [ \"$1\" = \"--version\" ]; then\n"
+        "  echo v20.11.1\n"
+        "  exit 0\n"
+        "fi\n"
+        "echo unsupported node invocation >&2\n"
+        "exit 1\n",
+        encoding="utf-8",
+    )
+    node_script.chmod(0o755)
+
+    npm_script = bin_dir / "npm"
+    npm_script.write_text(
+        "#!/bin/sh\n"
+        "if [ \"$1\" = \"install\" ]; then\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"audit\" ] && [ \"$2\" = \"--json\" ]; then\n"
+        "  cat <<'JSON'\n"
+        "{\"metadata\":{\"vulnerabilities\":{\"critical\":1,\"high\":2,\"moderate\":3,\"low\":4}}}\n"
+        "JSON\n"
+        "  exit 1\n"
+        "fi\n"
+        "echo unsupported npm invocation >&2\n"
+        "exit 1\n",
+        encoding="utf-8",
+    )
+    npm_script.chmod(0o755)
+
+
+def test_feature37_node_audit_severity_summary(tmp_path):
+    node_archive = _create_node_archive(tmp_path)
+    node_target_dir = tmp_path / "feature37-node-installed"
+
+    fake_bin = tmp_path / "fake-bin"
+    _make_fake_node_toolchain(fake_bin)
+
+    node_env = dict(os.environ)
+    node_env["PATH"] = f"{fake_bin}{os.pathsep}{node_env.get('PATH', '')}"
+
+    node_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "install", str(node_archive), str(node_target_dir), "--yes"],
+        capture_output=True,
+        text=True,
+        env=node_env,
+    )
+
+    node_output = f"{node_result.stdout}\n{node_result.stderr}"
+    assert node_result.returncode == 0, node_output
+    assert "Node audit severity summary: critical=1 high=2 moderate=3 low=4" in node_output
+
+    python_archive, _ = _create_valid_archive(tmp_path)
+    python_target_dir = tmp_path / "feature37-python-installed"
+    python_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "install", str(python_archive), str(python_target_dir), "--yes"],
+        capture_output=True,
+        text=True,
+    )
+
+    python_output = f"{python_result.stdout}\n{python_result.stderr}"
+    assert python_result.returncode == 0, python_output
+    assert "Node audit severity summary:" not in python_output
