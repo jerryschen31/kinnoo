@@ -1097,3 +1097,132 @@ def test_feature38_output_format_and_secret_safety_regression_guard(tmp_path):
     assert "[kinnoo pack] Archive created:" in pack_output
     assert memory_secret not in pack_output
 
+
+def test_feature39_python_node_permission_parity(tmp_path, monkeypatch, capsys):
+    """Regression gate: sandbox permission policy behaves consistently for Python and Node runtimes."""
+    from kinnoo import run_command
+
+    def _write_feature39_agent(agent_dir: Path, runtime_language: str) -> None:
+        agent_dir.mkdir(parents=True, exist_ok=True)
+        entrypoint_name = "run.py" if runtime_language == "python" else "run.js"
+        (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+        (agent_dir / entrypoint_name).write_text(
+            "print('feature39-runtime-entrypoint-ran')\n" if runtime_language == "python" else "console.log('feature39-runtime-entrypoint-ran');\n",
+            encoding="utf-8",
+        )
+        (agent_dir / "kinnoo.yaml").write_text(
+            "\n".join(
+                [
+                    f"name: feature39-{runtime_language}-parity-agent",
+                    "version: 1.0.0",
+                    f"entrypoint: {entrypoint_name}",
+                    "runtime:",
+                    f"    language: {runtime_language}",
+                    "    version: \">=3.10\"" if runtime_language == "python" else "    version: \">=20.0.0\"",
+                    "    type: one-shot",
+                    "dependencies: []",
+                    "inputs:",
+                    "    type: text",
+                    "outputs:",
+                    "    type: text",
+                    "permissions:",
+                    "    network: true",
+                    "    filesystem_scope: read-only",
+                    "    shell: false",
+                    "    browser: false",
+                    "    env_access: []",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (agent_dir / "README.md").write_text("feature39 parity fixture", encoding="utf-8")
+        (agent_dir / "tools").mkdir(exist_ok=True)
+        (agent_dir / "prompts").mkdir(exist_ok=True)
+
+    python_agent = tmp_path / "feature39-python-parity-agent"
+    node_agent = tmp_path / "feature39-node-parity-agent"
+    _write_feature39_agent(python_agent, "python")
+    _write_feature39_agent(node_agent, "nodejs")
+
+    # Avoid real venv creation for regression determinism.
+    python_executable = python_agent / ".venv" / "bin" / "python"
+    python_executable.parent.mkdir(parents=True, exist_ok=True)
+    python_executable.write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+    python_executable.chmod(0o755)
+
+    popen_invocations: list[list[str]] = []
+
+    class _FakeProcess:
+        def __init__(self, args, **_kwargs):
+            self.args = args
+            self.returncode = 0
+
+        def communicate(self):
+            return None
+
+    def _fake_popen(args, **kwargs):
+        del kwargs
+        popen_invocations.append(list(args))
+        return _FakeProcess(args)
+
+    monkeypatch.setattr(run_command.subprocess, "Popen", _fake_popen)
+    monkeypatch.setattr(run_command.venv, "create", lambda *_args, **_kwargs: None)
+
+    python_denied = run_command.run_agent(
+        agent_dir_arg=str(python_agent),
+        input_arg="hello",
+        no_guard=True,
+        sandbox=True,
+        pass_through_args=["--exec", "echo denied"],
+    )
+    python_denied_output = capsys.readouterr()
+    python_denied_combined = f"{python_denied_output.out}\n{python_denied_output.err}"
+
+    node_denied = run_command.run_agent(
+        agent_dir_arg=str(node_agent),
+        input_arg="hello",
+        no_guard=True,
+        sandbox=True,
+        pass_through_args=["--exec", "echo denied"],
+    )
+    node_denied_output = capsys.readouterr()
+    node_denied_combined = f"{node_denied_output.out}\n{node_denied_output.err}"
+
+    assert python_denied != 0, python_denied_combined
+    assert node_denied != 0, node_denied_combined
+    assert "classification=policy_violation" in python_denied_combined
+    assert "classification=policy_violation" in node_denied_combined
+    assert "capability=shell action=shell_execution" in python_denied_combined
+    assert "capability=shell action=shell_execution" in node_denied_combined
+
+    python_allowed = run_command.run_agent(
+        agent_dir_arg=str(python_agent),
+        input_arg="hello",
+        no_guard=True,
+        sandbox=True,
+        pass_through_args=["--url", "https://example.com"],
+    )
+    python_allowed_output = capsys.readouterr()
+    python_allowed_combined = f"{python_allowed_output.out}\n{python_allowed_output.err}"
+
+    node_allowed = run_command.run_agent(
+        agent_dir_arg=str(node_agent),
+        input_arg="hello",
+        no_guard=True,
+        sandbox=True,
+        pass_through_args=["--url", "https://example.com"],
+    )
+    node_allowed_output = capsys.readouterr()
+    node_allowed_combined = f"{node_allowed_output.out}\n{node_allowed_output.err}"
+
+    assert python_allowed == 0, python_allowed_combined
+    assert node_allowed == 0, node_allowed_combined
+    assert "sandbox policy check passed" in python_allowed_combined
+    assert "sandbox policy check passed" in node_allowed_combined
+
+    # Denied runs must not launch subprocess entrypoints; only allowed runs should.
+    assert len(popen_invocations) == 2
+    assert popen_invocations[0][0] == str(python_executable)
+    assert popen_invocations[1][0] == "node"
+

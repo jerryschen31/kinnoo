@@ -4296,7 +4296,7 @@ tasks:
       - 'step4: Add regression coverage proving both runtime types honor policy checks without cross-runtime drift'
     dependencies: [task215, task216]
     tests: [test315]
-    status: not-started
+    status: needs-review
 
   - id: task218
     title: "Feature39 violation diagnostics and secret-safe logging"
