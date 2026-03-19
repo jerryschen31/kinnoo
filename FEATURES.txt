@@ -1367,7 +1367,7 @@ features:
       - "Lifecycle script visibility is critical because install-time code execution is a major attack path."
     owner: techlead-agent
     dependencies: [feature31]
-    status: not-started
+    status: completed
 
   - id: feature38
     title: "JS/TS Static Security Sweep"
@@ -1375,7 +1375,7 @@ features:
       Extend kinnoo static security sweep coverage from Python-only patterns to JS/TS and
       JSON configuration artifacts. Detect hardcoded credentials, high-risk execution
       primitives, dangerous OpenClaw config flags, and suspicious memory snapshot contents.
-    tasks: []
+    tasks: [task209, task210, task211, task212, task213]
     acceptance_criteria:
       - id: AC1
         description: "Security sweep scans `.js`, `.mjs`, `.ts`, and `.json` files for high-confidence credential/token patterns."

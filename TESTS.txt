@@ -5047,3 +5047,83 @@ tests:
     covers:
       - feature: feature37
         ac: AC5
+
+  - id: test307
+    title: Feature38 security sweep scans js mjs ts and json files for credential and token patterns
+    type: integration
+    preconditions: code sweep supports scanning non-python source and configuration artifacts
+    steps:
+      - step1: Run static security sweep against fixtures containing credential-like patterns in js mjs ts and json files
+      - step2: Verify warning output includes findings for each supported file type
+      - step3: Confirm reported findings do not reveal raw secret values
+    expected: sweep detects high-confidence credential/token patterns across js ts json artifacts with warning-first output
+    pass_criteria: findings include all targeted file types and preserve redacted/no-secret-value reporting
+    automated: true
+    automation_path: tests/test_trust_baseline.py::test_feature38_scans_jstsjson_credentials
+    covers:
+      - feature: feature38
+        ac: AC1
+
+  - id: test308
+    title: Feature38 sweep flags risky JS TS execution primitives with file and line evidence
+    type: integration
+    preconditions: risky primitive signatures are configured in code sweep rules
+    steps:
+      - step1: Run sweep on fixtures that include eval dynamic function construction and shell-spawn patterns
+      - step2: Verify findings include precise file path and line number evidence for each risky primitive
+      - step3: Confirm warning-first behavior remains non-blocking for local workflows
+    expected: risky execution primitives are flagged with deterministic file/line evidence
+    pass_criteria: each risky primitive fixture generates a finding that contains file and line context
+    automated: true
+    automation_path: tests/test_trust_baseline.py::test_feature38_flags_risky_js_execution_primitives_with_file_line
+    covers:
+      - feature: feature38
+        ac: AC2
+
+  - id: test309
+    title: Feature38 sweep reports dangerous OpenClaw JSON configuration settings with targeted warnings
+    type: integration
+    preconditions: OpenClaw config danger rule set is available to security sweep
+    steps:
+      - step1: Run sweep against fixtures containing explicitly dangerous OpenClaw config values
+      - step2: Verify targeted warnings are emitted for dangerous settings with path-localized context
+      - step3: Run sweep on safe OpenClaw config fixture and verify no false-danger warning is emitted
+    expected: dangerous OpenClaw config settings are detected and safe configs avoid spurious danger findings
+    pass_criteria: dangerous fixture emits targeted warnings and safe fixture does not emit those warnings
+    automated: true
+    automation_path: tests/test_trust_baseline.py::test_feature38_openclaw_config_dangerous_settings_warning
+    covers:
+      - feature: feature38
+        ac: AC3
+
+  - id: test310
+    title: Feature38 memory snapshot candidate sweep warns on credential-like patterns before pack
+    type: integration
+    preconditions: pack flow invokes security sweep on memory snapshot candidates
+    steps:
+      - step1: Run pack workflow on fixture whose memory snapshot candidates contain credential-like patterns
+      - step2: Verify warning-first findings are emitted prior to archive completion
+      - step3: Confirm pack still completes to preserve non-blocking local workflow behavior
+    expected: memory snapshot risks are surfaced as warnings without blocking archive creation
+    pass_criteria: warning is emitted for risky memory content and pack command still succeeds
+    automated: true
+    automation_path: tests/test_pack_robustness.py::test_feature38_memory_snapshot_credential_warning_first
+    covers:
+      - feature: feature38
+        ac: AC4
+
+  - id: test311
+    title: Feature38 sweep output format remains consistent and never echoes secret values
+    type: integration
+    preconditions: baseline sweep output contract and redaction safeguards are available
+    steps:
+      - step1: Run sweep over mixed python and js fixtures with representative findings
+      - step2: Validate output format fields remain consistent with existing sweep UX conventions
+      - step3: Verify secret-like values are redacted and not emitted in warning text
+    expected: output contract remains stable and no-secret-value invariant is preserved
+    pass_criteria: regression assertions confirm stable output format and zero secret-value leakage in findings
+    automated: true
+    automation_path: tests/test_regression_v1.py::test_feature38_output_format_and_secret_safety_regression_guard
+    covers:
+      - feature: feature38
+        ac: AC5
