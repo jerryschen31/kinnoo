@@ -22,6 +22,7 @@ from kinnoo.templates import (
     OPENCLAW_DEFAULT_SKILL_TEMPLATE,
     OPENCLAW_AGENTS_MD_TEMPLATE,
     OPENCLAW_SOUL_MD_TEMPLATE,
+    OPENCLAW_README_TEMPLATE,
 )
 
 SUPPORTED_FRAMEWORKS = [
@@ -99,6 +100,7 @@ def init_agent(name: str, target_dir: Path, framework: Optional[str] = None):
         (skills_default_dir / "SKILL.md").write_text(OPENCLAW_DEFAULT_SKILL_TEMPLATE)
         (agent_dir / "AGENTS.md").write_text(OPENCLAW_AGENTS_MD_TEMPLATE)
         (agent_dir / "SOUL.md").write_text(OPENCLAW_SOUL_MD_TEMPLATE)
+        (agent_dir / "README.md").write_text(OPENCLAW_README_TEMPLATE.format(name=name))
 
 def main():
     parser = argparse.ArgumentParser(

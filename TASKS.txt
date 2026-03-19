@@ -3797,7 +3797,7 @@ tasks:
       - 'step4: Add tests asserting required setup guidance appears in generated README/docs output'
     dependencies: [task189]
     tests: [test290]
-    status: not-started
+    status: needs-review
 
   - id: task193
     title: "Feature34 deterministic scaffold output without openclaw CLI dependency"
