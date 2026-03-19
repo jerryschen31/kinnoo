@@ -331,3 +331,46 @@ def test_feature37_node_audit_severity_summary(tmp_path):
     python_output = f"{python_result.stdout}\n{python_result.stderr}"
     assert python_result.returncode == 0, python_output
     assert "Node audit severity summary:" not in python_output
+
+
+def test_feature37_critical_gate_default_block_and_allow_override(tmp_path):
+    node_archive = _create_node_archive(tmp_path, agent_name="feature37-node-critical-gate")
+
+    fake_bin = tmp_path / "fake-bin-critical"
+    _make_fake_node_toolchain(fake_bin)
+
+    env = dict(os.environ)
+    env["PATH"] = f"{fake_bin}{os.pathsep}{env.get('PATH', '')}"
+
+    blocked_target_dir = tmp_path / "feature37-node-critical-blocked"
+    blocked_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "install", str(node_archive), str(blocked_target_dir), "--yes"],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    blocked_output = f"{blocked_result.stdout}\n{blocked_result.stderr}"
+    assert blocked_result.returncode != 0, blocked_output
+    assert "Node audit severity summary: critical=1 high=2 moderate=3 low=4" in blocked_output
+    assert "--allow-vulnerable" in blocked_output
+    assert "Critical vulnerabilities were detected" in blocked_output
+
+    allowed_target_dir = tmp_path / "feature37-node-critical-allowed"
+    allowed_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            str(node_archive),
+            str(allowed_target_dir),
+            "--yes",
+            "--allow-vulnerable",
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    allowed_output = f"{allowed_result.stdout}\n{allowed_result.stderr}"
+    assert allowed_result.returncode == 0, allowed_output
+    assert "Node audit severity summary: critical=1 high=2 moderate=3 low=4" in allowed_output
+    assert "Continuing install despite critical vulnerabilities" in allowed_output

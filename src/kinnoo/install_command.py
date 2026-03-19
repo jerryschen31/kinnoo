@@ -149,7 +149,7 @@ def _parse_node_audit_severity_counts(raw_output: str) -> dict[str, int]:
     return counts
 
 
-def _run_node_audit_summary(target_dir: Path, package_manager: str) -> None:
+def _run_node_audit_summary(target_dir: Path, package_manager: str) -> dict[str, int]:
     """Run node dependency audit and print deterministic severity summary."""
     audit_command = [package_manager, "audit", "--json"]
     audit_result = subprocess.run(
@@ -178,8 +178,15 @@ def _run_node_audit_summary(target_dir: Path, package_manager: str) -> None:
             file=sys.stderr,
         )
 
+    return severity_counts
 
-def _install_node_dependencies(target_dir: Path, runtime: dict[str, object]) -> int:
+
+def _install_node_dependencies(
+    target_dir: Path,
+    runtime: dict[str, object],
+    *,
+    allow_vulnerable: bool,
+) -> int:
     runtime_version = runtime.get("version")
     runtime_constraint = str(runtime_version) if runtime_version is not None else ""
     runtime_ok, runtime_message = check_node_runtime_constraint(runtime_constraint)
@@ -232,7 +239,23 @@ def _install_node_dependencies(target_dir: Path, runtime: dict[str, object]) -> 
         return install_result.returncode
 
     print(f"[kinnoo install] Node dependencies installed successfully via {package_manager}.")
-    _run_node_audit_summary(target_dir=target_dir, package_manager=package_manager)
+    severity_counts = _run_node_audit_summary(target_dir=target_dir, package_manager=package_manager)
+
+    critical_count = severity_counts.get("critical", 0)
+    if critical_count > 0 and not allow_vulnerable:
+        print(
+            "Error: Critical vulnerabilities were detected in Node dependency audit results. "
+            "Install blocked by default. Re-run with --allow-vulnerable to proceed at your own risk.",
+            file=sys.stderr,
+        )
+        return 1
+
+    if critical_count > 0 and allow_vulnerable:
+        print(
+            "Warning: Continuing install despite critical vulnerabilities because --allow-vulnerable was set.",
+            file=sys.stderr,
+        )
+
     return 0
 
 
@@ -324,6 +347,7 @@ def install_agent(
     force: bool = False,
     assume_yes: bool = False,
     overwrite_state: bool = False,
+    allow_vulnerable: bool = False,
 ) -> int:
     target_spec = parse_install_target_spec(archive_path)
     if target_spec.kind == "invalid":
@@ -366,6 +390,7 @@ def install_agent(
             force=force,
             assume_yes=assume_yes,
             overwrite_state=overwrite_state,
+            allow_vulnerable=allow_vulnerable,
         )
 
     archive = target_spec.archive_path or Path(archive_path)
@@ -375,6 +400,7 @@ def install_agent(
         force=force,
         assume_yes=assume_yes,
         overwrite_state=overwrite_state,
+        allow_vulnerable=allow_vulnerable,
     )
 
 
@@ -384,6 +410,7 @@ def _install_from_archive_path(
     force: bool = False,
     assume_yes: bool = False,
     overwrite_state: bool = False,
+    allow_vulnerable: bool = False,
 ) -> int:
     archive = Path(archive_path)
     if not archive.exists() or not archive.is_file():
@@ -550,7 +577,11 @@ def _install_from_archive_path(
             runtime_language = runtime_language_value.strip().lower()
 
     if runtime_language == "nodejs":
-        return _install_node_dependencies(target_dir=target_dir, runtime=runtime if isinstance(runtime, dict) else {})
+        return _install_node_dependencies(
+            target_dir=target_dir,
+            runtime=runtime if isinstance(runtime, dict) else {},
+            allow_vulnerable=allow_vulnerable,
+        )
 
     wheels_dir = target_dir / "wheels"
     venv_dir = target_dir / ".venv"
