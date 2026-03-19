@@ -3776,7 +3776,7 @@ tasks:
       - 'step4: Confirm output/exit behavior follows one-shot invocation expectations for scaffold smoke run'
     dependencies: [task189, task190]
     tests: [test289]
-    status: not-started
+    status: needs-review
 
   - id: task192
     title: "Feature34 OpenClaw template README setup guidance"
