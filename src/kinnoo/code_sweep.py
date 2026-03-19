@@ -13,6 +13,20 @@ EXPOSURE_PATTERNS: list[tuple[str, str]] = [
     (r"\.write\s*\(.*os\.getenv", "file write with os.getenv() access"),
 ]
 
+SWEEP_FILE_EXTENSIONS = {".py", ".js", ".mjs", ".ts", ".json"}
+
+CREDENTIAL_PATTERNS: list[tuple[str, str]] = [
+    (r"AKIA[0-9A-Z]{16}", "credential-like pattern (AWS access key id)"),
+    (r"ghp_[A-Za-z0-9]{36}", "credential-like pattern (GitHub personal access token)"),
+    (r"github_pat_[A-Za-z0-9_]{20,}", "credential-like pattern (GitHub fine-grained token)"),
+    (r"sk-[A-Za-z0-9]{20,}", "credential-like pattern (API token prefix sk-)"),
+    (r"xox[baprs]-[A-Za-z0-9-]{10,}", "credential-like pattern (Slack token)"),
+    (
+        r"(?:api[_-]?key|access[_-]?token|auth[_-]?token|secret|token)\s*[:=]\s*['\"][^'\"]{8,}['\"]",
+        "credential-like pattern (hardcoded key/token assignment)",
+    ),
+]
+
 ASSET_FILENAME_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"^\.env($|\.)", re.IGNORECASE), "secret-like filename (.env)"),
     (re.compile(r"\.pem$", re.IGNORECASE), "secret-like filename (.pem)"),
@@ -60,21 +74,35 @@ def sweep_env_var_exposure(agent_dir: Path, declared_env_vars: list[str]) -> lis
         (re.compile(pattern, re.IGNORECASE), description)
         for pattern, description in EXPOSURE_PATTERNS
     ]
+    compiled_credential_patterns = [
+        (re.compile(pattern, re.IGNORECASE), description)
+        for pattern, description in CREDENTIAL_PATTERNS
+    ]
 
-    for python_file in sorted(agent_dir.rglob("*.py")):
-        if ".venv" in python_file.parts:
+    for source_file in sorted(agent_dir.rglob("*")):
+        if not source_file.is_file():
+            continue
+        if ".venv" in source_file.parts:
+            continue
+        if source_file.suffix.lower() not in SWEEP_FILE_EXTENSIONS:
             continue
 
         try:
-            lines = python_file.read_text(encoding="utf-8").splitlines()
+            lines = source_file.read_text(encoding="utf-8").splitlines()
         except Exception:
             continue
 
-        relative_path = python_file.relative_to(agent_dir)
+        relative_path = source_file.relative_to(agent_dir)
         for line_number, line_text in enumerate(lines, start=1):
             for compiled_pattern, description in compiled_patterns:
                 if compiled_pattern.search(line_text):
                     warnings.append(f"{relative_path}:{line_number}: {description}")
+                    break
+            for compiled_pattern, description in compiled_credential_patterns:
+                if compiled_pattern.search(line_text):
+                    warning_text = f"{relative_path}:{line_number}: {description}"
+                    if warning_text not in warnings:
+                        warnings.append(warning_text)
                     break
 
     return warnings
