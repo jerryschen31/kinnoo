@@ -152,6 +152,11 @@ def main():
         action="store_true",
         help="Disable Node package lifecycle scripts during dependency installation",
     )
+    install_parser.add_argument(
+        "--accept-permissions",
+        action="store_true",
+        help="Acknowledge and accept declared manifest permissions during non-interactive install",
+    )
 
     # Add 'pack' subcommand
     pack_parser = subparsers.add_parser("pack", help="Package an agent directory into a .kno archive")
@@ -326,6 +331,7 @@ def main():
         overwrite_state = bool(getattr(args, "state_overwrite", False))
         allow_vulnerable = bool(getattr(args, "allow_vulnerable", False))
         ignore_scripts = bool(getattr(args, "ignore_scripts", False))
+        accept_permissions = bool(getattr(args, "accept_permissions", False))
         try:
             from kinnoo.install_command import install_agent
         except ImportError:
@@ -339,6 +345,7 @@ def main():
             overwrite_state=overwrite_state,
             allow_vulnerable=allow_vulnerable,
             ignore_scripts=ignore_scripts,
+            accept_permissions=accept_permissions,
         )
         sys.exit(exit_code)
 
