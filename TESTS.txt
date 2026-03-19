@@ -4805,3 +4805,85 @@ tests:
     covers:
       - feature: feature34
         ac: AC5
+
+  - id: test292
+    title: Feature35 state_dirs validation accepts safe entries and rejects unsafe path or exclude contract shapes
+    type: unit
+    preconditions: validator supports feature35 state_dirs contract parsing
+    steps:
+      - step1: Validate manifests with valid state_dirs entries using relative paths and supported exclude structure
+      - step2: Validate manifests with invalid state_dirs values including absolute paths traversal paths and invalid exclude field types
+      - step3: Verify validator diagnostics clearly identify invalid state_dirs contract violations
+    expected: valid state_dirs manifests pass while unsafe or malformed entries fail with actionable errors
+    pass_criteria: validator returns success for valid contract and deterministic failures for unsafe or malformed state_dirs entries
+    automated: true
+    automation_path: tests/test_validator.py::test_feature35_state_dirs_validation_contract
+    covers:
+      - feature: feature35
+        ac: AC1
+
+  - id: test293
+    title: Feature35 pack captures state_dirs snapshots with predictable archive layout
+    type: integration
+    preconditions: pack command supports state_dirs snapshot capture
+    steps:
+      - step1: Prepare agent fixture with populated state_dirs and immutable assets
+      - step2: Run kinnoo pack and inspect resulting archive structure
+      - step3: Verify state snapshot paths are deterministic and retained separately from immutable asset paths
+    expected: pack includes state snapshot contents in predictable layout without disrupting legacy asset bundling layout
+    pass_criteria: archive contains expected state snapshot directories and deterministic paths for state entries
+    automated: true
+    automation_path: tests/test_pack.py::test_feature35_pack_state_snapshot_layout
+    covers:
+      - feature: feature35
+        ac: AC1
+
+  - id: test294
+    title: Feature35 install warns on existing state and only overwrites when explicit force control is used
+    type: integration
+    preconditions: install command supports state restore from packed snapshots with overwrite control
+    steps:
+      - step1: Install archive containing state snapshot into target where state directory already exists
+      - step2: Verify install warns and preserves existing state when overwrite control is not provided
+      - step3: Repeat install with explicit force option and verify deterministic overwrite behavior
+    expected: default install path is warning-first and non-destructive while explicit force path overwrites as requested
+    pass_criteria: no-force install preserves existing state with warning and force install replaces state snapshot content
+    automated: true
+    automation_path: tests/test_install.py::test_feature35_install_state_overwrite_warning_and_force
+    covers:
+      - feature: feature35
+        ac: AC2
+
+  - id: test295
+    title: Feature35 state_dirs exclude patterns omit selected files while preserving core memory snapshot content
+    type: integration
+    preconditions: state_dirs exclude patterns are supported by pack/install flow
+    steps:
+      - step1: Configure state_dirs with exclude patterns such as daily log files and create matching fixture files
+      - step2: Run pack then install and inspect restored state contents
+      - step3: Verify excluded files are absent while non-excluded core memory files remain restored
+    expected: exclude patterns are applied consistently and only targeted files are omitted from restored state
+    pass_criteria: excluded files are not present in archive restore output and required core state files remain intact
+    automated: true
+    automation_path: tests/test_pack.py::test_feature35_state_dirs_exclude_patterns
+    covers:
+      - feature: feature35
+        ac: AC3
+
+  - id: test296
+    title: Feature35 docs and regression guards preserve assets behavior for manifests without state_dirs
+    type: integration
+    preconditions: docs and regression suite include feature35 contracts and legacy asset fixtures
+    steps:
+      - step1: Assert docs describe mutable state snapshot semantics and distinction from immutable assets
+      - step2: Run regression checks for agents that use assets without state_dirs
+      - step3: Verify pack/install behavior for legacy asset-only manifests remains unchanged
+    expected: docs communicate state_dirs semantics clearly and legacy asset workflows remain backward-compatible
+    pass_criteria: docs assertions pass and regression checks confirm no behavior changes for non-state_dirs asset workflows
+    automated: true
+    automation_path: tests/test_regression_v1.py::test_feature35_assets_backward_compatibility_without_state_dirs
+    covers:
+      - feature: feature35
+        ac: AC4
+      - feature: feature35
+        ac: AC5
