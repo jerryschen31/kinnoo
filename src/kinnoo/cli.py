@@ -82,6 +82,11 @@ def main():
         dest="json_file",
         help="Path to a JSON file payload for agents expecting structured input",
     )
+    run_parser.add_argument(
+        "--sandbox",
+        action="store_true",
+        help="Run agent with manifest permission policy enforcement",
+    )
 
     # Add 'stop' subcommand
     stop_parser = subparsers.add_parser(
@@ -310,6 +315,7 @@ def main():
             preflight=preflight_mode,
             no_guard=bool(getattr(args, "no_guard", False)),
             pass_through_args=pass_through_args,
+            sandbox=bool(getattr(args, "sandbox", False)),
         )
         sys.exit(exit_code)
 
