@@ -847,3 +847,119 @@ def test_feature36_non_openclaw_import_regression_guard(tmp_path):
     assert "ambiguous" in ambiguous_output.lower()
     assert "framework: openclaw" not in ambiguous_output.lower()
 
+
+def test_feature37_python_install_noop_regression_guard(tmp_path):
+    """Regression gate: feature37 node-only controls must remain no-op for Python installs."""
+    repo_root = Path(__file__).resolve().parents[1]
+    cli_path = repo_root / "src" / "kinnoo" / "cli.py"
+
+    fake_bin = tmp_path / "fake-node-bin"
+    fake_bin.mkdir(parents=True, exist_ok=True)
+    npm_probe = tmp_path / "npm-probe.log"
+
+    (fake_bin / "npm").write_text(
+        "#!/bin/sh\n"
+        "printf '%s\\n' \"$*\" >> \"$FEATURE37_NPM_PROBE\"\n"
+        "exit 55\n",
+        encoding="utf-8",
+    )
+    (fake_bin / "node").write_text(
+        "#!/bin/sh\n"
+        "printf '%s\\n' \"$*\" >> \"$FEATURE37_NPM_PROBE\"\n"
+        "exit 56\n",
+        encoding="utf-8",
+    )
+    (fake_bin / "npm").chmod(0o755)
+    (fake_bin / "node").chmod(0o755)
+
+    env = os.environ.copy()
+    env["PATH"] = f"{fake_bin}{os.pathsep}{env.get('PATH', '')}"
+    env["FEATURE37_NPM_PROBE"] = str(npm_probe)
+    env["KINNOO_ARCHIVE_ROOT"] = str(tmp_path / "archive-root")
+
+    agent_dir = tmp_path / "feature37-python-noop-agent"
+    agent_dir.mkdir(parents=True, exist_ok=True)
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: feature37-python-noop-agent",
+                "version: 1.0.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.10\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "run.py").write_text(
+        "import sys\n"
+        "print(f'feature37-python-noop:{sys.argv[1] if len(sys.argv) > 1 else \"\"}')\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+
+    pack_result = subprocess.run(
+        [sys.executable, str(cli_path), "pack", str(agent_dir)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert pack_result.returncode == 0, (
+        "Feature37 python no-op regression gate failed during pack.\n"
+        f"STDOUT:\n{pack_result.stdout}\n"
+        f"STDERR:\n{pack_result.stderr}"
+    )
+
+    archive_path = (
+        Path(env["KINNOO_ARCHIVE_ROOT"])
+        / "feature37-python-noop-agent"
+        / "1.0.0"
+        / "feature37-python-noop-agent.kno"
+    )
+    assert archive_path.exists(), "Expected packed archive for feature37 python no-op regression gate"
+
+    install_target = tmp_path / "feature37-python-noop-installed"
+    install_result = subprocess.run(
+        [
+            sys.executable,
+            str(cli_path),
+            "install",
+            str(archive_path),
+            str(install_target),
+            "--yes",
+            "--allow-vulnerable",
+            "--ignore-scripts",
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    install_output = f"{install_result.stdout}\n{install_result.stderr}"
+    assert install_result.returncode == 0, install_output
+    assert "Node audit severity summary:" not in install_output
+    assert "Lifecycle scripts policy:" not in install_output
+    assert "Critical vulnerabilities were detected" not in install_output
+    assert not npm_probe.exists(), install_output
+    assert not (install_target / ".kinnoo" / "install-trace.json").exists()
+
+    run_result = subprocess.run(
+        [sys.executable, str(cli_path), "run", str(install_target), "baseline"],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    run_output = f"{run_result.stdout}\n{run_result.stderr}"
+    assert run_result.returncode == 0, run_output
+    assert "feature37-python-noop:baseline" in run_output
+
