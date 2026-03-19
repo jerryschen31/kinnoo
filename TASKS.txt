@@ -3939,7 +3939,7 @@ tasks:
       - 'step4: Add analyzer and import-facing tests verifying confidence and evidence reporting behavior'
     dependencies: [task158, task163, task184]
     tests: [test297]
-    status: not-started
+    status: needs-review
 
   - id: task200
     title: "Feature36 manifest inference for runtime package manager skills and state dirs"
