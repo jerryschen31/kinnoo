@@ -124,6 +124,56 @@ Non-openclaw compatibility note:
 - manifests that omit these fields remain valid
 - non-openclaw manifests may include these fields in valid shape without triggering OpenClaw-only diagnostics
 
+### Feature35 mutable state snapshots (`state_dirs`)
+
+Feature35 defines `state_dirs` as mutable runtime state snapshot roots. This behavior is intentionally distinct from immutable `assets`.
+
+Behavior summary:
+
+- `assets` are immutable packaged resources and keep their existing bundle semantics.
+- `state_dirs` are mutable runtime state and are archived under `state_snapshots/<state-dir>/...`.
+- install restores state snapshots back into their declared state roots.
+
+Structured `state_dirs` entries may include `exclude` patterns:
+
+```yaml
+state_dirs:
+  - path: memory
+    exclude:
+      - daily/*.md
+      - secrets/*
+```
+
+Exclude semantics:
+
+- excluded files are omitted during pack snapshot collection,
+- omitted files are not restored during install,
+- non-excluded files remain part of snapshot/restore flow.
+
+Install overwrite semantics:
+
+- default install path is warning-first and non-destructive for existing state,
+- existing state is preserved unless explicit overwrite control is provided,
+- `kinnoo install ... --state-overwrite` enables deterministic replacement of existing state roots.
+
+Example layout after pack when `state_dirs: [memory]`:
+
+```text
+state_snapshots/
+  memory/
+    core/profile.json
+    sessions/latest.json
+```
+
+Example restore behavior:
+
+- archive entry `state_snapshots/memory/core/profile.json`
+- restores to `<install-target>/memory/core/profile.json`
+
+Compatibility guarantee:
+
+- manifests without `state_dirs` preserve pre-Feature35 asset-only behavior.
+
 ---
 
 ### Feature9 optional fields (`description`, `author`, `license`, `env_vars`)
