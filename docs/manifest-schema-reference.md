@@ -275,6 +275,40 @@ Security sweep behavior for assets:
 - binary assets are skipped for regex text scanning
 - findings are warning-only during pack (heuristic, may produce false positives)
 
+### Feature39 permissions schema (`permissions`)
+
+Feature39 adds an optional `permissions` object for explicit capability declarations.
+
+Supported fields:
+
+- `permissions.network` (optional): boolean
+- `permissions.filesystem_scope` (optional): enum string
+  - allowed values: `none`, `read-only`, `workspace-write`, `full`
+- `permissions.shell` (optional): boolean
+- `permissions.browser` (optional): boolean
+- `permissions.env_access` (optional): list[string]
+  - each item must be a non-empty string
+
+Validation behavior:
+
+- unknown keys in `permissions` fail validation with allowed-key guidance
+- invalid `filesystem_scope` enum values fail validation with supported-values guidance
+- invalid `env_access` shape (non-list or non-string entries) fails validation with field-specific errors
+- manifests without `permissions` remain valid (backward compatibility)
+
+Example:
+
+```yaml
+permissions:
+  network: true
+  filesystem_scope: workspace-write
+  shell: false
+  browser: false
+  env_access:
+    - OPENAI_API_KEY
+    - KINNOO_ENV
+```
+
 ---
 
 ## Concrete Examples
