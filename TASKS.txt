@@ -4193,7 +4193,7 @@ tasks:
       - 'step4: Add tests proving warnings are emitted for risky memory candidates and pack remains non-blocking'
     dependencies: [task209]
     tests: [test310]
-    status: not-started
+    status: needs-review
 
   - id: task213
     title: "Feature38 sweep output contract and no-secret regression safeguards"
