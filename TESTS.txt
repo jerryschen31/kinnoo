@@ -4725,3 +4725,83 @@ tests:
     covers:
       - feature: feature33
         ac: AC5
+
+  - id: test287
+    title: Feature34 openclaw scaffold generates required project files and directories
+    type: integration
+    preconditions: kinnoo CLI init command available with framework openclaw support
+    steps:
+      - step1: Execute kinnoo init for a new agent with framework openclaw
+      - step2: Verify generated project includes package.json openclaw.json index.mjs skills/default/SKILL.md memory AGENTS.md and SOUL.md
+      - step3: Verify expected directories are created with deterministic paths
+    expected: openclaw scaffold contains the required structure for standalone packaged usage
+    pass_criteria: all required files/directories exist at expected locations with no missing scaffold artifacts
+    automated: true
+    automation_path: tests/test_init.py::test_feature34_openclaw_scaffold_structure
+    covers:
+      - feature: feature34
+        ac: AC1
+
+  - id: test288
+    title: Feature34 generated openclaw kinnoo.yaml validates with node runtime and framework fields
+    type: integration
+    preconditions: openclaw scaffold generation available; validator available
+    steps:
+      - step1: Generate openclaw scaffold via kinnoo init
+      - step2: Validate generated kinnoo.yaml using validator entrypoint
+      - step3: Assert manifest contains framework openclaw and required Node daemon fields
+    expected: generated openclaw manifest passes validation with feature33 schema extensions
+    pass_criteria: validator returns valid result and manifest contains required openclaw runtime/package manager/channel fields
+    automated: true
+    automation_path: tests/test_init.py::test_feature34_openclaw_manifest_validation_contract
+    covers:
+      - feature: feature34
+        ac: AC2
+
+  - id: test289
+    title: Feature34 generated openclaw project runs through kinnoo run with required env vars configured
+    type: integration
+    preconditions: openclaw scaffold generated; test-safe environment variable values configured
+    steps:
+      - step1: Generate openclaw scaffold
+      - step2: Set required environment variable names expected by the template
+      - step3: Execute kinnoo run against scaffold and capture output/exit code
+    expected: scaffold is runnable through kinnoo run under configured environment
+    pass_criteria: run command exits successfully and emits deterministic non-empty output without template-level runtime failure
+    automated: true
+    automation_path: tests/test_cli.py::test_feature34_openclaw_template_smoke_run
+    covers:
+      - feature: feature34
+        ac: AC3
+
+  - id: test290
+    title: Feature34 template README includes Node setup dependency install and env var guidance
+    type: unit
+    preconditions: openclaw scaffold generation available
+    steps:
+      - step1: Generate openclaw scaffold and read generated README
+      - step2: Verify README includes Node version prerequisite and dependency installation path
+      - step3: Verify README lists required environment variable names and run instructions
+    expected: generated README provides actionable setup guidance for operators
+    pass_criteria: README contains required Node setup dependency and env var guidance sections
+    automated: true
+    automation_path: tests/test_init.py::test_feature34_openclaw_readme_setup_guidance
+    covers:
+      - feature: feature34
+        ac: AC4
+
+  - id: test291
+    title: Feature34 scaffold output is deterministic and does not require external openclaw CLI binary
+    type: integration
+    preconditions: init command available in environment without openclaw CLI binary requirement
+    steps:
+      - step1: Generate openclaw scaffold in isolated environment where openclaw binary is absent
+      - step2: Repeat generation in clean directories and compare deterministic artifact set and critical file content shape
+      - step3: Verify no subprocess dependency on openclaw CLI is required during scaffold generation
+    expected: scaffold generation is template-driven deterministic and independent of external openclaw CLI
+    pass_criteria: generation succeeds without openclaw binary and repeated runs produce deterministic scaffold outputs
+    automated: true
+    automation_path: tests/test_init.py::test_feature34_scaffold_deterministic_without_openclaw_cli
+    covers:
+      - feature: feature34
+        ac: AC5

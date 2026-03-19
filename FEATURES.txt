@@ -1266,7 +1266,7 @@ features:
       - "Acts as the schema contract for scaffold/import and pack/install state behavior."
     owner: techlead-agent
     dependencies: [feature31]
-    status: not-started
+    status: completed
 
   - id: feature34
     title: "OpenClaw Scaffold Template"
@@ -1274,7 +1274,7 @@ features:
       Add `kinnoo init --framework openclaw` template generation for standalone OpenClaw-style
       agents. Generated projects include OpenClaw identity and skill conventions plus a runnable
       Node.js entrypoint and manifest wiring compatible with kinnoo run/pack/install flow.
-    tasks: []
+    tasks: [task189, task190, task191, task192, task193]
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo init <name> --framework openclaw` generates package.json, openclaw.json, index.mjs, skills/default/SKILL.md, memory/, AGENTS.md, and SOUL.md."
