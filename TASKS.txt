@@ -3838,7 +3838,7 @@ tasks:
       - 'step4: Add validator tests covering positive and negative state_dirs contract cases'
     dependencies: [task185]
     tests: [test292]
-    status: needs-review
+    status: completed
 
   - id: task195
     title: "Feature35 pack snapshot capture for mutable state directories"
@@ -3858,7 +3858,7 @@ tasks:
       - 'step4: Add tests verifying expected snapshot layout in produced archives'
     dependencies: [task194, task27]
     tests: [test293]
-    status: needs-review
+    status: completed
 
   - id: task196
     title: "Feature35 install restore flow with overwrite warning and force controls"
@@ -3878,7 +3878,7 @@ tasks:
       - 'step4: Add integration tests for no-overwrite default and explicit force overwrite path'
     dependencies: [task195, task30]
     tests: [test294]
-    status: needs-review
+    status: completed
 
   - id: task197
     title: "Feature35 selective snapshot exclusions for state_dirs"
@@ -3898,7 +3898,7 @@ tasks:
       - 'step4: Add tests for representative patterns such as memory daily logs and edge cases'
     dependencies: [task194, task195, task196]
     tests: [test295]
-    status: needs-review
+    status: completed
 
   - id: task198
     title: "Feature35 docs and compatibility regression safeguards"
@@ -3919,7 +3919,7 @@ tasks:
       - 'step4: Add regression tests proving asset bundling behavior remains unchanged for non-state_dirs manifests'
     dependencies: [task194, task195, task196, task197]
     tests: [test296]
-    status: needs-review
+    status: completed
 
   - id: task199
     title: "Feature36 OpenClaw detector evidence and confidence scoring"
