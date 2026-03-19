@@ -300,6 +300,97 @@ def _is_safe_relative_manifest_path(path_value: str) -> bool:
     return not candidate.is_absolute() and ".." not in candidate.parts
 
 
+def _is_safe_relative_pattern(pattern_value: str) -> bool:
+    """Return True when an exclude pattern is relative and traversal-safe.
+
+    Exclude values may contain glob syntax, so this helper validates only the
+    safety properties we rely on for snapshot policy handling.
+    """
+    normalized = pattern_value.strip()
+    if normalized == "":
+        return False
+    if normalized.startswith("/"):
+        return False
+
+    candidate = PurePosixPath(normalized)
+    return ".." not in candidate.parts
+
+
+def _collect_state_dirs_contract_errors(data: dict[str, Any]) -> list[str]:
+    """Validate feature35 state_dirs contract shape and safety constraints."""
+    errors: list[str] = []
+
+    found, state_dirs_value = _get_nested(data, "state_dirs")
+    if not found or not isinstance(state_dirs_value, list):
+        return errors
+
+    for index, declared_state_dir in enumerate(state_dirs_value):
+        if isinstance(declared_state_dir, str):
+            normalized_path = declared_state_dir.strip()
+            if normalized_path == "":
+                errors.append(
+                    f"Field 'state_dirs[{index}]' must be a non-empty string."
+                )
+                continue
+            if not _is_safe_relative_manifest_path(normalized_path):
+                errors.append(
+                    f"Field 'state_dirs[{index}]' must be a relative path without parent traversal segments."
+                )
+            continue
+
+        if not isinstance(declared_state_dir, dict):
+            actual = type(declared_state_dir).__name__
+            errors.append(
+                f"Field 'state_dirs[{index}]' must be of type str or dict, got {actual}."
+            )
+            continue
+
+        if "path" not in declared_state_dir:
+            errors.append(
+                f"Missing required field: 'state_dirs[{index}].path'"
+            )
+            continue
+
+        path_value = declared_state_dir.get("path")
+        if not isinstance(path_value, str):
+            actual = type(path_value).__name__
+            errors.append(
+                f"Field 'state_dirs[{index}].path' must be of type str, got {actual}."
+            )
+        else:
+            normalized_path = path_value.strip()
+            if normalized_path == "":
+                errors.append(
+                    f"Field 'state_dirs[{index}].path' must be a non-empty string."
+                )
+            elif not _is_safe_relative_manifest_path(normalized_path):
+                errors.append(
+                    f"Field 'state_dirs[{index}].path' must be a relative path without parent traversal segments."
+                )
+
+        if "exclude" in declared_state_dir:
+            exclude_value = declared_state_dir["exclude"]
+            if not isinstance(exclude_value, list):
+                actual = type(exclude_value).__name__
+                errors.append(
+                    f"Field 'state_dirs[{index}].exclude' must be of type list, got {actual}."
+                )
+            else:
+                for exclude_index, exclude_pattern in enumerate(exclude_value):
+                    if not isinstance(exclude_pattern, str):
+                        actual = type(exclude_pattern).__name__
+                        errors.append(
+                            f"Field 'state_dirs[{index}].exclude[{exclude_index}]' must be of type str, got {actual}."
+                        )
+                        continue
+                    if not _is_safe_relative_pattern(exclude_pattern):
+                        errors.append(
+                            f"Field 'state_dirs[{index}].exclude[{exclude_index}]' must be a relative pattern without parent traversal segments."
+                        )
+
+    return errors
+
+
 def _collect_openclaw_framework_errors(data: dict[str, Any]) -> list[str]:
     """Validate framework-specific rules for manifests declaring framework=openclaw."""
     errors: list[str] = []
@@ -501,7 +592,7 @@ def _collect_validation_errors(data: dict[str, Any]) -> list[str]:
                         f"Field 'channels[{index}]' must be a non-empty string."
                     )
 
-        if optional_field in ("skills", "state_dirs"):
+        if optional_field == "skills":
             for index, declared_path in enumerate(value):
                 if not isinstance(declared_path, str):
                     actual = type(declared_path).__name__
@@ -525,6 +616,7 @@ def _collect_validation_errors(data: dict[str, Any]) -> list[str]:
     errors.extend(_collect_services_shape_errors(data))
     errors.extend(_collect_mcp_server_permissions_errors(data))
     errors.extend(_collect_io_type_errors(data))
+    errors.extend(_collect_state_dirs_contract_errors(data))
     errors.extend(_collect_openclaw_framework_errors(data))
 
     return errors
