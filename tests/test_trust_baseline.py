@@ -552,6 +552,61 @@ def test_feature38_scans_jstsjson_credentials(tmp_path: Path) -> None:
     assert json_secret not in output
 
 
+def test_feature38_flags_risky_js_execution_primitives_with_file_line(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "feature38-risky-js-agent"
+    agent_dir.mkdir(parents=True, exist_ok=True)
+
+    (agent_dir / "kinnoo.yaml").write_text(
+        (
+            "name: feature38-risky-js-agent\n"
+            "version: 1.0.0\n"
+            "entrypoint: run.py\n"
+            "runtime:\n"
+            "  type: one-shot\n"
+            "  language: python\n"
+            "  version: \"3.10\"\n"
+            "dependencies: []\n"
+            "inputs:\n"
+            "  type: string\n"
+            "outputs:\n"
+            "  type: string\n"
+        ),
+        encoding="utf-8",
+    )
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    (agent_dir / "run.py").write_text("print('ok')\n", encoding="utf-8")
+
+    (agent_dir / "danger-eval.js").write_text(
+        "const payload = '2 + 2';\n"
+        "const result = eval(payload);\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "danger-function.mjs").write_text(
+        "const fn = new Function('a', 'b', 'return a + b');\n"
+        "export default fn;\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "danger-child-process.ts").write_text(
+        "import { execSync } from 'child_process';\n"
+        "const output = execSync('echo hi');\n"
+        "export default output;\n",
+        encoding="utf-8",
+    )
+
+    inspect_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "inspect", str(agent_dir)],
+        capture_output=True,
+        text=True,
+    )
+
+    output = f"{inspect_result.stdout}\n{inspect_result.stderr}"
+    assert inspect_result.returncode == 0, output
+    assert "Security sweep:" in output
+    assert "danger-eval.js:2: risky js execution primitive (eval)" in output
+    assert "danger-function.mjs:1: risky js execution primitive (Function constructor)" in output
+    assert "danger-child-process.ts:2: risky js execution primitive (child process execution)" in output
+
+
 def _create_mcp_trace_agent(tmp_path: Path, agent_name: str) -> Path:
     agent_dir = tmp_path / agent_name
     agent_dir.mkdir()
