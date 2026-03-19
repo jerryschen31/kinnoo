@@ -4117,4 +4117,4 @@ tasks:
       - 'step4: Add explicit regression gate test to prevent future cross-runtime behavior drift'
     dependencies: [task204, task205, task206, task207]
     tests: [test306]
-    status: not-started
+    status: needs-review
