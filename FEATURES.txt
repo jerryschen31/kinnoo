@@ -1350,7 +1350,7 @@ features:
       Add Node.js dependency risk checks during install. Provide security visibility into
       known CVEs and package lifecycle script execution risk, with policy controls suitable
       for local development and stricter CI/publisher workflows.
-    tasks: []
+    tasks: [task204, task205, task206, task207, task208]
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo install` runs `npm audit`/equivalent for Node.js agents and prints severity summary (critical/high/moderate/low)."
