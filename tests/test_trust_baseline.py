@@ -607,6 +607,88 @@ def test_feature38_flags_risky_js_execution_primitives_with_file_line(tmp_path: 
     assert "danger-child-process.ts:2: risky js execution primitive (child process execution)" in output
 
 
+def test_feature38_openclaw_config_dangerous_settings_warning(tmp_path: Path) -> None:
+    dangerous_agent = tmp_path / "feature38-openclaw-danger-agent"
+    dangerous_agent.mkdir(parents=True, exist_ok=True)
+
+    manifest_text = (
+        "name: feature38-openclaw-danger-agent\n"
+        "version: 1.0.0\n"
+        "entrypoint: run.py\n"
+        "runtime:\n"
+        "  type: one-shot\n"
+        "  language: python\n"
+        "  version: \"3.10\"\n"
+        "dependencies: []\n"
+        "inputs:\n"
+        "  type: string\n"
+        "outputs:\n"
+        "  type: string\n"
+    )
+    (dangerous_agent / "kinnoo.yaml").write_text(manifest_text, encoding="utf-8")
+    (dangerous_agent / "requirements.txt").write_text("", encoding="utf-8")
+    (dangerous_agent / "run.py").write_text("print('ok')\n", encoding="utf-8")
+    (dangerous_agent / "openclaw-config.json").write_text(
+        json.dumps(
+            {
+                "openclaw": {
+                    "allow_shell": True,
+                    "disable_sandbox": True,
+                    "tool_policy": "allow_all",
+                }
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    dangerous_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "inspect", str(dangerous_agent)],
+        capture_output=True,
+        text=True,
+    )
+    dangerous_output = f"{dangerous_result.stdout}\n{dangerous_result.stderr}"
+    assert dangerous_result.returncode == 0, dangerous_output
+    assert "Security sweep:" in dangerous_output
+    assert "openclaw-config.json" in dangerous_output
+    assert "dangerous openclaw config (allow_shell=true enables shell command execution)" in dangerous_output
+    assert "dangerous openclaw config (disable_sandbox=true removes runtime isolation)" in dangerous_output
+    assert "dangerous openclaw config (tool_policy=allow_all disables tool restrictions)" in dangerous_output
+
+    safe_agent = tmp_path / "feature38-openclaw-safe-agent"
+    safe_agent.mkdir(parents=True, exist_ok=True)
+    (safe_agent / "kinnoo.yaml").write_text(
+        manifest_text.replace("feature38-openclaw-danger-agent", "feature38-openclaw-safe-agent"),
+        encoding="utf-8",
+    )
+    (safe_agent / "requirements.txt").write_text("", encoding="utf-8")
+    (safe_agent / "run.py").write_text("print('ok')\n", encoding="utf-8")
+    (safe_agent / "openclaw-config.json").write_text(
+        json.dumps(
+            {
+                "openclaw": {
+                    "allow_shell": False,
+                    "disable_sandbox": False,
+                    "tool_policy": "allowlist",
+                }
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    safe_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "inspect", str(safe_agent)],
+        capture_output=True,
+        text=True,
+    )
+    safe_output = f"{safe_result.stdout}\n{safe_result.stderr}"
+    assert safe_result.returncode == 0, safe_output
+    assert "dangerous openclaw config" not in safe_output
+
+
 def _create_mcp_trace_agent(tmp_path: Path, agent_name: str) -> Path:
     agent_dir = tmp_path / agent_name
     agent_dir.mkdir()
