@@ -1392,7 +1392,7 @@ features:
       - "Rule set should be heuristic and non-blocking initially to reduce false-positive friction."
     owner: techlead-agent
     dependencies: [feature31]
-    status: not-started
+    status: completed
 
   - id: feature39
     title: "Manifest Permissions Model + Sandbox Execution"
