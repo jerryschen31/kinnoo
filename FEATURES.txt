@@ -1342,7 +1342,7 @@ features:
       - "Should remain warning-first and operator-confirmed when confidence is mixed."
     owner: techlead-agent
     dependencies: [feature31, feature33, feature35]
-    status: not-started
+    status: completed
 
   - id: feature37
     title: "Node.js Dependency Audit & Lifecycle Script Controls"

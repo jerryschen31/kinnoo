@@ -3939,7 +3939,7 @@ tasks:
       - 'step4: Add analyzer and import-facing tests verifying confidence and evidence reporting behavior'
     dependencies: [task158, task163, task184]
     tests: [test297]
-    status: needs-review
+    status: completed
 
   - id: task200
     title: "Feature36 manifest inference for runtime package manager skills and state dirs"
@@ -3960,7 +3960,7 @@ tasks:
       - 'step4: Add tests asserting inferred runtime package manager skills and state_dirs output for representative fixtures'
     dependencies: [task199, task185, task194]
     tests: [test298]
-    status: needs-review
+    status: completed
 
   - id: task201
     title: "Feature36 identity signal detection for SOUL AGENTS and optional USER docs"
@@ -3979,7 +3979,7 @@ tasks:
       - 'step4: Add tests covering identity artifact presence and optional-file behavior'
     dependencies: [task199]
     tests: [test299]
-    status: needs-review
+    status: completed
 
   - id: task202
     title: "Feature36 import output validity and unresolved-field guidance"
@@ -4000,7 +4000,7 @@ tasks:
       - 'step4: Add tests asserting valid generation path and warning-first unresolved guidance path'
     dependencies: [task200, task201]
     tests: [test300]
-    status: needs-review
+    status: completed
 
   - id: task203
     title: "Feature36 non-openclaw regression safeguards"
@@ -4020,4 +4020,4 @@ tasks:
       - 'step4: Add regression gate test protecting non-openclaw import behavior across future changes'
     dependencies: [task199, task200, task201, task202]
     tests: [test301]
-    status: needs-review
+    status: completed
