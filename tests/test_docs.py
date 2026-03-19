@@ -318,4 +318,62 @@ def test_feature33_manifest_extension_docs_examples() -> None:
     assert "type: one-shot" in combined_text
 
     assert "non-openclaw" in combined_lower
+
+
+def test_feature35_docs_cover_mutable_state_semantics() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    schema_doc = repo_root / "docs" / "manifest-schema-reference.md"
+    readme_doc = repo_root / "README.md"
+
+    schema_text = schema_doc.read_text(encoding="utf-8")
+    readme_text = readme_doc.read_text(encoding="utf-8")
+    combined_text = f"{schema_text}\n{readme_text}"
+    combined_lower = combined_text.lower()
+
+    assert "Feature35 mutable state snapshots (`state_dirs`)" in combined_text
+    assert "mutable runtime state" in combined_lower
+    assert "distinct from immutable `assets`" in combined_text
+
+    assert "state_snapshots/<state-dir>/..." in combined_text
+    assert "state_snapshots/memory/core/profile.json" in combined_text
+    assert "<install-target>/memory/core/profile.json" in combined_text
+
+    assert "exclude" in combined_lower
+    assert "daily/*.md" in combined_text
+    assert "secrets/*" in combined_text
+
+    assert "--state-overwrite" in combined_text
+    assert "warning-first" in combined_lower
+    assert "non-destructive" in combined_lower
+
+    assert "without `state_dirs`" in combined_text
+    assert "asset-only" in combined_lower
+
+
+def test_feature35_docs_cover_mutable_state_semantics_and_assets_compatibility() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    schema_doc = repo_root / "docs" / "manifest-schema-reference.md"
+    readme_doc = repo_root / "README.md"
+
+    schema_text = schema_doc.read_text(encoding="utf-8")
+    readme_text = readme_doc.read_text(encoding="utf-8")
+    combined_text = f"{schema_text}\n{readme_text}"
+    combined_lower = combined_text.lower()
+
+    assert "mutable state" in combined_lower
+    assert "state_dirs" in combined_text
+    assert "immutable assets" in combined_lower or "immutable `assets`" in combined_text
+    assert "state_snapshots/" in combined_text
+
+    assert "exclude" in combined_lower
+    assert "daily/*.md" in combined_text
+    assert "secrets/*" in combined_text
+    assert "omitted" in combined_lower
+
+    assert "--state-overwrite" in combined_text
+    assert "warning-first" in combined_lower
+    assert "non-destructive" in combined_lower
+
+    assert "manifests without `state_dirs`" in combined_text or "without state_dirs" in combined_lower
+    assert "asset-only behavior" in combined_lower or "assets" in combined_lower
     assert "remain valid" in combined_lower

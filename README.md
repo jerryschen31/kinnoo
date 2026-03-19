@@ -223,6 +223,37 @@ Compatibility guarantees:
 - `assets.bundle: false` keeps asset metadata but skips asset payload inclusion in the archive.
 - `assets.max_bundle_size_mb` overrides the default 100 MB warning threshold when provided.
 
+## Mutable State Snapshots (Feature35)
+
+Feature35 introduces `state_dirs` for mutable runtime state such as memory folders. This is intentionally separate from immutable `assets`.
+
+Behavior summary:
+
+- `assets` remain immutable packaged resources with existing bundle behavior.
+- `state_dirs` are packed as mutable snapshots under `state_snapshots/<declared-state-dir>/...`.
+- install restores snapshots back into each declared state root.
+
+Structured `state_dirs` entries support exclude patterns:
+
+```yaml
+state_dirs:
+	- path: memory
+		exclude:
+			- daily/*.md
+			- secrets/*
+```
+
+Exclude and restore semantics:
+
+- Excluded files are omitted during pack and therefore never restored.
+- Non-excluded files remain part of the snapshot/restore flow.
+- Install is warning-first and non-destructive when existing state is present.
+- Use `kinnoo install ... --state-overwrite` for explicit deterministic replacement of existing state.
+
+Compatibility guarantee:
+
+- Agents without `state_dirs` keep legacy asset-only pack/install behavior unchanged.
+
 ## Input Safety Guard (Feature18)
 
 Feature18 adds an input safety guard to `kinnoo run` before agent execution.
@@ -303,6 +334,40 @@ Non-openclaw compatibility:
 
 - Existing manifests that omit Feature33 fields remain valid.
 - Non-openclaw manifests may include Feature33 fields in valid shape without OpenClaw-only validation failures.
+
+## Mutable state snapshots (Feature35)
+
+Feature35 defines `state_dirs` as mutable runtime state snapshots, which are distinct from immutable `assets`.
+
+Semantics:
+
+- `assets` are immutable packaged resources intended to be identical across installs.
+- `state_dirs` are mutable warm-start runtime state that can change over time.
+- During pack, `state_dirs` content is stored under `state_snapshots/<state-dir>/...` to keep state semantics separate from asset paths.
+
+Exclusion support:
+
+- Structured entries support per-directory excludes:
+
+```yaml
+state_dirs:
+	- path: memory
+		exclude:
+			- daily/*.md
+			- secrets/*
+```
+
+- Excluded files are omitted from snapshots and therefore are not restored on install.
+
+Install restore and overwrite behavior:
+
+- By default, install is warning-first and non-destructive when target state already exists.
+- Existing state is preserved unless explicit overwrite is requested.
+- Use `--state-overwrite` to replace existing state with snapshot content.
+
+Backward compatibility:
+
+- Agents without `state_dirs` preserve legacy asset-only pack/install behavior.
 
 ## Pack/Publish Refactor (Feature13)
 

@@ -1291,7 +1291,7 @@ features:
       - "Keeps first version lean and runnable; advanced gateway bridge remains deferred."
     owner: techlead-agent
     dependencies: [feature31, feature33]
-    status: not-started
+    status: completed
 
   - id: feature35
     title: "Mutable State Directories in Pack/Install"
@@ -1299,7 +1299,7 @@ features:
       Add first-class mutable state directory handling (`state_dirs`) for package snapshots
       such as OpenClaw memory folders. Distinguish mutable runtime state from immutable assets,
       and support selective snapshot policies to avoid packaging sensitive or noisy files.
-    tasks: []
+    tasks: [task194, task195, task196, task197, task198]
     acceptance_criteria:
       - id: AC1
         description: "`state_dirs` paths are validated, packed as state snapshots, and restored on install with predictable directory layout."

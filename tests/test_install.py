@@ -180,3 +180,69 @@ def test_feature31_node_dependency_install_npm_and_pnpm(monkeypatch, tmp_path, c
     captured = capsys.readouterr()
     assert "Node dependency installation failed while running 'pnpm install'" in captured.err
     assert "pnpm simulated failure" in captured.err
+
+
+def test_feature35_install_state_overwrite_warning_and_force(tmp_path):
+    """Feature35 test294: install warns/preserves existing state by default and overwrites with explicit control."""
+    archive_path = tmp_path / "feature35-state-restore.kno"
+    make_dummy_kno_archive(
+        archive_path,
+        files={
+            "kinnoo.yaml": (
+                "name: feature35-agent\n"
+                "version: 1.0.0\n"
+                "entrypoint: run.py\n"
+                "runtime:\n"
+                "  type: one-shot\n"
+                "  language: python\n"
+                "  version: \"3.10\"\n"
+                "dependencies: []\n"
+                "inputs:\n"
+                "  type: string\n"
+                "outputs:\n"
+                "  type: string\n"
+                "state_dirs:\n"
+                "  - memory\n"
+            ),
+            "run.py": "print('hello')\n",
+            "requirements.txt": "",
+            "memory/existing.txt": "keep-me\n",
+            "state_snapshots/memory/from_snapshot.txt": "snapshot-state\n",
+        },
+    )
+
+    target_no_overwrite = tmp_path / "installed-no-overwrite"
+    result_no_overwrite = subprocess.run(
+        [
+            "python3",
+            "src/kinnoo/cli.py",
+            "install",
+            str(archive_path),
+            str(target_no_overwrite),
+            "--yes",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result_no_overwrite.returncode == 0, result_no_overwrite.stderr
+    assert "Existing state directory detected" in result_no_overwrite.stderr
+    assert (target_no_overwrite / "memory" / "existing.txt").exists()
+    assert not (target_no_overwrite / "memory" / "from_snapshot.txt").exists()
+
+    target_with_overwrite = tmp_path / "installed-with-overwrite"
+    result_with_overwrite = subprocess.run(
+        [
+            "python3",
+            "src/kinnoo/cli.py",
+            "install",
+            str(archive_path),
+            str(target_with_overwrite),
+            "--yes",
+            "--state-overwrite",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result_with_overwrite.returncode == 0, result_with_overwrite.stderr
+    assert (target_with_overwrite / "memory" / "from_snapshot.txt").exists()
+    assert not (target_with_overwrite / "memory" / "existing.txt").exists()

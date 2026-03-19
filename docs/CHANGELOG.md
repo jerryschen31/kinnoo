@@ -3,6 +3,24 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v0.17.0] - 2026-03-19
+### Added
+- Implemented Feature35 "Mutable State Directories in Pack/Install" with first-class `state_dirs` snapshot semantics for mutable runtime state.
+- Added structured `state_dirs` entry support (`path`, optional `exclude`) with validator checks for safe relative paths and traversal-resistant exclude patterns.
+- Added install-time state restore controls with warning-first default behavior and explicit overwrite flag support via `--state-overwrite`.
+
+### Changed
+- Extended pack flow to archive mutable state snapshots under deterministic `state_snapshots/<declared-state-dir>/...` paths while preserving immutable `assets` behavior.
+- Added exclusion-aware snapshot collection so targeted noisy/sensitive state files can be omitted without dropping core warm-start state.
+- Updated documentation in `README.md` and `docs/manifest-schema-reference.md` to distinguish mutable `state_dirs` from immutable `assets`, including restore and compatibility guidance.
+
+### Quality
+- Feature35 acceptance criteria gate validated across `test292`-`test296`.
+- Full regression executed for review cycle: `296 passed, 1 failed, 1 skipped` (`python3 -m pytest`), with failure isolated to legacy MCP stream regression gate.
+- Focused re-run of failing regression path: `2 passed` (`python3 -m pytest tests/test_cli.py::test_feature23_mcp_server_streams_stdout_stderr tests/test_regression_v1.py::test_v1_suite_passes_after_feature7 -q`).
+- Merge commit: TBD (populate after merge to `phase4/main`).
+
+
 ## [v0.16.0] - 2026-03-18
 ### Added
 - Implemented Feature33 "Manifest Schema Extensions for OpenClaw/JS Agents" with optional schema fields: `runtime.package_manager`, `channels`, `skills`, and `state_dirs`.
