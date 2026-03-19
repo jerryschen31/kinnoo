@@ -3838,7 +3838,7 @@ tasks:
       - 'step4: Add validator tests covering positive and negative state_dirs contract cases'
     dependencies: [task185]
     tests: [test292]
-    status: not-started
+    status: needs-review
 
   - id: task195
     title: "Feature35 pack snapshot capture for mutable state directories"
