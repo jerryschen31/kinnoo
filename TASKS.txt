@@ -4137,7 +4137,7 @@ tasks:
       - 'step4: Add tests proving JS TS JSON credential patterns are detected with deterministic warning messages'
     dependencies: []
     tests: [test307]
-    status: needs-review
+    status: completed
 
   - id: task210
     title: "Feature38 risky JS execution primitive detection"
@@ -4156,7 +4156,7 @@ tasks:
       - 'step4: Add tests asserting file/line evidence is present for flagged risky primitive fixtures'
     dependencies: [task209]
     tests: [test308]
-    status: needs-review
+    status: completed
 
   - id: task211
     title: "Feature38 OpenClaw config danger rule set"
@@ -4174,7 +4174,7 @@ tasks:
       - 'step4: Add tests covering dangerous config detection and non-dangerous config no-warning baselines'
     dependencies: [task209]
     tests: [test309]
-    status: needs-review
+    status: completed
 
   - id: task212
     title: "Feature38 memory snapshot credential scan before pack"
@@ -4193,7 +4193,7 @@ tasks:
       - 'step4: Add tests proving warnings are emitted for risky memory candidates and pack remains non-blocking'
     dependencies: [task209]
     tests: [test310]
-    status: needs-review
+    status: completed
 
   - id: task213
     title: "Feature38 sweep output contract and no-secret regression safeguards"
@@ -4212,4 +4212,4 @@ tasks:
       - 'step4: Add regression tests proving secret-like values are never echoed in sweep output'
     dependencies: [task209, task210, task211, task212]
     tests: [test311]
-    status: needs-review
+    status: completed
