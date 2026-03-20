@@ -8,6 +8,7 @@ from typing import Any
 from server.auth.token import SigningKey, TokenService
 from server.config import ServerConfig
 from server.metadata.manager import MetadataManager
+from server.routes.agents import create_agents_router
 from server.routes.publish import create_publish_router
 from server.storage import build_storage_backend_from_config
 
@@ -49,6 +50,12 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
             storage_backend=storage_backend,
             metadata_manager=metadata_manager,
             max_upload_mb=resolved_config.max_upload_mb,
+        )
+    )
+    app.include_router(
+        create_agents_router(
+            token_service=token_service,
+            metadata_manager=metadata_manager,
         )
     )
 

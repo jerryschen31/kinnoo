@@ -4867,7 +4867,7 @@ tasks:
       - 'step7: Add tests for pagination, visibility enforcement, and error cases'
     dependencies: [task239, task240, task237]
     tests: [test340]
-    status: not-started
+    status: needs-review
 
   - id: task243
     title: "Download endpoint with presigned URLs"
