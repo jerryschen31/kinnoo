@@ -35,6 +35,17 @@ class RuntimeResourceControls:
     max_memory_mb: int | None
 
 
+@dataclass(frozen=True)
+class RuntimeMonitorPolicySummary:
+    network_allowed: bool
+    filesystem_scope: str
+    shell_allowed: bool
+    browser_allowed: bool
+    telemetry_limited: bool
+    telemetry_reason_code: str | None
+    telemetry_limited_capabilities: tuple[str, ...]
+
+
 def normalize_runtime_resource_controls(
     *,
     max_seconds: float | None,
@@ -123,6 +134,47 @@ def predict_dry_run_actions(
         )
 
     return actions
+
+
+def resolve_monitor_policy_summary(
+    *,
+    manifest: dict[str, object],
+    runtime_language: str,
+    force_telemetry_limited: bool = False,
+) -> RuntimeMonitorPolicySummary:
+    permissions_raw = manifest.get("permissions")
+    permissions = permissions_raw if isinstance(permissions_raw, dict) else {}
+
+    network_allowed = bool(permissions.get("network") is True)
+    filesystem_scope_raw = permissions.get("filesystem_scope")
+    filesystem_scope = (
+        filesystem_scope_raw.strip().lower()
+        if isinstance(filesystem_scope_raw, str) and filesystem_scope_raw.strip()
+        else "none"
+    )
+    shell_allowed = bool(permissions.get("shell") is True)
+    browser_allowed = bool(permissions.get("browser") is True)
+
+    limited_capabilities: list[str] = []
+    if runtime_language == "nodejs":
+        limited_capabilities.extend(["network", "filesystem"])
+    if force_telemetry_limited:
+        for capability in ("network", "filesystem"):
+            if capability not in limited_capabilities:
+                limited_capabilities.append(capability)
+
+    telemetry_limited = len(limited_capabilities) > 0
+    reason_code = "telemetry_limited_backend" if telemetry_limited else None
+
+    return RuntimeMonitorPolicySummary(
+        network_allowed=network_allowed,
+        filesystem_scope=filesystem_scope,
+        shell_allowed=shell_allowed,
+        browser_allowed=browser_allowed,
+        telemetry_limited=telemetry_limited,
+        telemetry_reason_code=reason_code,
+        telemetry_limited_capabilities=tuple(limited_capabilities),
+    )
 
 
 def resolve_violation_enforcement(
