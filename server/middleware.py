@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from collections import defaultdict, deque
 from dataclasses import dataclass
+import json
 import time
 from typing import Deque
+import uuid
 
 from server.auth.middleware import authenticate_request
 from server.auth.token import TokenClaims, TokenService
@@ -90,7 +92,29 @@ class PathRateLimitMiddleware:
             await self.app(scope, receive, send)
             return
 
-        body = b'{"detail":"429 too many requests"}'
+        request_id = _request_id_from_scope(scope)
+        body = json.dumps(
+            {
+                "error": {
+                    "code": "too_many_requests",
+                    "message": "429 too many requests",
+                    "request_id": request_id,
+                }
+            }
+        ).encode("utf-8")
         headers = [(b"content-type", b"application/json")]
         await send({"type": "http.response.start", "status": 429, "headers": headers})
         await send({"type": "http.response.body", "body": body})
+
+
+def _request_id_from_scope(scope) -> str:
+    headers = scope.get("headers") or []
+    for key, value in headers:
+        if key == b"x-request-id":
+            try:
+                decoded = value.decode("utf-8").strip()
+            except UnicodeDecodeError:
+                decoded = ""
+            if decoded:
+                return decoded
+    return uuid.uuid4().hex

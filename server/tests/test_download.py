@@ -83,6 +83,14 @@ def test_download_presigned(tmp_path):
         headers={"Authorization": f"Bearer {reader_token}"},
     )
     assert missing.status_code == 404
+    missing_body = missing.json()
+    assert missing_body["error"]["code"] == "not_found"
+    assert missing_body["error"]["message"]
+    assert missing_body["error"]["request_id"]
 
     missing_auth = client.get("/api/agents/tenant-alpha/agent-downloader/1.2.3/download")
     assert missing_auth.status_code == 401
+    missing_auth_body = missing_auth.json()
+    assert missing_auth_body["error"]["code"] == "unauthorized"
+    assert missing_auth_body["error"]["message"]
+    assert missing_auth_body["error"]["request_id"]

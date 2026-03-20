@@ -151,9 +151,17 @@ def test_search_endpoint(tmp_path):
 
     missing_auth = client.get("/api/search?q=alpha")
     assert missing_auth.status_code == 401
+    missing_auth_body = missing_auth.json()
+    assert missing_auth_body["error"]["code"] == "unauthorized"
+    assert missing_auth_body["error"]["message"]
+    assert missing_auth_body["error"]["request_id"]
 
     empty_query = client.get(
         "/api/search?q=",
         headers={"Authorization": f"Bearer {alpha_reader}"},
     )
     assert empty_query.status_code == 400
+    empty_query_body = empty_query.json()
+    assert empty_query_body["error"]["code"] == "bad_request"
+    assert empty_query_body["error"]["message"]
+    assert empty_query_body["error"]["request_id"]

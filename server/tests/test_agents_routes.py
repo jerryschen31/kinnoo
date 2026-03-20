@@ -12,6 +12,8 @@ def _archive(name: str, version: str, visibility: str) -> tuple[str, bytes]:
         f"name: {name}\n"
         f"version: {version}\n"
         f"visibility: {visibility}\n"
+        "description: route metadata description\n"
+        "author: route metadata author\n"
     ).encode("utf-8")
 
     from io import BytesIO
@@ -93,6 +95,11 @@ def test_list_and_detail(tmp_path):
     assert list_body["total"] == 2
     listed_names = [item["agent_slug"] for item in list_body["items"]]
     assert listed_names == ["agent-alpha-a", "agent-alpha-b"]
+    for item in list_body["items"]:
+        assert item["name"] == item["agent_slug"]
+        assert item["description"] == "route metadata description"
+        assert item["author"] == "route metadata author"
+        assert item["archive_size_bytes"] > 0
 
     paged_response = client.get(
         "/api/agents?offset=1&limit=1",
@@ -126,12 +133,24 @@ def test_list_and_detail(tmp_path):
         headers={"Authorization": f"Bearer {alpha_reader_token}"},
     )
     assert forbidden.status_code == 403
+    forbidden_body = forbidden.json()
+    assert forbidden_body["error"]["code"] == "forbidden"
+    assert forbidden_body["error"]["message"]
+    assert forbidden_body["error"]["request_id"]
 
     missing = client.get(
         "/api/agents/tenant-alpha/does-not-exist",
         headers={"Authorization": f"Bearer {alpha_reader_token}"},
     )
     assert missing.status_code == 404
+    missing_body = missing.json()
+    assert missing_body["error"]["code"] == "not_found"
+    assert missing_body["error"]["message"]
+    assert missing_body["error"]["request_id"]
 
     missing_auth = client.get("/api/agents")
     assert missing_auth.status_code == 401
+    missing_auth_body = missing_auth.json()
+    assert missing_auth_body["error"]["code"] == "unauthorized"
+    assert missing_auth_body["error"]["message"]
+    assert missing_auth_body["error"]["request_id"]

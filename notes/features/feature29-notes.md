@@ -133,3 +133,72 @@ Feature29 delivers the remote registry server with secure multi-tenant API behav
 
 ### Verdict
 - `BLOCK` for merge to `phase3/main` until blockers above are remediated and regression gate passes.
+
+## SWE Remediation 1 (Post-Review Blocker Fixes)
+
+### Summary
+- Implemented and wired `POST /api/auth/token` into FastAPI startup so auth token issuance is part of the live API surface and covered by middleware rate limiting.
+- Implemented a shared AC7-compliant error envelope utility and migrated feature29 route error responses to:
+  - `error.code`
+  - `error.message`
+  - `error.request_id`
+- Expanded `GET /api/agents` list payload metadata to include AC4-required fields:
+  - `tenant_slug`
+  - `name`
+  - `latest_version`
+  - `description`
+  - `author`
+  - `archive_size_bytes`
+- Resolved regression gate environment issues for the required command by ensuring the `python3` interpreter had required dependencies and testmon support.
+
+### Implemented Changes
+1. Auth route wiring + rate-limit exercise path:
+  - Added `server/routes/auth.py` with router factory exposing `POST /api/auth/token`.
+  - Added `server.routes.auth.create_auth_router(...)` include in `server/app.py`.
+  - Added app state `user_store` used by the auth route handler.
+  - Existing rate-limit middleware rule on `/api/auth/token` now applies to a real route.
+
+2. AC7 error envelope contract:
+  - Added `server/routes/errors.py` with shared helpers:
+    - `error_code_for_status(...)`
+    - `resolve_request_id(...)`
+    - `build_error_envelope(...)`
+  - Updated wrappers in:
+    - `server/routes/publish.py`
+    - `server/routes/agents.py`
+    - `server/routes/download.py`
+    - `server/routes/search.py`
+    - `server/routes/auth.py`
+  - Updated middleware 429 output in `server/middleware.py` to return AC7 envelope shape.
+
+3. AC4 list metadata completion:
+  - Updated `server/routes/agents.py` list payload construction to hydrate latest metadata and object size.
+  - Added fields in list items:
+    - `name`
+    - `description`
+    - `author`
+    - `archive_size_bytes`
+
+4. Test coverage updates for contract enforcement:
+  - Added `server/tests/test_auth_route.py` covering auth route wiring and `/api/auth/token` rate limiting.
+  - Updated endpoint tests to assert AC7 error envelope fields:
+    - `server/tests/test_publish.py`
+    - `server/tests/test_agents_routes.py`
+    - `server/tests/test_download.py`
+    - `server/tests/test_search.py`
+  - Updated `server/tests/test_agents_routes.py` to assert AC4 metadata fields on list items.
+
+### Validation Evidence
+- Focused remediation tests:
+  - `python3 -m pytest server/tests/test_auth_route.py server/tests/test_publish.py::test_publish_endpoint server/tests/test_agents_routes.py::test_list_and_detail server/tests/test_download.py::test_download_presigned server/tests/test_search.py::test_search_endpoint`
+  - Result: `5 passed`
+
+- Required regression gate command (exact):
+  - `python3 -m pytest --testmon`
+  - Result: `348 passed, 1 skipped`
+
+### Blocker Status
+- Missing auth token route wiring: **RESOLVED**
+- AC7 error envelope contract: **RESOLVED**
+- AC4 list payload metadata completeness: **RESOLVED**
+- Required `python3 -m pytest --testmon` gate failure: **RESOLVED in current review environment**

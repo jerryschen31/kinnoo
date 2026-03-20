@@ -9,6 +9,7 @@ from starlette.requests import Request
 
 from server.auth.token import TokenService
 from server.metadata.manager import MetadataManager
+from server.routes.errors import build_error_envelope, resolve_request_id
 from server.middleware import validate_and_inject_user_context
 
 
@@ -90,8 +91,10 @@ def create_search_router(*, token_service: TokenService, metadata_manager: Metad
     fastapi_module = importlib.import_module("fastapi")
     APIRouter = getattr(fastapi_module, "APIRouter")
     Header = getattr(fastapi_module, "Header")
-    HTTPException = getattr(fastapi_module, "HTTPException")
     Query = getattr(fastapi_module, "Query")
+
+    responses_module = importlib.import_module("fastapi.responses")
+    JSONResponse = getattr(responses_module, "JSONResponse")
 
     router = APIRouter()
 
@@ -113,7 +116,14 @@ def create_search_router(*, token_service: TokenService, metadata_manager: Metad
             limit=limit,
         )
         if status >= 400:
-            raise HTTPException(status_code=status, detail=payload["error"])
+            return JSONResponse(
+                status_code=status,
+                content=build_error_envelope(
+                    status_code=status,
+                    message=str(payload["error"]),
+                    request_id=resolve_request_id(request),
+                ),
+            )
         return payload
 
     return router
