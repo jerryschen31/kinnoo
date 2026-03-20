@@ -2467,6 +2467,151 @@ permissions:
     assert kill_payload["reason_code"] == "hard_shell_execution_violation"
 
 
+def test_feature41_resource_control_enforcement(tmp_path):
+    timeout_agent_dir = tmp_path / "feature41-timeout-agent"
+    timeout_agent_dir.mkdir()
+    (timeout_agent_dir / "requirements.txt").write_text("")
+    (timeout_agent_dir / "kinnoo.yaml").write_text(
+        """
+name: feature41-timeout-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+"""
+    )
+    (timeout_agent_dir / "run.py").write_text(
+        "import time\n"
+        "time.sleep(3)\n"
+        "print('timeout-agent-ran')\n"
+    )
+    (timeout_agent_dir / "README.md").write_text("feature41 timeout agent")
+    (timeout_agent_dir / "tools").mkdir()
+    (timeout_agent_dir / "prompts").mkdir()
+
+    timeout_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(timeout_agent_dir),
+            "hello",
+            "--max-seconds",
+            "0.2",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    timeout_output = f"{timeout_result.stdout}\n{timeout_result.stderr}"
+    assert timeout_result.returncode != 0, timeout_output
+    assert "reason_code=wall_clock_timeout_exceeded" in timeout_output
+
+    if os.name == "posix":
+        cpu_agent_dir = tmp_path / "feature41-cpu-agent"
+        cpu_agent_dir.mkdir()
+        (cpu_agent_dir / "requirements.txt").write_text("")
+        (cpu_agent_dir / "kinnoo.yaml").write_text(
+            """
+name: feature41-cpu-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+"""
+        )
+        (cpu_agent_dir / "run.py").write_text(
+            "while True:\n"
+            "    pass\n"
+        )
+        (cpu_agent_dir / "README.md").write_text("feature41 cpu agent")
+        (cpu_agent_dir / "tools").mkdir()
+        (cpu_agent_dir / "prompts").mkdir()
+
+        cpu_result = subprocess.run(
+            [
+                sys.executable,
+                "src/kinnoo/cli.py",
+                "run",
+                str(cpu_agent_dir),
+                "hello",
+                "--max-cpu-seconds",
+                "1",
+                "--max-seconds",
+                "3",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        cpu_output = f"{cpu_result.stdout}\n{cpu_result.stderr}"
+        assert cpu_result.returncode != 0, cpu_output
+        assert (
+            "reason_code=cpu_limit_exceeded" in cpu_output
+            or "reason_code=wall_clock_timeout_exceeded" in cpu_output
+        )
+
+    degraded_agent_dir = tmp_path / "feature41-degraded-agent"
+    degraded_agent_dir.mkdir()
+    (degraded_agent_dir / "requirements.txt").write_text("")
+    (degraded_agent_dir / "kinnoo.yaml").write_text(
+        """
+name: feature41-degraded-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+"""
+    )
+    (degraded_agent_dir / "run.py").write_text("print('feature41-degraded-agent-ran')\n")
+    (degraded_agent_dir / "README.md").write_text("feature41 degraded agent")
+    (degraded_agent_dir / "tools").mkdir()
+    (degraded_agent_dir / "prompts").mkdir()
+
+    degraded_env = dict(os.environ)
+    degraded_env["KINNOO_FORCE_RESOURCE_LIMIT_UNSUPPORTED"] = "1"
+    degraded_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(degraded_agent_dir),
+            "hello",
+            "--max-cpu-seconds",
+            "1",
+            "--max-memory-mb",
+            "64",
+        ],
+        capture_output=True,
+        text=True,
+        env=degraded_env,
+    )
+    degraded_output = f"{degraded_result.stdout}\n{degraded_result.stderr}"
+    assert degraded_result.returncode == 0, degraded_output
+    assert "max-cpu-seconds unsupported on this platform; running in degraded mode" in degraded_output
+    assert "max-memory-mb unsupported on this platform; running in degraded mode" in degraded_output
+    assert "feature41-degraded-agent-ran" in degraded_output
+
+
 def test_feature40_keygen_generates_ed25519_keypair(tmp_path):
     from kinnoo.signing import (
         load_ed25519_private_key,

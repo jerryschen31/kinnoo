@@ -4484,7 +4484,7 @@ tasks:
       - 'step4: Add tests covering enforced limits and graceful unsupported-platform fallback behavior'
     dependencies: [task224]
     tests: [test324]
-    status: not-started
+    status: needs-review
 
   - id: task227
     title: "Feature41 dry-run monitoring mode"
