@@ -8,9 +8,11 @@ from typing import Any
 from server.auth.token import SigningKey, TokenService
 from server.config import ServerConfig
 from server.metadata.manager import MetadataManager
+from server.middleware import InMemoryRateLimiter, PathRateLimitMiddleware, RateLimitRule
 from server.routes.agents import create_agents_router
 from server.routes.download import create_download_router
 from server.routes.publish import create_publish_router
+from server.routes.search import create_search_router
 from server.storage import build_storage_backend_from_config
 
 
@@ -36,6 +38,14 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
     metadata_manager = MetadataManager(storage=storage_backend)
 
     app = FastAPI(title="kinnoo-registry-server")
+    app.add_middleware(
+        PathRateLimitMiddleware,
+        limiter=InMemoryRateLimiter(),
+        rules={
+            "/api/auth/token": RateLimitRule(requests_per_minute=20),
+            "/api/publish": RateLimitRule(requests_per_minute=20),
+        },
+    )
     app.state.config = resolved_config
     app.state.storage_backend = storage_backend
     app.state.token_service = token_service
@@ -65,6 +75,12 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
             metadata_manager=metadata_manager,
             storage_backend=storage_backend,
             presign_ttl_seconds=resolved_config.presign_ttl_seconds,
+        )
+    )
+    app.include_router(
+        create_search_router(
+            token_service=token_service,
+            metadata_manager=metadata_manager,
         )
     )
 
