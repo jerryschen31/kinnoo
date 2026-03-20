@@ -18,6 +18,7 @@ class RegistryRecord:
     version: str
     archive_path: Path
     metadata_path: Path | None = None
+    publisher_public_key: str | None = None
 
 
 @dataclass(frozen=True)

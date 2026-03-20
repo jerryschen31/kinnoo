@@ -2337,3 +2337,58 @@ def test_feature39_sandbox_backend_failure_shapes() -> None:
     assert missing_permissions.code == "missing_permissions_policy"
     assert "requires manifest permissions declaration" in missing_permissions.message
     assert "Declare a permissions section" in missing_permissions.remediation
+
+
+def test_feature40_keygen_generates_ed25519_keypair(tmp_path):
+    from kinnoo.signing import (
+        load_ed25519_private_key,
+        load_ed25519_public_key,
+        sign_payload,
+        verify_signature,
+    )
+
+    private_key_path = tmp_path / "feature40-private.pem"
+    public_key_path = tmp_path / "feature40-public.pem"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "keygen",
+            "--private-key",
+            str(private_key_path),
+            "--public-key",
+            str(public_key_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    combined_output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, combined_output
+    assert private_key_path.exists()
+    assert public_key_path.exists()
+
+    private_key_pem = private_key_path.read_text(encoding="utf-8")
+    public_key_pem = public_key_path.read_text(encoding="utf-8")
+    assert "BEGIN PRIVATE KEY" in private_key_pem
+    assert "BEGIN PUBLIC KEY" in public_key_pem
+
+    if os.name != "nt":
+        import stat
+
+        private_mode = stat.S_IMODE(private_key_path.stat().st_mode)
+        public_mode = stat.S_IMODE(public_key_path.stat().st_mode)
+        assert private_mode == 0o600
+        assert public_mode == 0o644
+
+    assert "Public key fingerprint (SHA256):" in combined_output
+    assert "BEGIN PRIVATE KEY" not in combined_output
+
+    private_key = load_ed25519_private_key(private_key_path)
+    public_key = load_ed25519_public_key(public_key_path)
+    payload = b"feature40-keygen-payload"
+    signature = sign_payload(private_key, payload)
+
+    assert verify_signature(public_key, payload, signature) is True
+    assert verify_signature(public_key, b"tampered", signature) is False
