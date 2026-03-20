@@ -5287,3 +5287,83 @@ tests:
     covers:
       - feature: feature40
         ac: AC5
+
+  - id: test322
+    title: Feature41 runtime monitor captures process network and filesystem behavioral events with structured logs
+    type: integration
+    preconditions: runtime monitor hooks are enabled in run execution flow
+    steps:
+      - step1: Run instrumented agent fixture that spawns subprocesses performs network calls and writes files
+      - step2: Collect runtime monitor output records during execution
+      - step3: Verify event records include deterministic structured fields for process network and filesystem categories
+    expected: runtime monitor captures key behavioral events with structured logs suitable for auditability
+    pass_criteria: monitor output contains process network and filesystem events with stable schema fields and timestamps
+    automated: true
+    automation_path: tests/test_run_preflight.py::test_feature41_runtime_event_monitoring_baseline
+    covers:
+      - feature: feature41
+        ac: AC1
+
+  - id: test323
+    title: Feature41 permission violations trigger deterministic enforcement including kill switch path
+    type: integration
+    preconditions: feature39 permissions and runtime monitor enforcement policy are active
+    steps:
+      - step1: Execute fixture that triggers soft and hard permission violations under monitored run
+      - step2: Verify warn-mode policy produces deterministic warning events
+      - step3: Verify hard-violation policy terminates process through kill-switch path
+    expected: permission violations produce deterministic warn or terminate outcomes according to policy
+    pass_criteria: violation events and enforcement action codes match expected policy and kill-switch behavior for hard violations
+    automated: true
+    automation_path: tests/test_cli.py::test_feature41_violation_enforcement_and_kill_switch
+    covers:
+      - feature: feature41
+        ac: AC2
+
+  - id: test324
+    title: Feature41 resource controls enforce timeout and platform-supported CPU memory budgets
+    type: integration
+    preconditions: monitored run supports wall-clock timeout and exposes resource-limit configuration
+    steps:
+      - step1: Run fixture that exceeds configured wall-clock timeout
+      - step2: Run fixture that exceeds CPU or memory budget on supported platforms
+      - step3: Verify unsupported-platform path emits deterministic degraded-mode guidance
+    expected: configured resource controls are enforced with deterministic behavior and graceful unsupported fallback
+    pass_criteria: runs are terminated when limits are exceeded and unsupported controls produce explicit stable guidance
+    automated: true
+    automation_path: tests/test_cli.py::test_feature41_resource_control_enforcement
+    covers:
+      - feature: feature41
+        ac: AC3
+
+  - id: test325
+    title: Feature41 dry-run mode reports likely actions without full side-effect execution
+    type: integration
+    preconditions: run command supports dry-run monitoring mode
+    steps:
+      - step1: Execute fixture with process network and filesystem side-effect intents using `kinnoo run --dry-run`
+      - step2: Inspect dry-run output for predicted action diagnostics
+      - step3: Verify side-effect targets were not materially mutated under dry-run mode
+    expected: dry-run mode provides low-risk behavioral trace output while suppressing full side effects
+    pass_criteria: predicted actions are reported and side-effect assertions confirm no full execution side effects occurred
+    automated: true
+    automation_path: tests/test_cli.py::test_feature41_dry_run_monitoring_trace
+    covers:
+      - feature: feature41
+        ac: AC4
+
+  - id: test326
+    title: Feature41 monitoring integrates with feature39 permissions and degrades gracefully when telemetry is limited
+    type: integration
+    preconditions: feature39 permissions model is active for python and node fixtures
+    steps:
+      - step1: Execute monitored runs for python and node fixtures with declared permissions
+      - step2: Verify monitor policy resolution respects feature39 declarations across runtimes
+      - step3: Simulate limited telemetry backend and verify graceful degradation messaging
+    expected: feature41 monitoring integrates with feature39 permissions and handles telemetry limitations gracefully
+    pass_criteria: cross-runtime monitoring outcomes align with declared permissions and degraded telemetry path emits deterministic guidance
+    automated: true
+    automation_path: tests/test_regression_v1.py::test_feature41_feature39_integration_and_graceful_degradation
+    covers:
+      - feature: feature41
+        ac: AC5

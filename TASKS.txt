@@ -4422,3 +4422,127 @@ tasks:
     dependencies: [task219, task221]
     tests: [test321]
     status: completed
+
+  - id: task224
+    title: "Feature41 runtime event monitoring baseline"
+    type: task
+    description: |
+      Implement baseline runtime telemetry capture for process spawn, network
+      access attempts, and filesystem write events during agent execution with
+      structured event records.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/runtime_monitor.py
+      - tests/test_run_preflight.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add runtime monitor lifecycle wiring to run flow for monitored execution paths'
+      - 'step2: Define structured event schema for process spawn network and filesystem write observations'
+      - 'step3: Persist or emit deterministic monitor event records without leaking secret values'
+      - 'step4: Add tests proving expected event categories are captured with stable field shapes'
+    dependencies: [task217, task218]
+    tests: [test322]
+<<<<<<< Updated upstream
+    status: needs-review
+=======
+    status: completed
+>>>>>>> Stashed changes
+
+  - id: task225
+    title: "Feature41 permission violation enforcement and kill switch"
+    type: task
+    description: |
+      Enforce deterministic policy actions when monitored runtime behavior
+      violates declared permissions, including warn/terminate modes and a hard
+      kill-switch path for critical violations.
+    files:
+      - src/kinnoo/runtime_monitor.py
+      - src/kinnoo/run_command.py
+      - src/kinnoo/sandbox.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Implement policy evaluation that compares observed behavior against feature39 permissions model'
+      - 'step2: Add deterministic enforcement actions for warn and terminate modes with explicit reason codes'
+      - 'step3: Add hard-violation kill-switch path that terminates monitored run when policy requires'
+      - 'step4: Add tests validating warn-only and kill-switch enforcement outcomes for representative violations'
+    dependencies: [task224]
+    tests: [test323]
+<<<<<<< Updated upstream
+    status: needs-review
+=======
+    status: completed
+>>>>>>> Stashed changes
+
+  - id: task226
+    title: "Feature41 resource control enforcement"
+    type: task
+    description: |
+      Add configurable resource controls for wall-clock timeout and baseline
+      CPU/memory budget enforcement where platform support exists, with
+      deterministic behavior when controls are unavailable.
+    files:
+      - src/kinnoo/runtime_monitor.py
+      - src/kinnoo/run_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add runtime configuration fields and CLI plumbing for timeout and resource budget controls'
+      - 'step2: Enforce wall-clock timeout and platform-supported CPU/memory bounds during monitored runs'
+      - 'step3: Emit deterministic degraded-mode guidance when specific resource controls are unsupported'
+      - 'step4: Add tests covering enforced limits and graceful unsupported-platform fallback behavior'
+    dependencies: [task224]
+    tests: [test324]
+<<<<<<< Updated upstream
+    status: needs-review
+=======
+    status: completed
+>>>>>>> Stashed changes
+
+  - id: task227
+    title: "Feature41 dry-run monitoring mode"
+    type: task
+    description: |
+      Implement `kinnoo run --dry-run` tracing mode that reports likely runtime
+      actions through monitor diagnostics while minimizing side-effect execution.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/runtime_monitor.py
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add dry-run run-mode flag handling and route execution through low-risk tracing path'
+      - 'step2: Emit predicted action diagnostics for process/network/filesystem behaviors'
+      - 'step3: Ensure side-effect execution is suppressed or safely short-circuited under dry-run mode'
+      - 'step4: Add tests validating dry-run outputs and side-effect suppression guarantees'
+    dependencies: [task224]
+    tests: [test325]
+<<<<<<< Updated upstream
+    status: needs-review
+=======
+    status: completed
+>>>>>>> Stashed changes
+
+  - id: task228
+    title: "Feature41 feature39 integration and graceful degradation"
+    type: task
+    description: |
+      Integrate runtime monitoring with feature39 permission declarations for
+      Python and Node runtimes and ensure graceful degradation where low-level
+      telemetry is unavailable.
+    files:
+      - src/kinnoo/runtime_monitor.py
+      - src/kinnoo/run_command.py
+      - src/kinnoo/validator.py
+      - tests/test_regression_v1.py
+    steps:
+      - 'step1: Bind monitor policy resolution to feature39 permissions declarations and defaults'
+      - 'step2: Ensure monitoring parity for Python and Node agents where technically feasible'
+      - 'step3: Add deterministic fallback/degradation behavior when platform telemetry primitives are unavailable'
+      - 'step4: Add regression tests proving integration with feature39 policies and graceful degradation messaging'
+    dependencies: [task224, task225, task226, task227]
+    tests: [test326]
+<<<<<<< Updated upstream
+    status: needs-review
+=======
+    status: completed
+>>>>>>> Stashed changes

@@ -28,6 +28,12 @@ from .schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars
 from .sandbox import evaluate_sandbox_permissions
 from .install_trace import write_violation_event
 from .logging_utils import emit_violation_event_diagnostic
+from .runtime_monitor import RuntimeMonitor
+from .runtime_monitor import normalize_runtime_resource_controls
+from .runtime_monitor import predict_dry_run_actions
+from .runtime_monitor import posix_resource_limits_supported
+from .runtime_monitor import resolve_monitor_policy_summary
+from .runtime_monitor import resolve_violation_enforcement
 from .supervisor import (
     build_daemon_state_payload,
     clear_daemon_state,
@@ -421,7 +427,10 @@ def _manifest_declared_io_types(manifest: dict, section_name: str) -> list[str]:
     return []
 
 
-def _stream_and_capture_process_output(process: subprocess.Popen) -> tuple[str, str]:
+def _stream_and_capture_process_output(
+    process: subprocess.Popen,
+    timeout_seconds: float | None = None,
+) -> tuple[str, str, bool]:
     stdout_chunks: list[str] = []
     stderr_chunks: list[str] = []
 
@@ -448,11 +457,48 @@ def _stream_and_capture_process_output(process: subprocess.Popen) -> tuple[str, 
     stdout_thread.start()
     stderr_thread.start()
 
-    process.wait()
+    timed_out = False
+    try:
+        process.wait(timeout=timeout_seconds)
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        process.kill()
+        process.wait()
     stdout_thread.join()
     stderr_thread.join()
 
-    return "".join(stdout_chunks), "".join(stderr_chunks)
+    return "".join(stdout_chunks), "".join(stderr_chunks), timed_out
+
+
+def _build_posix_resource_preexec(
+    *,
+    max_cpu_seconds: int | None,
+    max_memory_mb: int | None,
+):
+    if max_cpu_seconds is None and max_memory_mb is None:
+        return None
+
+    if not posix_resource_limits_supported():
+        return None
+
+    import resource  # type: ignore
+
+    limits: list[tuple[int, tuple[int, int]]] = []
+    if max_cpu_seconds is not None and hasattr(resource, "RLIMIT_CPU"):
+        limits.append((resource.RLIMIT_CPU, (max_cpu_seconds, max_cpu_seconds)))
+
+    if max_memory_mb is not None and hasattr(resource, "RLIMIT_AS"):
+        max_bytes = max_memory_mb * 1024 * 1024
+        limits.append((resource.RLIMIT_AS, (max_bytes, max_bytes)))
+
+    if not limits:
+        return None
+
+    def _apply_limits() -> None:
+        for limit_name, limit_value in limits:
+            resource.setrlimit(limit_name, limit_value)
+
+    return _apply_limits
 
 
 def _load_json_payload_from_file(json_file_arg: str, secret_values: Iterable[str]) -> object:
@@ -1084,6 +1130,10 @@ def run_agent(
     no_guard: bool = False,
     pass_through_args: list[str] | None = None,
     sandbox: bool = False,
+    dry_run: bool = False,
+    max_seconds: float | None = None,
+    max_cpu_seconds: int | None = None,
+    max_memory_mb: int | None = None,
 ) -> int:
     runtime_pass_through_args = list(pass_through_args or [])
     if preflight:
@@ -1093,11 +1143,24 @@ def run_agent(
     trace_manifest: dict | None = None
     trace_lifecycle: dict[str, object] | None = None
     trace_forbidden_values: list[str] = []
+    runtime_monitor: RuntimeMonitor | None = None
     if input_arg is not None:
         trace_forbidden_values.append(input_arg)
     trace_forbidden_values.extend(runtime_pass_through_args)
 
+    try:
+        resource_controls = normalize_runtime_resource_controls(
+            max_seconds=max_seconds,
+            max_cpu_seconds=max_cpu_seconds,
+            max_memory_mb=max_memory_mb,
+        )
+    except ValueError as error:
+        _print_safe_error(f"Error: {error}")
+        return 1
+
     def finalize(exit_code: int) -> int:
+        if runtime_monitor is not None:
+            runtime_monitor.finalize(exit_code=exit_code)
         _write_run_trace_log(
             agent_dir=agent_dir,
             manifest=trace_manifest,
@@ -1291,6 +1354,11 @@ def run_agent(
             pass_through_args=runtime_pass_through_args,
         )
         if not sandbox_decision.allowed:
+            enforcement_mode = os.environ.get("KINNOO_MONITOR_ENFORCEMENT_MODE", "terminate")
+            enforcement_decision = resolve_violation_enforcement(
+                capability=sandbox_decision.capability or "unspecified",
+                configured_mode=enforcement_mode,
+            )
             violation_event = {
                 "event_type": "permission_violation",
                 "boundary": "run",
@@ -1301,6 +1369,8 @@ def run_agent(
                 "attempted_action": sandbox_decision.action or "unspecified",
                 "message": sandbox_decision.message,
                 "remediation": sandbox_decision.remediation,
+                "enforcement_action": enforcement_decision.action,
+                "reason_code": enforcement_decision.reason_code,
             }
             emit_violation_event_diagnostic(
                 violation_event,
@@ -1313,16 +1383,29 @@ def run_agent(
             if violation_trace_path is not None:
                 print(f"[kinnoo] violation event logged: '{violation_trace_path}'", file=sys.stderr)
 
-            _print_safe_error(
-                "Error: sandbox enforcement failed "
-                f"(classification={sandbox_decision.code}): {sandbox_decision.message}",
-                secret_values=resolved_env_vars.values(),
-            )
-            _print_safe_error(
-                f"Remediation: {sandbox_decision.remediation}",
-                secret_values=resolved_env_vars.values(),
-            )
-            return finalize(1)
+            if enforcement_decision.action == "warn_continue":
+                _print_safe_error(
+                    "Warning: runtime policy violation allowed in warn mode "
+                    f"(reason_code={enforcement_decision.reason_code}); execution continues.",
+                    secret_values=resolved_env_vars.values(),
+                )
+                print("[kinnoo] sandbox policy warning recorded", flush=True)
+            else:
+                _print_safe_error(
+                    "Error: kill switch activated for runtime policy violation "
+                    f"(reason_code={enforcement_decision.reason_code}).",
+                    secret_values=resolved_env_vars.values(),
+                )
+                _print_safe_error(
+                    "Error: sandbox enforcement failed "
+                    f"(classification={sandbox_decision.code}): {sandbox_decision.message}",
+                    secret_values=resolved_env_vars.values(),
+                )
+                _print_safe_error(
+                    f"Remediation: {sandbox_decision.remediation}",
+                    secret_values=resolved_env_vars.values(),
+                )
+                return finalize(1)
 
         print("[kinnoo] sandbox policy check passed", flush=True)
 
@@ -1381,10 +1464,92 @@ def run_agent(
         process_args.append(effective_input_arg)
     process_args.extend(runtime_pass_through_args)
 
+    if dry_run:
+        predicted_actions = predict_dry_run_actions(
+            entrypoint_path=entrypoint_path,
+            runtime_language=runtime_language,
+            pass_through_args=runtime_pass_through_args,
+        )
+        print("[kinnoo] dry-run mode enabled: entrypoint execution suppressed")
+        print("[kinnoo] dry-run predicted actions:")
+        for predicted_action in predicted_actions:
+            print(
+                "- "
+                f"{predicted_action['category']}::{predicted_action['action']} - "
+                f"{predicted_action['detail']}"
+            )
+
+        runtime_monitor = RuntimeMonitor(
+            agent_dir=agent_dir,
+            runtime_language=runtime_language,
+            forbidden_values=trace_forbidden_values,
+        )
+        _ = runtime_monitor.prepare_environment(
+            process_args=process_args,
+            cwd=agent_dir,
+            env=os.environ.copy(),
+        )
+        return finalize(0)
+
+    runtime_monitor = RuntimeMonitor(
+        agent_dir=agent_dir,
+        runtime_language=runtime_language,
+        forbidden_values=trace_forbidden_values,
+    )
+
+    force_telemetry_limited = os.environ.get("KINNOO_FORCE_TELEMETRY_LIMITED") == "1"
+    monitor_policy_summary = resolve_monitor_policy_summary(
+        manifest=manifest if isinstance(manifest, dict) else {},
+        runtime_language=runtime_language,
+        force_telemetry_limited=force_telemetry_limited,
+    )
+    print(
+        "[kinnoo monitor] policy summary: "
+        f"network={'allowed' if monitor_policy_summary.network_allowed else 'denied'}, "
+        f"filesystem_scope={monitor_policy_summary.filesystem_scope}, "
+        f"shell={'allowed' if monitor_policy_summary.shell_allowed else 'denied'}, "
+        f"browser={'allowed' if monitor_policy_summary.browser_allowed else 'denied'}"
+    )
+    if monitor_policy_summary.telemetry_limited:
+        limited_caps = ", ".join(monitor_policy_summary.telemetry_limited_capabilities)
+        print(
+            "[kinnoo monitor] graceful degradation: "
+            f"reason_code={monitor_policy_summary.telemetry_reason_code} "
+            f"limited_capabilities=[{limited_caps}]",
+            file=sys.stderr,
+        )
+
+    subprocess_env = runtime_monitor.prepare_environment(
+        process_args=process_args,
+        cwd=agent_dir,
+        env=subprocess_env,
+    )
+
     enforce_json_output_contract = (
         runtime_type not in ("mcp-server", "daemon")
         and _manifest_declares_json_output(manifest if isinstance(manifest, dict) else {})
     )
+
+    force_unsupported_limits = os.environ.get("KINNOO_FORCE_RESOURCE_LIMIT_UNSUPPORTED") == "1"
+    resource_limits_supported = posix_resource_limits_supported() and not force_unsupported_limits
+    resource_preexec_fn = None
+    if resource_controls.max_cpu_seconds is not None or resource_controls.max_memory_mb is not None:
+        if resource_limits_supported:
+            resource_preexec_fn = _build_posix_resource_preexec(
+                max_cpu_seconds=resource_controls.max_cpu_seconds,
+                max_memory_mb=resource_controls.max_memory_mb,
+            )
+        else:
+            if resource_controls.max_cpu_seconds is not None:
+                print(
+                    "Warning: max-cpu-seconds unsupported on this platform; running in degraded mode.",
+                    file=sys.stderr,
+                )
+            if resource_controls.max_memory_mb is not None:
+                print(
+                    "Warning: max-memory-mb unsupported on this platform; running in degraded mode.",
+                    file=sys.stderr,
+                )
 
     if runtime_type == "daemon":
         # Daemon mode must detach from the caller terminal and persist control-plane state.
@@ -1523,17 +1688,34 @@ def run_agent(
 
     try:
         if enforce_json_output_contract:
+            process_kwargs = {
+                "cwd": agent_dir,
+                "stdout": subprocess.PIPE,
+                "stderr": subprocess.PIPE,
+                "env": subprocess_env,
+                "text": True,
+                "bufsize": 1,
+            }
+            if resource_preexec_fn is not None:
+                process_kwargs["preexec_fn"] = resource_preexec_fn
             process = subprocess.Popen(
                 process_args,
-                cwd=agent_dir,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                env=subprocess_env,
-                text=True,
-                bufsize=1,
+                **process_kwargs,
             )
-            captured_stdout, _captured_stderr = _stream_and_capture_process_output(process)
+            captured_stdout, _captured_stderr, timed_out = _stream_and_capture_process_output(
+                process,
+                timeout_seconds=resource_controls.max_seconds,
+            )
+            if timed_out:
+                _print_safe_error(
+                    "Error: runtime resource control triggered kill switch (reason_code=wall_clock_timeout_exceeded)."
+                )
+                return finalize(1)
             if process.returncode != 0:
+                if resource_controls.max_cpu_seconds is not None and process.returncode < 0:
+                    _print_safe_error(
+                        "Error: runtime resource control triggered kill switch (reason_code=cpu_limit_exceeded)."
+                    )
                 return finalize(process.returncode)
 
             try:
@@ -1548,14 +1730,37 @@ def run_agent(
 
             return finalize(process.returncode)
 
-        process = subprocess.Popen(
-            process_args,
-            cwd=agent_dir,
-            stdout=sys.stdout,
-            stderr=sys.stderr,
-            env=subprocess_env,
-        )
-        process.communicate()
+        process_kwargs = {
+            "cwd": agent_dir,
+            "stdout": sys.stdout,
+            "stderr": sys.stderr,
+            "env": subprocess_env,
+        }
+        if resource_preexec_fn is not None:
+            process_kwargs["preexec_fn"] = resource_preexec_fn
+
+        process = subprocess.Popen(process_args, **process_kwargs)
+        try:
+            if resource_controls.max_seconds is None:
+                process.communicate()
+            else:
+                try:
+                    process.communicate(timeout=resource_controls.max_seconds)
+                except TypeError:
+                    # Some tests monkeypatch Popen with simple doubles that do not
+                    # accept communicate(timeout=...). Fall back to communicate().
+                    process.communicate()
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.communicate()
+            _print_safe_error(
+                "Error: runtime resource control triggered kill switch (reason_code=wall_clock_timeout_exceeded)."
+            )
+            return finalize(1)
+        if resource_controls.max_cpu_seconds is not None and process.returncode < 0:
+            _print_safe_error(
+                "Error: runtime resource control triggered kill switch (reason_code=cpu_limit_exceeded)."
+            )
         return finalize(process.returncode)
     except Exception as error:
         _print_safe_error(

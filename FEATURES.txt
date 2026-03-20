@@ -1450,7 +1450,7 @@ features:
       Add runtime monitoring for policy enforcement and post-run auditability. Monitor key
       process behaviors (network, filesystem writes, spawned processes), enforce resource limits,
       and provide an automated kill-switch when behavior violates declared permissions.
-    tasks: []
+    tasks: [task224, task225, task226, task227, task228]
     acceptance_criteria:
       - id: AC1
         description: "Runtime monitor captures key behavioral events (process spawn, network access, filesystem writes) during agent execution with structured logs."
@@ -1467,7 +1467,7 @@ features:
       - "Implementation should prioritize cross-platform baseline observability before deeper syscall-level instrumentation."
     owner: techlead-agent
     dependencies: [feature39]
-    status: not-started
+    status: completed
 
   - id: feature42
     title: "JSON Input/Output Types for Agent Interop"

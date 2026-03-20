@@ -640,3 +640,104 @@ def test_feature31_node_preflight_toolchain_guards(tmp_path: Path) -> None:
     assert missing_pm_result.returncode != 0
     assert "node package manager 'pnpm' not found in PATH" in missing_pm_output
     assert "Action: install the configured Node package manager and ensure it is on PATH" in missing_pm_output
+
+
+def test_feature41_runtime_event_monitoring_baseline(tmp_path: Path) -> None:
+    monitor_agent = tmp_path / "feature41-monitor-agent"
+    monitor_agent.mkdir(parents=True, exist_ok=True)
+
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(1)
+    host, port = listener.getsockname()
+    stop_accept = threading.Event()
+
+    def _accept_once() -> None:
+        while not stop_accept.is_set():
+            try:
+                listener.settimeout(0.1)
+                conn, _ = listener.accept()
+                conn.close()
+                return
+            except TimeoutError:
+                continue
+            except OSError:
+                return
+
+    accept_thread = threading.Thread(target=_accept_once, daemon=True)
+    accept_thread.start()
+
+    (monitor_agent / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: feature41-monitor-agent",
+                "version: 1.0.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.10\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (monitor_agent / "requirements.txt").write_text("", encoding="utf-8")
+    (monitor_agent / "run.py").write_text(
+        "from pathlib import Path\n"
+        "import socket\n"
+        f"socket.create_connection(('{host}', {port}), timeout=1).close()\n"
+        "Path('runtime-write.txt').write_text('monitor-write', encoding='utf-8')\n"
+        "print('feature41-monitor-ran')\n",
+        encoding="utf-8",
+    )
+
+    try:
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(CLI_PATH),
+                "run",
+                str(monitor_agent),
+                "feature41-secret-input",
+            ],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+        )
+        output = f"{result.stdout}\n{result.stderr}"
+        assert result.returncode == 0, output
+
+        monitor_events_path = monitor_agent / ".kinnoo" / "runtime-monitor-events.jsonl"
+        assert monitor_events_path.exists(), output
+
+        lines = [
+            line.strip()
+            for line in monitor_events_path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        assert lines
+
+        events = [json.loads(line) for line in lines]
+        categories = {event["category"] for event in events}
+        assert "process" in categories
+        assert "network" in categories
+        assert "filesystem" in categories
+
+        for event in events:
+            assert event["schema_version"] == "1.0"
+            assert isinstance(event.get("run_id"), str) and event["run_id"]
+            assert isinstance(event.get("sequence"), int) and event["sequence"] >= 1
+            assert isinstance(event.get("timestamp"), str) and event["timestamp"]
+            assert isinstance(event.get("event_type"), str) and event["event_type"]
+            assert isinstance(event.get("details"), dict)
+
+        assert "feature41-secret-input" not in "\n".join(lines)
+    finally:
+        stop_accept.set()
+        listener.close()
