@@ -4736,7 +4736,7 @@ tasks:
       - 'step8: Add tests for issuance, validation, scope enforcement, denylist, and rotation'
     dependencies: [task234]
     tests: [test335]
-    status: not-started
+    status: needs-review
 
   - id: task238
     title: "Session cookie auth for web UI"
