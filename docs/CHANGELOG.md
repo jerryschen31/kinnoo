@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v0.21.0] - 2026-03-19
+### Changed
+- Applied SWE regression remediation for permission-model compatibility paths referenced in feature review notes, including validator compatibility and regression-gate stabilization.
+- Hardened sandbox backend deterministic failure-shape behavior for feature39 run enforcement paths.
+
+### Quality
+- Focused remediation verification passed:
+  - `python3 -m pytest tests/test_validator.py::test_feature26_permissions_schema_validation tests/test_regression_v1.py::test_feature26_framework_template_regression_gate tests/test_regression_v1.py::test_v1_suite_passes_after_feature7 tests/test_cli.py::test_feature39_sandbox_backend_failure_shapes -q`
+  - Result: `4 passed`
+- Merge commit: TBD (populate after merge to `phase4/main`).
+
+
 ## [v0.20.0] - 2026-03-19
 ### Added
 - Implemented Feature38 "JS/TS Static Security Sweep" with cross-language static scanning support for `.js`, `.mjs`, `.ts`, and `.json` artifacts.

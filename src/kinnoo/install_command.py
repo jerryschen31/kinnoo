@@ -34,6 +34,7 @@ try:
     from kinnoo.inspect_command import read_manifest_from_kno_archive
     from kinnoo.validator import validate
     from kinnoo.install_trace import write_install_trace
+    from kinnoo.logging_utils import emit_violation_event_diagnostic
 except ImportError:
     from .checksum import (
         ChecksumParseError,
@@ -48,6 +49,7 @@ except ImportError:
     from .inspect_command import read_manifest_from_kno_archive
     from .validator import validate
     from .install_trace import write_install_trace
+    from .logging_utils import emit_violation_event_diagnostic
 
 
 def _read_requirements(requirements_path: Path) -> list[str]:
@@ -409,6 +411,52 @@ def _iter_state_dir_paths(manifest_data: dict[str, object]) -> list[str]:
     return normalized_paths
 
 
+def _permission_bool_label(value: object) -> str:
+    if value is True:
+        return "allowed"
+    if value is False:
+        return "denied"
+    return "unspecified"
+
+
+def _build_permissions_summary_lines(manifest_data: dict[str, object]) -> list[str]:
+    """Build deterministic human-readable permissions summary lines."""
+    permissions = manifest_data.get("permissions")
+    if not isinstance(permissions, dict):
+        return []
+
+    lines: list[str] = []
+    lines.append(f"  - Network: {_permission_bool_label(permissions.get('network'))}")
+
+    filesystem_scope = permissions.get("filesystem_scope")
+    if isinstance(filesystem_scope, str) and filesystem_scope.strip():
+        lines.append(f"  - Filesystem Scope: {filesystem_scope.strip()}")
+    else:
+        lines.append("  - Filesystem Scope: unspecified")
+
+    lines.append(f"  - Shell: {_permission_bool_label(permissions.get('shell'))}")
+    lines.append(f"  - Browser: {_permission_bool_label(permissions.get('browser'))}")
+
+    env_access = permissions.get("env_access")
+    if isinstance(env_access, list):
+        env_names: list[str] = []
+        for item in env_access:
+            if not isinstance(item, str):
+                continue
+            name = item.strip()
+            if not name:
+                continue
+            env_names.append(name)
+        if env_names:
+            lines.append(f"  - Env Access: {', '.join(env_names)}")
+        else:
+            lines.append("  - Env Access: (none)")
+    else:
+        lines.append("  - Env Access: (none)")
+
+    return lines
+
+
 def _restore_state_snapshots(
     target_dir: Path,
     manifest_data: dict[str, object],
@@ -475,6 +523,7 @@ def install_agent(
     overwrite_state: bool = False,
     allow_vulnerable: bool = False,
     ignore_scripts: bool = False,
+    accept_permissions: bool = False,
 ) -> int:
     target_spec = parse_install_target_spec(archive_path)
     if target_spec.kind == "invalid":
@@ -519,6 +568,7 @@ def install_agent(
             overwrite_state=overwrite_state,
             allow_vulnerable=allow_vulnerable,
             ignore_scripts=ignore_scripts,
+            accept_permissions=accept_permissions,
         )
 
     archive = target_spec.archive_path or Path(archive_path)
@@ -530,6 +580,7 @@ def install_agent(
         overwrite_state=overwrite_state,
         allow_vulnerable=allow_vulnerable,
         ignore_scripts=ignore_scripts,
+        accept_permissions=accept_permissions,
     )
 
 
@@ -541,6 +592,7 @@ def _install_from_archive_path(
     overwrite_state: bool = False,
     allow_vulnerable: bool = False,
     ignore_scripts: bool = False,
+    accept_permissions: bool = False,
 ) -> int:
     archive = Path(archive_path)
     if not archive.exists() or not archive.is_file():
@@ -627,6 +679,71 @@ def _install_from_archive_path(
             print(f"  - {env_var_name}")
     else:
         print("- Env Vars: (none)")
+
+    permission_summary_lines = _build_permissions_summary_lines(manifest_data)
+    if permission_summary_lines:
+        print("- Permissions:")
+        for permission_line in permission_summary_lines:
+            print(permission_line)
+    else:
+        print("- Permissions: (none declared)")
+
+    if permission_summary_lines:
+        if accept_permissions:
+            print(
+                "[kinnoo install] Permissions consent acknowledged via --accept-permissions override."
+            )
+        elif assume_yes:
+            emit_violation_event_diagnostic(
+                {
+                    "event_type": "permission_violation",
+                    "boundary": "install",
+                    "classification": "permissions_consent_required",
+                    "capability": "permissions",
+                    "attempted_action": "non_interactive_install_without_accept_permissions",
+                    "message": "permissions consent override required for non-interactive install",
+                    "remediation": "Re-run with --accept-permissions to acknowledge requested capabilities.",
+                }
+            )
+            print(
+                "Error: Manifest declares permissions. Re-run with --accept-permissions to acknowledge requested capabilities in non-interactive mode.",
+                file=sys.stderr,
+            )
+            return 1
+        else:
+            try:
+                permission_confirmation = input(
+                    "This agent declares explicit permissions. Allow requested permissions? [y/N]: "
+                ).strip().lower()
+            except EOFError:
+                emit_violation_event_diagnostic(
+                    {
+                        "event_type": "permission_violation",
+                        "boundary": "install",
+                        "classification": "permissions_consent_denied",
+                        "capability": "permissions",
+                        "attempted_action": "interactive_permissions_consent",
+                        "message": "permissions consent not granted",
+                        "remediation": "Re-run install and answer 'y' when prompted for permissions consent.",
+                    }
+                )
+                print("Install aborted: permissions consent not granted.", file=sys.stderr)
+                return 1
+
+            if permission_confirmation not in {"y", "yes"}:
+                emit_violation_event_diagnostic(
+                    {
+                        "event_type": "permission_violation",
+                        "boundary": "install",
+                        "classification": "permissions_consent_denied",
+                        "capability": "permissions",
+                        "attempted_action": "interactive_permissions_consent",
+                        "message": "permissions consent not granted",
+                        "remediation": "Re-run install and answer 'y' when prompted for permissions consent.",
+                    }
+                )
+                print("Install aborted: permissions consent not granted.", file=sys.stderr)
+                return 1
 
     if not assume_yes:
         try:

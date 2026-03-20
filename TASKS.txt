@@ -4213,3 +4213,108 @@ tasks:
     dependencies: [task209, task210, task211, task212]
     tests: [test311]
     status: completed
+
+  - id: task214
+    title: "Feature39 permissions schema and validator contract"
+    type: task
+    description: |
+      Extend manifest schema and validation to support explicit `permissions`
+      declarations including network, filesystem scope, shell, browser, and
+      env var access fields with deterministic validation errors.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+      - docs/manifest-schema-reference.md
+      - tests/test_validator.py
+    steps:
+      - 'step1: Define schema shape and allowed values for permissions fields including filesystem scope enum and env_access list validation'
+      - 'step2: Validate permissions field types and constraints with actionable error messages for invalid or unsupported values'
+      - 'step3: Ensure manifests without permissions remain backward-compatible and valid'
+      - 'step4: Add validator and schema-reference tests for valid and invalid permissions declarations'
+    dependencies: []
+    tests: [test312]
+    status: needs-review
+
+  - id: task215
+    title: "Feature39 install-time permission disclosure and consent flow"
+    type: task
+    description: |
+      Add install-time permission disclosure and explicit consent workflow so
+      operators can review requested capabilities before install/run trust
+      decisions are accepted.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli_install.py
+      - README.md
+    steps:
+      - 'step1: Render a deterministic human-readable permission summary from manifest declarations during install'
+      - 'step2: Add explicit confirmation prompt path with default-safe deny behavior when consent is not provided'
+      - 'step3: Add non-interactive override flag for automation workflows and ensure behavior is explicit in output/help text'
+      - 'step4: Add integration tests for consent accepted denied and non-interactive override paths'
+    dependencies: [task214]
+    tests: [test313]
+    status: needs-review
+
+  - id: task216
+    title: "Feature39 sandbox execution mode and enforcement backend"
+    type: task
+    description: |
+      Implement `kinnoo run --sandbox` execution path that enforces declared
+      permissions via a documented sandbox backend with deterministic failure
+      behavior when unsupported policies or violations occur.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/cli.py
+      - src/kinnoo/sandbox.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add run CLI flag --sandbox and route execution through sandbox orchestration layer'
+      - 'step2: Implement baseline enforcement controls for filesystem network and shell policy gates via documented backend strategy'
+      - 'step3: Define deterministic failure modes for unsupported platforms/backends and explicit permission violations'
+      - 'step4: Add integration tests covering successful sandboxed run and deterministic failure paths'
+    dependencies: [task214]
+    tests: [test314]
+    status: needs-review
+
+  - id: task217
+    title: "Feature39 cross-runtime permission enforcement for Python and Node"
+    type: task
+    description: |
+      Ensure permission policy enforcement applies consistently for both Python
+      and Node.js agents where technically feasible, including parity in
+      diagnostics and fallback behavior.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/install_command.py
+      - src/kinnoo/sandbox.py
+      - tests/test_regression_v1.py
+    steps:
+      - 'step1: Add runtime-aware policy adapters for Python and Node execution paths using shared permission model'
+      - 'step2: Enforce consistent policy checks for declared permissions and document any capability gaps by platform/runtime'
+      - 'step3: Ensure fallback behavior is deterministic when specific enforcement primitives are unavailable'
+      - 'step4: Add regression coverage proving both runtime types honor policy checks without cross-runtime drift'
+    dependencies: [task215, task216]
+    tests: [test315]
+    status: needs-review
+
+  - id: task218
+    title: "Feature39 violation diagnostics and secret-safe logging"
+    type: task
+    description: |
+      Emit structured permission violation diagnostics and logs that remain
+      actionable for operators while preserving no-secret-value output
+      invariants.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/install_trace.py
+      - src/kinnoo/logging_utils.py
+      - tests/test_run_preflight.py
+    steps:
+      - 'step1: Define violation event schema including capability type attempted action and remediation hints'
+      - 'step2: Add log/event emission for denied operations across install/run enforcement boundaries'
+      - 'step3: Redact sensitive values from diagnostics while retaining useful context for debugging'
+      - 'step4: Add tests asserting actionable diagnostics and explicit no-secret-value protections'
+    dependencies: [task215, task216, task217]
+    tests: [test316]
+    status: needs-review

@@ -1400,7 +1400,7 @@ features:
       Introduce explicit permission declarations for agent capabilities and enforce them at
       install/run boundaries. Add optional sandbox execution mode to constrain filesystem,
       network, shell, and browser capabilities according to manifest policy and operator consent.
-    tasks: []
+    tasks: [task214, task215, task216, task217, task218]
     acceptance_criteria:
       - id: AC1
         description: "Schema supports a `permissions` section with validated fields for network, filesystem scope, shell, browser, and env var access."

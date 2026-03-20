@@ -1185,3 +1185,93 @@ def test_feature26_permissions_schema_validation(tmp_path: Path) -> None:
         f"errors: {errors}"
     )
     assert errors == []
+
+
+def test_feature39_permissions_schema_validation(tmp_path: Path) -> None:
+    """Feature39 test312: validate explicit permissions schema contract."""
+    valid_permissions = dict(_VALID_MANIFEST)
+    valid_permissions["permissions"] = {
+        "network": True,
+        "filesystem_scope": "workspace-write",
+        "shell": False,
+        "browser": False,
+        "env_access": ["OPENAI_API_KEY", "KINNOO_ENV"],
+    }
+
+    valid_path = tmp_path / "feature39_valid_permissions.yaml"
+    valid_path.write_text(yaml.dump(valid_permissions), encoding="utf-8")
+
+    is_valid, errors = validate(str(valid_path))
+    assert is_valid is True, (
+        "Expected manifest with valid feature39 permissions declaration to pass; "
+        f"errors: {errors}"
+    )
+    assert errors == []
+
+    invalid_scope = dict(_VALID_MANIFEST)
+    invalid_scope["permissions"] = {
+        "network": True,
+        "filesystem_scope": "project-write",
+        "shell": False,
+        "browser": False,
+        "env_access": ["OPENAI_API_KEY"],
+    }
+    invalid_scope_path = tmp_path / "feature39_invalid_filesystem_scope.yaml"
+    invalid_scope_path.write_text(yaml.dump(invalid_scope), encoding="utf-8")
+
+    is_valid, errors = validate(str(invalid_scope_path))
+    assert is_valid is False, "Expected invalid filesystem_scope value to fail"
+    assert any(
+        "permissions.filesystem_scope" in message and "unsupported value" in message
+        for message in errors
+    ), f"Expected filesystem_scope unsupported-value guidance; got: {errors}"
+
+    invalid_env_access = dict(_VALID_MANIFEST)
+    invalid_env_access["permissions"] = {
+        "network": True,
+        "filesystem_scope": "read-only",
+        "shell": False,
+        "browser": False,
+        "env_access": "OPENAI_API_KEY",
+    }
+    invalid_env_access_path = tmp_path / "feature39_invalid_env_access_type.yaml"
+    invalid_env_access_path.write_text(yaml.dump(invalid_env_access), encoding="utf-8")
+
+    is_valid, errors = validate(str(invalid_env_access_path))
+    assert is_valid is False, "Expected non-list env_access to fail validation"
+    assert any(
+        "permissions.env_access" in message and "type list" in message
+        for message in errors
+    ), f"Expected env_access list type guidance; got: {errors}"
+
+    unsupported_permission_field = dict(_VALID_MANIFEST)
+    unsupported_permission_field["permissions"] = {
+        "network": True,
+        "filesystem_scope": "read-only",
+        "shell": False,
+        "browser": False,
+        "env_access": ["OPENAI_API_KEY"],
+        "allow_network_all": True,
+    }
+    unsupported_field_path = tmp_path / "feature39_unsupported_permission_field.yaml"
+    unsupported_field_path.write_text(
+        yaml.dump(unsupported_permission_field), encoding="utf-8"
+    )
+
+    is_valid, errors = validate(str(unsupported_field_path))
+    assert is_valid is False, "Expected unsupported permissions key to fail validation"
+    assert any(
+        "permissions" in message and "unsupported key" in message and "allow_network_all" in message
+        for message in errors
+    ), f"Expected unsupported permissions key guidance; got: {errors}"
+
+    baseline = dict(_VALID_MANIFEST)
+    baseline_path = tmp_path / "feature39_baseline_without_permissions.yaml"
+    baseline_path.write_text(yaml.dump(baseline), encoding="utf-8")
+
+    is_valid, errors = validate(str(baseline_path))
+    assert is_valid is True, (
+        "Expected manifest without permissions to remain backward-compatible; "
+        f"errors: {errors}"
+    )
+    assert errors == []
