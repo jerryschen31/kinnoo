@@ -2339,6 +2339,336 @@ def test_feature39_sandbox_backend_failure_shapes() -> None:
     assert "Declare a permissions section" in missing_permissions.remediation
 
 
+def test_feature41_violation_enforcement_and_kill_switch(tmp_path):
+    warn_agent_dir = tmp_path / "feature41-warn-agent"
+    warn_agent_dir.mkdir()
+    (warn_agent_dir / "requirements.txt").write_text("")
+    (warn_agent_dir / "kinnoo.yaml").write_text(
+        """
+name: feature41-warn-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+permissions:
+    network: false
+    filesystem_scope: read-only
+    shell: false
+    browser: false
+    env_access: []
+"""
+    )
+    (warn_agent_dir / "run.py").write_text("print('feature41-warn-agent-ran')\n")
+    (warn_agent_dir / "README.md").write_text("feature41 warn agent")
+    (warn_agent_dir / "tools").mkdir()
+    (warn_agent_dir / "prompts").mkdir()
+
+    warn_env = dict(os.environ)
+    warn_env["KINNOO_MONITOR_ENFORCEMENT_MODE"] = "warn"
+    warn_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(warn_agent_dir),
+            "hello",
+            "--sandbox",
+            "--",
+            "--url",
+            "https://example.com",
+        ],
+        capture_output=True,
+        text=True,
+        env=warn_env,
+    )
+
+    warn_output = f"{warn_result.stdout}\n{warn_result.stderr}"
+    assert warn_result.returncode == 0, warn_output
+    assert "reason_code=soft_policy_warning" in warn_output
+    assert "sandbox policy warning recorded" in warn_output
+    assert "feature41-warn-agent-ran" in warn_output
+
+    warn_events_path = warn_agent_dir / ".kinnoo" / "violation-events.jsonl"
+    assert warn_events_path.exists(), warn_output
+    warn_lines = [line for line in warn_events_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert warn_lines
+    warn_payload = json.loads(warn_lines[-1])
+    assert warn_payload["enforcement_action"] == "warn_continue"
+    assert warn_payload["reason_code"] == "soft_policy_warning"
+
+    kill_agent_dir = tmp_path / "feature41-kill-agent"
+    kill_agent_dir.mkdir()
+    (kill_agent_dir / "requirements.txt").write_text("")
+    (kill_agent_dir / "kinnoo.yaml").write_text(
+        """
+name: feature41-kill-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+permissions:
+    network: true
+    filesystem_scope: read-only
+    shell: false
+    browser: false
+    env_access: []
+"""
+    )
+    (kill_agent_dir / "run.py").write_text("print('feature41-kill-agent-should-not-run')\n")
+    (kill_agent_dir / "README.md").write_text("feature41 kill agent")
+    (kill_agent_dir / "tools").mkdir()
+    (kill_agent_dir / "prompts").mkdir()
+
+    kill_env = dict(os.environ)
+    kill_env["KINNOO_MONITOR_ENFORCEMENT_MODE"] = "warn"
+    kill_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(kill_agent_dir),
+            "hello",
+            "--sandbox",
+            "--",
+            "--exec",
+            "echo denied",
+        ],
+        capture_output=True,
+        text=True,
+        env=kill_env,
+    )
+
+    kill_output = f"{kill_result.stdout}\n{kill_result.stderr}"
+    assert kill_result.returncode != 0, kill_output
+    assert "reason_code=hard_shell_execution_violation" in kill_output
+    assert "kill switch activated" in kill_output
+    assert "feature41-kill-agent-should-not-run" not in kill_output
+
+    kill_events_path = kill_agent_dir / ".kinnoo" / "violation-events.jsonl"
+    assert kill_events_path.exists(), kill_output
+    kill_lines = [line for line in kill_events_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert kill_lines
+    kill_payload = json.loads(kill_lines[-1])
+    assert kill_payload["enforcement_action"] == "kill_switch_terminate"
+    assert kill_payload["reason_code"] == "hard_shell_execution_violation"
+
+
+def test_feature41_resource_control_enforcement(tmp_path):
+    timeout_agent_dir = tmp_path / "feature41-timeout-agent"
+    timeout_agent_dir.mkdir()
+    (timeout_agent_dir / "requirements.txt").write_text("")
+    (timeout_agent_dir / "kinnoo.yaml").write_text(
+        """
+name: feature41-timeout-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+"""
+    )
+    (timeout_agent_dir / "run.py").write_text(
+        "import time\n"
+        "time.sleep(3)\n"
+        "print('timeout-agent-ran')\n"
+    )
+    (timeout_agent_dir / "README.md").write_text("feature41 timeout agent")
+    (timeout_agent_dir / "tools").mkdir()
+    (timeout_agent_dir / "prompts").mkdir()
+
+    timeout_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(timeout_agent_dir),
+            "hello",
+            "--max-seconds",
+            "0.2",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    timeout_output = f"{timeout_result.stdout}\n{timeout_result.stderr}"
+    assert timeout_result.returncode != 0, timeout_output
+    assert "reason_code=wall_clock_timeout_exceeded" in timeout_output
+
+    if os.name == "posix":
+        cpu_agent_dir = tmp_path / "feature41-cpu-agent"
+        cpu_agent_dir.mkdir()
+        (cpu_agent_dir / "requirements.txt").write_text("")
+        (cpu_agent_dir / "kinnoo.yaml").write_text(
+            """
+name: feature41-cpu-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+"""
+        )
+        (cpu_agent_dir / "run.py").write_text(
+            "while True:\n"
+            "    pass\n"
+        )
+        (cpu_agent_dir / "README.md").write_text("feature41 cpu agent")
+        (cpu_agent_dir / "tools").mkdir()
+        (cpu_agent_dir / "prompts").mkdir()
+
+        cpu_result = subprocess.run(
+            [
+                sys.executable,
+                "src/kinnoo/cli.py",
+                "run",
+                str(cpu_agent_dir),
+                "hello",
+                "--max-cpu-seconds",
+                "1",
+                "--max-seconds",
+                "3",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        cpu_output = f"{cpu_result.stdout}\n{cpu_result.stderr}"
+        assert cpu_result.returncode != 0, cpu_output
+        assert (
+            "reason_code=cpu_limit_exceeded" in cpu_output
+            or "reason_code=wall_clock_timeout_exceeded" in cpu_output
+        )
+
+    degraded_agent_dir = tmp_path / "feature41-degraded-agent"
+    degraded_agent_dir.mkdir()
+    (degraded_agent_dir / "requirements.txt").write_text("")
+    (degraded_agent_dir / "kinnoo.yaml").write_text(
+        """
+name: feature41-degraded-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+"""
+    )
+    (degraded_agent_dir / "run.py").write_text("print('feature41-degraded-agent-ran')\n")
+    (degraded_agent_dir / "README.md").write_text("feature41 degraded agent")
+    (degraded_agent_dir / "tools").mkdir()
+    (degraded_agent_dir / "prompts").mkdir()
+
+    degraded_env = dict(os.environ)
+    degraded_env["KINNOO_FORCE_RESOURCE_LIMIT_UNSUPPORTED"] = "1"
+    degraded_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(degraded_agent_dir),
+            "hello",
+            "--max-cpu-seconds",
+            "1",
+            "--max-memory-mb",
+            "64",
+        ],
+        capture_output=True,
+        text=True,
+        env=degraded_env,
+    )
+    degraded_output = f"{degraded_result.stdout}\n{degraded_result.stderr}"
+    assert degraded_result.returncode == 0, degraded_output
+    assert "max-cpu-seconds unsupported on this platform; running in degraded mode" in degraded_output
+    assert "max-memory-mb unsupported on this platform; running in degraded mode" in degraded_output
+    assert "feature41-degraded-agent-ran" in degraded_output
+
+
+def test_feature41_dry_run_monitoring_trace(tmp_path):
+    dry_run_agent_dir = tmp_path / "feature41-dry-run-agent"
+    dry_run_agent_dir.mkdir()
+    (dry_run_agent_dir / "requirements.txt").write_text("")
+    (dry_run_agent_dir / "kinnoo.yaml").write_text(
+        """
+name: feature41-dry-run-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+"""
+    )
+    (dry_run_agent_dir / "run.py").write_text(
+        "from pathlib import Path\n"
+        "import socket\n"
+        "Path('feature41-dry-run-side-effect.flag').write_text('executed', encoding='utf-8')\n"
+        "socket.create_connection(('127.0.0.1', 9), timeout=0.1)\n"
+        "print('feature41-dry-run-entrypoint-ran')\n"
+    )
+    (dry_run_agent_dir / "README.md").write_text("feature41 dry-run agent")
+    (dry_run_agent_dir / "tools").mkdir()
+    (dry_run_agent_dir / "prompts").mkdir()
+
+    dry_run_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(dry_run_agent_dir),
+            "hello",
+            "--dry-run",
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    dry_run_output = f"{dry_run_result.stdout}\n{dry_run_result.stderr}"
+    assert dry_run_result.returncode == 0, dry_run_output
+    assert "dry-run mode enabled: entrypoint execution suppressed" in dry_run_output
+    assert "dry-run predicted actions:" in dry_run_output
+    assert "process::process_spawn" in dry_run_output
+    assert "network::network_access_attempt" in dry_run_output
+    assert "filesystem::filesystem_write" in dry_run_output
+
+    side_effect_flag = dry_run_agent_dir / "feature41-dry-run-side-effect.flag"
+    assert not side_effect_flag.exists()
+    assert "feature41-dry-run-entrypoint-ran" not in dry_run_output
+
+
 def test_feature40_keygen_generates_ed25519_keypair(tmp_path):
     from kinnoo.signing import (
         load_ed25519_private_key,

@@ -1236,3 +1236,110 @@ def test_feature39_python_node_permission_parity(tmp_path, monkeypatch, capsys):
     assert popen_invocations[0][0] == str(python_executable)
     assert popen_invocations[1][0] == "node"
 
+
+def test_feature41_feature39_integration_and_graceful_degradation(tmp_path, monkeypatch, capsys):
+    from kinnoo import run_command
+
+    def _write_agent(agent_dir: Path, runtime_language: str) -> None:
+        agent_dir.mkdir(parents=True, exist_ok=True)
+        entrypoint_name = "run.py" if runtime_language == "python" else "run.js"
+        (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+        (agent_dir / entrypoint_name).write_text(
+            "print('feature41-monitor-integration-ran')\n"
+            if runtime_language == "python"
+            else "console.log('feature41-monitor-integration-ran');\n",
+            encoding="utf-8",
+        )
+        (agent_dir / "kinnoo.yaml").write_text(
+            "\n".join(
+                [
+                    f"name: feature41-{runtime_language}-integration-agent",
+                    "version: 1.0.0",
+                    f"entrypoint: {entrypoint_name}",
+                    "runtime:",
+                    f"    language: {runtime_language}",
+                    "    version: \">=3.10\"" if runtime_language == "python" else "    version: \">=20.0.0\"",
+                    "    type: one-shot",
+                    "dependencies: []",
+                    "inputs:",
+                    "    type: text",
+                    "outputs:",
+                    "    type: text",
+                    "permissions:",
+                    "    network: false",
+                    "    filesystem_scope: read-only",
+                    "    shell: false",
+                    "    browser: false",
+                    "    env_access: []",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (agent_dir / "README.md").write_text("feature41 integration fixture", encoding="utf-8")
+        (agent_dir / "tools").mkdir(exist_ok=True)
+        (agent_dir / "prompts").mkdir(exist_ok=True)
+
+    python_agent = tmp_path / "feature41-python-integration-agent"
+    node_agent = tmp_path / "feature41-node-integration-agent"
+    _write_agent(python_agent, "python")
+    _write_agent(node_agent, "nodejs")
+
+    python_executable = python_agent / ".venv" / "bin" / "python"
+    python_executable.parent.mkdir(parents=True, exist_ok=True)
+    python_executable.write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+    python_executable.chmod(0o755)
+
+    class _FakeProcess:
+        def __init__(self, args, **_kwargs):
+            self.args = args
+            self.returncode = 0
+
+        def communicate(self, timeout=None):
+            del timeout
+            return None
+
+    def _fake_popen(args, **kwargs):
+        del kwargs
+        return _FakeProcess(args)
+
+    monkeypatch.setattr(run_command.subprocess, "Popen", _fake_popen)
+    monkeypatch.setattr(run_command.venv, "create", lambda *_args, **_kwargs: None)
+    monkeypatch.setenv("KINNOO_FORCE_TELEMETRY_LIMITED", "1")
+
+    python_result = run_command.run_agent(
+        agent_dir_arg=str(python_agent),
+        input_arg="hello",
+        no_guard=True,
+    )
+    python_capture = capsys.readouterr()
+    python_output = f"{python_capture.out}\n{python_capture.err}"
+
+    node_result = run_command.run_agent(
+        agent_dir_arg=str(node_agent),
+        input_arg="hello",
+        no_guard=True,
+    )
+    node_capture = capsys.readouterr()
+    node_output = f"{node_capture.out}\n{node_capture.err}"
+
+    assert python_result == 0, python_output
+    assert node_result == 0, node_output
+
+    assert "[kinnoo monitor] policy summary:" in python_output
+    assert "network=denied" in python_output
+    assert "filesystem_scope=read-only" in python_output
+    assert "shell=denied" in python_output
+    assert "browser=denied" in python_output
+
+    assert "[kinnoo monitor] policy summary:" in node_output
+    assert "network=denied" in node_output
+    assert "filesystem_scope=read-only" in node_output
+    assert "shell=denied" in node_output
+    assert "browser=denied" in node_output
+
+    assert "reason_code=telemetry_limited_backend" in python_output
+    assert "reason_code=telemetry_limited_backend" in node_output
+    assert "limited_capabilities=[network, filesystem]" in python_output
+    assert "limited_capabilities=[network, filesystem]" in node_output
+

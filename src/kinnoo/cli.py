@@ -87,6 +87,26 @@ def main():
         action="store_true",
         help="Run agent with manifest permission policy enforcement",
     )
+    run_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show predicted runtime behavior without executing full entrypoint side effects",
+    )
+    run_parser.add_argument(
+        "--max-seconds",
+        type=float,
+        help="Wall-clock timeout in seconds for run execution",
+    )
+    run_parser.add_argument(
+        "--max-cpu-seconds",
+        type=int,
+        help="CPU time budget in seconds for supported platforms",
+    )
+    run_parser.add_argument(
+        "--max-memory-mb",
+        type=int,
+        help="Memory budget in MB for supported platforms",
+    )
 
     # Add 'stop' subcommand
     stop_parser = subparsers.add_parser(
@@ -346,6 +366,10 @@ def main():
             no_guard=bool(getattr(args, "no_guard", False)),
             pass_through_args=pass_through_args,
             sandbox=bool(getattr(args, "sandbox", False)),
+            dry_run=bool(getattr(args, "dry_run", False)),
+            max_seconds=getattr(args, "max_seconds", None),
+            max_cpu_seconds=getattr(args, "max_cpu_seconds", None),
+            max_memory_mb=getattr(args, "max_memory_mb", None),
         )
         sys.exit(exit_code)
 
