@@ -60,7 +60,7 @@ class RemoteRegistryClient:
                 "version": version,
                 "metadata": json.dumps(metadata_payload, sort_keys=True),
             },
-            file_field_name="archive",
+            file_field_name="file",
             filename=Path(archive_path).name,
             file_bytes=file_bytes,
         )
