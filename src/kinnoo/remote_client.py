@@ -7,8 +7,13 @@ import mimetypes
 import uuid
 from pathlib import Path
 from typing import Any, Optional
+from urllib import error as urllib_error
 from urllib import parse as urllib_parse
 from urllib import request as urllib_request
+
+
+class RemoteRegistryClientError(RuntimeError):
+    """Actionable remote-registry client error surfaced to CLI callers."""
 
 
 class RemoteRegistryClient:
@@ -138,14 +143,50 @@ class RemoteRegistryClient:
             method=method,
         )
 
-        with urllib_request.urlopen(request, timeout=self._timeout_seconds) as response:
-            raw_body = response.read().decode("utf-8")
+        try:
+            with urllib_request.urlopen(request, timeout=self._timeout_seconds) as response:
+                raw_body = response.read().decode("utf-8")
+        except urllib_error.HTTPError as error:
+            raise RemoteRegistryClientError(_message_for_http_error(error.code)) from None
+        except urllib_error.URLError as error:
+            reason = getattr(error, "reason", None)
+            if isinstance(reason, ConnectionRefusedError):
+                raise RemoteRegistryClientError(
+                    "Remote registry server not reachable (connection refused). "
+                    "Verify registry URL and that the server is running."
+                ) from None
+            raise RemoteRegistryClientError(
+                "Remote registry request failed (network error). "
+                "Check network connectivity and registry URL."
+            ) from None
 
         if not raw_body.strip():
             return {}
 
-        decoded = json.loads(raw_body)
+        try:
+            decoded = json.loads(raw_body)
+        except json.JSONDecodeError:
+            raise RemoteRegistryClientError(
+                "Remote registry returned invalid JSON response. "
+                "Please try again or contact the registry administrator."
+            ) from None
         return decoded
+
+
+def _message_for_http_error(status_code: int) -> str:
+    if status_code == 401:
+        return "Remote registry unauthorized (401). Check your token and sign in again."
+    if status_code == 403:
+        return "Remote registry forbidden (403). Your account lacks required permissions."
+    if status_code == 404:
+        return "Remote registry resource not found (404). Check agent name/version and tenant."
+    if status_code == 409:
+        return "Remote registry conflict (409). This version may already be published."
+    if status_code == 429:
+        return "Remote registry rate limited (429). Retry after a short delay."
+    if status_code >= 500:
+        return "Remote registry server error. Please try again later."
+    return f"Remote registry request failed with HTTP {status_code}."
 
 
 def _encode_multipart_form_data(

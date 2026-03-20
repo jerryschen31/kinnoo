@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import json
+import io
 from pathlib import Path
+from urllib import error as urllib_error
 from urllib import request as urllib_request
 
-from kinnoo.remote_client import RemoteRegistryClient
+import pytest
+
+from kinnoo.remote_client import RemoteRegistryClient, RemoteRegistryClientError
 
 
 class _FakeHTTPResponse:
@@ -87,3 +91,48 @@ def test_remote_client_http_calls(monkeypatch, tmp_path: Path) -> None:
     assert list_request.get_method() == "GET"
     assert list_request.full_url == "https://registry.example.test/api/agents?tenant=acme"
     assert list_request.get_header("Authorization") == "Bearer secret-token"
+
+
+def test_error_handling(monkeypatch, tmp_path: Path) -> None:
+    archive_path = tmp_path / "demo.kno"
+    archive_path.write_text("archive-bytes", encoding="utf-8")
+
+    client = RemoteRegistryClient(
+        base_url="https://registry.example.test",
+        token="secret-token",
+        tenant_slug="acme",
+    )
+
+    def _http_error(status_code: int) -> urllib_error.HTTPError:
+        return urllib_error.HTTPError(
+            url="https://registry.example.test/api/publish",
+            code=status_code,
+            msg=f"HTTP {status_code}",
+            hdrs=None,
+            fp=io.BytesIO(b'{"error":{"message":"boom"}}'),
+        )
+
+    scenarios = [
+        (
+            urllib_error.URLError(ConnectionRefusedError("Connection refused")),
+            "server not reachable",
+        ),
+        (_http_error(401), "unauthorized"),
+        (_http_error(403), "forbidden"),
+        (_http_error(404), "not found"),
+        (_http_error(409), "conflict"),
+        (_http_error(429), "rate limited"),
+        (_http_error(500), "server error"),
+    ]
+
+    for raised_error, expected_message_part in scenarios:
+        def _raise_error(_request, timeout: float = 0):
+            del timeout
+            raise raised_error
+
+        monkeypatch.setattr(urllib_request, "urlopen", _raise_error)
+
+        with pytest.raises(RemoteRegistryClientError) as exc_info:
+            client.publish(name="demo", version="1.0.0", archive_path=archive_path)
+
+        assert expected_message_part in str(exc_info.value).lower()
