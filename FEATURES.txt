@@ -1065,122 +1065,159 @@ features:
     description: |
       Extract the current local mock registry logic behind a formal `RegistryBackend`
       protocol/interface. Implement a `RemoteRegistryClient` that communicates with a
-      remote registry server via HTTP. Update CLI commands (`publish`, `install`, `search`,
-      `list`) to use the backend abstraction, defaulting to local when no remote is
-      configured. Configuration via `~/.kinnoo/config.yaml` or env var
-      `KINNOO_REGISTRY_URL`.
+      remote registry server via HTTP using multi-tenant namespace paths
+      (`tenant_slug/agent_slug/version`). Update CLI commands (`publish`, `install`,
+      `search`, `list`) to use the backend abstraction, defaulting to local when no
+      remote is configured. Configuration via `~/.kinnoo/config.yaml` or env var
+      `KINNOO_REGISTRY_URL` (env var takes precedence).
+
+      All remote operations require authentication (no anonymous access). The client
+      stores an access token in config and attaches it to every request.
 
       This is the client-side foundation for the remote registry. The server is feature29.
-    tasks: []
+    tasks: [task229, task230, task231, task232, task233]
     acceptance_criteria:
       - id: AC1
-        description: "A `RegistryBackend` protocol exists defining methods: `publish(archive_path) -> result`, `resolve(name, version) -> archive_path`, `search(query) -> list`, `list_agents() -> list`."
+        description: "A `RegistryBackend` protocol exists defining methods: `publish(archive_path) -> result`, `resolve(tenant, name, version) -> archive_path`, `search(query) -> list`, `list_agents(tenant) -> list`."
       - id: AC2
         description: "`LocalRegistryBackend` implements the protocol using existing local mock registry logic — all existing `--local` behavior is preserved."
       - id: AC3
-        description: "`RemoteRegistryClient` implements the protocol via HTTP calls to a configurable server URL."
+        description: "`RemoteRegistryClient` implements the protocol via HTTP calls to a configurable server URL using multi-tenant paths (`/api/agents/{tenant_slug}/{agent_slug}`)."
       - id: AC4
-        description: "Registry URL is configurable via `~/.kinnoo/config.yaml` (`registry_url` field) or `KINNOO_REGISTRY_URL` env var (env var takes precedence)."
+        description: "Registry URL is configurable via `~/.kinnoo/config.yaml` (`registry_url` field) or `KINNOO_REGISTRY_URL` env var (env var takes precedence). Tenant slug and access token are also stored in config."
       - id: AC5
-        description: "`kinnoo publish` (without `--local`) uses the remote backend when a registry URL is configured; falls back to local when not configured."
+        description: "`kinnoo publish` (without `--local`) uses the remote backend when a registry URL is configured; falls back to local when not configured. Remote publish attaches Authorization header."
       - id: AC6
-        description: "`kinnoo install <name>` with `--remote` uses the remote backend to resolve and download the archive."
+        description: "`kinnoo install <name>` with `--remote` uses the remote backend to resolve and download the archive. All remote reads require a valid access token."
       - id: AC7
         description: "All existing local registry behavior (publish --local, install --local, list --local, search --local) continues to work identically (regression check required)."
       - id: AC8
-        description: "Remote client handles HTTP errors gracefully: connection refused, 401 unauthorized, 404 not found, 500 server error — each produces a clear, actionable CLI message."
+        description: "Remote client handles HTTP errors gracefully: connection refused, 401 unauthorized, 403 forbidden, 404 not found, 409 conflict, 429 rate limit, 500 server error — each produces a clear, actionable CLI message."
     notes:
       - "REGRESSION RISK: refactoring publish/install/list/search command internals. SWE agent must run full `test_cli.py`, `test_cli_install.py`, `test_install.py` regression suite."
       - "Use presigned upload/download URLs so the client does not proxy large .kno files through the API."
       - "RemoteRegistryClient should use `urllib.request` (stdlib) to avoid adding `requests` as a dependency. Consider making `requests` optional."
-      - "Token-based auth for remote: store token in `~/.kinnoo/config.yaml` under `registry_token`."
+      - "Token-based auth for remote: store token in `~/.kinnoo/config.yaml` under `registry_token`. Tenant slug stored under `tenant_slug`."
+      - "Multi-tenant namespace format: tenant_slug/agent_slug/version. Human-readable, easy IAM prefix scoping."
+      - "All remote reads require authentication — no anonymous access per V1 policy."
     owner: techlead-agent
     dependencies: [feature13]
-    status: paused
+    status: not-started
 
   - id: feature29
     title: "Remote Registry Server"
     description: |
-      Implement a FastAPI-based registry server that stores agent archives in S3 and
-      maintains a JSON metadata index. The server provides REST endpoints for the CLI
-      client (feature28) to publish, install, search, and list agents. Authentication
-      uses token-based auth for CLI and session-based auth for the web UI (feature29).
+      Implement a FastAPI-based registry server that stores agent archives in
+      S3-compatible object storage and maintains a three-tier JSON metadata index
+      (global index, per-agent index, per-version metadata). The server provides
+      REST endpoints for the CLI client (feature28) to publish, install, search,
+      and list agents within multi-tenant namespaces (`tenant_slug/agent_slug/version`).
+
+      All endpoints require authentication — no anonymous access. CLI clients use
+      JWT access tokens (short-lived, scoped claims). Web UI uses session cookies
+      (feature30). The auth system is provided by feature43.
+
+      Storage uses an abstraction layer with three backends:
+        - `LocalStorageBackend`  — filesystem, for dev and testing
+        - `MockS3Backend`        — moto-based, for automated tests
+        - `S3StorageBackend`     — real S3/MinIO, for staging and production
+
+      Switching backend is a config change (`REGISTRY_STORAGE_BACKEND` env var),
+      no code changes required.
 
       Server endpoints:
-        POST   /api/publish          — upload archive + metadata
-        GET    /api/agents           — list all agents (paginated)
-        GET    /api/agents/<name>    — get agent metadata + versions
-        GET    /api/agents/<name>/<version>/download — presigned download URL
-        GET    /api/search?q=<query> — search agents by name/description
-        POST   /api/auth/token       — authenticate, get API token
+        POST   /api/auth/token                                    — authenticate, get JWT
+        POST   /api/publish                                       — upload archive + metadata
+        GET    /api/agents?tenant={slug}&offset=0&limit=50        — list agents (paginated)
+        GET    /api/agents/{tenant}/{agent}                       — agent metadata + versions
+        GET    /api/agents/{tenant}/{agent}/{version}/download    — presigned download URL
+        GET    /api/search?q={query}&offset=0&limit=50            — search by name/description
 
-      Metadata schema: name, version, description, author, checksum, upload_timestamp,
-      archive_size_bytes.
-    tasks: []
+      JSON metadata documents:
+        1. metadata/index.v1.json                                  — global index
+        2. metadata/tenants/{tenant}/agents/{agent}/index.v1.json  — agent version history
+        3. metadata/tenants/{tenant}/agents/{agent}/versions/{version}.v1.json — version detail
+
+      Archive object keys:
+        archives/tenants/{tenant}/agents/{agent}/versions/{version}/{agent}.kno
+        archives/tenants/{tenant}/agents/{agent}/versions/{version}/{agent}.kno.sha256
+    tasks: [task239, task240, task241, task242, task243, task244]
     acceptance_criteria:
       - id: AC1
-        description: "A FastAPI server application exists in a dedicated `server/` directory with proper project structure (requirements.txt, entry point)."
+        description: "A FastAPI server application exists in a dedicated `server/` directory with proper project structure (requirements.txt, entry point, config module)."
       - id: AC2
-        description: "POST `/api/publish` accepts archive upload with metadata, stores archive in S3 (or S3-compatible storage), and updates JSON metadata index. Duplicate name+version returns 409 Conflict."
+        description: "A `StorageBackend` protocol exists with three implementations: `LocalStorageBackend` (filesystem), `MockS3Backend` (moto), and `S3StorageBackend` (real S3/MinIO). Backend is selected via `REGISTRY_STORAGE_BACKEND` env var."
       - id: AC3
-        description: "GET `/api/agents` returns paginated list of agents with metadata (name, latest version, description, author, archive size)."
+        description: "POST `/api/publish` accepts archive upload, validates structure, recomputes SHA256 server-side, stores archive in object storage, and creates/updates JSON metadata documents. Duplicate tenant+agent+version returns 409 Conflict."
       - id: AC4
-        description: "GET `/api/agents/<name>/<version>/download` returns a presigned S3 download URL (archive is not proxied through the server)."
+        description: "GET `/api/agents` returns paginated list of agents with metadata (tenant, name, latest version, description, author, archive size). Requires valid auth token."
       - id: AC5
-        description: "GET `/api/search?q=<query>` filters agents by name and description substring match."
+        description: "GET `/api/agents/{tenant}/{agent}/{version}/download` returns a presigned download URL. Archive is not proxied through the server."
       - id: AC6
-        description: "POST `/api/auth/token` authenticates a user and returns an API token. All publish endpoints require valid token in Authorization header."
+        description: "GET `/api/search?q={query}` filters agents by name and description substring match across authorized visible scope. Requires valid auth token."
       - id: AC7
-        description: "All endpoints return appropriate HTTP status codes (200, 201, 400, 401, 404, 409, 500) with JSON error bodies."
+        description: "All endpoints return appropriate HTTP status codes (200, 201, 400, 401, 403, 404, 409, 429, 500) with JSON error bodies including `error.code`, `error.message`, and `error.request_id`."
       - id: AC8
-        description: "Server tests use FastAPI TestClient and mock S3 — no real AWS credentials required for testing."
+        description: "Server tests use FastAPI TestClient and mock S3 (moto) — no real AWS credentials required for testing. All three storage backends have dedicated tests."
+      - id: AC9
+        description: "Auth middleware validates JWT access tokens on all endpoints. Scoped claims (registry:read, registry:publish, registry:admin) are enforced per endpoint."
+      - id: AC10
+        description: "Rate limiting is applied to auth and publish endpoints. Max upload size is enforced."
     notes:
       - "This is a NEW server application, separate from the CLI package. Create under `server/` directory at project root."
       - "Use presigned URLs for archive upload/download to avoid proxying large files through the server."
-      - "Keep metadata schema small: name, version, description, author, checksum, upload_timestamp, archive_size_bytes."
+      - "Three-tier JSON metadata: global index for fast listing, agent index for version history, version doc for detail/audit."
       - "Add pagination (offset/limit) to list and search endpoints from the start."
-      - "S3 backend should be behind an abstraction layer for testing with local filesystem or moto."
-      - "Server dependencies (fastapi, uvicorn, boto3) go in server/requirements.txt, NOT in the main kinnoo requirements.txt."
+      - "S3 backend is behind a `StorageBackend` abstraction. Use moto for mock S3 in tests, local filesystem for dev, real S3 for prod."
+      - "Server dependencies (fastapi, uvicorn, boto3, moto, python-jose) go in server/requirements.txt, NOT in the main kinnoo requirements.txt."
+      - "Immutable version keys: do not overwrite same version payload. Return 409 on duplicate publish."
+      - "Schema-version metadata documents (v1 in filename and payload) to allow future migrations."
+      - "Per-tenant visibility flag (public/private) available now. V1 default policy: only authenticated reads."
+      - "See notes/phases/phase3-registry-planning.notes for full data model, API contract, and security controls."
     owner: techlead-agent
-    dependencies: [feature28]
-    status: paused
+    dependencies: [feature28, feature43]
+    status: not-started
 
   - id: feature30
     title: "Registry Web UI"
     description: |
-      Add a web-based UI to the remote registry server (feature28) using Jinja2 templates
+      Add a web-based UI to the remote registry server (feature29) using Jinja2 templates
       served by the same FastAPI application. The web UI provides a browser-based interface
-      for discovering, browsing, and downloading agents. Authentication uses session-based
-      login (separate from CLI token auth).
+      for discovering, browsing, and downloading agents. All pages require authentication
+      via session cookies (HttpOnly, Secure, SameSite=Lax). CSRF tokens are required on
+      all state-changing form POSTs.
 
       Pages:
-        /login             — login form with session cookie auth
-        /agents            — paginated agent listing table (name, version, author, size, description)
-        /agents/<name>     — agent profile page with version history, metadata, and download link
-    tasks: []
+        /login                            — login form with session cookie auth
+        /agents                           — paginated agent listing (name, tenant, version, author, size)
+        /agents/{tenant}/{agent}          — agent profile with version history and download links
+        /search?q={query}                 — search results page
+    tasks: [task245, task246, task247, task248]
     acceptance_criteria:
       - id: AC1
-        description: "GET `/login` renders a login form; POST `/login` authenticates and sets a session cookie."
+        description: "GET `/login` renders a login form; POST `/login` authenticates and sets a signed HttpOnly session cookie with SameSite=Lax."
       - id: AC2
-        description: "GET `/agents` renders a paginated HTML table of all published agents with name, latest version, author, size, and description."
+        description: "GET `/agents` renders a paginated HTML table of all published agents the authenticated user can see, with tenant, name, latest version, author, size, and description."
       - id: AC3
-        description: "GET `/agents/<name>` renders an agent profile page showing all versions, metadata, and a download button for each version."
+        description: "GET `/agents/{tenant}/{agent}` renders an agent profile page showing all versions, metadata, and a download button for each version."
       - id: AC4
-        description: "Download button generates a presigned URL and redirects the browser to download the archive directly from S3."
+        description: "Download button generates a presigned URL and redirects the browser to download the archive directly from object storage."
       - id: AC5
-        description: "Unauthenticated access to `/agents` and `/agents/<name>` is allowed (read-only browsing). Publishing requires login."
+        description: "All browsing pages (`/agents`, `/agents/{tenant}/{agent}`, `/search`) require an active session — unauthenticated requests redirect to `/login`."
       - id: AC6
-        description: "HTML pages are rendered via Jinja2 templates with consistent styling (simple CSS, no JavaScript framework required)."
+        description: "HTML pages are rendered via Jinja2 templates with consistent styling (simple CSS, no JavaScript framework required). CSRF tokens are included in all forms."
       - id: AC7
-        description: "Web UI tests use FastAPI TestClient to verify page rendering and authentication flows."
+        description: "Web UI tests use FastAPI TestClient to verify page rendering, session auth, CSRF protection, and login/logout flows."
     notes:
-      - "This feature extends the server from feature28 — same FastAPI app, additional routes and templates."
+      - "This feature extends the server from feature29 — same FastAPI app, additional routes and templates."
       - "Keep the UI simple: Jinja2 + plain CSS. No React/Vue/frontend build tools."
-      - "Read-only browsing without login is intentional — lowers friction for agent discovery."
+      - "All browsing requires login — V1 policy is authenticated-only reads. No anonymous access."
       - "Jinja2 templates go in server/templates/."
+      - "Session TTL 8-12 hours. Server-side session invalidation on logout and password reset."
+      - "CSRF token required on all POST forms (login, any future admin actions)."
     owner: techlead-agent
     dependencies: [feature29]
-    status: paused
+    status: not-started
 
   # ======================================================================
   # Phase 4 (V4): OpenClaw + JS/TS Agent Support
@@ -1496,3 +1533,58 @@ features:
     owner: techlead-agent
     dependencies: [feature20, feature31]
     status: completed
+
+  # ======================================================================
+  # Phase 3 (V3) continued: Remote Registry — Auth & Management
+  # ======================================================================
+
+  - id: feature43
+    title: "Auth, User & Tenant Management"
+    description: |
+      Implement the authentication, user management, and tenant management system
+      for the remote registry. This is a prerequisite for feature29 (server endpoints)
+      and feature30 (web UI).
+
+      Includes:
+        - User model with password hashing (argon2/bcrypt) and secure storage
+        - One-time bootstrap CLI command to create the first admin account
+        - Tenant model with user-chosen slugs (unique, validated)
+        - JWT access token issuance with scoped claims (registry:read, registry:publish, registry:admin)
+        - Session cookie auth for web UI (HttpOnly, Secure, SameSite=Lax)
+        - Token denylist for emergency revocation
+        - Key rotation via kid header and key ring
+
+      V1 policy:
+        - Bootstrap admin is the only role that can create users and tenants
+        - No self-registration or tenant self-provisioning
+        - Bootstrap path disabled after first admin exists
+        - API tokens are short-lived (60 min default TTL)
+    tasks: [task234, task235, task236, task237, task238]
+    acceptance_criteria:
+      - id: AC1
+        description: "User model exists with id, username, password_hash, role (admin/user), created_at, updated_at. Passwords are hashed with argon2 or bcrypt — never stored in plaintext."
+      - id: AC2
+        description: "A one-time bootstrap CLI command (`kinnoo-server bootstrap`) creates the first admin account. It outputs a temporary password and forces password change on first login. Bootstrap is disabled once an admin exists."
+      - id: AC3
+        description: "Tenant model exists with tenant_slug, owner_user_id, visibility (public/private), created_at. Tenant slugs are user-chosen, unique, and validated (alphanumeric + hyphens, lowercase)."
+      - id: AC4
+        description: "POST `/api/auth/token` accepts username+password, returns a signed JWT with claims: sub, tenant_slug, scopes, token_id, exp, iat. Token TTL defaults to 60 minutes. Invalid credentials return 401."
+      - id: AC5
+        description: "Only admin role can create users and tenants via admin API endpoints. Regular users cannot self-register or create tenants."
+      - id: AC6
+        description: "Session cookies are signed, HttpOnly, Secure, SameSite=Lax with 8-12 hour TTL. Server-side invalidation on logout and password reset."
+      - id: AC7
+        description: "Token denylist supports emergency revocation by token_id. Key rotation via kid header allows rolling signing key updates without invalidating all tokens."
+      - id: AC8
+        description: "All auth tests run without external dependencies — user/tenant storage uses the same storage backend abstraction as feature29."
+    notes:
+      - "This is part of the server application in `server/` directory — same codebase as feature29."
+      - "User and tenant data stored as JSON documents in object storage (same backend abstraction)."
+      - "Bootstrap flow: one-time admin CLI → temp password → forced reset → bootstrap disabled → admin creates users."
+      - "V1: admin-only user/tenant creation. V2 will add delegated tenant admins and self-service signup."
+      - "Never log passwords, tokens, or signing keys. Audit log auth successes and failures."
+      - "Rate-limit auth endpoint (POST /api/auth/token) to prevent brute-force attacks."
+      - "Signing key env vars: REGISTRY_AUTH_SIGNING_KEY_CURRENT, REGISTRY_AUTH_SIGNING_KEY_PREVIOUS (optional for rotation)."
+    owner: techlead-agent
+    dependencies: []
+    status: not-started

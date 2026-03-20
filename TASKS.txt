@@ -4442,11 +4442,7 @@ tasks:
       - 'step4: Add tests proving expected event categories are captured with stable field shapes'
     dependencies: [task217, task218]
     tests: [test322]
-<<<<<<< Updated upstream
-    status: needs-review
-=======
     status: completed
->>>>>>> Stashed changes
 
   - id: task225
     title: "Feature41 permission violation enforcement and kill switch"
@@ -4467,11 +4463,7 @@ tasks:
       - 'step4: Add tests validating warn-only and kill-switch enforcement outcomes for representative violations'
     dependencies: [task224]
     tests: [test323]
-<<<<<<< Updated upstream
-    status: needs-review
-=======
     status: completed
->>>>>>> Stashed changes
 
   - id: task226
     title: "Feature41 resource control enforcement"
@@ -4492,11 +4484,7 @@ tasks:
       - 'step4: Add tests covering enforced limits and graceful unsupported-platform fallback behavior'
     dependencies: [task224]
     tests: [test324]
-<<<<<<< Updated upstream
-    status: needs-review
-=======
     status: completed
->>>>>>> Stashed changes
 
   - id: task227
     title: "Feature41 dry-run monitoring mode"
@@ -4516,11 +4504,7 @@ tasks:
       - 'step4: Add tests validating dry-run outputs and side-effect suppression guarantees'
     dependencies: [task224]
     tests: [test325]
-<<<<<<< Updated upstream
-    status: needs-review
-=======
     status: completed
->>>>>>> Stashed changes
 
   - id: task228
     title: "Feature41 feature39 integration and graceful degradation"
@@ -4541,8 +4525,481 @@ tasks:
       - 'step4: Add regression tests proving integration with feature39 policies and graceful degradation messaging'
     dependencies: [task224, task225, task226, task227]
     tests: [test326]
-<<<<<<< Updated upstream
-    status: needs-review
-=======
     status: completed
->>>>>>> Stashed changes
+
+  # ======================================================================
+  # Feature28: Registry Backend Abstraction & Remote Client
+  # ======================================================================
+
+  - id: task229
+    title: "RegistryBackend protocol + LocalRegistryBackend refactor"
+    type: task
+    description: |
+      Define a RegistryBackend protocol (Python Protocol class) with methods for
+      publish, resolve, search, list_agents. Refactor existing local registry logic
+      into a LocalRegistryBackend that implements this protocol. All existing local
+      behavior must be preserved identically.
+    files:
+      - src/kinnoo/registry_backend.py
+      - src/kinnoo/registry.py
+      - tests/test_registry.py
+    steps:
+      - 'step1: Define RegistryBackend protocol with methods: publish(archive_path) -> result, resolve(tenant, name, version) -> archive_path, search(query) -> list, list_agents(tenant) -> list'
+      - 'step2: Create LocalRegistryBackend class that wraps existing local registry logic and implements the protocol'
+      - 'step3: Refactor existing registry module to delegate to LocalRegistryBackend internally'
+      - 'step4: Add unit tests verifying LocalRegistryBackend matches existing behavior exactly'
+      - 'step5: Run full regression suite to confirm no local behavior changes'
+    dependencies: []
+    tests: [test327]
+    status: not-started
+
+  - id: task230
+    title: "RemoteRegistryClient HTTP implementation"
+    type: task
+    description: |
+      Implement RemoteRegistryClient that implements RegistryBackend protocol via
+      HTTP calls to a remote server. Uses urllib.request (stdlib) for HTTP.
+      Supports multi-tenant paths (tenant_slug/agent_slug/version). All requests
+      attach Authorization header with Bearer token.
+    files:
+      - src/kinnoo/remote_client.py
+      - tests/test_remote_client.py
+    steps:
+      - 'step1: Create RemoteRegistryClient class implementing RegistryBackend protocol'
+      - 'step2: Implement publish method with multipart upload to POST /api/publish'
+      - 'step3: Implement resolve method via GET /api/agents/{tenant}/{agent}/{version}/download'
+      - 'step4: Implement search method via GET /api/search?q={query}'
+      - 'step5: Implement list_agents method via GET /api/agents?tenant={tenant_slug}'
+      - 'step6: Add Authorization: Bearer {token} header to all requests'
+      - 'step7: Add unit tests using mock HTTP responses'
+    dependencies: [task229]
+    tests: [test328]
+    status: not-started
+
+  - id: task231
+    title: "Registry config system (URL, token, tenant)"
+    type: task
+    description: |
+      Implement configuration loading for remote registry settings from
+      ~/.kinnoo/config.yaml and environment variables. Env vars take precedence.
+      Config fields: registry_url, registry_token, tenant_slug.
+    files:
+      - src/kinnoo/config.py
+      - tests/test_cli_env_vars.py
+    steps:
+      - 'step1: Add config loading for registry_url, registry_token, tenant_slug from ~/.kinnoo/config.yaml'
+      - 'step2: Add env var overrides: KINNOO_REGISTRY_URL, KINNOO_REGISTRY_TOKEN, KINNOO_TENANT_SLUG'
+      - 'step3: Env vars take precedence over config file values'
+      - 'step4: Add tests for config loading with and without env var overrides'
+    dependencies: []
+    tests: [test329]
+    status: not-started
+
+  - id: task232
+    title: "CLI command integration with backend abstraction"
+    type: task
+    description: |
+      Update kinnoo CLI commands (publish, install, list, search) to use the
+      RegistryBackend abstraction. When registry_url is configured, use
+      RemoteRegistryClient; otherwise fall back to LocalRegistryBackend.
+      Preserve --local flag behavior.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/publish_command.py
+      - src/kinnoo/install_command.py
+      - tests/test_cli.py
+      - tests/test_cli_install.py
+    steps:
+      - 'step1: Add backend selection logic: if registry_url configured, use RemoteRegistryClient; else LocalRegistryBackend'
+      - 'step2: Update publish command to use backend.publish() with --local override'
+      - 'step3: Update install command to use backend.resolve() with --local/--remote flags'
+      - 'step4: Update list command to use backend.list_agents()'
+      - 'step5: Update search command to use backend.search()'
+      - 'step6: Run full CLI regression test suite'
+    dependencies: [task229, task230, task231]
+    tests: [test330]
+    status: not-started
+
+  - id: task233
+    title: "Remote client error handling"
+    type: task
+    description: |
+      Add comprehensive error handling to RemoteRegistryClient for all HTTP
+      error scenarios. Each error type produces a clear, actionable CLI message.
+    files:
+      - src/kinnoo/remote_client.py
+      - tests/test_remote_client.py
+    steps:
+      - 'step1: Handle connection refused (server not reachable) with clear message'
+      - 'step2: Handle 401 unauthorized with token refresh guidance'
+      - 'step3: Handle 403 forbidden with permission explanation'
+      - 'step4: Handle 404 not found with agent/version not found message'
+      - 'step5: Handle 409 conflict with duplicate version message'
+      - 'step6: Handle 429 rate limit with retry-after guidance'
+      - 'step7: Handle 500 server error with generic server error message'
+      - 'step8: Add tests for each error scenario'
+    dependencies: [task230]
+    tests: [test331]
+    status: not-started
+
+  # ======================================================================
+  # Feature43: Auth, User & Tenant Management
+  # ======================================================================
+
+  - id: task234
+    title: "User model and password hashing"
+    type: task
+    description: |
+      Implement user model with secure password hashing (argon2 or bcrypt).
+      User data stored as JSON documents in the storage backend. Fields: id,
+      username, password_hash, role (admin/user), created_at, updated_at.
+      Passwords are never stored or logged in plaintext.
+    files:
+      - server/models/user.py
+      - server/storage/user_store.py
+      - server/tests/test_user_model.py
+    steps:
+      - 'step1: Define User model with fields: id, username, password_hash, role, created_at, updated_at'
+      - 'step2: Implement password hashing with argon2 (preferred) or bcrypt fallback'
+      - 'step3: Implement UserStore that reads/writes user JSON documents to storage backend'
+      - 'step4: Add password verification method (constant-time comparison)'
+      - 'step5: Add unit tests for model creation, password hashing, and verification'
+      - 'step6: Verify no plaintext passwords appear in any log or error output'
+    dependencies: []
+    tests: [test332]
+    status: not-started
+
+  - id: task235
+    title: "Bootstrap admin CLI command"
+    type: task
+    description: |
+      Implement a one-time bootstrap CLI command (kinnoo-server bootstrap) that
+      creates the first admin account. Outputs a temporary password. Forces
+      password change on first login. Bootstrap is disabled once an admin exists.
+    files:
+      - server/cli.py
+      - server/bootstrap.py
+      - server/tests/test_bootstrap.py
+    steps:
+      - 'step1: Create kinnoo-server bootstrap CLI command'
+      - 'step2: Check if any admin user exists — if yes, refuse with explanation'
+      - 'step3: Generate secure temporary password'
+      - 'step4: Create admin user with force_password_change=true flag'
+      - 'step5: Print temporary password once (never log it)'
+      - 'step6: Add tests for bootstrap success, duplicate prevention, and password output'
+    dependencies: [task234]
+    tests: [test333]
+    status: not-started
+
+  - id: task236
+    title: "Tenant model and slug management"
+    type: task
+    description: |
+      Implement tenant model with user-chosen slugs. Slugs must be unique,
+      lowercase alphanumeric with hyphens. Only admin can create tenants.
+      Tenant data stored as JSON documents in storage backend.
+    files:
+      - server/models/tenant.py
+      - server/storage/tenant_store.py
+      - server/tests/test_tenant_model.py
+    steps:
+      - 'step1: Define Tenant model with fields: tenant_slug, owner_user_id, visibility (public/private), created_at'
+      - 'step2: Implement slug validation: lowercase, alphanumeric + hyphens, starts with letter'
+      - 'step3: Implement TenantStore that reads/writes tenant JSON documents to storage backend'
+      - 'step4: Add uniqueness check — reject duplicate slugs with clear error'
+      - 'step5: Add admin-only authorization check for tenant creation'
+      - 'step6: Add unit tests for model, slug validation, uniqueness, and authorization'
+    dependencies: [task234]
+    tests: [test334]
+    status: not-started
+
+  - id: task237
+    title: "JWT access token issuance and validation"
+    type: task
+    description: |
+      Implement JWT token issuance (POST /api/auth/token) and validation
+      middleware. Tokens include scoped claims (registry:read, registry:publish,
+      registry:admin). Short-lived (60 min default). Supports key rotation
+      via kid header and token denylist for emergency revocation.
+    files:
+      - server/auth/token.py
+      - server/auth/middleware.py
+      - server/tests/test_jwt_auth.py
+    steps:
+      - 'step1: Implement JWT signing with configurable signing key and kid header'
+      - 'step2: Define token claims: iss, sub, tenant_slug, scopes, token_id, exp, iat'
+      - 'step3: Implement POST /api/auth/token endpoint: username+password -> JWT'
+      - 'step4: Implement auth middleware that validates JWT on all protected endpoints'
+      - 'step5: Implement scope enforcement per endpoint (read/publish/admin)'
+      - 'step6: Add token denylist check for emergency revocation by token_id'
+      - 'step7: Add key rotation support: try current key, fall back to previous key via kid'
+      - 'step8: Add tests for issuance, validation, scope enforcement, denylist, and rotation'
+    dependencies: [task234]
+    tests: [test335]
+    status: not-started
+
+  - id: task238
+    title: "Session cookie auth for web UI"
+    type: task
+    description: |
+      Implement session-based authentication for the web UI. Sessions use
+      signed HttpOnly cookies with Secure and SameSite=Lax flags. CSRF tokens
+      required on all POST forms. Server-side session invalidation on logout
+      and password reset. Session TTL 8-12 hours.
+    files:
+      - server/auth/session.py
+      - server/tests/test_session_auth.py
+    steps:
+      - 'step1: Implement session creation with signed cookie (HttpOnly, Secure, SameSite=Lax)'
+      - 'step2: Implement server-side session store (JSON docs in storage backend)'
+      - 'step3: Add CSRF token generation and validation for POST forms'
+      - 'step4: Add session TTL enforcement (8-12 hours configurable)'
+      - 'step5: Implement session invalidation on logout and password reset'
+      - 'step6: Add tests for session lifecycle, CSRF, expiration, and invalidation'
+    dependencies: [task234, task237]
+    tests: [test336]
+    status: not-started
+
+  # ======================================================================
+  # Feature29: Remote Registry Server
+  # ======================================================================
+
+  - id: task239
+    title: "FastAPI server scaffold + S3 storage abstraction"
+    type: task
+    description: |
+      Create the server/ directory structure with FastAPI app, config module,
+      and a StorageBackend abstraction with three implementations:
+      LocalStorageBackend (filesystem), MockS3Backend (moto), and
+      S3StorageBackend (real S3/MinIO). Backend selected via
+      REGISTRY_STORAGE_BACKEND env var (local|mock|s3).
+    files:
+      - server/__init__.py
+      - server/app.py
+      - server/config.py
+      - server/storage/__init__.py
+      - server/storage/base.py
+      - server/storage/local.py
+      - server/storage/mock_s3.py
+      - server/storage/s3.py
+      - server/requirements.txt
+      - server/tests/test_storage.py
+    steps:
+      - 'step1: Create server/ directory with __init__.py, app.py (FastAPI), config.py'
+      - 'step2: Define StorageBackend protocol with methods: put_object, get_object, list_objects, delete_object, generate_presigned_url'
+      - 'step3: Implement LocalStorageBackend using filesystem paths'
+      - 'step4: Implement MockS3Backend using moto library for S3 simulation'
+      - 'step5: Implement S3StorageBackend using boto3 for real S3/MinIO'
+      - 'step6: Add config loading from env vars (REGISTRY_STORAGE_BACKEND, S3 connection vars)'
+      - 'step7: Add server/requirements.txt with fastapi, uvicorn, boto3, moto, python-jose, argon2-cffi'
+      - 'step8: Add tests for all three storage backends (read, write, list, delete, presign)'
+    dependencies: []
+    tests: [test337]
+    status: not-started
+
+  - id: task240
+    title: "JSON metadata model (3-tier)"
+    type: task
+    description: |
+      Implement the three-tier JSON metadata document model: global index,
+      per-agent index, and per-version metadata. Documents are stored in
+      the storage backend under metadata/ prefix. Schema-versioned (v1)
+      in both filename and payload.
+    files:
+      - server/metadata/__init__.py
+      - server/metadata/models.py
+      - server/metadata/manager.py
+      - server/tests/test_metadata.py
+    steps:
+      - 'step1: Define GlobalIndex model (schema_version, generated_at, tenants with agent summaries)'
+      - 'step2: Define AgentIndex model (schema_version, tenant_slug, agent_slug, visibility, versions list)'
+      - 'step3: Define VersionMetadata model (schema_version, manifest, storage keys, integrity, publisher info)'
+      - 'step4: Implement MetadataManager that reads/writes/updates all three document types via storage backend'
+      - 'step5: Implement atomic update strategy for global index (read-modify-write with retry)'
+      - 'step6: Add tests for all three document types: create, read, update operations'
+    dependencies: [task239]
+    tests: [test338]
+    status: not-started
+
+  - id: task241
+    title: "Publish endpoint (POST /api/publish)"
+    type: task
+    description: |
+      Implement the publish endpoint that accepts archive upload, validates
+      structure, recomputes SHA256 server-side, stores archive in object
+      storage, and creates/updates JSON metadata documents. Reject duplicate
+      tenant+agent+version with 409 Conflict. Enforce max upload size.
+    files:
+      - server/routes/publish.py
+      - server/tests/test_publish.py
+    steps:
+      - 'step1: Create POST /api/publish route with multipart file upload'
+      - 'step2: Validate archive extension and basic structure'
+      - 'step3: Recompute SHA256 server-side from uploaded bytes'
+      - 'step4: Check for duplicate tenant+agent+version — return 409 if exists'
+      - 'step5: Store archive binary at archives/tenants/{tenant}/agents/{agent}/versions/{version}/{agent}.kno'
+      - 'step6: Store SHA256 checksum at matching .sha256 path'
+      - 'step7: Update version metadata, agent index, and global index documents'
+      - 'step8: Enforce max upload size from config (REGISTRY_MAX_UPLOAD_MB)'
+      - 'step9: Require registry:publish scope in auth token'
+      - 'step10: Add tests using TestClient and mock storage'
+    dependencies: [task239, task240, task237]
+    tests: [test339]
+    status: not-started
+
+  - id: task242
+    title: "List and detail endpoints"
+    type: task
+    description: |
+      Implement GET /api/agents (paginated list) and GET /api/agents/{tenant}/{agent}
+      (agent detail with version history). Both require valid auth token with
+      registry:read scope. Respect per-tenant visibility rules.
+    files:
+      - server/routes/agents.py
+      - server/tests/test_agents_routes.py
+    steps:
+      - 'step1: Create GET /api/agents with offset/limit pagination and optional tenant filter'
+      - 'step2: Return agent summaries from global index metadata'
+      - 'step3: Create GET /api/agents/{tenant}/{agent} returning agent index with all versions'
+      - 'step4: Enforce auth requirement (registry:read scope) on both endpoints'
+      - 'step5: Respect per-tenant visibility (private tenants visible only to owner/collaborators)'
+      - 'step6: Return 404 for non-existent agents, 403 for unauthorized private tenant access'
+      - 'step7: Add tests for pagination, visibility enforcement, and error cases'
+    dependencies: [task239, task240, task237]
+    tests: [test340]
+    status: not-started
+
+  - id: task243
+    title: "Download endpoint with presigned URLs"
+    type: task
+    description: |
+      Implement GET /api/agents/{tenant}/{agent}/{version}/download that returns
+      a presigned download URL. Archive is never proxied through the server.
+      Requires valid auth token with registry:read scope.
+    files:
+      - server/routes/download.py
+      - server/tests/test_download.py
+    steps:
+      - 'step1: Create GET /api/agents/{tenant}/{agent}/{version}/download endpoint'
+      - 'step2: Look up version metadata to find archive storage key'
+      - 'step3: Generate presigned URL via storage backend (configurable TTL from REGISTRY_PRESIGN_TTL_SECONDS)'
+      - 'step4: Return JSON response with download_url and expires_in'
+      - 'step5: Return 404 if version not found'
+      - 'step6: Require registry:read scope in auth token'
+      - 'step7: Add tests using mock storage presigned URL generation'
+    dependencies: [task239, task240, task237]
+    tests: [test341]
+    status: not-started
+
+  - id: task244
+    title: "Search endpoint and auth middleware + rate limiting"
+    type: task
+    description: |
+      Implement GET /api/search with name/description substring matching.
+      Add auth middleware that validates JWT on all protected routes.
+      Add rate limiting on auth and publish endpoints.
+    files:
+      - server/routes/search.py
+      - server/middleware.py
+      - server/tests/test_search.py
+      - server/tests/test_middleware.py
+    steps:
+      - 'step1: Create GET /api/search?q={query}&offset=0&limit=50 endpoint'
+      - 'step2: Filter agents by name and description substring match from global index'
+      - 'step3: Respect visibility rules (only show authorized tenants)'
+      - 'step4: Add auth middleware dependency that validates JWT and injects user context'
+      - 'step5: Add rate limiting middleware for /api/auth/token and /api/publish'
+      - 'step6: Add tests for search results, empty queries, visibility filtering, and rate limits'
+    dependencies: [task239, task240, task237]
+    tests: [test342]
+    status: not-started
+
+  # ======================================================================
+  # Feature30: Registry Web UI
+  # ======================================================================
+
+  - id: task245
+    title: "Jinja2 template setup + base layout"
+    type: task
+    description: |
+      Set up Jinja2 template engine in the FastAPI server app. Create base
+      layout template with consistent styling (simple CSS). All pages extend
+      the base template.
+    files:
+      - server/templates/base.html
+      - server/templates/static/style.css
+      - server/app.py
+      - server/tests/test_templates.py
+    steps:
+      - 'step1: Add Jinja2 template engine to FastAPI app configuration'
+      - 'step2: Create base.html layout with header, nav, content block, footer'
+      - 'step3: Create simple CSS stylesheet for clean, readable styling'
+      - 'step4: Add static file serving for CSS'
+      - 'step5: Add tests verifying template engine is configured and base layout renders'
+    dependencies: [task239]
+    tests: [test343]
+    status: not-started
+
+  - id: task246
+    title: "Login page + session auth flow"
+    type: task
+    description: |
+      Implement /login page with session cookie authentication. GET /login
+      renders form; POST /login authenticates and sets session cookie.
+      Logout endpoint clears session. CSRF tokens on all forms.
+    files:
+      - server/templates/login.html
+      - server/routes/web_auth.py
+      - server/tests/test_web_auth.py
+    steps:
+      - 'step1: Create login.html template with username/password form + CSRF token'
+      - 'step2: Create GET /login route that renders login form'
+      - 'step3: Create POST /login route that authenticates and sets session cookie'
+      - 'step4: Create POST /logout route that invalidates session'
+      - 'step5: Add middleware to redirect unauthenticated requests to /login'
+      - 'step6: Add tests for login success, failure, logout, CSRF validation'
+    dependencies: [task238, task245]
+    tests: [test344]
+    status: not-started
+
+  - id: task247
+    title: "Agent listing + search pages"
+    type: task
+    description: |
+      Implement /agents page with paginated HTML table of all published agents
+      and /search page with query results. Both require active session.
+    files:
+      - server/templates/agents.html
+      - server/templates/search.html
+      - server/routes/web_agents.py
+      - server/tests/test_web_agents.py
+    steps:
+      - 'step1: Create agents.html template with paginated table (tenant, name, version, author, size, description)'
+      - 'step2: Create GET /agents route that reads global index and renders table'
+      - 'step3: Add pagination controls (prev/next) to agent listing'
+      - 'step4: Create search.html template with search form + results table'
+      - 'step5: Create GET /search?q={query} route that filters and renders results'
+      - 'step6: Add tests for listing, pagination, search, and session requirement'
+    dependencies: [task245, task240]
+    tests: [test345]
+    status: not-started
+
+  - id: task248
+    title: "Agent profile + download pages"
+    type: task
+    description: |
+      Implement /agents/{tenant}/{agent} profile page showing all versions,
+      metadata, and download buttons. Download triggers presigned URL redirect.
+    files:
+      - server/templates/agent_profile.html
+      - server/routes/web_agents.py
+      - server/tests/test_web_agents.py
+    steps:
+      - 'step1: Create agent_profile.html template with version history table and metadata display'
+      - 'step2: Create GET /agents/{tenant}/{agent} route that reads agent index and renders profile'
+      - 'step3: Add download button per version that generates presigned URL and redirects'
+      - 'step4: Show agent metadata: description, author, latest version, total versions, visibility'
+      - 'step5: Add tests for profile rendering, download redirect, and missing agent 404'
+    dependencies: [task245, task240, task243]
+    tests: [test346]
+    status: not-started
