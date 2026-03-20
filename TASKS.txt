@@ -4938,7 +4938,7 @@ tasks:
       - 'step5: Add tests verifying template engine is configured and base layout renders'
     dependencies: [task239]
     tests: [test343]
-    status: needs-review
+    status: completed
 
   - id: task246
     title: "Login page + session auth flow"
@@ -4960,7 +4960,7 @@ tasks:
       - 'step6: Add tests for login success, failure, logout, CSRF validation'
     dependencies: [task238, task245]
     tests: [test344]
-    status: needs-review
+    status: completed
 
   - id: task247
     title: "Agent listing + search pages"
@@ -4982,7 +4982,7 @@ tasks:
       - 'step6: Add tests for listing, pagination, search, and session requirement'
     dependencies: [task245, task240]
     tests: [test345]
-    status: needs-review
+    status: completed
 
   - id: task248
     title: "Agent profile + download pages"
@@ -5002,4 +5002,4 @@ tasks:
       - 'step5: Add tests for profile rendering, download redirect, and missing agent 404'
     dependencies: [task245, task240, task243]
     tests: [test346]
-    status: needs-review
+    status: completed
