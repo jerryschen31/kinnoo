@@ -82,6 +82,11 @@ def main():
         dest="json_file",
         help="Path to a JSON file payload for agents expecting structured input",
     )
+    run_parser.add_argument(
+        "--sandbox",
+        action="store_true",
+        help="Run agent with manifest permission policy enforcement",
+    )
 
     # Add 'stop' subcommand
     stop_parser = subparsers.add_parser(
@@ -151,6 +156,11 @@ def main():
         "--ignore-scripts",
         action="store_true",
         help="Disable Node package lifecycle scripts during dependency installation",
+    )
+    install_parser.add_argument(
+        "--accept-permissions",
+        action="store_true",
+        help="Acknowledge and accept declared manifest permissions during non-interactive install",
     )
 
     # Add 'pack' subcommand
@@ -305,6 +315,7 @@ def main():
             preflight=preflight_mode,
             no_guard=bool(getattr(args, "no_guard", False)),
             pass_through_args=pass_through_args,
+            sandbox=bool(getattr(args, "sandbox", False)),
         )
         sys.exit(exit_code)
 
@@ -326,6 +337,7 @@ def main():
         overwrite_state = bool(getattr(args, "state_overwrite", False))
         allow_vulnerable = bool(getattr(args, "allow_vulnerable", False))
         ignore_scripts = bool(getattr(args, "ignore_scripts", False))
+        accept_permissions = bool(getattr(args, "accept_permissions", False))
         try:
             from kinnoo.install_command import install_agent
         except ImportError:
@@ -339,6 +351,7 @@ def main():
             overwrite_state=overwrite_state,
             allow_vulnerable=allow_vulnerable,
             ignore_scripts=ignore_scripts,
+            accept_permissions=accept_permissions,
         )
         sys.exit(exit_code)
 

@@ -3,6 +3,7 @@ import sys
 import zipfile
 import os
 import json
+import hashlib
 from pathlib import Path
 
 # Test51: kinnoo install usage error
@@ -279,6 +280,42 @@ def _create_node_archive(
     return archive_path
 
 
+def _create_feature39_permissions_archive(tmp_path: Path, agent_name: str = "feature39-consent-agent") -> Path:
+    archive_path = tmp_path / f"{agent_name}.kno"
+    manifest = (
+        f"name: {agent_name}\n"
+        "version: 1.0.0\n"
+        "entrypoint: run.py\n"
+        "runtime:\n"
+        "  type: one-shot\n"
+        "  language: python\n"
+        "  version: \"3.10\"\n"
+        "dependencies: []\n"
+        "inputs:\n"
+        "  type: text\n"
+        "outputs:\n"
+        "  type: text\n"
+        "permissions:\n"
+        "  network: true\n"
+        "  filesystem_scope: workspace-write\n"
+        "  shell: false\n"
+        "  browser: false\n"
+        "  env_access:\n"
+        "    - OPENAI_API_KEY\n"
+        "    - KINNOO_ENV\n"
+    )
+
+    with zipfile.ZipFile(archive_path, "w") as archive:
+        archive.writestr("kinnoo.yaml", manifest)
+        archive.writestr("run.py", "print('feature39-install-ok')\n")
+
+    digest = hashlib.sha256(archive_path.read_bytes()).hexdigest()
+    checksum_path = archive_path.with_suffix(archive_path.suffix + ".sha256")
+    checksum_path.write_text(f"{digest}  {archive_path.name}\n", encoding="utf-8")
+
+    return archive_path
+
+
 def _make_fake_node_toolchain(bin_dir: Path) -> None:
     bin_dir.mkdir(parents=True, exist_ok=True)
 
@@ -552,3 +589,89 @@ def test_feature37_install_trace_captures_audit_and_decisions(tmp_path):
         "allow_vulnerable": True,
         "ignore_scripts": True,
     }
+
+
+def test_feature39_install_permission_summary_and_consent(tmp_path):
+    permissions_archive = _create_feature39_permissions_archive(tmp_path)
+
+    denied_target_dir = tmp_path / "feature39-consent-denied"
+    denied_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            str(permissions_archive),
+            str(denied_target_dir),
+        ],
+        input="n\n",
+        capture_output=True,
+        text=True,
+    )
+    denied_output = f"{denied_result.stdout}\n{denied_result.stderr}"
+    assert denied_result.returncode != 0, denied_output
+    assert "[kinnoo install] Install summary:" in denied_output
+    assert "- Permissions:" in denied_output
+    assert "Network: allowed" in denied_output
+    assert "Filesystem Scope: workspace-write" in denied_output
+    assert "Shell: denied" in denied_output
+    assert "Browser: denied" in denied_output
+    assert "Env Access: OPENAI_API_KEY, KINNOO_ENV" in denied_output
+    assert "Install aborted: permissions consent not granted." in denied_output
+
+    accepted_target_dir = tmp_path / "feature39-consent-accepted"
+    accepted_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            str(permissions_archive),
+            str(accepted_target_dir),
+        ],
+        input="y\ny\n",
+        capture_output=True,
+        text=True,
+    )
+    accepted_output = f"{accepted_result.stdout}\n{accepted_result.stderr}"
+    assert accepted_result.returncode == 0, accepted_output
+    assert "Allow requested permissions? [y/N]:" in accepted_output
+    assert "Continue with install? [y/N]:" in accepted_output
+    assert accepted_target_dir.exists(), accepted_output
+
+    override_without_flag_target_dir = tmp_path / "feature39-consent-missing-override"
+    override_without_flag_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            str(permissions_archive),
+            str(override_without_flag_target_dir),
+            "--yes",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    override_without_flag_output = (
+        f"{override_without_flag_result.stdout}\n{override_without_flag_result.stderr}"
+    )
+    assert override_without_flag_result.returncode != 0, override_without_flag_output
+    assert "--accept-permissions" in override_without_flag_output
+
+    override_target_dir = tmp_path / "feature39-consent-override"
+    override_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            str(permissions_archive),
+            str(override_target_dir),
+            "--yes",
+            "--accept-permissions",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    override_output = f"{override_result.stdout}\n{override_result.stderr}"
+    assert override_result.returncode == 0, override_output
+    assert "Permissions consent acknowledged via --accept-permissions override." in override_output
+    assert "- Permissions:" in override_output
+    assert override_target_dir.exists(), override_output
