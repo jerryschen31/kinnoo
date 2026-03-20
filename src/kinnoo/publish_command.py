@@ -6,12 +6,15 @@ import re
 import os
 import shutil
 from pathlib import Path
+from typing import Any
 
 from .archive import LocalArchiveBackend
 from .checksum import checksum_sidecar_path_for_archive
+from .config import RegistryConfig, load_registry_config
 from .inspect_command import read_manifest_from_kno_archive
-from .registry import RegistryService
+from .registry import RegistryRecord, RegistryService
 from .registry_backends import MockFilesystemRegistryBackend
+from .remote_client import RemoteRegistryClient
 from .schema import NAME_PATTERN
 from .validator import validate_manifest_data
 
@@ -21,7 +24,8 @@ def _publish_validated_archive(
     archive: Path,
     expected_name: str | None,
     expected_version: str | None,
-    use_local: bool,
+    backend: Any,
+    backend_label: str,
 ) -> int:
     source_sidecar_path = checksum_sidecar_path_for_archive(archive)
     manifest_data = read_manifest_from_kno_archive(archive)
@@ -53,19 +57,19 @@ def _publish_validated_archive(
         )
         return 1
 
-    registry_root = os.environ.get("KINNOO_REGISTRY_ROOT")
-    backend_root = Path(registry_root).expanduser() if registry_root else None
-
-    backend = MockFilesystemRegistryBackend(root=backend_root)
     service = RegistryService(backend=backend)
 
-    target_archive_path = backend.registry_version_path(name=name, version=version) / f"{name}.kno"
-    tagged_exists_before_publish = target_archive_path.exists()
-    existing_untagged_dirs_before = {
-        path.name
-        for path in (backend.root / name).iterdir()
-        if path.is_dir() and path.name.startswith("untagged-")
-    } if (backend.root / name).exists() else set()
+    target_archive_path: Path | None = None
+    tagged_exists_before_publish = False
+    existing_untagged_dirs_before: set[str] = set()
+    if isinstance(backend, MockFilesystemRegistryBackend):
+        target_archive_path = backend.registry_version_path(name=name, version=version) / f"{name}.kno"
+        tagged_exists_before_publish = target_archive_path.exists()
+        existing_untagged_dirs_before = {
+            path.name
+            for path in (backend.root / name).iterdir()
+            if path.is_dir() and path.name.startswith("untagged-")
+        } if (backend.root / name).exists() else set()
 
     metadata_payload = {
         "name": name,
@@ -76,7 +80,7 @@ def _publish_validated_archive(
     }
 
     try:
-        record = service.publish(
+        published_record = service.publish(
             name=name,
             version=version,
             archive_path=archive,
@@ -89,23 +93,28 @@ def _publish_validated_archive(
         print(f"Error: Failed to publish archive: {error}")
         return 1
 
-    backend_label = "local" if use_local else "default-mock"
-    print(f"Published {record.name}=={record.version} ({backend_label})")
+    print(f"Published {name}=={version} ({backend_label})")
     print(f"Source archive: {archive}")
-    print(f"Target registry path: {record.archive_path}")
+    if isinstance(published_record, RegistryRecord):
+        print(f"Target registry path: {published_record.archive_path}")
 
-    target_sidecar_path = checksum_sidecar_path_for_archive(record.archive_path)
-    if source_sidecar_path.exists() and source_sidecar_path.is_file():
-        try:
-            shutil.copy2(source_sidecar_path, target_sidecar_path)
-        except OSError as error:
-            print(f"Error: Failed to publish checksum sidecar: {error}")
-            return 1
-        print(f"Published checksum sidecar: {target_sidecar_path}")
+        target_sidecar_path = checksum_sidecar_path_for_archive(published_record.archive_path)
+        if source_sidecar_path.exists() and source_sidecar_path.is_file():
+            try:
+                shutil.copy2(source_sidecar_path, target_sidecar_path)
+            except OSError as error:
+                print(f"Error: Failed to publish checksum sidecar: {error}")
+                return 1
+            print(f"Published checksum sidecar: {target_sidecar_path}")
+        else:
+            print("Published checksum sidecar: (none found at source)")
+    elif isinstance(published_record, dict):
+        remote_record_hint = published_record.get("archive_path") or published_record.get("id") or "(remote accepted)"
+        print(f"Remote publish result: {remote_record_hint}")
     else:
-        print("Published checksum sidecar: (none found at source)")
+        print("Published checksum sidecar: (backend-managed)")
 
-    if tagged_exists_before_publish:
+    if tagged_exists_before_publish and isinstance(backend, MockFilesystemRegistryBackend):
         untagged_root = backend.root / name
         new_untagged_dirs = []
         if untagged_root.exists():
@@ -129,12 +138,65 @@ def _publish_validated_archive(
     return 0
 
 
-def publish_agent(agent_name: str, use_local: bool = False) -> int:
+def _remote_config_error(config: RegistryConfig) -> str | None:
+    missing: list[str] = []
+    if not config.registry_url:
+        missing.append("registry_url or KINNOO_REGISTRY_URL")
+    if not config.registry_token:
+        missing.append("registry_token or KINNOO_REGISTRY_TOKEN")
+    if not config.tenant_slug:
+        missing.append("tenant_slug or KINNOO_TENANT_SLUG")
+    if not missing:
+        return None
+    return "Remote registry configuration incomplete. Missing: " + ", ".join(missing)
+
+
+def _resolve_publish_backend(*, use_local: bool, use_remote: bool) -> tuple[Any | None, str, str | None]:
+    if use_local and use_remote:
+        return None, "", "--local and --remote cannot be used together."
+
+    registry_root = os.environ.get("KINNOO_REGISTRY_ROOT")
+    backend_root = Path(registry_root).expanduser() if registry_root else None
+
+    if use_local:
+        return MockFilesystemRegistryBackend(root=backend_root), "local", None
+
+    config = load_registry_config()
+    remote_requested = use_remote or bool(config.registry_url)
+    if remote_requested:
+        config_error = _remote_config_error(config)
+        if config_error is not None:
+            return None, "", config_error
+        return (
+            RemoteRegistryClient(
+                base_url=str(config.registry_url),
+                token=str(config.registry_token),
+                tenant_slug=str(config.tenant_slug),
+            ),
+            "remote",
+            None,
+        )
+
+    return MockFilesystemRegistryBackend(root=backend_root), "local", None
+
+
+def publish_agent(agent_name: str, use_local: bool = False, use_remote: bool = False) -> int:
     """Publish latest archived artifact for agent name to selected registry backend.
 
     For feature13 task83, publish source resolution is name-based from the local
     archive backend rather than direct archive path input.
     """
+    backend, backend_label, backend_error = _resolve_publish_backend(
+        use_local=use_local,
+        use_remote=use_remote,
+    )
+    if backend_error is not None:
+        print(f"Error: {backend_error}")
+        return 1
+    if backend is None:
+        print("Error: Failed to initialize registry backend.")
+        return 1
+
     normalized_name = agent_name.strip()
 
     legacy_archive_candidate = Path(normalized_name).expanduser()
@@ -147,7 +209,8 @@ def publish_agent(agent_name: str, use_local: bool = False) -> int:
             archive=legacy_archive_candidate,
             expected_name=None,
             expected_version=None,
-            use_local=use_local,
+            backend=backend,
+            backend_label=backend_label,
         )
 
     if not normalized_name:
@@ -186,5 +249,6 @@ def publish_agent(agent_name: str, use_local: bool = False) -> int:
         archive=archive,
         expected_name=source_record.name,
         expected_version=source_record.version,
-        use_local=use_local,
+        backend=backend,
+        backend_label=backend_label,
     )
