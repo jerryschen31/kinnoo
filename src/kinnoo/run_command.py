@@ -29,6 +29,7 @@ from .sandbox import evaluate_sandbox_permissions
 from .install_trace import write_violation_event
 from .logging_utils import emit_violation_event_diagnostic
 from .runtime_monitor import RuntimeMonitor
+from .runtime_monitor import resolve_violation_enforcement
 from .supervisor import (
     build_daemon_state_payload,
     clear_daemon_state,
@@ -1295,6 +1296,11 @@ def run_agent(
             pass_through_args=runtime_pass_through_args,
         )
         if not sandbox_decision.allowed:
+            enforcement_mode = os.environ.get("KINNOO_MONITOR_ENFORCEMENT_MODE", "terminate")
+            enforcement_decision = resolve_violation_enforcement(
+                capability=sandbox_decision.capability or "unspecified",
+                configured_mode=enforcement_mode,
+            )
             violation_event = {
                 "event_type": "permission_violation",
                 "boundary": "run",
@@ -1305,6 +1311,8 @@ def run_agent(
                 "attempted_action": sandbox_decision.action or "unspecified",
                 "message": sandbox_decision.message,
                 "remediation": sandbox_decision.remediation,
+                "enforcement_action": enforcement_decision.action,
+                "reason_code": enforcement_decision.reason_code,
             }
             emit_violation_event_diagnostic(
                 violation_event,
@@ -1317,16 +1325,29 @@ def run_agent(
             if violation_trace_path is not None:
                 print(f"[kinnoo] violation event logged: '{violation_trace_path}'", file=sys.stderr)
 
-            _print_safe_error(
-                "Error: sandbox enforcement failed "
-                f"(classification={sandbox_decision.code}): {sandbox_decision.message}",
-                secret_values=resolved_env_vars.values(),
-            )
-            _print_safe_error(
-                f"Remediation: {sandbox_decision.remediation}",
-                secret_values=resolved_env_vars.values(),
-            )
-            return finalize(1)
+            if enforcement_decision.action == "warn_continue":
+                _print_safe_error(
+                    "Warning: runtime policy violation allowed in warn mode "
+                    f"(reason_code={enforcement_decision.reason_code}); execution continues.",
+                    secret_values=resolved_env_vars.values(),
+                )
+                print("[kinnoo] sandbox policy warning recorded", flush=True)
+            else:
+                _print_safe_error(
+                    "Error: kill switch activated for runtime policy violation "
+                    f"(reason_code={enforcement_decision.reason_code}).",
+                    secret_values=resolved_env_vars.values(),
+                )
+                _print_safe_error(
+                    "Error: sandbox enforcement failed "
+                    f"(classification={sandbox_decision.code}): {sandbox_decision.message}",
+                    secret_values=resolved_env_vars.values(),
+                )
+                _print_safe_error(
+                    f"Remediation: {sandbox_decision.remediation}",
+                    secret_values=resolved_env_vars.values(),
+                )
+                return finalize(1)
 
         print("[kinnoo] sandbox policy check passed", flush=True)
 

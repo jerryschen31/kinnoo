@@ -4463,7 +4463,7 @@ tasks:
       - 'step4: Add tests validating warn-only and kill-switch enforcement outcomes for representative violations'
     dependencies: [task224]
     tests: [test323]
-    status: not-started
+    status: needs-review
 
   - id: task226
     title: "Feature41 resource control enforcement"

@@ -21,6 +21,49 @@ class RuntimeMonitorEvent:
     details: dict[str, object]
 
 
+@dataclass(frozen=True)
+class ViolationEnforcementDecision:
+    action: str
+    reason_code: str
+    hard_violation: bool
+
+
+def resolve_violation_enforcement(
+    *,
+    capability: str,
+    configured_mode: str,
+) -> ViolationEnforcementDecision:
+    """Resolve deterministic enforcement behavior for a policy violation.
+
+    Soft policy violations can be warning-only when configured, while critical
+    capabilities always trigger hard terminate kill-switch behavior.
+    """
+    normalized_mode = configured_mode.strip().lower()
+    if normalized_mode not in {"warn", "terminate"}:
+        normalized_mode = "terminate"
+
+    # Shell execution is treated as a critical violation regardless of mode.
+    if capability == "shell":
+        return ViolationEnforcementDecision(
+            action="kill_switch_terminate",
+            reason_code="hard_shell_execution_violation",
+            hard_violation=True,
+        )
+
+    if normalized_mode == "warn":
+        return ViolationEnforcementDecision(
+            action="warn_continue",
+            reason_code="soft_policy_warning",
+            hard_violation=False,
+        )
+
+    return ViolationEnforcementDecision(
+        action="kill_switch_terminate",
+        reason_code="policy_terminate_mode",
+        hard_violation=True,
+    )
+
+
 class RuntimeMonitor:
     """Best-effort runtime telemetry monitor for run execution paths.
 
