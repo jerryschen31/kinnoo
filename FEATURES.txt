@@ -1102,7 +1102,7 @@ features:
       - "All remote reads require authentication — no anonymous access per V1 policy."
     owner: techlead-agent
     dependencies: [feature13]
-    status: not-started
+    status: completed
 
   - id: feature29
     title: "Remote Registry Server"

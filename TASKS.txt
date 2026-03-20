@@ -4551,7 +4551,7 @@ tasks:
       - 'step5: Run full regression suite to confirm no local behavior changes'
     dependencies: []
     tests: [test327]
-    status: not-started
+    status: completed
 
   - id: task230
     title: "RemoteRegistryClient HTTP implementation"
@@ -4574,7 +4574,7 @@ tasks:
       - 'step7: Add unit tests using mock HTTP responses'
     dependencies: [task229]
     tests: [test328]
-    status: not-started
+    status: completed
 
   - id: task231
     title: "Registry config system (URL, token, tenant)"
@@ -4593,7 +4593,7 @@ tasks:
       - 'step4: Add tests for config loading with and without env var overrides'
     dependencies: []
     tests: [test329]
-    status: not-started
+    status: completed
 
   - id: task232
     title: "CLI command integration with backend abstraction"
@@ -4618,7 +4618,7 @@ tasks:
       - 'step6: Run full CLI regression test suite'
     dependencies: [task229, task230, task231]
     tests: [test330]
-    status: not-started
+    status: completed
 
   - id: task233
     title: "Remote client error handling"
@@ -4640,7 +4640,7 @@ tasks:
       - 'step8: Add tests for each error scenario'
     dependencies: [task230]
     tests: [test331]
-    status: not-started
+    status: completed
 
   # ======================================================================
   # Feature43: Auth, User & Tenant Management
