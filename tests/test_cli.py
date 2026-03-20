@@ -2339,6 +2339,134 @@ def test_feature39_sandbox_backend_failure_shapes() -> None:
     assert "Declare a permissions section" in missing_permissions.remediation
 
 
+def test_feature41_violation_enforcement_and_kill_switch(tmp_path):
+    warn_agent_dir = tmp_path / "feature41-warn-agent"
+    warn_agent_dir.mkdir()
+    (warn_agent_dir / "requirements.txt").write_text("")
+    (warn_agent_dir / "kinnoo.yaml").write_text(
+        """
+name: feature41-warn-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+permissions:
+    network: false
+    filesystem_scope: read-only
+    shell: false
+    browser: false
+    env_access: []
+"""
+    )
+    (warn_agent_dir / "run.py").write_text("print('feature41-warn-agent-ran')\n")
+    (warn_agent_dir / "README.md").write_text("feature41 warn agent")
+    (warn_agent_dir / "tools").mkdir()
+    (warn_agent_dir / "prompts").mkdir()
+
+    warn_env = dict(os.environ)
+    warn_env["KINNOO_MONITOR_ENFORCEMENT_MODE"] = "warn"
+    warn_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(warn_agent_dir),
+            "hello",
+            "--sandbox",
+            "--",
+            "--url",
+            "https://example.com",
+        ],
+        capture_output=True,
+        text=True,
+        env=warn_env,
+    )
+
+    warn_output = f"{warn_result.stdout}\n{warn_result.stderr}"
+    assert warn_result.returncode == 0, warn_output
+    assert "reason_code=soft_policy_warning" in warn_output
+    assert "sandbox policy warning recorded" in warn_output
+    assert "feature41-warn-agent-ran" in warn_output
+
+    warn_events_path = warn_agent_dir / ".kinnoo" / "violation-events.jsonl"
+    assert warn_events_path.exists(), warn_output
+    warn_lines = [line for line in warn_events_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert warn_lines
+    warn_payload = json.loads(warn_lines[-1])
+    assert warn_payload["enforcement_action"] == "warn_continue"
+    assert warn_payload["reason_code"] == "soft_policy_warning"
+
+    kill_agent_dir = tmp_path / "feature41-kill-agent"
+    kill_agent_dir.mkdir()
+    (kill_agent_dir / "requirements.txt").write_text("")
+    (kill_agent_dir / "kinnoo.yaml").write_text(
+        """
+name: feature41-kill-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+permissions:
+    network: true
+    filesystem_scope: read-only
+    shell: false
+    browser: false
+    env_access: []
+"""
+    )
+    (kill_agent_dir / "run.py").write_text("print('feature41-kill-agent-should-not-run')\n")
+    (kill_agent_dir / "README.md").write_text("feature41 kill agent")
+    (kill_agent_dir / "tools").mkdir()
+    (kill_agent_dir / "prompts").mkdir()
+
+    kill_env = dict(os.environ)
+    kill_env["KINNOO_MONITOR_ENFORCEMENT_MODE"] = "warn"
+    kill_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(kill_agent_dir),
+            "hello",
+            "--sandbox",
+            "--",
+            "--exec",
+            "echo denied",
+        ],
+        capture_output=True,
+        text=True,
+        env=kill_env,
+    )
+
+    kill_output = f"{kill_result.stdout}\n{kill_result.stderr}"
+    assert kill_result.returncode != 0, kill_output
+    assert "reason_code=hard_shell_execution_violation" in kill_output
+    assert "kill switch activated" in kill_output
+    assert "feature41-kill-agent-should-not-run" not in kill_output
+
+    kill_events_path = kill_agent_dir / ".kinnoo" / "violation-events.jsonl"
+    assert kill_events_path.exists(), kill_output
+    kill_lines = [line for line in kill_events_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert kill_lines
+    kill_payload = json.loads(kill_lines[-1])
+    assert kill_payload["enforcement_action"] == "kill_switch_terminate"
+    assert kill_payload["reason_code"] == "hard_shell_execution_violation"
+
+
 def test_feature40_keygen_generates_ed25519_keypair(tmp_path):
     from kinnoo.signing import (
         load_ed25519_private_key,
