@@ -4233,7 +4233,7 @@ tasks:
       - 'step4: Add validator and schema-reference tests for valid and invalid permissions declarations'
     dependencies: []
     tests: [test312]
-    status: needs-review
+    status: completed
 
   - id: task215
     title: "Feature39 install-time permission disclosure and consent flow"
@@ -4254,7 +4254,7 @@ tasks:
       - 'step4: Add integration tests for consent accepted denied and non-interactive override paths'
     dependencies: [task214]
     tests: [test313]
-    status: needs-review
+    status: completed
 
   - id: task216
     title: "Feature39 sandbox execution mode and enforcement backend"
@@ -4275,7 +4275,7 @@ tasks:
       - 'step4: Add integration tests covering successful sandboxed run and deterministic failure paths'
     dependencies: [task214]
     tests: [test314]
-    status: needs-review
+    status: completed
 
   - id: task217
     title: "Feature39 cross-runtime permission enforcement for Python and Node"
@@ -4296,7 +4296,7 @@ tasks:
       - 'step4: Add regression coverage proving both runtime types honor policy checks without cross-runtime drift'
     dependencies: [task215, task216]
     tests: [test315]
-    status: needs-review
+    status: completed
 
   - id: task218
     title: "Feature39 violation diagnostics and secret-safe logging"
@@ -4317,4 +4317,4 @@ tasks:
       - 'step4: Add tests asserting actionable diagnostics and explicit no-secret-value protections'
     dependencies: [task215, task216, task217]
     tests: [test316]
-    status: needs-review
+    status: completed

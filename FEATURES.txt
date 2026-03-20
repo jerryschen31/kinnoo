@@ -1417,7 +1417,7 @@ features:
       - "This feature provides the contract required by runtime monitoring in feature41."
     owner: techlead-agent
     dependencies: []
-    status: not-started
+    status: completed
 
   - id: feature40
     title: "Archive Signing & Publisher Verification"
