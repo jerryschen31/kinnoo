@@ -8,9 +8,14 @@ from typing import Any
 from urllib.parse import urlsplit
 
 try:
-    from kinnoo.analyzer import analyze_project
+    from kinnoo.analyzer import analyze_project, infer_openclaw_project_hints
 except ImportError:
-    from .analyzer import analyze_project
+    from .analyzer import analyze_project, infer_openclaw_project_hints
+
+try:
+    from kinnoo.validator import validate as validate_manifest
+except ImportError:
+    from .validator import validate as validate_manifest
 
 
 DEFAULT_IMPORTED_MANIFEST = """name: imported-agent
@@ -73,9 +78,19 @@ def _prompt_with_default(prompt: str, default: str, session: PromptSession | Non
 
 def _show_detected_values(report: dict[str, Any]) -> None:
     inferred = report.get("inferred", {})
+    confidence = report.get("confidence", {})
     print("Detected values from analyzer:")
     for key in ("entrypoint", "runtime", "framework", "dependencies", "env_vars", "services"):
         print(f"  - {key}: {inferred.get(key)}")
+
+    framework_confidence = confidence.get("framework")
+    if isinstance(framework_confidence, dict):
+        score = framework_confidence.get("score", 0.0)
+        evidence = framework_confidence.get("evidence", "")
+        print("Framework confidence metadata:")
+        print(f"  - score: {score:.2f}" if isinstance(score, (int, float)) else f"  - score: {score}")
+        if isinstance(evidence, str) and evidence:
+            print(f"  - evidence: {evidence}")
 
 
 def _get_confidence(report: dict[str, Any], field_name: str) -> float:
@@ -280,6 +295,7 @@ def _build_manifest_from_analysis(
     runtime_language = runtime.get("language") or "python"
     runtime_version = runtime.get("version") or ">=3.10"
     runtime_type = runtime.get("type")
+    runtime_package_manager = runtime.get("package_manager") if isinstance(runtime.get("package_manager"), str) else None
 
     framework = inferred.get("framework")
     dependencies = inferred.get("dependencies") if isinstance(inferred.get("dependencies"), list) else []
@@ -306,6 +322,27 @@ def _build_manifest_from_analysis(
             session=session,
         )
         framework = framework_input or None
+
+    inferred_skills: list[str] = []
+    inferred_state_dirs: list[str] = []
+    if framework == "openclaw":
+        openclaw_hints = infer_openclaw_project_hints(target_path)
+        hinted_runtime = openclaw_hints.get("runtime")
+        if isinstance(hinted_runtime, dict):
+            runtime_language = str(hinted_runtime.get("language", runtime_language))
+            runtime_type = str(hinted_runtime.get("type", runtime_type or "daemon"))
+            runtime_version = str(hinted_runtime.get("version", runtime_version))
+            package_manager_hint = hinted_runtime.get("package_manager")
+            if isinstance(package_manager_hint, str) and package_manager_hint:
+                runtime_package_manager = package_manager_hint
+
+        raw_skills = openclaw_hints.get("skills")
+        if isinstance(raw_skills, list):
+            inferred_skills = [value for value in raw_skills if isinstance(value, str) and value.strip()]
+
+        raw_state_dirs = openclaw_hints.get("state_dirs")
+        if isinstance(raw_state_dirs, list):
+            inferred_state_dirs = [value for value in raw_state_dirs if isinstance(value, str) and value.strip()]
 
     if _should_prompt_field(report, "services", services):
         services = _prompt_services(services, session=session)
@@ -336,8 +373,22 @@ def _build_manifest_from_analysis(
         "  type: string",
     ]
 
+    if runtime_package_manager:
+        manifest_lines.insert(6, f"  package_manager: {runtime_package_manager}")
+
     if framework:
         manifest_lines.append(f"framework: {framework}")
+
+    if inferred_skills:
+        manifest_lines.append("skills:")
+        for skill_path in inferred_skills:
+            manifest_lines.append(f"  - {skill_path}")
+
+    if inferred_state_dirs:
+        manifest_lines.append("state_dirs:")
+        for state_dir in inferred_state_dirs:
+            manifest_lines.append(f"  - {state_dir}")
+
     if env_lines:
         manifest_lines.append("env_vars:")
         manifest_lines.append(env_lines)
@@ -390,6 +441,57 @@ def _write_manifest_in_place(target_path: Path, manifest_text: str, *, force: bo
         raise
 
 
+def _collect_unresolved_todo_guidance(
+    report: dict[str, Any],
+    entrypoint_warning: str | None,
+) -> list[str]:
+    guidance: list[str] = []
+
+    if _get_confidence(report, "entrypoint") < 0.6:
+        guidance.append("Verify 'entrypoint' points to an existing executable script in the project root.")
+
+    if _get_confidence(report, "runtime") < 0.6:
+        guidance.append("Verify runtime fields (runtime.type, runtime.language, runtime.version) before first run.")
+
+    inferred_framework = report.get("inferred", {}).get("framework")
+    framework_confidence = _get_confidence(report, "framework")
+    if inferred_framework is None and framework_confidence > 0.0:
+        guidance.append(
+            "Framework inference is ambiguous; set 'framework' explicitly if this project depends on one."
+        )
+
+    if entrypoint_warning:
+        guidance.append(entrypoint_warning)
+
+    # Preserve deterministic order while removing duplicates.
+    return list(dict.fromkeys(guidance))
+
+
+def _print_manifest_validation_and_guidance(
+    manifest_path: Path,
+    report: dict[str, Any],
+    entrypoint_warning: str | None,
+) -> None:
+    is_valid, errors = validate_manifest(str(manifest_path))
+    if is_valid:
+        print("Generated manifest validation: PASS")
+    else:
+        print("Generated manifest validation: WARNING")
+        for error in errors:
+            print(f"  - {error}")
+
+    unresolved_guidance = _collect_unresolved_todo_guidance(report, entrypoint_warning)
+    if is_valid and not unresolved_guidance:
+        return
+
+    print("TODO guidance:")
+    for item in unresolved_guidance:
+        print(f"  - {item}")
+
+    if not is_valid:
+        print("  - Update kinnoo.yaml to resolve validation warnings before packaging or distribution.")
+
+
 def import_agent(target_path_arg: str | None, *, force: bool = False) -> int:
     """Import a project in-place by writing kinnoo.yaml safely into target root."""
     target_path = _resolve_import_target(target_path_arg)
@@ -412,6 +514,7 @@ def import_agent(target_path_arg: str | None, *, force: bool = False) -> int:
         return 1
 
     session = PromptSession()
+    entrypoint_warning: str | None = None
 
     try:
         report = analyze_project(target_path).as_dict()
@@ -473,6 +576,12 @@ def import_agent(target_path_arg: str | None, *, force: bool = False) -> int:
             generated_wrapper_path.unlink()
         print(f"Error: import failed and rolled back partial artifacts: {exc}")
         return 1
+
+    _print_manifest_validation_and_guidance(
+        manifest_path,
+        report,
+        entrypoint_warning,
+    )
 
     print(f"Imported project in-place: {target_path}")
     return 0

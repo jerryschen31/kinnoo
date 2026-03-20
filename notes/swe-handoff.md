@@ -1,107 +1,585 @@
-## Feature19 SWE Handoff - In-Place Import Onboarding (task163-task167)
+## SWE Handoff: feature32 - Daemon Runtime Type + Process Controls
 
 ### Scope
-Implement feature19 as an in-place onboarding workflow:
-`kinnoo import [path]` (default `.`) writes `kinnoo.yaml` into an existing
-project using feature27 analyzer inference and a confirm-first wizard.
+Implement feature32 from [FEATURES.txt](FEATURES.txt) using tasks task178-task183 from [TASKS.txt](TASKS.txt). This is the daemon lifecycle/control-plane layer for Phase 4 and must preserve existing one-shot and mcp-server behavior.
 
-### Scope Tightening (Important)
-- Do not implement copy/scaffold-clone behavior.
-- Import is metadata-layer only: in-place `kinnoo.yaml` generation plus optional
-  wrapper file when explicitly selected by user.
-- Reuse `analyze_project()` as the single inference backend. Do not duplicate
-  detector heuristics in import command code.
-- Keep entrypoint mismatch behavior warning-first and non-blocking by default.
-- Ensure interruption/failure safety leaves no partial artifacts.
+### Feature Intent
+Add generic daemon runtime support with operator lifecycle controls (`run` start semantics, `stop`, `attach`, `logs`) and supervisor/health diagnostics for Python and Node.js agents.
 
-### Task Order and Grouping
-Single SWE agent can implement all tasks in order because they share one command
-surface and one test module.
+### Task Breakdown (Execution Order)
+1. task178: Schema + validator support for `runtime.type: daemon`.
+2. task179: Daemon start path in `kinnoo run` + persisted PID/state metadata.
+3. task180: `kinnoo stop <agent>` graceful shutdown + deterministic fallback behavior.
+4. task181: `kinnoo attach <agent>` interactive attach controls for supported daemon sessions.
+5. task182: `kinnoo logs <agent>` tail/follow command with source/timestamp context.
+6. task183: Supervisor/health integration and regression gate for daemon lifecycle states.
 
-1. `task163` - Import CLI surface and path resolution
-2. `task164` - In-place write + collision + rollback
-3. `task165` - Analyzer integration + confirm-first wizard
-4. `task166` - Conditional schema prompts + entrypoint bridge option
-5. `task167` - Interrupt safety + in-place runnability regression gate
+### AC Coverage Map
+- AC1 -> task178 -> test276
+- AC2 -> task179 -> test277
+- AC3 -> task180 -> test278
+- AC4 -> task181 -> test279
+- AC5 -> task182 -> test280
+- AC6 -> task183 -> test281
 
-### Dependencies
-- `task164` depends on `task163`
-- `task165` depends on `task162`, `task163`
-- `task166` depends on `task165`
-- `task167` depends on `task164`, `task166`
+### Key Implementation Constraints
+- This feature is daemon lifecycle support, not full OpenClaw gateway orchestration.
+- Reuse existing [src/kinnoo/supervisor.py](src/kinnoo/supervisor.py) and [src/kinnoo/health_check.py](src/kinnoo/health_check.py) architecture where possible.
+- Preserve backward compatibility for existing runtime modes (`one-shot`, `mcp-server`) and existing CLI flows.
+- Keep operator diagnostics deterministic and actionable; never leak secret values.
+- Daemon state file layout and log metadata format should be stable and testable.
 
-### Design Constraints
-- Command signature: `kinnoo import [path]` only; no destination directory.
-- Default target path is current working directory.
-- Existing project files must not be modified (except created/updated
-  `kinnoo.yaml`, and optional wrapper when user explicitly accepts).
-- Error and help text should be clear and actionable.
-- Prompt minimization is required: show detected values first, ask follow-ups
-  only for unresolved/low-confidence fields.
+### JS/TS Test Guidance
+- No feature32 behavior requires mandatory JavaScript-native test execution at this stage; pytest integration tests can validate daemon lifecycle contracts for both Python and Node.js fixtures.
+- If a JS-native control-surface behavior becomes unavoidable during implementation, use Vitest and record automation_path as a concrete function in a `.js` or `.ts` test file.
 
-### Files Expected to Change
-- `src/kinnoo/cli.py`
-- `src/kinnoo/import_command.py` (new)
-- `src/kinnoo/schema.py` (only if needed for prompt-gating helpers)
-- `tests/test_cli_import.py` (new)
-- `tests/test_regression_v1.py` (feature19 focused regression gate)
+### Suggested Files to Touch
+- src/kinnoo/schema.py
+- src/kinnoo/validator.py
+- src/kinnoo/cli.py
+- src/kinnoo/run_command.py
+- src/kinnoo/supervisor.py
+- src/kinnoo/health_check.py
+- tests/test_validator.py
+- tests/test_cli.py
+- tests/test_run_preflight.py
+- tests/test_regression_v1.py
 
-### Per-Task Deliverables
-1. `task163`:
-- Add import subcommand parser and usage/help wiring.
-- Implement default `.` path behavior and invalid argument handling.
-- Add tests for omitted path and invalid forms.
+### Verification Gate
+- Run targeted tests for test276-test281.
+- Run daemon-focused regression slices for python + node compatibility paths.
+- Run full regression before handoff completion:
+	- python3 -m pytest
+- Validate manifests after task/test updates:
+	- python3 src/validate_project_manifests.py
 
-2. `task164`:
-- Implement in-place manifest write path.
-- Add collision protections for existing `kinnoo.yaml` unless explicit override.
-- Add rollback cleanup for failure scenarios after write begins.
-- Prove no scaffold-copy behavior.
+### Status Workflow Guidance
+- Move tasks task178-task183 from not-started -> in-progress when implementation begins.
+- Move tasks to needs-review after code + tests are complete.
+- Do not set completed until Tech Lead review and merge approval.
 
-3. `task165`:
-- Integrate analyzer results into manifest generation.
-- Implement confirm-first wizard flow.
-- Prompt only for missing/ambiguous fields.
+## SWE Handoff: feature33 - Manifest Schema Extensions for OpenClaw/JS Agents
 
-4. `task166`:
-- Add conditional prompts for runtime/services/permissions fields only when
-  unresolved or low-confidence.
-- Implement entrypoint mismatch warning.
-- Add optional wrapper-generation branch that is opt-in.
+### Scope
+Implement feature33 from [FEATURES.txt](FEATURES.txt) using tasks task184-task188 from [TASKS.txt](TASKS.txt). This is the manifest contract layer for OpenClaw-oriented and generic JS/TS agents and must stay backward-compatible for existing manifests.
 
-5. `task167`:
-- Handle Ctrl+C/EOF safely with non-zero exit.
-- Ensure no partial artifact remains on interruption.
-- Add in-place runnability gate and feature19 regression protection.
+### Feature Intent
+Extend manifest schema/validation to support `runtime.package_manager`, `channels`, `skills`, and `state_dirs`, add framework-targeted validation behavior for `framework: openclaw`, and document the contract with clear examples.
 
-### Out of Scope (Feature19)
-- Remote URL import (`kinnoo import https://...`).
-- Deep framework-specific translators.
-- Runtime shims as a required import path.
-- Any broad analyzer heuristic expansion beyond feature27 contract.
+### Task Breakdown (Execution Order)
+1. task184: Add schema + validator support for `runtime.package_manager` with allowed values (`npm`, `pnpm`).
+2. task185: Add optional `channels`, `skills`, and `state_dirs` schema handling with strict type/path validation.
+3. task186: Add framework-targeted validation behavior and diagnostics for `framework: openclaw`.
+4. task187: Add non-openclaw compatibility guards proving new fields are optional/non-breaking.
+5. task188: Update manifest documentation with OpenClaw and generic Node.js examples.
 
-### Test Plan (from TESTS.txt)
-- `test252`, `test253`: AC1 argument/default behavior
-- `test254`: AC2 in-place write and no copy behavior
-- `test255`: AC5 rollback on failure
-- `test256`: AC7 collision safety
-- `test257`: AC3 analyzer-backed inference and warnings
-- `test258`: AC4 confirm-first wizard prompt minimization
-- `test259`: AC9 conditional schema-extension prompts
-- `test260`: AC10 warning-first entrypoint bridge with optional wrapper
-- `test261`: AC6 Ctrl+C/EOF safety
-- `test262`: AC8 in-place runnability after import
+### AC Coverage Map
+- AC1 -> task184 -> test282
+- AC2 -> task185 -> test283
+- AC3 -> task186 -> test284
+- AC4 -> task187 -> test285
+- AC5 -> task188 -> test286
 
-### Execution Notes for SWE
-- Implement `tests/test_cli_import.py` early to lock behavior contract.
-- Use fixture projects under `tests/` for deterministic inference and prompt flow.
-- Keep user-facing warning text stable enough for test assertions.
-- Prefer small helper functions in import module (path resolution, prompt policy,
-  rollback cleanup, wrapper generation) to keep logic testable.
+### Key Implementation Constraints
+- Keep schema extensions framework-agnostic and reusable for non-OpenClaw JS/TS frameworks.
+- Preserve existing validation behavior for manifests that do not use the new fields.
+- Path safety checks must reject unsafe absolute/traversal paths for `skills` and `state_dirs` entries.
+- OpenClaw-specific validation must be gated behind `framework: openclaw` and return framework-targeted diagnostics.
+- Ensure docs clearly distinguish optional behavior for non-openclaw manifests.
 
-### Definition of Done
-- All ACs (AC1-AC10) are covered by passing tests `test252`-`test262`.
-- `python3 src/validate_project_manifests.py` passes.
-- Focused feature19 tests pass.
-- Full `python3 -m pytest` regression passes before handoff to TechLead review.
-- Tasks move to `needs-review` when SWE completes implementation.
+### JS/TS Test Guidance
+- This feature is schema/validator/docs work; pytest tests are sufficient for contract validation in this phase.
+- Do not add Vitest by default.
+- If a JS/TS-native parser/runtime behavior becomes absolutely required, use Vitest and record `automation_path` as a concrete function in a `.js` or `.ts` test file.
+
+### Suggested Files to Touch
+- src/kinnoo/schema.py
+- src/kinnoo/validator.py
+- docs/manifest-schema-reference.md
+- README.md
+- tests/test_validator.py
+- tests/test_regression_v1.py
+- tests/test_docs.py
+
+### Verification Gate
+- Run targeted tests for test282-test286.
+- Run focused validator/docs regression slices.
+- Run full regression before handoff completion:
+	- python3 -m pytest
+- Validate manifests after task/test updates:
+	- python3 src/validate_project_manifests.py
+
+### Status Workflow Guidance
+- Move tasks task184-task188 from not-started -> in-progress when implementation begins.
+- Move tasks to needs-review after code + tests are complete.
+- Do not set completed until Tech Lead review and merge approval.
+
+## SWE Handoff: feature34 - OpenClaw Scaffold Template
+
+### Scope
+Implement feature34 from [FEATURES.txt](FEATURES.txt) using tasks task189-task193 from [TASKS.txt](TASKS.txt). This is the OpenClaw scaffold/template onboarding layer and must remain standalone (no full gateway orchestration).
+
+### Feature Intent
+Add `kinnoo init --framework openclaw` generation for a runnable standalone OpenClaw-style project layout, with valid OpenClaw-oriented manifest wiring and actionable setup documentation.
+
+### Task Breakdown (Execution Order)
+1. task189: Generate OpenClaw scaffold files/directories (`package.json`, `openclaw.json`, `index.mjs`, `skills/default/SKILL.md`, `memory/`, `AGENTS.md`, `SOUL.md`).
+2. task190: Ensure generated `kinnoo.yaml` validates with OpenClaw + Node runtime contract.
+3. task191: Ensure generated scaffold runs through `kinnoo run` when required env vars are configured.
+4. task192: Add README setup guidance (Node prerequisites, dependency install path, required env vars).
+5. task193: Ensure deterministic scaffold output and no dependency on external `openclaw` CLI binary.
+
+### AC Coverage Map
+- AC1 -> task189 -> test287
+- AC2 -> task190 -> test288
+- AC3 -> task191 -> test289
+- AC4 -> task192 -> test290
+- AC5 -> task193 -> test291
+
+### Key Implementation Constraints
+- Keep scaffold standalone and package-oriented; do not attempt full OpenClaw gateway bootstrap.
+- Generated layout must include OpenClaw identity artifacts and default skill folder conventions.
+- Manifest output must satisfy feature33 OpenClaw-targeted validation rules.
+- README guidance should be concise, actionable, and aligned with existing project docs tone.
+- Scaffold generation must not shell out to `openclaw` binary or require it at init-time.
+
+### JS/TS Test Guidance
+- Feature34 behavior can be fully validated with pytest integration/unit tests in this phase.
+- Do not add Vitest unless a JS/TS-native behavior cannot be validated reliably from pytest.
+- If Vitest becomes absolutely required, define `automation_path` as a concrete function in a `.js` or `.ts` test file.
+
+### Suggested Files to Touch
+- src/kinnoo/templates.py
+- src/kinnoo/init_command.py
+- src/kinnoo/run_command.py
+- tests/test_init.py
+- tests/test_cli.py
+- tests/test_validator.py
+- tests/test_docs.py
+- tests/test_regression_v1.py
+
+### Verification Gate
+- Run targeted tests for test287-test291.
+- Run scaffold-focused init/run regression slices.
+- Run full regression before handoff completion:
+	- python3 -m pytest
+- Validate manifests after task/test updates:
+	- python3 src/validate_project_manifests.py
+
+### Status Workflow Guidance
+- Move tasks task189-task193 from not-started -> in-progress when implementation begins.
+- Move tasks to needs-review after code + tests are complete.
+- Do not set completed until Tech Lead review and merge approval.
+
+## SWE Handoff: feature35 - Mutable State Directories in Pack/Install
+
+### Scope
+Implement feature35 from [FEATURES.txt](FEATURES.txt) using tasks task194-task198 from [TASKS.txt](TASKS.txt). This is the mutable state snapshot/restore layer and must preserve existing asset-only workflows.
+
+### Feature Intent
+Add first-class `state_dirs` snapshot/restore behavior for mutable runtime state (for example OpenClaw memory folders), with safe validation, selective exclusion support, overwrite controls at install time, and clear docs/regression guarantees.
+
+### Task Breakdown (Execution Order)
+1. task194: Define and validate `state_dirs` contract (including exclude policy structure and safe path rules).
+2. task195: Implement pack-time state snapshot capture with deterministic archive layout.
+3. task196: Implement install-time state restore with warning-first overwrite behavior and explicit force controls.
+4. task197: Implement `state_dirs[].exclude` handling to omit noisy/sensitive files while preserving core state.
+5. task198: Document mutable state semantics and add compatibility regression safeguards for legacy asset-only flows.
+
+### AC Coverage Map
+- AC1 -> task194/task195 -> test292/test293
+- AC2 -> task196 -> test294
+- AC3 -> task197 -> test295
+- AC4 -> task198 -> test296
+- AC5 -> task198 -> test296
+
+### Key Implementation Constraints
+- Distinguish mutable `state_dirs` semantics from immutable `assets`; do not conflate behavior.
+- Preserve backward compatibility for manifests that do not declare `state_dirs`.
+- Enforce path safety for state roots and keep deterministic archive/restore path mapping.
+- Overwrite of existing state must be warning-first by default and only destructive with explicit operator force/overwrite control.
+- Exclusion support should target practical noisy files (for example daily memory logs) without removing core warm-start state.
+
+### JS/TS Test Guidance
+- Feature35 behavior is file/manifest/pack/install contract work and can be validated in pytest.
+- Do not add Vitest unless a JS/TS-native behavior becomes impossible to assert reliably via pytest.
+- If Vitest is absolutely required, ensure TESTS.txt `automation_path` points to a concrete function in a `.js` or `.ts` test file.
+
+### Suggested Files to Touch
+- src/kinnoo/schema.py
+- src/kinnoo/validator.py
+- src/kinnoo/pack_command.py
+- src/kinnoo/archive_utils.py
+- src/kinnoo/install_command.py
+- src/kinnoo/cli.py
+- docs/manifest-schema-reference.md
+- README.md
+- tests/test_validator.py
+- tests/test_pack.py
+- tests/test_install.py
+- tests/test_docs.py
+- tests/test_regression_v1.py
+
+### Verification Gate
+- Run targeted tests for test292-test296.
+- Run pack/install compatibility regression slices for assets-only and state_dirs-enabled manifests.
+- Run full regression before handoff completion:
+	- python3 -m pytest
+- Validate manifests after task/test updates:
+	- python3 src/validate_project_manifests.py
+
+### Status Workflow Guidance
+- Move tasks task194-task198 from not-started -> in-progress when implementation begins.
+- Move tasks to needs-review after code + tests are complete.
+- Do not set completed until Tech Lead review and merge approval.
+
+## SWE Handoff: feature36 - OpenClaw Import Detection & Manifest Inference
+
+### Scope
+Implement feature36 from [FEATURES.txt](FEATURES.txt) using tasks task199-task203 from [TASKS.txt](TASKS.txt). This is the OpenClaw onboarding/import inference layer and must preserve non-OpenClaw analyzer behavior.
+
+### Feature Intent
+Extend analyzer-backed `kinnoo import` to detect existing OpenClaw projects via weighted evidence, infer runtime/package-manager/skills/state state fields, and generate actionable manifest output with warning-first guidance for unresolved fields.
+
+### Task Breakdown (Execution Order)
+1. task199: Add weighted OpenClaw detection with confidence and evidence output.
+2. task200: Infer runtime language/type, package manager, skill paths, and candidate `state_dirs`.
+3. task201: Recognize OpenClaw identity files (`SOUL.md`, `AGENTS.md`, optional `USER.md`) as explicit inference signals.
+4. task202: Ensure generated `kinnoo.yaml` is valid when possible, or emit clear TODO/warning guidance when fields remain unresolved.
+5. task203: Add regression safeguards ensuring non-OpenClaw analyzer/import behavior does not regress.
+
+### AC Coverage Map
+- AC1 -> task199 -> test297
+- AC2 -> task200 -> test298
+- AC3 -> task201 -> test299
+- AC4 -> task202 -> test300
+- AC5 -> task203 -> test301
+
+### Key Implementation Constraints
+- Use weighted evidence model (strong vs medium signals) rather than brittle single-signal detection.
+- Keep import UX warning-first and operator-confirmed for mixed/ambiguous confidence.
+- Align inferred manifest fields with existing feature33 and feature35 contracts.
+- Preserve existing non-openclaw import flows and confidence semantics.
+- Output diagnostics must be deterministic and actionable for operators.
+
+### JS/TS Test Guidance
+- Feature36 behavior is analyzer/import inference logic and can be validated in pytest.
+- Do not add Vitest unless a JS/TS-native behavior cannot be asserted reliably from pytest.
+- If Vitest becomes absolutely required, ensure TESTS.txt `automation_path` points to a concrete function inside a `.js` or `.ts` test file.
+
+### Suggested Files to Touch
+- src/kinnoo/analyzer.py
+- src/kinnoo/import_command.py
+- src/kinnoo/validator.py
+- tests/test_analyzer.py
+- tests/test_cli_import.py
+- tests/test_regression_v1.py
+
+### Verification Gate
+- Run targeted tests for test297-test301.
+- Run analyzer/import regression slices for OpenClaw and non-OpenClaw fixtures.
+- Run full regression before handoff completion:
+	- python3 -m pytest
+- Validate manifests after task/test updates:
+	- python3 src/validate_project_manifests.py
+
+### Status Workflow Guidance
+- Move tasks task199-task203 from not-started -> in-progress when implementation begins.
+- Move tasks to needs-review after code + tests are complete.
+- Do not set completed until Tech Lead review and merge approval.
+
+## SWE Handoff: feature37 - Node.js Dependency Audit & Lifecycle Script Controls
+
+### Scope
+Implement feature37 from [FEATURES.txt](FEATURES.txt) using tasks task204-task208 from [TASKS.txt](TASKS.txt). This is the Node install security hardening layer and must keep Python install flows unchanged.
+
+### Feature Intent
+Add Node.js dependency risk checks and lifecycle-script controls to install workflows with configurable policy gates suitable for local development and stricter CI/publisher environments.
+
+### Task Breakdown (Execution Order)
+1. task204: Add Node install dependency audit execution and deterministic severity summary output.
+2. task205: Enforce default block on critical vulnerabilities with explicit `--allow-vulnerable` override.
+3. task206: Detect lifecycle scripts, warn operators, and support `--ignore-scripts` install mode.
+4. task207: Persist audit findings and operator/policy decisions in machine-readable install trace artifacts.
+5. task208: Add regression safeguards proving Python install behavior is unaffected.
+
+### AC Coverage Map
+- AC1 -> task204 -> test302
+- AC2 -> task205 -> test303
+- AC3 -> task206 -> test304
+- AC4 -> task207 -> test305
+- AC5 -> task208 -> test306
+
+### Key Implementation Constraints
+- Keep behavior runtime-aware: Node-specific audit/script controls must not run for Python agents.
+- Surface security posture clearly: deterministic severity output and warning-first script visibility.
+- Default policy should be safe (block critical vulnerabilities) while preserving explicit override controls.
+- Ensure install trace data is machine-readable, deterministic, and free of secret values.
+- Keep package-manager command behavior explicit (`npm audit`/equivalent and script policy propagation).
+
+### JS/TS Test Guidance
+- Feature37 behavior can be validated through Python pytest integration tests by asserting CLI behavior, subprocess invocation, and trace outputs.
+- Do not add Vitest unless a JS/TS-native behavior cannot be validated reliably from pytest.
+- If Vitest becomes absolutely required, ensure TESTS.txt `automation_path` references a concrete function in a `.js` or `.ts` test file.
+
+### Suggested Files to Touch
+- src/kinnoo/install_command.py
+- src/kinnoo/cli.py
+- src/kinnoo/install_trace.py
+- tests/test_cli_install.py
+- tests/test_regression_v1.py
+- docs/manifest-schema-reference.md
+- README.md
+
+### Verification Gate
+- Run targeted tests for test302-test306.
+- Run install-focused regression slices for node and python fixtures.
+- Run full regression before handoff completion:
+	- python3 -m pytest
+- Validate manifests after task/test updates:
+	- python3 src/validate_project_manifests.py
+
+### Status Workflow Guidance
+- Move tasks task204-task208 from not-started -> in-progress when implementation begins.
+- Move tasks to needs-review after code + tests are complete.
+- Do not set completed until Tech Lead review and merge approval.
+
+## SWE Handoff: feature38 - JS/TS Static Security Sweep
+
+### Scope
+Implement feature38 from [FEATURES.txt](FEATURES.txt) using tasks task209-task213 from [TASKS.txt](TASKS.txt). This is the JS/TS security sweep expansion and must preserve existing sweep output conventions and no-secret-value guarantees.
+
+### Feature Intent
+Extend static security sweep coverage to JavaScript/TypeScript and JSON artifacts so kinnoo can flag credential exposure risks, dangerous execution/configuration patterns, and risky memory snapshot content in warning-first mode.
+
+### Task Breakdown (Execution Order)
+1. task209: Add JS/TS/JSON credential and token scanning coverage.
+2. task210: Add risky JS/TS execution primitive detection with file/line evidence.
+3. task211: Add dangerous OpenClaw JSON configuration detection and targeted warnings.
+4. task212: Add memory snapshot candidate scanning before pack with warning-first findings.
+5. task213: Add output contract and no-secret regression safeguards for mixed-language sweep paths.
+
+### AC Coverage Map
+- AC1 -> task209 -> test307
+- AC2 -> task210 -> test308
+- AC3 -> task211 -> test309
+- AC4 -> task212 -> test310
+- AC5 -> task213 -> test311
+
+### Key Implementation Constraints
+- Preserve warning-first posture (non-blocking) for local workflows while surfacing actionable security findings.
+- Emit deterministic file/line evidence for risky primitive/config findings wherever available.
+- Preserve no-secret-value invariant in all sweep outputs; redact values and report patterns/locations only.
+- Keep output shape consistent with existing sweep UX to avoid breaking operator automation and regression baselines.
+- Ensure feature38 logic applies to JS/TS/JSON additions without regressing existing Python sweep behavior.
+
+### JS/TS Test Guidance
+- Feature38 behavior can be validated in pytest by creating fixture files and asserting sweep output/findings.
+- Do not add Vitest unless a JS/TS-native runtime behavior cannot be validated reliably via pytest file-based fixtures.
+- If Vitest becomes absolutely required, ensure TESTS.txt `automation_path` points to a concrete function in a `.js` or `.ts` test file.
+
+### Suggested Files to Touch
+- src/kinnoo/code_sweep.py
+- src/kinnoo/pack_command.py
+- tests/test_trust_baseline.py
+- tests/test_pack_robustness.py
+- tests/test_regression_v1.py
+- docs/manifest-schema-reference.md
+- README.md
+
+### Verification Gate
+- Run targeted tests for test307-test311.
+- Run security sweep regression slices across python and js/ts/json fixtures.
+- Run full regression before handoff completion:
+	- python3 -m pytest
+- Validate manifests after task/test updates:
+	- python3 src/validate_project_manifests.py
+
+### Status Workflow Guidance
+- Move tasks task209-task213 from not-started -> in-progress when implementation begins.
+- Move tasks to needs-review after code + tests are complete.
+- Do not set completed until Tech Lead review and merge approval.
+
+## SWE Handoff: feature39 - Manifest Permissions Model + Sandbox Execution
+
+### Scope
+Implement feature39 from [FEATURES.txt](FEATURES.txt) using tasks task214-task218 from [TASKS.txt](TASKS.txt). This is the manifest-permissions and sandbox-enforcement foundation and must preserve backward compatibility for existing agents without permissions declarations.
+
+### Feature Intent
+Introduce explicit permission declarations for network/filesystem/shell/browser/env access, require clear operator consent at install time, and enforce declared policy through a sandboxed run path with deterministic violation/fallback diagnostics.
+
+### Task Breakdown (Execution Order)
+1. task214: Extend schema/validator support for permissions declarations with deterministic validation behavior.
+2. task215: Add install-time human-readable permission summary and explicit consent/non-interactive override flow.
+3. task216: Implement `kinnoo run --sandbox` path with enforceable backend controls and deterministic failure modes.
+4. task217: Ensure permission enforcement parity for Python and Node agents where technically feasible.
+5. task218: Add secret-safe violation diagnostics/logging with actionable remediation output.
+
+### AC Coverage Map
+- AC1 -> task214 -> test312
+- AC2 -> task215 -> test313
+- AC3 -> task216 -> test314
+- AC4 -> task217 -> test315
+- AC5 -> task218 -> test316
+
+### Key Implementation Constraints
+- Preserve backward compatibility: manifests without `permissions` must continue to validate and run with existing behavior when sandbox mode is not requested.
+- Keep operator UX explicit and safe by default: permission summaries must be human-readable, consent defaults to deny, and automation overrides must be explicit.
+- Sandbox behavior must be deterministic across supported platforms: unsupported backends/policies should fail with clear classification and guidance.
+- Enforce no-secret-value invariant in all diagnostics/logs while retaining actionable context for remediation.
+- Maintain runtime-aware parity for Python and Node policy enforcement and document any technically infeasible controls.
+
+### JS/TS Test Guidance
+- Feature39 behavior can be validated primarily via pytest integration tests using Python and Node fixture agents to assert CLI policy behavior.
+- Use Vitest only if a JS/TS runtime-specific enforcement behavior cannot be validated reliably from pytest orchestration.
+- If Vitest becomes absolutely required, TESTS.txt `automation_path` must reference a concrete exported test function in a `.js` or `.ts` test file.
+
+### Suggested Files to Touch
+- src/kinnoo/schema.py
+- src/kinnoo/validator.py
+- src/kinnoo/install_command.py
+- src/kinnoo/run_command.py
+- src/kinnoo/cli.py
+- src/kinnoo/sandbox.py
+- src/kinnoo/install_trace.py
+- docs/manifest-schema-reference.md
+- README.md
+- tests/test_validator.py
+- tests/test_cli_install.py
+- tests/test_cli.py
+- tests/test_regression_v1.py
+- tests/test_run_preflight.py
+
+### Verification Gate
+- Run targeted tests for test312-test316.
+- Run policy-focused install/run regression slices for both python and node fixtures.
+- Run full regression before handoff completion:
+	- python3 -m pytest
+- Validate manifests after task/test updates:
+	- python3 src/validate_project_manifests.py
+
+### Status Workflow Guidance
+- Move tasks task214-task218 from not-started -> in-progress when implementation begins.
+- Move tasks to needs-review after code + tests are complete.
+- Do not set completed until Tech Lead review and merge approval.
+
+## SWE Handoff: feature40 - Archive Signing & Publisher Verification
+
+### Scope
+Implement feature40 from [FEATURES.txt](FEATURES.txt) using tasks task219-task223 from [TASKS.txt](TASKS.txt). This is the archive-authenticity layer and must preserve existing checksum/integrity behavior while adding publisher-verification guarantees.
+
+### Feature Intent
+Add Ed25519 key generation, signed archive packaging, signature verification at install, unsigned-publisher warning flows, and registry publisher-key association so users can verify authenticity in addition to archive integrity.
+
+### Task Breakdown (Execution Order)
+1. task219: Implement `kinnoo keygen` Ed25519 keypair generation workflow.
+2. task220: Integrate `kinnoo pack --sign` signature artifact + metadata emission.
+3. task221: Add install-time signature verification gate with invalid-signature block path.
+4. task222: Add unsigned archive "UNVERIFIED PUBLISHER" warning and confirmation/override flow.
+5. task223: Extend registry metadata model to associate publisher public keys for verified distribution.
+
+### AC Coverage Map
+- AC1 -> task219 -> test317
+- AC2 -> task220 -> test318
+- AC3 -> task221 -> test319
+- AC4 -> task222 -> test320
+- AC5 -> task223 -> test321
+
+### Key Implementation Constraints
+- Maintain backward compatibility for existing checksum outputs and integrity checks from feature16.
+- Ensure signature payload canonicalization is deterministic so verification is stable across environments.
+- Block invalid signatures by default with clear remediation, and avoid ambiguous warning-only behavior for signed-but-invalid archives.
+- Preserve no-secret-value diagnostics: never print private key material or sensitive signature internals in logs.
+- Keep signing/verification logic modular (`src/kinnoo/signing.py`) to enable future key-rotation and trust-policy extensions.
+
+### JS/TS Test Guidance
+- Feature40 behavior is CLI/package/crypto workflow and should be validated primarily via pytest integration tests.
+- Do not add Vitest unless a JS/TS-native signing/verification path is introduced that cannot be reliably exercised from pytest.
+- If Vitest becomes absolutely required, ensure TESTS.txt `automation_path` points to a concrete function in a `.js` or `.ts` test file.
+
+### Suggested Files to Touch
+- src/kinnoo/cli.py
+- src/kinnoo/signing.py
+- src/kinnoo/pack_command.py
+- src/kinnoo/install_command.py
+- src/kinnoo/registry.py
+- docs/manifest-schema-reference.md
+- README.md
+- tests/test_cli.py
+- tests/test_pack.py
+- tests/test_install.py
+- tests/test_cli_install.py
+- tests/test_registry.py
+- tests/test_cli_registry.py
+
+### Verification Gate
+- Run targeted tests for test317-test321.
+- Run pack/install/registry regression slices for signed and unsigned archive flows.
+- Run full regression before handoff completion:
+	- python3 -m pytest
+- Validate manifests after task/test updates:
+	- python3 src/validate_project_manifests.py
+
+### Status Workflow Guidance
+- Move tasks task219-task223 from not-started -> in-progress when implementation begins.
+- Move tasks to needs-review after code + tests are complete.
+- Do not set completed until Tech Lead review and merge approval.
+
+## SWE Handoff: feature41 - Runtime Behavior Monitoring & Kill Switch
+
+### Scope
+Implement feature41 from [FEATURES.txt](FEATURES.txt) using tasks task224-task228 from [TASKS.txt](TASKS.txt). This is the runtime defense-in-depth layer and must integrate with feature39 permissions while preserving stable baseline run behavior.
+
+### Feature Intent
+Add runtime behavioral telemetry, deterministic permission-violation enforcement (including kill switch), resource-limit controls, and dry-run trace capability with graceful degradation on platforms lacking low-level telemetry primitives.
+
+### Task Breakdown (Execution Order)
+1. task224: Add baseline runtime monitor event capture for process/network/filesystem behavior.
+2. task225: Add deterministic violation enforcement and kill-switch path.
+3. task226: Add configurable resource controls (timeout/CPU/memory where supported).
+4. task227: Add `kinnoo run --dry-run` low-risk tracing mode.
+5. task228: Integrate feature41 monitor policy with feature39 permissions and graceful degradation behavior.
+
+### AC Coverage Map
+- AC1 -> task224 -> test322
+- AC2 -> task225 -> test323
+- AC3 -> task226 -> test324
+- AC4 -> task227 -> test325
+- AC5 -> task228 -> test326
+
+### Key Implementation Constraints
+- Keep monitor outputs structured and deterministic so they remain machine-consumable for post-run auditing.
+- Enforce no-secret-value diagnostic invariant when emitting telemetry and violation events.
+- Treat kill-switch as policy-driven deterministic behavior, not heuristic best-effort.
+- Ensure resource-control behavior is explicit on unsupported platforms (graceful degradation with clear guidance).
+- Maintain cross-runtime behavior parity (Python and Node) where technically feasible, and document deltas.
+
+### JS/TS Test Guidance
+- Feature41 behavior should be validated primarily through pytest integration tests across Python and Node fixture agents.
+- Do not add Vitest unless a JS/TS-native telemetry/enforcement behavior cannot be reliably validated from pytest orchestration.
+- If Vitest becomes absolutely required, ensure TESTS.txt `automation_path` points to a concrete function in a `.js` or `.ts` test file.
+
+### Suggested Files to Touch
+- src/kinnoo/run_command.py
+- src/kinnoo/runtime_monitor.py
+- src/kinnoo/sandbox.py
+- src/kinnoo/cli.py
+- src/kinnoo/validator.py
+- docs/manifest-schema-reference.md
+- README.md
+- tests/test_cli.py
+- tests/test_run_preflight.py
+- tests/test_regression_v1.py
+
+### Verification Gate
+- Run targeted tests for test322-test326.
+- Run runtime monitoring regression slices for python and node fixture agents.
+- Run full regression before handoff completion:
+	- python3 -m pytest
+- Validate manifests after task/test updates:
+	- python3 src/validate_project_manifests.py
+
+### Status Workflow Guidance
+- Move tasks task224-task228 from not-started -> in-progress when implementation begins.
+- Move tasks to needs-review after code + tests are complete.
+- Do not set completed until Tech Lead review and merge approval.

@@ -523,6 +523,8 @@ def test_run_usage_includes_feature20_modes():
     assert result.returncode != 0
     assert "Usage: kinnoo run <agent-dir> '<input>'" in result.stderr
     assert "kinnoo run <agent-dir>" in result.stderr
+    assert "kinnoo run <agent-dir> --json-input '<json>'" in result.stderr
+    assert "kinnoo run <agent-dir> --json-file <json-file>" in result.stderr
     assert "kinnoo run <agent-dir> -- <args...>" in result.stderr
 
 
@@ -535,6 +537,755 @@ def test_run_help_includes_pass_through_separator_usage():
 
     assert result.returncode == 0
     assert "kinnoo run <agent-dir> -- -e <some-string> -p <some-file-path> -u <some-url>" in result.stdout
+
+
+def test_feature31_run_nodejs_entrypoint_streams_and_propagates_exit(monkeypatch, tmp_path, capsys):
+    agent_dir = tmp_path / "feature31-node-agent"
+    agent_dir.mkdir()
+    (agent_dir / "requirements.txt").write_text("")
+    (agent_dir / "run.js").write_text("console.log('placeholder');\n", encoding="utf-8")
+    (agent_dir / "kinnoo.yaml").write_text(
+        """
+name: feature31-node-agent
+version: 0.1.0
+entrypoint: run.js
+runtime:
+    language: nodejs
+    version: ">=22"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+"""
+    )
+
+    captured: dict[str, object] = {}
+
+    class _FakePopen:
+        def __init__(self, args, cwd=None, stdout=None, stderr=None, env=None):
+            captured["args"] = args
+            captured["cwd"] = cwd
+            captured["env"] = env
+            self._stdout = stdout
+            self._stderr = stderr
+            self.returncode = 17
+
+        def communicate(self):
+            if self._stdout is not None:
+                self._stdout.write("node-stdout-line\n")
+                self._stdout.flush()
+            if self._stderr is not None:
+                self._stderr.write("node-stderr-line\n")
+                self._stderr.flush()
+
+    import kinnoo.run_command as run_command
+
+    monkeypatch.setattr(run_command.subprocess, "Popen", _FakePopen)
+
+    exit_code = run_command.run_agent(
+        agent_dir_arg=str(agent_dir),
+        input_arg="hello-node",
+        no_guard=True,
+        pass_through_args=["--flag", "value"],
+    )
+
+    output = capsys.readouterr()
+
+    assert exit_code == 17
+    assert captured["args"] == [
+        "node",
+        str(agent_dir / "run.js"),
+        "hello-node",
+        "--flag",
+        "value",
+    ]
+    assert str(captured["cwd"]) == str(agent_dir.resolve())
+    assert "node-stdout-line" in output.out
+    assert "node-stderr-line" in output.err
+    assert not (agent_dir / ".venv").exists()
+
+
+def test_feature42_run_inline_json_input_mode(tmp_path):
+    agent_dir = tmp_path / "feature42-json-inline-agent"
+    agent_dir.mkdir()
+    (agent_dir / "requirements.txt").write_text("")
+    (agent_dir / "kinnoo.yaml").write_text(
+        """
+name: feature42-json-inline-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: json
+outputs:
+    type: text
+"""
+    )
+    (agent_dir / "run.py").write_text(
+        "import json\n"
+        "import sys\n"
+        "payload = json.loads(sys.argv[1])\n"
+        "print(json.dumps(payload, sort_keys=True, separators=(',', ':')))\n"
+    )
+    (agent_dir / "README.md").write_text("feature42 inline json mode")
+    (agent_dir / "tools").mkdir()
+    (agent_dir / "prompts").mkdir()
+
+    inline_payload = '{"z":1,"a":{"k":"v"}}'
+    result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(agent_dir),
+            "--json-input",
+            inline_payload,
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert '{"a":{"k":"v"},"z":1}' in result.stdout
+
+
+def test_feature42_run_json_file_input_mode(tmp_path):
+    agent_dir = tmp_path / "feature42-json-file-agent"
+    agent_dir.mkdir()
+    (agent_dir / "requirements.txt").write_text("")
+    (agent_dir / "kinnoo.yaml").write_text(
+        """
+name: feature42-json-file-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: json
+outputs:
+    type: text
+"""
+    )
+    (agent_dir / "run.py").write_text(
+        "import json\n"
+        "import sys\n"
+        "payload = json.loads(sys.argv[1])\n"
+        "print('ok:' + payload['message'])\n"
+    )
+    (agent_dir / "README.md").write_text("feature42 json-file mode")
+    (agent_dir / "tools").mkdir()
+    (agent_dir / "prompts").mkdir()
+
+    valid_payload_file = tmp_path / "payload.json"
+    valid_payload_file.write_text('{"message":"hello-from-file"}', encoding="utf-8")
+
+    valid_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(agent_dir),
+            "--json-file",
+            str(valid_payload_file),
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert valid_result.returncode == 0, valid_result.stderr
+    assert "ok:hello-from-file" in valid_result.stdout
+
+    missing_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(agent_dir),
+            "--json-file",
+            str(tmp_path / "missing.json"),
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert missing_result.returncode != 0
+    assert "JSON input file not found" in missing_result.stderr
+
+    invalid_payload_file = tmp_path / "invalid_payload.json"
+    invalid_payload_file.write_text('{"message":', encoding="utf-8")
+
+    invalid_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(agent_dir),
+            "--json-file",
+            str(invalid_payload_file),
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert invalid_result.returncode != 0
+    assert "Invalid JSON in --json-file payload" in invalid_result.stderr
+
+
+def test_feature42_json_output_contract_enforcement(tmp_path):
+    valid_agent = tmp_path / "feature42-json-output-valid-agent"
+    valid_agent.mkdir()
+    (valid_agent / "requirements.txt").write_text("")
+    (valid_agent / "kinnoo.yaml").write_text(
+        """
+name: feature42-json-output-valid-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: json
+"""
+    )
+    (valid_agent / "run.py").write_text(
+        "import json\n"
+        "print(json.dumps({'status': 'ok', 'value': 1}, sort_keys=True))\n"
+    )
+    (valid_agent / "README.md").write_text("feature42 valid json output")
+    (valid_agent / "tools").mkdir()
+    (valid_agent / "prompts").mkdir()
+
+    valid_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "run", str(valid_agent), "hello"],
+        capture_output=True,
+        text=True,
+    )
+
+    assert valid_result.returncode == 0, valid_result.stderr
+    assert '{"status": "ok", "value": 1}' in valid_result.stdout
+
+    invalid_agent = tmp_path / "feature42-json-output-invalid-agent"
+    invalid_agent.mkdir()
+    (invalid_agent / "requirements.txt").write_text("")
+    (invalid_agent / "kinnoo.yaml").write_text(
+        """
+name: feature42-json-output-invalid-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: json
+"""
+    )
+    (invalid_agent / "run.py").write_text(
+        "print('not-json-output')\n"
+    )
+    (invalid_agent / "README.md").write_text("feature42 invalid json output")
+    (invalid_agent / "tools").mkdir()
+    (invalid_agent / "prompts").mkdir()
+
+    secret_input = "TOP_SECRET_TOKEN_123"
+    invalid_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "run", str(invalid_agent), secret_input],
+        capture_output=True,
+        text=True,
+    )
+
+    assert invalid_result.returncode != 0
+    assert "outputs.type=json contract violation" in invalid_result.stderr
+    assert "line" in invalid_result.stderr and "column" in invalid_result.stderr
+    assert secret_input not in invalid_result.stderr
+
+
+@pytest.mark.parametrize(
+    ("runtime_language", "entrypoint_name", "entrypoint_contents"),
+    [
+        (
+            "python",
+            "run.py",
+            "import time\nwhile True:\n    time.sleep(60)\n",
+        ),
+        (
+            "nodejs",
+            "run.js",
+            "setInterval(() => {}, 60000);\n",
+        ),
+    ],
+)
+def test_feature32_run_daemon_start_persists_state(
+    monkeypatch,
+    tmp_path,
+    capsys,
+    runtime_language,
+    entrypoint_name,
+    entrypoint_contents,
+):
+    agent_dir = tmp_path / f"feature32-daemon-{runtime_language}-agent"
+    agent_dir.mkdir()
+    (agent_dir / "requirements.txt").write_text("")
+    (agent_dir / entrypoint_name).write_text(entrypoint_contents, encoding="utf-8")
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                f"name: feature32-daemon-{runtime_language}-agent",
+                "version: 0.1.0",
+                f"entrypoint: {entrypoint_name}",
+                "runtime:",
+                f"    language: {runtime_language}",
+                "    version: \">=3.10\"" if runtime_language == "python" else "    version: \">=22\"",
+                "    type: daemon",
+                "dependencies: []",
+                "inputs:",
+                "    type: text",
+                "outputs:",
+                "    type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    if runtime_language == "python":
+        # Pre-create minimal venv layout so test does not invoke real venv.create,
+        # which internally uses subprocess.Popen with additional kwargs.
+        venv_python = agent_dir / ".venv" / "bin" / "python"
+        venv_python.parent.mkdir(parents=True, exist_ok=True)
+        venv_python.write_text("", encoding="utf-8")
+
+    class _FakeDaemonPopen:
+        def __init__(self, args, cwd=None, stdout=None, stderr=None, env=None, start_new_session=False):
+            self.args = args
+            self.cwd = cwd
+            self.stdout = stdout
+            self.stderr = stderr
+            self.env = env
+            self.start_new_session = start_new_session
+            self.pid = 54321 if runtime_language == "python" else 65432
+
+    import kinnoo.run_command as run_command
+
+    monkeypatch.setattr(run_command.subprocess, "Popen", _FakeDaemonPopen)
+
+    exit_code = run_command.run_agent(
+        agent_dir_arg=str(agent_dir),
+        input_arg="hello-daemon",
+        no_guard=True,
+    )
+
+    captured = capsys.readouterr()
+    combined_output = f"{captured.out}\n{captured.err}"
+
+    assert exit_code == 0, combined_output
+    assert "daemon started" in combined_output
+    assert "control hints" in combined_output
+
+    state_path = agent_dir / ".kinnoo" / "daemon-state.json"
+    log_path = agent_dir / ".kinnoo" / "daemon.log"
+    assert state_path.exists(), "Expected daemon state file to be persisted"
+    assert log_path.exists(), "Expected daemon log file to be created"
+
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    assert state["runtime_type"] == "daemon"
+    assert state["runtime_language"] == runtime_language
+    assert state["agent_dir"] == str(agent_dir.resolve())
+    assert state["entrypoint"] == entrypoint_name
+    assert state["pid"] in (54321, 65432)
+    assert state["state_version"] == 1
+    assert state["command"][0] == ("node" if runtime_language == "nodejs" else str(agent_dir / ".venv" / "bin" / "python"))
+
+
+def test_feature32_stop_daemon_graceful_and_fallback(monkeypatch, tmp_path, capsys):
+    import kinnoo.run_command as run_command
+    from kinnoo.supervisor import DaemonStopReport
+
+    graceful_agent = tmp_path / "feature32-stop-graceful-agent"
+    graceful_agent.mkdir()
+    graceful_state = graceful_agent / ".kinnoo" / "daemon-state.json"
+    graceful_state.parent.mkdir(parents=True, exist_ok=True)
+    graceful_state.write_text(
+        json.dumps(
+            {
+                "pid": 42001,
+                "runtime_type": "daemon",
+                "runtime_language": "python",
+                "state_version": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    fallback_agent = tmp_path / "feature32-stop-fallback-agent"
+    fallback_agent.mkdir()
+    fallback_state = fallback_agent / ".kinnoo" / "daemon-state.json"
+    fallback_state.parent.mkdir(parents=True, exist_ok=True)
+    fallback_state.write_text(
+        json.dumps(
+            {
+                "pid": 42002,
+                "runtime_type": "daemon",
+                "runtime_language": "nodejs",
+                "state_version": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    observed_pids: list[int] = []
+
+    def fake_stop_daemon_pid(pid: int, timeout_seconds: float = 3.0, poll_interval_seconds: float = 0.05):
+        del timeout_seconds, poll_interval_seconds
+        observed_pids.append(pid)
+        if pid == 42001:
+            return DaemonStopReport(
+                pid=pid,
+                terminated=True,
+                already_stopped=False,
+                sigterm_sent=True,
+                sigkill_sent=False,
+            )
+        return DaemonStopReport(
+            pid=pid,
+            terminated=True,
+            already_stopped=False,
+            sigterm_sent=True,
+            sigkill_sent=True,
+        )
+
+    monkeypatch.setattr(run_command, "stop_daemon_pid", fake_stop_daemon_pid)
+
+    graceful_exit_code = run_command.stop_agent(str(graceful_agent))
+    fallback_exit_code = run_command.stop_agent(str(fallback_agent))
+
+    captured = capsys.readouterr()
+    combined_output = f"{captured.out}\n{captured.err}"
+
+    assert graceful_exit_code == 0, combined_output
+    assert fallback_exit_code == 0, combined_output
+    assert observed_pids == [42001, 42002]
+    assert "daemon stopped gracefully with SIGTERM: pid=42001" in combined_output
+    assert "daemon stopped with fallback SIGKILL: pid=42002" in combined_output
+    assert "daemon state metadata cleared" in combined_output
+    assert not graceful_state.exists(), "Expected graceful stop to clear daemon-state metadata"
+    assert not fallback_state.exists(), "Expected fallback stop to clear daemon-state metadata"
+
+
+def test_feature32_attach_daemon_session_controls(monkeypatch, tmp_path, capsys):
+    import kinnoo.run_command as run_command
+
+    supported_agent = tmp_path / "feature32-attach-supported-agent"
+    supported_agent.mkdir()
+    supported_log = supported_agent / ".kinnoo" / "daemon.log"
+    supported_log.parent.mkdir(parents=True, exist_ok=True)
+    supported_log.write_text("daemon output line\n", encoding="utf-8")
+    (supported_agent / ".kinnoo" / "daemon-state.json").write_text(
+        json.dumps(
+            {
+                "pid": 43001,
+                "runtime_type": "daemon",
+                "runtime_language": "python",
+                "log_path": str(supported_log),
+                "state_version": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    non_running_agent = tmp_path / "feature32-attach-non-running-agent"
+    non_running_agent.mkdir()
+    (non_running_agent / ".kinnoo").mkdir(parents=True, exist_ok=True)
+    (non_running_agent / ".kinnoo" / "daemon-state.json").write_text(
+        json.dumps(
+            {
+                "pid": 43002,
+                "runtime_type": "daemon",
+                "runtime_language": "nodejs",
+                "state_version": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    unsupported_mode_agent = tmp_path / "feature32-attach-unsupported-agent"
+    unsupported_mode_agent.mkdir()
+    (unsupported_mode_agent / ".kinnoo").mkdir(parents=True, exist_ok=True)
+    (unsupported_mode_agent / ".kinnoo" / "daemon-state.json").write_text(
+        json.dumps(
+            {
+                "pid": 43003,
+                "runtime_type": "one-shot",
+                "runtime_language": "python",
+                "state_version": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    non_tty_agent = tmp_path / "feature32-attach-non-tty-agent"
+    non_tty_agent.mkdir()
+    non_tty_log = non_tty_agent / ".kinnoo" / "daemon.log"
+    non_tty_log.parent.mkdir(parents=True, exist_ok=True)
+    non_tty_log.write_text("", encoding="utf-8")
+    (non_tty_agent / ".kinnoo" / "daemon-state.json").write_text(
+        json.dumps(
+            {
+                "pid": 43004,
+                "runtime_type": "daemon",
+                "runtime_language": "python",
+                "log_path": str(non_tty_log),
+                "state_version": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    pid_status_calls = {"supported": 0}
+
+    def fake_pid_running(pid: int) -> bool:
+        if pid == 43001:
+            pid_status_calls["supported"] += 1
+            # First check confirms running; second check ends attach loop deterministically.
+            return pid_status_calls["supported"] == 1
+        if pid == 43002:
+            return False
+        if pid == 43004:
+            return True
+        return True
+
+    monkeypatch.setattr(run_command, "daemon_pid_is_running", fake_pid_running)
+
+    monkeypatch.setattr(run_command.sys.stdin, "isatty", lambda: True)
+    monkeypatch.setattr(run_command.sys.stdout, "isatty", lambda: True)
+    supported_exit = run_command.attach_agent(str(supported_agent))
+
+    non_running_exit = run_command.attach_agent(str(non_running_agent))
+    unsupported_mode_exit = run_command.attach_agent(str(unsupported_mode_agent))
+
+    monkeypatch.setattr(run_command.sys.stdin, "isatty", lambda: False)
+    monkeypatch.setattr(run_command.sys.stdout, "isatty", lambda: True)
+    non_tty_exit = run_command.attach_agent(str(non_tty_agent))
+
+    captured = capsys.readouterr()
+    combined_output = f"{captured.out}\n{captured.err}"
+
+    assert supported_exit == 0, combined_output
+    assert non_running_exit == 1, combined_output
+    assert unsupported_mode_exit == 1, combined_output
+    assert non_tty_exit == 1, combined_output
+    assert "attach session started" in combined_output
+    assert "daemon output line" in combined_output
+    assert "daemon exited; attach session ending" in combined_output
+    assert "daemon is not running" in combined_output
+    assert "attach is unsupported for runtime.type" in combined_output
+    assert "attach requires an interactive TTY session" in combined_output
+
+
+def test_feature32_logs_daemon_tail_and_follow(monkeypatch, tmp_path, capsys):
+    import kinnoo.run_command as run_command
+
+    tail_agent = tmp_path / "feature32-logs-tail-agent"
+    tail_agent.mkdir()
+    tail_log = tail_agent / ".kinnoo" / "daemon.log"
+    tail_log.parent.mkdir(parents=True, exist_ok=True)
+    tail_log.write_text("line-1\nline-2\nline-3\n", encoding="utf-8")
+    (tail_agent / ".kinnoo" / "daemon-state.json").write_text(
+        json.dumps(
+            {
+                "pid": 44001,
+                "runtime_type": "daemon",
+                "runtime_language": "python",
+                "log_path": str(tail_log),
+                "state_version": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    follow_agent = tmp_path / "feature32-logs-follow-agent"
+    follow_agent.mkdir()
+    follow_log = follow_agent / ".kinnoo" / "daemon.log"
+    follow_log.parent.mkdir(parents=True, exist_ok=True)
+    follow_log.write_text("startup-line\n", encoding="utf-8")
+    (follow_agent / ".kinnoo" / "daemon-state.json").write_text(
+        json.dumps(
+            {
+                "pid": 44002,
+                "runtime_type": "daemon",
+                "runtime_language": "nodejs",
+                "log_path": str(follow_log),
+                "state_version": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    missing_log_agent = tmp_path / "feature32-logs-missing-log-agent"
+    missing_log_agent.mkdir()
+    missing_log_path = missing_log_agent / ".kinnoo" / "daemon.log"
+    missing_log_path.parent.mkdir(parents=True, exist_ok=True)
+    (missing_log_agent / ".kinnoo" / "daemon-state.json").write_text(
+        json.dumps(
+            {
+                "pid": 44003,
+                "runtime_type": "daemon",
+                "runtime_language": "python",
+                "log_path": str(missing_log_path),
+                "state_version": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    non_running_follow_agent = tmp_path / "feature32-logs-non-running-agent"
+    non_running_follow_agent.mkdir()
+    non_running_log = non_running_follow_agent / ".kinnoo" / "daemon.log"
+    non_running_log.parent.mkdir(parents=True, exist_ok=True)
+    non_running_log.write_text("last-known\n", encoding="utf-8")
+    (non_running_follow_agent / ".kinnoo" / "daemon-state.json").write_text(
+        json.dumps(
+            {
+                "pid": 44004,
+                "runtime_type": "daemon",
+                "runtime_language": "python",
+                "log_path": str(non_running_log),
+                "state_version": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    pid_calls = {"follow": 0}
+    appended_follow_line = {"done": False}
+
+    def fake_pid_running(pid: int) -> bool:
+        if pid == 44001:
+            return True
+        if pid == 44002:
+            pid_calls["follow"] += 1
+            return pid_calls["follow"] <= 2
+        if pid == 44003:
+            return True
+        if pid == 44004:
+            return False
+        return False
+
+    def fake_sleep(_seconds: float) -> None:
+        if not appended_follow_line["done"]:
+            with follow_log.open("a", encoding="utf-8") as handle:
+                handle.write("follow-line\n")
+            appended_follow_line["done"] = True
+
+    monkeypatch.setattr(run_command, "daemon_pid_is_running", fake_pid_running)
+    monkeypatch.setattr(run_command.time, "sleep", fake_sleep)
+
+    tail_exit = run_command.logs_agent(str(tail_agent), follow=False, tail_lines=2)
+    follow_exit = run_command.logs_agent(str(follow_agent), follow=True, tail_lines=1)
+    missing_log_exit = run_command.logs_agent(str(missing_log_agent), follow=False, tail_lines=5)
+    non_running_follow_exit = run_command.logs_agent(
+        str(non_running_follow_agent),
+        follow=True,
+        tail_lines=5,
+    )
+
+    captured = capsys.readouterr()
+    combined_output = f"{captured.out}\n{captured.err}"
+
+    assert tail_exit == 0, combined_output
+    assert follow_exit == 0, combined_output
+    assert missing_log_exit == 1, combined_output
+    assert non_running_follow_exit == 1, combined_output
+    assert "[daemon.log] line-2" in combined_output
+    assert "[daemon.log] line-3" in combined_output
+    assert "[daemon.log] startup-line" in combined_output
+    assert "[daemon.log] follow-line" in combined_output
+    assert "daemon exited; follow mode ended" in combined_output
+    assert "daemon log file not found" in combined_output
+    assert "follow mode requires an active daemon" in combined_output
+
+
+def test_feature34_openclaw_template_smoke_run(tmp_path):
+    """test289: generated OpenClaw scaffold runs via kinnoo run with required env vars configured."""
+    agent_name = "feature34-openclaw-smoke"
+    cli_script = str((Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"))
+
+    init_result = subprocess.run(
+        [sys.executable, cli_script, "init", agent_name, "--framework", "openclaw"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+    assert init_result.returncode == 0, init_result.stderr
+
+    agent_dir = tmp_path / agent_name
+    env = os.environ.copy()
+    env["OPENCLAW_API_KEY"] = "test-openclaw-api-key"
+    env["KINNOO_TEST_SAFE_MODE"] = "1"
+
+    state_path = agent_dir / ".kinnoo" / "daemon-state.json"
+    run_result = subprocess.run(
+        [
+            sys.executable,
+            cli_script,
+            "run",
+            str(agent_dir),
+            "smoke-input",
+            "--no-guard",
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    try:
+        run_output = f"{run_result.stdout}\n{run_result.stderr}"
+        assert run_result.returncode == 0, run_output
+        assert run_output.strip(), "Expected deterministic non-empty run output"
+        assert "[kinnoo] daemon started:" in run_output
+        assert "control hints" in run_output
+
+        log_path = agent_dir / ".kinnoo" / "daemon.log"
+        assert state_path.exists(), "Expected daemon state metadata after run"
+        assert log_path.exists(), "Expected daemon log file after run"
+
+        stop_result = subprocess.run(
+            [sys.executable, cli_script, "stop", str(agent_dir)],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        stop_output = f"{stop_result.stdout}\n{stop_result.stderr}"
+        assert stop_result.returncode == 0, stop_output
+        assert "daemon stopped" in stop_output or "daemon already not running" in stop_output
+        assert not state_path.exists(), "Expected daemon state metadata to be cleared after stop"
+    finally:
+        if state_path.exists():
+            subprocess.run(
+                [sys.executable, cli_script, "stop", str(agent_dir)],
+                cwd=tmp_path,
+                capture_output=True,
+                text=True,
+                env=env,
+            )
 
 
 def test_run_missing_entrypoint(tmp_path):
@@ -1433,3 +2184,541 @@ def test_feature25_interactive_prompt_allows_proceed_or_abort(tmp_path, monkeypa
 
     assert abort_code != 0
     assert "feature25-policy-entrypoint-ran" not in abort_output
+
+
+def test_feature39_run_sandbox_permission_enforcement(tmp_path):
+    allowed_agent_dir = tmp_path / "feature39-sandbox-allowed-agent"
+    allowed_agent_dir.mkdir()
+    (allowed_agent_dir / "requirements.txt").write_text("")
+    (allowed_agent_dir / "kinnoo.yaml").write_text(
+        """
+name: feature39-sandbox-allowed-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+permissions:
+    network: true
+    filesystem_scope: read-only
+    shell: false
+    browser: false
+    env_access: []
+"""
+    )
+    (allowed_agent_dir / "run.py").write_text("print('feature39-sandbox-allowed-ran')\n")
+    (allowed_agent_dir / "README.md").write_text("feature39 sandbox allowed agent")
+    (allowed_agent_dir / "tools").mkdir()
+    (allowed_agent_dir / "prompts").mkdir()
+
+    allowed_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(allowed_agent_dir),
+            "hello",
+            "--sandbox",
+            "--",
+            "--url",
+            "https://example.com",
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    allowed_output = f"{allowed_result.stdout}\n{allowed_result.stderr}"
+    assert allowed_result.returncode == 0, allowed_output
+    assert "sandbox policy check passed" in allowed_output
+    assert "feature39-sandbox-allowed-ran" in allowed_output
+
+    denied_agent_dir = tmp_path / "feature39-sandbox-denied-agent"
+    denied_agent_dir.mkdir()
+    (denied_agent_dir / "requirements.txt").write_text("")
+    (denied_agent_dir / "kinnoo.yaml").write_text(
+        """
+name: feature39-sandbox-denied-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+permissions:
+    network: true
+    filesystem_scope: read-only
+    shell: false
+    browser: false
+    env_access: []
+"""
+    )
+    (denied_agent_dir / "run.py").write_text("print('feature39-sandbox-denied-should-not-run')\n")
+    (denied_agent_dir / "README.md").write_text("feature39 sandbox denied agent")
+    (denied_agent_dir / "tools").mkdir()
+    (denied_agent_dir / "prompts").mkdir()
+
+    denied_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(denied_agent_dir),
+            "hello",
+            "--sandbox",
+            "--",
+            "--exec",
+            "echo denied",
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    denied_output = f"{denied_result.stdout}\n{denied_result.stderr}"
+    assert denied_result.returncode != 0, denied_output
+    assert "classification=policy_violation" in denied_output
+    assert "capability=shell action=shell_execution" in denied_output
+    assert "Remediation:" in denied_output
+    assert "feature39-sandbox-denied-should-not-run" not in denied_output
+
+
+def test_feature39_sandbox_backend_failure_shapes() -> None:
+    from kinnoo.sandbox import evaluate_sandbox_permissions
+
+    base_manifest = {
+        "permissions": {
+            "network": True,
+            "filesystem_scope": "read-only",
+            "shell": False,
+            "browser": False,
+            "env_access": [],
+        }
+    }
+
+    unsupported_runtime = evaluate_sandbox_permissions(
+        manifest=base_manifest,
+        runtime_type="daemon",
+        runtime_language="python",
+        pass_through_args=["--exec", "echo denied"],
+    )
+    assert unsupported_runtime.allowed is False
+    assert unsupported_runtime.code == "backend_unsupported_runtime"
+    assert "runtime.type='one-shot'" in unsupported_runtime.message
+    assert "run without --sandbox" in unsupported_runtime.remediation
+
+    unsupported_runtime_language = evaluate_sandbox_permissions(
+        manifest=base_manifest,
+        runtime_type="one-shot",
+        runtime_language="ruby",
+        pass_through_args=["--exec", "echo denied"],
+    )
+    assert unsupported_runtime_language.allowed is False
+    assert unsupported_runtime_language.code == "backend_unsupported_runtime_language"
+    assert "runtime.language='python' and 'nodejs'" in unsupported_runtime_language.message
+    assert "run without --sandbox" in unsupported_runtime_language.remediation
+
+    missing_permissions = evaluate_sandbox_permissions(
+        manifest={},
+        runtime_type="one-shot",
+        runtime_language="python",
+        pass_through_args=["--exec", "echo denied"],
+    )
+    assert missing_permissions.allowed is False
+    assert missing_permissions.code == "missing_permissions_policy"
+    assert "requires manifest permissions declaration" in missing_permissions.message
+    assert "Declare a permissions section" in missing_permissions.remediation
+
+
+def test_feature41_violation_enforcement_and_kill_switch(tmp_path):
+    warn_agent_dir = tmp_path / "feature41-warn-agent"
+    warn_agent_dir.mkdir()
+    (warn_agent_dir / "requirements.txt").write_text("")
+    (warn_agent_dir / "kinnoo.yaml").write_text(
+        """
+name: feature41-warn-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+permissions:
+    network: false
+    filesystem_scope: read-only
+    shell: false
+    browser: false
+    env_access: []
+"""
+    )
+    (warn_agent_dir / "run.py").write_text("print('feature41-warn-agent-ran')\n")
+    (warn_agent_dir / "README.md").write_text("feature41 warn agent")
+    (warn_agent_dir / "tools").mkdir()
+    (warn_agent_dir / "prompts").mkdir()
+
+    warn_env = dict(os.environ)
+    warn_env["KINNOO_MONITOR_ENFORCEMENT_MODE"] = "warn"
+    warn_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(warn_agent_dir),
+            "hello",
+            "--sandbox",
+            "--",
+            "--url",
+            "https://example.com",
+        ],
+        capture_output=True,
+        text=True,
+        env=warn_env,
+    )
+
+    warn_output = f"{warn_result.stdout}\n{warn_result.stderr}"
+    assert warn_result.returncode == 0, warn_output
+    assert "reason_code=soft_policy_warning" in warn_output
+    assert "sandbox policy warning recorded" in warn_output
+    assert "feature41-warn-agent-ran" in warn_output
+
+    warn_events_path = warn_agent_dir / ".kinnoo" / "violation-events.jsonl"
+    assert warn_events_path.exists(), warn_output
+    warn_lines = [line for line in warn_events_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert warn_lines
+    warn_payload = json.loads(warn_lines[-1])
+    assert warn_payload["enforcement_action"] == "warn_continue"
+    assert warn_payload["reason_code"] == "soft_policy_warning"
+
+    kill_agent_dir = tmp_path / "feature41-kill-agent"
+    kill_agent_dir.mkdir()
+    (kill_agent_dir / "requirements.txt").write_text("")
+    (kill_agent_dir / "kinnoo.yaml").write_text(
+        """
+name: feature41-kill-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+permissions:
+    network: true
+    filesystem_scope: read-only
+    shell: false
+    browser: false
+    env_access: []
+"""
+    )
+    (kill_agent_dir / "run.py").write_text("print('feature41-kill-agent-should-not-run')\n")
+    (kill_agent_dir / "README.md").write_text("feature41 kill agent")
+    (kill_agent_dir / "tools").mkdir()
+    (kill_agent_dir / "prompts").mkdir()
+
+    kill_env = dict(os.environ)
+    kill_env["KINNOO_MONITOR_ENFORCEMENT_MODE"] = "warn"
+    kill_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(kill_agent_dir),
+            "hello",
+            "--sandbox",
+            "--",
+            "--exec",
+            "echo denied",
+        ],
+        capture_output=True,
+        text=True,
+        env=kill_env,
+    )
+
+    kill_output = f"{kill_result.stdout}\n{kill_result.stderr}"
+    assert kill_result.returncode != 0, kill_output
+    assert "reason_code=hard_shell_execution_violation" in kill_output
+    assert "kill switch activated" in kill_output
+    assert "feature41-kill-agent-should-not-run" not in kill_output
+
+    kill_events_path = kill_agent_dir / ".kinnoo" / "violation-events.jsonl"
+    assert kill_events_path.exists(), kill_output
+    kill_lines = [line for line in kill_events_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert kill_lines
+    kill_payload = json.loads(kill_lines[-1])
+    assert kill_payload["enforcement_action"] == "kill_switch_terminate"
+    assert kill_payload["reason_code"] == "hard_shell_execution_violation"
+
+
+def test_feature41_resource_control_enforcement(tmp_path):
+    timeout_agent_dir = tmp_path / "feature41-timeout-agent"
+    timeout_agent_dir.mkdir()
+    (timeout_agent_dir / "requirements.txt").write_text("")
+    (timeout_agent_dir / "kinnoo.yaml").write_text(
+        """
+name: feature41-timeout-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+"""
+    )
+    (timeout_agent_dir / "run.py").write_text(
+        "import time\n"
+        "time.sleep(3)\n"
+        "print('timeout-agent-ran')\n"
+    )
+    (timeout_agent_dir / "README.md").write_text("feature41 timeout agent")
+    (timeout_agent_dir / "tools").mkdir()
+    (timeout_agent_dir / "prompts").mkdir()
+
+    timeout_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(timeout_agent_dir),
+            "hello",
+            "--max-seconds",
+            "0.2",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    timeout_output = f"{timeout_result.stdout}\n{timeout_result.stderr}"
+    assert timeout_result.returncode != 0, timeout_output
+    assert "reason_code=wall_clock_timeout_exceeded" in timeout_output
+
+    if os.name == "posix":
+        cpu_agent_dir = tmp_path / "feature41-cpu-agent"
+        cpu_agent_dir.mkdir()
+        (cpu_agent_dir / "requirements.txt").write_text("")
+        (cpu_agent_dir / "kinnoo.yaml").write_text(
+            """
+name: feature41-cpu-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+"""
+        )
+        (cpu_agent_dir / "run.py").write_text(
+            "while True:\n"
+            "    pass\n"
+        )
+        (cpu_agent_dir / "README.md").write_text("feature41 cpu agent")
+        (cpu_agent_dir / "tools").mkdir()
+        (cpu_agent_dir / "prompts").mkdir()
+
+        cpu_result = subprocess.run(
+            [
+                sys.executable,
+                "src/kinnoo/cli.py",
+                "run",
+                str(cpu_agent_dir),
+                "hello",
+                "--max-cpu-seconds",
+                "1",
+                "--max-seconds",
+                "3",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        cpu_output = f"{cpu_result.stdout}\n{cpu_result.stderr}"
+        assert cpu_result.returncode != 0, cpu_output
+        assert (
+            "reason_code=cpu_limit_exceeded" in cpu_output
+            or "reason_code=wall_clock_timeout_exceeded" in cpu_output
+        )
+
+    degraded_agent_dir = tmp_path / "feature41-degraded-agent"
+    degraded_agent_dir.mkdir()
+    (degraded_agent_dir / "requirements.txt").write_text("")
+    (degraded_agent_dir / "kinnoo.yaml").write_text(
+        """
+name: feature41-degraded-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+"""
+    )
+    (degraded_agent_dir / "run.py").write_text("print('feature41-degraded-agent-ran')\n")
+    (degraded_agent_dir / "README.md").write_text("feature41 degraded agent")
+    (degraded_agent_dir / "tools").mkdir()
+    (degraded_agent_dir / "prompts").mkdir()
+
+    degraded_env = dict(os.environ)
+    degraded_env["KINNOO_FORCE_RESOURCE_LIMIT_UNSUPPORTED"] = "1"
+    degraded_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(degraded_agent_dir),
+            "hello",
+            "--max-cpu-seconds",
+            "1",
+            "--max-memory-mb",
+            "64",
+        ],
+        capture_output=True,
+        text=True,
+        env=degraded_env,
+    )
+    degraded_output = f"{degraded_result.stdout}\n{degraded_result.stderr}"
+    assert degraded_result.returncode == 0, degraded_output
+    assert "max-cpu-seconds unsupported on this platform; running in degraded mode" in degraded_output
+    assert "max-memory-mb unsupported on this platform; running in degraded mode" in degraded_output
+    assert "feature41-degraded-agent-ran" in degraded_output
+
+
+def test_feature41_dry_run_monitoring_trace(tmp_path):
+    dry_run_agent_dir = tmp_path / "feature41-dry-run-agent"
+    dry_run_agent_dir.mkdir()
+    (dry_run_agent_dir / "requirements.txt").write_text("")
+    (dry_run_agent_dir / "kinnoo.yaml").write_text(
+        """
+name: feature41-dry-run-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+"""
+    )
+    (dry_run_agent_dir / "run.py").write_text(
+        "from pathlib import Path\n"
+        "import socket\n"
+        "Path('feature41-dry-run-side-effect.flag').write_text('executed', encoding='utf-8')\n"
+        "socket.create_connection(('127.0.0.1', 9), timeout=0.1)\n"
+        "print('feature41-dry-run-entrypoint-ran')\n"
+    )
+    (dry_run_agent_dir / "README.md").write_text("feature41 dry-run agent")
+    (dry_run_agent_dir / "tools").mkdir()
+    (dry_run_agent_dir / "prompts").mkdir()
+
+    dry_run_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(dry_run_agent_dir),
+            "hello",
+            "--dry-run",
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    dry_run_output = f"{dry_run_result.stdout}\n{dry_run_result.stderr}"
+    assert dry_run_result.returncode == 0, dry_run_output
+    assert "dry-run mode enabled: entrypoint execution suppressed" in dry_run_output
+    assert "dry-run predicted actions:" in dry_run_output
+    assert "process::process_spawn" in dry_run_output
+    assert "network::network_access_attempt" in dry_run_output
+    assert "filesystem::filesystem_write" in dry_run_output
+
+    side_effect_flag = dry_run_agent_dir / "feature41-dry-run-side-effect.flag"
+    assert not side_effect_flag.exists()
+    assert "feature41-dry-run-entrypoint-ran" not in dry_run_output
+
+
+def test_feature40_keygen_generates_ed25519_keypair(tmp_path):
+    from kinnoo.signing import (
+        load_ed25519_private_key,
+        load_ed25519_public_key,
+        sign_payload,
+        verify_signature,
+    )
+
+    private_key_path = tmp_path / "feature40-private.pem"
+    public_key_path = tmp_path / "feature40-public.pem"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "keygen",
+            "--private-key",
+            str(private_key_path),
+            "--public-key",
+            str(public_key_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    combined_output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, combined_output
+    assert private_key_path.exists()
+    assert public_key_path.exists()
+
+    private_key_pem = private_key_path.read_text(encoding="utf-8")
+    public_key_pem = public_key_path.read_text(encoding="utf-8")
+    assert "BEGIN PRIVATE KEY" in private_key_pem
+    assert "BEGIN PUBLIC KEY" in public_key_pem
+
+    if os.name != "nt":
+        import stat
+
+        private_mode = stat.S_IMODE(private_key_path.stat().st_mode)
+        public_mode = stat.S_IMODE(public_key_path.stat().st_mode)
+        assert private_mode == 0o600
+        assert public_mode == 0o644
+
+    assert "Public key fingerprint (SHA256):" in combined_output
+    assert "BEGIN PRIVATE KEY" not in combined_output
+
+    private_key = load_ed25519_private_key(private_key_path)
+    public_key = load_ed25519_public_key(public_key_path)
+    payload = b"feature40-keygen-payload"
+    signature = sign_payload(private_key, payload)
+
+    assert verify_signature(public_key, payload, signature) is True
+    assert verify_signature(public_key, b"tampered", signature) is False

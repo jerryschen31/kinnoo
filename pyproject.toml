@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kinnoo"
-version = "0.12.1"
+version = "0.23.0"
 description = "Kinnoo agent CLI and scaffolding tools"
 authors = [
     { name = "Kinnoo Team" }
@@ -13,7 +13,8 @@ readme = "README.md"
 requires-python = ">=3.10"
 
 dependencies = [
-    "PyYAML>=6.0"
+    "PyYAML>=6.0",
+    "cryptography>=42.0"
 ]
 
 [tool.setuptools]

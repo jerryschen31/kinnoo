@@ -96,7 +96,19 @@ FIELD_TYPES: dict[str, type] = {
 }
 
 # Supported runtime types in this version of kinnoo.
-SUPPORTED_RUNTIME_TYPES: list[str] = ["one-shot", "mcp-server"]
+SUPPORTED_RUNTIME_TYPES: list[str] = ["one-shot", "mcp-server", "daemon"]
+
+# Supported runtime languages in this version of kinnoo.
+SUPPORTED_RUNTIME_LANGUAGES: list[str] = ["python", "nodejs"]
+
+# Supported manifest I/O contract type values.
+# Keep both 'text' and 'string' for backward compatibility with existing
+# manifests and default normalization behavior.
+SUPPORTED_INPUT_TYPES: list[str] = ["text", "string", "file", "json"]
+SUPPORTED_OUTPUT_TYPES: list[str] = ["text", "string", "file", "json"]
+
+# Supported Node.js package managers for runtime.language == nodejs.
+SUPPORTED_NODE_PACKAGE_MANAGERS: list[str] = ["npm", "pnpm"]
 
 # Feature23 readiness probe method values for mcp-server runtime workflows.
 SUPPORTED_READINESS_METHODS: list[str] = ["tcp", "stdout"]
@@ -140,6 +152,28 @@ MCP_SERVER_PERMISSION_BOOL_FIELDS: list[str] = [
     "allow_create",
 ]
 
+# Feature39 manifest permissions keys for explicit sandbox policy declarations.
+PERMISSIONS_KEYS: list[str] = [
+    "network",
+    "filesystem_scope",
+    "shell",
+    "browser",
+    "env_access",
+]
+
+PERMISSIONS_BOOL_FIELDS: list[str] = [
+    "network",
+    "shell",
+    "browser",
+]
+
+SUPPORTED_FILESYSTEM_SCOPES: list[str] = [
+    "none",
+    "read-only",
+    "workspace-write",
+    "full",
+]
+
 # Feature25 default timeout values for runtime service health checks.
 DEFAULT_HTTP_HEALTH_CHECK_TIMEOUT_SECONDS: float = 5.0
 DEFAULT_TCP_HEALTH_CHECK_TIMEOUT_SECONDS: float = 3.0
@@ -151,6 +185,10 @@ OPTIONAL_FIELDS: list[str] = [
     "author",
     "license",
     "env_vars",
+    "runtime.package_manager",
+    "channels",
+    "skills",
+    "state_dirs",
     "inputs.required",
     "model",
     "assets",
@@ -158,6 +196,7 @@ OPTIONAL_FIELDS: list[str] = [
     "assets.bundle",
     "assets.max_bundle_size_mb",
     "services",
+    "permissions",
 ]
 
 # Expected types for optional V2 fields when present.
@@ -167,6 +206,10 @@ OPTIONAL_FIELD_TYPES: dict[str, object] = {
     "author": str,
     "license": str,
     "env_vars": list,
+    "runtime.package_manager": str,
+    "channels": list,
+    "skills": list,
+    "state_dirs": list,
     "inputs.required": bool,
     "model": str,
     "assets": dict,
@@ -174,6 +217,7 @@ OPTIONAL_FIELD_TYPES: dict[str, object] = {
     "assets.bundle": bool,
     "assets.max_bundle_size_mb": (int, float),
     "services": list,
+    "permissions": dict,
 }
 
 # Regex for a valid semver string: MAJOR.MINOR.PATCH with optional pre-release

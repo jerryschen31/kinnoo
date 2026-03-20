@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import os
 import socket
 import signal
 import subprocess
@@ -7,6 +9,7 @@ import threading
 import time
 from collections import deque
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
@@ -37,6 +40,164 @@ class ShutdownReport:
     exit_code: int
     sigterm_sent: bool
     sigkill_sent: bool
+
+
+@dataclass
+class DaemonStopReport:
+    pid: int
+    terminated: bool
+    already_stopped: bool
+    sigterm_sent: bool
+    sigkill_sent: bool
+
+
+def daemon_runtime_dir(agent_dir: Path) -> Path:
+    """Return the deterministic runtime metadata directory for daemon control plane files."""
+    return agent_dir / ".kinnoo"
+
+
+def daemon_state_path(agent_dir: Path) -> Path:
+    """Return the daemon state metadata path for a given agent directory."""
+    return daemon_runtime_dir(agent_dir) / "daemon-state.json"
+
+
+def daemon_log_path(agent_dir: Path) -> Path:
+    """Return the daemon log path for a given agent directory."""
+    return daemon_runtime_dir(agent_dir) / "daemon.log"
+
+
+def clear_daemon_state(agent_dir: Path) -> None:
+    """Remove persisted daemon state when lifecycle control reaches a terminal stop state."""
+    state_file = daemon_state_path(agent_dir)
+    try:
+        state_file.unlink()
+    except FileNotFoundError:
+        return
+
+
+def _pid_is_running(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        # Process exists but current user cannot signal it.
+        return True
+    return True
+
+
+def daemon_pid_is_running(pid: int) -> bool:
+    """Return whether a daemon PID currently exists from the local process table."""
+    return _pid_is_running(pid)
+
+
+def stop_daemon_pid(
+    pid: int,
+    timeout_seconds: float = 3.0,
+    poll_interval_seconds: float = 0.05,
+) -> DaemonStopReport:
+    """Stop a daemon process with SIGTERM first, then SIGKILL as a deterministic fallback."""
+    if pid <= 0:
+        return DaemonStopReport(
+            pid=pid,
+            terminated=False,
+            already_stopped=False,
+            sigterm_sent=False,
+            sigkill_sent=False,
+        )
+
+    if not _pid_is_running(pid):
+        return DaemonStopReport(
+            pid=pid,
+            terminated=True,
+            already_stopped=True,
+            sigterm_sent=False,
+            sigkill_sent=False,
+        )
+
+    try:
+        os.kill(pid, signal.SIGTERM)
+        sigterm_sent = True
+    except ProcessLookupError:
+        return DaemonStopReport(
+            pid=pid,
+            terminated=True,
+            already_stopped=True,
+            sigterm_sent=False,
+            sigkill_sent=False,
+        )
+
+    timeout_seconds = max(0.0, timeout_seconds)
+    poll_interval_seconds = max(0.01, poll_interval_seconds)
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() <= deadline:
+        if not _pid_is_running(pid):
+            return DaemonStopReport(
+                pid=pid,
+                terminated=True,
+                already_stopped=False,
+                sigterm_sent=sigterm_sent,
+                sigkill_sent=False,
+            )
+        time.sleep(poll_interval_seconds)
+
+    try:
+        os.kill(pid, signal.SIGKILL)
+        sigkill_sent = True
+    except ProcessLookupError:
+        return DaemonStopReport(
+            pid=pid,
+            terminated=True,
+            already_stopped=False,
+            sigterm_sent=sigterm_sent,
+            sigkill_sent=False,
+        )
+
+    # After SIGKILL we evaluate one final time to ensure deterministic reporting.
+    terminated = not _pid_is_running(pid)
+    return DaemonStopReport(
+        pid=pid,
+        terminated=terminated,
+        already_stopped=False,
+        sigterm_sent=sigterm_sent,
+        sigkill_sent=sigkill_sent,
+    )
+
+
+def write_daemon_state(agent_dir: Path, state: dict[str, object]) -> Path:
+    """Persist daemon state metadata atomically for downstream lifecycle commands."""
+    runtime_dir = daemon_runtime_dir(agent_dir)
+    runtime_dir.mkdir(parents=True, exist_ok=True)
+
+    state_file = daemon_state_path(agent_dir)
+    temp_file = state_file.with_suffix(".tmp")
+    temp_file.write_text(json.dumps(state, sort_keys=True), encoding="utf-8")
+    temp_file.replace(state_file)
+    return state_file
+
+
+def build_daemon_state_payload(
+    *,
+    agent_dir: Path,
+    runtime_language: str,
+    runtime_type: str,
+    entrypoint: str,
+    process_id: int,
+    process_args: list[str],
+    log_path: Path,
+) -> dict[str, object]:
+    """Build deterministic daemon state metadata content."""
+    return {
+        "agent_dir": str(agent_dir),
+        "entrypoint": entrypoint,
+        "runtime_language": runtime_language,
+        "runtime_type": runtime_type,
+        "pid": int(process_id),
+        "command": process_args,
+        "log_path": str(log_path),
+        "started_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "state_version": 1,
+    }
 
 
 def infer_readiness_config(runtime_section: dict) -> ReadinessConfig:

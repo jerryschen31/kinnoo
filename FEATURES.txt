@@ -1096,7 +1096,7 @@ features:
       - "Token-based auth for remote: store token in `~/.kinnoo/config.yaml` under `registry_token`."
     owner: techlead-agent
     dependencies: [feature13]
-    status: not-started
+    status: paused
 
   - id: feature29
     title: "Remote Registry Server"
@@ -1143,7 +1143,7 @@ features:
       - "Server dependencies (fastapi, uvicorn, boto3) go in server/requirements.txt, NOT in the main kinnoo requirements.txt."
     owner: techlead-agent
     dependencies: [feature28]
-    status: not-started
+    status: paused
 
   - id: feature30
     title: "Registry Web UI"
@@ -1180,4 +1180,319 @@ features:
       - "Jinja2 templates go in server/templates/."
     owner: techlead-agent
     dependencies: [feature29]
-    status: not-started
+    status: paused
+
+  # ======================================================================
+  # Phase 4 (V4): OpenClaw + JS/TS Agent Support
+  # ======================================================================
+
+  - id: feature31
+    title: "Node.js Runtime Support (Foundation)"
+    description: |
+      Add first-class Node.js runtime support so kinnoo can package, install, and run
+      JS/TS-coded agents (starting with .js/.mjs entrypoints). Extend runtime validation,
+      install flow, and execution flow to support Node.js while preserving current Python
+      behavior. Include Node.js preflight checks (Node >=22 and package manager availability)
+      before run/install operations.
+    tasks: [task168, task169, task170, task171, task172, task173]
+    acceptance_criteria:
+      - id: AC1
+        description: "Manifest validation accepts `runtime.language: nodejs` and rejects unsupported runtime language values with a clear error."
+      - id: AC2
+        description: "`kinnoo run <agent-dir> \"<input>\"` executes Node.js agents using `node <entrypoint> <input>` and streams stdout/stderr like Python agents."
+      - id: AC3
+        description: "`kinnoo install` resolves Node.js dependencies via configured package manager (`npm` default, `pnpm` optional) and reports actionable errors on failure."
+      - id: AC4
+        description: "Pack/install behavior excludes `node_modules` from archives while preserving `package.json` and lockfile(s) for reproducible installs."
+      - id: AC5
+        description: "Node.js preflight checks fail fast with clear guidance when Node version is below required constraint or package manager executable is missing."
+      - id: AC6
+        description: "All existing Python runtime tests continue to pass (no regression in python run/pack/install paths)."
+    notes:
+      - "Foundation feature that blocks OpenClaw runtime work and JS/TS framework expansion."
+      - "TypeScript entrypoint transpilation support is deferred; start with .js/.mjs execution."
+    owner: techlead-agent
+    dependencies: []
+    status: completed
+
+  - id: feature32
+    title: "Daemon Runtime Type + Process Controls"
+    description: |
+      Add a generic daemon runtime mode for long-running agents. Extend kinnoo lifecycle
+      controls with start/stop semantics and operator tooling (`attach` and `logs`) so
+      daemon agents are observable and manageable for both Python and Node.js runtimes.
+    tasks: [task178, task179, task180, task181, task182, task183]
+    acceptance_criteria:
+      - id: AC1
+        description: "Manifest validation accepts `runtime.type: daemon` and preserves support for existing runtime types."
+      - id: AC2
+        description: "`kinnoo run` for daemon agents starts a background process with persisted PID/state metadata and returns control to the terminal cleanly."
+      - id: AC3
+        description: "`kinnoo stop <agent>` gracefully terminates daemon processes (SIGTERM first, deterministic fallback behavior if process is unresponsive)."
+      - id: AC4
+        description: "`kinnoo attach <agent>` allows interactive attachment to a running daemon session when supported by runtime mode."
+      - id: AC5
+        description: "`kinnoo logs <agent>` streams or tails daemon logs with clear source and timestamp context."
+      - id: AC6
+        description: "Supervisor/health-check integration reports not-running, unhealthy, and healthy daemon states with actionable diagnostics."
+    notes:
+      - "This is daemon lifecycle support, not full OpenClaw gateway orchestration."
+      - "Reuses existing supervisor and health-check modules as the control-plane base."
+    owner: techlead-agent
+    dependencies: [feature31]
+    status: completed
+
+  - id: feature33
+    title: "Manifest Schema Extensions for OpenClaw/JS Agents"
+    description: |
+      Extend kinnoo.yaml schema for OpenClaw-oriented and generic JS/TS runtime needs.
+      Add support for package-manager declaration, channel metadata, skill path metadata,
+      and mutable state directory declarations. Keep schema framework-agnostic while enabling
+      OpenClaw-specific validation behavior behind `framework: openclaw`.
+    tasks: [task184, task185, task186, task187, task188]
+    acceptance_criteria:
+      - id: AC1
+        description: "Schema accepts `runtime.package_manager` with supported values (`npm`, `pnpm`) and validates invalid values with clear errors."
+      - id: AC2
+        description: "Schema accepts optional `channels`, `skills`, and `state_dirs` fields with strict type validation and path safety checks."
+      - id: AC3
+        description: "When `framework: openclaw` is set, OpenClaw-specific validation rules run and emit framework-targeted error messages."
+      - id: AC4
+        description: "When framework is not openclaw, new fields remain optional and non-breaking for existing manifests."
+      - id: AC5
+        description: "Manifest reference docs are updated with examples for OpenClaw and generic Node.js agents."
+    notes:
+      - "Designed for reuse by future JS/TS frameworks beyond OpenClaw."
+      - "Acts as the schema contract for scaffold/import and pack/install state behavior."
+    owner: techlead-agent
+    dependencies: [feature31]
+    status: completed
+
+  - id: feature34
+    title: "OpenClaw Scaffold Template"
+    description: |
+      Add `kinnoo init --framework openclaw` template generation for standalone OpenClaw-style
+      agents. Generated projects include OpenClaw identity and skill conventions plus a runnable
+      Node.js entrypoint and manifest wiring compatible with kinnoo run/pack/install flow.
+    tasks: [task189, task190, task191, task192, task193]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo init <name> --framework openclaw` generates package.json, openclaw.json, index.mjs, skills/default/SKILL.md, memory/, AGENTS.md, and SOUL.md."
+      - id: AC2
+        description: "Generated kinnoo.yaml validates successfully with OpenClaw framework and Node.js runtime fields."
+      - id: AC3
+        description: "Generated project runs through `kinnoo run` after required API env vars are configured."
+      - id: AC4
+        description: "Template README guidance includes setup steps for Node version, dependency install path, and required environment variable names."
+      - id: AC5
+        description: "Scaffold output is deterministic and does not require `openclaw` CLI binary at generation time."
+    notes:
+      - "Template intentionally models standalone packaged agents, not full gateway installs."
+      - "Keeps first version lean and runnable; advanced gateway bridge remains deferred."
+    owner: techlead-agent
+    dependencies: [feature31, feature33]
+    status: completed
+
+  - id: feature35
+    title: "Mutable State Directories in Pack/Install"
+    description: |
+      Add first-class mutable state directory handling (`state_dirs`) for package snapshots
+      such as OpenClaw memory folders. Distinguish mutable runtime state from immutable assets,
+      and support selective snapshot policies to avoid packaging sensitive or noisy files.
+    tasks: [task194, task195, task196, task197, task198]
+    acceptance_criteria:
+      - id: AC1
+        description: "`state_dirs` paths are validated, packed as state snapshots, and restored on install with predictable directory layout."
+      - id: AC2
+        description: "Install warns before overwriting existing state and respects explicit overwrite/force controls."
+      - id: AC3
+        description: "`state_dirs[].exclude` patterns are supported to omit files (for example daily memory logs) while retaining core memory state."
+      - id: AC4
+        description: "State directory semantics are documented as mutable snapshot behavior distinct from immutable `assets`."
+      - id: AC5
+        description: "Existing asset bundling behavior remains backward-compatible for agents that do not use `state_dirs`."
+    notes:
+      - "Enables portable warm-start memory patterns without forcing full host-bound state transfer."
+      - "Framework-agnostic and reusable for non-OpenClaw agents with mutable local state."
+    owner: techlead-agent
+    dependencies: []
+    status: completed
+
+  - id: feature36
+    title: "OpenClaw Import Detection & Manifest Inference"
+    description: |
+      Extend analyzer-backed import flow to detect and onboard existing OpenClaw projects
+      into kinnoo manifests. Detection should combine strong signals (openclaw.json,
+      package dependency markers, SOUL.md) with medium-confidence signals (skill folders,
+      AGENTS.md/USER.md, memory directory structure).
+    tasks: [task199, task200, task201, task202, task203]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo import` detects OpenClaw projects using weighted evidence and reports confidence/evidence in output."
+      - id: AC2
+        description: "Importer infers runtime language/type, package manager, skill paths, and candidate `state_dirs` from project structure."
+      - id: AC3
+        description: "Importer recognizes OpenClaw identity files (`SOUL.md`, `AGENTS.md`, optional `USER.md`) as explicit inference signals."
+      - id: AC4
+        description: "Generated kinnoo.yaml is valid or includes clear TODO/warning guidance for unresolved fields."
+      - id: AC5
+        description: "Non-OpenClaw imports continue to work with no regression in existing analyzer-backed behavior."
+    notes:
+      - "Builds directly on analyzer architecture from feature27 and import command from feature19."
+      - "Should remain warning-first and operator-confirmed when confidence is mixed."
+    owner: techlead-agent
+    dependencies: [feature31, feature33, feature35]
+    status: completed
+
+  - id: feature37
+    title: "Node.js Dependency Audit & Lifecycle Script Controls"
+    description: |
+      Add Node.js dependency risk checks during install. Provide security visibility into
+      known CVEs and package lifecycle script execution risk, with policy controls suitable
+      for local development and stricter CI/publisher workflows.
+    tasks: [task204, task205, task206, task207, task208]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo install` runs `npm audit`/equivalent for Node.js agents and prints severity summary (critical/high/moderate/low)."
+      - id: AC2
+        description: "Install blocks by default when critical vulnerabilities are detected, with explicit override flag support (`--allow-vulnerable`)."
+      - id: AC3
+        description: "Install detects package lifecycle scripts and warns prior to execution; `--ignore-scripts` mode is supported."
+      - id: AC4
+        description: "Dependency audit results and resolution decisions are logged in a machine-readable install trace."
+      - id: AC5
+        description: "Behavior is a no-op for Python agents (no regression in current Python install flow)."
+    notes:
+      - "Security gate should be configurable for local experimentation vs CI hardening workflows."
+      - "Lifecycle script visibility is critical because install-time code execution is a major attack path."
+    owner: techlead-agent
+    dependencies: [feature31]
+    status: completed
+
+  - id: feature38
+    title: "JS/TS Static Security Sweep"
+    description: |
+      Extend kinnoo static security sweep coverage from Python-only patterns to JS/TS and
+      JSON configuration artifacts. Detect hardcoded credentials, high-risk execution
+      primitives, dangerous OpenClaw config flags, and suspicious memory snapshot contents.
+    tasks: [task209, task210, task211, task212, task213]
+    acceptance_criteria:
+      - id: AC1
+        description: "Security sweep scans `.js`, `.mjs`, `.ts`, and `.json` files for high-confidence credential/token patterns."
+      - id: AC2
+        description: "Sweep flags risky execution primitives (`eval`, dynamic function construction, shell process spawning) with file/line evidence."
+      - id: AC3
+        description: "Sweep inspects OpenClaw configuration for explicitly dangerous settings and emits targeted warnings."
+      - id: AC4
+        description: "Sweep checks memory snapshot candidates for credential-like patterns before pack and reports warning-first findings."
+      - id: AC5
+        description: "Output format remains consistent with existing sweep UX and preserves no-secret-value invariant."
+    notes:
+      - "This feature extends trust-baseline posture from Python into JS/TS ecosystems."
+      - "Rule set should be heuristic and non-blocking initially to reduce false-positive friction."
+    owner: techlead-agent
+    dependencies: [feature31]
+    status: completed
+
+  - id: feature39
+    title: "Manifest Permissions Model + Sandbox Execution"
+    description: |
+      Introduce explicit permission declarations for agent capabilities and enforce them at
+      install/run boundaries. Add optional sandbox execution mode to constrain filesystem,
+      network, shell, and browser capabilities according to manifest policy and operator consent.
+    tasks: [task214, task215, task216, task217, task218]
+    acceptance_criteria:
+      - id: AC1
+        description: "Schema supports a `permissions` section with validated fields for network, filesystem scope, shell, browser, and env var access."
+      - id: AC2
+        description: "`kinnoo install` presents a human-readable permission summary and requires explicit consent unless non-interactive override is provided."
+      - id: AC3
+        description: "`kinnoo run --sandbox` enforces declared permissions with documented sandbox backend(s) and deterministic failure modes."
+      - id: AC4
+        description: "Permission policy is enforced for both Python and Node.js agents where technically feasible."
+      - id: AC5
+        description: "Violations are logged with actionable diagnostics without exposing secret values."
+    notes:
+      - "Start with practical enforcement targets (filesystem/network/shell) and extend incrementally."
+      - "This feature provides the contract required by runtime monitoring in feature41."
+    owner: techlead-agent
+    dependencies: []
+    status: completed
+
+  - id: feature40
+    title: "Archive Signing & Publisher Verification"
+    description: |
+      Add authenticity guarantees to kinnoo archives using public-key signatures. Extend pack,
+      install, and registry metadata flows so users can verify publisher identity, not just
+      archive integrity. Keep existing checksum behavior as complementary corruption detection.
+    tasks: [task219, task220, task221, task222, task223]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo keygen` generates an Ed25519 keypair suitable for archive signing workflows."
+      - id: AC2
+        description: "`kinnoo pack --sign` signs archive payload and emits signature artifact/metadata alongside checksum outputs."
+      - id: AC3
+        description: "`kinnoo install` verifies signatures when present and blocks on invalid signatures with clear remediation guidance."
+      - id: AC4
+        description: "Unsigned archives are explicitly labeled as unverified at install time with confirmation flow support."
+      - id: AC5
+        description: "Registry metadata model supports publisher public-key association needed for verified distribution workflows."
+    notes:
+      - "Checksums (feature16) detect corruption; signatures add publisher authenticity and anti-spoofing."
+      - "Keep signing module isolated for future key-rotation and trust-policy extensions."
+    owner: techlead-agent
+    dependencies: []
+    status: completed
+
+  - id: feature41
+    title: "Runtime Behavior Monitoring & Kill Switch"
+    description: |
+      Add runtime monitoring for policy enforcement and post-run auditability. Monitor key
+      process behaviors (network, filesystem writes, spawned processes), enforce resource limits,
+      and provide an automated kill-switch when behavior violates declared permissions.
+    tasks: [task224, task225, task226, task227, task228]
+    acceptance_criteria:
+      - id: AC1
+        description: "Runtime monitor captures key behavioral events (process spawn, network access, filesystem writes) during agent execution with structured logs."
+      - id: AC2
+        description: "Permission violations trigger deterministic enforcement action (warn/terminate per policy), including kill-switch path for hard violations."
+      - id: AC3
+        description: "Resource controls (wall-clock timeout, memory, and CPU budget where supported) are configurable and enforced."
+      - id: AC4
+        description: "`kinnoo run --dry-run` provides a low-risk tracing mode that reports likely actions without full side-effect execution."
+      - id: AC5
+        description: "Monitoring integrates with feature39 permission declarations and gracefully degrades on platforms where certain low-level telemetry is unavailable."
+    notes:
+      - "This is post-install runtime defense-in-depth, complementing feature37/feature38 static and install-time checks."
+      - "Implementation should prioritize cross-platform baseline observability before deeper syscall-level instrumentation."
+    owner: techlead-agent
+    dependencies: [feature39]
+    status: completed
+
+  - id: feature42
+    title: "JSON Input/Output Types for Agent Interop"
+    description: |
+      Add first-class `json` support for manifest input/output contracts so agents
+      can exchange structured payloads with MCP servers and other agents without
+      lossy text-only serialization assumptions. Extend schema validation and run
+      command interfaces to accept JSON payloads and enforce JSON output contracts
+      when declared in `kinnoo.yaml`.
+    tasks: [task174, task175, task176, task177]
+    acceptance_criteria:
+      - id: AC1
+        description: "Manifest validation accepts `inputs.type: json` and `outputs.type: json` as supported values and rejects unsupported type values with clear guidance."
+      - id: AC2
+        description: "`kinnoo run` supports structured JSON input delivery (inline JSON and file-based JSON payload modes) for agents declaring `inputs.type: json`."
+      - id: AC3
+        description: "For agents declaring `outputs.type: json`, run flow validates emitted payloads as JSON and reports deterministic actionable errors when output is not valid JSON."
+      - id: AC4
+        description: "Inspect/preflight and command help output clearly show JSON contract expectations (input shape source, output validation behavior)."
+      - id: AC5
+        description: "Existing text input/output behavior remains backward-compatible for Python and Node.js agent workflows."
+    notes:
+      - "Scope is contract-level JSON support; schema-level JSON shape typing and JSON Schema validation are deferred."
+      - "Design should preserve no-secret-values invariant in diagnostics while still surfacing JSON parse errors safely."
+      - "Supports both local one-shot and future daemon/MCP-oriented structured message workflows."
+    owner: techlead-agent
+    dependencies: [feature20, feature31]
+    status: completed

@@ -3,6 +3,196 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v0.23.0] - 2026-03-20
+### Added
+- Implemented Feature41 "Runtime Defense-in-Depth (Behavioral Monitoring + Dynamic Enforcement)" with baseline runtime telemetry event capture for process, network, and filesystem activity.
+- Added deterministic policy-violation handling with structured reason codes, warning mode, and hard kill-switch termination for high-risk violations.
+- Added `kinnoo run --dry-run` predictive execution trace mode that reports expected actions without launching the agent entrypoint.
+
+### Changed
+- Added runtime resource-control enforcement options for wall-clock timeout, CPU cap, and memory cap where supported, with explicit degraded-mode messaging on unsupported platforms.
+- Integrated runtime monitor policy summaries with feature39 permission declarations for both Python and Node execution paths.
+- Added graceful telemetry-limited degradation signaling (`reason_code=telemetry_limited_backend`) when low-level telemetry capabilities are unavailable.
+
+### Quality
+- Feature41 acceptance criteria gate validated across `test322`-`test326`.
+- Required review command executed: `python3 -m pytest --testmon` (result: `collected 0 items` due no-change selection state).
+- Full regression evidence in testmon workflow: `python3 -m pytest --testmon-noselect` (result: `330 passed, 1 skipped`).
+- Merge commit: TBD (populate after merge to `phase4/main`).
+
+
+## [v0.22.0] - 2026-03-19
+### Added
+- Implemented Feature40 "Archive Signing & Publisher Verification" with Ed25519 key generation (`kinnoo keygen`) and signed archive packaging support (`kinnoo pack --sign`).
+- Added install-time detached-signature verification for signed archives, including explicit block behavior and remediation guidance for invalid signatures.
+- Added registry publisher public-key association path to support verified distribution workflows.
+
+### Changed
+- Added explicit unsigned publisher trust-gate handling during install, including confirmation and non-interactive override policy via `--allow-unverified-publisher`.
+- Updated regression and compatibility test expectations for non-interactive unsigned install flows to preserve backward-compatible automation behavior with explicit trust override.
+
+### Quality
+- Feature40 acceptance criteria gate validated across `test317`-`test321`.
+- SWE remediation verified for prior feature40 trust-gate regressions:
+  - `python3 -m pytest --testmon`
+  - Result: `15 passed, 63 deselected`
+- Merge commit: TBD (populate after merge to `phase4/main`).
+
+
+## [v0.21.0] - 2026-03-19
+### Changed
+- Applied SWE regression remediation for permission-model compatibility paths referenced in feature review notes, including validator compatibility and regression-gate stabilization.
+- Hardened sandbox backend deterministic failure-shape behavior for feature39 run enforcement paths.
+
+### Quality
+- Focused remediation verification passed:
+  - `python3 -m pytest tests/test_validator.py::test_feature26_permissions_schema_validation tests/test_regression_v1.py::test_feature26_framework_template_regression_gate tests/test_regression_v1.py::test_v1_suite_passes_after_feature7 tests/test_cli.py::test_feature39_sandbox_backend_failure_shapes -q`
+  - Result: `4 passed`
+- Merge commit: TBD (populate after merge to `phase4/main`).
+
+
+## [v0.20.0] - 2026-03-19
+### Added
+- Implemented Feature38 "JS/TS Static Security Sweep" with cross-language static scanning support for `.js`, `.mjs`, `.ts`, and `.json` artifacts.
+- Added risky JS/TS execution primitive detection (`eval`, `Function` constructor, and child-process execution patterns) with deterministic file/line finding evidence.
+- Added dangerous OpenClaw JSON configuration checks for high-risk settings with targeted warning diagnostics.
+
+### Changed
+- Extended pack-time warning-first security checks to include memory snapshot candidate credential-risk scanning before archive completion.
+- Preserved and regression-validated no-secret-value reporting contract across mixed Python and JS/TS sweep findings.
+
+### Quality
+- Feature38 acceptance criteria gate validated across `test307`-`test311`.
+- Full regression executed for review cycle: `314 passed, 1 skipped` (`python3 -m pytest`).
+- Merge commit: TBD (populate after merge to `phase4/main`).
+
+
+## [v0.19.0] - 2026-03-19
+### Added
+- Implemented Feature37 "Node.js Dependency Audit & Lifecycle Script Controls" with install-time Node audit visibility and deterministic severity summary reporting (`critical/high/moderate/low`).
+- Added machine-readable Node install trace output capturing lifecycle-script detection, severity counts, and policy decisions.
+
+### Changed
+- Enforced default install blocking when Node audit reports critical vulnerabilities, with explicit operator override via `--allow-vulnerable`.
+- Added lifecycle-script policy controls for Node installs with warning-first behavior and `--ignore-scripts` enforcement.
+- Preserved runtime isolation so feature37 controls remain Node-only and do not alter Python install workflows.
+
+### Quality
+- Feature37 acceptance criteria gate validated across `test302`-`test306`.
+- SWE remediation applied for feature37 test-contract mismatch (AC1 summary validation now explicitly opts into AC2 override semantics).
+- Focused verification after remediation: `2 passed` (`python3 -m pytest tests/test_cli_install.py::test_feature37_node_audit_severity_summary tests/test_regression_v1.py::test_v1_suite_passes_after_feature7 -q`).
+- Full regression after remediation: `309 passed, 1 skipped` (`python3 -m pytest`).
+- Merge commit: TBD (populate after merge to `phase4/main`).
+
+
+## [v0.18.0] - 2026-03-19
+### Added
+- Implemented Feature36 "OpenClaw Import Detection & Manifest Inference" with weighted strong/medium OpenClaw evidence detection surfaced through analyzer confidence metadata.
+- Added OpenClaw import inference for runtime hints (`language: nodejs`, `type: daemon`, package manager), detected `skills` paths, and candidate mutable `state_dirs`.
+- Added identity artifact detection signals for `SOUL.md`, `AGENTS.md`, and optional `USER.md` to improve OpenClaw import diagnostics.
+
+### Changed
+- Extended `kinnoo import` output to report framework confidence metadata and actionable unresolved-field TODO guidance when manifest inference remains partial.
+- Preserved warning-first onboarding behavior for ambiguous detections while keeping operator-confirmed import flow.
+
+### Quality
+- Feature36 acceptance criteria gate validated across `test297`-`test301`.
+- Full regression executed for review cycle: `304 passed, 1 skipped` (`python3 -m pytest`).
+- Merge commit: TBD (populate after merge to `phase4/main`).
+
+
+## [v0.17.0] - 2026-03-19
+### Added
+- Implemented Feature35 "Mutable State Directories in Pack/Install" with first-class `state_dirs` snapshot semantics for mutable runtime state.
+- Added structured `state_dirs` entry support (`path`, optional `exclude`) with validator checks for safe relative paths and traversal-resistant exclude patterns.
+- Added install-time state restore controls with warning-first default behavior and explicit overwrite flag support via `--state-overwrite`.
+
+### Changed
+- Extended pack flow to archive mutable state snapshots under deterministic `state_snapshots/<declared-state-dir>/...` paths while preserving immutable `assets` behavior.
+- Added exclusion-aware snapshot collection so targeted noisy/sensitive state files can be omitted without dropping core warm-start state.
+- Updated documentation in `README.md` and `docs/manifest-schema-reference.md` to distinguish mutable `state_dirs` from immutable `assets`, including restore and compatibility guidance.
+
+### Quality
+- Feature35 acceptance criteria gate validated across `test292`-`test296`.
+- Full regression executed for review cycle: `296 passed, 1 failed, 1 skipped` (`python3 -m pytest`), with failure isolated to legacy MCP stream regression gate.
+- Focused re-run of failing regression path: `2 passed` (`python3 -m pytest tests/test_cli.py::test_feature23_mcp_server_streams_stdout_stderr tests/test_regression_v1.py::test_v1_suite_passes_after_feature7 -q`).
+- Merge commit: TBD (populate after merge to `phase4/main`).
+
+
+## [v0.16.0] - 2026-03-18
+### Added
+- Implemented Feature33 "Manifest Schema Extensions for OpenClaw/JS Agents" with optional schema fields: `runtime.package_manager`, `channels`, `skills`, and `state_dirs`.
+- Added framework-targeted validation path for `framework: openclaw` with explicit diagnostics and required-field guidance.
+- Added manifest documentation examples for OpenClaw daemon and generic Node.js one-shot workflows.
+
+### Changed
+- Extended validator path-safety checks for `skills` and `state_dirs` entries (relative-only, no parent traversal).
+- Preserved non-openclaw compatibility: new fields are optional/non-breaking for existing manifests.
+
+### Quality
+- Feature33 acceptance criteria gate validated across `test282`-`test286`.
+- Full regression suite validation after review: `285 passed, 1 skipped` (`python3 -m pytest`).
+- Merge commit: TBD (populate after merge to `phase4/main`).
+
+
+## [v0.15.0] - 2026-03-18
+### Added
+- Implemented Feature32 "Daemon Runtime Type + Process Controls" with first-class `runtime.type: daemon` manifest support.
+- Added daemon lifecycle operator commands in CLI: `kinnoo stop`, `kinnoo attach`, and `kinnoo logs`.
+- Added daemon supervisor state persistence (`daemon-state.json`) and execution log persistence (`daemon.log`) under the runtime workspace.
+
+### Changed
+- Extended runtime execution flow to support detached daemon launch semantics while preserving one-shot behavior for existing runtime types.
+- Added daemon lifecycle preflight classification and operator guidance for `not-running`, `unhealthy`, and `healthy` states.
+
+### Quality
+- Feature32 acceptance criteria gate validated across `test276`-`test281`.
+- Full regression suite validation after review: `280 passed, 1 skipped` (`python3 -m pytest`).
+- Merge commit: TBD (populate after merge to `phase4/main`).
+
+
+## [v0.14.0] - 2026-03-17
+### Added
+- Implemented Feature42 "JSON Input/Output Types for Agent Interop" with first-class manifest contract support for `inputs.type: json` and `outputs.type: json`.
+- Added structured run input modes for JSON payload delivery:
+  - inline payloads via `--json-input`
+  - file-backed payloads via `--json-file`
+- Added one-shot runtime output contract enforcement for `outputs.type: json`, including deterministic parse diagnostics for invalid JSON stdout.
+- Added inspect/preflight/help visibility for JSON contract expectations, including operator guidance for structured input and output validation behavior.
+
+### Changed
+- Extended validator I/O type guidance to include `json` as an allowed manifest type while preserving rejection behavior for unsupported values.
+- Documented the Feature42 JSON contract in `README.md` and `docs/manifest-schema-reference.md` with additive compatibility guidance for existing text workflows.
+
+### Quality
+- Feature42 focused gate passed (`7 passed`) across validator, run JSON modes, output contract enforcement, docs coverage, and regression gate assertions.
+- Full-suite regression after Feature42 implementation: `273 passed, 1 skipped` (`python3 -m pytest`).
+- Merge commit: TBD (populate after merge to `phase4/main`).
+
+
+## [v0.13.0] - 2026-03-17
+### Added
+- Implemented Feature31 "Node.js Runtime Support (Foundation)" for first-class `runtime.language: nodejs` execution and install workflows.
+- Added node runtime execution path in `kinnoo run` with parity for input forwarding, stdout/stderr streaming, and exit-code propagation.
+- Added node install dependency resolution support using `npm` (default) and `pnpm` (optional via `runtime.package_manager`).
+- Added pack/install safeguards for node agents: exclude `node_modules`, preserve `package.json` and lockfiles for reproducible installs.
+- Added node preflight readiness checks for runtime version constraints and package-manager availability.
+
+### Changed
+- Hardened subprocess test isolation around node version/tool probes to prevent monkeypatch cross-effects in feature31 tests.
+- Improved permission-path handling in run command to produce deterministic permission-denied behavior under restricted directory access.
+
+### Quality
+- Feature31 blocker tests from Tech Lead Review 1 now pass (`5 passed`):
+  - `tests/test_cli.py::test_run_permission_error`
+  - `tests/test_install.py::test_feature31_node_dependency_install_npm_and_pnpm`
+  - `tests/test_pack.py::test_feature31_pack_node_modules_excluded_lockfiles_preserved`
+  - `tests/test_regression_v1.py::test_v1_suite_passes_after_feature7`
+  - `tests/test_regression_v1.py::test_feature20_does_not_regress_v2_behavior`
+- Full suite validation after fixes: `266 passed, 1 skipped` (`python3 -m pytest`).
+- Merge commit: TBD (populate after merge to `phase4/main`).
+
+
 ## [v0.12.1] - 2026-03-16
 ### Added
 - Implemented Feature19 "kinnoo import - Analyzer-backed onboarding wizard" for in-place project onboarding.
