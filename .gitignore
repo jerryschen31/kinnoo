@@ -13,3 +13,4 @@ build/
 .testmon*
 .vscode/
 .specstory/cli/
+*.DS_Store*
