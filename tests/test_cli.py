@@ -6,6 +6,7 @@ import types
 import time
 import signal
 import json
+import zipfile
 
 def test_cli_installable_and_runnable():
     # This test checks that the CLI is installable and runnable via pyproject.toml
@@ -25,12 +26,165 @@ def test_cli_version_flag():
     assert re.search(r"\b\d+\.\d+\.\d+\b", output), f"Expected semantic version in output, got: {output!r}"
 
 
+def test_backend_selection(monkeypatch, tmp_path):
+    from kinnoo import install_command, publish_command
+
+    archive_root = tmp_path / "archive"
+    agent_archive_dir = archive_root / "demo-agent" / "1.0.0"
+    agent_archive_dir.mkdir(parents=True, exist_ok=True)
+    archive_path = agent_archive_dir / "demo-agent.kno"
+    with zipfile.ZipFile(archive_path, "w") as archive_zip:
+        archive_zip.writestr(
+            "kinnoo.yaml",
+            (
+                "name: demo-agent\n"
+                "version: 1.0.0\n"
+                "entrypoint: run.py\n"
+                "runtime:\n"
+                "  language: python\n"
+                "  version: \">=3.10\"\n"
+                "  type: one-shot\n"
+                "dependencies: []\n"
+                "inputs:\n"
+                "  type: text\n"
+                "outputs:\n"
+                "  type: text\n"
+            ),
+        )
+        archive_zip.writestr("run.py", "print('ok')\n")
+        archive_zip.writestr("requirements.txt", "")
+
+    monkeypatch.setenv("KINNOO_ARCHIVE_ROOT", str(archive_root))
+
+    captured_publish: list[str] = []
+
+    def _fake_publish_validated_archive(**kwargs):
+        captured_publish.append(str(kwargs["backend_label"]))
+        return 0
+
+    monkeypatch.setattr(
+        publish_command,
+        "_publish_validated_archive",
+        _fake_publish_validated_archive,
+    )
+
+    monkeypatch.delenv("KINNOO_REGISTRY_URL", raising=False)
+    monkeypatch.delenv("KINNOO_REGISTRY_TOKEN", raising=False)
+    monkeypatch.delenv("KINNOO_TENANT_SLUG", raising=False)
+
+    local_publish_exit = publish_command.publish_agent(
+        agent_name="demo-agent",
+        use_local=False,
+        use_remote=False,
+    )
+    assert local_publish_exit == 0
+    assert captured_publish[-1] == "local"
+
+    monkeypatch.setenv("KINNOO_REGISTRY_URL", "https://registry.example.test")
+    monkeypatch.setenv("KINNOO_REGISTRY_TOKEN", "token")
+    monkeypatch.setenv("KINNOO_TENANT_SLUG", "acme")
+
+    remote_publish_exit = publish_command.publish_agent(
+        agent_name="demo-agent",
+        use_local=False,
+        use_remote=False,
+    )
+    assert remote_publish_exit == 0
+    assert captured_publish[-1] == "remote"
+
+    selected_backends: list[str] = []
+
+    class _FakeLocalBackend:
+        def __init__(self, *args, **kwargs):
+            del args, kwargs
+
+    class _FakeRemoteBackend:
+        def __init__(self, *args, **kwargs):
+            del args, kwargs
+
+        def resolve(self, *, name, version=None, tenant=None):
+            del name, version, tenant
+            return {"download_url": "https://registry.example.test/demo-agent.kno"}
+
+    class _FakeRegistryService:
+        def __init__(self, backend):
+            if isinstance(backend, _FakeRemoteBackend):
+                selected_backends.append("remote")
+            else:
+                selected_backends.append("local")
+
+        def resolve_with_error(self, *, name, version=None):
+            del name, version
+            return (
+                RegistryRecord(
+                    name="demo-agent",
+                    version="1.0.0",
+                    archive_path=archive_path,
+                ),
+                None,
+            )
+
+    def _fake_parse_install_target_spec(_target: str) -> InstallTargetSpec:
+        return InstallTargetSpec(
+            kind="registry-latest",
+            raw_target="demo-agent",
+            name="demo-agent",
+        )
+
+    class _FakeHTTPResponse:
+        def __init__(self, payload: bytes):
+            self._payload = payload
+
+        def read(self) -> bytes:
+            return self._payload
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            del exc_type, exc_val, exc_tb
+            return None
+
+    def _fake_urlopen(_url, timeout=30):
+        del timeout
+        with archive_path.open("rb") as archive_file:
+            return _FakeHTTPResponse(archive_file.read())
+
+    monkeypatch.setattr(install_command, "MockFilesystemRegistryBackend", _FakeLocalBackend)
+    monkeypatch.setattr(install_command, "RemoteRegistryClient", _FakeRemoteBackend)
+    monkeypatch.setattr(install_command, "RegistryService", _FakeRegistryService)
+    monkeypatch.setattr(install_command, "parse_install_target_spec", _fake_parse_install_target_spec)
+    monkeypatch.setattr(install_command, "_install_from_archive_path", lambda **kwargs: 0)
+    monkeypatch.setattr(install_command.urllib_request, "urlopen", _fake_urlopen)
+
+    install_local_exit = install_command.install_agent(
+        archive_path="demo-agent",
+        target_dir_arg=str(tmp_path / "installed-local"),
+        assume_yes=True,
+        use_local=True,
+        use_remote=False,
+    )
+    assert install_local_exit == 0
+    assert selected_backends[-1] == "local"
+
+    install_remote_exit = install_command.install_agent(
+        archive_path="demo-agent",
+        target_dir_arg=str(tmp_path / "installed-remote"),
+        assume_yes=True,
+        use_local=False,
+        use_remote=True,
+    )
+    assert install_remote_exit == 0
+    assert selected_backends[-1] == "remote"
+
+
 import tempfile
 import shutil
 import os
 import sys
 import venv
 from pathlib import Path
+from kinnoo.registry import InstallTargetSpec, RegistryRecord
 
 def test_run_installs_requirements(tmp_path):
         """Test that kinnoo run installs requirements.txt packages into .venv/"""

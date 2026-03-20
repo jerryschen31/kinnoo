@@ -187,6 +187,17 @@ def main():
         action="store_true",
         help="Allow non-interactive install when archive has no publisher signature metadata",
     )
+    install_source_group = install_parser.add_mutually_exclusive_group()
+    install_source_group.add_argument(
+        "--local",
+        action="store_true",
+        help="Force local registry backend resolution for registry install targets",
+    )
+    install_source_group.add_argument(
+        "--remote",
+        action="store_true",
+        help="Force remote registry backend resolution for registry install targets",
+    )
 
     # Add 'pack' subcommand
     pack_parser = subparsers.add_parser("pack", help="Package an agent directory into a .kno archive")
@@ -247,6 +258,11 @@ def main():
         "--local",
         action="store_true",
         help="Explicitly select the local registry backend",
+    )
+    publish_parser.add_argument(
+        "--remote",
+        action="store_true",
+        help="Explicitly select the remote registry backend",
     )
 
     # Add 'list' subcommand
@@ -393,6 +409,8 @@ def main():
         ignore_scripts = bool(getattr(args, "ignore_scripts", False))
         accept_permissions = bool(getattr(args, "accept_permissions", False))
         allow_unverified_publisher = bool(getattr(args, "allow_unverified_publisher", False))
+        use_local = bool(getattr(args, "local", False))
+        use_remote = bool(getattr(args, "remote", False))
         try:
             from kinnoo.install_command import install_agent
         except ImportError:
@@ -408,6 +426,8 @@ def main():
             ignore_scripts=ignore_scripts,
             accept_permissions=accept_permissions,
             allow_unverified_publisher=allow_unverified_publisher,
+            use_local=use_local,
+            use_remote=use_remote,
         )
         sys.exit(exit_code)
 
@@ -524,17 +544,31 @@ def main():
             sys.exit(1)
 
         use_local = bool(getattr(args, "local", False))
+        use_remote = bool(getattr(args, "remote", False))
+
+        if use_local and use_remote:
+            print("Error: --local and --remote cannot be used together.", file=sys.stderr)
+            sys.exit(1)
 
         try:
             from kinnoo.publish_command import publish_agent
         except ImportError:
             from .publish_command import publish_agent
 
-        exit_code = publish_agent(agent_name=agent_name, use_local=use_local)
+        exit_code = publish_agent(
+            agent_name=agent_name,
+            use_local=use_local,
+            use_remote=use_remote,
+        )
         sys.exit(exit_code)
 
     elif args.command == "list":
-        source = "remote" if bool(getattr(args, "remote", False)) else "local"
+        if bool(getattr(args, "local", False)):
+            source = "local"
+        elif bool(getattr(args, "remote", False)):
+            source = "remote"
+        else:
+            source = "auto"
 
         try:
             from kinnoo.list_command import list_agents
@@ -550,7 +584,12 @@ def main():
             print("Usage: kinnoo search [--local | --remote] <query>", file=sys.stderr)
             sys.exit(1)
 
-        source = "remote" if bool(getattr(args, "remote", False)) else "local"
+        if bool(getattr(args, "local", False)):
+            source = "local"
+        elif bool(getattr(args, "remote", False)):
+            source = "remote"
+        else:
+            source = "auto"
 
         try:
             from kinnoo.search_command import search_agents
