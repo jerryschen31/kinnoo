@@ -1467,7 +1467,7 @@ features:
       - "Implementation should prioritize cross-platform baseline observability before deeper syscall-level instrumentation."
     owner: techlead-agent
     dependencies: [feature39]
-    status: not-started
+    status: completed
 
   - id: feature42
     title: "JSON Input/Output Types for Agent Interop"
