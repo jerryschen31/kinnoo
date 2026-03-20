@@ -4667,7 +4667,7 @@ tasks:
       - 'step6: Verify no plaintext passwords appear in any log or error output'
     dependencies: []
     tests: [test332]
-    status: needs-review
+    status: completed
 
   - id: task235
     title: "Bootstrap admin CLI command"
@@ -4689,7 +4689,7 @@ tasks:
       - 'step6: Add tests for bootstrap success, duplicate prevention, and password output'
     dependencies: [task234]
     tests: [test333]
-    status: needs-review
+    status: completed
 
   - id: task236
     title: "Tenant model and slug management"
@@ -4711,7 +4711,7 @@ tasks:
       - 'step6: Add unit tests for model, slug validation, uniqueness, and authorization'
     dependencies: [task234]
     tests: [test334]
-    status: needs-review
+    status: completed
 
   - id: task237
     title: "JWT access token issuance and validation"
@@ -4736,7 +4736,7 @@ tasks:
       - 'step8: Add tests for issuance, validation, scope enforcement, denylist, and rotation'
     dependencies: [task234]
     tests: [test335]
-    status: needs-review
+    status: completed
 
   - id: task238
     title: "Session cookie auth for web UI"
@@ -4758,7 +4758,7 @@ tasks:
       - 'step6: Add tests for session lifecycle, CSRF, expiration, and invalidation'
     dependencies: [task234, task237]
     tests: [test336]
-    status: needs-review
+    status: completed
 
   # ======================================================================
   # Feature29: Remote Registry Server

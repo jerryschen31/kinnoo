@@ -1587,4 +1587,4 @@ features:
       - "Signing key env vars: REGISTRY_AUTH_SIGNING_KEY_CURRENT, REGISTRY_AUTH_SIGNING_KEY_PREVIOUS (optional for rotation)."
     owner: techlead-agent
     dependencies: []
-    status: not-started
+    status: completed
