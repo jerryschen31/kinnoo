@@ -4795,7 +4795,7 @@ tasks:
       - 'step8: Add tests for all three storage backends (read, write, list, delete, presign)'
     dependencies: []
     tests: [test337]
-    status: not-started
+    status: needs-review
 
   - id: task240
     title: "JSON metadata model (3-tier)"
