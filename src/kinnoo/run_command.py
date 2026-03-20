@@ -32,6 +32,7 @@ from .runtime_monitor import RuntimeMonitor
 from .runtime_monitor import normalize_runtime_resource_controls
 from .runtime_monitor import predict_dry_run_actions
 from .runtime_monitor import posix_resource_limits_supported
+from .runtime_monitor import resolve_monitor_policy_summary
 from .runtime_monitor import resolve_violation_enforcement
 from .supervisor import (
     build_daemon_state_payload,
@@ -1495,6 +1496,29 @@ def run_agent(
         runtime_language=runtime_language,
         forbidden_values=trace_forbidden_values,
     )
+
+    force_telemetry_limited = os.environ.get("KINNOO_FORCE_TELEMETRY_LIMITED") == "1"
+    monitor_policy_summary = resolve_monitor_policy_summary(
+        manifest=manifest if isinstance(manifest, dict) else {},
+        runtime_language=runtime_language,
+        force_telemetry_limited=force_telemetry_limited,
+    )
+    print(
+        "[kinnoo monitor] policy summary: "
+        f"network={'allowed' if monitor_policy_summary.network_allowed else 'denied'}, "
+        f"filesystem_scope={monitor_policy_summary.filesystem_scope}, "
+        f"shell={'allowed' if monitor_policy_summary.shell_allowed else 'denied'}, "
+        f"browser={'allowed' if monitor_policy_summary.browser_allowed else 'denied'}"
+    )
+    if monitor_policy_summary.telemetry_limited:
+        limited_caps = ", ".join(monitor_policy_summary.telemetry_limited_capabilities)
+        print(
+            "[kinnoo monitor] graceful degradation: "
+            f"reason_code={monitor_policy_summary.telemetry_reason_code} "
+            f"limited_capabilities=[{limited_caps}]",
+            file=sys.stderr,
+        )
+
     subprocess_env = runtime_monitor.prepare_environment(
         process_args=process_args,
         cwd=agent_dir,

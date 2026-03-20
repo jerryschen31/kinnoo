@@ -4525,4 +4525,4 @@ tasks:
       - 'step4: Add regression tests proving integration with feature39 policies and graceful degradation messaging'
     dependencies: [task224, task225, task226, task227]
     tests: [test326]
-    status: not-started
+    status: needs-review
