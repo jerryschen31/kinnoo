@@ -16,6 +16,7 @@ from server.routes.auth import create_auth_router
 from server.routes.download import create_download_router
 from server.routes.publish import create_publish_router
 from server.routes.search import create_search_router
+from server.routes.web_agents import create_web_agents_router
 from server.routes.web_auth import create_web_auth_router
 from server.storage import build_storage_backend_from_config
 from server.storage.user_store import UserStore
@@ -105,6 +106,12 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
             session_service=session_service,
             user_store=user_store,
             login_csrf_secret=os.getenv("REGISTRY_LOGIN_CSRF_SECRET", "dev-login-csrf-secret-change-me"),
+        )
+    )
+    app.include_router(
+        create_web_agents_router(
+            metadata_manager=metadata_manager,
+            storage_backend=storage_backend,
         )
     )
 
