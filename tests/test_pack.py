@@ -692,6 +692,7 @@ state_dirs:
         str(archive),
         str(install_target),
         "--yes",
+        "--allow-unverified-publisher",
       ],
       cwd=tmp_path,
       capture_output=True,
@@ -1048,6 +1049,7 @@ assets:
         archive_path=str(archive),
         target_dir_arg=str(install_target),
         assume_yes=True,
+      allow_unverified_publisher=True,
     )
     assert install_result == 0
     assert (["npm", "install"], install_target.resolve()) in [

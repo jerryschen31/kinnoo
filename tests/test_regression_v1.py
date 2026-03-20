@@ -330,7 +330,15 @@ def test_feature31_python_runtime_regression_gate():
 
         installed_dir = temp_path / "feature31-python-installed"
         install_result = subprocess.run(
-            [sys.executable, str(cli_path), "install", str(archive_path), str(installed_dir), "--yes"],
+            [
+                sys.executable,
+                str(cli_path),
+                "install",
+                str(archive_path),
+                str(installed_dir),
+                "--yes",
+                "--allow-unverified-publisher",
+            ],
             cwd=temp_path,
             capture_output=True,
             text=True,
@@ -730,6 +738,7 @@ def test_feature35_assets_backward_compatibility_without_state_dirs(tmp_path):
             str(archive_path),
             str(install_target),
             "--yes",
+            "--allow-unverified-publisher",
         ],
         cwd=tmp_path,
         capture_output=True,
@@ -938,6 +947,7 @@ def test_feature37_python_install_noop_regression_guard(tmp_path):
             "--yes",
             "--allow-vulnerable",
             "--ignore-scripts",
+            "--allow-unverified-publisher",
         ],
         cwd=tmp_path,
         capture_output=True,

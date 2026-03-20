@@ -106,7 +106,14 @@ def test_feature22_install_extracts_assets_with_relative_paths(tmp_path):
     assert archive_path.exists()
 
     install_result = subprocess.run(
-        [sys.executable, cli_path, "install", str(archive_path), "--yes"],
+        [
+            sys.executable,
+            cli_path,
+            "install",
+            str(archive_path),
+            "--yes",
+            "--allow-unverified-publisher",
+        ],
         capture_output=True,
         text=True,
         env=pack_env,

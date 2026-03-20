@@ -3,6 +3,24 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v0.22.0] - 2026-03-19
+### Added
+- Implemented Feature40 "Archive Signing & Publisher Verification" with Ed25519 key generation (`kinnoo keygen`) and signed archive packaging support (`kinnoo pack --sign`).
+- Added install-time detached-signature verification for signed archives, including explicit block behavior and remediation guidance for invalid signatures.
+- Added registry publisher public-key association path to support verified distribution workflows.
+
+### Changed
+- Added explicit unsigned publisher trust-gate handling during install, including confirmation and non-interactive override policy via `--allow-unverified-publisher`.
+- Updated regression and compatibility test expectations for non-interactive unsigned install flows to preserve backward-compatible automation behavior with explicit trust override.
+
+### Quality
+- Feature40 acceptance criteria gate validated across `test317`-`test321`.
+- SWE remediation verified for prior feature40 trust-gate regressions:
+  - `python3 -m pytest --testmon`
+  - Result: `15 passed, 63 deselected`
+- Merge commit: TBD (populate after merge to `phase4/main`).
+
+
 ## [v0.21.0] - 2026-03-19
 ### Changed
 - Applied SWE regression remediation for permission-model compatibility paths referenced in feature review notes, including validator compatibility and regression-gate stabilization.
