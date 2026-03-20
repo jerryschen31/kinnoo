@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Agents | Kinnoo Registry{% endblock %}
+
+{% block content %}
+  <section>
+    <h2>Published Agents</h2>
+    <p>Total: {{ total }}</p>
+
+    {% if agents %}
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Tenant</th>
+            <th>Name</th>
+            <th>Version</th>
+            <th>Author</th>
+            <th>Size</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for agent in agents %}
+            <tr>
+              <td>{{ agent.tenant }}</td>
+              <td>{{ agent.name }}</td>
+              <td>{{ agent.version }}</td>
+              <td>{{ agent.author }}</td>
+              <td>{{ agent.size_display }}</td>
+              <td>{{ agent.description }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>No published agents found.</p>
+    {% endif %}
+
+    <nav class="pager" aria-label="Pagination">
+      {% if has_prev %}
+        <a href="/agents?page={{ prev_page }}&per_page={{ per_page }}">Previous</a>
+      {% else %}
+        <span aria-disabled="true">Previous</span>
+      {% endif %}
+
+      <span>Page {{ page }}</span>
+
+      {% if has_next %}
+        <a href="/agents?page={{ next_page }}&per_page={{ per_page }}">Next</a>
+      {% else %}
+        <span aria-disabled="true">Next</span>
+      {% endif %}
+    </nav>
+  </section>
+{% endblock %}
