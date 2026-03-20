@@ -1,11 +1,14 @@
 from pathlib import Path
 import importlib.util
 import sys
+import os
+import subprocess
+import zipfile
 
 import pytest
 
 from kinnoo.registry import RegistryBackend, RegistryService
-from kinnoo.registry_backends import LocalFilesystemRegistryBackend
+from kinnoo.registry_backends import LocalFilesystemRegistryBackend, MockFilesystemRegistryBackend
 
 
 # [agent] test deprecated: Feature12 registry tests are superseded by feature13 tests.
@@ -113,3 +116,109 @@ def test_feature26_filesystem_permissions_runtime_enforcement(tmp_path: Path) ->
 	with pytest.raises(fixture.FilesystemPermissionError) as handler_sandbox_error:
 		fixture.handle_mcp_tool_call(outside_request, allow_gate)
 	assert "allowed_paths sandbox" in str(handler_sandbox_error.value)
+
+
+def test_feature40_registry_publisher_key_association(tmp_path: Path) -> None:
+	from src.kinnoo.signing import create_detached_signature_artifacts, generate_ed25519_keypair
+
+	archive_source = tmp_path / "feature40-registry-source.kno"
+	manifest_text = (
+		"name: feature40-registry-agent\n"
+		"version: 1.0.0\n"
+		"entrypoint: run.py\n"
+		"runtime:\n"
+		"  language: python\n"
+		"  version: \">=3.10\"\n"
+		"  type: one-shot\n"
+		"dependencies: []\n"
+		"inputs:\n"
+		"  type: text\n"
+		"outputs:\n"
+		"  type: text\n"
+	)
+	with zipfile.ZipFile(archive_source, "w") as archive_zip:
+		archive_zip.writestr("kinnoo.yaml", manifest_text)
+		archive_zip.writestr("run.py", "print('feature40-registry-ok')\n")
+		archive_zip.writestr("requirements.txt", "")
+
+	key_dir = tmp_path / "publisher-keys"
+	key_dir.mkdir(parents=True, exist_ok=True)
+	private_key_path = key_dir / "publisher-private.pem"
+	public_key_path = key_dir / "publisher-public.pem"
+	generate_ed25519_keypair(
+		private_key_path=private_key_path,
+		public_key_path=public_key_path,
+	)
+	publisher_public_key = public_key_path.read_text(encoding="utf-8").strip()
+
+	registry_root = tmp_path / "registry-root"
+	service = RegistryService(backend=MockFilesystemRegistryBackend(root=registry_root))
+	record = service.publish(
+		name="feature40-registry-agent",
+		version="1.0.0",
+		archive_path=archive_source,
+		manifest_metadata={
+			"name": "feature40-registry-agent",
+			"version": "1.0.0",
+			"publisher_public_key": publisher_public_key,
+		},
+	)
+
+	resolved_record = service.resolve(name="feature40-registry-agent", version="1.0.0")
+	assert resolved_record is not None
+	assert resolved_record.publisher_public_key == publisher_public_key
+
+	create_detached_signature_artifacts(
+		archive_path=record.archive_path,
+		private_key_path=private_key_path,
+	)
+
+	env = dict(os.environ)
+	env["KINNOO_REGISTRY_ROOT"] = str(registry_root)
+
+	valid_target = tmp_path / "feature40-registry-valid-install"
+	valid_result = subprocess.run(
+		[
+			sys.executable,
+			"src/kinnoo/cli.py",
+			"install",
+			"feature40-registry-agent==1.0.0",
+			str(valid_target),
+			"--yes",
+		],
+		capture_output=True,
+		text=True,
+		env=env,
+	)
+	valid_output = f"{valid_result.stdout}\n{valid_result.stderr}"
+	assert valid_result.returncode == 0, valid_output
+	assert "Archive signature verified" in valid_output
+
+	spoof_private_key_path = key_dir / "spoof-private.pem"
+	spoof_public_key_path = key_dir / "spoof-public.pem"
+	generate_ed25519_keypair(
+		private_key_path=spoof_private_key_path,
+		public_key_path=spoof_public_key_path,
+	)
+	create_detached_signature_artifacts(
+		archive_path=record.archive_path,
+		private_key_path=spoof_private_key_path,
+	)
+
+	spoof_target = tmp_path / "feature40-registry-spoof-install"
+	spoof_result = subprocess.run(
+		[
+			sys.executable,
+			"src/kinnoo/cli.py",
+			"install",
+			"feature40-registry-agent==1.0.0",
+			str(spoof_target),
+			"--yes",
+		],
+		capture_output=True,
+		text=True,
+		env=env,
+	)
+	spoof_output = f"{spoof_result.stdout}\n{spoof_result.stderr}"
+	assert spoof_result.returncode != 0
+	assert "public key does not match registry publisher key association" in spoof_output

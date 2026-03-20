@@ -174,6 +174,37 @@ Compatibility guarantee:
 
 - manifests without `state_dirs` preserve pre-Feature35 asset-only behavior.
 
+### Feature40 signed pack artifacts (`kinnoo pack --sign`)
+
+Feature40 adds optional authenticity artifacts for packaged archives.
+
+Usage:
+
+- `kinnoo pack <agent-dir> --sign --signing-key <private-key.pem>`
+
+Behavior summary:
+
+- existing checksum behavior remains unchanged (`<archive>.kno.sha256` is still emitted),
+- signed pack emits detached signature artifacts alongside the archive:
+  - `<archive>.kno.sig`
+  - `<archive>.kno.sig.json`
+
+Signature metadata (`.sig.json`) fields:
+
+- `schema_version`: currently `1`
+- `algorithm`: currently `ed25519`
+- `archive_filename`: archive basename
+- `archive_sha256`: SHA256 of archive payload bytes
+- `signature_filename`: detached signature basename
+- `signature_base64`: base64-encoded detached signature bytes
+- `public_key_fingerprint_sha256`: signer public-key fingerprint
+- `public_key_pem`: signer public key for verification workflows
+- `verification_hint`: operator-facing verification guidance
+
+Security note:
+
+- signing requires explicit private-key path via `--signing-key`; private key material is never written into pack logs.
+
 ---
 
 ### Feature9 optional fields (`description`, `author`, `license`, `env_vars`)

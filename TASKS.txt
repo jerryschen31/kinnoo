@@ -4337,7 +4337,7 @@ tasks:
       - 'step4: Add tests proving keys are generated, readable in expected format, and usable by signing helpers'
     dependencies: []
     tests: [test317]
-    status: not-started
+    status: needs-review
 
   - id: task220
     title: "Feature40 pack signing integration"
@@ -4358,7 +4358,7 @@ tasks:
       - 'step4: Add tests validating signed pack path emits expected signature artifacts and metadata contract'
     dependencies: [task219]
     tests: [test318]
-    status: not-started
+    status: needs-review
 
   - id: task221
     title: "Feature40 install signature verification gate"
@@ -4379,7 +4379,7 @@ tasks:
       - 'step4: Add tests for valid-signature allow path and invalid-signature block path'
     dependencies: [task220]
     tests: [test319]
-    status: not-started
+    status: needs-review
 
   - id: task222
     title: "Feature40 unsigned archive warning and confirmation path"
@@ -4400,7 +4400,7 @@ tasks:
       - 'step4: Add tests covering interactive confirmation and non-interactive unsigned handling paths'
     dependencies: [task221]
     tests: [test320]
-    status: not-started
+    status: needs-review
 
   - id: task223
     title: "Feature40 registry publisher key association"
@@ -4421,4 +4421,4 @@ tasks:
       - 'step4: Add tests validating key association persistence lookup and anti-spoofing verification path'
     dependencies: [task219, task221]
     tests: [test321]
-    status: not-started
+    status: needs-review

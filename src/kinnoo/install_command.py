@@ -35,6 +35,7 @@ try:
     from kinnoo.validator import validate
     from kinnoo.install_trace import write_install_trace
     from kinnoo.logging_utils import emit_violation_event_diagnostic
+    from kinnoo.signing import verify_detached_signature_artifacts
 except ImportError:
     from .checksum import (
         ChecksumParseError,
@@ -50,6 +51,7 @@ except ImportError:
     from .validator import validate
     from .install_trace import write_install_trace
     from .logging_utils import emit_violation_event_diagnostic
+    from .signing import verify_detached_signature_artifacts
 
 
 def _read_requirements(requirements_path: Path) -> list[str]:
@@ -524,6 +526,8 @@ def install_agent(
     allow_vulnerable: bool = False,
     ignore_scripts: bool = False,
     accept_permissions: bool = False,
+    allow_unverified_publisher: bool = False,
+    expected_publisher_public_key: str | None = None,
 ) -> int:
     target_spec = parse_install_target_spec(archive_path)
     if target_spec.kind == "invalid":
@@ -569,6 +573,8 @@ def install_agent(
             allow_vulnerable=allow_vulnerable,
             ignore_scripts=ignore_scripts,
             accept_permissions=accept_permissions,
+            allow_unverified_publisher=allow_unverified_publisher,
+            expected_publisher_public_key=resolved_record.publisher_public_key,
         )
 
     archive = target_spec.archive_path or Path(archive_path)
@@ -581,6 +587,8 @@ def install_agent(
         allow_vulnerable=allow_vulnerable,
         ignore_scripts=ignore_scripts,
         accept_permissions=accept_permissions,
+        allow_unverified_publisher=allow_unverified_publisher,
+        expected_publisher_public_key=expected_publisher_public_key,
     )
 
 
@@ -593,6 +601,8 @@ def _install_from_archive_path(
     allow_vulnerable: bool = False,
     ignore_scripts: bool = False,
     accept_permissions: bool = False,
+    allow_unverified_publisher: bool = False,
+    expected_publisher_public_key: str | None = None,
 ) -> int:
     archive = Path(archive_path)
     if not archive.exists() or not archive.is_file():
@@ -643,6 +653,78 @@ def _install_from_archive_path(
                 return 1
             if unverified_confirmation not in {"y", "yes"}:
                 print("Install aborted by user.", file=sys.stderr)
+                return 1
+
+    signature_path = Path(f"{archive}.sig")
+    signature_metadata_path = Path(f"{archive}.sig.json")
+    has_signature_artifacts = signature_path.exists() or signature_metadata_path.exists()
+    if has_signature_artifacts:
+        if not signature_path.exists() or not signature_metadata_path.exists():
+            print(
+                "Error: Signed archive is missing required signature artifacts (.sig and .sig.json).",
+                file=sys.stderr,
+            )
+            print(
+                "Error: Re-pack with --sign and retry install.",
+                file=sys.stderr,
+            )
+            return 1
+
+        try:
+            verify_detached_signature_artifacts(
+                archive_path=archive,
+                signature_path=signature_path,
+                metadata_path=signature_metadata_path,
+                expected_public_key_pem=expected_publisher_public_key,
+            )
+        except ValueError as error:
+            print(
+                f"Error: Signature verification failed: {error}",
+                file=sys.stderr,
+            )
+            print(
+                "Error: Archive authenticity could not be verified. Re-download from a trusted publisher or re-pack with a valid signing key.",
+                file=sys.stderr,
+            )
+            return 1
+
+        print("[kinnoo install] Archive signature verified.")
+    elif checksum_path.exists():
+        if expected_publisher_public_key is not None:
+            print(
+                "Error: Registry publisher key association exists but archive signature metadata is missing.",
+                file=sys.stderr,
+            )
+            print(
+                "Error: Re-publish a signed archive with matching publisher signature metadata.",
+                file=sys.stderr,
+            )
+            return 1
+        print(
+            "Warning: UNVERIFIED PUBLISHER - no signature metadata found for this archive.",
+            file=sys.stderr,
+        )
+        if assume_yes:
+            if not allow_unverified_publisher:
+                print(
+                    "Error: Non-interactive install requires --allow-unverified-publisher when signature metadata is absent.",
+                    file=sys.stderr,
+                )
+                return 1
+            print(
+                "[kinnoo install] Unverified publisher override acknowledged via --allow-unverified-publisher."
+            )
+        else:
+            try:
+                publisher_confirmation = input(
+                    "UNVERIFIED PUBLISHER: no signature metadata found. Continue? [y/N]: "
+                ).strip().lower()
+            except EOFError:
+                print("Install aborted: unverified publisher not approved.", file=sys.stderr)
+                return 1
+
+            if publisher_confirmation not in {"y", "yes"}:
+                print("Install aborted: unverified publisher not approved.", file=sys.stderr)
                 return 1
 
     manifest_data = read_manifest_from_kno_archive(archive)
