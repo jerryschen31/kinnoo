@@ -36,6 +36,7 @@ class ServerConfig:
     s3_access_key_id: str | None
     s3_secret_access_key: str | None
     presign_ttl_seconds: int
+    max_upload_mb: int
 
     @classmethod
     def from_env(cls) -> "ServerConfig":
@@ -56,4 +57,5 @@ class ServerConfig:
             s3_access_key_id=os.getenv("REGISTRY_S3_ACCESS_KEY_ID") or None,
             s3_secret_access_key=os.getenv("REGISTRY_S3_SECRET_ACCESS_KEY") or None,
             presign_ttl_seconds=_read_int_env("REGISTRY_PRESIGN_TTL_SECONDS", 900),
+            max_upload_mb=_read_int_env("REGISTRY_MAX_UPLOAD_MB", 50),
         )

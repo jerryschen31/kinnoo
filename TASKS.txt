@@ -4845,7 +4845,7 @@ tasks:
       - 'step10: Add tests using TestClient and mock storage'
     dependencies: [task239, task240, task237]
     tests: [test339]
-    status: not-started
+    status: needs-review
 
   - id: task242
     title: "List and detail endpoints"
