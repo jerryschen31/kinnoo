@@ -16,7 +16,7 @@ DEFAULT_LOCAL_REGISTRY_ROOT = Path.home() / ".kinnoo" / "registry"
 DEFAULT_MOCK_REGISTRY_ROOT = Path.home() / "kinnoo-mock-registry-scratch" / "jerry"
 
 
-class LocalFilesystemRegistryBackend:
+class LocalRegistryBackend:
     """Local filesystem backend rooted at ~/.kinnoo/registry by default."""
 
     def __init__(self, root: Optional[Path] = None) -> None:
@@ -188,6 +188,12 @@ class LocalFilesystemRegistryBackend:
             or query_normalized in summary.description.lower()
         ]
 
+    def list_agents(self, *, tenant: str | None = None) -> list[RegistryAgentSummary]:
+        # Local backend is single-tenant today; tenant parameter is kept for
+        # protocol compatibility with upcoming remote backend implementations.
+        _ = tenant
+        return self.list_latest_agents()
+
     def _resolve_exact(self, *, name: str, version: str) -> Optional[RegistryRecord]:
         version_path = self.registry_version_path(name=name, version=version)
         if not version_path.exists() or not version_path.is_dir():
@@ -241,7 +247,11 @@ class LocalFilesystemRegistryBackend:
         return ""
 
 
-class MockFilesystemRegistryBackend(LocalFilesystemRegistryBackend):
+class LocalFilesystemRegistryBackend(LocalRegistryBackend):
+    """Backward-compatible alias for LocalRegistryBackend."""
+
+
+class MockFilesystemRegistryBackend(LocalRegistryBackend):
     """Mock registry backend rooted at ~/kinnoo-mock-registry-scratch/jerry by default."""
 
     def __init__(self, root: Optional[Path] = None) -> None:
