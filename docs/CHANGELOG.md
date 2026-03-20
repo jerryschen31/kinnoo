@@ -3,6 +3,28 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v0.27.0] - 2026-03-20
+### Added
+- Completed Feature30 "Registry Web UI" Tech Lead review and merge-readiness approval cycle.
+- Added authenticated web UI routes and templates for login, listing, search, and per-agent profile/download flows aligned with session-first policy.
+
+### Changed
+- Finalized web-session browsing guard behavior so unauthenticated requests to browsing pages redirect to `/login`.
+- Preserved download architecture where UI-triggered downloads redirect to presigned object-storage URLs instead of proxying archive bytes through the server.
+- Applied targeted MCP runtime startup-path remediation to address delayed stream output in the feature23 regression path.
+
+### Quality
+- Feature30 AC coverage validated across mapped tests `test343`-`test346`.
+- Targeted MCP regression fix verification passed:
+  - `/Users/jerry/.pyenv/versions/3.11.12/bin/python -m pytest tests/test_cli.py::test_feature23_mcp_server_streams_stdout_stderr -q`
+  - Result: `1 passed`
+- Manifest validation gate passed:
+  - `python3 src/validate_project_manifests.py`
+  - Result: `Validation passed: manifests are consistent`
+- Security and repository hygiene checks reported no hardcoded real secrets and no git-tracked files over 10 MB.
+- Merge commit: TBD (populate after merge to `phase3/main`).
+
+
 ## [v0.26.0] - 2026-03-20
 ### Added
 - Completed Feature29 "Remote Registry Server" remediation cycle and approval readiness review for merge.
