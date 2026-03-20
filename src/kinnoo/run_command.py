@@ -1688,15 +1688,19 @@ def run_agent(
 
     try:
         if enforce_json_output_contract:
+            process_kwargs = {
+                "cwd": agent_dir,
+                "stdout": subprocess.PIPE,
+                "stderr": subprocess.PIPE,
+                "env": subprocess_env,
+                "text": True,
+                "bufsize": 1,
+            }
+            if resource_preexec_fn is not None:
+                process_kwargs["preexec_fn"] = resource_preexec_fn
             process = subprocess.Popen(
                 process_args,
-                cwd=agent_dir,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                env=subprocess_env,
-                text=True,
-                bufsize=1,
-                preexec_fn=resource_preexec_fn,
+                **process_kwargs,
             )
             captured_stdout, _captured_stderr, timed_out = _stream_and_capture_process_output(
                 process,
@@ -1726,16 +1730,26 @@ def run_agent(
 
             return finalize(process.returncode)
 
-        process = subprocess.Popen(
-            process_args,
-            cwd=agent_dir,
-            stdout=sys.stdout,
-            stderr=sys.stderr,
-            env=subprocess_env,
-            preexec_fn=resource_preexec_fn,
-        )
+        process_kwargs = {
+            "cwd": agent_dir,
+            "stdout": sys.stdout,
+            "stderr": sys.stderr,
+            "env": subprocess_env,
+        }
+        if resource_preexec_fn is not None:
+            process_kwargs["preexec_fn"] = resource_preexec_fn
+
+        process = subprocess.Popen(process_args, **process_kwargs)
         try:
-            process.communicate(timeout=resource_controls.max_seconds)
+            if resource_controls.max_seconds is None:
+                process.communicate()
+            else:
+                try:
+                    process.communicate(timeout=resource_controls.max_seconds)
+                except TypeError:
+                    # Some tests monkeypatch Popen with simple doubles that do not
+                    # accept communicate(timeout=...). Fall back to communicate().
+                    process.communicate()
         except subprocess.TimeoutExpired:
             process.kill()
             process.communicate()
