@@ -3,6 +3,24 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v0.23.0] - 2026-03-20
+### Added
+- Implemented Feature41 "Runtime Defense-in-Depth (Behavioral Monitoring + Dynamic Enforcement)" with baseline runtime telemetry event capture for process, network, and filesystem activity.
+- Added deterministic policy-violation handling with structured reason codes, warning mode, and hard kill-switch termination for high-risk violations.
+- Added `kinnoo run --dry-run` predictive execution trace mode that reports expected actions without launching the agent entrypoint.
+
+### Changed
+- Added runtime resource-control enforcement options for wall-clock timeout, CPU cap, and memory cap where supported, with explicit degraded-mode messaging on unsupported platforms.
+- Integrated runtime monitor policy summaries with feature39 permission declarations for both Python and Node execution paths.
+- Added graceful telemetry-limited degradation signaling (`reason_code=telemetry_limited_backend`) when low-level telemetry capabilities are unavailable.
+
+### Quality
+- Feature41 acceptance criteria gate validated across `test322`-`test326`.
+- Required review command executed: `python3 -m pytest --testmon` (result: `collected 0 items` due no-change selection state).
+- Full regression evidence in testmon workflow: `python3 -m pytest --testmon-noselect` (result: `330 passed, 1 skipped`).
+- Merge commit: TBD (populate after merge to `phase4/main`).
+
+
 ## [v0.22.0] - 2026-03-19
 ### Added
 - Implemented Feature40 "Archive Signing & Publisher Verification" with Ed25519 key generation (`kinnoo keygen`) and signed archive packaging support (`kinnoo pack --sign`).
