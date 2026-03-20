@@ -4938,7 +4938,7 @@ tasks:
       - 'step5: Add tests verifying template engine is configured and base layout renders'
     dependencies: [task239]
     tests: [test343]
-    status: not-started
+    status: needs-review
 
   - id: task246
     title: "Login page + session auth flow"
