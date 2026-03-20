@@ -1425,7 +1425,7 @@ features:
       Add authenticity guarantees to kinnoo archives using public-key signatures. Extend pack,
       install, and registry metadata flows so users can verify publisher identity, not just
       archive integrity. Keep existing checksum behavior as complementary corruption detection.
-    tasks: []
+    tasks: [task219, task220, task221, task222, task223]
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo keygen` generates an Ed25519 keypair suitable for archive signing workflows."
@@ -1442,7 +1442,7 @@ features:
       - "Keep signing module isolated for future key-rotation and trust-policy extensions."
     owner: techlead-agent
     dependencies: []
-    status: not-started
+    status: completed
 
   - id: feature41
     title: "Runtime Behavior Monitoring & Kill Switch"
