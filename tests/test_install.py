@@ -2,6 +2,8 @@ import os
 import shutil
 import subprocess
 import tempfile
+import json
+import base64
 from pathlib import Path
 import pytest
 
@@ -246,3 +248,69 @@ def test_feature35_install_state_overwrite_warning_and_force(tmp_path):
     assert result_with_overwrite.returncode == 0, result_with_overwrite.stderr
     assert (target_with_overwrite / "memory" / "from_snapshot.txt").exists()
     assert not (target_with_overwrite / "memory" / "existing.txt").exists()
+
+
+def test_feature40_install_signature_verification_gate(tmp_path):
+    from src.kinnoo.signing import create_detached_signature_artifacts, generate_ed25519_keypair
+
+    private_key_path = tmp_path / "publisher-private.pem"
+    public_key_path = tmp_path / "publisher-public.pem"
+    generate_ed25519_keypair(private_key_path=private_key_path, public_key_path=public_key_path)
+
+    valid_archive = tmp_path / "feature40-signed-valid.kno"
+    make_dummy_kno_archive(valid_archive)
+    create_detached_signature_artifacts(
+        archive_path=valid_archive,
+        private_key_path=private_key_path,
+    )
+
+    valid_target = tmp_path / "installed-feature40-valid"
+    valid_result = subprocess.run(
+        [
+            "python3",
+            "src/kinnoo/cli.py",
+            "install",
+            str(valid_archive),
+            str(valid_target),
+            "--yes",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    valid_output = f"{valid_result.stdout}\n{valid_result.stderr}"
+    assert valid_result.returncode == 0, valid_output
+    assert "Archive signature verified" in valid_output
+    assert (valid_target / "kinnoo.yaml").exists()
+
+    invalid_archive = tmp_path / "feature40-signed-invalid.kno"
+    make_dummy_kno_archive(invalid_archive)
+    create_detached_signature_artifacts(
+        archive_path=invalid_archive,
+        private_key_path=private_key_path,
+    )
+
+    invalid_signature_metadata_path = Path(f"{invalid_archive}.sig.json")
+    invalid_metadata = json.loads(invalid_signature_metadata_path.read_text(encoding="utf-8"))
+    invalid_metadata["signature_base64"] = base64.b64encode(b"feature40-invalid-signature").decode("ascii")
+    invalid_signature_metadata_path.write_text(
+        json.dumps(invalid_metadata, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    invalid_target = tmp_path / "installed-feature40-invalid"
+    invalid_result = subprocess.run(
+        [
+            "python3",
+            "src/kinnoo/cli.py",
+            "install",
+            str(invalid_archive),
+            str(invalid_target),
+            "--yes",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    invalid_output = f"{invalid_result.stdout}\n{invalid_result.stderr}"
+    assert invalid_result.returncode != 0
+    assert "Signature verification failed" in invalid_output
+    assert "Archive authenticity could not be verified" in invalid_output

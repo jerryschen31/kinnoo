@@ -54,7 +54,7 @@ def test_install_summary_and_confirmation_prompt(tmp_path: Path) -> None:
     target_yes = tmp_path / "installed-trust-agent-yes"
     yes_result = subprocess.run(
         [sys.executable, "src/kinnoo/cli.py", "install", str(archive_path), str(target_yes)],
-        input="y\n",
+        input="y\ny\n",
         capture_output=True,
         text=True,
     )
@@ -69,6 +69,7 @@ def test_install_summary_and_confirmation_prompt(tmp_path: Path) -> None:
     assert "- Env Vars:" in yes_output
     assert "  - OPENAI_API_KEY" in yes_output
     assert "  - ANTHROPIC_API_KEY" in yes_output
+    assert "UNVERIFIED PUBLISHER" in yes_output
     assert "Continue with install? [y/N]:" in yes_output
     assert target_yes.exists()
 
@@ -82,8 +83,8 @@ def test_install_summary_and_confirmation_prompt(tmp_path: Path) -> None:
 
     no_output = f"{no_result.stdout}\n{no_result.stderr}"
     assert no_result.returncode != 0
-    assert "Continue with install? [y/N]:" in no_output
-    assert "Install aborted by user." in no_output
+    assert "UNVERIFIED PUBLISHER" in no_output
+    assert "Install aborted: unverified publisher not approved." in no_output
     assert not target_no.exists()
 
     target_empty = tmp_path / "installed-trust-agent-empty"
@@ -96,8 +97,8 @@ def test_install_summary_and_confirmation_prompt(tmp_path: Path) -> None:
 
     empty_output = f"{empty_result.stdout}\n{empty_result.stderr}"
     assert empty_result.returncode != 0
-    assert "Continue with install? [y/N]:" in empty_output
-    assert "Install aborted by user." in empty_output
+    assert "UNVERIFIED PUBLISHER" in empty_output
+    assert "Install aborted: unverified publisher not approved." in empty_output
     assert not target_empty.exists()
 
 
@@ -117,6 +118,7 @@ def test_install_yes_flag_bypasses_prompt(tmp_path: Path) -> None:
             str(archive_path),
             str(target_long_flag),
             "--yes",
+            "--allow-unverified-publisher",
         ],
         capture_output=True,
         text=True,
@@ -129,6 +131,7 @@ def test_install_yes_flag_bypasses_prompt(tmp_path: Path) -> None:
     assert "  - pip" in long_flag_output
     assert "  - OPENAI_API_KEY" in long_flag_output
     assert "Continue with install? [y/N]:" not in long_flag_output
+    assert "Unverified publisher override acknowledged" in long_flag_output
     assert target_long_flag.exists()
 
     target_short_flag = tmp_path / "installed-yes-short"
@@ -140,6 +143,7 @@ def test_install_yes_flag_bypasses_prompt(tmp_path: Path) -> None:
             str(archive_path),
             str(target_short_flag),
             "-y",
+            "--allow-unverified-publisher",
         ],
         capture_output=True,
         text=True,
@@ -152,6 +156,7 @@ def test_install_yes_flag_bypasses_prompt(tmp_path: Path) -> None:
     assert "  - pip" in short_flag_output
     assert "  - OPENAI_API_KEY" in short_flag_output
     assert "Continue with install? [y/N]:" not in short_flag_output
+    assert "Unverified publisher override acknowledged" in short_flag_output
     assert target_short_flag.exists()
 
 
@@ -204,6 +209,7 @@ def test_install_unverified_source_warning(tmp_path: Path) -> None:
             str(archive_path),
             str(target_verified),
             "--yes",
+            "--allow-unverified-publisher",
         ],
         capture_output=True,
         text=True,
@@ -211,7 +217,7 @@ def test_install_unverified_source_warning(tmp_path: Path) -> None:
 
     verified_output = f"{verified_result.stdout}\n{verified_result.stderr}"
     assert verified_result.returncode == 0, verified_output
-    assert "This agent is from an unverified source." not in verified_output
+    assert "UNVERIFIED PUBLISHER" in verified_output
     assert target_verified.exists()
 
 

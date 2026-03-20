@@ -258,6 +258,13 @@ print(result)
 - This works because MVP treats agents as black boxes — no framework awareness needed.
 
 ### V2+ Framework Adapters (Post-MVP)
+
+## Feature40 Review Snapshot (2026-03-19)
+
+- Reviewed feature40 (Archive Signing & Publisher Verification) implementation against tasks `task219`-`task223` and tests `test317`-`test321`.
+- Feature40 focused AC gate passes (`5 passed`) for keygen, pack signing, install signature verification, unsigned warning/confirmation, and registry publisher key association.
+- Required full regression command `python3 -m pytest --testmon` is currently red with cross-feature install regressions caused by stricter unsigned publisher enforcement defaults.
+- Merge recommendation: blocked until install compatibility policy is reconciled and full regression returns green.
 - When framework-specific features add value, implement as coherent V2 feature set:
 
 - Feature N: Framework-Aware Scaffolding

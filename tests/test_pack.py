@@ -2,6 +2,7 @@ import os
 import subprocess
 import tempfile
 import zipfile
+import json
 import pytest
 from pathlib import Path  # <-- Add this import
 import shutil
@@ -691,6 +692,7 @@ state_dirs:
         str(archive),
         str(install_target),
         "--yes",
+        "--allow-unverified-publisher",
       ],
       cwd=tmp_path,
       capture_output=True,
@@ -1047,9 +1049,105 @@ assets:
         archive_path=str(archive),
         target_dir_arg=str(install_target),
         assume_yes=True,
+      allow_unverified_publisher=True,
     )
     assert install_result == 0
     assert (["npm", "install"], install_target.resolve()) in [
         (command, cwd.resolve() if isinstance(cwd, Path) else cwd)
         for command, cwd in install_calls
     ]
+
+
+def test_feature40_pack_sign_emits_signature_and_metadata(tmp_path: Path) -> None:
+    from src.kinnoo.signing import load_ed25519_public_key, verify_signature
+
+    env = _pack_env(tmp_path)
+
+    key_dir = tmp_path / "keys"
+    key_dir.mkdir()
+    private_key_path = key_dir / "publisher-private.pem"
+    public_key_path = key_dir / "publisher-public.pem"
+
+    keygen_result = subprocess.run(
+        KINNOO_CLI
+        + [
+            "keygen",
+            "--private-key",
+            str(private_key_path),
+            "--public-key",
+            str(public_key_path),
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert keygen_result.returncode == 0, keygen_result.stderr
+
+    agent = tmp_path / "feature40-pack-sign"
+    agent.mkdir()
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: feature40-pack-sign
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.py").write_text("print('feature40')\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    pack_result = subprocess.run(
+        KINNOO_CLI
+        + [
+            "pack",
+            str(agent),
+            "--sign",
+            "--signing-key",
+            str(private_key_path),
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    pack_output = f"{pack_result.stdout}\n{pack_result.stderr}"
+    assert pack_result.returncode == 0, pack_output
+
+    archive = _canonical_archive_path(tmp_path, "feature40-pack-sign", "1.0.0")
+    checksum_sidecar = Path(f"{archive}.sha256")
+    signature_path = Path(f"{archive}.sig")
+    metadata_path = Path(f"{archive}.sig.json")
+
+    assert archive.exists(), "Expected signed .kno archive to be created"
+    assert checksum_sidecar.exists(), "Expected checksum sidecar to remain present"
+    assert signature_path.exists(), "Expected detached signature artifact"
+    assert metadata_path.exists(), "Expected signature metadata artifact"
+
+    assert "[kinnoo pack] Checksum sidecar written:" in pack_output
+    assert "[kinnoo pack] Signature artifact written:" in pack_output
+    assert "[kinnoo pack] Signature metadata written:" in pack_output
+
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    assert metadata["schema_version"] == 1
+    assert metadata["algorithm"] == "ed25519"
+    assert metadata["archive_filename"] == archive.name
+    assert metadata["signature_filename"] == signature_path.name
+    assert metadata["verification_hint"]
+    assert isinstance(metadata["public_key_fingerprint_sha256"], str)
+    assert len(metadata["public_key_fingerprint_sha256"]) == 64
+
+    archive_payload = archive.read_bytes()
+    signature_payload = signature_path.read_bytes()
+    signing_public_key = load_ed25519_public_key(public_key_path)
+    assert verify_signature(signing_public_key, archive_payload, signature_payload) is True
