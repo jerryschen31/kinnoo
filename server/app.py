@@ -9,6 +9,7 @@ from server.auth.token import SigningKey, TokenService
 from server.config import ServerConfig
 from server.metadata.manager import MetadataManager
 from server.routes.agents import create_agents_router
+from server.routes.download import create_download_router
 from server.routes.publish import create_publish_router
 from server.storage import build_storage_backend_from_config
 
@@ -56,6 +57,14 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
         create_agents_router(
             token_service=token_service,
             metadata_manager=metadata_manager,
+        )
+    )
+    app.include_router(
+        create_download_router(
+            token_service=token_service,
+            metadata_manager=metadata_manager,
+            storage_backend=storage_backend,
+            presign_ttl_seconds=resolved_config.presign_ttl_seconds,
         )
     )
 
