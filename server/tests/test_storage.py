@@ -72,6 +72,7 @@ def test_storage_protocol(tmp_path, monkeypatch):
         s3_access_key_id=None,
         s3_secret_access_key=None,
         presign_ttl_seconds=120,
+        max_upload_mb=50,
     )
     local_backend = build_storage_backend_from_config(local_config)
     assert isinstance(local_backend, LocalStorageBackend)
@@ -86,6 +87,7 @@ def test_storage_protocol(tmp_path, monkeypatch):
         s3_access_key_id=None,
         s3_secret_access_key=None,
         presign_ttl_seconds=120,
+        max_upload_mb=50,
     )
     mock_backend = build_storage_backend_from_config(mock_config, s3_client=fake_client)
     assert isinstance(mock_backend, MockS3Backend)
@@ -100,6 +102,7 @@ def test_storage_protocol(tmp_path, monkeypatch):
         s3_access_key_id="dev",
         s3_secret_access_key="dev",
         presign_ttl_seconds=120,
+        max_upload_mb=50,
     )
     s3_backend = build_storage_backend_from_config(s3_config, s3_client=fake_client)
     assert isinstance(s3_backend, S3StorageBackend)
