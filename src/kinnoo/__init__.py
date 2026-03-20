@@ -4,6 +4,7 @@ from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 from .archive import ArchiveBackend, ArchiveRecord, LocalArchiveBackend
+from .config import RegistryConfig, load_registry_config
 from .registry import RegistryBackend, RegistryRecord, RegistryService
 from .registry_backends import LocalFilesystemRegistryBackend, LocalRegistryBackend, MockFilesystemRegistryBackend
 from .remote_client import RemoteRegistryClient
@@ -35,6 +36,8 @@ __all__ = [
 	"ArchiveBackend",
 	"ArchiveRecord",
 	"LocalArchiveBackend",
+	"RegistryConfig",
+	"load_registry_config",
 	"LocalRegistryBackend",
 	"LocalFilesystemRegistryBackend",
 	"MockFilesystemRegistryBackend",
