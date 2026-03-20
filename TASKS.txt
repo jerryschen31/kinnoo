@@ -4889,7 +4889,7 @@ tasks:
       - 'step7: Add tests using mock storage presigned URL generation'
     dependencies: [task239, task240, task237]
     tests: [test341]
-    status: not-started
+    status: needs-review
 
   - id: task244
     title: "Search endpoint and auth middleware + rate limiting"
