@@ -3,6 +3,24 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v0.25.0] - 2026-03-20
+### Added
+- Completed Feature28 "Registry Backend Abstraction & Remote Client" implementation review and merge readiness approval.
+- Added formal Tech Lead review evidence for feature28 covering backend abstraction, remote client behavior, config/env precedence, and remote error UX contracts.
+
+### Changed
+- Integrated deterministic backend-selection behavior across CLI registry operations (`publish`, `install`, `list`, `search`) for `--local`, `--remote`, and auto/config-driven modes.
+- Standardized remote client error taxonomy for 401/403/404/409/429/5xx and network-failure paths with actionable user-facing guidance.
+
+### Quality
+- Feature28 acceptance criteria gate validated across `test327`-`test331` mapped checks.
+- Required review command executed:
+  - `python3 -m pytest --testmon`
+  - Result: `69 passed, 1 skipped, 24 deselected`
+- Security review evidence (server scope): credential/token/private-key pattern scan reported no hardcoded real secrets or leaked private keys.
+- Merge commit: TBD (populate after merge to `phase4/main`).
+
+
 ## [v0.24.0] - 2026-03-19
 ### Added
 - Completed Feature43 "Auth, User & Tenant Management" endpoint requirements for AC4 and AC5.

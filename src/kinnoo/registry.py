@@ -5,8 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 import re
 from pathlib import Path
-from typing import Any, Literal, Optional, Protocol, runtime_checkable
+from typing import Any, Literal, Optional
 
+from .registry_backend import RegistryBackend
 from .schema import NAME_PATTERN, SEMVER_PATTERN
 
 
@@ -41,39 +42,6 @@ class InstallTargetSpec:
     name: str | None = None
     version: str | None = None
     error: str | None = None
-
-
-@runtime_checkable
-class RegistryBackend(Protocol):
-    """Backend contract for registry operations.
-
-    Backends can be local filesystem or remote in future versions.
-    """
-
-    def publish(
-        self,
-        *,
-        name: str,
-        version: str,
-        archive_path: Path,
-        manifest_metadata: Optional[dict[str, Any]] = None,
-    ) -> RegistryRecord:
-        """Publish an archive under a name/version and return stored record."""
-
-    def resolve(self, *, name: str, version: Optional[str] = None) -> Optional[RegistryRecord]:
-        """Resolve a specific version or latest available version for a name."""
-
-    def list_entries(self) -> list[RegistryRecord]:
-        """List all published records in deterministic order."""
-
-    def search(self, *, query: str) -> list[RegistryRecord]:
-        """Search for records matching a query in deterministic order."""
-
-    def list_latest_agents(self) -> list[RegistryAgentSummary]:
-        """List latest-version summary rows per agent in deterministic order."""
-
-    def search_agents(self, *, query: str) -> list[RegistryAgentSummary]:
-        """Search latest-version agent summaries by query in deterministic order."""
 
 
 class RegistryService:
