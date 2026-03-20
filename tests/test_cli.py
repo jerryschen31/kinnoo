@@ -2290,3 +2290,50 @@ permissions:
     assert "capability=shell action=shell_execution" in denied_output
     assert "Remediation:" in denied_output
     assert "feature39-sandbox-denied-should-not-run" not in denied_output
+
+
+def test_feature39_sandbox_backend_failure_shapes() -> None:
+    from kinnoo.sandbox import evaluate_sandbox_permissions
+
+    base_manifest = {
+        "permissions": {
+            "network": True,
+            "filesystem_scope": "read-only",
+            "shell": False,
+            "browser": False,
+            "env_access": [],
+        }
+    }
+
+    unsupported_runtime = evaluate_sandbox_permissions(
+        manifest=base_manifest,
+        runtime_type="daemon",
+        runtime_language="python",
+        pass_through_args=["--exec", "echo denied"],
+    )
+    assert unsupported_runtime.allowed is False
+    assert unsupported_runtime.code == "backend_unsupported_runtime"
+    assert "runtime.type='one-shot'" in unsupported_runtime.message
+    assert "run without --sandbox" in unsupported_runtime.remediation
+
+    unsupported_runtime_language = evaluate_sandbox_permissions(
+        manifest=base_manifest,
+        runtime_type="one-shot",
+        runtime_language="ruby",
+        pass_through_args=["--exec", "echo denied"],
+    )
+    assert unsupported_runtime_language.allowed is False
+    assert unsupported_runtime_language.code == "backend_unsupported_runtime_language"
+    assert "runtime.language='python' and 'nodejs'" in unsupported_runtime_language.message
+    assert "run without --sandbox" in unsupported_runtime_language.remediation
+
+    missing_permissions = evaluate_sandbox_permissions(
+        manifest={},
+        runtime_type="one-shot",
+        runtime_language="python",
+        pass_through_args=["--exec", "echo denied"],
+    )
+    assert missing_permissions.allowed is False
+    assert missing_permissions.code == "missing_permissions_policy"
+    assert "requires manifest permissions declaration" in missing_permissions.message
+    assert "Declare a permissions section" in missing_permissions.remediation

@@ -607,6 +607,13 @@ def _collect_validation_errors(data: dict[str, Any]) -> list[str]:
         if not found:
             continue
 
+        # Feature26 backward compatibility: for non-mcp-server manifests,
+        # legacy permissions payloads were ignored even when malformed.
+        if optional_field == "permissions":
+            runtime_found, runtime_type = _get_nested(data, "runtime.type")
+            if runtime_found and runtime_type != "mcp-server" and not isinstance(value, dict):
+                continue
+
         if not isinstance(value, expected_type):
             actual = type(value).__name__
             if isinstance(expected_type, tuple):
