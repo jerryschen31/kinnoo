@@ -28,6 +28,7 @@ from .schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars
 from .sandbox import evaluate_sandbox_permissions
 from .install_trace import write_violation_event
 from .logging_utils import emit_violation_event_diagnostic
+from .runtime_monitor import RuntimeMonitor
 from .supervisor import (
     build_daemon_state_payload,
     clear_daemon_state,
@@ -1093,11 +1094,14 @@ def run_agent(
     trace_manifest: dict | None = None
     trace_lifecycle: dict[str, object] | None = None
     trace_forbidden_values: list[str] = []
+    runtime_monitor: RuntimeMonitor | None = None
     if input_arg is not None:
         trace_forbidden_values.append(input_arg)
     trace_forbidden_values.extend(runtime_pass_through_args)
 
     def finalize(exit_code: int) -> int:
+        if runtime_monitor is not None:
+            runtime_monitor.finalize(exit_code=exit_code)
         _write_run_trace_log(
             agent_dir=agent_dir,
             manifest=trace_manifest,
@@ -1380,6 +1384,17 @@ def run_agent(
     if effective_input_arg is not None:
         process_args.append(effective_input_arg)
     process_args.extend(runtime_pass_through_args)
+
+    runtime_monitor = RuntimeMonitor(
+        agent_dir=agent_dir,
+        runtime_language=runtime_language,
+        forbidden_values=trace_forbidden_values,
+    )
+    subprocess_env = runtime_monitor.prepare_environment(
+        process_args=process_args,
+        cwd=agent_dir,
+        env=subprocess_env,
+    )
 
     enforce_json_output_contract = (
         runtime_type not in ("mcp-server", "daemon")

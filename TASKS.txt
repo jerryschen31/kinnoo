@@ -4442,7 +4442,7 @@ tasks:
       - 'step4: Add tests proving expected event categories are captured with stable field shapes'
     dependencies: [task217, task218]
     tests: [test322]
-    status: not-started
+    status: needs-review
 
   - id: task225
     title: "Feature41 permission violation enforcement and kill switch"
