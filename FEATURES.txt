@@ -1176,7 +1176,7 @@ features:
       - "See notes/phases/phase3-registry-planning.notes for full data model, API contract, and security controls."
     owner: techlead-agent
     dependencies: [feature28, feature43]
-    status: not-started
+    status: completed
 
   - id: feature30
     title: "Registry Web UI"
