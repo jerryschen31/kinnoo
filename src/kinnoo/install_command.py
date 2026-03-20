@@ -8,6 +8,8 @@ import zipfile
 import re
 import os
 import json
+import tempfile
+from urllib import request as urllib_request
 from pathlib import Path
 
 NODE_LIFECYCLE_SCRIPT_NAMES = {
@@ -29,6 +31,8 @@ try:
     )
     from kinnoo.registry import RegistryService, parse_install_target_spec
     from kinnoo.registry_backends import MockFilesystemRegistryBackend
+    from kinnoo.config import load_registry_config
+    from kinnoo.remote_client import RemoteRegistryClient
     from kinnoo.health_check import check_node_package_manager_availability, check_node_runtime_constraint
     from kinnoo.schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars
     from kinnoo.inspect_command import read_manifest_from_kno_archive
@@ -45,6 +49,8 @@ except ImportError:
     )
     from .registry import RegistryService, parse_install_target_spec
     from .registry_backends import MockFilesystemRegistryBackend
+    from .config import load_registry_config
+    from .remote_client import RemoteRegistryClient
     from .health_check import check_node_package_manager_availability, check_node_runtime_constraint
     from .schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars
     from .inspect_command import read_manifest_from_kno_archive
@@ -528,6 +534,8 @@ def install_agent(
     accept_permissions: bool = False,
     allow_unverified_publisher: bool = False,
     expected_publisher_public_key: str | None = None,
+    use_local: bool = False,
+    use_remote: bool = False,
 ) -> int:
     target_spec = parse_install_target_spec(archive_path)
     if target_spec.kind == "invalid":
@@ -541,18 +549,101 @@ def install_agent(
             version = target_spec.version
             selector = f"{target_spec.name}=={target_spec.version}"
 
+        if use_local and use_remote:
+            print("Error: --local and --remote cannot be used together.", file=sys.stderr)
+            return 1
+
         registry_root = os.environ.get("KINNOO_REGISTRY_ROOT")
         backend_root = Path(registry_root).expanduser() if registry_root else None
-        backend = MockFilesystemRegistryBackend(root=backend_root)
+
+        backend = None
+        backend_label = "local"
+        if use_local:
+            backend = MockFilesystemRegistryBackend(root=backend_root)
+        elif use_remote:
+            config = load_registry_config()
+            if not config.registry_url or not config.registry_token or not config.tenant_slug:
+                print(
+                    "Error: Remote registry configuration incomplete. "
+                    "Set registry_url/registry_token/tenant_slug in ~/.kinnoo/config.yaml "
+                    "or KINNOO_REGISTRY_URL/KINNOO_REGISTRY_TOKEN/KINNOO_TENANT_SLUG.",
+                    file=sys.stderr,
+                )
+                return 1
+            backend = RemoteRegistryClient(
+                base_url=config.registry_url,
+                token=config.registry_token,
+                tenant_slug=config.tenant_slug,
+            )
+            backend_label = "remote"
+        else:
+            config = load_registry_config()
+            if config.registry_url:
+                if not config.registry_token or not config.tenant_slug:
+                    print(
+                        "Error: Remote registry URL is configured but token/tenant settings are missing. "
+                        "Set KINNOO_REGISTRY_TOKEN and KINNOO_TENANT_SLUG (or config file equivalents).",
+                        file=sys.stderr,
+                    )
+                    return 1
+                backend = RemoteRegistryClient(
+                    base_url=config.registry_url,
+                    token=config.registry_token,
+                    tenant_slug=config.tenant_slug,
+                )
+                backend_label = "remote"
+            else:
+                backend = MockFilesystemRegistryBackend(root=backend_root)
+
         service = RegistryService(backend=backend)
 
-        resolved_record, resolve_error = service.resolve_with_error(
-            name=str(target_spec.name),
-            version=version,
-        )
-        if resolved_record is None:
-            print(f"Error: {resolve_error or 'Registry resolution failed.'}", file=sys.stderr)
-            return 1
+        resolved_archive_path: Path | None = None
+        expected_publisher_key: str | None = None
+
+        if backend_label == "remote":
+            try:
+                resolved_payload = backend.resolve(name=str(target_spec.name), version=version)
+            except Exception as error:
+                print(f"Error: Failed to resolve remote registry target: {error}", file=sys.stderr)
+                return 1
+
+            download_url = None
+            if isinstance(resolved_payload, dict):
+                raw_download_url = resolved_payload.get("download_url")
+                if isinstance(raw_download_url, str) and raw_download_url.strip():
+                    download_url = raw_download_url.strip()
+
+            if not download_url:
+                print(
+                    "Error: Remote resolve response did not include a usable download_url.",
+                    file=sys.stderr,
+                )
+                return 1
+
+            try:
+                with urllib_request.urlopen(download_url, timeout=30) as response:
+                    payload = response.read()
+            except Exception as error:
+                print(f"Error: Failed to download archive from remote registry: {error}", file=sys.stderr)
+                return 1
+
+            try:
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".kno") as temp_archive:
+                    temp_archive.write(payload)
+                    resolved_archive_path = Path(temp_archive.name)
+            except OSError as error:
+                print(f"Error: Failed to stage downloaded archive: {error}", file=sys.stderr)
+                return 1
+        else:
+            resolved_record, resolve_error = service.resolve_with_error(
+                name=str(target_spec.name),
+                version=version,
+            )
+            if resolved_record is None:
+                print(f"Error: {resolve_error or 'Registry resolution failed.'}", file=sys.stderr)
+                return 1
+            resolved_archive_path = resolved_record.archive_path
+            expected_publisher_key = resolved_record.publisher_public_key
 
         resolved_target_dir_arg = target_dir_arg
         if resolved_target_dir_arg is None:
@@ -561,21 +652,30 @@ def install_agent(
             else:
                 resolved_target_dir_arg = str(Path.cwd() / f"{target_spec.name}-{version}")
 
+        if resolved_archive_path is None:
+            print("Error: Registry resolution failed.", file=sys.stderr)
+            return 1
+
         print(
-            f"[kinnoo install] Resolved registry selector '{selector}' to '{resolved_record.archive_path}'"
+            f"[kinnoo install] Resolved registry selector '{selector}' to '{resolved_archive_path}' ({backend_label})"
         )
-        return _install_from_archive_path(
-            archive_path=str(resolved_record.archive_path),
-            target_dir_arg=resolved_target_dir_arg,
-            force=force,
-            assume_yes=assume_yes,
-            overwrite_state=overwrite_state,
-            allow_vulnerable=allow_vulnerable,
-            ignore_scripts=ignore_scripts,
-            accept_permissions=accept_permissions,
-            allow_unverified_publisher=allow_unverified_publisher,
-            expected_publisher_public_key=resolved_record.publisher_public_key,
-        )
+
+        try:
+            return _install_from_archive_path(
+                archive_path=str(resolved_archive_path),
+                target_dir_arg=resolved_target_dir_arg,
+                force=force,
+                assume_yes=assume_yes,
+                overwrite_state=overwrite_state,
+                allow_vulnerable=allow_vulnerable,
+                ignore_scripts=ignore_scripts,
+                accept_permissions=accept_permissions,
+                allow_unverified_publisher=allow_unverified_publisher,
+                expected_publisher_public_key=expected_publisher_key,
+            )
+        finally:
+            if backend_label == "remote" and resolved_archive_path.exists():
+                resolved_archive_path.unlink(missing_ok=True)
 
     archive = target_spec.archive_path or Path(archive_path)
     return _install_from_archive_path(

@@ -8,7 +8,11 @@ import zipfile
 import pytest
 
 from kinnoo.registry import RegistryBackend, RegistryService
-from kinnoo.registry_backends import LocalFilesystemRegistryBackend, MockFilesystemRegistryBackend
+from kinnoo.registry_backends import (
+	LocalFilesystemRegistryBackend,
+	LocalRegistryBackend,
+	MockFilesystemRegistryBackend,
+)
 
 
 # [agent] test deprecated: Feature12 registry tests are superseded by feature13 tests.
@@ -17,6 +21,47 @@ from kinnoo.registry_backends import LocalFilesystemRegistryBackend, MockFilesys
 #
 # def test_registry_version_resolution_latest_and_exact(tmp_path: Path) -> None:
 #     ...
+
+
+def test_registry_backend_protocol(tmp_path: Path) -> None:
+	"""Feature28 test327: protocol definition and local backend compatibility."""
+
+	required_methods = {"publish", "resolve", "search", "list_agents"}
+	protocol_methods = set(getattr(RegistryBackend, "__dict__", {}).keys())
+	assert required_methods.issubset(protocol_methods)
+
+	backend = LocalRegistryBackend(root=tmp_path / "registry")
+	assert isinstance(backend, RegistryBackend)
+
+	archive_v1 = tmp_path / "demo-1.0.0.kno"
+	archive_v1.write_text("demo-v1", encoding="utf-8")
+	archive_v2 = tmp_path / "demo-2.0.0.kno"
+	archive_v2.write_text("demo-v2", encoding="utf-8")
+
+	published_v1 = backend.publish(name="demo", version="1.0.0", archive_path=archive_v1)
+	published_v2 = backend.publish(name="demo", version="2.0.0", archive_path=archive_v2)
+
+	resolved_latest = backend.resolve(name="demo")
+	assert resolved_latest is not None
+	assert resolved_latest.version == "2.0.0"
+	assert resolved_latest.archive_path == published_v2.archive_path
+
+	resolved_exact = backend.resolve(name="demo", version="1.0.0")
+	assert resolved_exact is not None
+	assert resolved_exact.archive_path == published_v1.archive_path
+
+	records = backend.search(query="dem")
+	assert [record.version for record in records] == ["2.0.0", "1.0.0"]
+
+	agent_summaries = backend.list_agents()
+	assert len(agent_summaries) == 1
+	assert agent_summaries[0].name == "demo"
+	assert agent_summaries[0].latest_version == "2.0.0"
+
+	compat_backend = LocalFilesystemRegistryBackend(root=tmp_path / "registry")
+	compat_resolved = compat_backend.resolve(name="demo")
+	assert compat_resolved is not None
+	assert compat_resolved.version == "2.0.0"
 
 
 def _load_feature26_filesystem_fixture_module():
