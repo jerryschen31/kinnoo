@@ -74,7 +74,7 @@ def test_remote_client_http_calls(monkeypatch, tmp_path: Path) -> None:
     publish_content_type = publish_request.get_header("Content-type") or ""
     assert "multipart/form-data" in publish_content_type
     publish_body = publish_request.data or b""
-    assert b'name="archive"; filename="demo.kno"' in publish_body
+    assert b'name="file"; filename="demo.kno"' in publish_body
     assert b"archive-bytes" in publish_body
 
     resolve_request = captured_requests[1]
