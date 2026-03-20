@@ -128,6 +128,17 @@ Feature39 install permission disclosure and consent:
 	- `kinnoo install ... --yes --accept-permissions`
 	- using `--yes` without `--accept-permissions` aborts safely with guidance
 
+Feature40 unsigned publisher warning and confirmation:
+
+- when archive integrity is verified (checksum present) but no signature metadata is present, install emits:
+	- `Warning: UNVERIFIED PUBLISHER - no signature metadata found for this archive.`
+- interactive installs require explicit confirmation:
+	- `UNVERIFIED PUBLISHER: no signature metadata found. Continue? [y/N]:`
+	- default is deny
+- non-interactive installs must use explicit override:
+	- `kinnoo install ... --yes --allow-unverified-publisher`
+	- using `--yes` without `--allow-unverified-publisher` aborts safely with guidance
+
 Unverified source warning:
 
 - If `<archive>.sha256` is missing, install prints:
@@ -163,6 +174,31 @@ Project-wide security invariant:
 
 - No env var or secret values are ever printed, logged, or persisted by Kinnoo trust paths.
 - Diagnostics and trust output are names-only for env vars.
+
+## Publisher key generation (Feature40)
+
+Use `kinnoo keygen` to generate an Ed25519 keypair for archive signing and publisher verification.
+
+Usage:
+
+- `kinnoo keygen`
+- `kinnoo keygen --private-key ./keys/publisher-private.pem --public-key ./keys/publisher-public.pem`
+
+Behavior:
+
+- Writes deterministic default filenames in the current working directory when paths are not provided:
+	- `kinnoo-ed25519-private.pem`
+	- `kinnoo-ed25519-public.pem`
+- Enforces secure permissions for generated keys:
+	- private key: `0600`
+	- public key: `0644`
+- Prints a public-key SHA256 fingerprint summary for operator verification.
+
+Security notes:
+
+- Kinnoo never prints private key material in command output.
+- Keep private keys out of source control and store them in a secure operator-controlled location.
+- Public keys may be distributed for verification workflows.
 
 ## Archive Integrity (Feature16)
 
