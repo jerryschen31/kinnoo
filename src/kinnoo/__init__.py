@@ -6,6 +6,7 @@ from pathlib import Path
 from .archive import ArchiveBackend, ArchiveRecord, LocalArchiveBackend
 from .registry import RegistryBackend, RegistryRecord, RegistryService
 from .registry_backends import LocalFilesystemRegistryBackend, LocalRegistryBackend, MockFilesystemRegistryBackend
+from .remote_client import RemoteRegistryClient
 from .validator import validate
 
 
@@ -37,4 +38,5 @@ __all__ = [
 	"LocalRegistryBackend",
 	"LocalFilesystemRegistryBackend",
 	"MockFilesystemRegistryBackend",
+	"RemoteRegistryClient",
 ]
