@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Any
 
 from server.auth.token import SigningKey, TokenService
@@ -22,6 +23,8 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
     """Create and return the server app instance."""
     try:
         from fastapi import FastAPI
+        from fastapi.staticfiles import StaticFiles
+        from fastapi.templating import Jinja2Templates
     except ImportError as error:
         raise RuntimeError(
             "fastapi is required for server runtime. Install server/requirements.txt dependencies."
@@ -41,6 +44,12 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
     metadata_manager = MetadataManager(storage=storage_backend)
 
     app = FastAPI(title="kinnoo-registry-server")
+    templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+    app.mount(
+        "/static",
+        StaticFiles(directory=str(Path(__file__).parent / "templates" / "static")),
+        name="static",
+    )
     app.add_middleware(
         PathRateLimitMiddleware,
         limiter=InMemoryRateLimiter(),
@@ -54,6 +63,7 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
     app.state.token_service = token_service
     app.state.metadata_manager = metadata_manager
     app.state.user_store = user_store
+    app.state.templates = templates
 
     @app.get("/health")
     def health() -> dict[str, str]:

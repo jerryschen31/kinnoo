@@ -1,0 +1,58 @@
+:root {
+  --bg: #f4f6f8;
+  --surface: #ffffff;
+  --text: #1b1f24;
+  --muted: #586069;
+  --line: #d0d7de;
+  --accent: #0b5fff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.site-header,
+.site-nav,
+.site-content,
+.site-footer {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.site-header {
+  padding-top: 1.5rem;
+}
+
+.site-nav {
+  display: flex;
+  gap: 1rem;
+  padding: 0.75rem 1rem 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.site-nav a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.site-content {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-top: 1rem;
+  padding: 1rem;
+}
+
+.site-footer {
+  color: var(--muted);
+  padding: 1rem;
+}
