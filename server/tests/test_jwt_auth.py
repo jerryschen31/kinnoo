@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from server.api.endpoints import post_auth_token
 from server.auth.middleware import authenticate_request
 from server.auth.token import SigningKey, TokenService
 from server.storage.user_store import UserStore
@@ -28,6 +29,32 @@ def test_jwt_lifecycle(tmp_path):
         previous_signing_key=previous_key,
         ttl_minutes=60,
     )
+
+    status_code, token_response = post_auth_token(
+        payload={
+            "username": "admin",
+            "password": "admin-secret",
+            "tenant_slug": "tenant-alpha",
+        },
+        token_service=token_service,
+        user_store=user_store,
+    )
+    assert status_code == 200
+    assert token_response["token_type"] == "Bearer"
+    assert token_response["expires_in"] == 60 * 60
+    assert isinstance(token_response["access_token"], str)
+
+    invalid_status_code, invalid_response = post_auth_token(
+        payload={
+            "username": "admin",
+            "password": "wrong-password",
+            "tenant_slug": "tenant-alpha",
+        },
+        token_service=token_service,
+        user_store=user_store,
+    )
+    assert invalid_status_code == 401
+    assert "invalid username or password" in invalid_response["error"]
 
     admin_token = token_service.issue_token_for_credentials(
         username="admin",
