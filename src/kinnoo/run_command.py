@@ -29,6 +29,8 @@ from .sandbox import evaluate_sandbox_permissions
 from .install_trace import write_violation_event
 from .logging_utils import emit_violation_event_diagnostic
 from .runtime_monitor import RuntimeMonitor
+from .runtime_monitor import normalize_runtime_resource_controls
+from .runtime_monitor import posix_resource_limits_supported
 from .runtime_monitor import resolve_violation_enforcement
 from .supervisor import (
     build_daemon_state_payload,
@@ -423,7 +425,10 @@ def _manifest_declared_io_types(manifest: dict, section_name: str) -> list[str]:
     return []
 
 
-def _stream_and_capture_process_output(process: subprocess.Popen) -> tuple[str, str]:
+def _stream_and_capture_process_output(
+    process: subprocess.Popen,
+    timeout_seconds: float | None = None,
+) -> tuple[str, str, bool]:
     stdout_chunks: list[str] = []
     stderr_chunks: list[str] = []
 
@@ -450,11 +455,48 @@ def _stream_and_capture_process_output(process: subprocess.Popen) -> tuple[str, 
     stdout_thread.start()
     stderr_thread.start()
 
-    process.wait()
+    timed_out = False
+    try:
+        process.wait(timeout=timeout_seconds)
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        process.kill()
+        process.wait()
     stdout_thread.join()
     stderr_thread.join()
 
-    return "".join(stdout_chunks), "".join(stderr_chunks)
+    return "".join(stdout_chunks), "".join(stderr_chunks), timed_out
+
+
+def _build_posix_resource_preexec(
+    *,
+    max_cpu_seconds: int | None,
+    max_memory_mb: int | None,
+):
+    if max_cpu_seconds is None and max_memory_mb is None:
+        return None
+
+    if not posix_resource_limits_supported():
+        return None
+
+    import resource  # type: ignore
+
+    limits: list[tuple[int, tuple[int, int]]] = []
+    if max_cpu_seconds is not None and hasattr(resource, "RLIMIT_CPU"):
+        limits.append((resource.RLIMIT_CPU, (max_cpu_seconds, max_cpu_seconds)))
+
+    if max_memory_mb is not None and hasattr(resource, "RLIMIT_AS"):
+        max_bytes = max_memory_mb * 1024 * 1024
+        limits.append((resource.RLIMIT_AS, (max_bytes, max_bytes)))
+
+    if not limits:
+        return None
+
+    def _apply_limits() -> None:
+        for limit_name, limit_value in limits:
+            resource.setrlimit(limit_name, limit_value)
+
+    return _apply_limits
 
 
 def _load_json_payload_from_file(json_file_arg: str, secret_values: Iterable[str]) -> object:
@@ -1086,6 +1128,9 @@ def run_agent(
     no_guard: bool = False,
     pass_through_args: list[str] | None = None,
     sandbox: bool = False,
+    max_seconds: float | None = None,
+    max_cpu_seconds: int | None = None,
+    max_memory_mb: int | None = None,
 ) -> int:
     runtime_pass_through_args = list(pass_through_args or [])
     if preflight:
@@ -1099,6 +1144,16 @@ def run_agent(
     if input_arg is not None:
         trace_forbidden_values.append(input_arg)
     trace_forbidden_values.extend(runtime_pass_through_args)
+
+    try:
+        resource_controls = normalize_runtime_resource_controls(
+            max_seconds=max_seconds,
+            max_cpu_seconds=max_cpu_seconds,
+            max_memory_mb=max_memory_mb,
+        )
+    except ValueError as error:
+        _print_safe_error(f"Error: {error}")
+        return 1
 
     def finalize(exit_code: int) -> int:
         if runtime_monitor is not None:
@@ -1422,6 +1477,27 @@ def run_agent(
         and _manifest_declares_json_output(manifest if isinstance(manifest, dict) else {})
     )
 
+    force_unsupported_limits = os.environ.get("KINNOO_FORCE_RESOURCE_LIMIT_UNSUPPORTED") == "1"
+    resource_limits_supported = posix_resource_limits_supported() and not force_unsupported_limits
+    resource_preexec_fn = None
+    if resource_controls.max_cpu_seconds is not None or resource_controls.max_memory_mb is not None:
+        if resource_limits_supported:
+            resource_preexec_fn = _build_posix_resource_preexec(
+                max_cpu_seconds=resource_controls.max_cpu_seconds,
+                max_memory_mb=resource_controls.max_memory_mb,
+            )
+        else:
+            if resource_controls.max_cpu_seconds is not None:
+                print(
+                    "Warning: max-cpu-seconds unsupported on this platform; running in degraded mode.",
+                    file=sys.stderr,
+                )
+            if resource_controls.max_memory_mb is not None:
+                print(
+                    "Warning: max-memory-mb unsupported on this platform; running in degraded mode.",
+                    file=sys.stderr,
+                )
+
     if runtime_type == "daemon":
         # Daemon mode must detach from the caller terminal and persist control-plane state.
         try:
@@ -1567,9 +1643,22 @@ def run_agent(
                 env=subprocess_env,
                 text=True,
                 bufsize=1,
+                preexec_fn=resource_preexec_fn,
             )
-            captured_stdout, _captured_stderr = _stream_and_capture_process_output(process)
+            captured_stdout, _captured_stderr, timed_out = _stream_and_capture_process_output(
+                process,
+                timeout_seconds=resource_controls.max_seconds,
+            )
+            if timed_out:
+                _print_safe_error(
+                    "Error: runtime resource control triggered kill switch (reason_code=wall_clock_timeout_exceeded)."
+                )
+                return finalize(1)
             if process.returncode != 0:
+                if resource_controls.max_cpu_seconds is not None and process.returncode < 0:
+                    _print_safe_error(
+                        "Error: runtime resource control triggered kill switch (reason_code=cpu_limit_exceeded)."
+                    )
                 return finalize(process.returncode)
 
             try:
@@ -1590,8 +1679,21 @@ def run_agent(
             stdout=sys.stdout,
             stderr=sys.stderr,
             env=subprocess_env,
+            preexec_fn=resource_preexec_fn,
         )
-        process.communicate()
+        try:
+            process.communicate(timeout=resource_controls.max_seconds)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.communicate()
+            _print_safe_error(
+                "Error: runtime resource control triggered kill switch (reason_code=wall_clock_timeout_exceeded)."
+            )
+            return finalize(1)
+        if resource_controls.max_cpu_seconds is not None and process.returncode < 0:
+            _print_safe_error(
+                "Error: runtime resource control triggered kill switch (reason_code=cpu_limit_exceeded)."
+            )
         return finalize(process.returncode)
     except Exception as error:
         _print_safe_error(

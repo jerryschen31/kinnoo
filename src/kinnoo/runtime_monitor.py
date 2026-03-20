@@ -28,6 +28,43 @@ class ViolationEnforcementDecision:
     hard_violation: bool
 
 
+@dataclass(frozen=True)
+class RuntimeResourceControls:
+    max_seconds: float | None
+    max_cpu_seconds: int | None
+    max_memory_mb: int | None
+
+
+def normalize_runtime_resource_controls(
+    *,
+    max_seconds: float | None,
+    max_cpu_seconds: int | None,
+    max_memory_mb: int | None,
+) -> RuntimeResourceControls:
+    if max_seconds is not None and max_seconds <= 0:
+        raise ValueError("max-seconds must be greater than 0")
+    if max_cpu_seconds is not None and max_cpu_seconds <= 0:
+        raise ValueError("max-cpu-seconds must be greater than 0")
+    if max_memory_mb is not None and max_memory_mb <= 0:
+        raise ValueError("max-memory-mb must be greater than 0")
+
+    return RuntimeResourceControls(
+        max_seconds=max_seconds,
+        max_cpu_seconds=max_cpu_seconds,
+        max_memory_mb=max_memory_mb,
+    )
+
+
+def posix_resource_limits_supported() -> bool:
+    if os.name != "posix":
+        return False
+    try:
+        import resource  # type: ignore
+    except Exception:
+        return False
+    return hasattr(resource, "setrlimit")
+
+
 def resolve_violation_enforcement(
     *,
     capability: str,
