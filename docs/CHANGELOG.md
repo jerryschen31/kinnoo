@@ -3,6 +3,30 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v0.26.0] - 2026-03-20
+### Added
+- Completed Feature29 "Remote Registry Server" remediation cycle and approval readiness review for merge.
+- Added FastAPI auth token route wiring (`POST /api/auth/token`) so auth issuance is part of the live API surface and covered by route-level controls.
+- Added AC7-compliant structured error envelope behavior across feature29 server routes.
+
+### Changed
+- Updated feature29 endpoint error responses to consistently expose structured error fields (`error.code`, `error.message`, `error.request_id`).
+- Expanded `GET /api/agents` response metadata to include AC4-required list fields (name/description/author/archive size) in addition to tenant/version context.
+- Confirmed rate-limiting path coverage for auth and publish endpoint flows in remediation test coverage.
+
+### Quality
+- Focused remediation verification passed (`5 passed`):
+  - `python3 -m pytest server/tests/test_auth_route.py server/tests/test_publish.py::test_publish_endpoint server/tests/test_agents_routes.py::test_list_and_detail server/tests/test_download.py::test_download_presigned server/tests/test_search.py::test_search_endpoint`
+- Required review command executed:
+  - `python3 -m pytest --testmon`
+  - Result: `348 passed, 1 skipped`
+- Manifest validation gate passed:
+  - `python3 src/validate_project_manifests.py`
+  - Result: `Validation passed: manifests are consistent`
+- Security and repository hygiene checks reported no hardcoded real secrets and no git-tracked files over 10 MB.
+- Merge commit: TBD (populate after merge to `phase3/main`).
+
+
 ## [v0.25.0] - 2026-03-20
 ### Added
 - Completed Feature28 "Registry Backend Abstraction & Remote Client" implementation review and merge readiness approval.
