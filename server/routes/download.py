@@ -5,9 +5,12 @@ from __future__ import annotations
 import importlib
 from typing import Any
 
+from starlette.requests import Request
+
 from server.auth.middleware import authenticate_request
 from server.auth.token import TokenClaims, TokenService
 from server.metadata.manager import MetadataManager
+from server.routes.errors import build_error_envelope, resolve_request_id
 from server.storage.base import StorageBackend
 
 
@@ -70,12 +73,15 @@ def create_download_router(
     fastapi_module = importlib.import_module("fastapi")
     APIRouter = getattr(fastapi_module, "APIRouter")
     Header = getattr(fastapi_module, "Header")
-    HTTPException = getattr(fastapi_module, "HTTPException")
+
+    responses_module = importlib.import_module("fastapi.responses")
+    JSONResponse = getattr(responses_module, "JSONResponse")
 
     router = APIRouter()
 
     @router.get("/api/agents/{tenant_slug}/{agent_slug}/{version}/download")
     async def download_archive(
+        request: Request,
         tenant_slug: str,
         agent_slug: str,
         version: str,
@@ -92,7 +98,14 @@ def create_download_router(
             presign_ttl_seconds=presign_ttl_seconds,
         )
         if status >= 400:
-            raise HTTPException(status_code=status, detail=payload["error"])
+            return JSONResponse(
+                status_code=status,
+                content=build_error_envelope(
+                    status_code=status,
+                    message=str(payload["error"]),
+                    request_id=resolve_request_id(request),
+                ),
+            )
         return payload
 
     return router

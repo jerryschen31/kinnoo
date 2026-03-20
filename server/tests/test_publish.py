@@ -102,12 +102,20 @@ def test_publish_endpoint(tmp_path):
         headers={"Authorization": f"Bearer {publish_token}"},
     )
     assert duplicate.status_code == 409
+    duplicate_body = duplicate.json()
+    assert duplicate_body["error"]["code"] == "conflict"
+    assert duplicate_body["error"]["message"]
+    assert duplicate_body["error"]["request_id"]
 
     missing_auth = client.post(
         "/api/publish",
         files={"file": ("agent-copilot.kno", archive_bytes, "application/octet-stream")},
     )
     assert missing_auth.status_code == 401
+    missing_auth_body = missing_auth.json()
+    assert missing_auth_body["error"]["code"] == "unauthorized"
+    assert missing_auth_body["error"]["message"]
+    assert missing_auth_body["error"]["request_id"]
 
     wrong_scope = client.post(
         "/api/publish",
@@ -115,6 +123,10 @@ def test_publish_endpoint(tmp_path):
         headers={"Authorization": f"Bearer {read_only_token}"},
     )
     assert wrong_scope.status_code == 403
+    wrong_scope_body = wrong_scope.json()
+    assert wrong_scope_body["error"]["code"] == "forbidden"
+    assert wrong_scope_body["error"]["message"]
+    assert wrong_scope_body["error"]["request_id"]
 
     large_archive = _make_archive_bytes(
         name="agent-copilot",
@@ -127,3 +139,7 @@ def test_publish_endpoint(tmp_path):
         headers={"Authorization": f"Bearer {publish_token}"},
     )
     assert too_large.status_code == 400
+    too_large_body = too_large.json()
+    assert too_large_body["error"]["code"] == "bad_request"
+    assert too_large_body["error"]["message"]
+    assert too_large_body["error"]["request_id"]

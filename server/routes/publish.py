@@ -9,12 +9,14 @@ import importlib
 from typing import Any
 import zipfile
 
+from starlette.requests import Request
 import yaml
 
 from server.auth.middleware import authenticate_request
 from server.auth.token import TokenService
 from server.metadata.manager import MetadataManager
 from server.metadata.models import VersionMetadata, utc_now_iso
+from server.routes.errors import build_error_envelope, resolve_request_id
 from server.storage.base import StorageBackend
 
 
@@ -138,10 +140,14 @@ def create_publish_router(
     File = getattr(fastapi_module, "File")
     Header = getattr(fastapi_module, "Header")
 
+    responses_module = importlib.import_module("fastapi.responses")
+    JSONResponse = getattr(responses_module, "JSONResponse")
+
     router = APIRouter()
 
     @router.post("/api/publish", status_code=201)
     async def publish_endpoint(
+        request: Request,
         file=File(...),
         authorization: str | None = Header(default=None),
     ) -> dict[str, object]:
@@ -157,8 +163,14 @@ def create_publish_router(
         )
         # Route wrappers are thin; publish_archive carries all business logic.
         if result.status_code >= 400:
-            HTTPException = getattr(fastapi_module, "HTTPException")
-            raise HTTPException(status_code=result.status_code, detail=result.body["error"])
+            return JSONResponse(
+                status_code=result.status_code,
+                content=build_error_envelope(
+                    status_code=result.status_code,
+                    message=str(result.body["error"]),
+                    request_id=resolve_request_id(request),
+                ),
+            )
         return result.body
 
     return router
