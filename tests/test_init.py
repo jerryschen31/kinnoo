@@ -420,6 +420,144 @@ def test_feature21_readme_setup_guidance(tmp_path):
             assert term in readme_text
 
 
+def test_feature34_openclaw_scaffold_structure(tmp_path):
+    """test287: openclaw scaffold includes required files and deterministic directories."""
+    agent_name = "feature34-openclaw-agent"
+
+    cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        result = run_kinnoo_init([agent_name, "--framework", "openclaw"])
+    finally:
+        os.chdir(cwd)
+
+    assert result.returncode == 0
+
+    agent_dir = tmp_path / agent_name
+    required_files = [
+        "package.json",
+        "openclaw.json",
+        "index.mjs",
+        "AGENTS.md",
+        "SOUL.md",
+        "skills/default/SKILL.md",
+    ]
+    for relative_path in required_files:
+        target = agent_dir / relative_path
+        assert target.exists() and target.is_file(), f"Missing required file: {relative_path}"
+
+    required_dirs = [
+        "memory",
+        "skills",
+        "skills/default",
+    ]
+    for relative_path in required_dirs:
+        target = agent_dir / relative_path
+        assert target.exists() and target.is_dir(), f"Missing required directory: {relative_path}"
+
+
+def test_feature34_openclaw_manifest_validation_contract(tmp_path):
+    """test288: generated OpenClaw manifest validates and includes required Node daemon fields."""
+    import yaml
+    from kinnoo.validator import validate
+
+    agent_name = "feature34-openclaw-manifest"
+    code, out, err = run_cli(["init", agent_name, "--framework", "openclaw"], cwd=tmp_path)
+    assert code == 0, err
+
+    manifest_path = tmp_path / agent_name / "kinnoo.yaml"
+    is_valid, errors = validate(str(manifest_path))
+    assert is_valid, f"OpenClaw manifest should validate. Errors: {errors}"
+    assert not errors
+
+    manifest_data = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    runtime = manifest_data["runtime"]
+    assert manifest_data.get("framework") == "openclaw"
+    assert runtime.get("language") == "nodejs"
+    assert runtime.get("type") == "daemon"
+    assert runtime.get("package_manager") in {"npm", "pnpm"}
+    assert "stdio" in manifest_data.get("channels", [])
+
+
+def test_feature34_openclaw_readme_setup_guidance(tmp_path):
+    """test290: generated OpenClaw README includes setup and env guidance."""
+    agent_name = "feature34-openclaw-readme"
+    code, out, err = run_cli(["init", agent_name, "--framework", "openclaw"], cwd=tmp_path)
+    assert code == 0, err
+
+    readme_path = tmp_path / agent_name / "README.md"
+    readme_text = readme_path.read_text(encoding="utf-8")
+
+    assert "Node.js 20+" in readme_text
+    assert "npm install" in readme_text
+    assert "OPENCLAW_API_KEY" in readme_text
+    assert "KINNOO_TEST_SAFE_MODE" in readme_text
+    assert "python src/kinnoo/cli.py run ." in readme_text
+    assert "node index.mjs" in readme_text
+
+
+def test_feature34_scaffold_deterministic_without_openclaw_cli(tmp_path, monkeypatch):
+    """test291: OpenClaw scaffold is deterministic and does not shell out to external openclaw CLI."""
+    from kinnoo.init_command import init_agent
+
+    agent_name = "feature34-openclaw-deterministic"
+    run_one_root = tmp_path / "deterministic-run-one"
+    run_two_root = tmp_path / "deterministic-run-two"
+    run_one_root.mkdir()
+    run_two_root.mkdir()
+
+    original_run = subprocess.run
+    original_popen = subprocess.Popen
+
+    def _guard_openclaw_invocation(cmd, *args, **kwargs):
+        command_tokens = cmd if isinstance(cmd, (list, tuple)) else [cmd]
+        normalized = [str(token).strip() for token in command_tokens if token is not None]
+        executable = normalized[0] if normalized else ""
+        if os.path.basename(executable) == "openclaw":
+            raise AssertionError("OpenClaw scaffold init must not invoke external openclaw CLI")
+        return original_run(cmd, *args, **kwargs)
+
+    def _guard_openclaw_popen(cmd, *args, **kwargs):
+        command_tokens = cmd if isinstance(cmd, (list, tuple)) else [cmd]
+        normalized = [str(token).strip() for token in command_tokens if token is not None]
+        executable = normalized[0] if normalized else ""
+        if os.path.basename(executable) == "openclaw":
+            raise AssertionError("OpenClaw scaffold init must not invoke external openclaw CLI")
+        return original_popen(cmd, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", _guard_openclaw_invocation)
+    monkeypatch.setattr(subprocess, "Popen", _guard_openclaw_popen)
+
+    init_agent(agent_name, run_one_root, framework="openclaw")
+    init_agent(agent_name, run_two_root, framework="openclaw")
+
+    def _snapshot(agent_dir):
+        snapshot = {}
+        for path in sorted(agent_dir.rglob("*")):
+            if path.is_file():
+                snapshot[path.relative_to(agent_dir).as_posix()] = path.read_text(encoding="utf-8")
+        return snapshot
+
+    first_snapshot = _snapshot(run_one_root / agent_name)
+    second_snapshot = _snapshot(run_two_root / agent_name)
+    assert first_snapshot == second_snapshot
+
+    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    pathless_root = tmp_path / "pathless-cli-run"
+    pathless_root.mkdir()
+
+    env = os.environ.copy()
+    env["PATH"] = ""
+    result = original_run(
+        [sys.executable, str(cli_script), "init", "feature34-openclaw-pathless", "--framework", "openclaw"],
+        cwd=pathless_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+
+
 def test_feature21_regression_existing_frameworks_unchanged(tmp_path):
     expected = {
         "gemini": {

@@ -50,16 +50,21 @@ class LocalFilesystemRegistryBackend:
         shutil.copy2(source_archive, target_archive)
 
         metadata_path: Path | None = None
+        publisher_public_key: str | None = None
         if manifest_metadata is not None:
             metadata_path = target_dir / "manifest-metadata.json"
             with metadata_path.open("w", encoding="utf-8") as metadata_file:
                 json.dump(manifest_metadata, metadata_file, sort_keys=True, indent=2)
+            key_value = manifest_metadata.get("publisher_public_key")
+            if isinstance(key_value, str) and key_value.strip():
+                publisher_public_key = key_value.strip()
 
         return RegistryRecord(
             name=name,
             version=version,
             archive_path=target_archive,
             metadata_path=metadata_path,
+            publisher_public_key=publisher_public_key,
         )
 
     def resolve(self, *, name: str, version: Optional[str] = None) -> Optional[RegistryRecord]:
@@ -192,7 +197,25 @@ class LocalFilesystemRegistryBackend:
         if not archive_candidates:
             return None
 
-        return RegistryRecord(name=name, version=version, archive_path=archive_candidates[0])
+        metadata_path = version_path / "manifest-metadata.json"
+        publisher_public_key: str | None = None
+        if metadata_path.exists() and metadata_path.is_file():
+            try:
+                metadata_payload = json.loads(metadata_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                metadata_payload = None
+            if isinstance(metadata_payload, dict):
+                raw_key = metadata_payload.get("publisher_public_key")
+                if isinstance(raw_key, str) and raw_key.strip():
+                    publisher_public_key = raw_key.strip()
+
+        return RegistryRecord(
+            name=name,
+            version=version,
+            archive_path=archive_candidates[0],
+            metadata_path=metadata_path if metadata_path.exists() else None,
+            publisher_public_key=publisher_public_key,
+        )
 
     def _discover_versions(self, name: str) -> list[str]:
         agent_dir = self.root / name
@@ -255,16 +278,21 @@ class MockFilesystemRegistryBackend(LocalFilesystemRegistryBackend):
         shutil.copy2(source_archive, target_archive)
 
         resolved_metadata_path: Path | None = None
+        publisher_public_key: str | None = None
         if manifest_metadata is not None:
             with metadata_path.open("w", encoding="utf-8") as metadata_file:
                 json.dump(manifest_metadata, metadata_file, sort_keys=True, indent=2)
             resolved_metadata_path = metadata_path
+            key_value = manifest_metadata.get("publisher_public_key")
+            if isinstance(key_value, str) and key_value.strip():
+                publisher_public_key = key_value.strip()
 
         return RegistryRecord(
             name=name,
             version=version,
             archive_path=target_archive,
             metadata_path=resolved_metadata_path,
+            publisher_public_key=publisher_public_key,
         )
 
     def _next_untagged_dir(self, *, name: str) -> Path:

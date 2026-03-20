@@ -20,6 +20,8 @@ except ImportError:
 RUN_USAGE_TEXT = (
     "Usage: kinnoo run <agent-dir> '<input>'\n"
     "       kinnoo run <agent-dir>\n"
+    "       kinnoo run <agent-dir> --json-input '<json>'\n"
+    "       kinnoo run <agent-dir> --json-file <json-file>\n"
     "       kinnoo run <agent-dir> -- <args...>"
 )
 
@@ -36,10 +38,10 @@ def main():
     init_parser.add_argument("agent_name", nargs="?", help="Name of the agent to create")
     init_parser.add_argument(
         "--framework",
-        choices=["gemini", "chatgpt", "claude-chat", "pydantic-ai", "langgraph", "openai-agents", "mcp-client"],
+        choices=["gemini", "chatgpt", "claude-chat", "pydantic-ai", "langgraph", "openai-agents", "mcp-client", "openclaw"],
         help=(
             "(Optional) Pre-populate agent with LLM framework template "
-            "(gemini, chatgpt, claude-chat, pydantic-ai, langgraph, openai-agents, mcp-client)"
+            "(gemini, chatgpt, claude-chat, pydantic-ai, langgraph, openai-agents, mcp-client, openclaw)"
         )
     )
 
@@ -53,6 +55,8 @@ def main():
             "Examples:\n"
             "  kinnoo run <agent-dir> '<input>'\n"
             "  kinnoo run <agent-dir>\n"
+            "  kinnoo run <agent-dir> --json-input '{\"task\":\"ping\"}'\n"
+            "  kinnoo run <agent-dir> --json-file ./payload.json\n"
             "  kinnoo run <agent-dir> -- -e <some-string> -p <some-file-path> -u <some-url>"
         ),
     )
@@ -67,6 +71,73 @@ def main():
         "--no-guard",
         action="store_true",
         help="Disable input safety check for CI/automation pipelines",
+    )
+    run_parser.add_argument(
+        "--json-input",
+        dest="json_input",
+        help="Inline JSON payload for agents expecting structured input",
+    )
+    run_parser.add_argument(
+        "--json-file",
+        dest="json_file",
+        help="Path to a JSON file payload for agents expecting structured input",
+    )
+    run_parser.add_argument(
+        "--sandbox",
+        action="store_true",
+        help="Run agent with manifest permission policy enforcement",
+    )
+    run_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show predicted runtime behavior without executing full entrypoint side effects",
+    )
+    run_parser.add_argument(
+        "--max-seconds",
+        type=float,
+        help="Wall-clock timeout in seconds for run execution",
+    )
+    run_parser.add_argument(
+        "--max-cpu-seconds",
+        type=int,
+        help="CPU time budget in seconds for supported platforms",
+    )
+    run_parser.add_argument(
+        "--max-memory-mb",
+        type=int,
+        help="Memory budget in MB for supported platforms",
+    )
+
+    # Add 'stop' subcommand
+    stop_parser = subparsers.add_parser(
+        "stop",
+        help="Stop a running daemon agent",
+    )
+    stop_parser.add_argument("agent_dir", nargs="?", help="Path to daemon agent directory")
+
+    # Add 'attach' subcommand
+    attach_parser = subparsers.add_parser(
+        "attach",
+        help="Attach to a running daemon agent session",
+    )
+    attach_parser.add_argument("agent_dir", nargs="?", help="Path to daemon agent directory")
+
+    # Add 'logs' subcommand
+    logs_parser = subparsers.add_parser(
+        "logs",
+        help="Show daemon logs (tail or follow)",
+    )
+    logs_parser.add_argument("agent_dir", nargs="?", help="Path to daemon agent directory")
+    logs_parser.add_argument(
+        "--follow",
+        action="store_true",
+        help="Stream new log lines until daemon exits or operator interrupts",
+    )
+    logs_parser.add_argument(
+        "--tail",
+        type=int,
+        default=20,
+        help="Number of recent lines to show before follow/tail output (default: 20)",
     )
 
     # Add 'install' subcommand
@@ -91,6 +162,31 @@ def main():
         action="store_true",
         help="Skip install confirmation prompt (shows summary and proceeds)",
     )
+    install_parser.add_argument(
+        "--state-overwrite",
+        action="store_true",
+        help="Allow state snapshot restore to overwrite existing extracted state directories",
+    )
+    install_parser.add_argument(
+        "--allow-vulnerable",
+        action="store_true",
+        help="Allow install to continue when Node audit reports critical vulnerabilities (security risk)",
+    )
+    install_parser.add_argument(
+        "--ignore-scripts",
+        action="store_true",
+        help="Disable Node package lifecycle scripts during dependency installation",
+    )
+    install_parser.add_argument(
+        "--accept-permissions",
+        action="store_true",
+        help="Acknowledge and accept declared manifest permissions during non-interactive install",
+    )
+    install_parser.add_argument(
+        "--allow-unverified-publisher",
+        action="store_true",
+        help="Allow non-interactive install when archive has no publisher signature metadata",
+    )
 
     # Add 'pack' subcommand
     pack_parser = subparsers.add_parser("pack", help="Package an agent directory into a .kno archive")
@@ -99,6 +195,31 @@ def main():
         "--bump",
         choices=["patch", "minor", "major"],
         help="(Optional) Increment manifest version before packaging",
+    )
+    pack_parser.add_argument(
+        "--sign",
+        action="store_true",
+        help="Sign packaged archive and emit detached signature artifacts",
+    )
+    pack_parser.add_argument(
+        "--signing-key",
+        help="Path to Ed25519 private key PEM used with --sign",
+    )
+
+    # Add 'keygen' subcommand
+    keygen_parser = subparsers.add_parser(
+        "keygen",
+        help="Generate an Ed25519 keypair for archive signing",
+    )
+    keygen_parser.add_argument(
+        "--private-key",
+        default="kinnoo-ed25519-private.pem",
+        help="Path for private key PEM output (default: kinnoo-ed25519-private.pem)",
+    )
+    keygen_parser.add_argument(
+        "--public-key",
+        default="kinnoo-ed25519-public.pem",
+        help="Path for public key PEM output (default: kinnoo-ed25519-public.pem)",
     )
 
     # Add 'inspect' subcommand
@@ -239,9 +360,16 @@ def main():
         exit_code = run_agent(
             agent_dir_arg=args.agent_dir,
             input_arg=input_arg,
+            json_input_arg=getattr(args, "json_input", None),
+            json_file_arg=getattr(args, "json_file", None),
             preflight=preflight_mode,
             no_guard=bool(getattr(args, "no_guard", False)),
             pass_through_args=pass_through_args,
+            sandbox=bool(getattr(args, "sandbox", False)),
+            dry_run=bool(getattr(args, "dry_run", False)),
+            max_seconds=getattr(args, "max_seconds", None),
+            max_cpu_seconds=getattr(args, "max_cpu_seconds", None),
+            max_memory_mb=getattr(args, "max_memory_mb", None),
         )
         sys.exit(exit_code)
 
@@ -260,6 +388,11 @@ def main():
         if "--force" in sys.argv:
             force = True
         assume_yes = bool(getattr(args, "yes", False))
+        overwrite_state = bool(getattr(args, "state_overwrite", False))
+        allow_vulnerable = bool(getattr(args, "allow_vulnerable", False))
+        ignore_scripts = bool(getattr(args, "ignore_scripts", False))
+        accept_permissions = bool(getattr(args, "accept_permissions", False))
+        allow_unverified_publisher = bool(getattr(args, "allow_unverified_publisher", False))
         try:
             from kinnoo.install_command import install_agent
         except ImportError:
@@ -270,6 +403,57 @@ def main():
             target_dir_arg=target_dir_arg,
             force=force,
             assume_yes=assume_yes,
+            overwrite_state=overwrite_state,
+            allow_vulnerable=allow_vulnerable,
+            ignore_scripts=ignore_scripts,
+            accept_permissions=accept_permissions,
+            allow_unverified_publisher=allow_unverified_publisher,
+        )
+        sys.exit(exit_code)
+
+    elif args.command == "stop":
+        agent_dir = getattr(args, "agent_dir", None)
+        if agent_dir is None:
+            print("Usage: kinnoo stop <agent-dir>", file=sys.stderr)
+            sys.exit(1)
+
+        try:
+            from kinnoo.run_command import stop_agent
+        except ImportError:
+            from .run_command import stop_agent
+
+        exit_code = stop_agent(agent_dir)
+        sys.exit(exit_code)
+
+    elif args.command == "attach":
+        agent_dir = getattr(args, "agent_dir", None)
+        if agent_dir is None:
+            print("Usage: kinnoo attach <agent-dir>", file=sys.stderr)
+            sys.exit(1)
+
+        try:
+            from kinnoo.run_command import attach_agent
+        except ImportError:
+            from .run_command import attach_agent
+
+        exit_code = attach_agent(agent_dir)
+        sys.exit(exit_code)
+
+    elif args.command == "logs":
+        agent_dir = getattr(args, "agent_dir", None)
+        if agent_dir is None:
+            print("Usage: kinnoo logs <agent-dir> [--tail N] [--follow]", file=sys.stderr)
+            sys.exit(1)
+
+        try:
+            from kinnoo.run_command import logs_agent
+        except ImportError:
+            from .run_command import logs_agent
+
+        exit_code = logs_agent(
+            agent_dir_arg=agent_dir,
+            follow=bool(getattr(args, "follow", False)),
+            tail_lines=int(getattr(args, "tail", 20)),
         )
         sys.exit(exit_code)
 
@@ -283,8 +467,41 @@ def main():
         except ImportError:
             from .pack_command import pack_agent
 
-        exit_code = pack_agent(agent_dir, bump=getattr(args, "bump", None))
+        exit_code = pack_agent(
+            agent_dir,
+            bump=getattr(args, "bump", None),
+            sign=bool(getattr(args, "sign", False)),
+            signing_key_path=getattr(args, "signing_key", None),
+        )
         sys.exit(exit_code)
+
+    elif args.command == "keygen":
+        private_key_path = Path(getattr(args, "private_key"))
+        public_key_path = Path(getattr(args, "public_key"))
+
+        if private_key_path.resolve() == public_key_path.resolve():
+            print("Error: --private-key and --public-key must be different paths", file=sys.stderr)
+            sys.exit(1)
+
+        try:
+            from kinnoo.signing import generate_ed25519_keypair
+        except ImportError:
+            from .signing import generate_ed25519_keypair
+
+        try:
+            result = generate_ed25519_keypair(
+                private_key_path=private_key_path,
+                public_key_path=public_key_path,
+            )
+        except (OSError, ValueError) as exc:
+            print(f"Error: Failed to generate keypair: {exc}", file=sys.stderr)
+            sys.exit(1)
+
+        print("[kinnoo keygen] Generated Ed25519 keypair.")
+        print(f"[kinnoo keygen] Private key: {result.private_key_path}")
+        print(f"[kinnoo keygen] Public key: {result.public_key_path}")
+        print(f"[kinnoo keygen] Public key fingerprint (SHA256): {result.public_key_fingerprint}")
+        sys.exit(0)
 
     elif args.command == "inspect":
         target = getattr(args, "target", None)

@@ -359,3 +359,161 @@ def test_feature19_imported_project_runs_in_place(tmp_path):
     combined_output = run_result.stdout + run_result.stderr
     assert run_result.returncode == 0
     assert "imported-runnable:hello-import" in combined_output
+
+
+def test_feature36_openclaw_detection_weighted_confidence_output(tmp_path):
+    strong_project = tmp_path / "feature36-openclaw-import-strong"
+    strong_project.mkdir(parents=True, exist_ok=True)
+    (strong_project / "run.py").write_text(
+        "import sys\n"
+        "if __name__ == '__main__':\n"
+        "    print(sys.argv[1] if len(sys.argv) > 1 else 'ok')\n",
+        encoding="utf-8",
+    )
+    (strong_project / "openclaw.json").write_text("{}\n", encoding="utf-8")
+    (strong_project / "package.json").write_text(
+        "{\n"
+        "  \"name\": \"feature36-openclaw-import-strong\",\n"
+        "  \"version\": \"1.0.0\",\n"
+        "  \"dependencies\": {\n"
+        "    \"@openclaw/core\": \"^0.1.0\"\n"
+        "  }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    (strong_project / "skills" / "default").mkdir(parents=True, exist_ok=True)
+    (strong_project / "skills" / "default" / "SKILL.md").write_text("# skill\n", encoding="utf-8")
+    (strong_project / "memory").mkdir(parents=True, exist_ok=True)
+
+    strong_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(strong_project)],
+        input="y\n",
+        capture_output=True,
+        text=True,
+    )
+
+    strong_output = strong_result.stdout + strong_result.stderr
+    assert strong_result.returncode == 0
+    assert "framework: openclaw" in strong_output.lower()
+    assert "Framework confidence metadata:" in strong_output
+    assert "weighted detection score" in strong_output.lower()
+    assert "openclaw.json" in strong_output
+
+    medium_project = tmp_path / "feature36-openclaw-import-medium"
+    medium_project.mkdir(parents=True, exist_ok=True)
+    (medium_project / "run.py").write_text("print('hello')\n", encoding="utf-8")
+    (medium_project / "skills" / "default").mkdir(parents=True, exist_ok=True)
+    (medium_project / "skills" / "default" / "SKILL.md").write_text("# skill\n", encoding="utf-8")
+    (medium_project / "memory").mkdir(parents=True, exist_ok=True)
+
+    medium_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(medium_project)],
+        input="y\nopenclaw\n",
+        capture_output=True,
+        text=True,
+    )
+
+    medium_output = medium_result.stdout + medium_result.stderr
+    assert medium_result.returncode == 0
+    assert "openclaw detection confidence is mixed" in medium_output.lower()
+    assert "weighted detection score" in medium_output.lower()
+
+
+def test_feature36_infers_runtime_skills_state_dirs(tmp_path):
+    project_dir = tmp_path / "feature36-openclaw-inference"
+    project_dir.mkdir(parents=True, exist_ok=True)
+
+    (project_dir / "run.py").write_text(
+        "import sys\n"
+        "if __name__ == '__main__':\n"
+        "    print(sys.argv[1] if len(sys.argv) > 1 else 'ok')\n",
+        encoding="utf-8",
+    )
+    (project_dir / "openclaw.json").write_text("{}\n", encoding="utf-8")
+    (project_dir / "package.json").write_text(
+        "{\n"
+        "  \"name\": \"feature36-openclaw-inference\",\n"
+        "  \"version\": \"1.0.0\",\n"
+        "  \"dependencies\": {\n"
+        "    \"@openclaw/core\": \"^0.1.0\"\n"
+        "  }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    (project_dir / "pnpm-lock.yaml").write_text("lockfileVersion: '9.0'\n", encoding="utf-8")
+    (project_dir / "skills" / "default").mkdir(parents=True, exist_ok=True)
+    (project_dir / "skills" / "default" / "SKILL.md").write_text("# Default skill\n", encoding="utf-8")
+    (project_dir / "memory" / "daily").mkdir(parents=True, exist_ok=True)
+    (project_dir / "memory" / "daily" / "journal.md").write_text("entry\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(project_dir)],
+        input="y\n",
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+    manifest_text = (project_dir / "kinnoo.yaml").read_text(encoding="utf-8")
+    assert "framework: openclaw" in manifest_text
+    assert "language: nodejs" in manifest_text
+    assert "type: daemon" in manifest_text
+    assert "package_manager: pnpm" in manifest_text
+    assert "skills:" in manifest_text
+    assert "skills/default/SKILL.md" in manifest_text
+    assert "state_dirs:" in manifest_text
+    assert "- memory" in manifest_text
+
+
+def test_feature36_manifest_valid_or_todo_guidance(tmp_path):
+    complete_project = tmp_path / "feature36-manifest-guidance-complete"
+    complete_project.mkdir(parents=True, exist_ok=True)
+    (complete_project / "run.py").write_text(
+        "import sys\n"
+        "if __name__ == '__main__':\n"
+        "    print(sys.argv[1] if len(sys.argv) > 1 else 'ok')\n",
+        encoding="utf-8",
+    )
+    (complete_project / "openclaw.json").write_text("{}\n", encoding="utf-8")
+    (complete_project / "package.json").write_text(
+        "{\n"
+        "  \"name\": \"feature36-manifest-guidance-complete\",\n"
+        "  \"version\": \"1.0.0\",\n"
+        "  \"dependencies\": {\n"
+        "    \"@openclaw/core\": \"^0.1.0\"\n"
+        "  }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    (complete_project / "skills" / "default").mkdir(parents=True, exist_ok=True)
+    (complete_project / "skills" / "default" / "SKILL.md").write_text("# Default skill\n", encoding="utf-8")
+    (complete_project / "memory").mkdir(parents=True, exist_ok=True)
+
+    complete_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(complete_project)],
+        input="y\n",
+        capture_output=True,
+        text=True,
+    )
+
+    complete_output = complete_result.stdout + complete_result.stderr
+    assert complete_result.returncode == 0
+    assert "Generated manifest validation: PASS" in complete_output
+
+    unresolved_project = tmp_path / "feature36-manifest-guidance-unresolved"
+    unresolved_project.mkdir(parents=True, exist_ok=True)
+    (unresolved_project / "README.md").write_text("import fixture without executable entrypoint\n", encoding="utf-8")
+
+    unresolved_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(unresolved_project)],
+        input="y\n\n\n",
+        capture_output=True,
+        text=True,
+    )
+
+    unresolved_output = unresolved_result.stdout + unresolved_result.stderr
+    assert unresolved_result.returncode == 0
+    assert "Generated manifest validation: PASS" in unresolved_output
+    assert "TODO guidance:" in unresolved_output
+    assert "Verify 'entrypoint' points to an existing executable script in the project root." in unresolved_output
+    assert "does not exist in target project" in unresolved_output

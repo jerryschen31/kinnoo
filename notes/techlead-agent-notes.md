@@ -258,6 +258,13 @@ print(result)
 - This works because MVP treats agents as black boxes — no framework awareness needed.
 
 ### V2+ Framework Adapters (Post-MVP)
+
+## Feature40 Review Snapshot (2026-03-19)
+
+- Reviewed feature40 (Archive Signing & Publisher Verification) implementation against tasks `task219`-`task223` and tests `test317`-`test321`.
+- Feature40 focused AC gate passes (`5 passed`) for keygen, pack signing, install signature verification, unsigned warning/confirmation, and registry publisher key association.
+- Required full regression command `python3 -m pytest --testmon` is currently red with cross-feature install regressions caused by stricter unsigned publisher enforcement defaults.
+- Merge recommendation: blocked until install compatibility policy is reconciled and full regression returns green.
 - When framework-specific features add value, implement as coherent V2 feature set:
 
 - Feature N: Framework-Aware Scaffolding
@@ -1366,4 +1373,127 @@ This sequence covers the core agent sharing workflow.
 2. Add explicit publish manifest metadata validation before copy (agent name/version consistency checks).
 3. Emit deterministic, parse-friendly output lines for CI and future UX tooling.
 4. Keep untagged rollover logic isolated in a small utility to simplify future remote-registry adapter parity.
+
+---
+
+## What You Have After Feature 1–41 (Pre-1.0 Assessment)
+
+### What kinnoo is at that point
+
+After all 41 features are implemented, kinnoo is a **multi-runtime, security-conscious CLI tool for packaging, distributing, inspecting, and running AI agents** — essentially `npm`/`pip` meets `docker` for the agent ecosystem.
+
+Here is what a developer can do with it:
+
+**Core lifecycle (Python and Node.js):**
+- `kinnoo init <name>` — scaffold a new agent project from a growing library of framework templates (vanilla Python, Gemini, ChatGPT, Claude, PydanticAI, LangGraph, OpenAI Agents SDK, OpenClaw, MCP client/server)
+- `kinnoo run <dir> "<input>"` — validate manifest, resolve env vars, install deps, execute entrypoint, stream output — one command
+- `kinnoo pack <dir>` — bundle code + deps + assets + state snapshots + checksums + signature into a portable `.kno` archive (zip-based)
+- `kinnoo install <archive.kno>` or `kinnoo install <name>` — extract, verify integrity/signature, install deps, run security sweep, ready to run
+- `kinnoo publish <name>` — push a versioned archive to a registry (local mock in v1, remote in feature28-30)
+
+**Transparency and trust (the real differentiator):**
+- `kinnoo inspect` — read-only metadata preview for archives and directories, including env var name disclosure, dependency summary, checksum, archive size, and heuristic security sweep
+- `kinnoo run --preflight` — non-destructive readiness checklist (runtime version, env vars, entrypoint, deps, service health) before execution
+- Input safety guard — regex-based injection detection (SQL, shell, path traversal, SSRF, XSS, template injection) with pluggable Protocol design
+- Heuristic code sweep at pack and inspect time — flags env var exposure patterns across Python, JS/TS, and JSON files
+- Archive checksums (SHA256 sidecar) and Ed25519 signing for integrity + publisher authenticity
+- Manifest permissions model — declared capabilities (network, filesystem, shell, browser) with install-time consent and sandbox enforcement
+- Runtime behavior monitoring with kill-switch — policy enforcement, resource limits, behavioral telemetry
+- Node.js dependency audit with CVE gating and lifecycle script visibility
+
+**Multi-runtime support:**
+- Python: venv-based isolation, pip/wheel offline install, one-shot and MCP server runtime types
+- Node.js: npm/pnpm package manager awareness, node_modules exclusion from archives, .js/.mjs execution, daemon runtime type
+- OpenClaw: framework-aware scaffold, import detection, skill/memory/identity conventions, state directory snapshots
+
+**Onboarding for existing projects:**
+- `kinnoo import [path]` — analyzer-backed wizard that infers manifest fields from project structure (entrypoint, runtime, framework, deps, env vars, assets, services) with confidence-aware output
+
+**Registry (partially implemented — features 28-30 paused):**
+- Local archive management with `kinnoo list`, `kinnoo search`
+- Mock registry publish/install with versioning and overwrite protection
+- Remote registry client abstraction ready but server not built yet
+
+### How to describe it to a developer
+
+> **Kinnoo is a CLI tool that lets you package, share, and run AI agents — like Docker for agent projects.** You define a manifest (`kinnoo.yaml`), and kinnoo handles dependency isolation, environment setup, security scanning, and reproducible execution across Python and Node.js runtimes. It works with any LLM framework (LangChain, PydanticAI, OpenAI Agents SDK, OpenClaw, etc.) and provides built-in input safety guards, archive signing, and a permissions model that keeps humans in control of what agents can do.
+
+### What is genuinely missing before a 1.0 release
+
+This is the honest gap list, ordered roughly by priority for external adoption:
+
+#### 1. Remote registry (features 28-30) — currently paused
+Without a real remote registry, there is no `pip install <agent>` equivalent. Developers can share `.kno` files manually, but there is no `kinnoo install my-cool-agent` from a hosted source. This is the **single biggest gap** for adoption. Features 28-30 cover the backend abstraction, FastAPI server, and web UI. They are paused, not cancelled — but they are the bridge between "useful personal tool" and "developer platform."
+
+#### 2. Real-world testing with actual agents
+Every feature has unit and integration tests, but kinnoo has not yet been battle-tested against a diverse set of real-world agents across different frameworks and dependency trees. Before 1.0 you need:
+- A handful of non-trivial agents (multi-dep, framework-heavy, MCP servers, daemon processes) packed, published, installed, and run through the full lifecycle
+- Edge case exposure: large dependency trees, platform-specific wheels, slow network installs, agents with mutable state
+- At least one external developer (not you) trying `kinnoo init` → `kinnoo pack` → `kinnoo install` cold, with no guidance beyond the README
+
+#### 3. Documentation for humans
+The README is functional but internal-facing. A 1.0 needs:
+- **Quickstart guide** — 5 minutes from install to running your first agent
+- **Manifest reference** — complete field-by-field docs (you have `docs/manifest-schema-reference.md` but it needs to stay current with V4 schema additions)
+- **Security model explainer** — what kinnoo checks, when, and what it does not protect against (honest threat model)
+- **Framework guides** — one page per supported framework showing init → configure → pack → share flow
+- **CLI reference** — every command, every flag, one-line description, example
+
+#### 4. Polish and UX cleanup
+- Error messages should be reviewed end-to-end for consistency (capitalization, formatting, actionable guidance)
+- Output formatting across commands should feel like one tool, not 41 features bolted together
+- `--help` text for every subcommand needs to be useful and accurate
+- Exit codes should be documented and consistent (0 = success, 1 = user error, 2 = internal error, etc.)
+- Consider adding `--json` output mode for commands like `inspect`, `list`, `search` for CI/tooling integration
+
+#### 5. Packaging and distribution of kinnoo itself
+- `pip install kinnoo` should work from PyPI (you have pyproject.toml but need to verify the publish pipeline)
+- `brew install kinnoo` or `npx kinnoo` would lower friction significantly
+- Verify the tool works on Linux and Windows (you have been developing on macOS)
+
+#### 6. TypeScript entrypoint support
+Feature31 explicitly defers TS transpilation — only `.js/.mjs` execution. If you are targeting OpenClaw and the broader JS/TS ecosystem, many agents will be written in TypeScript. You need either `tsx`/`ts-node` integration or a pre-run transpile step. This is a gap that real Node.js developers will hit immediately.
+
+#### 7. Versioning and upgrade story
+- What happens when you `kinnoo install agent-v2` and already have `agent-v1` installed? Side-by-side? Overwrite? Currently this is partially handled but the UX around versioned agent management on disk is not fully cohesive.
+- Schema versioning: when the manifest schema changes, what happens to old `.kno` archives? Forward/backward compatibility story needs to be explicit.
+
+#### 8. CI/CD integration story
+You have `--yes` flags and non-interactive modes, but there is no documented GitHub Actions / CI pipeline example showing: lint manifest → pack → publish → install → run → verify exit code. This is table-stakes for developer adoption.
+
+### What you do NOT need for 1.0
+
+To keep scope honest, these are things that are **nice-to-have but not blocking**:
+- Full OpenClaw gateway orchestration (explicitly deferred)
+- ML-based input guard (Protocol is ready, regex is fine for 1.0)
+- Channel/QR onboarding UX
+- Deep syscall-level runtime monitoring (baseline process monitoring is enough)
+- Marketplace / monetization / agent ratings
+- GPU/hardware requirement declarations
+- Multi-agent orchestration or composition primitives
+
+### Honest self-assessment
+
+After feature 1-41, kinnoo is a **genuinely useful and differentiated tool** that solves a real problem no one else is solving well. The security posture (input guard, code sweep, permissions, signing, monitoring) is far ahead of anything in the agent ecosystem today. The multi-runtime story (Python + Node.js + OpenClaw) covers the two ecosystems where 95%+ of agents live.
+
+The gap between "feature-complete" and "1.0 release" is mostly **distribution, documentation, and real-world validation** — not more features. The registry (features 28-30) is the one significant missing feature set, and even without it, kinnoo is useful for local and team workflows with manual `.kno` file sharing.
+
+If you are preparing for AI Engineer interviews, kinnoo already demonstrates: manifest-driven packaging, multi-runtime orchestration, Protocol-based extensibility (input guard, registry backend, health checks), defense-in-depth security design, and a CLI architecture that follows the same patterns as Docker, npm, and pip. That is a strong portfolio piece regardless of whether the registry ships before your interviews.
+
 5. Mark old feature12 local-registry install/list/search scope as deprecated or explicitly out-of-scope after refactor to avoid dual-behavior confusion.
+
+#### Summary of the section:
+
+After all 41 features, kinnoo is a multi-runtime, security-conscious CLI tool for packaging, distributing, inspecting, and running AI agents — covering the full lifecycle across Python, Node.js, and OpenClaw with 9 framework templates, archive signing, input safety guards, a permissions model, and runtime monitoring.
+
+#### The 8 gaps before a real 1.0 release:
+
+- Remote registry (features 28-30, paused) — the single biggest adoption blocker
+- Real-world testing with diverse, non-trivial agents
+- Human-facing documentation — quickstart, manifest reference, security model, framework guides
+- UX polish — consistent error messages, help text, exit codes, --json output mode
+- Distribution of kinnoo itself — PyPI publish pipeline, cross-platform verification
+- TypeScript entrypoint support — .ts execution is deferred but Node devs will expect it
+- Versioning/upgrade story — side-by-side installs, schema forward-compatibility
+- CI/CD integration examples — documented GitHub Actions pipeline
+- The takeaway: the gap from feature-complete to 1.0 is distribution, docs, and validation — not more features. You already have a genuinely differentiated tool.

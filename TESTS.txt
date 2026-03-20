@@ -4339,3 +4339,1031 @@ tests:
     covers:
       - feature: feature19
         ac: AC8
+
+  - id: test263
+    title: Feature31 validator accepts runtime.language nodejs
+    type: unit
+    preconditions: validator module is available; manifest fixture with runtime.language set to nodejs
+    steps:
+      - step1: Create a valid manifest with runtime.language set to nodejs and runtime.type set to one-shot
+      - step2: Run validator against the manifest
+      - step3: Verify validation passes with no runtime.language errors
+    expected: nodejs runtime language is treated as valid manifest input
+    pass_criteria: validator returns success and no runtime.language rejection error
+    automated: true
+    automation_path: tests/test_validator.py::test_feature31_runtime_language_nodejs_is_valid
+    covers:
+      - feature: feature31
+        ac: AC1
+
+  - id: test264
+    title: Feature31 validator rejects unsupported runtime.language values with clear message
+    type: unit
+    preconditions: validator module is available; manifest fixture with unsupported runtime.language value
+    steps:
+      - step1: Create manifest with runtime.language set to unsupported value (for example ruby)
+      - step2: Run validator against the manifest
+      - step3: Verify validation fails with actionable runtime.language guidance
+    expected: unsupported runtime language is rejected clearly
+    pass_criteria: validator returns failure and error output names runtime.language with supported values guidance
+    automated: true
+    automation_path: tests/test_validator.py::test_feature31_runtime_language_rejects_unsupported_values
+    covers:
+      - feature: feature31
+        ac: AC1
+
+  - id: test265
+    title: Feature31 run executes nodejs entrypoint with input and streams output
+    type: integration
+    preconditions: node >=22 available; fixture node agent with valid kinnoo.yaml and entrypoint
+    steps:
+      - step1: Run kinnoo run on fixture node agent with test input string
+      - step2: Verify node entrypoint receives input argument and emits stdout/stderr lines
+      - step3: Verify kinnoo run streams output and returns entrypoint exit code
+    expected: nodejs runtime execution parity with existing python run behavior
+    pass_criteria: command succeeds, input is passed correctly, streamed output appears, and exit code is propagated
+    automated: true
+    automation_path: tests/test_cli.py::test_feature31_run_nodejs_entrypoint_streams_and_propagates_exit
+    covers:
+      - feature: feature31
+        ac: AC2
+
+  - id: test266
+    title: Feature31 install resolves node dependencies via npm default and pnpm override
+    type: integration
+    preconditions: fixture node agent package.json exists; npm available; pnpm scenario mockable or available
+    steps:
+      - step1: Run install path for node agent with runtime.package_manager omitted and verify npm path is used
+      - step2: Run install path with runtime.package_manager set to pnpm and verify pnpm path is used
+      - step3: Simulate dependency install failure and verify actionable error output
+    expected: node dependency install behavior follows package-manager configuration and reports errors clearly
+    pass_criteria: npm default and pnpm override both execute expected command path; failure mode includes actionable guidance
+    automated: true
+    automation_path: tests/test_install.py::test_feature31_node_dependency_install_npm_and_pnpm
+    covers:
+      - feature: feature31
+        ac: AC3
+
+  - id: test267
+    title: Feature31 pack excludes node_modules and preserves package metadata lockfiles
+    type: integration
+    preconditions: fixture node agent includes node_modules, package.json, and lockfile(s)
+    steps:
+      - step1: Run kinnoo pack on fixture node agent
+      - step2: Inspect archive contents for absence of node_modules and presence of package.json plus lockfile(s)
+      - step3: Run install flow using archive and verify dependency restore path uses preserved metadata
+    expected: archive remains reproducible without bundling node_modules
+    pass_criteria: node_modules is excluded, package metadata is present, and install can restore dependencies from preserved manifests
+    automated: true
+    automation_path: tests/test_pack.py::test_feature31_pack_node_modules_excluded_lockfiles_preserved
+    covers:
+      - feature: feature31
+        ac: AC4
+
+  - id: test268
+    title: Feature31 node preflight fails fast for missing toolchain or unsupported version
+    type: integration
+    preconditions: preflight-capable run/install path; controllable node version and package-manager availability checks
+    steps:
+      - step1: Execute node preflight with node missing and verify failure guidance
+      - step2: Execute node preflight with node below required version and verify version guidance
+      - step3: Execute node preflight with configured package manager missing and verify actionable diagnostics
+    expected: preflight catches node toolchain readiness issues before execution
+    pass_criteria: each failure mode exits non-zero with clear remediation guidance
+    automated: true
+    automation_path: tests/test_run_preflight.py::test_feature31_node_preflight_toolchain_guards
+    covers:
+      - feature: feature31
+        ac: AC5
+
+  - id: test269
+    title: Feature31 introduces no regression in python run pack install workflows
+    type: integration
+    preconditions: existing python fixture agents and baseline regression suite are available
+    steps:
+      - step1: Execute python runtime run-path regression checks
+      - step2: Execute python pack/install regression checks
+      - step3: Compare behavior and outputs against pre-feature31 expectations
+    expected: python workflows remain functionally unchanged after nodejs runtime additions
+    pass_criteria: python run, pack, and install tests continue passing with no behavior regressions
+    automated: true
+    automation_path: tests/test_regression_v1.py::test_feature31_python_runtime_regression_gate
+    covers:
+      - feature: feature31
+        ac: AC6
+
+  - id: test270
+    title: Feature42 validator accepts inputs.type json and outputs.type json
+    type: unit
+    preconditions: validator module available; manifest fixtures with json input/output type declarations
+    steps:
+      - step1: Create valid manifest fixture with inputs.type set to json and outputs.type set to json
+      - step2: Run validator against fixture
+      - step3: Verify validation passes with no input/output type rejection errors
+    expected: json is accepted as a supported manifest I/O contract type
+    pass_criteria: validator returns success for json input/output typed manifest
+    automated: true
+    automation_path: tests/test_validator.py::test_feature42_manifest_accepts_json_input_output_types
+    covers:
+      - feature: feature42
+        ac: AC1
+
+  - id: test271
+    title: Feature42 validator rejects unsupported input output type values with clear guidance
+    type: unit
+    preconditions: validator module available; manifest fixture with unsupported input or output type
+    steps:
+      - step1: Create manifest fixture with unsupported inputs.type or outputs.type value
+      - step2: Run validator and capture errors
+      - step3: Verify error names offending field and lists supported values including json
+    expected: unsupported I/O types are rejected deterministically with actionable guidance
+    pass_criteria: validation fails and error message clearly identifies allowed input/output types
+    automated: true
+    automation_path: tests/test_validator.py::test_feature42_manifest_rejects_unsupported_io_types
+    covers:
+      - feature: feature42
+        ac: AC1
+
+  - id: test272
+    title: Feature42 run supports inline json input mode
+    type: integration
+    preconditions: fixture agent declares inputs.type json; run command json-inline flag is available
+    steps:
+      - step1: Execute kinnoo run with inline json payload mode against fixture agent
+      - step2: Verify payload parses before execution and is delivered to entrypoint in normalized form
+      - step3: Verify command completes successfully with expected structured behavior
+    expected: inline json payload mode works as a first-class input contract
+    pass_criteria: run exits zero and fixture confirms receipt of expected JSON payload
+    automated: true
+    automation_path: tests/test_cli.py::test_feature42_run_inline_json_input_mode
+    covers:
+      - feature: feature42
+        ac: AC2
+
+  - id: test273
+    title: Feature42 run supports file-based json input mode
+    type: integration
+    preconditions: fixture agent declares inputs.type json; json payload file is available
+    steps:
+      - step1: Execute kinnoo run with json file input mode against fixture agent
+      - step2: Verify file payload parses and invalid file/json errors are surfaced clearly
+      - step3: Verify parsed payload reaches entrypoint and execution path succeeds
+    expected: file-based json input mode supports structured payload workflows
+    pass_criteria: valid file path succeeds with expected payload delivery; invalid json path errors are actionable
+    automated: true
+    automation_path: tests/test_cli.py::test_feature42_run_json_file_input_mode
+    covers:
+      - feature: feature42
+        ac: AC2
+
+  - id: test274
+    title: Feature42 outputs.type json enforces valid json output contract
+    type: integration
+    preconditions: fixture agents declare outputs.type json; one emits valid json and one emits invalid json
+    steps:
+      - step1: Run valid-json fixture and verify output contract passes
+      - step2: Run invalid-json fixture and verify deterministic non-zero failure with parse guidance
+      - step3: Verify diagnostics remain secret-safe and do not leak unrelated values
+    expected: json output contract is enforced when declared and failures are explicit
+    pass_criteria: valid output succeeds; invalid json output fails with actionable parse diagnostics
+    automated: true
+    automation_path: tests/test_cli.py::test_feature42_json_output_contract_enforcement
+    covers:
+      - feature: feature42
+        ac: AC3
+
+  - id: test275
+    title: Feature42 inspect preflight docs and text-flow regression gate
+    type: integration
+    preconditions: feature42 contract docs/help and inspect/preflight surfaces are implemented
+    steps:
+      - step1: Verify inspect/preflight/help output includes json contract guidance for input and output behavior
+      - step2: Run baseline text input/output workflows for python and node fixtures
+      - step3: Confirm legacy text paths remain unchanged while json contract is additive
+    expected: operator-facing guidance is clear and existing text workflows are not regressed
+    pass_criteria: json guidance appears in expected surfaces and baseline text run/pack/install paths continue passing
+    automated: true
+    automation_path: tests/test_regression_v1.py::test_feature42_json_contract_guidance_and_text_regression_gate
+    covers:
+      - feature: feature42
+        ac: AC4
+      - feature: feature42
+        ac: AC5
+
+  - id: test276
+    title: Feature32 validator accepts daemon runtime type and preserves existing runtime support
+    type: unit
+    preconditions: validator module available; manifest fixtures for daemon, one-shot, and mcp-server runtime types
+    steps:
+      - step1: Validate manifest fixture with runtime.type set to daemon
+      - step2: Validate fixtures using existing runtime types (one-shot and mcp-server)
+      - step3: Validate unsupported runtime.type and capture error guidance
+    expected: daemon runtime type is accepted and unsupported values are rejected with clear guidance without regressing existing runtime types
+    pass_criteria: daemon fixture passes; existing runtime fixtures continue passing; unsupported runtime fixture fails with actionable allowed-values error
+    automated: true
+    automation_path: tests/test_validator.py::test_feature32_runtime_type_daemon_validation
+    covers:
+      - feature: feature32
+        ac: AC1
+
+  - id: test277
+    title: Feature32 run daemon mode starts background process and persists lifecycle state
+    type: integration
+    preconditions: daemon-capable fixtures for python and node runtimes; writable lifecycle metadata path
+    steps:
+      - step1: Execute kinnoo run for daemon fixture and verify command returns terminal control
+      - step2: Verify daemon process is running and PID/state metadata is persisted deterministically
+      - step3: Verify operator-facing output includes daemon control hints
+    expected: daemon run launches in background with reliable persisted control-plane state
+    pass_criteria: run exits cleanly after start, daemon remains running, and state metadata contains runtime/source details needed for control commands
+    automated: true
+    automation_path: tests/test_cli.py::test_feature32_run_daemon_start_persists_state
+    covers:
+      - feature: feature32
+        ac: AC2
+
+  - id: test278
+    title: Feature32 stop command gracefully terminates daemon with deterministic fallback
+    type: integration
+    preconditions: running daemon process with persisted metadata; controllable signal/timeout behavior in test harness
+    steps:
+      - step1: Execute kinnoo stop for responsive daemon and verify SIGTERM graceful shutdown path
+      - step2: Execute kinnoo stop for unresponsive daemon and verify deterministic fallback behavior
+      - step3: Verify lifecycle metadata is updated/cleared appropriately after stop
+    expected: stop command handles normal and unresponsive daemon shutdown paths predictably
+    pass_criteria: responsive daemon stops gracefully, unresponsive daemon follows documented fallback, and command output provides actionable diagnostics
+    automated: true
+    automation_path: tests/test_cli.py::test_feature32_stop_daemon_graceful_and_fallback
+    covers:
+      - feature: feature32
+        ac: AC3
+
+  - id: test279
+    title: Feature32 attach command supports interactive daemon sessions with guarded failure modes
+    type: integration
+    preconditions: running daemon fixture that supports interactive session attach; tty and non-tty test contexts available
+    steps:
+      - step1: Execute kinnoo attach for running supported daemon and verify interactive stream bridge
+      - step2: Execute attach for non-running daemon and verify deterministic not-running diagnostics
+      - step3: Execute attach in unsupported or non-interactive contexts and verify guarded error output
+    expected: attach works when supported and fails safely with clear diagnostics when preconditions are not met
+    pass_criteria: supported attach path succeeds; guarded failure paths are deterministic and actionable
+    automated: true
+    automation_path: tests/test_cli.py::test_feature32_attach_daemon_session_controls
+    covers:
+      - feature: feature32
+        ac: AC4
+
+  - id: test280
+    title: Feature32 logs command streams or tails daemon logs with source and timestamp context
+    type: integration
+    preconditions: running daemon fixture emitting logs; persisted log path available with timestamped entries
+    steps:
+      - step1: Execute kinnoo logs in tail mode and verify recent entries are displayed with source and timestamp context
+      - step2: Execute kinnoo logs in follow mode and verify streaming behavior for new log lines
+      - step3: Execute logs for missing/non-running targets and verify actionable diagnostics
+    expected: logs command provides clear contextual tail/follow visibility for daemon execution
+    pass_criteria: log output includes required context fields and command behavior is deterministic for both active and missing-log states
+    automated: true
+    automation_path: tests/test_cli.py::test_feature32_logs_daemon_tail_and_follow
+    covers:
+      - feature: feature32
+        ac: AC5
+
+  - id: test281
+    title: Feature32 supervisor and health integration reports daemon lifecycle states with actionable diagnostics
+    type: integration
+    preconditions: daemon supervisor and health-check hooks available for healthy, unhealthy, and not-running states
+    steps:
+      - step1: Evaluate daemon status when process is not running and capture diagnostics
+      - step2: Evaluate daemon status under unhealthy condition and verify actionable guidance
+      - step3: Evaluate healthy daemon state and verify success reporting and compatibility with existing runtime checks
+    expected: supervisor/health integration surfaces deterministic state classifications and diagnostics without regressing existing runtime paths
+    pass_criteria: healthy/unhealthy/not-running states are correctly classified with actionable output and regression checks remain green
+    automated: true
+    automation_path: tests/test_regression_v1.py::test_feature32_daemon_health_state_regression_gate
+    covers:
+      - feature: feature32
+        ac: AC6
+
+  - id: test282
+    title: Feature33 runtime.package_manager accepts npm and pnpm and rejects unsupported values
+    type: unit
+    preconditions: validator module available; manifest fixtures with runtime.package_manager set to npm, pnpm, and invalid values
+    steps:
+      - step1: Validate manifest fixture with runtime.package_manager set to npm
+      - step2: Validate manifest fixture with runtime.package_manager set to pnpm
+      - step3: Validate fixture with unsupported package manager value and capture error guidance
+    expected: supported values pass and unsupported values fail with clear allowed-values diagnostics
+    pass_criteria: npm and pnpm fixtures pass validation; unsupported value fails with explicit runtime.package_manager guidance
+    automated: true
+    automation_path: tests/test_validator.py::test_feature33_runtime_package_manager_validation
+    covers:
+      - feature: feature33
+        ac: AC1
+
+  - id: test283
+    title: Feature33 channels skills and state_dirs enforce strict types and path safety
+    type: unit
+    preconditions: validator module available; fixtures for valid and invalid channels skills state_dirs payloads
+    steps:
+      - step1: Validate manifest with correctly typed channels skills and state_dirs structures
+      - step2: Validate fixtures with type mismatches for channels skills and state_dirs members
+      - step3: Validate fixtures containing unsafe path patterns (absolute or traversal paths)
+    expected: valid structures are accepted and invalid type/path inputs return deterministic actionable errors
+    pass_criteria: valid fixture passes; invalid type and unsafe path fixtures fail with field-specific diagnostics
+    automated: true
+    automation_path: tests/test_validator.py::test_feature33_extension_fields_type_and_path_safety
+    covers:
+      - feature: feature33
+        ac: AC2
+
+  - id: test284
+    title: Feature33 framework openclaw triggers targeted validation rules and diagnostics
+    type: unit
+    preconditions: validator module available; openclaw framework fixtures for valid and invalid extension combinations
+    steps:
+      - step1: Validate manifest fixture using framework openclaw with valid extension field usage
+      - step2: Validate openclaw fixture with invalid framework-specific field usage
+      - step3: Assert returned diagnostics are framework-targeted and reference openclaw expectations
+    expected: openclaw-specific rules execute only in openclaw context and provide targeted guidance
+    pass_criteria: valid openclaw fixture passes; invalid openclaw fixture fails with framework-targeted error messages
+    automated: true
+    automation_path: tests/test_validator.py::test_feature33_openclaw_framework_specific_validation
+    covers:
+      - feature: feature33
+        ac: AC3
+
+  - id: test285
+    title: Feature33 extension fields remain optional and non-breaking for non-openclaw manifests
+    type: integration
+    preconditions: existing python and node manifest fixtures plus non-openclaw extension-field fixtures
+    steps:
+      - step1: Validate baseline manifests that omit all feature33 extension fields
+      - step2: Validate non-openclaw manifests that include extension fields in valid shape
+      - step3: Run regression assertions ensuring existing manifest validation behavior remains unchanged
+    expected: feature33 fields are additive and do not regress non-openclaw validation behavior
+    pass_criteria: baseline and non-openclaw fixtures pass where expected and no backward-compatibility regressions are introduced
+    automated: true
+    automation_path: tests/test_regression_v1.py::test_feature33_non_openclaw_optional_nonbreaking_regression_gate
+    covers:
+      - feature: feature33
+        ac: AC4
+
+  - id: test286
+    title: Feature33 docs include manifest extension reference and examples for OpenClaw and generic Node agents
+    type: integration
+    preconditions: docs updated with feature33 schema reference content
+    steps:
+      - step1: Verify docs describe runtime.package_manager channels skills and state_dirs fields with constraints
+      - step2: Verify docs include an OpenClaw example manifest using framework openclaw
+      - step3: Verify docs include a generic Node.js example and optional-field guidance for non-openclaw frameworks
+    expected: manifest documentation clearly explains feature33 behavior and provides actionable examples
+    pass_criteria: required feature33 field references and both example categories are present in documentation
+    automated: true
+    automation_path: tests/test_docs.py::test_feature33_manifest_extension_docs_examples
+    covers:
+      - feature: feature33
+        ac: AC5
+
+  - id: test287
+    title: Feature34 openclaw scaffold generates required project files and directories
+    type: integration
+    preconditions: kinnoo CLI init command available with framework openclaw support
+    steps:
+      - step1: Execute kinnoo init for a new agent with framework openclaw
+      - step2: Verify generated project includes package.json openclaw.json index.mjs skills/default/SKILL.md memory AGENTS.md and SOUL.md
+      - step3: Verify expected directories are created with deterministic paths
+    expected: openclaw scaffold contains the required structure for standalone packaged usage
+    pass_criteria: all required files/directories exist at expected locations with no missing scaffold artifacts
+    automated: true
+    automation_path: tests/test_init.py::test_feature34_openclaw_scaffold_structure
+    covers:
+      - feature: feature34
+        ac: AC1
+
+  - id: test288
+    title: Feature34 generated openclaw kinnoo.yaml validates with node runtime and framework fields
+    type: integration
+    preconditions: openclaw scaffold generation available; validator available
+    steps:
+      - step1: Generate openclaw scaffold via kinnoo init
+      - step2: Validate generated kinnoo.yaml using validator entrypoint
+      - step3: Assert manifest contains framework openclaw and required Node daemon fields
+    expected: generated openclaw manifest passes validation with feature33 schema extensions
+    pass_criteria: validator returns valid result and manifest contains required openclaw runtime/package manager/channel fields
+    automated: true
+    automation_path: tests/test_init.py::test_feature34_openclaw_manifest_validation_contract
+    covers:
+      - feature: feature34
+        ac: AC2
+
+  - id: test289
+    title: Feature34 generated openclaw project runs through kinnoo run with required env vars configured
+    type: integration
+    preconditions: openclaw scaffold generated; test-safe environment variable values configured
+    steps:
+      - step1: Generate openclaw scaffold
+      - step2: Set required environment variable names expected by the template
+      - step3: Execute kinnoo run against scaffold and capture output/exit code
+    expected: scaffold is runnable through kinnoo run under configured environment
+    pass_criteria: run command exits successfully and emits deterministic non-empty output without template-level runtime failure
+    automated: true
+    automation_path: tests/test_cli.py::test_feature34_openclaw_template_smoke_run
+    covers:
+      - feature: feature34
+        ac: AC3
+
+  - id: test290
+    title: Feature34 template README includes Node setup dependency install and env var guidance
+    type: unit
+    preconditions: openclaw scaffold generation available
+    steps:
+      - step1: Generate openclaw scaffold and read generated README
+      - step2: Verify README includes Node version prerequisite and dependency installation path
+      - step3: Verify README lists required environment variable names and run instructions
+    expected: generated README provides actionable setup guidance for operators
+    pass_criteria: README contains required Node setup dependency and env var guidance sections
+    automated: true
+    automation_path: tests/test_init.py::test_feature34_openclaw_readme_setup_guidance
+    covers:
+      - feature: feature34
+        ac: AC4
+
+  - id: test291
+    title: Feature34 scaffold output is deterministic and does not require external openclaw CLI binary
+    type: integration
+    preconditions: init command available in environment without openclaw CLI binary requirement
+    steps:
+      - step1: Generate openclaw scaffold in isolated environment where openclaw binary is absent
+      - step2: Repeat generation in clean directories and compare deterministic artifact set and critical file content shape
+      - step3: Verify no subprocess dependency on openclaw CLI is required during scaffold generation
+    expected: scaffold generation is template-driven deterministic and independent of external openclaw CLI
+    pass_criteria: generation succeeds without openclaw binary and repeated runs produce deterministic scaffold outputs
+    automated: true
+    automation_path: tests/test_init.py::test_feature34_scaffold_deterministic_without_openclaw_cli
+    covers:
+      - feature: feature34
+        ac: AC5
+
+  - id: test292
+    title: Feature35 state_dirs validation accepts safe entries and rejects unsafe path or exclude contract shapes
+    type: unit
+    preconditions: validator supports feature35 state_dirs contract parsing
+    steps:
+      - step1: Validate manifests with valid state_dirs entries using relative paths and supported exclude structure
+      - step2: Validate manifests with invalid state_dirs values including absolute paths traversal paths and invalid exclude field types
+      - step3: Verify validator diagnostics clearly identify invalid state_dirs contract violations
+    expected: valid state_dirs manifests pass while unsafe or malformed entries fail with actionable errors
+    pass_criteria: validator returns success for valid contract and deterministic failures for unsafe or malformed state_dirs entries
+    automated: true
+    automation_path: tests/test_validator.py::test_feature35_state_dirs_validation_contract
+    covers:
+      - feature: feature35
+        ac: AC1
+
+  - id: test293
+    title: Feature35 pack captures state_dirs snapshots with predictable archive layout
+    type: integration
+    preconditions: pack command supports state_dirs snapshot capture
+    steps:
+      - step1: Prepare agent fixture with populated state_dirs and immutable assets
+      - step2: Run kinnoo pack and inspect resulting archive structure
+      - step3: Verify state snapshot paths are deterministic and retained separately from immutable asset paths
+    expected: pack includes state snapshot contents in predictable layout without disrupting legacy asset bundling layout
+    pass_criteria: archive contains expected state snapshot directories and deterministic paths for state entries
+    automated: true
+    automation_path: tests/test_pack.py::test_feature35_pack_state_snapshot_layout
+    covers:
+      - feature: feature35
+        ac: AC1
+
+  - id: test294
+    title: Feature35 install warns on existing state and only overwrites when explicit force control is used
+    type: integration
+    preconditions: install command supports state restore from packed snapshots with overwrite control
+    steps:
+      - step1: Install archive containing state snapshot into target where state directory already exists
+      - step2: Verify install warns and preserves existing state when overwrite control is not provided
+      - step3: Repeat install with explicit force option and verify deterministic overwrite behavior
+    expected: default install path is warning-first and non-destructive while explicit force path overwrites as requested
+    pass_criteria: no-force install preserves existing state with warning and force install replaces state snapshot content
+    automated: true
+    automation_path: tests/test_install.py::test_feature35_install_state_overwrite_warning_and_force
+    covers:
+      - feature: feature35
+        ac: AC2
+
+  - id: test295
+    title: Feature35 state_dirs exclude patterns omit selected files while preserving core memory snapshot content
+    type: integration
+    preconditions: state_dirs exclude patterns are supported by pack/install flow
+    steps:
+      - step1: Configure state_dirs with exclude patterns such as daily log files and create matching fixture files
+      - step2: Run pack then install and inspect restored state contents
+      - step3: Verify excluded files are absent while non-excluded core memory files remain restored
+    expected: exclude patterns are applied consistently and only targeted files are omitted from restored state
+    pass_criteria: excluded files are not present in archive restore output and required core state files remain intact
+    automated: true
+    automation_path: tests/test_pack.py::test_feature35_state_dirs_exclude_patterns
+    covers:
+      - feature: feature35
+        ac: AC3
+
+  - id: test296
+    title: Feature35 docs and regression guards preserve assets behavior for manifests without state_dirs
+    type: integration
+    preconditions: docs and regression suite include feature35 contracts and legacy asset fixtures
+    steps:
+      - step1: Assert docs describe mutable state snapshot semantics and distinction from immutable assets
+      - step2: Run regression checks for agents that use assets without state_dirs
+      - step3: Verify pack/install behavior for legacy asset-only manifests remains unchanged
+    expected: docs communicate state_dirs semantics clearly and legacy asset workflows remain backward-compatible
+    pass_criteria: docs assertions pass and regression checks confirm no behavior changes for non-state_dirs asset workflows
+    automated: true
+    automation_path: tests/test_regression_v1.py::test_feature35_assets_backward_compatibility_without_state_dirs
+    covers:
+      - feature: feature35
+        ac: AC4
+      - feature: feature35
+        ac: AC5
+
+  - id: test297
+    title: Feature36 import detects openclaw projects with weighted confidence and explicit evidence output
+    type: integration
+    preconditions: analyzer-backed import flow available with OpenClaw signal detectors
+    steps:
+      - step1: Run kinnoo import against fixtures containing strong and medium OpenClaw signals
+      - step2: Inspect analyzer/import output for confidence level and evidence lines
+      - step3: Verify confidence scoring reflects weighted signal strength rather than binary detection only
+    expected: import reports OpenClaw detection with confidence/evidence output that is deterministic and actionable
+    pass_criteria: output includes OpenClaw detection plus confidence/evidence metadata aligned with weighted signals
+    automated: true
+    automation_path: tests/test_cli_import.py::test_feature36_openclaw_detection_weighted_confidence_output
+    covers:
+      - feature: feature36
+        ac: AC1
+
+  - id: test298
+    title: Feature36 inference maps runtime package manager skills and state_dirs from openclaw project structure
+    type: integration
+    preconditions: analyzer can inspect OpenClaw fixtures with package metadata skills and memory paths
+    steps:
+      - step1: Run kinnoo import on representative OpenClaw project fixtures
+      - step2: Inspect generated/inferred manifest fields for runtime language runtime type and package manager
+      - step3: Verify inferred skills and candidate state_dirs match discovered project paths
+    expected: inferred manifest fields reflect OpenClaw runtime and structure with correct schema shape
+    pass_criteria: runtime package manager skills and state_dirs inference matches expected fixture evidence
+    automated: true
+    automation_path: tests/test_cli_import.py::test_feature36_infers_runtime_skills_state_dirs
+    covers:
+      - feature: feature36
+        ac: AC2
+
+  - id: test299
+    title: Feature36 identity artifacts SOUL AGENTS and optional USER are recognized as explicit inference signals
+    type: unit
+    preconditions: analyzer identity detectors for OpenClaw files are implemented
+    steps:
+      - step1: Analyze fixtures containing SOUL.md AGENTS.md and optional USER.md combinations
+      - step2: Verify identity artifacts are surfaced in evidence output
+      - step3: Confirm missing optional USER.md does not invalidate otherwise strong OpenClaw detection
+    expected: identity files are recognized as explicit signals with stable evidence reporting
+    pass_criteria: evidence output consistently reflects SOUL/AGENTS signals and handles optional USER correctly
+    automated: true
+    automation_path: tests/test_analyzer.py::test_feature36_identity_signal_detection
+    covers:
+      - feature: feature36
+        ac: AC3
+
+  - id: test300
+    title: Feature36 generated kinnoo manifest is valid or emits clear unresolved TODO and warning guidance
+    type: integration
+    preconditions: import command can generate kinnoo.yaml from analyzer inference output
+    steps:
+      - step1: Run import on fixture with complete inference data and validate generated manifest
+      - step2: Run import on fixture with intentionally incomplete inference data
+      - step3: Verify unresolved path emits explicit TODO/warning guidance without silent defaults
+    expected: complete inference generates valid manifest and incomplete inference provides actionable unresolved guidance
+    pass_criteria: either validator passes for generated manifest or output includes clear TODO/warning instructions for unresolved fields
+    automated: true
+    automation_path: tests/test_cli_import.py::test_feature36_manifest_valid_or_todo_guidance
+    covers:
+      - feature: feature36
+        ac: AC4
+
+  - id: test301
+    title: Feature36 openclaw import enhancements do not regress non-openclaw analyzer-backed import behavior
+    type: integration
+    preconditions: existing non-openclaw import fixtures and baseline analyzer behavior are available
+    steps:
+      - step1: Execute analyzer/import flows for existing Python and generic Node non-openclaw fixtures
+      - step2: Verify projects are not misclassified as openclaw and baseline behavior remains stable
+      - step3: Confirm outputs remain warning-first and actionable for ambiguous non-openclaw cases
+    expected: non-openclaw import behavior remains unchanged and stable after feature36 additions
+    pass_criteria: no non-openclaw misclassification and existing analyzer-backed import outputs continue to pass baseline assertions
+    automated: true
+    automation_path: tests/test_regression_v1.py::test_feature36_non_openclaw_import_regression_guard
+    covers:
+      - feature: feature36
+        ac: AC5
+
+  - id: test302
+    title: Feature37 node install audit prints deterministic severity summary
+    type: integration
+    preconditions: install flow can identify nodejs runtime agents and execute npm audit or equivalent output parsing
+    steps:
+      - step1: Install a nodejs agent fixture with mocked audit output containing critical high moderate and low counts
+      - step2: Verify install output includes deterministic severity summary fields and values
+      - step3: Verify equivalent python-agent install path does not emit node audit summary
+    expected: node installs show audit severity summary and python installs remain unaffected
+    pass_criteria: output contains critical/high/moderate/low summary for node fixture and no node audit summary for python fixture
+    automated: true
+    automation_path: tests/test_cli_install.py::test_feature37_node_audit_severity_summary
+    covers:
+      - feature: feature37
+        ac: AC1
+
+  - id: test303
+    title: Feature37 critical vulnerability gate blocks by default and supports allow override
+    type: integration
+    preconditions: node install audit severity parsing is available with critical findings classification
+    steps:
+      - step1: Run install on a node fixture where audit reports critical findings without override
+      - step2: Verify install fails with clear remediation guidance including allow-vulnerable option
+      - step3: Re-run with --allow-vulnerable and verify install continues with warning
+    expected: default behavior blocks critical vulnerability installs and explicit override permits continuation
+    pass_criteria: non-override run exits non-zero and override run exits zero while preserving warning visibility
+    automated: true
+    automation_path: tests/test_cli_install.py::test_feature37_critical_gate_default_block_and_allow_override
+    covers:
+      - feature: feature37
+        ac: AC2
+
+  - id: test304
+    title: Feature37 lifecycle script warnings and ignore-scripts mode are enforced for node installs
+    type: integration
+    preconditions: node package metadata lifecycle script detection is wired into install path
+    steps:
+      - step1: Install a node fixture declaring lifecycle scripts and verify warning output prior to install execution
+      - step2: Install same fixture with --ignore-scripts and verify package manager invocation disables script execution
+      - step3: Confirm output clearly records whether scripts were executed or ignored
+    expected: lifecycle-script risk is visible and ignore-scripts policy is enforceable during install
+    pass_criteria: warning appears when scripts are present and ignore-scripts mode produces deterministic script-disabled behavior
+    automated: true
+    automation_path: tests/test_cli_install.py::test_feature37_lifecycle_scripts_warning_and_ignore_scripts_mode
+    covers:
+      - feature: feature37
+        ac: AC3
+
+  - id: test305
+    title: Feature37 audit outcomes and decisions are persisted in machine-readable install trace
+    type: integration
+    preconditions: install trace writer can persist structured install metadata
+    steps:
+      - step1: Execute blocked and override node install scenarios with deterministic audit fixtures
+      - step2: Read resulting install trace artifacts
+      - step3: Verify trace includes audit severity counts lifecycle script metadata and policy decision fields
+    expected: install trace captures audit and decision outcomes in structured machine-readable form
+    pass_criteria: trace schema contains expected fields and values for both blocked and override scenarios without secret leakage
+    automated: true
+    automation_path: tests/test_cli_install.py::test_feature37_install_trace_captures_audit_and_decisions
+    covers:
+      - feature: feature37
+        ac: AC4
+
+  - id: test306
+    title: Feature37 node audit controls do not change python install baseline behavior
+    type: integration
+    preconditions: existing python install regression fixtures are available
+    steps:
+      - step1: Run python-agent install flow under baseline and with feature37-related flags present where applicable
+      - step2: Verify node audit command paths are not invoked for python runtime manifests
+      - step3: Verify install outcomes and user-facing behavior match prior baseline expectations
+    expected: feature37 controls remain node-only with no regression to python install workflows
+    pass_criteria: python install behavior remains unchanged and regression guard passes under full suite
+    automated: true
+    automation_path: tests/test_regression_v1.py::test_feature37_python_install_noop_regression_guard
+    covers:
+      - feature: feature37
+        ac: AC5
+
+  - id: test307
+    title: Feature38 security sweep scans js mjs ts and json files for credential and token patterns
+    type: integration
+    preconditions: code sweep supports scanning non-python source and configuration artifacts
+    steps:
+      - step1: Run static security sweep against fixtures containing credential-like patterns in js mjs ts and json files
+      - step2: Verify warning output includes findings for each supported file type
+      - step3: Confirm reported findings do not reveal raw secret values
+    expected: sweep detects high-confidence credential/token patterns across js ts json artifacts with warning-first output
+    pass_criteria: findings include all targeted file types and preserve redacted/no-secret-value reporting
+    automated: true
+    automation_path: tests/test_trust_baseline.py::test_feature38_scans_jstsjson_credentials
+    covers:
+      - feature: feature38
+        ac: AC1
+
+  - id: test308
+    title: Feature38 sweep flags risky JS TS execution primitives with file and line evidence
+    type: integration
+    preconditions: risky primitive signatures are configured in code sweep rules
+    steps:
+      - step1: Run sweep on fixtures that include eval dynamic function construction and shell-spawn patterns
+      - step2: Verify findings include precise file path and line number evidence for each risky primitive
+      - step3: Confirm warning-first behavior remains non-blocking for local workflows
+    expected: risky execution primitives are flagged with deterministic file/line evidence
+    pass_criteria: each risky primitive fixture generates a finding that contains file and line context
+    automated: true
+    automation_path: tests/test_trust_baseline.py::test_feature38_flags_risky_js_execution_primitives_with_file_line
+    covers:
+      - feature: feature38
+        ac: AC2
+
+  - id: test309
+    title: Feature38 sweep reports dangerous OpenClaw JSON configuration settings with targeted warnings
+    type: integration
+    preconditions: OpenClaw config danger rule set is available to security sweep
+    steps:
+      - step1: Run sweep against fixtures containing explicitly dangerous OpenClaw config values
+      - step2: Verify targeted warnings are emitted for dangerous settings with path-localized context
+      - step3: Run sweep on safe OpenClaw config fixture and verify no false-danger warning is emitted
+    expected: dangerous OpenClaw config settings are detected and safe configs avoid spurious danger findings
+    pass_criteria: dangerous fixture emits targeted warnings and safe fixture does not emit those warnings
+    automated: true
+    automation_path: tests/test_trust_baseline.py::test_feature38_openclaw_config_dangerous_settings_warning
+    covers:
+      - feature: feature38
+        ac: AC3
+
+  - id: test310
+    title: Feature38 memory snapshot candidate sweep warns on credential-like patterns before pack
+    type: integration
+    preconditions: pack flow invokes security sweep on memory snapshot candidates
+    steps:
+      - step1: Run pack workflow on fixture whose memory snapshot candidates contain credential-like patterns
+      - step2: Verify warning-first findings are emitted prior to archive completion
+      - step3: Confirm pack still completes to preserve non-blocking local workflow behavior
+    expected: memory snapshot risks are surfaced as warnings without blocking archive creation
+    pass_criteria: warning is emitted for risky memory content and pack command still succeeds
+    automated: true
+    automation_path: tests/test_pack_robustness.py::test_feature38_memory_snapshot_credential_warning_first
+    covers:
+      - feature: feature38
+        ac: AC4
+
+  - id: test311
+    title: Feature38 sweep output format remains consistent and never echoes secret values
+    type: integration
+    preconditions: baseline sweep output contract and redaction safeguards are available
+    steps:
+      - step1: Run sweep over mixed python and js fixtures with representative findings
+      - step2: Validate output format fields remain consistent with existing sweep UX conventions
+      - step3: Verify secret-like values are redacted and not emitted in warning text
+    expected: output contract remains stable and no-secret-value invariant is preserved
+    pass_criteria: regression assertions confirm stable output format and zero secret-value leakage in findings
+    automated: true
+    automation_path: tests/test_regression_v1.py::test_feature38_output_format_and_secret_safety_regression_guard
+    covers:
+      - feature: feature38
+        ac: AC5
+
+  - id: test312
+    title: Feature39 manifest permissions schema validates allowed fields and rejects invalid declarations
+    type: integration
+    preconditions: validator and schema modules support permissions section checks
+    steps:
+      - step1: Validate manifest fixture containing complete valid permissions declaration for network filesystem shell browser and env_access
+      - step2: Validate fixtures with invalid filesystem scope invalid env_access type and unsupported permission field values
+      - step3: Validate baseline manifest without permissions to confirm backward compatibility
+    expected: valid permissions manifest passes; invalid permissions declarations fail with deterministic actionable errors; legacy manifest remains valid
+    pass_criteria: validator returns expected pass/fail outcomes and error strings identify offending permissions fields
+    automated: true
+    automation_path: tests/test_validator.py::test_feature39_permissions_schema_validation
+    covers:
+      - feature: feature39
+        ac: AC1
+
+  - id: test313
+    title: Feature39 install shows permission summary and enforces explicit consent or non-interactive override
+    type: integration
+    preconditions: install flow can read permissions declarations and supports interactive and non-interactive modes
+    steps:
+      - step1: Run install for a fixture with permissions and verify human-readable summary output is shown
+      - step2: Simulate interactive deny path and verify install aborts with deterministic guidance
+      - step3: Run non-interactive override mode and verify install continues with explicit acknowledgment output
+    expected: install requires explicit consent by default and supports a deterministic override path for automation
+    pass_criteria: deny path exits non-zero with clear messaging and override path exits zero while preserving permission disclosure
+    automated: true
+    automation_path: tests/test_cli_install.py::test_feature39_install_permission_summary_and_consent
+    covers:
+      - feature: feature39
+        ac: AC2
+
+  - id: test314
+    title: Feature39 run sandbox enforces declared permissions with deterministic failure behavior
+    type: integration
+    preconditions: run command supports --sandbox mode with documented backend and permission policy enforcement
+    steps:
+      - step1: Execute sandboxed run fixture that performs only allowed actions and verify successful completion
+      - step2: Execute sandboxed run fixture attempting denied filesystem network or shell action
+      - step3: Verify violation path reports deterministic failure classification and remediation guidance
+    expected: sandboxed runs honor declared permissions and produce deterministic failures for denied or unsupported operations
+    pass_criteria: allowed fixture succeeds and denied fixture fails with stable violation diagnostics and exit behavior
+    automated: true
+    automation_path: tests/test_cli.py::test_feature39_run_sandbox_permission_enforcement
+    covers:
+      - feature: feature39
+        ac: AC3
+
+  - id: test315
+    title: Feature39 permission policy enforcement behaves consistently for Python and Node agents
+    type: integration
+    preconditions: test fixtures exist for both python and node runtime manifests with comparable permission declarations
+    steps:
+      - step1: Run permission-enforced execution/install scenarios for python fixture and capture outcomes
+      - step2: Run equivalent scenarios for node fixture and capture outcomes
+      - step3: Compare policy outcomes and documented fallback behavior for runtime-specific limitations
+    expected: policy enforcement parity is maintained across python and node where feasible with deterministic documented fallbacks
+    pass_criteria: both runtimes enforce declared policies consistently and any runtime-specific gaps are surfaced deterministically
+    automated: true
+    automation_path: tests/test_regression_v1.py::test_feature39_python_node_permission_parity
+    covers:
+      - feature: feature39
+        ac: AC4
+
+  - id: test316
+    title: Feature39 permission violations are logged with actionable diagnostics and no secret-value leakage
+    type: integration
+    preconditions: violation logging and diagnostics pipeline is enabled for permission enforcement paths
+    steps:
+      - step1: Trigger representative permission violations across filesystem network and shell policy checks
+      - step2: Inspect emitted logs and diagnostics for actionable fields and remediation hints
+      - step3: Verify sensitive tokens and env values are redacted or omitted from output
+    expected: violation reporting remains actionable while preserving no-secret-value invariants
+    pass_criteria: diagnostics include capability/action context and remediation guidance with zero raw secret-value leakage
+    automated: true
+    automation_path: tests/test_run_preflight.py::test_feature39_violation_diagnostics_secret_safe
+    covers:
+      - feature: feature39
+        ac: AC5
+
+  - id: test317
+    title: Feature40 keygen creates usable Ed25519 keypair with deterministic CLI behavior
+    type: integration
+    preconditions: key generation command and signing module are available
+    steps:
+      - step1: Run `kinnoo keygen` in a temporary workspace with explicit output targets
+      - step2: Verify private/public key artifacts are created with expected formats and secure permissions
+      - step3: Validate generated keypair can be loaded by signing helper utilities
+    expected: keygen produces a valid Ed25519 keypair suitable for signing workflows
+    pass_criteria: command exits zero, key files exist with expected format/permissions, and signing helper accepts the generated keys
+    automated: true
+    automation_path: tests/test_cli.py::test_feature40_keygen_generates_ed25519_keypair
+    covers:
+      - feature: feature40
+        ac: AC1
+
+  - id: test318
+    title: Feature40 pack sign emits signature artifact and metadata alongside checksum outputs
+    type: integration
+    preconditions: pack command supports `--sign` and has access to valid signing key material
+    steps:
+      - step1: Run `kinnoo pack --sign` against a valid fixture agent
+      - step2: Verify archive output includes detached signature artifact and signature metadata fields
+      - step3: Verify checksum artifacts remain present and format-compatible with prior behavior
+    expected: signed pack flow emits both signature and checksum outputs with deterministic metadata shape
+    pass_criteria: signature artifacts/metadata are present and checksum output contract remains intact
+    automated: true
+    automation_path: tests/test_pack.py::test_feature40_pack_sign_emits_signature_and_metadata
+    covers:
+      - feature: feature40
+        ac: AC2
+
+  - id: test319
+    title: Feature40 install verifies signatures and blocks invalid signed archives
+    type: integration
+    preconditions: install command can read signature metadata and resolve verification key material
+    steps:
+      - step1: Install a signed archive fixture with valid signature and verify install succeeds
+      - step2: Install a tampered or invalid-signature archive fixture
+      - step3: Verify invalid-signature install fails with deterministic remediation guidance
+    expected: valid signatures allow install while invalid signatures are blocked
+    pass_criteria: valid case exits zero; invalid case exits non-zero with explicit signature verification failure messaging
+    automated: true
+    automation_path: tests/test_install.py::test_feature40_install_signature_verification_gate
+    covers:
+      - feature: feature40
+        ac: AC3
+
+  - id: test320
+    title: Feature40 unsigned archives are labeled unverified and require explicit confirmation flow
+    type: integration
+    preconditions: install workflow supports unsigned warning and confirmation handling
+    steps:
+      - step1: Install an unsigned archive fixture in interactive mode and verify unverified publisher warning is shown
+      - step2: Deny confirmation and verify install aborts
+      - step3: Approve confirmation or run documented non-interactive override path and verify deterministic continuation behavior
+    expected: unsigned archives are explicitly labeled unverified with enforced confirmation policy
+    pass_criteria: warning is always shown for unsigned archives and continuation requires documented confirmation/override behavior
+    automated: true
+    automation_path: tests/test_cli_install.py::test_feature40_unsigned_archive_warning_and_confirmation
+    covers:
+      - feature: feature40
+        ac: AC4
+
+  - id: test321
+    title: Feature40 registry metadata stores publisher public-key association for verified distribution
+    type: integration
+    preconditions: registry metadata model supports publisher key association fields
+    steps:
+      - step1: Publish/register fixture metadata with associated publisher public key
+      - step2: Query registry metadata and verify key association is persisted and returned consistently
+      - step3: Verify install verification path can consume associated key mapping for identity validation
+    expected: registry model persists publisher-key association required for verified install workflows
+    pass_criteria: key association persists across write/read operations and integrates with install verification lookup path
+    automated: true
+    automation_path: tests/test_registry.py::test_feature40_registry_publisher_key_association
+    covers:
+      - feature: feature40
+        ac: AC5
+
+  - id: test322
+    title: Feature41 runtime monitor captures process network and filesystem behavioral events with structured logs
+    type: integration
+    preconditions: runtime monitor hooks are enabled in run execution flow
+    steps:
+      - step1: Run instrumented agent fixture that spawns subprocesses performs network calls and writes files
+      - step2: Collect runtime monitor output records during execution
+      - step3: Verify event records include deterministic structured fields for process network and filesystem categories
+    expected: runtime monitor captures key behavioral events with structured logs suitable for auditability
+    pass_criteria: monitor output contains process network and filesystem events with stable schema fields and timestamps
+    automated: true
+    automation_path: tests/test_run_preflight.py::test_feature41_runtime_event_monitoring_baseline
+    covers:
+      - feature: feature41
+        ac: AC1
+
+  - id: test323
+    title: Feature41 permission violations trigger deterministic enforcement including kill switch path
+    type: integration
+    preconditions: feature39 permissions and runtime monitor enforcement policy are active
+    steps:
+      - step1: Execute fixture that triggers soft and hard permission violations under monitored run
+      - step2: Verify warn-mode policy produces deterministic warning events
+      - step3: Verify hard-violation policy terminates process through kill-switch path
+    expected: permission violations produce deterministic warn or terminate outcomes according to policy
+    pass_criteria: violation events and enforcement action codes match expected policy and kill-switch behavior for hard violations
+    automated: true
+    automation_path: tests/test_cli.py::test_feature41_violation_enforcement_and_kill_switch
+    covers:
+      - feature: feature41
+        ac: AC2
+
+  - id: test324
+    title: Feature41 resource controls enforce timeout and platform-supported CPU memory budgets
+    type: integration
+    preconditions: monitored run supports wall-clock timeout and exposes resource-limit configuration
+    steps:
+      - step1: Run fixture that exceeds configured wall-clock timeout
+      - step2: Run fixture that exceeds CPU or memory budget on supported platforms
+      - step3: Verify unsupported-platform path emits deterministic degraded-mode guidance
+    expected: configured resource controls are enforced with deterministic behavior and graceful unsupported fallback
+    pass_criteria: runs are terminated when limits are exceeded and unsupported controls produce explicit stable guidance
+    automated: true
+    automation_path: tests/test_cli.py::test_feature41_resource_control_enforcement
+    covers:
+      - feature: feature41
+        ac: AC3
+
+  - id: test325
+    title: Feature41 dry-run mode reports likely actions without full side-effect execution
+    type: integration
+    preconditions: run command supports dry-run monitoring mode
+    steps:
+      - step1: Execute fixture with process network and filesystem side-effect intents using `kinnoo run --dry-run`
+      - step2: Inspect dry-run output for predicted action diagnostics
+      - step3: Verify side-effect targets were not materially mutated under dry-run mode
+    expected: dry-run mode provides low-risk behavioral trace output while suppressing full side effects
+    pass_criteria: predicted actions are reported and side-effect assertions confirm no full execution side effects occurred
+    automated: true
+    automation_path: tests/test_cli.py::test_feature41_dry_run_monitoring_trace
+    covers:
+      - feature: feature41
+        ac: AC4
+
+  - id: test326
+    title: Feature41 monitoring integrates with feature39 permissions and degrades gracefully when telemetry is limited
+    type: integration
+    preconditions: feature39 permissions model is active for python and node fixtures
+    steps:
+      - step1: Execute monitored runs for python and node fixtures with declared permissions
+      - step2: Verify monitor policy resolution respects feature39 declarations across runtimes
+      - step3: Simulate limited telemetry backend and verify graceful degradation messaging
+    expected: feature41 monitoring integrates with feature39 permissions and handles telemetry limitations gracefully
+    pass_criteria: cross-runtime monitoring outcomes align with declared permissions and degraded telemetry path emits deterministic guidance
+    automated: true
+    automation_path: tests/test_regression_v1.py::test_feature41_feature39_integration_and_graceful_degradation
+    covers:
+      - feature: feature41
+        ac: AC5
