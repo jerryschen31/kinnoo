@@ -5367,3 +5367,405 @@ tests:
     covers:
       - feature: feature41
         ac: AC5
+
+  # ======================================================================
+  # Feature28: Registry Backend Abstraction & Remote Client
+  # ======================================================================
+
+  - id: test327
+    title: RegistryBackend protocol defined and LocalRegistryBackend preserves existing behavior
+    type: unit
+    preconditions: existing local registry logic is functional
+    steps:
+      - step1: Verify RegistryBackend protocol defines publish, resolve, search, list_agents methods
+      - step2: Verify LocalRegistryBackend implements all protocol methods
+      - step3: Run existing local registry tests through LocalRegistryBackend interface
+      - step4: Confirm all existing local behavior is preserved identically
+    expected: protocol is well-defined and local backend is a drop-in replacement for existing logic
+    pass_criteria: all existing registry tests pass unchanged when routed through LocalRegistryBackend
+    automated: true
+    automation_path: tests/test_registry.py::test_registry_backend_protocol
+    covers:
+      - feature: feature28
+        ac: AC1
+      - feature: feature28
+        ac: AC2
+
+  - id: test328
+    title: RemoteRegistryClient makes correct HTTP calls with auth headers
+    type: unit
+    preconditions: RemoteRegistryClient class exists with mock HTTP
+    steps:
+      - step1: Call publish method and verify POST /api/publish with multipart body and Authorization header
+      - step2: Call resolve method and verify GET /api/agents/{tenant}/{agent}/{version}/download with auth
+      - step3: Call search method and verify GET /api/search?q={query} with auth
+      - step4: Call list_agents method and verify GET /api/agents?tenant={slug} with auth
+    expected: all HTTP calls target correct endpoints with correct headers and parameters
+    pass_criteria: mock HTTP captures show correct URLs, methods, headers, and body payloads
+    automated: true
+    automation_path: tests/test_remote_client.py::test_remote_client_http_calls
+    covers:
+      - feature: feature28
+        ac: AC3
+
+  - id: test329
+    title: Registry config loads from config file and env vars with precedence
+    type: unit
+    preconditions: config module exists
+    steps:
+      - step1: Create test config.yaml with registry_url, registry_token, tenant_slug
+      - step2: Verify config values are loaded from file
+      - step3: Set env vars KINNOO_REGISTRY_URL, KINNOO_REGISTRY_TOKEN, KINNOO_TENANT_SLUG
+      - step4: Verify env vars override config file values
+    expected: env vars take precedence over config file values for all registry settings
+    pass_criteria: config loader returns env var values when both file and env var are set
+    automated: true
+    automation_path: tests/test_cli_env_vars.py::test_registry_config_precedence
+    covers:
+      - feature: feature28
+        ac: AC4
+
+  - id: test330
+    title: CLI commands use remote backend when configured and local when not
+    type: integration
+    preconditions: both LocalRegistryBackend and RemoteRegistryClient are functional
+    steps:
+      - step1: Run publish without registry_url configured — verify local backend is used
+      - step2: Run publish with registry_url configured — verify remote backend is used
+      - step3: Run install --local — verify local backend even when registry_url is set
+      - step4: Run install --remote — verify remote backend is used
+      - step5: Run full local regression suite to confirm --local behavior unchanged
+    expected: backend selection follows config and flag precedence correctly
+    pass_criteria: correct backend is invoked in each scenario and existing --local tests pass
+    automated: true
+    automation_path: tests/test_cli.py::test_backend_selection
+    covers:
+      - feature: feature28
+        ac: AC5
+      - feature: feature28
+        ac: AC6
+      - feature: feature28
+        ac: AC7
+
+  - id: test331
+    title: Remote client handles all HTTP error types with actionable messages
+    type: unit
+    preconditions: RemoteRegistryClient with mock HTTP responses
+    steps:
+      - step1: Mock connection refused and verify clear "server not reachable" message
+      - step2: Mock 401 response and verify "unauthorized — check your token" message
+      - step3: Mock 403 response and verify "forbidden — insufficient permissions" message
+      - step4: Mock 404 response and verify "agent/version not found" message
+      - step5: Mock 409 response and verify "duplicate version" message
+      - step6: Mock 429 response and verify "rate limited — retry after" message
+      - step7: Mock 500 response and verify "server error — try again later" message
+    expected: each HTTP error type produces a distinct, actionable CLI message
+    pass_criteria: all error scenarios produce clear user-facing messages without stack traces
+    automated: true
+    automation_path: tests/test_remote_client.py::test_error_handling
+    covers:
+      - feature: feature28
+        ac: AC8
+
+  # ======================================================================
+  # Feature43: Auth, User & Tenant Management
+  # ======================================================================
+
+  - id: test332
+    title: User model hashes passwords securely and verifies correctly
+    type: unit
+    preconditions: user model and password hashing module exist
+    steps:
+      - step1: Create user with plaintext password
+      - step2: Verify password_hash is set and differs from plaintext
+      - step3: Verify correct password passes verification
+      - step4: Verify wrong password fails verification
+      - step5: Verify no plaintext password appears in serialized user JSON
+    expected: passwords are properly hashed, verified, and never exposed
+    pass_criteria: hashing uses argon2 or bcrypt, verification is constant-time, no plaintext leaks
+    automated: true
+    automation_path: server/tests/test_user_model.py::test_password_hashing
+    covers:
+      - feature: feature43
+        ac: AC1
+
+  - id: test333
+    title: Bootstrap creates first admin and refuses when admin exists
+    type: integration
+    preconditions: server storage backend is available (local or mock)
+    steps:
+      - step1: Run bootstrap command on empty store — verify admin user is created
+      - step2: Verify temporary password is printed to stdout
+      - step3: Verify created user has force_password_change=true
+      - step4: Run bootstrap command again — verify it refuses with "admin already exists"
+    expected: bootstrap creates exactly one admin, outputs temp password, and blocks repeat runs
+    pass_criteria: first run succeeds with admin created; second run fails with clear refusal message
+    automated: true
+    automation_path: server/tests/test_bootstrap.py::test_bootstrap_lifecycle
+    covers:
+      - feature: feature43
+        ac: AC2
+
+  - id: test334
+    title: Tenant slugs are unique, validated, and admin-only creatable
+    type: unit
+    preconditions: tenant model and store exist
+    steps:
+      - step1: Create tenant with valid slug (lowercase, alphanumeric + hyphens)
+      - step2: Attempt duplicate slug — verify rejection with clear error
+      - step3: Attempt invalid slug (uppercase, special chars) — verify validation error
+      - step4: Attempt tenant creation as non-admin user — verify 403 rejection
+    expected: slug uniqueness and format validation enforced, admin-only creation
+    pass_criteria: duplicates rejected, invalid formats rejected, non-admin creation blocked
+    automated: true
+    automation_path: server/tests/test_tenant_model.py::test_tenant_slug_management
+    covers:
+      - feature: feature43
+        ac: AC3
+      - feature: feature43
+        ac: AC5
+
+  - id: test335
+    title: JWT token issuance, validation, scope enforcement, denylist, and key rotation
+    type: unit
+    preconditions: JWT auth module exists
+    steps:
+      - step1: Issue token with valid credentials — verify JWT with correct claims
+      - step2: Issue token with invalid credentials — verify 401
+      - step3: Validate token on protected endpoint — verify access granted
+      - step4: Use expired token — verify 401
+      - step5: Use token without required scope — verify 403
+      - step6: Add token_id to denylist — verify revoked token is rejected
+      - step7: Rotate signing key — verify old tokens still validate via kid fallback
+    expected: full JWT lifecycle works with scope enforcement, revocation, and key rotation
+    pass_criteria: all auth scenarios produce correct accept/reject outcomes
+    automated: true
+    automation_path: server/tests/test_jwt_auth.py::test_jwt_lifecycle
+    covers:
+      - feature: feature43
+        ac: AC4
+      - feature: feature43
+        ac: AC7
+
+  - id: test336
+    title: Session cookies are secure, CSRF-protected, and server-side invalidated
+    type: unit
+    preconditions: session auth module exists
+    steps:
+      - step1: Login and verify session cookie has HttpOnly, Secure, SameSite=Lax flags
+      - step2: Submit POST without CSRF token — verify rejection
+      - step3: Submit POST with valid CSRF token — verify acceptance
+      - step4: Wait past TTL — verify session is expired
+      - step5: Logout — verify session is invalidated server-side
+      - step6: Reset password — verify all sessions for user are invalidated
+    expected: sessions are secure by default with CSRF protection and server-side lifecycle
+    pass_criteria: all security flags present, CSRF enforced, expiration and invalidation work
+    automated: true
+    automation_path: server/tests/test_session_auth.py::test_session_security
+    covers:
+      - feature: feature43
+        ac: AC6
+      - feature: feature43
+        ac: AC8
+
+  # ======================================================================
+  # Feature29: Remote Registry Server
+  # ======================================================================
+
+  - id: test337
+    title: Storage backends (local, mock S3, real S3) implement protocol correctly
+    type: unit
+    preconditions: all three storage backend implementations exist
+    steps:
+      - step1: For each backend (local, mock S3, S3) — put object, get object, verify content
+      - step2: List objects — verify expected keys returned
+      - step3: Delete object — verify removal
+      - step4: Generate presigned URL — verify URL format is valid
+      - step5: Switch backend via REGISTRY_STORAGE_BACKEND env var — verify correct backend loaded
+    expected: all three backends pass identical protocol tests
+    pass_criteria: put/get/list/delete/presign work identically across backends (mock S3 and local for CI)
+    automated: true
+    automation_path: server/tests/test_storage.py::test_storage_protocol
+    covers:
+      - feature: feature29
+        ac: AC2
+      - feature: feature29
+        ac: AC8
+
+  - id: test338
+    title: Three-tier JSON metadata model creates, reads, and updates correctly
+    type: unit
+    preconditions: metadata manager and storage backend available
+    steps:
+      - step1: Create version metadata and verify document written at correct path
+      - step2: Create agent index and verify version is listed
+      - step3: Create global index and verify tenant+agent+version summary
+      - step4: Add new version — verify agent index and global index updated
+      - step5: Verify schema_version field present in all documents
+    expected: all three metadata document types are schema-versioned and maintain consistency
+    pass_criteria: metadata CRUD works correctly and documents follow the v1 schema
+    automated: true
+    automation_path: server/tests/test_metadata.py::test_metadata_model
+    covers:
+      - feature: feature29
+        ac: AC1
+
+  - id: test339
+    title: Publish endpoint stores archive, recomputes SHA256, rejects duplicates
+    type: integration
+    preconditions: FastAPI app, mock storage, and auth middleware configured
+    steps:
+      - step1: Publish valid archive with auth — verify 201 and archive stored
+      - step2: Verify SHA256 is recomputed server-side and matches stored checksum
+      - step3: Verify metadata documents (version, agent index, global index) are created
+      - step4: Publish same tenant+agent+version again — verify 409 Conflict
+      - step5: Publish without auth — verify 401
+      - step6: Publish with read-only scope — verify 403
+      - step7: Publish archive exceeding max size — verify 400
+    expected: publish validates, stores, checksums, indexes, and rejects correctly
+    pass_criteria: happy path creates all artifacts; error paths return correct status codes
+    automated: true
+    automation_path: server/tests/test_publish.py::test_publish_endpoint
+    covers:
+      - feature: feature29
+        ac: AC3
+      - feature: feature29
+        ac: AC10
+
+  - id: test340
+    title: List and detail endpoints return paginated results with visibility enforcement
+    type: integration
+    preconditions: published agents exist in mock storage
+    steps:
+      - step1: GET /api/agents — verify paginated response with expected agent summaries
+      - step2: GET /api/agents with offset/limit — verify correct page
+      - step3: GET /api/agents/{tenant}/{agent} — verify agent detail with all versions
+      - step4: Access private tenant without authorization — verify 403
+      - step5: Access non-existent agent — verify 404
+      - step6: Access without auth token — verify 401
+    expected: list and detail work with pagination, visibility enforcement, and proper errors
+    pass_criteria: all access control and pagination scenarios produce correct outcomes
+    automated: true
+    automation_path: server/tests/test_agents_routes.py::test_list_and_detail
+    covers:
+      - feature: feature29
+        ac: AC4
+      - feature: feature29
+        ac: AC9
+
+  - id: test341
+    title: Download endpoint returns presigned URL without proxying archive
+    type: integration
+    preconditions: published agent version exists in mock storage
+    steps:
+      - step1: GET /api/agents/{tenant}/{agent}/{version}/download with auth — verify presigned URL response
+      - step2: Verify response contains download_url and expires_in fields
+      - step3: Request non-existent version — verify 404
+      - step4: Request without auth — verify 401
+    expected: download returns presigned URL; archive is never proxied through server
+    pass_criteria: presigned URL is returned for valid versions; errors handled correctly
+    automated: true
+    automation_path: server/tests/test_download.py::test_download_presigned
+    covers:
+      - feature: feature29
+        ac: AC5
+
+  - id: test342
+    title: Search endpoint filters by name/description and respects visibility
+    type: integration
+    preconditions: multiple published agents exist in mock storage
+    steps:
+      - step1: Search for known agent name — verify match returned
+      - step2: Search for description keyword — verify match returned
+      - step3: Search for non-existent term — verify empty results
+      - step4: Search with pagination — verify offset/limit respected
+      - step5: Verify private tenant agents are excluded from unauthorized user search
+      - step6: Search without auth — verify 401
+    expected: search returns correct filtered results with visibility enforcement
+    pass_criteria: name and description matching works; visibility and auth enforced
+    automated: true
+    automation_path: server/tests/test_search.py::test_search_endpoint
+    covers:
+      - feature: feature29
+        ac: AC6
+      - feature: feature29
+        ac: AC7
+
+  # ======================================================================
+  # Feature30: Registry Web UI
+  # ======================================================================
+
+  - id: test343
+    title: Jinja2 template engine configured and base layout renders
+    type: unit
+    preconditions: FastAPI app with Jinja2 configured
+    steps:
+      - step1: Verify Jinja2 templates directory is configured in app
+      - step2: Render base.html layout and verify HTML structure (header, nav, content, footer)
+      - step3: Verify static CSS file is served
+    expected: template engine works and base layout provides consistent page structure
+    pass_criteria: HTML output contains expected structural elements and CSS is accessible
+    automated: true
+    automation_path: server/tests/test_templates.py::test_base_layout
+    covers:
+      - feature: feature30
+        ac: AC6
+
+  - id: test344
+    title: Login page authenticates, sets session cookie, handles CSRF
+    type: integration
+    preconditions: web auth routes and session module configured
+    steps:
+      - step1: GET /login — verify login form rendered with CSRF token
+      - step2: POST /login with valid credentials — verify session cookie set with correct flags
+      - step3: POST /login with invalid credentials — verify error message and no session
+      - step4: POST /login without CSRF token — verify rejection
+      - step5: POST /logout — verify session invalidated
+      - step6: Access /agents without session — verify redirect to /login
+    expected: login flow works end-to-end with security controls
+    pass_criteria: session lifecycle, CSRF protection, and redirect-to-login all function correctly
+    automated: true
+    automation_path: server/tests/test_web_auth.py::test_login_flow
+    covers:
+      - feature: feature30
+        ac: AC1
+      - feature: feature30
+        ac: AC5
+      - feature: feature30
+        ac: AC7
+
+  - id: test345
+    title: Agent listing and search pages render with pagination
+    type: integration
+    preconditions: published agents exist, user session active
+    steps:
+      - step1: GET /agents with session — verify HTML table with agent rows
+      - step2: Verify pagination controls present (next/prev)
+      - step3: GET /search?q=keyword — verify filtered results rendered
+      - step4: GET /agents without session — verify redirect to /login
+    expected: listing and search pages render correctly for authenticated users
+    pass_criteria: HTML contains expected agent data, pagination works, unauthenticated redirects to login
+    automated: true
+    automation_path: server/tests/test_web_agents.py::test_listing_and_search
+    covers:
+      - feature: feature30
+        ac: AC2
+
+  - id: test346
+    title: Agent profile page shows versions and download redirects to presigned URL
+    type: integration
+    preconditions: published agent with multiple versions exists, user session active
+    steps:
+      - step1: GET /agents/{tenant}/{agent} — verify profile page with version history
+      - step2: Verify download button present for each version
+      - step3: Click download — verify redirect to presigned URL
+      - step4: Request non-existent agent — verify 404 page
+    expected: profile page shows complete version history with working download links
+    pass_criteria: all versions listed, download triggers presigned redirect, 404 for missing agent
+    automated: true
+    automation_path: server/tests/test_web_agents.py::test_profile_and_download
+    covers:
+      - feature: feature30
+        ac: AC3
+      - feature: feature30
+        ac: AC4
