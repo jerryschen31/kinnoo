@@ -65,6 +65,66 @@ def posix_resource_limits_supported() -> bool:
     return hasattr(resource, "setrlimit")
 
 
+def predict_dry_run_actions(
+    *,
+    entrypoint_path: Path,
+    runtime_language: str,
+    pass_through_args: list[str],
+) -> list[dict[str, str]]:
+    actions: list[dict[str, str]] = [
+        {
+            "category": "process",
+            "action": "process_spawn",
+            "detail": f"would execute {runtime_language} entrypoint '{entrypoint_path.name}'",
+        }
+    ]
+
+    script_text = ""
+    try:
+        script_text = entrypoint_path.read_text(encoding="utf-8")
+    except Exception:
+        script_text = ""
+
+    network_markers = (
+        "socket.create_connection",
+        "requests.",
+        "httpx.",
+        "urllib.request",
+    )
+    filesystem_markers = (
+        "write_text(",
+        "write_bytes(",
+        "open(",
+        "Path(",
+        "mkdir(",
+    )
+
+    pass_through_blob = " ".join(pass_through_args)
+    if any(marker in script_text for marker in network_markers) or any(
+        token in pass_through_blob for token in ("--url", "-u", "http://", "https://", "--network")
+    ):
+        actions.append(
+            {
+                "category": "network",
+                "action": "network_access_attempt",
+                "detail": "network access intent detected from entrypoint or pass-through arguments",
+            }
+        )
+
+    if any(marker in script_text for marker in filesystem_markers) or any(
+        token in pass_through_blob for token in ("--output", "-o", "--write", "--fs-write")
+    ):
+        actions.append(
+            {
+                "category": "filesystem",
+                "action": "filesystem_write",
+                "detail": "filesystem write intent detected from entrypoint or pass-through arguments",
+            }
+        )
+
+    return actions
+
+
 def resolve_violation_enforcement(
     *,
     capability: str,

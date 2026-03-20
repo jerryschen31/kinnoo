@@ -4504,7 +4504,7 @@ tasks:
       - 'step4: Add tests validating dry-run outputs and side-effect suppression guarantees'
     dependencies: [task224]
     tests: [test325]
-    status: not-started
+    status: needs-review
 
   - id: task228
     title: "Feature41 feature39 integration and graceful degradation"

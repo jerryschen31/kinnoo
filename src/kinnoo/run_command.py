@@ -30,6 +30,7 @@ from .install_trace import write_violation_event
 from .logging_utils import emit_violation_event_diagnostic
 from .runtime_monitor import RuntimeMonitor
 from .runtime_monitor import normalize_runtime_resource_controls
+from .runtime_monitor import predict_dry_run_actions
 from .runtime_monitor import posix_resource_limits_supported
 from .runtime_monitor import resolve_violation_enforcement
 from .supervisor import (
@@ -1128,6 +1129,7 @@ def run_agent(
     no_guard: bool = False,
     pass_through_args: list[str] | None = None,
     sandbox: bool = False,
+    dry_run: bool = False,
     max_seconds: float | None = None,
     max_cpu_seconds: int | None = None,
     max_memory_mb: int | None = None,
@@ -1460,6 +1462,33 @@ def run_agent(
     if effective_input_arg is not None:
         process_args.append(effective_input_arg)
     process_args.extend(runtime_pass_through_args)
+
+    if dry_run:
+        predicted_actions = predict_dry_run_actions(
+            entrypoint_path=entrypoint_path,
+            runtime_language=runtime_language,
+            pass_through_args=runtime_pass_through_args,
+        )
+        print("[kinnoo] dry-run mode enabled: entrypoint execution suppressed")
+        print("[kinnoo] dry-run predicted actions:")
+        for predicted_action in predicted_actions:
+            print(
+                "- "
+                f"{predicted_action['category']}::{predicted_action['action']} - "
+                f"{predicted_action['detail']}"
+            )
+
+        runtime_monitor = RuntimeMonitor(
+            agent_dir=agent_dir,
+            runtime_language=runtime_language,
+            forbidden_values=trace_forbidden_values,
+        )
+        _ = runtime_monitor.prepare_environment(
+            process_args=process_args,
+            cwd=agent_dir,
+            env=os.environ.copy(),
+        )
+        return finalize(0)
 
     runtime_monitor = RuntimeMonitor(
         agent_dir=agent_dir,

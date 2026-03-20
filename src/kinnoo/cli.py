@@ -88,6 +88,11 @@ def main():
         help="Run agent with manifest permission policy enforcement",
     )
     run_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show predicted runtime behavior without executing full entrypoint side effects",
+    )
+    run_parser.add_argument(
         "--max-seconds",
         type=float,
         help="Wall-clock timeout in seconds for run execution",
@@ -361,6 +366,7 @@ def main():
             no_guard=bool(getattr(args, "no_guard", False)),
             pass_through_args=pass_through_args,
             sandbox=bool(getattr(args, "sandbox", False)),
+            dry_run=bool(getattr(args, "dry_run", False)),
             max_seconds=getattr(args, "max_seconds", None),
             max_cpu_seconds=getattr(args, "max_cpu_seconds", None),
             max_memory_mb=getattr(args, "max_memory_mb", None),

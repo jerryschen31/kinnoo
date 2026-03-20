@@ -2612,6 +2612,63 @@ outputs:
     assert "feature41-degraded-agent-ran" in degraded_output
 
 
+def test_feature41_dry_run_monitoring_trace(tmp_path):
+    dry_run_agent_dir = tmp_path / "feature41-dry-run-agent"
+    dry_run_agent_dir.mkdir()
+    (dry_run_agent_dir / "requirements.txt").write_text("")
+    (dry_run_agent_dir / "kinnoo.yaml").write_text(
+        """
+name: feature41-dry-run-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+"""
+    )
+    (dry_run_agent_dir / "run.py").write_text(
+        "from pathlib import Path\n"
+        "import socket\n"
+        "Path('feature41-dry-run-side-effect.flag').write_text('executed', encoding='utf-8')\n"
+        "socket.create_connection(('127.0.0.1', 9), timeout=0.1)\n"
+        "print('feature41-dry-run-entrypoint-ran')\n"
+    )
+    (dry_run_agent_dir / "README.md").write_text("feature41 dry-run agent")
+    (dry_run_agent_dir / "tools").mkdir()
+    (dry_run_agent_dir / "prompts").mkdir()
+
+    dry_run_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(dry_run_agent_dir),
+            "hello",
+            "--dry-run",
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    dry_run_output = f"{dry_run_result.stdout}\n{dry_run_result.stderr}"
+    assert dry_run_result.returncode == 0, dry_run_output
+    assert "dry-run mode enabled: entrypoint execution suppressed" in dry_run_output
+    assert "dry-run predicted actions:" in dry_run_output
+    assert "process::process_spawn" in dry_run_output
+    assert "network::network_access_attempt" in dry_run_output
+    assert "filesystem::filesystem_write" in dry_run_output
+
+    side_effect_flag = dry_run_agent_dir / "feature41-dry-run-side-effect.flag"
+    assert not side_effect_flag.exists()
+    assert "feature41-dry-run-entrypoint-ran" not in dry_run_output
+
+
 def test_feature40_keygen_generates_ed25519_keypair(tmp_path):
     from kinnoo.signing import (
         load_ed25519_private_key,
