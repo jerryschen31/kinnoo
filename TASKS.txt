@@ -4318,3 +4318,107 @@ tasks:
     dependencies: [task215, task216, task217]
     tests: [test316]
     status: completed
+
+  - id: task219
+    title: "Feature40 key generation workflow"
+    type: task
+    description: |
+      Add `kinnoo keygen` support to generate an Ed25519 keypair suitable for
+      archive signing and publisher-verification workflows.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/signing.py
+      - tests/test_cli.py
+      - README.md
+    steps:
+      - 'step1: Add `kinnoo keygen` CLI command with deterministic output paths and operator guidance'
+      - 'step2: Implement Ed25519 keypair generation with secure file permissions and PEM/text serialization format'
+      - 'step3: Emit clear success diagnostics with public-key fingerprint summary while avoiding private-key leakage'
+      - 'step4: Add tests proving keys are generated, readable in expected format, and usable by signing helpers'
+    dependencies: []
+    tests: [test317]
+    status: not-started
+
+  - id: task220
+    title: "Feature40 pack signing integration"
+    type: task
+    description: |
+      Integrate archive signing into pack workflow via `kinnoo pack --sign`,
+      emitting signature artifacts and metadata alongside existing checksum
+      outputs.
+    files:
+      - src/kinnoo/pack_command.py
+      - src/kinnoo/signing.py
+      - tests/test_pack.py
+      - docs/manifest-schema-reference.md
+    steps:
+      - 'step1: Add `--sign` pack flag and load signing key material from explicit CLI/config inputs'
+      - 'step2: Sign deterministic archive payload bytes using Ed25519 and emit detached signature artifact'
+      - 'step3: Extend pack metadata/output to include signature location and verification hints alongside checksum details'
+      - 'step4: Add tests validating signed pack path emits expected signature artifacts and metadata contract'
+    dependencies: [task219]
+    tests: [test318]
+    status: not-started
+
+  - id: task221
+    title: "Feature40 install signature verification gate"
+    type: task
+    description: |
+      Enforce signature verification during install when signature artifacts are
+      present and block installation on invalid signatures with actionable
+      remediation guidance.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/signing.py
+      - tests/test_install.py
+      - tests/test_cli_install.py
+    steps:
+      - 'step1: Detect signed archive metadata and resolve publisher verification material'
+      - 'step2: Verify detached signature against archive payload and public key'
+      - 'step3: Block install on signature mismatch/verification failure with deterministic diagnostics'
+      - 'step4: Add tests for valid-signature allow path and invalid-signature block path'
+    dependencies: [task220]
+    tests: [test319]
+    status: not-started
+
+  - id: task222
+    title: "Feature40 unsigned archive warning and confirmation path"
+    type: task
+    description: |
+      Label unsigned archives as unverified during install and require explicit
+      operator confirmation flow (with non-interactive behavior defined) before
+      continuation.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli_install.py
+      - README.md
+    steps:
+      - 'step1: Add explicit unsigned/unverified publisher messaging in install output when signature metadata is absent'
+      - 'step2: Require confirmation in interactive mode before continuing unsigned installs'
+      - 'step3: Define deterministic non-interactive behavior and override controls for automation pipelines'
+      - 'step4: Add tests covering interactive confirmation and non-interactive unsigned handling paths'
+    dependencies: [task221]
+    tests: [test320]
+    status: not-started
+
+  - id: task223
+    title: "Feature40 registry publisher key association"
+    type: task
+    description: |
+      Extend registry metadata model to associate publisher public keys with
+      agent identities to support verified distribution and anti-spoofing
+      install workflows.
+    files:
+      - src/kinnoo/registry.py
+      - src/kinnoo/install_command.py
+      - tests/test_registry.py
+      - tests/test_cli_registry.py
+    steps:
+      - 'step1: Extend registry schema/storage to persist publisher public-key association per agent identity'
+      - 'step2: Add registry read/write validation for key association integrity and update semantics'
+      - 'step3: Integrate install-time lookup path to consume associated publisher key material for verification'
+      - 'step4: Add tests validating key association persistence lookup and anti-spoofing verification path'
+    dependencies: [task219, task221]
+    tests: [test321]
+    status: not-started

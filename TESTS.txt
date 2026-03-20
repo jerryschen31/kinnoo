@@ -5207,3 +5207,83 @@ tests:
     covers:
       - feature: feature39
         ac: AC5
+
+  - id: test317
+    title: Feature40 keygen creates usable Ed25519 keypair with deterministic CLI behavior
+    type: integration
+    preconditions: key generation command and signing module are available
+    steps:
+      - step1: Run `kinnoo keygen` in a temporary workspace with explicit output targets
+      - step2: Verify private/public key artifacts are created with expected formats and secure permissions
+      - step3: Validate generated keypair can be loaded by signing helper utilities
+    expected: keygen produces a valid Ed25519 keypair suitable for signing workflows
+    pass_criteria: command exits zero, key files exist with expected format/permissions, and signing helper accepts the generated keys
+    automated: true
+    automation_path: tests/test_cli.py::test_feature40_keygen_generates_ed25519_keypair
+    covers:
+      - feature: feature40
+        ac: AC1
+
+  - id: test318
+    title: Feature40 pack sign emits signature artifact and metadata alongside checksum outputs
+    type: integration
+    preconditions: pack command supports `--sign` and has access to valid signing key material
+    steps:
+      - step1: Run `kinnoo pack --sign` against a valid fixture agent
+      - step2: Verify archive output includes detached signature artifact and signature metadata fields
+      - step3: Verify checksum artifacts remain present and format-compatible with prior behavior
+    expected: signed pack flow emits both signature and checksum outputs with deterministic metadata shape
+    pass_criteria: signature artifacts/metadata are present and checksum output contract remains intact
+    automated: true
+    automation_path: tests/test_pack.py::test_feature40_pack_sign_emits_signature_and_metadata
+    covers:
+      - feature: feature40
+        ac: AC2
+
+  - id: test319
+    title: Feature40 install verifies signatures and blocks invalid signed archives
+    type: integration
+    preconditions: install command can read signature metadata and resolve verification key material
+    steps:
+      - step1: Install a signed archive fixture with valid signature and verify install succeeds
+      - step2: Install a tampered or invalid-signature archive fixture
+      - step3: Verify invalid-signature install fails with deterministic remediation guidance
+    expected: valid signatures allow install while invalid signatures are blocked
+    pass_criteria: valid case exits zero; invalid case exits non-zero with explicit signature verification failure messaging
+    automated: true
+    automation_path: tests/test_install.py::test_feature40_install_signature_verification_gate
+    covers:
+      - feature: feature40
+        ac: AC3
+
+  - id: test320
+    title: Feature40 unsigned archives are labeled unverified and require explicit confirmation flow
+    type: integration
+    preconditions: install workflow supports unsigned warning and confirmation handling
+    steps:
+      - step1: Install an unsigned archive fixture in interactive mode and verify unverified publisher warning is shown
+      - step2: Deny confirmation and verify install aborts
+      - step3: Approve confirmation or run documented non-interactive override path and verify deterministic continuation behavior
+    expected: unsigned archives are explicitly labeled unverified with enforced confirmation policy
+    pass_criteria: warning is always shown for unsigned archives and continuation requires documented confirmation/override behavior
+    automated: true
+    automation_path: tests/test_cli_install.py::test_feature40_unsigned_archive_warning_and_confirmation
+    covers:
+      - feature: feature40
+        ac: AC4
+
+  - id: test321
+    title: Feature40 registry metadata stores publisher public-key association for verified distribution
+    type: integration
+    preconditions: registry metadata model supports publisher key association fields
+    steps:
+      - step1: Publish/register fixture metadata with associated publisher public key
+      - step2: Query registry metadata and verify key association is persisted and returned consistently
+      - step3: Verify install verification path can consume associated key mapping for identity validation
+    expected: registry model persists publisher-key association required for verified install workflows
+    pass_criteria: key association persists across write/read operations and integrates with install verification lookup path
+    automated: true
+    automation_path: tests/test_registry.py::test_feature40_registry_publisher_key_association
+    covers:
+      - feature: feature40
+        ac: AC5
