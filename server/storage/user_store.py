@@ -17,11 +17,23 @@ class UserStore:
         self._users_dir = self._root / "users"
         self._users_dir.mkdir(parents=True, exist_ok=True)
 
-    def create_user(self, *, username: str, plaintext_password: str, role: Role = "user") -> User:
+    def create_user(
+        self,
+        *,
+        username: str,
+        plaintext_password: str,
+        role: Role = "user",
+        force_password_change: bool = False,
+    ) -> User:
         if self.get_by_username(username) is not None:
             raise ValueError(f"User already exists for username '{username}'.")
 
-        user = User.create(username=username, plaintext_password=plaintext_password, role=role)
+        user = User.create(
+            username=username,
+            plaintext_password=plaintext_password,
+            role=role,
+            force_password_change=force_password_change,
+        )
         self.save(user)
         return user
 

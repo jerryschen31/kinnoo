@@ -102,11 +102,19 @@ class User:
     username: str
     password_hash: str
     role: Role
+    force_password_change: bool
     created_at: str
     updated_at: str
 
     @classmethod
-    def create(cls, *, username: str, plaintext_password: str, role: Role = "user") -> "User":
+    def create(
+        cls,
+        *,
+        username: str,
+        plaintext_password: str,
+        role: Role = "user",
+        force_password_change: bool = False,
+    ) -> "User":
         normalized_username = cls._normalize_username(username)
         normalized_role = cls._normalize_role(role)
         password_hash = PASSWORD_MANAGER.hash_password(plaintext_password)
@@ -116,6 +124,7 @@ class User:
             username=normalized_username,
             password_hash=password_hash,
             role=normalized_role,
+            force_password_change=bool(force_password_change),
             created_at=timestamp,
             updated_at=timestamp,
         )
@@ -133,16 +142,19 @@ class User:
             username=cls._normalize_username(str(document["username"])),
             password_hash=str(document["password_hash"]),
             role=cls._normalize_role(str(document["role"])),
+            # Older documents may not have this key; default to False.
+            force_password_change=bool(document.get("force_password_change", False)),
             created_at=str(document["created_at"]),
             updated_at=str(document["updated_at"]),
         )
 
-    def to_document(self) -> dict[str, str]:
+    def to_document(self) -> dict[str, str | bool]:
         return {
             "id": self.id,
             "username": self.username,
             "password_hash": self.password_hash,
             "role": self.role,
+            "force_password_change": self.force_password_change,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }
