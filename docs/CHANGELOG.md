@@ -3,6 +3,29 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v0.24.0] - 2026-03-19
+### Added
+- Completed Feature43 "Auth, User & Tenant Management" endpoint requirements for AC4 and AC5.
+- Added explicit API handlers in server endpoint layer for:
+  - `POST /api/auth/token` (credential exchange -> JWT)
+  - `POST /api/admin/users` (admin-only user creation)
+  - `POST /api/admin/tenants` (admin-only tenant creation)
+
+### Changed
+- Enforced endpoint-boundary authorization for admin management operations using `registry:admin` scope checks.
+- Standardized endpoint error behavior for malformed payloads and invalid credential/authorization flows (401/403/400/409 paths as applicable).
+
+### Quality
+- Focused remediation verification for AC4/AC5 endpoint behavior passed:
+  - `python3 -m pytest server/tests/test_jwt_auth.py::test_jwt_lifecycle server/tests/test_tenant_model.py::test_tenant_slug_management`
+  - Result: `2 passed`
+- Required review command executed for feature review gate:
+  - `python3 -m pytest --testmon`
+  - Result: `5 passed`
+- Security review evidence (server scope): broad sensitive-string scan and high-signal credential-pattern scan reported no leaked real credentials/private keys.
+- Merge commit: TBD (populate after merge to `phase4/main`).
+
+
 ## [v0.23.0] - 2026-03-20
 ### Added
 - Implemented Feature41 "Runtime Defense-in-Depth (Behavioral Monitoring + Dynamic Enforcement)" with baseline runtime telemetry event capture for process, network, and filesystem activity.
