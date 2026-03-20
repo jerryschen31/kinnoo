@@ -162,6 +162,11 @@ def main():
         action="store_true",
         help="Acknowledge and accept declared manifest permissions during non-interactive install",
     )
+    install_parser.add_argument(
+        "--allow-unverified-publisher",
+        action="store_true",
+        help="Allow non-interactive install when archive has no publisher signature metadata",
+    )
 
     # Add 'pack' subcommand
     pack_parser = subparsers.add_parser("pack", help="Package an agent directory into a .kno archive")
@@ -170,6 +175,31 @@ def main():
         "--bump",
         choices=["patch", "minor", "major"],
         help="(Optional) Increment manifest version before packaging",
+    )
+    pack_parser.add_argument(
+        "--sign",
+        action="store_true",
+        help="Sign packaged archive and emit detached signature artifacts",
+    )
+    pack_parser.add_argument(
+        "--signing-key",
+        help="Path to Ed25519 private key PEM used with --sign",
+    )
+
+    # Add 'keygen' subcommand
+    keygen_parser = subparsers.add_parser(
+        "keygen",
+        help="Generate an Ed25519 keypair for archive signing",
+    )
+    keygen_parser.add_argument(
+        "--private-key",
+        default="kinnoo-ed25519-private.pem",
+        help="Path for private key PEM output (default: kinnoo-ed25519-private.pem)",
+    )
+    keygen_parser.add_argument(
+        "--public-key",
+        default="kinnoo-ed25519-public.pem",
+        help="Path for public key PEM output (default: kinnoo-ed25519-public.pem)",
     )
 
     # Add 'inspect' subcommand
@@ -338,6 +368,7 @@ def main():
         allow_vulnerable = bool(getattr(args, "allow_vulnerable", False))
         ignore_scripts = bool(getattr(args, "ignore_scripts", False))
         accept_permissions = bool(getattr(args, "accept_permissions", False))
+        allow_unverified_publisher = bool(getattr(args, "allow_unverified_publisher", False))
         try:
             from kinnoo.install_command import install_agent
         except ImportError:
@@ -352,6 +383,7 @@ def main():
             allow_vulnerable=allow_vulnerable,
             ignore_scripts=ignore_scripts,
             accept_permissions=accept_permissions,
+            allow_unverified_publisher=allow_unverified_publisher,
         )
         sys.exit(exit_code)
 
@@ -411,8 +443,41 @@ def main():
         except ImportError:
             from .pack_command import pack_agent
 
-        exit_code = pack_agent(agent_dir, bump=getattr(args, "bump", None))
+        exit_code = pack_agent(
+            agent_dir,
+            bump=getattr(args, "bump", None),
+            sign=bool(getattr(args, "sign", False)),
+            signing_key_path=getattr(args, "signing_key", None),
+        )
         sys.exit(exit_code)
+
+    elif args.command == "keygen":
+        private_key_path = Path(getattr(args, "private_key"))
+        public_key_path = Path(getattr(args, "public_key"))
+
+        if private_key_path.resolve() == public_key_path.resolve():
+            print("Error: --private-key and --public-key must be different paths", file=sys.stderr)
+            sys.exit(1)
+
+        try:
+            from kinnoo.signing import generate_ed25519_keypair
+        except ImportError:
+            from .signing import generate_ed25519_keypair
+
+        try:
+            result = generate_ed25519_keypair(
+                private_key_path=private_key_path,
+                public_key_path=public_key_path,
+            )
+        except (OSError, ValueError) as exc:
+            print(f"Error: Failed to generate keypair: {exc}", file=sys.stderr)
+            sys.exit(1)
+
+        print("[kinnoo keygen] Generated Ed25519 keypair.")
+        print(f"[kinnoo keygen] Private key: {result.private_key_path}")
+        print(f"[kinnoo keygen] Public key: {result.public_key_path}")
+        print(f"[kinnoo keygen] Public key fingerprint (SHA256): {result.public_key_fingerprint}")
+        sys.exit(0)
 
     elif args.command == "inspect":
         target = getattr(args, "target", None)

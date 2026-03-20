@@ -1,5 +1,6 @@
 # Runtime dependencies
 PyYAML>=6.0
+cryptography>=42.0
 
 # Development / test dependencies
 pytest>=7.0

@@ -19,6 +19,7 @@ from .code_sweep import (
     sweep_memory_snapshot_credential_risks,
 )
 from .schema import normalize_env_vars
+from .signing import create_detached_signature_artifacts
 from .size_format import format_size_human_readable, size_in_megabytes
 
 class WheelBuildError(Exception):
@@ -355,7 +356,12 @@ def build_wheels(requirements_path: Path, wheels_dir: Path):
     return list(wheels_dir.glob("*.whl")), failed_requirements
 
 
-def pack_agent(agent_dir: str, bump: str | None = None) -> int:
+def pack_agent(
+    agent_dir: str,
+    bump: str | None = None,
+    sign: bool = False,
+    signing_key_path: str | None = None,
+) -> int:
     abs_agent_dir = os.path.abspath(agent_dir)
     cwd = os.path.abspath(os.getcwd())
     if abs_agent_dir == cwd or os.path.samefile(abs_agent_dir, cwd):
@@ -363,6 +369,14 @@ def pack_agent(agent_dir: str, bump: str | None = None) -> int:
         return 1
     if not os.path.isdir(abs_agent_dir):
         print(f"Error: Agent directory '{agent_dir}' does not exist.")
+        return 1
+
+    if sign and not signing_key_path:
+        print("Error: --sign requires --signing-key <private-key.pem>", file=sys.stderr)
+        return 1
+
+    if not sign and signing_key_path:
+        print("Error: --signing-key can only be used together with --sign", file=sys.stderr)
         return 1
 
     kinnoo_yaml_path = os.path.join(abs_agent_dir, "kinnoo.yaml")
@@ -633,8 +647,32 @@ def pack_agent(agent_dir: str, bump: str | None = None) -> int:
         wheels_dir.cleanup()
         return 1
 
+    signature_result = None
+    if sign:
+        assert signing_key_path is not None
+        try:
+            signature_result = create_detached_signature_artifacts(
+                archive_path=stored_record.archive_path,
+                private_key_path=Path(signing_key_path).expanduser(),
+            )
+        except (OSError, ValueError) as error:
+            print(f"Error: Failed to sign archive: {error}", file=sys.stderr)
+            wheels_dir.cleanup()
+            return 1
+
     print(f"[kinnoo pack] Archive created: {stored_record.archive_path}")
     print(f"[kinnoo pack] Checksum sidecar written: {checksum_sidecar_path}")
+    if signature_result is not None:
+        print(f"[kinnoo pack] Signature artifact written: {signature_result.signature_path}")
+        print(f"[kinnoo pack] Signature metadata written: {signature_result.metadata_path}")
+        print(
+            "[kinnoo pack] Signature key fingerprint (SHA256): "
+            f"{signature_result.public_key_fingerprint}"
+        )
+        print(
+            "[kinnoo pack] Verification hint: use publisher public key in signature metadata "
+            "or registry key association."
+        )
     archive_size_bytes = stored_record.archive_path.stat().st_size
     archive_size_human = format_size_human_readable(archive_size_bytes)
     print(f"[kinnoo pack] Archive size: {archive_size_human}")

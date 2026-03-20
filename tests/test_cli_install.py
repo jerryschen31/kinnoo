@@ -316,6 +316,36 @@ def _create_feature39_permissions_archive(tmp_path: Path, agent_name: str = "fea
     return archive_path
 
 
+def _create_feature40_unsigned_archive_with_checksum(
+    tmp_path: Path,
+    agent_name: str = "feature40-unsigned-publisher-agent",
+) -> Path:
+    archive_path = tmp_path / f"{agent_name}.kno"
+    manifest = (
+        f"name: {agent_name}\n"
+        "version: 1.0.0\n"
+        "entrypoint: run.py\n"
+        "runtime:\n"
+        "  type: one-shot\n"
+        "  language: python\n"
+        "  version: \"3.10\"\n"
+        "dependencies: []\n"
+        "inputs:\n"
+        "  type: string\n"
+        "outputs:\n"
+        "  type: string\n"
+    )
+
+    with zipfile.ZipFile(archive_path, "w") as archive:
+        archive.writestr("kinnoo.yaml", manifest)
+        archive.writestr("run.py", "print('feature40-unsigned-ok')\n")
+
+    digest = hashlib.sha256(archive_path.read_bytes()).hexdigest()
+    checksum_path = archive_path.with_suffix(archive_path.suffix + ".sha256")
+    checksum_path.write_text(f"{digest}  {archive_path.name}\n", encoding="utf-8")
+    return archive_path
+
+
 def _make_fake_node_toolchain(bin_dir: Path) -> None:
     bin_dir.mkdir(parents=True, exist_ok=True)
 
@@ -674,4 +704,46 @@ def test_feature39_install_permission_summary_and_consent(tmp_path):
     assert override_result.returncode == 0, override_output
     assert "Permissions consent acknowledged via --accept-permissions override." in override_output
     assert "- Permissions:" in override_output
+    assert override_target_dir.exists(), override_output
+
+
+def test_feature40_unsigned_archive_warning_and_confirmation(tmp_path):
+    unsigned_archive = _create_feature40_unsigned_archive_with_checksum(tmp_path)
+
+    denied_target_dir = tmp_path / "feature40-unsigned-denied"
+    denied_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            str(unsigned_archive),
+            str(denied_target_dir),
+        ],
+        input="n\n",
+        capture_output=True,
+        text=True,
+    )
+    denied_output = f"{denied_result.stdout}\n{denied_result.stderr}"
+    assert denied_result.returncode != 0, denied_output
+    assert "UNVERIFIED PUBLISHER" in denied_output
+    assert "Install aborted: unverified publisher not approved." in denied_output
+
+    override_target_dir = tmp_path / "feature40-unsigned-override"
+    override_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            str(unsigned_archive),
+            str(override_target_dir),
+            "--yes",
+            "--allow-unverified-publisher",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    override_output = f"{override_result.stdout}\n{override_result.stderr}"
+    assert override_result.returncode == 0, override_output
+    assert "UNVERIFIED PUBLISHER" in override_output
+    assert "Unverified publisher override acknowledged" in override_output
     assert override_target_dir.exists(), override_output
