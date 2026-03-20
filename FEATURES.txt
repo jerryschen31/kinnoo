@@ -1217,7 +1217,7 @@ features:
       - "CSRF token required on all POST forms (login, any future admin actions)."
     owner: techlead-agent
     dependencies: [feature29]
-    status: not-started
+    status: completed
 
   # ======================================================================
   # Phase 4 (V4): OpenClaw + JS/TS Agent Support

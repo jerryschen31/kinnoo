@@ -19085,3 +19085,74 @@ Yes, do a quick structured review pass and produce a compact “review checklist
 _**Agent (copilot/gpt-5.3-codex)**_
 
 I’ll append a compact, feature-by-feature review checklist at the bottom of the implementation notes with clear approval boxes and gating criteria so you can review quickly.
+
+---
+
+_**User (2026-03-20 05:12:15Z)**_
+
+feature43 has been implemented by SWE agent. As Tech Lead agent, double-check tasks. Make sure tests cover all feature AC. Identify gaps, inconsistencies, improvements. Check all of the approval gate items for feature43 in notes/phases/phase3-registry-implementation-notes.md. In particular, check and make sure that no sensitive tokens, credentials or passwords are being pushed to the remote repo, especially in the server/ folder. Then run a full regression test to make sure feature43 did not break any previous functionality. This is the TechLead agent review before merging back to phase3/main. Write your review and comments as a section 'Tech Lead Review 1' to notes/features/feature43-notes.md. If approved, increment minor version of kinnoo in pyproject.toml and add notes to docs/CHANGELOG.md. When running pytest, use ```python3 -m pytest --testmon``` so that only relevant tests are run, to save time.
+
+_**User (2026-03-20 05:24:52Z)**_
+
+AC4 and AC5 endpoint requirements have been implemented - see relevant section in feature43-notes. Go ahead and bump minor version and update docs/CHANGELOG.md.
+
+---
+
+_**Agent (copilot/gpt-5.3-codex)**_
+
+I’m confirming the feature43 note now and then I’ll apply a minimal release update: bump minor version and add a new top changelog entry with the feature43 implementation summary and test 
+
+---
+
+_**User (2026-03-20 05:30:42Z)**_
+
+As SWE agent and Python expert, implement task229 and associated test(s). See notes/phases/phase3-registry-implementation-notes.md and notes/features/feature28-notes.md for pass-down notes from the TechLead agent. If you encounter a bug or error, stop after 5 attempts of fixing the same bug or error, and report to me what is going on. Remember to add teaching notes to the post-implementation task summary notes in notes/tasks/taskX-notes.md (X being the current task). Run only the regression tests related to this task - for now, don't run all previous tests. And remember to follow best practices for implementing and testing as outlined in swe.agent.md. Use "python3 -m pytest" for running python tests.
+
+---
+
+_**Agent (copilot/gpt-5.3-codex)**_
+
+I’m starting by reading the task/feature pass-down notes and current registry code/tests to map exactly what `task229` requires, then I’ll implement only that slice plus its associated tests.
+
+---
+
+_**User (2026-03-20 06:02:28Z)**_
+
+As SWE agent and Python expert, implement task230 and associated test(s). See notes/phases/phase3-registry-implementation-notes.md and notes/features/feature28-notes.md for pass-down notes from the TechLead agent. If you encounter a bug or error, stop after 5 attempts of fixing the same bug or error, and report to me what is going on. Remember to add teaching notes to the post-implementation task summary notes in notes/tasks/taskX-notes.md (X being the current task). Run only the regression tests related to this task - for now, don't run all previous tests. And remember to follow best practices for implementing and testing as outlined in swe.agent.md. Use "python3 -m pytest" for running python tests.
+
+_**User (2026-03-20 06:05:13Z)**_
+
+As SWE agent and Python expert, implement task231 and associated test(s). See notes/phases/phase3-registry-implementation-notes.md and notes/features/feature28-notes.md for pass-down notes from the TechLead agent. If you encounter a bug or error, stop after 5 attempts of fixing the same bug or error, and report to me what is going on. Remember to add teaching notes to the post-implementation task summary notes in notes/tasks/taskX-notes.md (X being the current task). Run only the regression tests related to this task - for now, don't run all previous tests. And remember to follow best practices for implementing and testing as outlined in swe.agent.md. Use "python3 -m pytest" for running python tests.
+
+_**User (2026-03-20 06:08:57Z)**_
+
+As SWE agent and Python expert, implement task232 and associated test(s). See notes/phases/phase3-registry-implementation-notes.md and notes/features/feature28-notes.md for pass-down notes from the TechLead agent. If you encounter a bug or error, stop after 5 attempts of fixing the same bug or error, and report to me what is going on. Remember to add teaching notes to the post-implementation task summary notes in notes/tasks/taskX-notes.md (X being the current task). Run only the regression tests related to this task - for now, don't run all previous tests. And remember to follow best practices for implementing and testing as outlined in swe.agent.md. Use "python3 -m pytest" for running python tests.
+
+_**User (2026-03-20 06:18:03Z)**_
+
+As SWE agent and Python expert, implement task233 and associated test(s). See notes/phases/phase3-registry-implementation-notes.md and notes/features/feature28-notes.md for pass-down notes from the TechLead agent. If you encounter a bug or error, stop after 5 attempts of fixing the same bug or error, and report to me what is going on. Remember to add teaching notes to the post-implementation task summary notes in notes/tasks/taskX-notes.md (X being the current task). Run only the regression tests related to this task - for now, don't run all previous tests. And remember to follow best practices for implementing and testing as outlined in swe.agent.md. Use "python3 -m pytest" for running python tests.
+
+---
+
+_**Agent (copilot/gpt-5.3-codex)**_
+
+I’m implementing task233 now by adding explicit remote HTTP error mapping in the client and adding the mapped regression test for that behavior only. I’ll first read the exact task/test contract and current remote client/test code, then patch minimally and run only the task233 test via 
+
+---
+
+_**User (2026-03-20 06:21:23Z)**_
+
+feature29 has been implemented by SWE agent. As Tech Lead agent, double-check tasks. Make sure tests cover all feature AC. Identify gaps, inconsistencies, improvements. Check all of the approval gate items for feature29 in notes/phases/phase3-registry-implementation-notes.md. In particular, check and make sure that no sensitive tokens, credentials or passwords are being pushed to the remote repo, especially in the server/ folder. Then run a full regression test to make sure feature29 did not break any previous functionality. This is the TechLead agent review before merging back to phase3/main. Write your review and comments as a section 'Tech Lead Review 1' to notes/features/feature29-notes.md. If approved, increment minor version of kinnoo in pyproject.toml and add notes to docs/CHANGELOG.md. When running pytest, use ```python3 -m pytest --testmon``` so that only relevant tests are run, to save time.
+
+_**User (2026-03-20 06:24:36Z)**_
+
+Sorry I meant feature28.
+feature28 has been implemented by SWE agent. As Tech Lead agent, double-check tasks. Make sure tests cover all feature AC. Identify gaps, inconsistencies, improvements. Check all of the approval gate items for feature28 in notes/phases/phase3-registry-implementation-notes.md. In particular, check and make sure that no sensitive tokens, credentials or passwords are being pushed to the remote repo, especially in the server/ folder. Then run a full regression test to make sure feature28 did not break any previous functionality. This is the TechLead agent review before merging back to phase3/main. Write your review and comments as a section 'Tech Lead Review 1' to notes/features/feature28-notes.md. If approved, increment minor version of kinnoo in pyproject.toml and add notes to docs/CHANGELOG.md. When running pytest, use python3 -m pytest --testmon so that only relevant tests are run, to save time.
+
+_**User (2026-03-20 07:13:09Z)**_
+
+feature29 has been implemented by SWE agent. As Tech Lead agent, double-check tasks. Make sure tests cover all feature AC. Identify gaps, inconsistencies, improvements. Check all of the approval gate items for feature29 in notes/phases/phase3-registry-implementation-notes.md. In particular, check and make sure that no sensitive tokens, credentials or passwords are being pushed to the remote repo, especially in the server/ folder. Make sure no extremely large files are committed in the repo. Then run a full regression test to make sure feature29 did not break any previous functionality. This is the TechLead agent review before merging back to phase3/main. Write your review and comments as a section 'Tech Lead Review 1' to notes/features/feature29-notes.md. If approved, increment minor version of kinnoo in pyproject.toml and add notes to docs/CHANGELOG.md. When running pytest, use ```python3 -m pytest --testmon``` so that only relevant tests are run, to save time.
+
+_**User (2026-03-20 07:53:39Z)**_
+
+All blocks have been fixed and all tests passed - see SWE agent notes in feature29-notes.md. Go ahead and increment kinnoo minor version and add notes to docs/CHANGELOG.md

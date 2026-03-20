@@ -1198,6 +1198,7 @@ def run_agent(
         trace_manifest = manifest
 
     runtime_section = manifest.get("runtime") if isinstance(manifest.get("runtime"), dict) else {}
+    runtime_type = runtime_section.get("type") if isinstance(runtime_section.get("type"), str) else "one-shot"
     runtime_language_raw = runtime_section.get("language") if isinstance(runtime_section.get("language"), str) else "python"
     runtime_language = runtime_language_raw.strip().lower() or "python"
 
@@ -1217,8 +1218,12 @@ def run_agent(
     if runtime_language == "python":
         venv_dir = agent_dir / ".venv"
         requirements = agent_dir / "requirements.txt"
+        requirements_declared = requirements.exists() and bool(requirements.read_text().strip())
 
-        if not venv_dir.exists():
+        # mcp-server startup should be fast for readiness/streaming workflows when no deps are declared.
+        use_host_python = runtime_type == "mcp-server" and not requirements_declared and not venv_dir.exists()
+
+        if not use_host_python and not venv_dir.exists():
             try:
                 venv.create(venv_dir, with_pip=True)
             except PermissionError as error:
@@ -1228,7 +1233,7 @@ def run_agent(
                 _print_safe_error(f"Error: Failed to create .venv in {agent_dir}: {error}")
                 return finalize(1)
 
-        if requirements.exists() and requirements.read_text().strip():
+        if not use_host_python and requirements_declared:
             pip_exe = venv_dir / "bin" / "pip"
             if not pip_exe.exists():
                 pip_exe = venv_dir / "Scripts" / "pip.exe"
@@ -1255,12 +1260,15 @@ def run_agent(
                 )
                 return finalize(install_result.returncode)
 
-        python_exe = venv_dir / "bin" / "python"
-        if not python_exe.exists():
-            python_exe = venv_dir / "Scripts" / "python.exe"
-        if not python_exe.exists():
-            _print_safe_error(f"Error: python not found in venv at {python_exe}")
-            return finalize(1)
+        if use_host_python:
+            python_exe = Path(sys.executable)
+        else:
+            python_exe = venv_dir / "bin" / "python"
+            if not python_exe.exists():
+                python_exe = venv_dir / "Scripts" / "python.exe"
+            if not python_exe.exists():
+                _print_safe_error(f"Error: python not found in venv at {python_exe}")
+                return finalize(1)
     elif runtime_language != "nodejs":
         _print_safe_error(
             f"Error: Unsupported runtime.language '{runtime_language}'. Supported values are: python, nodejs"
@@ -1343,8 +1351,6 @@ def run_agent(
                 return finalize(1)
             if response != "y":
                 return finalize(1)
-
-    runtime_type = runtime_section.get("type") if isinstance(runtime_section.get("type"), str) else "one-shot"
 
     if sandbox:
         sandbox_decision = evaluate_sandbox_permissions(
