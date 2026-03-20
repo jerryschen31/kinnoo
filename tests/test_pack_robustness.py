@@ -131,7 +131,15 @@ outputs:
 
     install_target = tmp_path / "installed-zip-canonical-agent"
     install_result = subprocess.run(
-        [sys.executable, "src/kinnoo/cli.py", "install", str(kno_path), str(install_target), "--yes"],
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            str(kno_path),
+            str(install_target),
+            "--yes",
+            "--allow-unverified-publisher",
+        ],
         capture_output=True,
         text=True,
     )

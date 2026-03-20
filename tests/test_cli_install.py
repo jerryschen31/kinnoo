@@ -208,7 +208,15 @@ def test_install_offline_succeeds_with_complete_wheels(tmp_path):
     offline_env["KINNOO_OFFLINE"] = "1"
 
     install_result = subprocess.run(
-        [sys.executable, "src/kinnoo/cli.py", "install", str(archive_path), str(target_dir), "--yes"],
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            str(archive_path),
+            str(target_dir),
+            "--yes",
+            "--allow-unverified-publisher",
+        ],
         capture_output=True,
         text=True,
         env=offline_env,
@@ -633,7 +641,7 @@ def test_feature39_install_permission_summary_and_consent(tmp_path):
             str(permissions_archive),
             str(denied_target_dir),
         ],
-        input="n\n",
+        input="y\nn\n",
         capture_output=True,
         text=True,
     )
@@ -657,7 +665,7 @@ def test_feature39_install_permission_summary_and_consent(tmp_path):
             str(permissions_archive),
             str(accepted_target_dir),
         ],
-        input="y\ny\n",
+        input="y\ny\ny\n",
         capture_output=True,
         text=True,
     )
@@ -676,6 +684,7 @@ def test_feature39_install_permission_summary_and_consent(tmp_path):
             str(permissions_archive),
             str(override_without_flag_target_dir),
             "--yes",
+            "--allow-unverified-publisher",
         ],
         capture_output=True,
         text=True,
@@ -696,6 +705,7 @@ def test_feature39_install_permission_summary_and_consent(tmp_path):
             str(override_target_dir),
             "--yes",
             "--accept-permissions",
+            "--allow-unverified-publisher",
         ],
         capture_output=True,
         text=True,

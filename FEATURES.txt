@@ -1442,7 +1442,7 @@ features:
       - "Keep signing module isolated for future key-rotation and trust-policy extensions."
     owner: techlead-agent
     dependencies: []
-    status: not-started
+    status: completed
 
   - id: feature41
     title: "Runtime Behavior Monitoring & Kill Switch"
