@@ -99,3 +99,25 @@ Feature30 adds an authenticated web UI for browsing and downloading registry con
 ### Recommendation
 - `BLOCK` for merge to `phase3/main` until the full regression gate is green.
 - After fixing the failing MCP regression test, rerun `python3 -m pytest --testmon` and proceed with approval if clean.
+
+## Patch Notes 2026-03-20 (Targeted Regression Fix)
+
+### Context
+- Addressed failing regression test: `tests/test_cli.py::test_feature23_mcp_server_streams_stdout_stderr`.
+- Symptom: expected MCP server stdout stream lines were not observed before timeout.
+
+### Root Cause
+- `kinnoo run` always bootstrapped an agent-local `.venv` for Python runtime before launching the MCP server.
+- For MCP fixtures with empty `requirements.txt`, this startup cost could delay process output long enough to exceed the streaming assertion window.
+
+### Code Changes
+- Updated `src/kinnoo/run_command.py`:
+  - Computed `runtime_type` earlier so Python runtime setup can branch on runtime mode.
+  - Added a fast path for Python `mcp-server` runtime when no dependencies are declared and no `.venv` exists.
+  - In that fast path, skipped `.venv` creation and used host interpreter (`sys.executable`) for process launch.
+  - Preserved existing `.venv` behavior for all other Python execution paths, including dependency installation flows.
+
+### Verification
+- Ran only the mapped failing test as requested:
+  - `/Users/jerry/.pyenv/versions/3.11.12/bin/python -m pytest tests/test_cli.py::test_feature23_mcp_server_streams_stdout_stderr -q`
+  - Result: `1 passed in 0.22s`
