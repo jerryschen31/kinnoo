@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import json
 from typing import Any
 
 from starlette.requests import Request
@@ -13,6 +14,35 @@ from server.storage.base import StorageBackend
 
 DEFAULT_PAGE_SIZE = 20
 MAX_PAGE_SIZE = 100
+
+# Canonical schema-field list shown in the agents-page manifest details panel.
+MANIFEST_SCHEMA_FIELDS: tuple[str, ...] = (
+    "name",
+    "version",
+    "entrypoint",
+    "runtime.language",
+    "runtime.version",
+    "runtime.type",
+    "runtime.package_manager",
+    "dependencies",
+    "inputs.type",
+    "inputs.required",
+    "outputs.type",
+    "framework",
+    "model",
+    "description",
+    "author",
+    "license",
+    "env_vars",
+    "assets.paths",
+    "assets.bundle",
+    "assets.max_bundle_size_mb",
+    "channels",
+    "skills",
+    "state_dirs",
+    "services",
+    "permissions",
+)
 
 
 def create_web_agents_router(
@@ -36,6 +66,8 @@ def create_web_agents_router(
         request: Request,
         page: int = Query(default=1, ge=1),
         per_page: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
+        selected_tenant: str = Query(default=""),
+        selected_agent: str = Query(default=""),
     ) -> HTMLResponse:
         items = _all_agent_rows(
             metadata_manager=metadata_manager,
@@ -47,6 +79,11 @@ def create_web_agents_router(
 
         has_prev = page > 1
         has_next = start + per_page < total
+        selected_manifest = _build_selected_agent_manifest_view(
+            metadata_manager=metadata_manager,
+            tenant_slug=selected_tenant,
+            agent_slug=selected_agent,
+        )
 
         return request.app.state.templates.TemplateResponse(
             request=request,
@@ -60,6 +97,9 @@ def create_web_agents_router(
                 "has_next": has_next,
                 "prev_page": max(page - 1, 1),
                 "next_page": page + 1,
+                "selected_tenant": selected_tenant,
+                "selected_agent": selected_agent,
+                "selected_manifest": selected_manifest,
             },
         )
 
@@ -201,10 +241,78 @@ def _format_size(size_bytes: int) -> str:
     return f"{size_bytes / (1024 * 1024):.1f} MB"
 
 
+def _resolve_manifest_path(manifest: dict[str, object], path: str) -> object | None:
+    current: object = manifest
+    for segment in path.split("."):
+        if not isinstance(current, dict):
+            return None
+        if segment not in current:
+            return None
+        current = current[segment]
+    return current
+
+
+def _format_manifest_value(value: object | None) -> str:
+    if value is None:
+        return "N/A"
+    if isinstance(value, (list, dict)):
+        return json.dumps(value, sort_keys=True)
+    return str(value)
+
+
+def _build_selected_agent_manifest_view(
+    *,
+    metadata_manager: MetadataManager,
+    tenant_slug: str,
+    agent_slug: str,
+) -> dict[str, object] | None:
+    normalized_tenant = tenant_slug.strip()
+    normalized_agent = agent_slug.strip()
+    if not normalized_tenant or not normalized_agent:
+        return None
+
+    profile = _build_agent_profile(
+        metadata_manager=metadata_manager,
+        storage_backend=None,
+        tenant_slug=normalized_tenant,
+        agent_slug=normalized_agent,
+    )
+    if profile is None:
+        return None
+
+    latest_version = str(profile.get("latest_version", "")).strip()
+    if not latest_version:
+        return None
+
+    metadata = metadata_manager.get_version_metadata(
+        tenant_slug=normalized_tenant,
+        agent_slug=normalized_agent,
+        version=latest_version,
+    )
+    if metadata is None:
+        return None
+
+    manifest_payload = metadata.manifest if isinstance(metadata.manifest, dict) else {}
+    rows = [
+        {
+            "field": field,
+            "value": _format_manifest_value(_resolve_manifest_path(manifest_payload, field)),
+        }
+        for field in MANIFEST_SCHEMA_FIELDS
+    ]
+
+    return {
+        "tenant": normalized_tenant,
+        "name": normalized_agent,
+        "version": latest_version,
+        "rows": rows,
+    }
+
+
 def _build_agent_profile(
     *,
     metadata_manager: MetadataManager,
-    storage_backend: StorageBackend,
+    storage_backend: StorageBackend | None,
     tenant_slug: str,
     agent_slug: str,
 ) -> dict[str, object] | None:
@@ -236,7 +344,7 @@ def _build_agent_profile(
                 latest_author = author
 
             archive_key = metadata.storage_keys.get("archive")
-            if archive_key:
+            if archive_key and storage_backend is not None:
                 try:
                     archive_size_bytes = len(storage_backend.get_object(key=str(archive_key)))
                 except FileNotFoundError:

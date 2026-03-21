@@ -5023,7 +5023,7 @@ tasks:
       - 'step4: Preserve existing pagination/session behavior and add focused integration coverage'
     dependencies: [task247, task248]
     tests: [test347]
-    status: not-started
+    status: needs-review
 
   - id: task250
     title: "Published Agents table framework column"
