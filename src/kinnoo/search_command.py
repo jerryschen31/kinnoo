@@ -53,8 +53,10 @@ def search_agents(query: str, source: str = "local") -> int:
 
         print(f"Remote registry search results for: {query_text}")
         for summary in results:
-            description = summary.description if summary.description else "(no description)"
-            print(f"- {summary.name} | latest: {summary.latest_version} | description: {description}")
+            description = _summary_text(summary=summary, field="description", default="(no description)")
+            name = _summary_text(summary=summary, field="name", default="(unknown)")
+            latest_version = _summary_text(summary=summary, field="latest_version", default="(unknown)")
+            print(f"- {name} | latest: {latest_version} | description: {description}")
 
         return 0
 
@@ -76,7 +78,22 @@ def search_agents(query: str, source: str = "local") -> int:
 
     print(f"Local archive search results for: {query_text}")
     for summary in results:
-        description = summary.description if summary.description else "(no description)"
-        print(f"- {summary.name} | latest: {summary.latest_version} | description: {description}")
+        description = _summary_text(summary=summary, field="description", default="(no description)")
+        name = _summary_text(summary=summary, field="name", default="(unknown)")
+        latest_version = _summary_text(summary=summary, field="latest_version", default="(unknown)")
+        print(f"- {name} | latest: {latest_version} | description: {description}")
 
     return 0
+
+
+def _summary_text(*, summary: object, field: str, default: str) -> str:
+    value = _summary_value(summary=summary, field=field)
+    if value in (None, ""):
+        return default
+    return str(value)
+
+
+def _summary_value(*, summary: object, field: str) -> object | None:
+    if isinstance(summary, dict):
+        return summary.get(field)
+    return getattr(summary, field, None)

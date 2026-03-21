@@ -5803,3 +5803,35 @@ tests:
     covers:
       - feature: feature44
         ac: AC1
+
+  - id: test349
+    title: Remote list renders dict-shaped summaries without attribute errors
+    type: unit
+    preconditions: remote registry service path returns summary items as dict objects
+    steps:
+      - step1: Invoke list command in remote mode with dict-shaped summaries
+      - step2: Verify output renders name/latest/description without crashing
+      - step3: Verify command exits successfully
+    expected: remote list handles dict summary shape and prints stable output
+    pass_criteria: no AttributeError occurs and output includes expected summary row text
+    automated: true
+    automation_path: tests/test_cli_remote_summary_shape.py::test_list_remote_accepts_dict_summaries
+    covers:
+      - feature: feature28
+        ac: AC6
+
+  - id: test350
+    title: Remote search renders dict-shaped summaries without attribute errors
+    type: unit
+    preconditions: remote registry service path returns search summary items as dict objects
+    steps:
+      - step1: Invoke search command in remote mode with dict-shaped summaries
+      - step2: Verify output renders name/latest/description without crashing
+      - step3: Verify command exits successfully
+    expected: remote search handles dict summary shape and prints stable output
+    pass_criteria: no AttributeError occurs and output includes expected search result row text
+    automated: true
+    automation_path: tests/test_cli_remote_summary_shape.py::test_search_remote_accepts_dict_summaries
+    covers:
+      - feature: feature28
+        ac: AC7

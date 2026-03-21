@@ -78402,3 +78402,321 @@ As SWE agent and Python expert, implement task246 and associated test(s). See no
 _**Agent (copilot/gpt-5.3-codex)**_
 
 I’m moving to task246 now by inspecting the existing auth/session primitives and current app routing so we can wire a secure login/logout flow with CSRF and proper redirect guards that match test344.
+
+---
+
+_**User (2026-03-20 08:04:37Z)**_
+
+As SWE agent and Python expert, implement task247 and associated test(s). See notes/phases/phase3-registry-implementation-notes.md and notes/features/feature30-notes.md for pass-down notes from the TechLead agent. If you encounter a bug or error, stop after 5 attempts of fixing the same bug or error, and report to me what is going on. Remember to add teaching notes to the post-implementation task summary notes in notes/tasks/taskX-notes.md (X being the current task). Run only the regression tests related to this task - for now, don't run all previous tests. And remember to follow best practices for implementing and testing as outlined in swe.agent.md. Use "python3 -m pytest" for running python tests.
+
+_**User (2026-03-20 08:09:57Z)**_
+
+@agent Try Again
+
+---
+
+_**Agent (copilot/gpt-5.3-codex)**_
+
+
+```
+
+
+---
+
+_**User (2026-03-20 08:11:06Z)**_
+
+Stop
+
+---
+
+_**Agent (copilot/gpt-5.3-codex)**_
+
+Stopped. Task247 implementation and mapped test345 work are complete; I won’t make further changes.
+
+---
+
+_**User (2026-03-20 08:11:59Z)**_
+
+As SWE agent and Python expert, implement task248 and associated test(s). See notes/phases/phase3-registry-implementation-notes.md and notes/features/feature30-notes.md for pass-down notes from the TechLead agent. If you encounter a bug or error, stop after 5 attempts of fixing the same bug or error, and report to me what is going on. Remember to add teaching notes to the post-implementation task summary notes in notes/tasks/taskX-notes.md (X being the current task). Run only the regression tests related to this task - for now, don't run all previous tests. And remember to follow best practices for implementing and testing as outlined in swe.agent.md. Use "python3 -m pytest" for running python tests. Stop if you start entering an infinite eval-analyze loop, signifying that you're stuck.
+
+---
+
+_**Agent (copilot/gpt-5.3-codex)**_
+
+Proceeding with task248 implementation now. I will inspect the current web routes, download behavior, and task248 manifest details first so the profile page and redirect flow match the expected contract and mapped test346 exactly.
+
+---
+
+_**User (2026-03-20 08:17:52Z)**_
+
+You seem stuck. Continue with task248
+
+---
+
+_**Agent (copilot/gpt-5.3-codex)**_
+
+Continuing task248 now. I’ll finish the remaining pieces by adding the profile template and mapped test346, then run only that test and close out task/docs/status 
+
+---
+
+_**User (2026-03-20 08:23:23Z)**_
+
+Registry server has been implemented, but how can I actually test the server myself?
+
+_**User (2026-03-20 08:39:20Z)**_
+
+1 test failed (tests/test_cli.py::test_feature23_mcp_server_streams_stdout_stderr) in regression - fix code so that this test passes, and then immediately write your patch notes as a new section in feature30-notes.md. Do not run the full test suite again - just make sure that 1 test passes
+
+---
+
+_**Agent (copilot/gpt-5.3-codex)**_
+
+I’m going to inspect the failing test and the related CLI/MCP streaming code paths first, then make a minimal fix and run only that single test. After it passes, I’ll append a new patch-notes section to the feature notes file.
+
+---
+
+_**User (2026-03-20 08:49:37Z)**_
+
+kinnoo remote registry and web UI is not implemented. How can I actually start the server for the registry on my laptop and see and interact with it for myself?
+
+_**User (2026-03-20 08:53:48Z)**_
+
+Yes give me a single copy-paste script that does bootstrap + start + token request + sample publish end to end - name the script "start_server_scratch" (is it .sh or .py ?)
+
+_**User (2026-03-20 08:56:13Z)**_
+
+Yes add a companion script that stops and cleans up this scratch environment in one command - name it stop_server_scratch
+
+_**User (2026-03-20 08:59:25Z)**_
+
+Server failed to become healthy when I tried to start it. Got this error:
+
+Form data requires "python-multipart" to be installed. 
+You can install "python-multipart" with: 
+
+pip install python-multipart
+
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/jerry/gh/kinnoo/.venv-registry-scratch/lib/python3.14/site-packages/uvicorn/__main__.py", line 4, in <module>
+    uvicorn.main()
+    ~~~~~~~~~~~~^^
+  File "/Users/jerry/gh/kinnoo/.venv-registry-scratch/lib/python3.14/site-packages/click/core.py", line 1485, in __call__
+    return self.main(*args, **kwargs)
+           ~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Users/jerry/gh/kinnoo/.venv-registry-scratch/lib/python3.14/site-packages/click/core.py", line 1406, in main
+    rv = self.invoke(ctx)
+  File "/Users/jerry/gh/kinnoo/.venv-registry-scratch/lib/python3.14/site-packages/click/core.py", line 1269, in invoke
+    return ctx.invoke(self.callback, **ctx.params)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/jerry/gh/kinnoo/.venv-registry-scratch/lib/python3.14/site-packages/click/core.py", line 824, in invoke
+    return callback(*args, **kwargs)
+  File "/Users/jerry/gh/kinnoo/.venv-registry-scratch/lib/python3.14/site-packages/uvicorn/main.py", line 433, in main
+    run(
+    ~~~^
+        app,
+        ^^^^
+    ...<47 lines>...
+        h11_max_incomplete_event_size=h11_max_incomplete_event_size,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/jerry/gh/kinnoo/.venv-registry-scratch/lib/python3.14/site-packages/uvicorn/main.py", line 606, in run
+    server.run()
+    ~~~~~~~~~~^^
+  File "/Users/jerry/gh/kinnoo/.venv-registry-scratch/lib/python3.14/site-packages/uvicorn/server.py", line 75, in run
+    return asyncio_run(self.serve(sockets=sockets), loop_factory=self.config.get_loop_factory())
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py", line 204, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py", line 127, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py", line 719, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/jerry/gh/kinnoo/.venv-registry-scratch/lib/python3.14/site-packages/uvicorn/server.py", line 79, in serve
+    await self._serve(sockets)
+  File "/Users/jerry/gh/kinnoo/.venv-registry-scratch/lib/python3.14/site-packages/uvicorn/server.py", line 86, in _serve
+    config.load()
+    ~~~~~~~~~~~^^
+  File "/Users/jerry/gh/kinnoo/.venv-registry-scratch/lib/python3.14/site-packages/uvicorn/config.py", line 447, in load
+    self.loaded_app = self.loaded_app()
+                      ~~~~~~~~~~~~~~~^^
+  File "/Users/jerry/gh/kinnoo/server/app.py", line 105, in create_app
+    create_web_auth_router(
+    ~~~~~~~~~~~~~~~~~~~~~~^
+        session_service=session_service,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        user_store=user_store,
+        ^^^^^^^^^^^^^^^^^^^^^^
+        login_csrf_secret=os.getenv("REGISTRY_LOGIN_CSRF_SECRET", "dev-login-csrf-secret-change-me"),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/jerry/gh/kinnoo/server/routes/web_auth.py", line 49, in create_web_auth_router
+    @router.post("/login")
+     ~~~~~~~~~~~^^^^^^^^^^
+  File "/Users/jerry/gh/kinnoo/.venv-registry-scratch/lib/python3.14/site-packages/fastapi/routing.py", line 1446, in decorator
+    self.add_api_route(
+    ~~~~~~~~~~~~~~~~~~^
+        path,
+        ^^^^^
+    ...<23 lines>...
+        generate_unique_id_function=generate_unique_id_function,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/jerry/gh/kinnoo/.venv-registry-scratch/lib/python3.14/site-packages/fastapi/routing.py", line 1382, in add_api_route
+    route = route_class(
+        self.prefix + path,
+    ...<27 lines>...
+        ),
+    )
+  File "/Users/jerry/gh/kinnoo/.venv-registry-scratch/lib/python3.14/site-packages/fastapi/routing.py", line 945, in __init__
+    self.dependant = get_dependant(
+                     ~~~~~~~~~~~~~^
+        path=self.path_format, call=self.endpoint, scope="function"
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/jerry/gh/kinnoo/.venv-registry-scratch/lib/python3.14/site-packages/fastapi/dependencies/utils.py", line 309, in get_dependant
+    param_details = analyze_param(
+        param_name=param_name,
+    ...<2 lines>...
+        is_path_param=is_path_param,
+    )
+  File "/Users/jerry/gh/kinnoo/.venv-registry-scratch/lib/python3.14/site-packages/fastapi/dependencies/utils.py", line 532, in analyze_param
+    ensure_multipart_is_installed()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/jerry/gh/kinnoo/.venv-registry-scratch/lib/python3.14/site-packages/fastapi/dependencies/utils.py", line 118, in ensure_multipart_is_installed
+    raise RuntimeError(multipart_not_installed_error) from None
+RuntimeError: Form data requires "python-multipart" to be installed. 
+You can install "python-multipart" with: 
+
+pip install python-multipart
+
+
+
+_**User (2026-03-20 09:02:18Z)**_
+
+Now when I start the server I get an error:
+
+```
+Traceback (most recent call last):
+  File "/Users/jerry/gh/kinnoo/.venv-registry-scratch/bin/kinnoo", line 6, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/Users/jerry/gh/kinnoo/src/kinnoo/cli.py", line 558, in main
+    exit_code = publish_agent(
+        agent_name=agent_name,
+        use_local=use_local,
+        use_remote=use_remote,
+    )
+  File "/Users/jerry/gh/kinnoo/src/kinnoo/publish_command.py", line 248, in publish_agent
+    return _publish_validated_archive(
+        archive=archive,
+    ...<3 lines>...
+        backend_label=backend_label,
+    )
+  File "/Users/jerry/gh/kinnoo/src/kinnoo/publish_command.py", line 83, in _publish_validated_archive
+    published_record = service.publish(
+        name=name,
+    ...<2 lines>...
+        manifest_metadata=metadata_payload,
+    )
+  File "/Users/jerry/gh/kinnoo/src/kinnoo/registry.py", line 61, in publish
+    return self._backend.publish(
+           ~~~~~~~~~~~~~~~~~~~~~^
+        name=name,
+        ^^^^^^^^^^
+    ...<2 lines>...
+        manifest_metadata=manifest_metadata,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/jerry/gh/kinnoo/src/kinnoo/remote_client.py", line 68, in publish
+    return self._request_json(
+           ~~~~~~~~~~~~~~~~~~^
+        method="POST",
+        ^^^^^^^^^^^^^^
+    ...<2 lines>...
+        extra_headers={"Content-Type": content_type},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/jerry/gh/kinnoo/src/kinnoo/remote_client.py", line 150, in _request_json
+    raise RemoteRegistryClientError(_message_for_http_error(error.code)) from None
+kinnoo.remote_client.RemoteRegistryClientError: Remote registry request failed with HTTP 422.
+```
+
+---
+
+_**Agent (copilot/gpt-5.3-codex)**_
+
+I’ll trace the remote publish request format versus the server’s 
+
+---
+
+_**User (2026-03-20 09:04:33Z)**_
+
+Was your change specific to my use case of trying to run the server locally, or should the change apply generally to the codebase?
+
+---
+
+_**Agent (copilot/gpt-5.3-codex)**_
+
+It should apply generally to the codebase.
+
+- The `422` fix (`archive` -> `file` in [src/kinnoo/remote_client.py](src/kinnoo/remote_client.py)) is a protocol correctness fix for all remote publishes, not just local scratch runs.
+- It aligns the CLI remote client with the server contract in [server/routes/publish.py](server/routes/publish.py), which expects a multipart field named `file`.
+- So this improves any environment where `kinnoo publish --remote` talks to this server: local dev, CI, staging, or production-compatible setups.
+
+The `python-multipart` addition in [server/requirements.txt](server/requirements.txt) is also general, because FastAPI `Form`/`File` routes require it everywhere the server runs.
+
+---
+
+_**User (2026-03-20 09:08:45Z)**_
+
+I'm able to see the login page now - what's my username and password?
+
+_**User (2026-03-20 09:11:46Z)**_
+
+I typed username and password on login page - didn't do anything
+
+_**User (2026-03-20 09:16:16Z)**_
+
+Ran curl command and got access token back
+
+_**User (2026-03-20 09:20:23Z)**_
+
+Patch my start script start_server_scratch to run HTTPS automatically so browser login works out of the box. Also, put some status updates as stdout in the script, and then if server starts, have the script say "login URL: <login URL>"
+
+_**User (2026-03-20 09:22:11Z)**_
+
+Yes patch stop_server_scratch to clean up TLS cert folder as part of teardown
+
+_**User (2026-03-20 09:23:29Z)**_
+
+Yes patch stop_server_scratch to clean up TLS cert folder as part of teardown
+
+_**User (2026-03-20 09:25:08Z)**_
+
+start_server_scratch got to:
+
+```[8/8] Requesting API token and running sample publish smoke path...```
+
+and hung. When I pushed "enter" it quit back to command prompt
+
+---
+
+_**Agent (copilot/gpt-5.3-codex)**_
+
+That symptom is very likely an interactive prompt in the “smoke path” (most likely `kinnoo pack` overwrite confirmation), so I’m going to inspect the CLI flags and then patch 
+
+---
+
+_**User (2026-03-20 09:29:13Z)**_
+
+Awesome! web UI works now. It would be nice if the agent listed in the table under "Name" was clickable - and clicking it would show full details of the agent (the kinnoo.yaml essentially). would this be diffcult to add?

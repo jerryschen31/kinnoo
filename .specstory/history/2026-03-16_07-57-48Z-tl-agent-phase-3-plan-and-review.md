@@ -19156,3 +19156,25 @@ feature29 has been implemented by SWE agent. As Tech Lead agent, double-check ta
 _**User (2026-03-20 07:53:39Z)**_
 
 All blocks have been fixed and all tests passed - see SWE agent notes in feature29-notes.md. Go ahead and increment kinnoo minor version and add notes to docs/CHANGELOG.md
+
+_**User (2026-03-20 08:20:04Z)**_
+
+feature30 has been implemented by SWE agent. As Tech Lead agent, double-check tasks. Make sure tests cover all feature AC. Identify gaps, inconsistencies, improvements. Check all of the approval gate items for feature30 in notes/phases/phase3-registry-implementation-notes.md. In particular, check and make sure that no sensitive tokens, credentials or passwords are being pushed to the remote repo, especially in the server/ folder. Make sure no extremely large files are committed in the repo. Then run a full regression test to make sure feature30 did not break any previous functionality. This is the TechLead agent review before merging back to phase3/main. Write your review and comments as a section 'Tech Lead Review 1' to notes/features/feature30-notes.md. If approved, increment minor version of kinnoo in pyproject.toml and add notes to docs/CHANGELOG.md. When running pytest, use ```python3 -m pytest --testmon``` so that only relevant tests are run, to save time.
+
+_**User (2026-03-20 08:20:40Z)**_
+
+@agent Try Again
+
+_**User (2026-03-20 08:27:30Z)**_
+
+You seem stuck. Did all tests pass? Continue with Tech Lead review of feature30
+
+_**User (2026-03-20 08:43:26Z)**_
+
+ failing MCP regression test is fixed - go ahead and increment kinnoo minor version and put notes in docs/CHANGELOG.md
+
+---
+
+_**Agent (copilot/gpt-5.3-codex)**_
+
+I’ll apply the release update now by checking the current version/changelog headers, then bumping one minor version and adding a new changelog section for the feature30 approval and MCP regression remediation.
