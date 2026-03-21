@@ -5835,3 +5835,51 @@ tests:
     covers:
       - feature: feature28
         ac: AC7
+
+  - id: test351
+    title: publish --pack packs directory and publishes in one command
+    type: integration
+    preconditions: valid agent directory exists and remote registry auth config is set
+    steps:
+      - step1: Run `kinnoo publish <agent-dir-or-name> --pack --remote`
+      - step2: Verify pack is executed and publish succeeds against remote backend
+      - step3: Verify remote listing resolves the published agent/version
+    expected: single command performs pack then publish without requiring a separate pack step
+    pass_criteria: command exits 0 and remote backend contains the expected published version
+    automated: true
+    automation_path: tests/test_publish_command.py::test_publish_with_pack_packs_then_publishes
+    covers:
+      - feature: feature44
+        ac: AC2
+
+  - id: test352
+    title: publish --pack --bump bumps version before publish
+    type: integration
+    preconditions: valid agent directory with semver version and remote registry auth config is set
+    steps:
+      - step1: Run `kinnoo publish <agent-dir-or-name> --pack --bump minor --remote`
+      - step2: Verify pack applies the bump semantics before archive creation
+      - step3: Verify publish result uses bumped version
+    expected: bumped archive version is the version published remotely
+    pass_criteria: command exits 0 and remote backend contains the bumped version
+    automated: true
+    automation_path: tests/test_publish_command.py::test_publish_with_pack_and_bump_publishes_bumped_version
+    covers:
+      - feature: feature44
+        ac: AC2
+
+  - id: test353
+    title: publish guardrails enforce --pack and --bump error handling
+    type: unit
+    preconditions: publish command parsing and validation are available
+    steps:
+      - step1: Run publish with `--bump` but without `--pack` and verify usage error
+      - step2: Run publish without `--pack` where no archived artifact exists and verify actionable guidance
+      - step3: Run publish with invalid bump value and verify deterministic error output
+    expected: invalid combinations are rejected with clear non-zero errors and guidance
+    pass_criteria: all invalid scenarios exit non-zero with stable, actionable messaging
+    automated: true
+    automation_path: tests/test_publish_command.py::test_publish_pack_bump_guardrail_errors
+    covers:
+      - feature: feature44
+        ac: AC2

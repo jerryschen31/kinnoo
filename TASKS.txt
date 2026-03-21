@@ -5063,3 +5063,27 @@ tasks:
     dependencies: [task232, task233]
     tests: [test349, test350]
     status: needs-review
+
+  - id: task252
+    title: Publish optional pack-and-bump flow
+    type: task
+    description: |
+      Add optional `kinnoo publish --pack` behavior that packs an agent directory
+      before publish when requested, with optional `--bump` support (`major`,
+      `minor`, `patch`) delegated through pack semantics. Preserve existing
+      default publish behavior (archive-first) when `--pack` is not provided.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/publish_command.py
+      - src/kinnoo/pack_command.py
+      - tests/test_cli.py
+      - tests/test_publish_command.py
+    steps:
+      - 'step1: Extend publish CLI parsing with optional --pack and optional --bump {major,minor,patch}'
+      - 'step2: When --pack is provided, validate an agent directory exists, invoke pack flow, then continue publish using the newly packed archive'
+      - 'step3: Wire --bump only for --pack mode and surface clear usage errors for invalid combinations'
+      - 'step4: Preserve existing archive-first publish path and actionable error guidance when archive is missing and --pack is not set'
+      - 'step5: Add focused tests for happy-path pack-and-publish, bump-and-publish, and guardrail errors'
+    dependencies: [task83, task106, task232]
+    tests: [test351, test352, test353]
+    status: not-started

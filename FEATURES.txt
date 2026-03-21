@@ -1595,10 +1595,12 @@ features:
       Track user acceptance work for Phase 3 and Phase 4 web-registry UX updates.
       This feature captures targeted UI improvements requested during hands-on
       validation and ensures regression-safe automated coverage is in place.
-    tasks: [task249, task250]
+    tasks: [task249, task250, task252]
     acceptance_criteria:
       - id: AC1
         description: "user acceptance tasks are implemented and UATs pass"
+      - id: AC2
+        description: "publish supports optional pack-and-publish flow from agent directories via --pack, including optional --bump major/minor/patch with clear guardrail errors"
     owner: techlead-agent
     dependencies: [feature30]
     status: not-started
