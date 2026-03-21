@@ -202,3 +202,72 @@ def test_profile_and_download(tmp_path):
 
     missing = client.get("/agents/tenant-alpha/does-not-exist")
     assert missing.status_code == 404
+
+
+def test_agents_name_click_shows_right_panel_manifest_schema(tmp_path):
+    config = ServerConfig(
+        storage_backend="local",
+        local_storage_root=tmp_path / "storage",
+        s3_bucket="kinnoo-registry-dev",
+        s3_region="us-east-1",
+        s3_endpoint_url=None,
+        s3_access_key_id=None,
+        s3_secret_access_key=None,
+        presign_ttl_seconds=120,
+        max_upload_mb=5,
+    )
+    app = create_app(config=config)
+
+    app.state.user_store.create_user(
+        username="admin",
+        plaintext_password="admin-secret",
+        role="admin",
+    )
+
+    publisher_token = app.state.token_service.issue_token(
+        subject="publisher-alpha",
+        tenant_slug="tenant-alpha",
+        scopes=["registry:read", "registry:publish"],
+    )
+
+    filename, archive_bytes = _archive(
+        name="alpha-manifest-agent",
+        version="1.2.3",
+        visibility="public",
+        description="manifest details sample",
+        author="alice",
+    )
+    publish_result = publish_archive(
+        authorization_header=f"Bearer {publisher_token}",
+        filename=filename,
+        archive_bytes=archive_bytes,
+        token_service=app.state.token_service,
+        storage_backend=app.state.storage_backend,
+        metadata_manager=app.state.metadata_manager,
+        max_upload_mb=app.state.config.max_upload_mb,
+    )
+    assert publish_result.status_code == 201
+
+    client = TestClient(app, base_url="https://testserver")
+    _login(client, username="admin", password="admin-secret")
+
+    listing = client.get("/agents?page=1&per_page=20")
+    assert listing.status_code == 200
+    assert "selected_tenant=tenant-alpha" in listing.text
+    assert "selected_agent=alpha-manifest-agent" in listing.text
+
+    selected = client.get(
+        "/agents?page=1&per_page=20&selected_tenant=tenant-alpha&selected_agent=alpha-manifest-agent"
+    )
+    assert selected.status_code == 200
+    assert "Selected Agent Manifest" in selected.text
+    assert "alpha-manifest-agent" in selected.text
+    assert "&lt;td&gt;name&lt;/td&gt;" not in selected.text
+    assert "<td>name</td>" in selected.text
+    assert "<td>version</td>" in selected.text
+    assert "<td>runtime.language</td>" in selected.text
+    assert "<td>runtime.version</td>" in selected.text
+    assert "<td>runtime.type</td>" in selected.text
+    assert "<td>framework</td>" in selected.text
+    assert "<td>permissions</td>" in selected.text
+    assert "<td>N/A</td>" in selected.text
