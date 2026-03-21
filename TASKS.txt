@@ -5003,3 +5003,43 @@ tasks:
     dependencies: [task245, task240, task243]
     tests: [test346]
     status: completed
+
+  - id: task249
+    title: "Agents page clickable name + right-side manifest key/value table"
+    type: task
+    description: |
+      Under the Published Agents table, make Name entries clickable. Clicking an
+      agent name should render a right-side panel on the same Agents page showing
+      a key/value table representing the full kinnoo.yaml schema fields for the
+      selected agent.
+    files:
+      - server/templates/agents.html
+      - server/routes/web_agents.py
+      - server/tests/test_web_agents.py
+    steps:
+      - 'step1: Update agents listing rows so the Name cell renders a link targeting the selected agent on /agents'
+      - 'step2: Extend /agents route context to load selected agent manifest fields for right-side rendering'
+      - 'step3: Render a right-side key/value table that includes all kinnoo.yaml schema fields with safe defaults for missing optional values'
+      - 'step4: Preserve existing pagination/session behavior and add focused integration coverage'
+    dependencies: [task247, task248]
+    tests: [test347]
+    status: not-started
+
+  - id: task250
+    title: "Published Agents table framework column"
+    type: task
+    description: |
+      Add a framework column to the Published Agents table. Display the manifest
+      framework value when present; otherwise show N/A.
+    files:
+      - server/templates/agents.html
+      - server/routes/web_agents.py
+      - server/tests/test_web_agents.py
+    steps:
+      - 'step1: Extend agent row view-model generation to include framework field from latest manifest metadata'
+      - 'step2: Add Framework column to Published Agents table and render N/A when framework is not set'
+      - 'step3: Keep table ordering and existing columns stable apart from additive framework column'
+      - 'step4: Add integration coverage verifying both populated and N/A framework rendering cases'
+    dependencies: [task247]
+    tests: [test348]
+    status: not-started
