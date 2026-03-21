@@ -250,9 +250,12 @@ def main():
         help="Publish latest archived agent artifact to the registry",
     )
     publish_parser.add_argument(
-        "agent_name",
+        "target",
         nargs="?",
-        help="Agent name to publish from local archive source",
+        help=(
+            "Agent name (default archive-first mode), .kno path, or with --pack "
+            "a file path to an agent directory"
+        ),
     )
     publish_parser.add_argument(
         "--local",
@@ -263,6 +266,16 @@ def main():
         "--remote",
         action="store_true",
         help="Explicitly select the remote registry backend",
+    )
+    publish_parser.add_argument(
+        "--pack",
+        action="store_true",
+        help="Pack first, then publish. With --pack, <target> must be a file path to an agent directory.",
+    )
+    publish_parser.add_argument(
+        "--bump",
+        choices=["major", "minor", "patch"],
+        help="Optional version bump applied during --pack flow before publish.",
     )
 
     # Add 'list' subcommand
@@ -538,16 +551,26 @@ def main():
         sys.exit(exit_code)
 
     elif args.command == "publish":
-        agent_name = getattr(args, "agent_name", None)
-        if agent_name is None:
-            print("Usage: kinnoo publish <agent-name> [--local]", file=sys.stderr)
+        target = getattr(args, "target", None)
+        if target is None:
+            print(
+                "Usage: kinnoo publish <agent-name|archive.kno|agent-dir-path> "
+                "[--pack] [--bump {major,minor,patch}] [--local|--remote]",
+                file=sys.stderr,
+            )
             sys.exit(1)
 
         use_local = bool(getattr(args, "local", False))
         use_remote = bool(getattr(args, "remote", False))
+        use_pack = bool(getattr(args, "pack", False))
+        bump = getattr(args, "bump", None)
 
         if use_local and use_remote:
             print("Error: --local and --remote cannot be used together.", file=sys.stderr)
+            sys.exit(1)
+
+        if bump is not None and not use_pack:
+            print("Error: --bump can only be used together with --pack.", file=sys.stderr)
             sys.exit(1)
 
         try:
@@ -556,9 +579,11 @@ def main():
             from .publish_command import publish_agent
 
         exit_code = publish_agent(
-            agent_name=agent_name,
+            target=target,
             use_local=use_local,
             use_remote=use_remote,
+            pack=use_pack,
+            bump=bump,
         )
         sys.exit(exit_code)
 

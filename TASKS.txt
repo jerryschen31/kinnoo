@@ -5086,4 +5086,4 @@ tasks:
       - 'step5: Add focused tests for happy-path pack-and-publish, bump-and-publish, and guardrail errors'
     dependencies: [task83, task106, task232]
     tests: [test351, test352, test353]
-    status: not-started
+    status: needs-review

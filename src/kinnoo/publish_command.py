@@ -7,6 +7,7 @@ import os
 import shutil
 from pathlib import Path
 from typing import Any
+import yaml
 
 from .archive import LocalArchiveBackend
 from .checksum import checksum_sidecar_path_for_archive
@@ -180,7 +181,32 @@ def _resolve_publish_backend(*, use_local: bool, use_remote: bool) -> tuple[Any 
     return MockFilesystemRegistryBackend(root=backend_root), "local", None
 
 
-def publish_agent(agent_name: str, use_local: bool = False, use_remote: bool = False) -> int:
+def _manifest_name_from_agent_dir(agent_dir: Path) -> str | None:
+    manifest_path = agent_dir / "kinnoo.yaml"
+    if not manifest_path.exists() or not manifest_path.is_file():
+        return None
+
+    try:
+        manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+    if not isinstance(manifest, dict):
+        return None
+
+    name = manifest.get("name")
+    if not isinstance(name, str) or not name.strip():
+        return None
+    return name.strip()
+
+
+def publish_agent(
+    target: str,
+    use_local: bool = False,
+    use_remote: bool = False,
+    pack: bool = False,
+    bump: str | None = None,
+) -> int:
     """Publish latest archived artifact for agent name to selected registry backend.
 
     For feature13 task83, publish source resolution is name-based from the local
@@ -197,7 +223,37 @@ def publish_agent(agent_name: str, use_local: bool = False, use_remote: bool = F
         print("Error: Failed to initialize registry backend.")
         return 1
 
-    normalized_name = agent_name.strip()
+    if bump is not None and not pack:
+        print("Error: --bump can only be used together with --pack.")
+        return 1
+
+    normalized_name = target.strip()
+
+    if pack:
+        agent_dir = Path(normalized_name).expanduser()
+        if not agent_dir.exists() or not agent_dir.is_dir():
+            print(
+                "Error: With --pack, <target> must be a file path to an agent directory.",
+            )
+            return 1
+
+        try:
+            from kinnoo.pack_command import pack_agent
+        except ImportError:
+            from .pack_command import pack_agent
+
+        pack_exit = pack_agent(agent_dir=str(agent_dir), bump=bump)
+        if pack_exit != 0:
+            return pack_exit
+
+        packed_name = _manifest_name_from_agent_dir(agent_dir)
+        if packed_name is None:
+            print(
+                "Error: Could not resolve manifest name from agent directory after --pack flow.",
+            )
+            return 1
+
+        normalized_name = packed_name
 
     legacy_archive_candidate = Path(normalized_name).expanduser()
     if (
