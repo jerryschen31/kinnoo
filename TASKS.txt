@@ -5042,4 +5042,4 @@ tasks:
       - 'step4: Add integration coverage verifying both populated and N/A framework rendering cases'
     dependencies: [task247]
     tests: [test348]
-    status: not-started
+    status: needs-review

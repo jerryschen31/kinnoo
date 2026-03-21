@@ -195,6 +195,7 @@ def _all_agent_rows(*, metadata_manager: MetadataManager, storage_backend: Stora
         for summary in summaries:
             description = ""
             author = ""
+            framework = "N/A"
             size_bytes = 0
 
             latest_version = summary.latest_version
@@ -207,6 +208,10 @@ def _all_agent_rows(*, metadata_manager: MetadataManager, storage_backend: Stora
                 if metadata is not None:
                     description = str(metadata.manifest.get("description", ""))
                     author = str(metadata.manifest.get("author", ""))
+                    # Keep table rendering deterministic for manifests that omit optional framework.
+                    framework_value = metadata.manifest.get("framework")
+                    if framework_value not in (None, ""):
+                        framework = str(framework_value)
 
                     archive_key = metadata.storage_keys.get("archive")
                     if archive_key:
@@ -222,6 +227,7 @@ def _all_agent_rows(*, metadata_manager: MetadataManager, storage_backend: Stora
                     "name": summary.agent_slug,
                     "version": latest_version,
                     "author": author,
+                    "framework": framework,
                     "size_bytes": size_bytes,
                     "size_display": _format_size(size_bytes),
                     "description": description,
