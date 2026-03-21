@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import re
+from io import BytesIO
+import zipfile
 
 from fastapi.testclient import TestClient
 
@@ -15,21 +17,29 @@ def _extract_hidden_csrf_token(html: str) -> str:
     return match.group(1)
 
 
-def _archive(name: str, version: str, visibility: str, description: str, author: str) -> tuple[str, bytes]:
+def _archive(
+    name: str,
+    version: str,
+    visibility: str,
+    description: str,
+    author: str,
+    framework: str | None = None,
+) -> tuple[str, bytes]:
     payload = (
         f"name: {name}\n"
         f"version: {version}\n"
         f"visibility: {visibility}\n"
         f"description: {description}\n"
         f"author: {author}\n"
-    ).encode("utf-8")
+    )
+    if framework:
+        payload += f"framework: {framework}\n"
 
-    from io import BytesIO
-    import zipfile
+    payload_bytes = payload.encode("utf-8")
 
     buff = BytesIO()
     with zipfile.ZipFile(buff, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
-        archive.writestr("kinnoo.yaml", payload)
+        archive.writestr("kinnoo.yaml", payload_bytes)
         archive.writestr("README.md", "web agents test")
     return f"{name}.kno", buff.getvalue()
 
@@ -271,3 +281,89 @@ def test_agents_name_click_shows_right_panel_manifest_schema(tmp_path):
     assert "<td>framework</td>" in selected.text
     assert "<td>permissions</td>" in selected.text
     assert "<td>N/A</td>" in selected.text
+
+
+def test_agents_table_framework_column_and_na_fallback(tmp_path):
+    config = ServerConfig(
+        storage_backend="local",
+        local_storage_root=tmp_path / "storage",
+        s3_bucket="kinnoo-registry-dev",
+        s3_region="us-east-1",
+        s3_endpoint_url=None,
+        s3_access_key_id=None,
+        s3_secret_access_key=None,
+        presign_ttl_seconds=120,
+        max_upload_mb=5,
+    )
+    app = create_app(config=config)
+
+    app.state.user_store.create_user(
+        username="admin",
+        plaintext_password="admin-secret",
+        role="admin",
+    )
+
+    publisher_token = app.state.token_service.issue_token(
+        subject="publisher-alpha",
+        tenant_slug="tenant-alpha",
+        scopes=["registry:read", "registry:publish"],
+    )
+
+    framework_filename, framework_archive = _archive(
+        name="framework-agent",
+        version="1.0.0",
+        visibility="public",
+        description="includes framework",
+        author="alice",
+        framework="langchain",
+    )
+    no_framework_filename, no_framework_archive = _archive(
+        name="no-framework-agent",
+        version="1.0.0",
+        visibility="public",
+        description="missing framework",
+        author="bob",
+    )
+
+    publish_framework = publish_archive(
+        authorization_header=f"Bearer {publisher_token}",
+        filename=framework_filename,
+        archive_bytes=framework_archive,
+        token_service=app.state.token_service,
+        storage_backend=app.state.storage_backend,
+        metadata_manager=app.state.metadata_manager,
+        max_upload_mb=app.state.config.max_upload_mb,
+    )
+    assert publish_framework.status_code == 201
+
+    publish_no_framework = publish_archive(
+        authorization_header=f"Bearer {publisher_token}",
+        filename=no_framework_filename,
+        archive_bytes=no_framework_archive,
+        token_service=app.state.token_service,
+        storage_backend=app.state.storage_backend,
+        metadata_manager=app.state.metadata_manager,
+        max_upload_mb=app.state.config.max_upload_mb,
+    )
+    assert publish_no_framework.status_code == 201
+
+    client = TestClient(app, base_url="https://testserver")
+    _login(client, username="admin", password="admin-secret")
+
+    listing = client.get("/agents?page=1&per_page=20")
+    assert listing.status_code == 200
+    assert "<th>Framework</th>" in listing.text
+    assert "framework-agent" in listing.text
+    assert "no-framework-agent" in listing.text
+
+    framework_row = re.search(
+        r">\s*framework-agent\s*</a>\s*</td>\s*<td>1\.0\.0</td>\s*<td>alice</td>\s*<td>langchain</td>",
+        listing.text,
+    )
+    assert framework_row is not None
+
+    no_framework_row = re.search(
+        r">\s*no-framework-agent\s*</a>\s*</td>\s*<td>1\.0\.0</td>\s*<td>bob</td>\s*<td>N/A</td>",
+        listing.text,
+    )
+    assert no_framework_row is not None
