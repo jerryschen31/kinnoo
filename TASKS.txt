@@ -5043,3 +5043,23 @@ tasks:
     dependencies: [task247]
     tests: [test348]
     status: needs-review
+
+  - id: task251
+    title: Remote list/search summary-shape compatibility fix
+    type: issue
+    description: |
+      Fix CLI remote list/search rendering to support dict-shaped agent summaries
+      returned by RemoteRegistryClient-backed registry endpoints, while preserving
+      compatibility with object-style summary instances used by local flows.
+    files:
+      - src/kinnoo/list_command.py
+      - src/kinnoo/search_command.py
+      - tests/test_cli_remote_summary_shape.py
+    steps:
+      - 'step1: Normalize summary field access in list command to support both dict and object summary types'
+      - 'step2: Apply the same summary-shape normalization in remote search output rendering'
+      - 'step3: Add focused regressions covering dict-shaped summaries for remote list and remote search code paths'
+      - 'step4: Verify nearby remote list mode regression remains green'
+    dependencies: [task232, task233]
+    tests: [test349, test350]
+    status: needs-review

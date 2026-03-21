@@ -49,10 +49,12 @@ def list_agents(source: str = "local") -> int:
 
         print("Remote registry agents:")
         for summary in summaries:
-            description = summary.description if summary.description else "(no description)"
-            archive_size = _format_archive_size(summary.archive_size_bytes)
+            description = _summary_text(summary=summary, field="description", default="(no description)")
+            archive_size = _format_archive_size(_summary_size_bytes(summary=summary))
+            name = _summary_text(summary=summary, field="name", default="(unknown)")
+            latest_version = _summary_text(summary=summary, field="latest_version", default="(unknown)")
             print(
-                f"- {summary.name} | latest: {summary.latest_version} | "
+                f"- {name} | latest: {latest_version} | "
                 f"description: {description} | size: {archive_size}"
             )
 
@@ -70,10 +72,12 @@ def list_agents(source: str = "local") -> int:
 
     print("Local archive agents:")
     for summary in summaries:
-        description = summary.description if summary.description else "(no description)"
-        archive_size = _format_archive_size(summary.archive_size_bytes)
+        description = _summary_text(summary=summary, field="description", default="(no description)")
+        archive_size = _format_archive_size(_summary_size_bytes(summary=summary))
+        name = _summary_text(summary=summary, field="name", default="(unknown)")
+        latest_version = _summary_text(summary=summary, field="latest_version", default="(unknown)")
         print(
-            f"- {summary.name} | latest: {summary.latest_version} | "
+            f"- {name} | latest: {latest_version} | "
             f"description: {description} | size: {archive_size}"
         )
 
@@ -84,3 +88,23 @@ def _format_archive_size(size_bytes: int | None) -> str:
     if size_bytes is None:
         return "unknown"
     return format_size_human_readable(size_bytes)
+
+
+def _summary_text(*, summary: object, field: str, default: str) -> str:
+    value = _summary_value(summary=summary, field=field)
+    if value in (None, ""):
+        return default
+    return str(value)
+
+
+def _summary_size_bytes(*, summary: object) -> int | None:
+    value = _summary_value(summary=summary, field="archive_size_bytes")
+    if isinstance(value, int):
+        return value
+    return None
+
+
+def _summary_value(*, summary: object, field: str) -> object | None:
+    if isinstance(summary, dict):
+        return summary.get(field)
+    return getattr(summary, field, None)
