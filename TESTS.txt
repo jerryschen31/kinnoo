@@ -5769,3 +5769,37 @@ tests:
         ac: AC3
       - feature: feature30
         ac: AC4
+
+  - id: test347
+    title: Agents page name links render right-side full manifest schema table
+    type: integration
+    preconditions: authenticated session exists and at least one published agent has manifest metadata
+    steps:
+      - step1: GET /agents and verify each Name cell is rendered as a clickable link
+      - step2: Open /agents with a selected agent target and verify right-side key/value table is rendered
+      - step3: Assert key/value table includes all kinnoo.yaml schema fields with expected values/defaults
+      - step4: Verify existing pagination/session guard behavior remains intact
+    expected: selecting an agent from Name column shows full schema key/value details on the Agents page
+    pass_criteria: link navigation works and right-side table contains complete schema field set without regressions
+    automated: true
+    automation_path: server/tests/test_web_agents.py::test_agents_name_click_shows_right_panel_manifest_schema
+    covers:
+      - feature: feature44
+        ac: AC1
+
+  - id: test348
+    title: Published Agents table shows framework column with N/A fallback
+    type: integration
+    preconditions: authenticated session exists with agents that include and omit framework metadata
+    steps:
+      - step1: GET /agents and verify Framework column header is present
+      - step2: Verify agents with framework show the framework value in the Framework column
+      - step3: Verify agents without framework show N/A in the Framework column
+      - step4: Verify existing columns still render correctly
+    expected: framework visibility is added to listing without breaking existing table behavior
+    pass_criteria: Framework column is present and values/fallback render deterministically for mixed fixtures
+    automated: true
+    automation_path: server/tests/test_web_agents.py::test_agents_table_framework_column_and_na_fallback
+    covers:
+      - feature: feature44
+        ac: AC1
