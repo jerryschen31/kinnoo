@@ -642,6 +642,9 @@ def _collect_validation_errors(data: dict[str, Any]) -> list[str]:
         if optional_field == "model" and value.strip() == "":
             errors.append("Field 'model' must be a non-empty string.")
 
+        if optional_field == "runtime.path" and value.strip() == "":
+            errors.append("Field 'runtime.path' must be a non-empty string.")
+
         if optional_field == "assets.max_bundle_size_mb" and isinstance(value, bool):
             errors.append("Field 'assets.max_bundle_size_mb' must be of type int or float, got bool.")
 

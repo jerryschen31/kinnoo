@@ -5182,3 +5182,31 @@ tasks:
     dependencies: [task164, task165, task167]
     tests: [test360, test361]
     status: needs-review
+
+  - id: task257
+    title: Add runtime.path executable override for kinnoo run
+    type: task
+    description: |
+      Add optional `runtime.path` support in `kinnoo.yaml` as an agent-level
+      runtime executable override. During `kinnoo run`, when `runtime.path` is
+      present and exists, execute the agent with that runtime executable.
+      When missing or invalid, preserve current behavior by using the runtime
+      executable inferred from the invoking Kinnoo process (Python) or default
+      runtime command (Node.js).
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/validator.py
+      - tests/test_cli.py
+      - TASKS.txt
+      - TESTS.txt
+      - FEATURES.txt
+      - notes/tasks/task257-notes.md
+    steps:
+      - 'step1: Extend manifest validation/schema handling to accept optional runtime.path as a non-empty string path'
+      - 'step2: In run flow, resolve runtime.path for python/nodejs and use it only when it exists and is executable'
+      - 'step3: Preserve current fallback behavior when runtime.path is absent or invalid, with clear diagnostics'
+      - 'step4: Add integration tests proving Python runtime override can differ from the interpreter that launched kinnoo run'
+      - 'step5: Add integration tests covering nodejs runtime.path override behavior and fallback semantics'
+    dependencies: [task39, task93]
+    tests: [test362, test363]
+    status: not-started
