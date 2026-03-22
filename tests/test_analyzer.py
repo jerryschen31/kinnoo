@@ -316,7 +316,8 @@ def test_feature27_detector_matrix_positive_and_ambiguous(tmp_path: Path) -> Non
     ambiguous_payload = analyze_project(ambiguous).as_dict()
     assert ambiguous_payload["inferred"]["entrypoint"] is None
     assert ambiguous_payload["inferred"]["framework"] is None
-    assert ambiguous_payload["inferred"]["dependencies"] == []
+    assert "openai" in ambiguous_payload["inferred"]["dependencies"]
+    assert "anthropic" in ambiguous_payload["inferred"]["dependencies"]
     assert ambiguous_payload["inferred"]["env_vars"] == []
     assert ambiguous_payload["confidence"]["entrypoint"]["score"] < 0.5
     assert ambiguous_payload["confidence"]["framework"]["score"] < 0.5
@@ -454,3 +455,40 @@ def test_feature36_identity_signal_detection(tmp_path: Path) -> None:
     assert "identity-file:SOUL.md" in no_user_evidence
     assert "identity-file:AGENTS.md" in no_user_evidence
     assert "identity-file:USER.md" not in no_user_evidence
+
+
+def test_framework_prefers_langchain_when_openai_and_langchain_both_present(tmp_path: Path) -> None:
+    project_dir = tmp_path / "framework-langchain-plus-openai"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "run.py").write_text(
+        "import openai\n"
+        "from langchain_core.agents import AgentAction\n"
+        "print(AgentAction)\n",
+        encoding="utf-8",
+    )
+
+    payload = analyze_project(project_dir).as_dict()
+    assert payload["inferred"]["framework"] == "langchain"
+    assert payload["confidence"]["framework"]["score"] >= 0.85
+
+
+def test_dependency_inference_uses_known_import_namespaces(tmp_path: Path) -> None:
+    project_dir = tmp_path / "deps-from-imports-project"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "run.py").write_text(
+        "import openai\n"
+        "import anthropic\n"
+        "from langchain_core.agents import AgentAction\n"
+        "from langchain_openai import ChatOpenAI\n"
+        "print(AgentAction, ChatOpenAI)\n",
+        encoding="utf-8",
+    )
+
+    payload = analyze_project(project_dir).as_dict()
+    dependencies = payload["inferred"]["dependencies"]
+
+    assert "openai" in dependencies
+    assert "anthropic" in dependencies
+    assert "langchain-core" in dependencies
+    assert "langchain-openai" in dependencies
+    assert payload["confidence"]["dependencies"]["score"] > 0.6

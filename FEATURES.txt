@@ -654,7 +654,7 @@ features:
       confidence-aware warnings, keeps the source project layout unchanged, and
       avoids file copying/scaffold cloning. Entrypoint compatibility gaps are
       warning-first and non-blocking, with an optional wrapper generation path.
-    tasks: [task163, task164, task165, task166, task167]
+    tasks: [task163, task164, task165, task166, task167, task256]
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo import [path]` validates arguments, defaults to current directory when omitted, and prints clear usage/help when arguments are invalid."
@@ -676,6 +676,8 @@ features:
         description: "For schema fields introduced in features23-26 (for example `runtime.type: mcp-server`, `services`, and MCP permissions), wizard prompts are conditional: ask only when analyzers cannot infer values or when detector confidence is below threshold."
       - id: AC10
         description: "If entrypoint analysis indicates kinnoo input/output contract mismatch, import emits a clear non-blocking warning and offers an optional wrapper generation path instead of failing by default."
+      - id: AC11
+        description: "When importing Python projects without an existing requirements.txt, import creates requirements.txt by using inferred dependencies when available, otherwise attempts uv export, and falls back to an empty requirements.txt with actionable guidance."
     notes:
       - "Redesign scope: import UX should minimize prompt count; default behavior is accept detected values with one confirmation step."
       - "feature27 analyzers are the single inference backend for import; avoid duplicating heuristics inside import_command."

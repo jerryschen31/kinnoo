@@ -5977,3 +5977,39 @@ tests:
     pass_criteria: Matrix executes 42 pack attempts with stable per-agent artifact status and aggregate summary
     automated: true
     automation_path: tests/test_corpus_matrix.py::test_task255_pack_matrix_all_agents
+
+  - id: test360
+    title: Import generates requirements.txt via uv export when missing
+    type: integration
+    preconditions: |
+      Python project folder lacks requirements.txt and provides uv-exportable
+      metadata; CLI import is run in a non-interactive automation flow.
+    steps:
+      - step1: Run `python src/kinnoo/cli.py import <project-path>` for a project without requirements.txt
+      - step2: Provide confirm-first wizard defaults and allow import completion
+      - step3: Verify requirements.txt is created from uv export output
+    expected: Import writes requirements.txt using uv export content when analyzer inference is insufficient
+    pass_criteria: import exits 0, output reports uv export generation, and requirements.txt matches exported dependency lines
+    automated: true
+    automation_path: tests/test_cli_import.py::test_feature19_import_generates_requirements_via_uv_export
+    covers:
+      - feature: feature19
+        ac: AC11
+
+  - id: test361
+    title: Import falls back to empty requirements.txt when detection is unavailable
+    type: integration
+    preconditions: |
+      Python project folder lacks requirements.txt and no dependency inference/
+      uv export path is available in the execution environment.
+    steps:
+      - step1: Run `python src/kinnoo/cli.py import <project-path>` with uv unavailable
+      - step2: Complete confirm-first wizard using defaults
+      - step3: Verify requirements.txt is created as an empty deterministic fallback with guidance message
+    expected: Import still completes and creates requirements.txt even when dependency detection paths are unavailable
+    pass_criteria: import exits 0, output includes fallback guidance, and requirements.txt exists with empty content
+    automated: true
+    automation_path: tests/test_cli_import.py::test_feature19_import_generates_empty_requirements_when_detection_unavailable
+    covers:
+      - feature: feature19
+        ac: AC11
