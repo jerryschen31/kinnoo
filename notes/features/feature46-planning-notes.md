@@ -31,3 +31,87 @@
 [improvement] Pretty print with color on import, preflight run, pack, publish, install, and any other commands where the user needs to respond to user prompts or that provides important information to the user (important = provides information that the user needs to execute subsequent commands).
 
 [potential bug] Preflight fails on venv not found, but agent (overrode runtime.path in kinnoo.yaml) creates virtual environment and runs without error.
+
+## SWE Handoff: feature46 (tasks 258, 259, 261, 263, 265, 266, 267)
+
+### Scope
+Implement the following feature46 tasks in one grouped SWE implementation pass:
+- task258: analyzer input/output type auto-detection
+- task259: `kinnoo pack --preflight`
+- task261: analyzer model auto-detection
+- task263: `kinnoo init --language`
+- task265: `kinnoo import <github-url> [import-path]`
+- task266: `kinnoo check <agent-dir | github-url>`
+- task267: pretty print with color for key CLI commands
+
+### Why This Grouping
+These tasks are tightly coupled around onboarding quality and operator UX:
+- Import/analyzer surface: task258, task261, task265
+- Verification surface: task259, task266
+- CLI UX surface: task263, task267
+
+A single SWE agent can execute them in sequence while minimizing churn in shared files (`src/kinnoo/cli.py`, analyzer/import flows, and command output formatting).
+
+### Ordered Implementation Plan
+1. task263 (`kinnoo init --language`): establish language framework compatibility matrix and scaffold branching first.
+2. task258 (I/O type detection): extend analyzer detection contracts for inputs/outputs.
+3. task261 (model auto-detection): extend analyzer model extraction while analyzer changes are fresh.
+4. task265 (import from URL): add URL download/clone path and collision/error behavior.
+5. task266 (`kinnoo check`): orchestrate import + inspect + preflight (reuse task265 flow for URL targets).
+6. task259 (`pack --preflight`): integrate preflight gate into pack flow and persist metadata.
+7. task267 (colorized output): apply shared output helper across import/preflight/pack/publish/install/check.
+
+### Dependencies
+- Manifest dependencies: task258, task259, task261, task263, task265, task266, task267 are already defined in `TASKS.txt`.
+- Shared internal dependencies:
+	- task266 depends on task265 behavior for URL targets and temp directory workflow.
+	- task259 depends on stable preflight contract in `run_command`.
+	- task267 should be applied after core command behavior changes to reduce rework.
+
+### AC/Test Coverage Map
+- task258 -> test364, test365
+- task259 -> test366, test367
+- task261 -> test369, test370
+- task263 -> test372, test373
+- task265 -> test375, test376, test377
+- task266 -> test378, test379
+- task267 -> test380, test381
+
+### Design Constraints (Must Follow)
+- Preserve backward compatibility for existing CLI invocation patterns.
+- Keep all secret-handling invariant behavior unchanged (never print env var values).
+- Maintain analyzer confidence/evidence style when adding input/output/model detectors.
+- URL import must fail clearly on:
+	- existing target directory collision
+	- clone/download not found
+	- auth/credentials failure
+- `kinnoo check` should produce step-specific PASS/FAIL diagnostics and actionable fix guidance.
+- Color output must respect `NO_COLOR` and non-interactive/non-TTY contexts.
+- `kinnoo init --language` must error on incompatible framework/language combinations with deterministic messaging.
+
+### Expected Files to Modify
+- `src/kinnoo/cli.py`
+- `src/kinnoo/init_command.py`
+- `src/kinnoo/analyzer.py`
+- `src/kinnoo/import_command.py`
+- `src/kinnoo/pack_command.py`
+- `src/kinnoo/run_command.py` (reuse preflight checks where needed)
+- `src/kinnoo/check_command.py` (new)
+- `tests/test_cli.py`
+- `tests/test_pack.py`
+- `tests/test_validator.py`
+
+### Verification Gate
+- Run targeted tests first:
+	- `python3 -m pytest tests/test_validator.py -k "analyzer and model"`
+	- `python3 -m pytest tests/test_cli.py -k "init or import or check or color"`
+	- `python3 -m pytest tests/test_pack.py -k "preflight"`
+- Run broader regression before handoff completion:
+	- `python3 -m pytest`
+- Validate manifests after any manifest edits:
+	- `python3 src/validate_project_manifests.py`
+
+### Status Workflow
+- Move tasks to `in-progress` at implementation start.
+- Move tasks to `needs-review` only after code + tests are complete and passing.
+- Do not mark `completed` until tech lead review + approval.
