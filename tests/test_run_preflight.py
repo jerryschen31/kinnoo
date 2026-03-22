@@ -361,6 +361,85 @@ def test_preflight_checklist_and_ready_summary(tmp_path: Path) -> None:
     assert "Ready to run" not in fail_output
 
 
+def test_preflight_runtime_path_diagnostic_resolved(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "runtime-path-diagnostic-resolved"
+    _create_agent_fixture(agent_dir, with_manifest=True)
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: runtime-path-diagnostic-resolved",
+                "version: 1.0.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.10\"",
+                "  type: one-shot",
+                f"  path: \"{sys.executable}\"",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "run", str(agent_dir), "--preflight"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+
+    assert result.returncode == 0
+    assert "runtime.path diagnostic:" in output
+    assert "resolved to" in output
+    assert str(Path(sys.executable)) in output
+
+
+def test_preflight_runtime_path_diagnostic_unresolved(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "runtime-path-diagnostic-unresolved"
+    _create_agent_fixture(agent_dir, with_manifest=True)
+    unresolved_command = "definitely-missing-runtime-cmd-for-preflight"
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: runtime-path-diagnostic-unresolved",
+                "version: 1.0.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.10\"",
+                "  type: one-shot",
+                f"  path: \"{unresolved_command}\"",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "run", str(agent_dir), "--preflight"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+
+    assert result.returncode == 0
+    assert "runtime.path diagnostic:" in output
+    assert unresolved_command in output
+    assert "was not resolved as an executable file or PATH command" in output
+
+
 def test_feature25_preflight_includes_service_health_results(tmp_path: Path) -> None:
     class HealthHandler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:  # noqa: N802

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import subprocess
+import shutil
 import sys
 import venv
 from pathlib import Path
@@ -246,6 +247,26 @@ def _check_runtime_version_constraint(runtime_constraint: str) -> tuple[bool, st
             f"current Python {current_label} satisfies runtime.version '{normalized}'"
         ),
     )
+
+
+def _resolve_runtime_path_executable(runtime_path_value: str | None) -> tuple[Path | None, str]:
+    """Resolve runtime.path as either an executable file path or PATH command."""
+    if runtime_path_value is None:
+        return None, "not-set"
+
+    normalized_runtime_path = runtime_path_value.strip()
+    if not normalized_runtime_path:
+        return None, "empty"
+
+    runtime_path_candidate = Path(normalized_runtime_path).expanduser()
+    if runtime_path_candidate.exists() and runtime_path_candidate.is_file() and os.access(runtime_path_candidate, os.X_OK):
+        return runtime_path_candidate, "file"
+
+    resolved_runtime = shutil.which(normalized_runtime_path)
+    if resolved_runtime:
+        return Path(resolved_runtime), "path"
+
+    return None, "unresolved"
 
 
 def _check_preflight_env_vars(manifest: dict, agent_dir: Path) -> tuple[bool, str]:
@@ -640,6 +661,25 @@ def run_preflight(agent_dir_arg: str) -> int:
             runtime_type_value = runtime_section.get("type")
             if isinstance(runtime_type_value, str) and runtime_type_value.strip():
                 runtime_type = runtime_type_value.strip().lower()
+
+    runtime_path_raw = runtime_section.get("path") if isinstance(runtime_section.get("path"), str) else None
+    if runtime_path_raw is not None:
+        resolved_runtime_path, resolution_mode = _resolve_runtime_path_executable(runtime_path_raw)
+        if resolution_mode in {"file", "path"} and resolved_runtime_path is not None:
+            print(
+                "runtime.path diagnostic: "
+                f"'{runtime_path_raw}' resolved to '{resolved_runtime_path}'"
+            )
+        elif resolution_mode == "empty":
+            print(
+                "runtime.path diagnostic: configured but empty; default runtime executable will be used"
+            )
+        else:
+            print(
+                "runtime.path diagnostic: "
+                f"'{runtime_path_raw}' was not resolved as an executable file or PATH command; "
+                "default runtime executable will be used"
+            )
 
     runtime_constraint_ok = False
     runtime_message = "runtime version check failed: manifest validation prerequisite not met"
@@ -1205,19 +1245,17 @@ def run_agent(
     runtime_path: Path | None = None
     runtime_path_value = runtime_section.get("path") if isinstance(runtime_section.get("path"), str) else None
     if runtime_path_value is not None:
-        normalized_runtime_path = runtime_path_value.strip()
-        if normalized_runtime_path:
-            runtime_path_candidate = Path(normalized_runtime_path).expanduser()
-            if runtime_path_candidate.exists() and runtime_path_candidate.is_file() and os.access(runtime_path_candidate, os.X_OK):
-                runtime_path = runtime_path_candidate
-            else:
-                print(
-                    "[kinnoo] warning: runtime.path is set but not an executable file; falling back to default runtime executable.",
-                    file=sys.stderr,
-                )
-        else:
+        resolved_runtime_path, resolution_mode = _resolve_runtime_path_executable(runtime_path_value)
+        if resolution_mode in {"file", "path"} and resolved_runtime_path is not None:
+            runtime_path = resolved_runtime_path
+        elif resolution_mode == "empty":
             print(
                 "[kinnoo] warning: runtime.path is empty; falling back to default runtime executable.",
+                file=sys.stderr,
+            )
+        else:
+            print(
+                "[kinnoo] warning: runtime.path is set but not an executable file and was not found on PATH; falling back to default runtime executable.",
                 file=sys.stderr,
             )
 
