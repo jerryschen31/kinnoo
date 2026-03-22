@@ -451,6 +451,140 @@ This scaffold demonstrates a Kinnoo-compatible MCP client template.
 - Output is printed to stdout
 '''
 
+MCP_SERVER_RUN_PY = '''import json
+import sys
+
+
+def _ok_response(request_id, result):
+  return {
+    "jsonrpc": "2.0",
+    "id": request_id,
+    "result": result,
+  }
+
+
+def _error_response(request_id, code, message):
+  return {
+    "jsonrpc": "2.0",
+    "id": request_id,
+    "error": {
+      "code": code,
+      "message": message,
+    },
+  }
+
+
+def _handle_request(request):
+  request_id = request.get("id")
+  method = request.get("method")
+  params = request.get("params") or {}
+
+  if method == "initialize":
+    return _ok_response(
+      request_id,
+      {
+        "protocolVersion": "2024-11-05",
+        "serverInfo": {
+          "name": "kinnoo-mcp-server-template",
+          "version": "0.1.0",
+        },
+        "capabilities": {
+          "tools": {
+            "listChanged": False,
+          }
+        },
+      },
+    )
+
+  if method == "tools/list":
+    return _ok_response(
+      request_id,
+      {
+        "tools": [
+          {
+            "name": "echo",
+            "description": "Echo back input text.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": ["text"],
+            },
+          }
+        ]
+      },
+    )
+
+  if method == "tools/call":
+    if params.get("name") != "echo":
+      return _error_response(request_id, -32601, "Unknown tool")
+
+    arguments = params.get("arguments") or {}
+    text = arguments.get("text", "")
+    return _ok_response(
+      request_id,
+      {
+        "content": [
+          {
+            "type": "text",
+            "text": f"echo: {text}",
+          }
+        ]
+      },
+    )
+
+  return _error_response(request_id, -32601, "Method not found")
+
+
+def main():
+  # Minimal newline-delimited JSON-RPC server loop over stdio.
+  for raw in sys.stdin:
+    raw = raw.strip()
+    if not raw:
+      continue
+
+    try:
+      request = json.loads(raw)
+      response = _handle_request(request)
+    except Exception as exc:
+      response = _error_response(None, -32700, f"Parse error: {exc}")
+
+    sys.stdout.write(json.dumps(response) + "\\n")
+    sys.stdout.flush()
+
+
+if __name__ == "__main__":
+  main()
+'''
+
+MCP_SERVER_REQUIREMENTS = ""
+
+MCP_SERVER_README = '''# {name}
+
+This scaffold demonstrates a minimal MCP server implemented over stdio.
+
+## Setup
+- Install dependencies: `pip install -r requirements.txt`
+
+## Run Server
+```
+python run.py
+```
+
+## Quick Handshake Smoke Test
+```
+printf '{{"jsonrpc":"2.0","id":1,"method":"initialize","params":{{}}}}\n' | python run.py
+```
+
+## Tool Call Smoke Test
+```
+printf '{{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{{"name":"echo","arguments":{{"text":"hello"}}}}}}\n' | python run.py
+```
+'''
+
 OPENCLAW_PACKAGE_JSON_TEMPLATE = '''{{
   "name": "{name}",
   "version": "0.1.0",
@@ -577,6 +711,25 @@ runtime:
   language: python
   version: ">=3.10"
   type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+"""
+
+MCP_SERVER_KINNOO_YAML_TEMPLATE = """name: {name}
+version: 0.1.0
+description: "TODO: Add a short MCP server description"
+author: "TODO: Add author name"
+entrypoint: run.py
+framework: mcp-server
+runtime:
+  language: python
+  version: ">=3.10"
+  type: mcp-server
+channels:
+  - stdio
 dependencies: []
 inputs:
   type: text

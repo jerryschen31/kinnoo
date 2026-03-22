@@ -67,18 +67,19 @@ def main():
         epilog=(
             "Examples:\n"
             "  kinnoo init my-agent\n"
-            "  kinnoo init my-claude-agent --framework claude-chat\n"
-            "  kinnoo init my-openclaw-agent --framework openclaw\n"
-            "  kinnoo init my-mcp-client --framework mcp-client"
+            "  kinnoo init --framework claude-chat my-claude-agent\n"
+            "  kinnoo init --framework openclaw my-openclaw-agent \n"
+            "  kinnoo init --framework mcp-client  my-mcp-client\n"
+            "  kinnoo init --framework mcp-server my-mcp-server"
         ),
     )
     init_parser.add_argument("agent_name", nargs="?", help="Name of the agent to create")
     init_parser.add_argument(
         "--framework",
-        choices=["gemini", "chatgpt", "claude-chat", "pydantic-ai", "langgraph", "openai-agents", "mcp-client", "openclaw"],
+        choices=["gemini", "chatgpt", "claude-chat", "pydantic-ai", "langgraph", "openai-agents", "mcp-client", "mcp-server", "openclaw"],
         help=(
             "(Optional) Pre-populate agent with LLM framework template "
-            "(gemini, chatgpt, claude-chat, pydantic-ai, langgraph, openai-agents, mcp-client, openclaw)"
+            "(gemini, chatgpt, claude-chat, pydantic-ai, langgraph, openai-agents, mcp-client, mcp-server, openclaw)"
         )
     )
 

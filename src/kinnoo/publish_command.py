@@ -201,7 +201,8 @@ def _manifest_name_from_agent_dir(agent_dir: Path) -> str | None:
 
 
 def publish_agent(
-    target: str,
+    target: str | None = None,
+    agent_name: str | None = None,
     use_local: bool = False,
     use_remote: bool = False,
     pack: bool = False,
@@ -212,6 +213,16 @@ def publish_agent(
     For feature13 task83, publish source resolution is name-based from the local
     archive backend rather than direct archive path input.
     """
+    if target is not None and agent_name is not None:
+        print("Error: Provide either 'target' or legacy 'agent_name', not both.")
+        return 1
+
+    # Backward compatibility: preserve historical keyword call sites that pass agent_name.
+    resolved_target = target if target is not None else agent_name
+    if resolved_target is None:
+        print("Error: Missing publish target.")
+        return 1
+
     backend, backend_label, backend_error = _resolve_publish_backend(
         use_local=use_local,
         use_remote=use_remote,
@@ -227,7 +238,7 @@ def publish_agent(
         print("Error: --bump can only be used together with --pack.")
         return 1
 
-    normalized_name = target.strip()
+    normalized_name = resolved_target.strip()
 
     if pack:
         agent_dir = Path(normalized_name).expanduser()

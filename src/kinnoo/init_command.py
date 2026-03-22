@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 from typing import Optional
 from kinnoo.templates import (
-    KINNOO_YAML_TEMPLATE, OPENCLAW_KINNOO_YAML_TEMPLATE, RUN_PY_TEMPLATE, REQUIREMENTS_TXT_TEMPLATE, README_MD_TEMPLATE,
+    KINNOO_YAML_TEMPLATE, MCP_SERVER_KINNOO_YAML_TEMPLATE, OPENCLAW_KINNOO_YAML_TEMPLATE, RUN_PY_TEMPLATE, REQUIREMENTS_TXT_TEMPLATE, README_MD_TEMPLATE,
     GEMINI_RUN_PY, GEMINI_REQUIREMENTS, GEMINI_README,
     CHATGPT_RUN_PY, CHATGPT_REQUIREMENTS, CHATGPT_README,
     CLAUDE_RUN_PY, CLAUDE_REQUIREMENTS, CLAUDE_README,
@@ -16,6 +16,7 @@ from kinnoo.templates import (
     LANGGRAPH_RUN_PY, LANGGRAPH_REQUIREMENTS, LANGGRAPH_README,
     OPENAI_AGENTS_RUN_PY, OPENAI_AGENTS_REQUIREMENTS, OPENAI_AGENTS_README,
     MCP_CLIENT_RUN_PY, MCP_CLIENT_REQUIREMENTS, MCP_CLIENT_README,
+    MCP_SERVER_RUN_PY, MCP_SERVER_REQUIREMENTS, MCP_SERVER_README,
     OPENCLAW_PACKAGE_JSON_TEMPLATE,
     OPENCLAW_JSON_TEMPLATE,
     OPENCLAW_INDEX_MJS_TEMPLATE,
@@ -33,6 +34,7 @@ SUPPORTED_FRAMEWORKS = [
     "langgraph",
     "openai-agents",
     "mcp-client",
+    "mcp-server",
     "openclaw",
 ]
 
@@ -51,13 +53,15 @@ def init_agent(name: str, target_dir: Path, framework: Optional[str] = None):
     (agent_dir / "tools").mkdir()
     (agent_dir / "prompts").mkdir()
 
-    # OpenClaw uses a Node.js daemon manifest contract; other frameworks extend the default template.
+    # OpenClaw uses a Node.js daemon manifest contract; MCP server uses a dedicated Python mcp-server manifest.
     if framework == "openclaw":
         manifest_content = OPENCLAW_KINNOO_YAML_TEMPLATE.format(name=name)
+    elif framework == "mcp-server":
+        manifest_content = MCP_SERVER_KINNOO_YAML_TEMPLATE.format(name=name)
     else:
         manifest_content = KINNOO_YAML_TEMPLATE.format(name=name)
 
-    if framework is not None and framework != "openclaw":
+    if framework is not None and framework not in {"openclaw", "mcp-server"}:
         manifest_content += f"framework: {framework}\n"
         default_model = KNOWN_FRAMEWORK_DEFAULT_MODELS.get(framework)
         if default_model is not None:
@@ -71,6 +75,7 @@ def init_agent(name: str, target_dir: Path, framework: Optional[str] = None):
         "langgraph": (LANGGRAPH_RUN_PY, LANGGRAPH_REQUIREMENTS, LANGGRAPH_README),
         "openai-agents": (OPENAI_AGENTS_RUN_PY, OPENAI_AGENTS_REQUIREMENTS, OPENAI_AGENTS_README),
         "mcp-client": (MCP_CLIENT_RUN_PY, MCP_CLIENT_REQUIREMENTS, MCP_CLIENT_README),
+        "mcp-server": (MCP_SERVER_RUN_PY, MCP_SERVER_REQUIREMENTS, MCP_SERVER_README),
     }
 
     # Write files
