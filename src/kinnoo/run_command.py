@@ -352,7 +352,7 @@ def _resolve_venv_pip(venv_dir: Path) -> Path | None:
     return None
 
 
-def _check_preflight_dependencies(manifest: dict, agent_dir: Path) -> tuple[bool, str]:
+def _check_preflight_dependencies(manifest: dict, agent_dir: Path, runtime_path_raw: str | None = None) -> tuple[bool, str]:
     del manifest
     requirements_path = agent_dir / "requirements.txt"
     dependency_names = _extract_dependency_names(requirements_path)
@@ -361,6 +361,15 @@ def _check_preflight_dependencies(manifest: dict, agent_dir: Path) -> tuple[bool
 
     venv_dir = agent_dir / ".venv"
     if not venv_dir.exists() or not venv_dir.is_dir():
+        # When runtime.path is configured and resolves to a valid Python executable,
+        # kinnoo run will create the venv at run time using that interpreter.
+        if runtime_path_raw is not None:
+            resolved, mode = _resolve_runtime_path_executable(runtime_path_raw)
+            if mode in {"file", "path"} and resolved is not None:
+                return True, (
+                    f"dependency readiness check passed: .venv not found but runtime.path "
+                    f"'{runtime_path_raw}' is a valid executable — venv will be created at run time"
+                )
         return False, f"dependency readiness check failed: virtual environment not found at {venv_dir}"
 
     pip_exe = _resolve_venv_pip(venv_dir)
@@ -726,7 +735,7 @@ def run_preflight(agent_dir_arg: str) -> int:
             if dependencies_message == "dependency readiness check failed: manifest validation prerequisite not met":
                 dependencies_ok, dependencies_message = check_node_package_manager_availability(package_manager)
         else:
-            dependencies_ok, dependencies_message = _check_preflight_dependencies(manifest, agent_dir)
+            dependencies_ok, dependencies_message = _check_preflight_dependencies(manifest, agent_dir, runtime_path_raw)
 
     _emit_preflight_line(runtime_constraint_ok, runtime_message)
     _emit_preflight_line(env_vars_ok, env_vars_message)

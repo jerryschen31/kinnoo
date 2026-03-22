@@ -50,7 +50,17 @@ class KinnooArgumentParser(argparse.ArgumentParser):
 
 def main():
     import os
-    parser = KinnooArgumentParser(prog="kinnoo", description="Kinnoo CLI")
+    parser = KinnooArgumentParser(
+        prog="kinnoo",
+        description="Kinnoo CLI",
+        epilog=(
+            "Daemon Commands:\n"
+            "  attach            Attach to a running daemon agent session\n"
+            "  stop              Stop a running daemon agent\n"
+            "  logs              Show daemon logs (tail or follow)\n"
+        ),
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
     parser.add_argument("--version", action="version", version=KINNOO_VERSION)
     subparsers = parser.add_subparsers(
         dest="command",
@@ -78,9 +88,17 @@ def main():
         "--framework",
         choices=["gemini", "chatgpt", "claude-chat", "pydantic-ai", "langgraph", "openai-agents", "mcp-client", "mcp-server", "openclaw"],
         help=(
-            "(Optional) Pre-populate agent with LLM framework template "
-            "(gemini, chatgpt, claude-chat, pydantic-ai, langgraph, openai-agents, mcp-client, mcp-server, openclaw)"
-        )
+            "(Optional) Pre-populate agent with LLM framework template:\n"
+            "  gemini         - Google Gemini API agent\n"
+            "  chatgpt        - OpenAI ChatGPT API agent\n"
+            "  claude-chat    - Anthropic Claude API agent\n"
+            "  pydantic-ai    - PydanticAI structured agent with tools\n"
+            "  langgraph      - LangGraph state machine agent\n"
+            "  openai-agents  - OpenAI Agents SDK with handoffs\n"
+            "  mcp-client     - Model Context Protocol client\n"
+            "  mcp-server     - Model Context Protocol server\n"
+            "  openclaw       - OpenClaw Node.js daemon agent"
+        ),
     )
 
     # Add 'run' subcommand
