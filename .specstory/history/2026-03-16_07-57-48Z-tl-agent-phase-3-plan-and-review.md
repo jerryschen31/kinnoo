@@ -19178,3 +19178,347 @@ _**User (2026-03-20 08:43:26Z)**_
 _**Agent (copilot/gpt-5.3-codex)**_
 
 I’ll apply the release update now by checking the current version/changelog headers, then bumping one minor version and adding a new changelog section for the feature30 approval and MCP regression remediation.
+
+---
+
+_**User (2026-03-22 02:34:22Z)**_
+
+1. Question on ```kinnoo init``` - if kinnoo init --framework mcp-client creates a template for an mcl-server, why is the framework called “map-client”? Just explain - don't do anything yet for this.
+
+2. Question on ```kinnoo attach``` - is this command specific for daemon-based agents like openclaw? I’m not too familiar with how openclaw agents are run yet - what would be the typical workflow for starting an openclaw agent using kinnoo? And what would be the typical workflow for starting an mcp-server using kinnoo? Explain what each step does, in each case. Just respond - don't do anything for this yet.
+
+3. In the help usage for different CLI commands, need a few edits (go ahead and make these edits):
+```kinnoo init```
+- Add an Claude-chat example command
+- Add an Openclaw example command
+
+```kinnoo run```
+- --max-seconds options description. Add a sentence explaining what happens if this option is not included (no timeout?)
+- max-cpu-seconds options description. Add a sentence explaining what happens if this option is not included (no max CPU time budget?)
+- Max-memory-mb. Add a sentence explaining what happens if this option is not included (no max memory budget?)
+- input positional argument : I’m assuming this is optional in cases where (1) agent does not expect an input string or (2) json-input argument is used, in which case the json input is the argument? If so, this needs to be clear from the description on the input positional argument (even though I do see it’s clear from the examples).
+
+```kinnoo install```
+- For options that are specific to openclaw agents, specify as such - and perhaps even separate these from the other universal options
+- Need a few basic examples for kinnoo install, for a one-shot, and for an openclaw agent
+
+```kinnoo pack```
+- Need a few examples, using the various options
+
+```kinnoo publish```
+- Need a few examples, using the various options
+
+```kinnoo search```
+- Need 2-3 examples
+
+```kinnoo import```
+- Need 1-2 examples
+
+4. For all of the CLI commands, need the one-line description shown in the ```kinnoo -h``` help menu, as the first line of the specific command help menu. Go ahead and make these edits. For example
+```
+$ kinnoo init -h
+Scaffold a new kinnoo agent
+usage: …
+``` 
+
+
+---
+
+_**Agent (copilot/gpt-5.3-codex)**_
+
+I’ll handle this in two parts: first I’ll answer your two conceptual questions directly, then I’ll inspect and edit the CLI help text to add the examples/clarifications you requested across the 
+
+---
+
+_**User (2026-03-22 02:46:47Z)**_
+
+Put the description for each CLI command BEFORE the usage, exactly like so:
+```
+% kinnoo install -h
+Scaffold a new kinnoo agent
+usage: kinnoo init [-h] [--framework {gemini,chatgpt,claude-chat,pydantic-ai,langgraph,openai-agents,mcp-client,openclaw}] [agent_name]
+
+positional arguments:
+...
+```
+
+Do this for all CLI commands
+
+_**User (2026-03-22 02:54:07Z)**_
+
+It seems there is no scaffolding yet for an mcp-server. Add a task and associated test(s) for adding mcp-server as a framework option for kinnoo init. Make sure there is an example of an mcp-server initialization in the help usage when running ```kinnoo init -h```. Make sure the task and test are in the correct YAML
+
+_**User (2026-03-22 02:57:33Z)**_
+
+Yes, as SWE agent,  implement task253 itself (CLI/framework/template/test code changes) and associated test(s). Run tests with ```python3 -m pytest``` and make sure they pass.
+
+---
+
+_**Agent (copilot/gpt-5.3-codex)**_
+
+You asked me to implement `task253` end-to-end, so I’ll inspect the current init CLI/template/test code paths first, then apply the `mcp-server` framework changes and run `python3 -m pytest` for the new and related tests.
+
+---
+
+_**User (2026-03-22 03:09:13Z)**_
+
+Stop. No need to run full pytest again.
+
+---
+
+_**Agent (copilot/gpt-5.3-codex)**_
+
+Understood. I stopped there and did not rerun full `python3 -m pytest`.
+
+Current state:
+1. Task253 implementation is complete in code and tests.
+2. Focused task253-related tests passed.
+3. The two failures found during the earlier full-suite run were fixed and verified with targeted tests:
+   - [tests/test_cli.py](tests/test_cli.py#L75) (`test_backend_selection`)
+   - [tests/test_regression_v1.py](tests/test_regression_v1.py#L28) (`test_v1_suite_passes_after_feature7`)
+4. The later full-suite rerun was canceled and not executed to completion.
+
+If you want, I can now just write the implementation/test summary into [notes/scratch.md](notes/scratch.md) and stop.
+
+---
+
+_**User (2026-03-22 03:09:45Z)**_
+
+Yes, just write the implementation/test summary to notes/tasks/task253-notes.md
+
+_**User (2026-03-22 03:20:16Z)**_
+
+I want to test importing, running, and packing real-world agents that currently exist in the open-source developer community. Create a task in TASKS.txt for finding at least 6 examples - 2 simple, 2 medium complexity, and 2 high complexity - of open-source agents from all of the supported frameworks - PydanticAI, LangChain, LangGraph, OpenAI Agents SDK, MCP client, MCP server, and OpenClaw. Search Github, Gitlab, Hugging Face, and other common agent code repositories etc... 
+
+Then go ahead and find at least 6 examples - 2 simple, 2 medium complexity, and 2 high complexity - of open-source agents from all of the supported frameworks - PydanticAI, LangChain, LangGraph, OpenAI Agents SDK, MCP client, MCP server, and OpenClaw. Search Github, Gitlab, Hugging Face, and other common agent code repositories etc... List the agents found and the URL links to each of these agents in a file example-scratch/agents-list.md. Then go ahead and download the code for each of these agents and place in a subfolder (one agent per subfolder) in example-scratch/.
+
+---
+
+_**Agent (copilot/gpt-5.3-codex)**_
+
+You want two deliverables in one pass: add a new sourcing task in the manifest, then actually curate and download real agent repos into `example-scratch/`; I’ll first verify the current tail of 
+
+---
+
+_**User (2026-03-22 03:24:28Z)**_
+
+No, I would like 6 examples of each of the 7 frameworks (so 42 agents total). The preference is for each framework, to find 2 simple agents, 2 medium complexity agents, and 2 high complexity agents. You can probably define complexity by the complexity of the code and the function calls,etc.
+There is 1 agent already that you've downloaded for each framework. So find 5 more for each framework (so 35 more total).
+
+---
+
+_**Agent (copilot/gpt-5.3-codex)**_
+
+You’re right, I only staged 1 per framework before. I’ll now expand to full coverage: 6 per framework (42 total), with 2 simple, 2 medium, and 2 high for each framework, then update 
+
+---
+
+_**User (2026-03-22 03:32:49Z)**_
+
+Write a summary of your download results and file paths etc to notes/tasks/task254-notes.md
+
+_**User (2026-03-22 04:54:28Z)**_
+
+We have downloaded 42 agent examples from the internet - see notes/tasks/task254-notes.md as well as example-scratch/agents-list.md and example-scratch/agents-map.txt. Create a new task255 in TASKS.txt with associated tests for importing, inspecting, running and packing each of these agents.
+
+_**User (2026-03-22 04:56:45Z)**_
+
+Yes apply edits then validate manifests
+
+---
+
+_**Agent (copilot/gpt-5.3-codex)**_
+
+I’m proceeding with the edits now: I’ll append four new test entries at the end of the tests manifest and then add `task255` at the end of the tasks manifest, followed immediately by manifest validation.
+
+---
+
+_**User (2026-03-22 05:00:42Z)**_
+
+Yes, write an SWE handoff for task255 into notes/tasks/task255-swe-handoff-notes.md
+
+---
+
+_**Agent (copilot/gpt-5.3-codex)**_
+
+<think><details><summary>Thought Process</summary>
+I’ll draft the SWE handoff in the project’s existing style, so I’m first reading a couple of recent task notes to match structure and level of detail before creating the new file.
+
+I’ve matched the established handoff format and will now create a focused SWE execution brief for task255 with implementation order, constraints, file touchpoints, and verification gates.
+</details></think>
+
+_**Agent (copilot/gpt-5.3-codex)**_
+
+<tool-use data-tool-type="generic" data-tool-name="list_dir"><details>
+<summary>Tool use: **list_dir**</summary>
+
+**Input:**
+
+- path: `/Users/jerry/gh/kinnoo/notes/tasks`
+
+</details></tool-use>
+
+_**Agent (copilot/gpt-5.3-codex)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file"><details>
+<summary>Tool use: **read_file**</summary>
+
+**Input:**
+
+- endLine: `260`
+- filePath: `/Users/jerry/gh/kinnoo/notes/tasks/task254-notes.md`
+- startLine: `1`
+
+</details></tool-use>
+
+_**Agent (copilot/gpt-5.3-codex)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file"><details>
+<summary>Tool use: **read_file**</summary>
+
+**Input:**
+
+- endLine: `260`
+- filePath: `/Users/jerry/gh/kinnoo/notes/swe-handoff.md`
+- startLine: `1`
+
+</details></tool-use>
+
+_**Agent (copilot/gpt-5.3-codex)**_
+
+<tool-use data-tool-type="write" data-tool-name="create_file"><details>
+<summary>Tool use: **create_file**</summary>
+
+**Input:**
+
+- content:
+
+```
+## SWE Handoff: task255 - 42-Agent Corpus Validation Matrix (Import/Inspect/Run/Pack)
+
+### Scope
+Implement task255 from [TASKS.txt](TASKS.txt), using the corpus curated in task254 and test coverage defined by test356-test359 in [TESTS.txt](TESTS.txt).
+
+This task adds a deterministic validation matrix that exercises all 42 staged agents across four workflows:
+- import
+- inspect
+- run
+- pack
+
+### Intent
+Create a resilient, CI-friendly matrix harness that:
+- Enumerates the full corpus from [example-scratch/agents-map.txt](example-scratch/agents-map.txt)
+- Executes all four workflows for each mapped agent
+- Produces stable per-agent diagnostics and aggregate summaries by framework and complexity
+- Continues execution even when individual agents fail, so one bad sample does not hide the rest of the matrix
+
+### Canonical Inputs
+- Corpus mapping: [example-scratch/agents-map.txt](example-scratch/agents-map.txt)
+- Human-readable inventory: [example-scratch/agents-list.md](example-scratch/agents-list.md)
+- Corpus summary and provenance notes: [notes/tasks/task254-notes.md](notes/tasks/task254-notes.md)
+- Staged local agents root: [example-scratch/agents](example-scratch/agents)
+
+### Task Execution Plan (Ordered)
+1. Build matrix loader utilities
+- Add parsing/validation helpers to read [example-scratch/agents-map.txt](example-scratch/agents-map.txt).
+- Enforce deterministic ordering (for example, source order from map file).
+- Validate expected corpus size (42) and detect malformed map rows early.
+
+2. Add shared matrix execution primitives
+- Implement shared helpers for command invocation, timeout handling, and normalized result objects.
+- Include per-agent context in every result: framework, complexity, name, local folder.
+- Make failures non-fatal to the global matrix run.
+
+3. Implement import matrix (test356)
+- Execute import-validation flow for each agent entry.
+- Capture per-agent status and actionable error snippets.
+- Emit aggregate summary grouped by framework and complexity.
+
+4. Implement inspect matrix (test357)
+- Run inspect flow per agent.
+- Assert stable output shape/required manifest identity fields.
+- Record per-agent failures without aborting the full matrix.
+
+5. Implement run matrix (test358)
+- Run each agent via CLI script-path convention:
+  - python src/kinnoo/cli.py run <agent-path> "<sample-input>"
+- Use deterministic sample input and bounded timeout.
+- Capture exit code + concise stdout/stderr diagnostics.
+
+6. Implement pack matrix (test359)
+- Run pack for each agent via CLI script path:
+  - python src/kinnoo/cli.py pack <agent-path>
+- Verify artifact-status outcome (`.kno` produced vs failed) per row.
+- Summarize outcomes by framework/complexity and globally.
+
+7. Finalize regression and reporting quality
+- Ensure matrix output is stable enough for test assertions.
+- Ensure no secret values are logged; diagnostics should be path-safe and concise.
+- Keep implementation modular to support future expansion (e.g., install matrix).
+
+### AC/Test Mapping
+- task255 step2/step6 -> test356 (import matrix)
+- task255 step3 -> test357 (inspect matrix)
+- task255 step4 -> test358 (run matrix)
+- task255 step5 -> test359 (pack matrix)
+
+### Suggested Files to Modify
+Primary:
+- tests/test_corpus_matrix.py (new)
+
+Likely support changes (only if needed):
+- tests/helpers/* (shared matrix helpers, if repository already uses helper modules)
+- src/kinnoo/cli.py (only if a missing deterministic behavior blocks matrix assertions)
+- src/kinnoo/import_command.py (only if required for stable import reporting)
+- src/kinnoo/inspect_command.py (only if required for stable inspect reporting)
+- src/kinnoo/run_command.py (only if required for stable run diagnostics)
+- src/kinnoo/pack_command.py (only if required for stable pack diagnostics)
+
+### Non-Negotiable Constraints
+- Use [example-scratch/agents-map.txt](example-scratch/agents-map.txt) as the single source of truth for enumeration.
+- Do not hand-curate ad hoc subsets in tests.
+- Preserve matrix continuation on per-agent failure.
+- Keep output deterministic and assertion-friendly.
+- Use Python CLI script path in tests (python src/kinnoo/cli.py ...), not python -m kinnoo.
+- Do not expose secrets in logs, stdout, stderr, or persisted artifacts.
+
+### Verification Gate
+Run targeted tests:
+- python3 -m pytest tests/test_corpus_matrix.py -k task255
+
+Run full suite before final handoff:
+- python3 -m pytest
+
+Validate manifests after any task/test manifest updates:
+- python3 src/validate_project_manifests.py
+
+### Status Workflow
+- Move task255: not-started -> in-progress at implementation start.
+- Move task255: in-progress -> needs-review after code + tests pass.
+- Do not move to completed until Tech Lead review + human approval.
+
+### Risks and Pitfalls to Watch
+- Some curated agents may depend on external APIs/services and fail at runtime without credentials.
+- Packaging may fail for agents lacking strict pack prerequisites.
+- Long-running or hanging agents can destabilize CI if per-agent timeouts are not enforced.
+
+Mitigation strategy:
+- Treat matrix as execution-and-reporting validation, not universal success guarantee.
+- Enforce per-agent timeouts and continue-on-failure behavior.
+- Produce explicit categorized outcomes (pass/fail/timeout/skipped) for downstream triage.
+
+```
+
+- filePath: `/Users/jerry/gh/kinnoo/notes/tasks/task255-swe-handoff-notes.md`
+
+</details></tool-use>
+
+_**Agent (copilot/gpt-5.3-codex)**_
+
+I’ll draft the SWE handoff in the project’s existing style, so I’m first reading a couple of recent task notes to match structure and level of detail before creating the new file.
+
+---
+
+_**User (2026-03-22 05:21:53Z)**_
+
+The 6 LangChain agents in example-scratch/agents/ already have kinnoo code in them. I want to restore these LangChain agents to their original state - download these LangChain agents again so as to restore them to their original state - download them to example-scratch/agents-copy/ instead.

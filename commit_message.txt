@@ -1,20 +1,12 @@
-Fix: Pass --framework argument from CLI to init_agent
+Fix: Install requirements when runtime.path overrides Python interpreter
 
-- Update src/kinnoo/cli.py to pass the parsed --framework argument to init_agent.
-- Ensures that kinnoo init --framework <framework> generates the correct framework-specific templates (run.py, requirements.txt, README.md) for Gemini, ChatGPT, and Claude-Chat agents.
-- Addresses issue where framework-specific files were not being created despite the flag being parsed.
-
-Fix: runtime.path executable resolution and preflight diagnostics
-
-- Update src/kinnoo/run_command.py to resolve runtime.path as either:
-	- a direct executable file path, or
-	- a command name discoverable on PATH (via shutil.which).
-- Fixes behavior where runtime.path values like "python3.12" were incorrectly treated as missing files and fell back to default runtime.
-- Preserve fallback behavior with clearer warning when runtime.path is neither an executable file nor resolvable on PATH.
-- Add a preflight diagnostic line in kinnoo run --preflight when runtime.path is set:
-	- shows resolved executable path when resolution succeeds,
-	- shows explicit unresolved/empty diagnostic when resolution fails.
-- Refactor resolution into shared helper so run-time execution and preflight checks stay consistent.
-- Add targeted regression coverage:
-	- tests/test_cli.py for command-name runtime.path lookup and fallback warning expectations,
-	- tests/test_run_preflight.py for resolved and unresolved runtime.path preflight diagnostics.
+- Update src/kinnoo/run_command.py so Python runtime.path override still honors dependency setup.
+- When runtime.path is set and requirements.txt is non-empty:
+  - create/use .venv with the overridden interpreter (runtime.path -m venv .venv),
+  - install dependencies into that .venv,
+  - execute entrypoint with .venv Python.
+- Keep direct execution with runtime.path when requirements.txt is empty (no unnecessary .venv creation).
+- Preserve existing fallback behavior when runtime.path is unresolved.
+- Add regression coverage in tests/test_cli.py:
+  - test_run_runtime_path_python_installs_requirements validates venv creation + pip install under runtime.path,
+  - existing runtime.path tests continue to pass for command lookup, direct override, and node fallback behavior.
