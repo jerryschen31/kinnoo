@@ -5108,3 +5108,25 @@ tasks:
     dependencies: [task157]
     tests: [test354, test355]
     status: needs-review
+
+  - id: task254
+    title: Curate and stage real-world open-source agent examples for import/run/pack trials
+    type: task
+    description: |
+      Find at least 6 real-world open-source agent examples spanning supported
+      frameworks (PydanticAI, LangChain, LangGraph, OpenAI Agents SDK, MCP client,
+      MCP server, OpenClaw), with at least 2 simple, 2 medium, and 2 high-complexity
+      examples. Record source links and framework mapping in a markdown inventory,
+      and download each example into its own subfolder under example-scratch/.
+    files:
+      - TASKS.txt
+      - example-scratch/agents-list.md
+      - example-scratch/
+    steps:
+      - 'step1: Source public agent repos from common open-source registries (GitHub/GitLab/Hugging Face or equivalent) and verify cloneability'
+      - 'step2: Classify examples by complexity (simple/medium/high) with at least two per bucket'
+      - 'step3: Ensure coverage across all supported frameworks using at least one example per framework where possible'
+      - 'step4: Write curated list with links to example-scratch/agents-list.md and clone each selected example into a dedicated subfolder under example-scratch/'
+    dependencies: [task253]
+    tests: []
+    status: needs-review
