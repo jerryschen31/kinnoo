@@ -85,7 +85,7 @@ def init_agent(name: str, target_dir: Path, framework: Optional[str] = None):
         (agent_dir / "run.py").write_text(run_template)
         (agent_dir / "requirements.txt").write_text(requirements_template)
         (agent_dir / "README.md").write_text(readme_template.format(name=name))
-    else:
+    elif framework != "openclaw":
         (agent_dir / "run.py").write_text(RUN_PY_TEMPLATE)
         (agent_dir / "requirements.txt").write_text(REQUIREMENTS_TXT_TEMPLATE)
         (agent_dir / "README.md").write_text(README_MD_TEMPLATE.format(name=name))
