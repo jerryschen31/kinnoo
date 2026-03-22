@@ -14,3 +14,4 @@ build/
 .vscode/
 .specstory/cli/
 *.DS_Store*
+*env/
