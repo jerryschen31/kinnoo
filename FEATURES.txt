@@ -145,7 +145,7 @@ features:
 
       Usage: `kinnoo run <path> "<input>"`
       Example: `kinnoo run ./my-agent "Hello, agent!"`
-    tasks: [task7, task8, task9, task10, task11, task12, task13, task14]
+    tasks: [task7, task8, task9, task10, task11, task12, task13, task14, task257]
     acceptance_criteria:
       - id: AC1
         description: "Running `kinnoo run ./my-agent \"test\"` on a valid agent directory executes the entrypoint and prints output."
@@ -165,6 +165,8 @@ features:
         description: "Running `kinnoo run` without arguments prints usage: `Usage: kinnoo run <path> \"<input>\"`."
       - id: AC9
         description: "Missing entrypoint file (as declared in manifest) produces a clear error before execution."
+      - id: AC10
+        description: "If optional `runtime.path` is declared and points to an existing runtime executable, `kinnoo run` uses it as the runtime executable override for the declared runtime.language; otherwise run preserves default runtime executable behavior."
     notes:
       - "Uses feature1 validator — reuse existing validation, single source of truth"
       - "Venv created inside agent directory (.venv/) for isolation without Docker overhead"

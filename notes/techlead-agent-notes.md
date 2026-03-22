@@ -1497,3 +1497,170 @@ After all 41 features, kinnoo is a multi-runtime, security-conscious CLI tool fo
 - Versioning/upgrade story — side-by-side installs, schema forward-compatibility
 - CI/CD integration examples — documented GitHub Actions pipeline
 - The takeaway: the gap from feature-complete to 1.0 is distribution, docs, and validation — not more features. You already have a genuinely differentiated tool.
+
+## AI Workflow Strategy Guidance (2026-03-22)
+
+This is a great question and worth thinking through carefully. I'll give you a direct assessment based on what I've observed in the kinnoo codebase.
+
+## Your Current Approach
+
+You're running a **task-serial pipeline**: Tech Lead defines feature -> breaks into tasks -> SWE agent does one task -> review -> next task. Looking at your manifest files, feature3 (`kinnoo run`) was 8 tasks (task7-task14), each individually implemented and reviewed. Feature10 (`env_vars`) was 6 tasks (task53-task58). That's 6-8 round trips per feature, each with a handoff brief, implementation, review, status updates, and manifest bookkeeping.
+
+## The Spec-Driven One-Shot Alternative
+
+The idea: instead of 8 serial agent sessions for feature3, you write one comprehensive spec document that includes:
+- Full feature description with all edge cases
+- All acceptance criteria
+- All test specifications (inputs, expected outputs, pass criteria)
+- Architectural constraints and file-change scope
+
+Then hand the entire bundle to an SWE agent and say: "Implement until all tests pass."
+
+## Concrete Kinnoo Example: How You'd Do It
+
+Take **feature3 (kinnoo run)** as a retrospective example. Instead of 8 separate tasks, you'd produce one spec file like this:
+
+```markdown
+# Feature Spec: kinnoo run — Agent Execution from Source
+
+## Scope
+Implement `kinnoo run <path> "<input>"` end-to-end in a single pass.
+
+## Files to Create/Modify
+- src/kinnoo/cli.py (add run subcommand)
+- src/kinnoo/run_command.py (new module)
+- tests/test_cli.py (add run tests)
+
+## Behavioral Contract
+1. Validate kinnoo.yaml via existing validator; abort with errors if invalid/missing
+2. Create .venv/ in agent dir if absent; skip if present
+3. Install requirements.txt into .venv/ via pip
+4. Execute entrypoint with input as sys.argv[1]
+5. Stream stdout+stderr in real-time
+6. Propagate exit code
+7. Print usage error if args missing
+8. Print error if entrypoint file missing
+
+## Test Specifications
+
+### test_run_invalid_manifest
+- Setup: agent dir with invalid kinnoo.yaml
+- Run: python src/kinnoo/cli.py run <dir> "input"
+- Assert: exit != 0, stderr contains "Error"
+
+### test_run_creates_venv
+- Setup: valid agent dir, no .venv/
+- Run: python src/kinnoo/cli.py run <dir> "input"
+- Assert: .venv/ exists after run
+
+### test_run_installs_requirements
+- Setup: agent dir with requirements.txt containing `requests`
+- Run: python src/kinnoo/cli.py run <dir> "input"
+- Assert: requests importable from .venv/
+
+### test_run_entrypoint_input
+- Setup: entrypoint that prints sys.argv[1]
+- Run: python src/kinnoo/cli.py run <dir> "hello world"
+- Assert: stdout contains "hello world"
+
+### test_run_streams_output
+- Setup: entrypoint that writes to stdout and stderr
+- Assert: both captured in output
+
+### test_run_exit_code
+- Setup: entrypoint that exits with code 42
+- Assert: CLI exits with 42
+
+### test_run_missing_args
+- Run: python src/kinnoo/cli.py run (no args)
+- Assert: exit != 0, output contains "Usage"
+
+### test_run_missing_entrypoint
+- Setup: manifest declares run.py but file doesn't exist
+- Assert: exit != 0, output contains error about missing entrypoint
+
+## Constraints
+- Use validator from src/kinnoo/validator.py (no duplicate validation)
+- CLI invocation in tests: python src/kinnoo/cli.py, not python -m kinnoo
+- No file modifications outside agent directory
+- No secret values in output
+```
+
+Then you'd give the SWE agent one instruction: **"Implement this spec. Iterate until all 8 tests pass. Run `python3 -m pytest tests/test_cli.py -k test_run` after each change."**
+
+## Pros and Cons
+
+### Your Current Approach (Task-Serial)
+
+**Pros:**
+- Maximum control and visibility at every step
+- Easy to catch architectural drift early - you review after each small unit
+- Natural learning cadence - you see each piece land and understand it
+- Low blast radius when an agent goes sideways (one task, not an entire feature)
+- Manifest/status tracking gives you a paper trail of exactly what happened when
+
+**Cons:**
+- Slow: 8 round trips for feature3, each with handoff overhead, context reload, manifest bookkeeping
+- Context fragmentation: agent loses state between sessions; you compensate with handoff briefs
+- Manifest management tax: updating TASKS.txt, TESTS.txt, FEATURES.txt, running validator, writing task-notes.md files for every atomic unit is real overhead
+- Over-decomposition risk: some tasks (like task11 "stream stdout" and task12 "propagate exit code") are 5-line changes that don't need their own task lifecycle
+
+### Spec-Driven One-Shot
+
+**Pros:**
+- Dramatically faster for well-scoped features - one session instead of 8
+- Agent has full context in one pass, so implementation decisions are globally coherent
+- Test-driven: agent has concrete pass/fail signals and can self-correct
+- Less manifest/bookkeeping overhead per feature
+- Better utilization of agent capability - LLMs are good at implementing against a complete spec
+
+**Cons:**
+- Requires higher up-front investment in spec quality - vague specs produce vague code
+- Larger blast radius: if the agent goes down a wrong architectural path, it taints the whole feature
+- Harder to review: a 400-line PR is harder to evaluate than six 50-line PRs
+- Debugging failures takes longer - "test 6 of 8 fails" could be a deep structural issue
+- Less learning opportunity for you per unit of output - you see the finished product, not the construction process
+
+## My Assessment
+
+**You should use both approaches, depending on the work.**
+
+Here's the heuristic:
+
+| Characteristic | One-Shot Friendly | Task-Serial Friendly |
+|---|---|---|
+| Well-understood domain | Yes | — |
+| Clear input/output contract | Yes | — |
+| Isolated module (few cross-cutting deps) | Yes | — |
+| Novel architecture or design decisions | — | Yes |
+| Security-sensitive (secrets, auth, permissions) | — | Yes |
+| Multi-system integration (server + client + UI) | — | Yes |
+| You want to learn the internals | — | Yes |
+
+**Concrete kinnoo examples:**
+
+**One-shot candidates** (you already know the shape; it's execution, not design):
+- feature3 (`kinnoo run`) - 8 tasks that are really one coherent module
+- feature5 (`kinnoo pack`) - 6 tasks, well-defined archive contract
+- feature6 (`kinnoo install`) - extraction/venv/deps, clear input->output
+- feature9 (optional V2 manifest fields) - schema extension, straightforward
+- feature11 (inspect command) - read-only query command, simple contract
+- **task255** (the corpus matrix you just defined) - perfect one-shot candidate: clear inputs (agents-map.txt), clear outputs (test pass/fail), isolated test file
+
+**Task-serial candidates** (design decisions, security boundaries, multi-system):
+- feature43 (auth/user/tenant management) - security-critical, needs review at each boundary
+- features 28-30 (registry backend/server/web UI) - cross-system integration, architectural choices
+- feature39 (permission declarations) - security policy design requires iterative review
+- feature10 (env_vars resolution chain) - secret-handling code where you explicitly want to review each resolution layer
+
+**Hybrid approach for maximum leverage:**
+
+For your next feature, try this workflow:
+1. **You** (or Tech Lead agent) write the spec + test specifications up front - invest the time here
+2. **One SWE agent session** implements the full spec and iterates until tests pass
+3. **You review the PR as a whole** - one review instead of 8
+4. Reserve task-serial for security-sensitive or architecturally novel work where you need per-step oversight
+
+The key insight: **the bottleneck in your current workflow isn't the AI agent's capability - it's the context-reload and handoff overhead between sessions.** A well-written spec eliminates that overhead by giving the agent everything it needs in one shot.
+
+Your manifest system (FEATURES.txt / TASKS.txt / TESTS.txt) is still valuable as a planning and tracking tool. You'd still define the feature and tests up front. You'd just collapse the execution from N serial sessions into 1 session with a comprehensive spec.

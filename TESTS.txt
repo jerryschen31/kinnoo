@@ -6013,3 +6013,41 @@ tests:
     covers:
       - feature: feature19
         ac: AC11
+
+  - id: test362
+    title: Python runtime.path override uses alternate interpreter during run
+    type: integration
+    preconditions: |
+      kinnoo CLI is launched with Python interpreter A; test host also has a
+      different Python interpreter B available at an absolute path.
+      Agent manifest declares `runtime.language: python` and
+      `runtime.path: <interpreter-B-path>`.
+    steps:
+      - step1: Launch `kinnoo run <agent-dir> <input>` using interpreter A
+      - step2: Execute an entrypoint fixture that prints `sys.executable` and Python version
+      - step3: Compare reported interpreter path/version against interpreter B
+    expected: Run executes with runtime.path interpreter B instead of the interpreter that launched kinnoo
+    pass_criteria: Output-reported executable/version matches interpreter B and differs from interpreter A
+    automated: true
+    automation_path: tests/test_cli.py::test_run_uses_runtime_path_python_override
+    covers:
+      - feature: feature3
+        ac: AC10
+
+  - id: test363
+    title: Node runtime.path override is honored when runtime.language is nodejs
+    type: integration
+    preconditions: |
+      Agent manifest declares `runtime.language: nodejs` and
+      `runtime.path` points to a valid Node executable path on the host.
+    steps:
+      - step1: Run `kinnoo run <agent-dir>` for a nodejs fixture entrypoint
+      - step2: Verify execution succeeds and runtime executable resolves to runtime.path
+      - step3: Run a companion case with missing/invalid runtime.path to verify fallback/error semantics
+    expected: nodejs run uses runtime.path when valid and preserves documented fallback/error behavior when invalid
+    pass_criteria: Valid runtime.path case executes with expected output; invalid/missing path path follows deterministic fallback/error behavior
+    automated: true
+    automation_path: tests/test_cli.py::test_run_uses_runtime_path_node_override
+    covers:
+      - feature: feature3
+        ac: AC10

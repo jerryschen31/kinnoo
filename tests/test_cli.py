@@ -7,6 +7,7 @@ import time
 import signal
 import json
 import zipfile
+import shutil
 
 def test_cli_installable_and_runnable():
     # This test checks that the CLI is installable and runnable via pyproject.toml
@@ -691,6 +692,203 @@ def test_run_help_includes_pass_through_separator_usage():
 
     assert result.returncode == 0
     assert "kinnoo run <agent-dir> -- -e <some-string> -p <some-file-path> -u <some-url>" in result.stdout
+
+
+def _discover_alternate_python_interpreter() -> tuple[str, tuple[int, int]] | None:
+    """Find a python executable with a different major.minor than the current runtime."""
+    current_version = (sys.version_info.major, sys.version_info.minor)
+    candidate_commands = [
+        "python3.14",
+        "python3.13",
+        "python3.12",
+        "python3.11",
+        "python3.10",
+        "python3.9",
+        "python3.8",
+        "python3",
+    ]
+    seen: set[str] = set()
+    for command in candidate_commands:
+        interpreter_path = shutil.which(command)
+        if not interpreter_path or interpreter_path in seen:
+            continue
+        seen.add(interpreter_path)
+        probe = subprocess.run(
+            [
+                interpreter_path,
+                "-c",
+                "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        if probe.returncode != 0:
+            continue
+        version_label = probe.stdout.strip()
+        version_parts = version_label.split(".", 1)
+        if len(version_parts) != 2:
+            continue
+        try:
+            discovered_version = (int(version_parts[0]), int(version_parts[1]))
+        except ValueError:
+            continue
+        if discovered_version < (3, 8):
+            continue
+        if discovered_version != current_version:
+            return interpreter_path, discovered_version
+    return None
+
+
+def test_run_uses_runtime_path_python_override(tmp_path, capfd):
+    alternate = _discover_alternate_python_interpreter()
+    if alternate is None:
+        pytest.skip("No alternate Python interpreter available for runtime.path override test")
+
+    runtime_python, runtime_version = alternate
+    agent_dir = tmp_path / "runtime-path-python-agent"
+    agent_dir.mkdir()
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    (agent_dir / "run.py").write_text(
+        "import sys\n"
+        "print(f'RUNTIME_EXEC={sys.executable}')\n"
+        "print(f'RUNTIME_VERSION={sys.version_info.major}.{sys.version_info.minor}')\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "kinnoo.yaml").write_text(
+        f"""
+name: runtime-path-python-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.8"
+    type: one-shot
+    path: "{runtime_python}"
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+""",
+        encoding="utf-8",
+    )
+
+    import kinnoo.run_command as run_command
+
+    exit_code = run_command.run_agent(
+        agent_dir_arg=str(agent_dir),
+        input_arg="hello-runtime-path",
+        no_guard=True,
+    )
+
+    output = capfd.readouterr()
+    assert exit_code == 0, f"stdout={output.out!r} stderr={output.err!r}"
+
+    runtime_exec_line = next(
+        (line for line in output.out.splitlines() if line.startswith("RUNTIME_EXEC=")),
+        None,
+    )
+    runtime_version_line = next(
+        (line for line in output.out.splitlines() if line.startswith("RUNTIME_VERSION=")),
+        None,
+    )
+
+    assert runtime_exec_line is not None
+    assert runtime_version_line is not None
+
+    runtime_exec = runtime_exec_line.split("=", 1)[1].strip()
+    reported_version_label = runtime_version_line.split("=", 1)[1].strip()
+    reported_version = tuple(int(part) for part in reported_version_label.split(".", 1))
+
+    assert reported_version == runtime_version
+    assert reported_version != (sys.version_info.major, sys.version_info.minor)
+    assert runtime_exec == runtime_python
+    assert not (agent_dir / ".venv").exists()
+
+
+def test_run_uses_runtime_path_node_override(monkeypatch, tmp_path, capsys):
+    agent_dir = tmp_path / "runtime-path-node-agent"
+    agent_dir.mkdir()
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    (agent_dir / "run.js").write_text("console.log('runtime-path-node-test');\n", encoding="utf-8")
+
+    fake_node = agent_dir / "fake-node"
+    fake_node.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    fake_node.chmod(0o755)
+
+    captured_calls: list[list[str]] = []
+
+    class _FakePopen:
+        def __init__(self, args, cwd=None, stdout=None, stderr=None, env=None):
+            del cwd, stdout, stderr, env
+            captured_calls.append(args)
+            self.returncode = 0
+
+        def communicate(self, timeout=None):
+            del timeout
+            return ("", "")
+
+    import kinnoo.run_command as run_command
+
+    monkeypatch.setattr(run_command.subprocess, "Popen", _FakePopen)
+
+    (agent_dir / "kinnoo.yaml").write_text(
+        f"""
+name: runtime-path-node-agent
+version: 0.1.0
+entrypoint: run.js
+runtime:
+    language: nodejs
+    version: ">=18"
+    type: one-shot
+    path: "{fake_node}"
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+""",
+        encoding="utf-8",
+    )
+
+    valid_exit = run_command.run_agent(
+        agent_dir_arg=str(agent_dir),
+        input_arg="hello-node-runtime-path",
+        no_guard=True,
+    )
+
+    (agent_dir / "kinnoo.yaml").write_text(
+        """
+name: runtime-path-node-agent
+version: 0.1.0
+entrypoint: run.js
+runtime:
+    language: nodejs
+    version: ">=18"
+    type: one-shot
+    path: "/definitely/missing/node"
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+""",
+        encoding="utf-8",
+    )
+
+    fallback_exit = run_command.run_agent(
+        agent_dir_arg=str(agent_dir),
+        input_arg="hello-node-runtime-path",
+        no_guard=True,
+    )
+
+    output = capsys.readouterr()
+
+    assert valid_exit == 0
+    assert fallback_exit == 0
+    assert captured_calls[0][0] == str(fake_node)
+    assert captured_calls[1][0] == "node"
+    assert "runtime.path is set but not an executable file" in output.err
 
 
 def test_feature31_run_nodejs_entrypoint_streams_and_propagates_exit(monkeypatch, tmp_path, capsys):
