@@ -517,3 +517,87 @@ def test_feature36_manifest_valid_or_todo_guidance(tmp_path):
     assert "TODO guidance:" in unresolved_output
     assert "Verify 'entrypoint' points to an existing executable script in the project root." in unresolved_output
     assert "does not exist in target project" in unresolved_output
+
+
+def test_feature19_import_generates_requirements_via_uv_export(tmp_path):
+    project_dir = tmp_path / "feature19-uv-export-requirements"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "run.py").write_text("print('hello')\n", encoding="utf-8")
+
+    fake_bin = tmp_path / "fake-bin"
+    fake_bin.mkdir(parents=True, exist_ok=True)
+    uv_path = fake_bin / "uv"
+    uv_path.write_text(
+        "#!/bin/sh\n"
+        "if [ \"$1\" = \"export\" ]; then\n"
+        "  echo 'requests==2.32.3'\n"
+        "  exit 0\n"
+        "fi\n"
+        "echo 'unexpected uv invocation' >&2\n"
+        "exit 2\n",
+        encoding="utf-8",
+    )
+    uv_path.chmod(0o755)
+
+    env = dict(os.environ)
+    env["PATH"] = f"{fake_bin}:{env.get('PATH', '')}"
+
+    result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(project_dir)],
+        input="y\n\n\n",
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert result.returncode == 0
+    output = result.stdout + result.stderr
+    assert "Generated requirements.txt via uv export." in output
+    requirements_text = (project_dir / "requirements.txt").read_text(encoding="utf-8")
+    assert requirements_text == "requests==2.32.3\n"
+
+
+def test_feature19_import_generates_empty_requirements_when_detection_unavailable(tmp_path):
+    project_dir = tmp_path / "feature19-empty-requirements-fallback"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "run.py").write_text("print('hello')\n", encoding="utf-8")
+
+    env = dict(os.environ)
+    env["PATH"] = ""
+
+    result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(project_dir)],
+        input="y\n\n\n",
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert result.returncode == 0
+    output = result.stdout + result.stderr
+    assert "Generated empty requirements.txt" in output
+    assert (project_dir / "requirements.txt").exists()
+    assert (project_dir / "requirements.txt").read_text(encoding="utf-8") == ""
+
+
+def test_feature19_import_generates_requirements_from_import_inference(tmp_path):
+    project_dir = tmp_path / "feature19-import-inferred-deps"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "base.py").write_text(
+        "from langchain_core.agents import AgentAction\n"
+        "print(AgentAction)\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(project_dir)],
+        input="y\nbase.py\nlangchain\n\n",
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    output = result.stdout + result.stderr
+    assert "Generated requirements.txt from analyzer-detected dependencies." in output
+    requirements_text = (project_dir / "requirements.txt").read_text(encoding="utf-8")
+    assert "langchain-core" in requirements_text

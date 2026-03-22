@@ -5156,4 +5156,29 @@ tasks:
       - 'step6: Add test harness utilities to keep matrix runs deterministic, resilient to per-agent failures, and actionable in CI output'
     dependencies: [task254]
     tests: [test356, test357, test358, test359]
-    status: not-started
+    status: in-progress
+
+  - id: task256
+    title: Auto-generate requirements.txt during kinnoo import
+    type: issue
+    description: |
+      Ensure `kinnoo import` creates `requirements.txt` for Python projects when
+      it is missing. Use analyzer-inferred dependencies when present, otherwise
+      attempt uv export detection, and fall back to an empty requirements file
+      with clear user guidance when inference/export cannot resolve packages.
+    files:
+      - src/kinnoo/import_command.py
+      - tests/test_cli_import.py
+      - TASKS.txt
+      - TESTS.txt
+      - FEATURES.txt
+      - notes/tasks/task256-notes.md
+    steps:
+      - 'step1: Add import post-processing that creates missing requirements.txt for Python runtime imports'
+      - 'step2: Prefer analyzer dependency inference, then uv export, then deterministic empty fallback with message'
+      - 'step3: Preserve rollback safety so failures do not leave partial import artifacts'
+      - 'step4: Add focused CLI tests for uv-export success path and empty-fallback path'
+      - 'step5: Document assessment that earlier feature19 tasks did not fully satisfy packaging-readiness expectations'
+    dependencies: [task164, task165, task167]
+    tests: [test360, test361]
+    status: needs-review

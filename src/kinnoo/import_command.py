@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import shutil
+import subprocess
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
@@ -441,6 +443,86 @@ def _write_manifest_in_place(target_path: Path, manifest_text: str, *, force: bo
         raise
 
 
+def _normalize_dependency_list(raw_dependencies: Any) -> list[str]:
+    """Normalize inferred dependency values to deterministic requirements lines."""
+    if not isinstance(raw_dependencies, list):
+        return []
+
+    normalized: list[str] = []
+    for value in raw_dependencies:
+        if not isinstance(value, str):
+            continue
+        candidate = value.strip()
+        if not candidate:
+            continue
+        normalized.append(candidate)
+
+    # Preserve order while removing duplicates.
+    return list(dict.fromkeys(normalized))
+
+
+def _attempt_uv_requirements_export(target_path: Path) -> tuple[bool, str | None]:
+    """Try generating requirements text via uv export for Python projects."""
+    if shutil.which("uv") is None:
+        return False, "uv executable not found"
+
+    command = [
+        "uv",
+        "export",
+        "--directory",
+        str(target_path),
+        "--format",
+        "requirements-txt",
+        "--no-hashes",
+    ]
+    result = subprocess.run(command, capture_output=True, text=True)
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "uv export failed").strip()
+        return False, detail
+
+    exported = result.stdout.strip()
+    if exported:
+        return True, exported + "\n"
+    return True, ""
+
+
+def _ensure_import_requirements_file(
+    target_path: Path,
+    *,
+    inferred_dependencies: Any,
+    runtime_language: str,
+) -> bool:
+    """Create requirements.txt for imported Python projects when missing.
+
+    Returns True when a new requirements.txt file is created by this function.
+    """
+    requirements_path = target_path / "requirements.txt"
+    if requirements_path.exists():
+        return False
+
+    if runtime_language.strip().lower() != "python":
+        return False
+
+    dependencies = _normalize_dependency_list(inferred_dependencies)
+    if dependencies:
+        requirements_path.write_text("\n".join(dependencies) + "\n", encoding="utf-8")
+        print("Generated requirements.txt from analyzer-detected dependencies.")
+        return True
+
+    exported_ok, exported_text_or_error = _attempt_uv_requirements_export(target_path)
+    if exported_ok:
+        requirements_path.write_text(exported_text_or_error or "", encoding="utf-8")
+        print("Generated requirements.txt via uv export.")
+        return True
+
+    requirements_path.write_text("", encoding="utf-8")
+    print(
+        "Generated empty requirements.txt (no Python dependencies detected). "
+        f"uv export was unavailable or failed: {exported_text_or_error}"
+    )
+    return True
+
+
 def _collect_unresolved_todo_guidance(
     report: dict[str, Any],
     entrypoint_warning: str | None,
@@ -497,6 +579,7 @@ def import_agent(target_path_arg: str | None, *, force: bool = False) -> int:
     target_path = _resolve_import_target(target_path_arg)
     manifest_path = target_path / "kinnoo.yaml"
     generated_wrapper_path: Path | None = None
+    created_requirements_file = False
 
     if not target_path.exists():
         print(f"Error: import target does not exist: {target_path}")
@@ -566,12 +649,27 @@ def import_agent(target_path_arg: str | None, *, force: bool = False) -> int:
 
     try:
         _write_manifest_in_place(target_path, manifest_text, force=force)
+
+        inferred = report.get("inferred", {})
+        runtime_info = inferred.get("runtime") if isinstance(inferred.get("runtime"), dict) else {}
+        runtime_language = str(runtime_info.get("language") or "python")
+        created_requirements_file = _ensure_import_requirements_file(
+            target_path,
+            inferred_dependencies=inferred.get("dependencies"),
+            runtime_language=runtime_language,
+        )
     except FileExistsError as exc:
         if generated_wrapper_path and generated_wrapper_path.exists():
             generated_wrapper_path.unlink()
         print(f"Error: {exc}")
         return 1
     except Exception as exc:
+        if created_requirements_file:
+            requirements_path = target_path / "requirements.txt"
+            if requirements_path.exists():
+                requirements_path.unlink()
+        if manifest_path.exists():
+            manifest_path.unlink()
         if generated_wrapper_path and generated_wrapper_path.exists():
             generated_wrapper_path.unlink()
         print(f"Error: import failed and rolled back partial artifacts: {exc}")

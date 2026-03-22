@@ -245,6 +245,15 @@ def _detect_framework(project_dir: Path) -> DetectorResult:
 
     framework_patterns: dict[str, tuple[str, ...]] = {
         "gemini": ("google.genai", "google.generativeai"),
+        "langchain": (
+            "langchain",
+            "langchain_core",
+            "langchain_classic",
+            "langchain_openai",
+            "langchain_community",
+            "langchain_text_splitters",
+            "langchain_experimental",
+        ),
         "chatgpt": ("openai",),
         "claude-chat": ("anthropic",),
         "pydantic-ai": ("pydantic_ai",),
@@ -260,6 +269,23 @@ def _detect_framework(project_dir: Path) -> DetectorResult:
         if hit:
             matched.append(framework)
             evidence_details.append(f"{framework}: {', '.join(sorted(hit))}")
+
+    # LangChain projects commonly import OpenAI SDK helpers directly. When
+    # LangChain signals are present, treat chatgpt signal as secondary.
+    if "langchain" in matched and "chatgpt" in matched:
+        filtered_details = [detail for detail in evidence_details if not detail.startswith("chatgpt:")]
+        openai_evidence = [detail for detail in evidence_details if detail.startswith("chatgpt:")]
+        evidence_line = (
+            f"Framework signals detected -> {'; '.join(filtered_details)}. "
+            f"Also detected OpenAI SDK imports ({'; '.join(openai_evidence)}), "
+            "which are treated as supporting evidence for LangChain workflows."
+        )
+        return DetectorResult(
+            value="langchain",
+            confidence=0.9,
+            evidence=evidence_line,
+            warning=None,
+        )
 
     if len(matched) == 1:
         return DetectorResult(
@@ -623,6 +649,47 @@ def _detect_dependencies(project_dir: Path) -> DetectorResult:
             confidence=confidence,
             evidence=f"Detected {len(dependencies)} dependencies from {source_count} source(s): {'; '.join(evidence_items)}",
             warning=None,
+        )
+
+    import_dependency_map = {
+        "langchain": "langchain",
+        "langchain_core": "langchain-core",
+        "langchain_classic": "langchain-classic",
+        "langchain_openai": "langchain-openai",
+        "langchain_community": "langchain-community",
+        "langchain_text_splitters": "langchain-text-splitters",
+        "langchain_experimental": "langchain-experimental",
+        "langgraph": "langgraph",
+        "openai": "openai",
+        "anthropic": "anthropic",
+        "google.genai": "google-genai",
+        "google.generativeai": "google-generativeai",
+        "pydantic_ai": "pydantic-ai",
+        "mcp": "mcp",
+    }
+
+    inferred_from_imports: set[str] = set()
+    import_evidence: list[str] = []
+    import_names = _collect_import_names(project_dir)
+    for import_name in sorted(import_names):
+        for module_prefix, package_name in import_dependency_map.items():
+            if import_name == module_prefix or import_name.startswith(f"{module_prefix}."):
+                inferred_from_imports.add(package_name)
+                import_evidence.append(f"imports:{import_name}->{package_name}")
+                break
+
+    if inferred_from_imports:
+        inferred_list = sorted(inferred_from_imports)
+        return DetectorResult(
+            value=inferred_list,
+            confidence=0.68,
+            evidence=(
+                "Inferred dependencies from known import namespaces in source files: "
+                + "; ".join(import_evidence)
+            ),
+            warning=(
+                "Dependency inference came from source imports; verify pinned versions in requirements.txt."
+            ),
         )
 
     return DetectorResult(
