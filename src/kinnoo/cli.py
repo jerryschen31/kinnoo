@@ -27,14 +27,51 @@ RUN_USAGE_TEXT = (
 
 IMPORT_USAGE_TEXT = "Usage: kinnoo import [path]"
 
+
+class KinnooArgumentParser(argparse.ArgumentParser):
+    """ArgumentParser variant that prints description before usage in help output."""
+
+    def format_help(self) -> str:
+        formatter = self._get_formatter()
+
+        if self.description:
+            formatter.add_text(self.description)
+
+        formatter.add_usage(self.usage, self._actions, self._mutually_exclusive_groups)
+
+        for action_group in self._action_groups:
+            formatter.start_section(action_group.title)
+            formatter.add_text(action_group.description)
+            formatter.add_arguments(action_group._group_actions)
+            formatter.end_section()
+
+        formatter.add_text(self.epilog)
+        return formatter.format_help()
+
 def main():
     import os
-    parser = argparse.ArgumentParser(prog="kinnoo", description="Kinnoo CLI")
+    parser = KinnooArgumentParser(prog="kinnoo", description="Kinnoo CLI")
     parser.add_argument("--version", action="version", version=KINNOO_VERSION)
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers = parser.add_subparsers(
+        dest="command",
+        required=True,
+        parser_class=KinnooArgumentParser,
+    )
 
     # init subcommand
-    init_parser = subparsers.add_parser("init", help="Scaffold a new kinnoo agent")
+    init_parser = subparsers.add_parser(
+        "init",
+        help="Scaffold a new kinnoo agent",
+        formatter_class=argparse.RawTextHelpFormatter,
+        description="Scaffold a new kinnoo agent",
+        epilog=(
+            "Examples:\n"
+            "  kinnoo init my-agent\n"
+            "  kinnoo init my-claude-agent --framework claude-chat\n"
+            "  kinnoo init my-openclaw-agent --framework openclaw\n"
+            "  kinnoo init my-mcp-client --framework mcp-client"
+        ),
+    )
     init_parser.add_argument("agent_name", nargs="?", help="Name of the agent to create")
     init_parser.add_argument(
         "--framework",
@@ -50,7 +87,7 @@ def main():
         "run",
         help="Run a kinnoo agent",
         formatter_class=argparse.RawTextHelpFormatter,
-        description="Run an agent with a single input, no input, or pass-through args.",
+        description="Run a kinnoo agent",
         epilog=(
             "Examples:\n"
             "  kinnoo run <agent-dir> '<input>'\n"
@@ -61,7 +98,14 @@ def main():
         ),
     )
     run_parser.add_argument("agent_dir", nargs="?", help="Path to agent directory")
-    run_parser.add_argument("input", nargs="?", help="Input string to pass to the agent entrypoint")
+    run_parser.add_argument(
+        "input",
+        nargs="?",
+        help=(
+            "Optional input string to pass to the agent entrypoint. "
+            "May be omitted for agents that accept no input, and is not required when --json-input or --json-file is used."
+        ),
+    )
     run_parser.add_argument(
         "--preflight",
         action="store_true",
@@ -95,23 +139,33 @@ def main():
     run_parser.add_argument(
         "--max-seconds",
         type=float,
-        help="Wall-clock timeout in seconds for run execution",
+        help=(
+            "Wall-clock timeout in seconds for run execution. "
+            "If omitted, no wall-clock timeout is enforced by this option."
+        ),
     )
     run_parser.add_argument(
         "--max-cpu-seconds",
         type=int,
-        help="CPU time budget in seconds for supported platforms",
+        help=(
+            "CPU time budget in seconds for supported platforms. "
+            "If omitted, no CPU-time budget is enforced by this option."
+        ),
     )
     run_parser.add_argument(
         "--max-memory-mb",
         type=int,
-        help="Memory budget in MB for supported platforms",
+        help=(
+            "Memory budget in MB for supported platforms. "
+            "If omitted, no memory budget is enforced by this option."
+        ),
     )
 
     # Add 'stop' subcommand
     stop_parser = subparsers.add_parser(
         "stop",
         help="Stop a running daemon agent",
+        description="Stop a running daemon agent",
     )
     stop_parser.add_argument("agent_dir", nargs="?", help="Path to daemon agent directory")
 
@@ -119,6 +173,7 @@ def main():
     attach_parser = subparsers.add_parser(
         "attach",
         help="Attach to a running daemon agent session",
+        description="Attach to a running daemon agent session",
     )
     attach_parser.add_argument("agent_dir", nargs="?", help="Path to daemon agent directory")
 
@@ -126,6 +181,7 @@ def main():
     logs_parser = subparsers.add_parser(
         "logs",
         help="Show daemon logs (tail or follow)",
+        description="Show daemon logs (tail or follow)",
     )
     logs_parser.add_argument("agent_dir", nargs="?", help="Path to daemon agent directory")
     logs_parser.add_argument(
@@ -145,6 +201,14 @@ def main():
         "install",
         help="Install a kinnoo agent from archive (.kno) or registry",
         formatter_class=argparse.RawTextHelpFormatter,
+        description="Install a kinnoo agent from archive (.kno) or registry",
+        epilog=(
+            "Examples:\n"
+            "  kinnoo install ./dist/my-agent-0.1.0.kno\n"
+            "  kinnoo install ./dist/my-agent-0.1.0.kno ./agents/my-agent\n"
+            "  kinnoo install my-agent==1.2.0 --remote\n"
+            "  kinnoo install ./dist/my-openclaw-agent-0.3.0.kno --ignore-scripts --allow-vulnerable"
+        ),
     )
     install_parser.add_argument(
         "archive_path",
@@ -165,17 +229,21 @@ def main():
     install_parser.add_argument(
         "--state-overwrite",
         action="store_true",
-        help="Allow state snapshot restore to overwrite existing extracted state directories",
+        help="Allow state snapshot restore to overwrite existing extracted state directories (commonly used by OpenClaw/stateful agents)",
     )
-    install_parser.add_argument(
+
+    openclaw_install_group = install_parser.add_argument_group(
+        "OpenClaw/Node-focused install options"
+    )
+    openclaw_install_group.add_argument(
         "--allow-vulnerable",
         action="store_true",
-        help="Allow install to continue when Node audit reports critical vulnerabilities (security risk)",
+        help="(OpenClaw/Node-focused) Allow install to continue when Node audit reports critical vulnerabilities (security risk)",
     )
-    install_parser.add_argument(
+    openclaw_install_group.add_argument(
         "--ignore-scripts",
         action="store_true",
-        help="Disable Node package lifecycle scripts during dependency installation",
+        help="(OpenClaw/Node-focused) Disable Node package lifecycle scripts during dependency installation",
     )
     install_parser.add_argument(
         "--accept-permissions",
@@ -201,6 +269,14 @@ def main():
 
     # Add 'pack' subcommand
     pack_parser = subparsers.add_parser("pack", help="Package an agent directory into a .kno archive")
+    pack_parser.description = "Package an agent directory into a .kno archive"
+    pack_parser.formatter_class = argparse.RawTextHelpFormatter
+    pack_parser.epilog = (
+        "Examples:\n"
+        "  kinnoo pack ./my-agent\n"
+        "  kinnoo pack ./my-agent --bump patch\n"
+        "  kinnoo pack ./my-agent --sign --signing-key ./keys/kinnoo-ed25519-private.pem"
+    )
     pack_parser.add_argument("agent_dir", nargs="?", help="Path to agent directory to package")
     pack_parser.add_argument(
         "--bump",
@@ -221,6 +297,7 @@ def main():
     keygen_parser = subparsers.add_parser(
         "keygen",
         help="Generate an Ed25519 keypair for archive signing",
+        description="Generate an Ed25519 keypair for archive signing",
     )
     keygen_parser.add_argument(
         "--private-key",
@@ -237,6 +314,7 @@ def main():
     inspect_parser = subparsers.add_parser(
         "inspect",
         help="Inspect metadata from an agent directory or .kno archive",
+        description="Inspect metadata from an agent directory or .kno archive",
     )
     inspect_parser.add_argument(
         "target",
@@ -248,6 +326,15 @@ def main():
     publish_parser = subparsers.add_parser(
         "publish",
         help="Publish latest archived agent artifact to the registry",
+        formatter_class=argparse.RawTextHelpFormatter,
+        description="Publish latest archived agent artifact to the registry",
+        epilog=(
+            "Examples:\n"
+            "  kinnoo publish my-agent --local\n"
+            "  kinnoo publish my-agent --remote\n"
+            "  kinnoo publish ./dist/my-agent-1.0.0.kno --remote\n"
+            "  kinnoo publish ./my-agent --pack --bump minor --remote"
+        ),
     )
     publish_parser.add_argument(
         "target",
@@ -282,6 +369,7 @@ def main():
     list_parser = subparsers.add_parser(
         "list",
         help="List agents from local archive (default) or remote registry",
+        description="List agents from local archive (default) or remote registry",
     )
     list_source_group = list_parser.add_mutually_exclusive_group()
     list_source_group.add_argument(
@@ -299,6 +387,14 @@ def main():
     search_parser = subparsers.add_parser(
         "search",
         help="Search agents from local archive (default) or remote registry",
+        formatter_class=argparse.RawTextHelpFormatter,
+        description="Search agents from local archive (default) or remote registry",
+        epilog=(
+            "Examples:\n"
+            "  kinnoo search writer\n"
+            "  kinnoo search mcp --local\n"
+            "  kinnoo search openclaw --remote"
+        ),
     )
     search_source_group = search_parser.add_mutually_exclusive_group()
     search_source_group.add_argument(
@@ -321,6 +417,13 @@ def main():
     import_parser = subparsers.add_parser(
         "import",
         help="Import an existing project in-place and prepare kinnoo metadata",
+        formatter_class=argparse.RawTextHelpFormatter,
+        description="Import an existing project in-place and prepare kinnoo metadata",
+        epilog=(
+            "Examples:\n"
+            "  kinnoo import\n"
+            "  kinnoo import ./existing-project --force"
+        ),
     )
     import_parser.add_argument(
         "path",
