@@ -70,7 +70,7 @@ def run_kinnoo_init(args):
 def test_framework_valid():
     # Should not error for supported frameworks (no file creation yet)
     import tempfile
-    for fw in ["gemini", "chatgpt", "claude-chat"]:
+    for fw in ["gemini", "chatgpt", "claude-chat", "mcp-server"]:
         with tempfile.TemporaryDirectory() as tmpdir:
             agent_name = f"myagent_{fw}"
             cwd = os.getcwd()
@@ -815,3 +815,36 @@ def test_feature26_mcp_client_template_contract_and_validation(tmp_path):
     result = subprocess.run([sys.executable, str(run_path), "contract-input"], capture_output=True, text=True)
     assert result.returncode == 0
     assert "contract-input" in result.stdout
+
+
+def test_framework_mcp_server_scaffold_generation(tmp_path):
+    """test354: init --framework mcp-server generates a valid MCP server scaffold."""
+    import yaml
+    from kinnoo.validator import validate
+
+    agent_name = "feature45-mcp-server"
+    code, out, err = run_cli(["init", agent_name, "--framework", "mcp-server"], cwd=tmp_path)
+    assert code == 0, err
+
+    agent_dir = tmp_path / agent_name
+    assert (agent_dir / "kinnoo.yaml").exists()
+    assert (agent_dir / "run.py").exists()
+    assert (agent_dir / "README.md").exists()
+    assert (agent_dir / "requirements.txt").exists()
+
+    manifest_path = agent_dir / "kinnoo.yaml"
+    is_valid, errors = validate(str(manifest_path))
+    assert is_valid, f"mcp-server manifest should validate. Errors: {errors}"
+    assert not errors
+
+    manifest_data = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    assert manifest_data.get("framework") == "mcp-server"
+    assert manifest_data.get("runtime", {}).get("type") == "mcp-server"
+    assert "stdio" in manifest_data.get("channels", [])
+
+
+def test_init_help_includes_mcp_server_example(tmp_path):
+    """test355: init help text includes an explicit mcp-server example."""
+    code, out, err = run_cli(["init", "-h"], cwd=tmp_path)
+    assert code == 0
+    assert "kinnoo init my-mcp-server --framework mcp-server" in out

@@ -5087,3 +5087,24 @@ tasks:
     dependencies: [task83, task106, task232]
     tests: [test351, test352, test353]
     status: needs-review
+
+  - id: task253
+    title: Add mcp-server framework option to kinnoo init
+    type: task
+    description: |
+      Add `mcp-server` to `kinnoo init --framework` supported values and scaffold a
+      minimal MCP server template for new agents. Update init help text so
+      `kinnoo init -h` includes a concrete mcp-server initialization example.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/init_command.py
+      - src/kinnoo/templates.py
+      - tests/test_init.py
+    steps:
+      - 'step1: Add mcp-server to --framework CLI choices and pass-through handling in init command path'
+      - 'step2: Add mcp-server template generation with runnable scaffold and manifest/runtime fields aligned to MCP server mode'
+      - 'step3: Add/adjust `kinnoo init -h` examples so one explicitly demonstrates `--framework mcp-server`'
+      - 'step4: Add tests for template generation plus help output example regression coverage'
+    dependencies: [task157]
+    tests: [test354, test355]
+    status: needs-review

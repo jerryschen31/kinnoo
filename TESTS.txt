@@ -5883,3 +5883,34 @@ tests:
     covers:
       - feature: feature44
         ac: AC2
+
+  - id: test354
+    title: init supports mcp-server framework scaffold generation
+    type: integration
+    preconditions: kinnoo CLI installed; writable temp directory available
+    steps:
+      - step1: Run `kinnoo init test-agent --framework mcp-server`
+      - step2: Verify scaffolded files include expected entrypoint and kinnoo.yaml
+      - step3: Validate generated manifest contains framework mcp-server and runtime.type mcp-server
+    expected: mcp-server framework scaffold is generated successfully with valid MCP server manifest settings
+    pass_criteria: command exits 0; generated files exist; manifest validation passes with expected framework/runtime values
+    automated: true
+    automation_path: tests/test_init.py::test_framework_mcp_server_scaffold_generation
+    covers:
+      - feature: feature45
+        ac: AC1
+
+  - id: test355
+    title: init help includes mcp-server framework example
+    type: unit
+    preconditions: kinnoo CLI installed and command help output available
+    steps:
+      - step1: Run `kinnoo init -h`
+      - step2: Assert help output includes an example line using `--framework mcp-server`
+    expected: help usage examples include explicit mcp-server initialization command
+    pass_criteria: command exits 0 and output includes deterministic mcp-server init example text
+    automated: true
+    automation_path: tests/test_init.py::test_init_help_includes_mcp_server_example
+    covers:
+      - feature: feature45
+        ac: AC2

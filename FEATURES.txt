@@ -1604,3 +1604,19 @@ features:
     owner: techlead-agent
     dependencies: [feature30]
     status: not-started
+
+  - id: feature45
+    title: "kinnoo init mcp-server framework scaffolding"
+    description: |
+      Add `mcp-server` as a supported `kinnoo init --framework` option so users can
+      scaffold a minimal but runnable MCP server agent template. The help output for
+      `kinnoo init -h` must include an explicit mcp-server initialization example.
+    tasks: [task253]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo init <name> --framework mcp-server` is accepted and scaffolds an MCP server template with runtime.type set to mcp-server."
+      - id: AC2
+        description: "`kinnoo init -h` includes an explicit example showing mcp-server initialization usage."
+    owner: techlead-agent
+    dependencies: [feature23, feature26]
+    status: not-started
