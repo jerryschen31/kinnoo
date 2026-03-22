@@ -872,6 +872,88 @@ outputs:
     assert not (agent_dir / ".venv").exists()
 
 
+def test_run_runtime_path_python_installs_requirements(monkeypatch, tmp_path, capsys):
+    agent_dir = tmp_path / "runtime-path-python-requirements-agent"
+    agent_dir.mkdir()
+    (agent_dir / "requirements.txt").write_text("langchain-core\n", encoding="utf-8")
+    (agent_dir / "run.py").write_text("print('runtime-path-python-reqs-test')\n", encoding="utf-8")
+
+    fake_python = agent_dir / "fake-python"
+    fake_python.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    fake_python.chmod(0o755)
+
+    captured_run_calls: list[list[str]] = []
+    captured_popen_calls: list[list[str]] = []
+
+    class _Result:
+        def __init__(self, code: int):
+            self.returncode = code
+
+    def _fake_run(args, stdout=None, stderr=None):
+        del stdout, stderr
+        captured_run_calls.append(args)
+        if len(args) >= 4 and args[1] == "-m" and args[2] == "venv":
+            venv_dir = Path(args[3])
+            bin_dir = venv_dir / "bin"
+            bin_dir.mkdir(parents=True, exist_ok=True)
+            (bin_dir / "pip").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            (bin_dir / "pip").chmod(0o755)
+            (bin_dir / "python").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            (bin_dir / "python").chmod(0o755)
+            return _Result(0)
+        if len(args) >= 2 and args[1] == "install":
+            return _Result(0)
+        return _Result(0)
+
+    class _FakePopen:
+        def __init__(self, args, cwd=None, stdout=None, stderr=None, env=None):
+            del cwd, stdout, stderr, env
+            captured_popen_calls.append(args)
+            self.returncode = 0
+
+        def communicate(self, timeout=None):
+            del timeout
+            return ("", "")
+
+    import kinnoo.run_command as run_command
+
+    monkeypatch.setattr(run_command.subprocess, "run", _fake_run)
+    monkeypatch.setattr(run_command.subprocess, "Popen", _FakePopen)
+
+    (agent_dir / "kinnoo.yaml").write_text(
+        f"""
+name: runtime-path-python-requirements-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.8"
+    type: one-shot
+    path: "{fake_python}"
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+""",
+        encoding="utf-8",
+    )
+
+    exit_code = run_command.run_agent(
+        agent_dir_arg=str(agent_dir),
+        input_arg="hello-runtime-path",
+        no_guard=True,
+    )
+
+    output = capsys.readouterr()
+
+    assert exit_code == 0
+    assert any(call[:3] == [str(fake_python), "-m", "venv"] for call in captured_run_calls)
+    assert any("pip" in call[0] and "install" in call for call in captured_run_calls)
+    assert captured_popen_calls[0][0].endswith("/.venv/bin/python")
+    assert "installing requirements for running agent" in output.out
+
+
 def test_run_uses_runtime_path_node_override(monkeypatch, tmp_path, capsys):
     agent_dir = tmp_path / "runtime-path-node-agent"
     agent_dir.mkdir()

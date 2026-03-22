@@ -1273,19 +1273,38 @@ def run_agent(
 
     python_exe: Path | None = None
     if runtime_language == "python":
-        if runtime_path is not None:
-            python_exe = runtime_path
-        else:
-            venv_dir = agent_dir / ".venv"
-            requirements = agent_dir / "requirements.txt"
-            requirements_declared = requirements.exists() and bool(requirements.read_text().strip())
+        venv_dir = agent_dir / ".venv"
+        requirements = agent_dir / "requirements.txt"
+        requirements_declared = requirements.exists() and bool(requirements.read_text().strip())
 
+        # runtime.path selects which interpreter seeds .venv creation for dependency installs.
+        selected_python = runtime_path if runtime_path is not None else Path(sys.executable)
+
+        # runtime.path without declared requirements should execute directly with that interpreter.
+        if runtime_path is not None and not requirements_declared:
+            python_exe = selected_python
+        else:
             # mcp-server startup should be fast for readiness/streaming workflows when no deps are declared.
             use_host_python = runtime_type == "mcp-server" and not requirements_declared and not venv_dir.exists()
-
-            if not use_host_python and not venv_dir.exists():
+            if use_host_python:
+                python_exe = selected_python
+            else:
                 try:
-                    venv.create(venv_dir, with_pip=True)
+                    if not venv_dir.exists():
+                        if runtime_path is not None:
+                            create_result = subprocess.run(
+                                [str(selected_python), "-m", "venv", str(venv_dir)],
+                                stdout=subprocess.DEVNULL,
+                                stderr=subprocess.DEVNULL,
+                            )
+                            if create_result.returncode != 0:
+                                _print_safe_error(
+                                    "Error: Failed to create .venv using runtime.path interpreter. "
+                                    "Please verify runtime.path points to a valid Python executable.",
+                                )
+                                return finalize(create_result.returncode)
+                        else:
+                            venv.create(venv_dir, with_pip=True)
                 except PermissionError as error:
                     _print_safe_error(f"Error: Permission denied while creating .venv in {agent_dir}: {error}")
                     return finalize(1)
@@ -1293,36 +1312,33 @@ def run_agent(
                     _print_safe_error(f"Error: Failed to create .venv in {agent_dir}: {error}")
                     return finalize(1)
 
-            if not use_host_python and requirements_declared:
-                pip_exe = venv_dir / "bin" / "pip"
-                if not pip_exe.exists():
-                    pip_exe = venv_dir / "Scripts" / "pip.exe"
-                if not pip_exe.exists():
-                    _print_safe_error(f"Error: pip not found in venv at {pip_exe}")
-                    return finalize(1)
-                print("[kinnoo] installing requirements for running agent...")
-                try:
-                    install_result = subprocess.run(
-                        [str(pip_exe), "install", "-r", str(requirements)],
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                    )
-                except PermissionError as error:
-                    _print_safe_error(f"Error: Permission denied while installing requirements in {agent_dir}: {error}")
-                    return finalize(1)
-                except Exception as error:
-                    _print_safe_error(f"Error: Failed to install requirements in {agent_dir}: {error}")
-                    return finalize(1)
+                if requirements_declared:
+                    pip_exe = venv_dir / "bin" / "pip"
+                    if not pip_exe.exists():
+                        pip_exe = venv_dir / "Scripts" / "pip.exe"
+                    if not pip_exe.exists():
+                        _print_safe_error(f"Error: pip not found in venv at {pip_exe}")
+                        return finalize(1)
+                    print("[kinnoo] installing requirements for running agent...")
+                    try:
+                        install_result = subprocess.run(
+                            [str(pip_exe), "install", "-r", str(requirements)],
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                        )
+                    except PermissionError as error:
+                        _print_safe_error(f"Error: Permission denied while installing requirements in {agent_dir}: {error}")
+                        return finalize(1)
+                    except Exception as error:
+                        _print_safe_error(f"Error: Failed to install requirements in {agent_dir}: {error}")
+                        return finalize(1)
 
-                if install_result.returncode != 0:
-                    _print_safe_error(
-                        "Error: Failed to install requirements for running agent. Please check your requirements.txt and try again.",
-                    )
-                    return finalize(install_result.returncode)
+                    if install_result.returncode != 0:
+                        _print_safe_error(
+                            "Error: Failed to install requirements for running agent. Please check your requirements.txt and try again.",
+                        )
+                        return finalize(install_result.returncode)
 
-            if use_host_python:
-                python_exe = Path(sys.executable)
-            else:
                 python_exe = venv_dir / "bin" / "python"
                 if not python_exe.exists():
                     python_exe = venv_dir / "Scripts" / "python.exe"
