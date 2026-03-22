@@ -191,6 +191,33 @@ def test_feature19_confirm_first_wizard_prompt_minimization(tmp_path):
     assert "Provide value for" not in combined_output
 
 
+def test_feature19_import_keeps_inferred_entrypoint_without_reprompt(tmp_path):
+    project_dir = tmp_path / "feature19-inferred-entrypoint-no-reprompt"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "base.py").write_text(
+        "import sys\n"
+        "if __name__ == '__main__':\n"
+        "    print(sys.argv[1] if len(sys.argv) > 1 else 'ok')\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(project_dir)],
+        input="y\n",
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    combined_output = result.stdout + result.stderr
+    assert "Detected values from analyzer:" in combined_output
+    assert "Proceed with detected values?" in combined_output
+    assert "Provide value for entrypoint" not in combined_output
+
+    manifest_text = (project_dir / "kinnoo.yaml").read_text(encoding="utf-8")
+    assert "entrypoint: base.py" in manifest_text
+
+
 def test_feature19_conditional_prompts_for_runtime_services_permissions(tmp_path):
     high_confidence_project = tmp_path / "feature19-conditional-prompts-high"
     high_confidence_project.mkdir(parents=True, exist_ok=True)

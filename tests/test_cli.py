@@ -806,6 +806,72 @@ outputs:
     assert not (agent_dir / ".venv").exists()
 
 
+def test_run_uses_runtime_path_python_command_lookup(monkeypatch, tmp_path, capsys):
+    agent_dir = tmp_path / "runtime-path-python-command-agent"
+    agent_dir.mkdir()
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    (agent_dir / "run.py").write_text("print('runtime-path-python-command-test')\n", encoding="utf-8")
+
+    fake_python = agent_dir / "fake-python"
+    fake_python.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    fake_python.chmod(0o755)
+
+    captured_calls: list[list[str]] = []
+
+    class _FakePopen:
+        def __init__(self, args, cwd=None, stdout=None, stderr=None, env=None):
+            del cwd, stdout, stderr, env
+            captured_calls.append(args)
+            self.returncode = 0
+
+        def communicate(self, timeout=None):
+            del timeout
+            return ("", "")
+
+    import kinnoo.run_command as run_command
+
+    monkeypatch.setattr(run_command.subprocess, "Popen", _FakePopen)
+
+    def _fake_which(value: str):
+        if value == "python3.12":
+            return str(fake_python)
+        return None
+
+    monkeypatch.setattr(run_command.shutil, "which", _fake_which)
+
+    (agent_dir / "kinnoo.yaml").write_text(
+        """
+name: runtime-path-python-command-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.8"
+    type: one-shot
+    path: "python3.12"
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+""",
+        encoding="utf-8",
+    )
+
+    exit_code = run_command.run_agent(
+        agent_dir_arg=str(agent_dir),
+        input_arg="hello-runtime-path",
+        no_guard=True,
+    )
+
+    output = capsys.readouterr()
+
+    assert exit_code == 0
+    assert captured_calls[0][0] == str(fake_python)
+    assert "runtime.path is set but not an executable file" not in output.err
+    assert not (agent_dir / ".venv").exists()
+
+
 def test_run_uses_runtime_path_node_override(monkeypatch, tmp_path, capsys):
     agent_dir = tmp_path / "runtime-path-node-agent"
     agent_dir.mkdir()
@@ -888,7 +954,7 @@ outputs:
     assert fallback_exit == 0
     assert captured_calls[0][0] == str(fake_node)
     assert captured_calls[1][0] == "node"
-    assert "runtime.path is set but not an executable file" in output.err
+    assert "runtime.path is set but not an executable file and was not found on PATH" in output.err
 
 
 def test_feature31_run_nodejs_entrypoint_streams_and_propagates_exit(monkeypatch, tmp_path, capsys):

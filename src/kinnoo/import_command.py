@@ -305,7 +305,9 @@ def _build_manifest_from_analysis(
     services = _normalize_inferred_services(inferred.get("services"))
     permissions: dict[str, Any] | None = None
 
-    if _should_prompt_field(report, "entrypoint", entrypoint):
+    # If analyzer inferred an entrypoint and user confirmed detected values,
+    # keep it without re-prompting even when confidence is low.
+    if not isinstance(inferred.get("entrypoint"), str) or not str(inferred.get("entrypoint")).strip():
         entrypoint = _prompt_with_default("Provide value for entrypoint [run.py]: ", "run.py", session=session)
 
     if _should_prompt_field(report, "runtime", runtime_type):
