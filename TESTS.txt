@@ -5914,3 +5914,66 @@ tests:
     covers:
       - feature: feature45
         ac: AC2
+
+  - id: test356
+    title: Import matrix validates all 42 curated agents
+    type: integration
+    preconditions: |
+      Curated corpus from task254 exists with 42 staged agent folders under
+      example-scratch/agents/ and canonical mappings in
+      example-scratch/agents-map.txt.
+    steps:
+      - step1: Read all entries from example-scratch/agents-map.txt and enumerate expected local agent folders
+      - step2: For each mapped example, run CLI import validation path using the mapped framework metadata
+      - step3: Capture per-agent pass/fail diagnostics and summarize totals by framework and complexity
+    expected: Import validation can execute across the full 42-agent corpus with deterministic per-agent results
+    pass_criteria: Matrix executes across all 42 mapped agents and outputs stable per-agent import status with aggregate summary
+    automated: true
+    automation_path: tests/test_corpus_matrix.py::test_task255_import_matrix_all_agents
+
+  - id: test357
+    title: Inspect matrix validates all 42 curated agents
+    type: integration
+    preconditions: |
+      Curated corpus from task254 exists with 42 staged agent folders under
+      example-scratch/agents/ and canonical mappings in
+      example-scratch/agents-map.txt.
+    steps:
+      - step1: Enumerate all 42 mapped agents from example-scratch/agents-map.txt
+      - step2: Run inspect flow for each mapped local folder and capture structured output
+      - step3: Verify inspect output includes stable manifest identity fields and no unexpected crashes
+    expected: Inspect flow executes across full corpus and returns deterministic, actionable output per agent
+    pass_criteria: All 42 inspect attempts complete with stable output schema and summarized success/failure report
+    automated: true
+    automation_path: tests/test_corpus_matrix.py::test_task255_inspect_matrix_all_agents
+
+  - id: test358
+    title: Run matrix exercises all 42 curated agents with deterministic reporting
+    type: integration
+    preconditions: |
+      Curated corpus from task254 exists and each staged folder is reachable via
+      example-scratch/agents-map.txt; test harness provides deterministic sample
+      input payload for run flows.
+    steps:
+      - step1: Enumerate mapped agents and run each via `python src/kinnoo/cli.py run <agent-path> "<sample-input>"`
+      - step2: Capture exit code and stdout/stderr summary for each run
+      - step3: Emit per-framework and per-complexity aggregate pass/fail metrics
+    expected: Run matrix executes all mapped agents and records reproducible run outcomes
+    pass_criteria: 42 run attempts are executed with stable reporting format and complete aggregate summary
+    automated: true
+    automation_path: tests/test_corpus_matrix.py::test_task255_run_matrix_all_agents
+
+  - id: test359
+    title: Pack matrix exercises all 42 curated agents and validates artifact creation
+    type: integration
+    preconditions: |
+      Curated corpus from task254 exists in example-scratch/agents/ and each
+      agent folder includes pack prerequisites required by kinnoo pack.
+    steps:
+      - step1: Enumerate all mapped agents from example-scratch/agents-map.txt
+      - step2: Run `python src/kinnoo/cli.py pack <agent-path>` for each agent and capture outputs
+      - step3: Verify `.kno` artifact creation status and summarize outcomes across frameworks and complexity buckets
+    expected: Pack flow can be exercised across full corpus with deterministic artifact-status reporting
+    pass_criteria: Matrix executes 42 pack attempts with stable per-agent artifact status and aggregate summary
+    automated: true
+    automation_path: tests/test_corpus_matrix.py::test_task255_pack_matrix_all_agents

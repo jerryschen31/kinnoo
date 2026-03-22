@@ -5130,3 +5130,30 @@ tasks:
     dependencies: [task253]
     tests: []
     status: needs-review
+
+  - id: task255
+    title: Execute 42-agent import/inspect/run/pack validation matrix
+    type: task
+    description: |
+      Define and implement an automated validation matrix that exercises the full
+      curated corpus of 42 staged open-source agents (from task254) through
+      import, inspect, run, and pack workflows. Use
+      example-scratch/agents-map.txt as the canonical source of truth for matrix
+      enumeration and reporting.
+    files:
+      - TASKS.txt
+      - TESTS.txt
+      - example-scratch/agents-map.txt
+      - example-scratch/agents-list.md
+      - notes/tasks/task254-notes.md
+      - tests/test_corpus_matrix.py
+    steps:
+      - 'step1: Build matrix enumeration from example-scratch/agents-map.txt and verify it resolves exactly 42 local staged agent folders'
+      - 'step2: Implement import matrix execution and deterministic per-agent/per-framework reporting'
+      - 'step3: Implement inspect matrix execution and deterministic output-shape assertions with per-agent diagnostics'
+      - 'step4: Implement run matrix execution using stable sample inputs and capture reproducible pass/fail summaries'
+      - 'step5: Implement pack matrix execution with `.kno` artifact-status checks and aggregate framework/complexity metrics'
+      - 'step6: Add test harness utilities to keep matrix runs deterministic, resilient to per-agent failures, and actionable in CI output'
+    dependencies: [task254]
+    tests: [test356, test357, test358, test359]
+    status: not-started
