@@ -1607,7 +1607,7 @@ features:
         description: "publish supports optional pack-and-publish flow from agent directories via --pack, including optional --bump major/minor/patch with clear guardrail errors"
     owner: techlead-agent
     dependencies: [feature30]
-    status: not-started
+    status: needs-review
 
   - id: feature45
     title: "kinnoo init mcp-server framework scaffolding"
@@ -1623,4 +1623,4 @@ features:
         description: "`kinnoo init -h` includes an explicit example showing mcp-server initialization usage."
     owner: techlead-agent
     dependencies: [feature23, feature26]
-    status: not-started
+    status: needs-review
