@@ -11,6 +11,7 @@
 7. [Thought: Security Evals](#7-thought-security-evals)
 8. [Potential Bug: Preflight venv vs runtime.path](#8-potential-bug-preflight-venv-vs-runtimepath)
 9. [Improvement Items — Task Summaries](#9-improvement-items--task-summaries)
+10. [LangChain Classic Agents Base Directory Analysis (new corpus addition)](#10-langchain-classic-agents-base-directory-analysis-new-corpus-addition)
 
 ---
 
@@ -574,3 +575,107 @@ The following improvement items from the planning notes will be implemented as t
 ### 9.11 Preflight venv + runtime.path Fix (task268)
 **What:** Fix the preflight dependency check to handle `runtime.path` correctly (see section 8).
 **Why:** Bug — preflight incorrectly fails when runtime.path would create the venv at run time.
+
+---
+
+## 10. LangChain Classic Agents Base Directory Analysis (new corpus addition)
+
+### What was added
+- Cloned upstream LangChain classic agents base directory:
+  - `https://github.com/langchain-ai/langchain/tree/master/libs/langchain/langchain_classic/agents`
+- Local copy now staged at:
+  - `example-scratch/agents/langchain-classic-agents-base`
+- Corpus metadata updated in:
+  - `example-scratch/agents-map.txt`
+  - `example-scratch/agents-list.md`
+
+### Is this the right directory to clone?
+Yes. This directory is the framework-level implementation surface for classic LangChain agents and includes:
+- Core runtime loop and executor implementation (`agent.py`, `agent_iterator.py`)
+- Agent construction entry functions (`initialize.py`, multiple `create_*_agent` factories)
+- Prompt/output parser helpers and agent-family subpackages (`react/`, `structured_chat/`, `tool_calling_agent/`, `openai_tools/`, etc.)
+
+### Runtime findings from code scan
+1. There is no script-style CLI entrypoint (`if __name__ == "__main__"`) in this directory.
+2. The practical runtime construction path is API-based:
+  - Use `initialize_agent(...)` from `initialize.py` (deprecated but still available), or
+  - Use specific factory functions such as:
+    - `create_react_agent(...)`
+    - `create_tool_calling_agent(...)`
+    - `create_openai_tools_agent(...)`
+3. Execution is performed by wrapping a created agent in `AgentExecutor`, then invoking:
+  - `agent_executor.invoke({"input": "..."})`
+4. This directory is a library/runtime substrate, not a runnable app by itself.
+
+### How this code should be run
+
+Use a wrapper script in a project that has concrete model/tool bindings. Minimal pattern:
+
+```python
+from langchain_classic.agents import AgentExecutor, create_tool_calling_agent
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.tools import tool
+from langchain_openai import ChatOpenAI
+
+@tool
+def add_two(x: int) -> int:
+   """Add two to a number."""
+   return x + 2
+
+prompt = ChatPromptTemplate.from_messages(
+   [
+      ("system", "You are helpful"),
+      ("human", "{input}"),
+      ("placeholder", "{agent_scratchpad}"),
+   ]
+)
+
+llm = ChatOpenAI(model="gpt-4o-mini")
+agent = create_tool_calling_agent(llm, [add_two], prompt)
+executor = AgentExecutor(agent=agent, tools=[add_two], verbose=True)
+print(executor.invoke({"input": "what is add_two(5)?"}))
+```
+
+Operationally:
+- Install dependencies (`langchain`, `langchain-core`, provider package such as `langchain-openai`)
+- Set provider credentials (for example `OPENAI_API_KEY`)
+- Run the wrapper script (`python run.py`)
+
+### How kinnoo can run this (today)
+Current best path:
+1. Create a runnable wrapper (`run.py`) in an agent directory.
+2. Point `kinnoo.yaml` entrypoint to that wrapper.
+3. Declare dependencies and env vars.
+4. Use standard `kinnoo run <agent-dir> <input>`.
+
+This works because kinnoo executes entrypoint scripts, while LangChain classic base is an API package.
+
+### How kinnoo should be modified to support this better
+
+1. Add analyzer signal for library-style LangChain agent projects:
+  - Detect imports from `langchain_classic.agents`
+  - Detect absence of `__main__` entrypoint
+  - Detect factory usage (`create_*_agent`, `initialize_agent`, `AgentExecutor`)
+
+2. Add optional auto-wrapper generation during `kinnoo import`:
+  - Prompt: "Detected LangChain library module without runnable entrypoint. Generate run.py wrapper?"
+  - Generate wrapper with:
+    - model/provider placeholder
+    - tool registration block
+    - prompt template scaffold
+    - `AgentExecutor.invoke` call wired to CLI input
+
+3. Add framework runner mode for `framework: langchain` (optional future):
+  - If no entrypoint, allow `kinnoo run` to load configured module/function and execute via built-in harness.
+  - Keep this behind explicit manifest fields to avoid ambiguous auto-execution.
+
+4. Extend import metadata for LangChain-specific contracts:
+  - infer `inputs.type: text` by default unless JSON/args pattern is detected
+  - infer `outputs.type: json` when wrapper returns structured dicts
+  - infer `model` from constructor literals (for task261 alignment)
+
+### Recommendation for corpus usage
+Treat `langchain-classic-agents-base` as a "reference runtime corpus" entry, not a direct runnable benchmark fixture. Use it to:
+- improve analyzer heuristics
+- validate wrapper generation quality
+- maintain compatibility with classic agent APIs while guiding users toward modern `create_agent` migration paths
