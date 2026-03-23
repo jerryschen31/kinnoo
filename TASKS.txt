@@ -5435,3 +5435,229 @@ tasks:
     dependencies: [task257]
     tests: [test382, test383]
     status: not-started
+
+  - id: task269
+    title: Auto-wrapper generation for class-only Python agents
+    type: enhancement
+    description: |
+      Add class-based agent detection to analyzer.py when no __main__ guard or main()
+      function is found. When a class inheriting from a known agent base class (LangChain
+      BaseSingleActionAgent, OpenAI SDK Agent, etc.) is detected, offer to auto-generate
+      a run.py wrapper during kinnoo import. Includes framework-specific wrapper templates
+      in src/kinnoo/wrapper_templates/.
+    files:
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/import_command.py
+      - src/kinnoo/wrapper_templates/langchain_wrapper.py.j2
+      - src/kinnoo/wrapper_templates/openai_agents_wrapper.py.j2
+    steps:
+      - 'step1: Add class-based agent detection fallback in _detect_entrypoint()'
+      - 'step2: Create wrapper_templates/ directory with LangChain and OpenAI SDK templates'
+      - 'step3: Add wrapper generation logic in import_command.py for entrypoint_type class'
+      - 'step4: Test with langchain-tool-calling-agent and openai-agents-basic-tools'
+    dependencies: []
+    tests: [test384, test385]
+    status: not-started
+
+  - id: task270
+    title: Jupyter notebook to Python script conversion
+    type: enhancement
+    description: |
+      Add .ipynb detection to analyzer.py. When a notebook with agent code patterns is
+      found and no .py entrypoint exists, offer to convert it to a Python script during
+      kinnoo import. Conversion strips IPython magic commands, extracts code cells, and
+      adds a __main__ guard.
+    files:
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/import_command.py
+    steps:
+      - 'step1: Add .ipynb scanning in _detect_entrypoint() after .py/.js/.ts scan'
+      - 'step2: Implement notebook JSON parsing and code cell extraction'
+      - 'step3: Add conversion logic in import_command.py for entrypoint_type notebook'
+      - 'step4: Test with langgraph-react-from-scratch notebook'
+    dependencies: []
+    tests: [test386, test387]
+    status: not-started
+
+  - id: task271
+    title: Subdirectory entrypoint detection improvement
+    type: enhancement
+    description: |
+      Improve _detect_entrypoint() to search deeper subdirectories (depth 4 instead of 2)
+      and prioritize conventional directory names like src/, source/, app/, backend/.
+      Verify run_command.py correctly handles relative subdirectory entrypoints with
+      proper PYTHONPATH setup.
+    files:
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/run_command.py
+    steps:
+      - 'step1: Increase os.walk max depth to 4 in _detect_entrypoint()'
+      - 'step2: Add priority weighting for conventional subdirectory names'
+      - 'step3: Verify run_command.py handles relative paths like source/main.py'
+      - 'step4: Test with openai-agents-sdk-customer-service and vanilla-python-octoagent'
+    dependencies: []
+    tests: [test388, test389]
+    status: not-started
+
+  - id: task272
+    title: Requirements auto-inference from Python imports
+    type: enhancement
+    description: |
+      Add _infer_requirements() function to analyzer.py that scans Python imports and
+      maps them to PyPI package names via a curated dict. When no requirements.txt
+      exists, import_command.py offers to generate one from inferred dependencies.
+    files:
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/import_command.py
+    steps:
+      - 'step1: Create IMPORT_TO_PYPI mapping dict with ~50 common AI/ML packages'
+      - 'step2: Implement _infer_requirements() scanning all .py files for imports'
+      - 'step3: Add requirements.txt generation offer in import_command.py'
+      - 'step4: Test with langgraph-multi-agent-router (compare inferred vs actual)'
+    dependencies: []
+    tests: [test390, test391]
+    status: not-started
+
+  - id: task273
+    title: Node.js/TypeScript agent import and run improvements
+    type: enhancement
+    description: |
+      Improve analyzer.py detection of Node.js/TS agents via package.json parsing.
+      Add TypeScript execution support via npx tsx in run_command.py. Support multiple
+      package managers (npm, yarn, pnpm) in install_command.py based on lockfile type.
+    files:
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/run_command.py
+      - src/kinnoo/install_command.py
+    steps:
+      - 'step1: Parse package.json for main/scripts.start entrypoint and tsconfig.json detection'
+      - 'step2: Add lockfile-based package manager detection (npm/yarn/pnpm)'
+      - 'step3: Add TypeScript execution via npx tsx in run_command.py'
+      - 'step4: Test with vanilla-typescript-easy-agent'
+    dependencies: []
+    tests: [test392, test393]
+    status: not-started
+
+  - id: task274
+    title: Async entrypoint and hardcoded input detection
+    type: enhancement
+    description: |
+      Add detection of async entrypoint patterns (asyncio.run, async def main) and
+      hardcoded vs parameterized input (sys.argv/argparse vs literal strings in agent.run
+      calls) in analyzer.py. Set inputs.required accordingly in generated kinnoo.yaml.
+    files:
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/import_command.py
+    steps:
+      - 'step1: Detect asyncio.run() and async def main() patterns in entrypoint'
+      - 'step2: Detect sys.argv/argparse usage vs hardcoded prompt strings'
+      - 'step3: Set inputs.required field in kinnoo.yaml based on detection'
+      - 'step4: Test with openai-agents-hello-world (hardcoded) and an argparse agent'
+    dependencies: []
+    tests: [test394, test395]
+    status: not-started
+
+  - id: task275
+    title: Service dependency auto-detection
+    type: enhancement
+    description: |
+      Add _detect_services() to analyzer.py that scans imports and string literals for
+      known service patterns (Ollama, ChromaDB, Redis, PostgreSQL, MongoDB). Detected
+      services are included in generated kinnoo.yaml under the services field.
+    files:
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/import_command.py
+    steps:
+      - 'step1: Create service pattern mapping (import names and URL patterns)'
+      - 'step2: Implement _detect_services() scanning .py files'
+      - 'step3: Include detected services in kinnoo.yaml during import'
+      - 'step4: Test with vanilla-python-reze-agent and openclaw-ollama-extension-agent'
+    dependencies: []
+    tests: [test396, test397]
+    status: not-started
+
+  - id: task276
+    title: PydanticAI dependency injection (deps) support
+    type: enhancement
+    description: |
+      Detect PydanticAI Agent(deps_type=...) pattern in analyzer.py. Extract deps class
+      fields and set inputs.type to json in generated kinnoo.yaml. Validate that existing
+      --json-input flow correctly passes structured data for deps injection.
+    files:
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/import_command.py
+    steps:
+      - 'step1: Detect Agent(deps_type=...) pattern in PydanticAI agents'
+      - 'step2: Extract deps class name and fields from Pydantic model'
+      - 'step3: Set inputs.type to json when deps injection detected'
+      - 'step4: Validate --json-input with pydanticai-bank-support-agent'
+    dependencies: []
+    tests: [test398, test399]
+    status: not-started
+
+  - id: task277
+    title: End-to-end validation with representative agents
+    type: validation
+    description: |
+      Run kinnoo import/pack/install/run on representative agents from each supported
+      pattern. Verify the full pipeline works for one-shot Python scripts, multi-file
+      agents, MCP servers, MCP clients, and OpenClaw plugins. Document results as PASS,
+      PARTIAL (kinnoo works but agent errors), or FAIL (kinnoo error).
+    files:
+      - tests/test_cli.py
+    steps:
+      - 'step1: Run E2E for pydanticai-roulette-wheel-agent (simple Python script)'
+      - 'step2: Run E2E for openai-agents-customer-service (multi-file)'
+      - 'step3: Run E2E for mcp-server-time-server (MCP server)'
+      - 'step4: Run E2E for agents-with-mcp-client-code-basic-client-demo (MCP client)'
+      - 'step5: Run E2E for vanilla-typescript-easy-agent (Node.js/TS, if task273 done)'
+      - 'step6: Document results in test report'
+    dependencies: [task269, task270, task271, task272, task273, task274, task275, task276]
+    tests: [test400, test401]
+    status: not-started
+  - id: task278
+    title: Streamlit/Gradio UI agent support
+    type: feature
+    description: |
+      Detect Streamlit and Gradio UI frameworks in agent code. When detected,
+      set runtime.type to 'daemon' and configure the appropriate run command
+      (e.g., 'streamlit run app.py' for Streamlit agents). Gradio agents auto-launch
+      a web server so they also need daemon runtime type. This enables kinnoo to
+      properly import, install, and run UI-based agent demos.
+    files:
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/import_command.py
+      - src/kinnoo/run_command.py
+    steps:
+      - 'step1: Add Streamlit/Gradio import detection in analyzer.py'
+      - 'step2: Add UI pattern confirmation (st.chat_input, gr.Interface, etc.)'
+      - 'step3: Set runtime.type=daemon and run_command in import_command.py'
+      - 'step4: Handle streamlit run command in run_command.py'
+      - 'step5: Test with nirbar1985-ai-travel-agent and aymenfurter-microagents'
+    dependencies: []
+    tests: [test402, test403, test404, test405]
+    status: not-started
+
+  - id: task279
+    title: Extended framework detection for new agent frameworks
+    type: feature
+    description: |
+      Extend kinnoo's analyzer to detect 9 additional agent frameworks beyond
+      LangChain/OpenAI/PydanticAI: CrewAI, OpenAI Swarm, Agno/Phi, SmolAgents,
+      AutoGen, Semantic Kernel, MetaGPT, LlamaIndex, and Anthropic. For each,
+      add import pattern detection, framework-specific metadata in kinnoo.yaml,
+      and update the IMPORT_TO_PYPI mapping for requirements inference. Add a
+      CrewAI wrapper template for class-based crew agents.
+    files:
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/import_command.py
+      - src/kinnoo/wrapper_templates/crewai_wrapper.py.j2
+    steps:
+      - 'step1: Add import patterns for 9 new frameworks in analyzer.py'
+      - 'step2: Add framework metadata to kinnoo.yaml generation'
+      - 'step3: Create CrewAI wrapper template'
+      - 'step4: Update IMPORT_TO_PYPI mapping with new framework packages'
+      - 'step5: Test with crewai-examples, openai-swarm, agno-agi-agno'
+    dependencies: [task269, task272]
+    tests: [test406, test407, test408, test409]
+    status: not-started
