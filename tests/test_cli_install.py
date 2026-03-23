@@ -139,6 +139,34 @@ def test_import_input_detection_yaml(tmp_path: Path) -> None:
     assert "required: false" in manifest_text
 
 
+def test_import_service_detection_yaml(tmp_path: Path) -> None:
+    """Feature47 test397: kinnoo import includes detected services in generated manifest."""
+    agent_dir = tmp_path / "service-import-agent"
+    agent_dir.mkdir(parents=True, exist_ok=True)
+    (agent_dir / "main.py").write_text(
+        "import ollama\n"
+        "if __name__ == '__main__':\n"
+        "    print('ok')\n",
+        encoding="utf-8",
+    )
+
+    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    result = subprocess.run(
+        [sys.executable, str(cli_path), "import", str(agent_dir), "--force"],
+        cwd=tmp_path,
+        input="y\n",
+        capture_output=True,
+        text=True,
+    )
+
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, output
+
+    manifest_text = (agent_dir / "kinnoo.yaml").read_text(encoding="utf-8")
+    assert "services:" in manifest_text
+    assert "name: ollama" in manifest_text
+
+
 def test_install_delegates_to_install_command(tmp_path):
     cli_source = Path("src/kinnoo/cli.py").read_text()
     install_branch_start = cli_source.find('elif args.command == "install":')
