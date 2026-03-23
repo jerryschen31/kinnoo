@@ -477,6 +477,34 @@ def test_analyzer_pydanticai_deps(tmp_path: Path) -> None:
     assert report["inferred"]["inputs"] == "json"
 
 
+def test_streamlit_detection(tmp_path: Path) -> None:
+    """Feature47 test402: analyzer detects Streamlit framework from imports."""
+    project_dir = tmp_path / "streamlit-agent"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "app.py").write_text(
+        "import streamlit as st\n"
+        "st.chat_input('Say hi')\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(project_dir).as_dict()
+    assert report["inferred"]["framework"] == "streamlit"
+
+
+def test_gradio_detection(tmp_path: Path) -> None:
+    """Feature47 test403: analyzer detects Gradio framework from imports."""
+    project_dir = tmp_path / "gradio-agent"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "app.py").write_text(
+        "import gradio as gr\n"
+        "demo = gr.Interface(fn=lambda x: x, inputs='text', outputs='text')\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(project_dir).as_dict()
+    assert report["inferred"]["framework"] == "gradio"
+
+
 def test_feature42_manifest_accepts_json_input_output_types(tmp_path: Path) -> None:
     """Feature42 test270: validator accepts json for inputs.type and outputs.type."""
     data = dict(_VALID_MANIFEST)

@@ -10,6 +10,7 @@ import getpass
 from typing import Iterable
 import re
 import json
+import shlex
 import signal
 import time
 import threading
@@ -1255,6 +1256,11 @@ def run_agent(
 
     runtime_path: Path | None = None
     runtime_path_value = runtime_section.get("path") if isinstance(runtime_section.get("path"), str) else None
+    runtime_run_command_override = (
+        runtime_section.get("run_command")
+        if isinstance(runtime_section.get("run_command"), str)
+        else None
+    )
     if runtime_path_value is not None:
         resolved_runtime_path, resolution_mode = _resolve_runtime_path_executable(runtime_path_value)
         if resolution_mode in {"file", "path"} and resolved_runtime_path is not None:
@@ -1283,7 +1289,7 @@ def run_agent(
         return finalize(1)
 
     python_exe: Path | None = None
-    if runtime_language == "python":
+    if runtime_language == "python" and not (runtime_run_command_override and runtime_run_command_override.strip()):
         venv_dir = agent_dir / ".venv"
         requirements = agent_dir / "requirements.txt"
         requirements_declared = requirements.exists() and bool(requirements.read_text().strip())
@@ -1356,6 +1362,8 @@ def run_agent(
                 if not python_exe.exists():
                     _print_safe_error(f"Error: python not found in venv at {python_exe}")
                     return finalize(1)
+    elif runtime_language == "python":
+        python_exe = Path(sys.executable)
     elif runtime_language != "nodejs":
         _print_safe_error(
             f"Error: Unsupported runtime.language '{runtime_language}'. Supported values are: python, nodejs"
@@ -1558,7 +1566,15 @@ def run_agent(
                 pythonpath_parts.append(existing_pythonpath)
             subprocess_env["PYTHONPATH"] = os.pathsep.join(pythonpath_parts)
 
-    if runtime_language == "nodejs":
+    runtime_run_command = runtime_section.get("run_command") if isinstance(runtime_section.get("run_command"), str) else None
+    if runtime_run_command and runtime_run_command.strip():
+        try:
+            process_args = shlex.split(runtime_run_command)
+        except ValueError as error:
+            _print_safe_error(f"Error: Invalid runtime.run_command value: {error}")
+            return finalize(1)
+        process_args = [token.replace("{entrypoint}", str(entrypoint_path)) for token in process_args]
+    elif runtime_language == "nodejs":
         entrypoint_suffix = entrypoint_path.suffix.lower()
         if entrypoint_suffix in {".ts", ".tsx"}:
             process_args = ["npx", "tsx", str(entrypoint_path)]
