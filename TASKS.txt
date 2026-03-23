@@ -5676,3 +5676,26 @@ tasks:
     dependencies: [task275, task276]
     tests: [test410, test411, test412, test413]
     status: needs-review
+
+  - id: task281
+    title: Inspect full/raw rendering and metadata update command
+    type: enhancement
+    description: |
+      Add inspect metadata rendering modes for complete-field visibility and raw
+      dotted-path output, plus a guarded metadata update flow that edits kinnoo.yaml
+      fields in place with confirmation prompts and optional prompt bypass.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/inspect_command.py
+      - tests/test_cli_inspect.py
+    steps:
+      - 'step1: Add inspect CLI flags `--full`, `--raw`, `--update`, and `--skip-warnings` with clear argument contracts'
+      - 'step2: Implement full rendering mode to include all known manifest metadata fields with N/A placeholders'
+      - 'step3: Implement raw rendering mode using dotted-path key/value output for filled fields and full+raw for all known fields'
+      - 'step4: Implement inspect update flow for directory manifests with confirmation prompt and --skip-warnings bypass'
+      - 'step5: Validate update writes by reloading and validating manifest after mutation, with actionable errors on invalid updates'
+      - 'step6: Add targeted CLI inspect tests for full/raw combinations and update flows'
+      - 'step7: Run focused pytest coverage for inspect command changes'
+    dependencies: [task66, task67, task68, task69, task148]
+    tests: [test414, test415, test416, test417, test418, test419, test420]
+    status: needs-review
