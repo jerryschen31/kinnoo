@@ -373,6 +373,33 @@ def test_analyzer_requirements_inference(tmp_path: Path) -> None:
     assert "os" not in dependencies
 
 
+def test_analyzer_nodejs_detection(tmp_path: Path) -> None:
+    """Feature47 test392: analyzer infers nodejs runtime and package.json entrypoint."""
+    project_dir = tmp_path / "node-agent"
+    src_dir = project_dir / "src"
+    src_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "package.json").write_text(
+        "{\n"
+        "  \"name\": \"node-agent\",\n"
+        "  \"version\": \"1.0.0\",\n"
+        "  \"main\": \"src/index.ts\",\n"
+        "  \"scripts\": {\"start\": \"node src/index.ts\"}\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    (project_dir / "tsconfig.json").write_text("{}\n", encoding="utf-8")
+    (src_dir / "index.ts").write_text("console.log('ok')\n", encoding="utf-8")
+
+    report = analyze_project(project_dir).as_dict()
+    runtime = report["inferred"]["runtime"]
+    entrypoint = report["inferred"]["entrypoint"]
+
+    assert isinstance(runtime, dict)
+    assert runtime.get("language") == "nodejs"
+    assert runtime.get("package_manager") in {"npm", "yarn", "pnpm"}
+    assert entrypoint == "src/index.ts"
+
+
 def test_feature42_manifest_accepts_json_input_output_types(tmp_path: Path) -> None:
     """Feature42 test270: validator accepts json for inputs.type and outputs.type."""
     data = dict(_VALID_MANIFEST)
