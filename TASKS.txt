@@ -5592,7 +5592,7 @@ tasks:
       - 'step4: Validate --json-input with pydanticai-bank-support-agent'
     dependencies: []
     tests: [test398, test399]
-    status: not-started
+    status: needs-review
 
   - id: task277
     title: End-to-end validation with representative agents

@@ -157,3 +157,48 @@ def test_run_typescript_entrypoint(tmp_path):
 
     assert run_result.returncode == 0, f"kinnoo run failed: {run_result.stderr}"
     assert "tsx executed:" in run_result.stdout
+
+
+@pytest.mark.integration
+def test_run_json_input_pydanticai(tmp_path):
+    """Feature47 test399: --json-input payload is passed through as structured JSON text."""
+    agent_dir = tmp_path / "json-input-agent"
+    agent_dir.mkdir(parents=True, exist_ok=True)
+
+    (agent_dir / "kinnoo.yaml").write_text(
+        "entrypoint: run.py\n"
+        "dependencies: []\n"
+        "inputs:\n  type: json\n"
+        "outputs:\n  type: string\n"
+        "runtime:\n"
+        "  type: one-shot\n"
+        "  language: python\n"
+        "  version: \"3.10\"\n"
+        "name: json-input-agent\n"
+        "version: 0.1.0\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "run.py").write_text(
+        "import json\n"
+        "import sys\n\n"
+        "payload = json.loads(sys.argv[1])\n"
+        "print(f\"deps:{payload.get('account_id')}:{payload.get('amount')}\")\n",
+        encoding="utf-8",
+    )
+
+    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    run_result = subprocess.run(
+        [
+            sys.executable,
+            str(cli_path),
+            "run",
+            str(agent_dir),
+            "--json-input",
+            '{"account_id":"acct-123","amount":42}',
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert run_result.returncode == 0, f"kinnoo run failed: {run_result.stderr}"
+    assert "deps:acct-123:42" in run_result.stdout

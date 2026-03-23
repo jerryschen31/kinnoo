@@ -1194,7 +1194,118 @@ def _is_json_dumps_call(node: ast.AST) -> bool:
     )
 
 
+def _extract_pydanticai_deps_signature(project_dir: Path) -> tuple[str | None, list[str]]:
+    deps_class_name: str | None = None
+    deps_fields: list[str] = []
+
+    for python_path in _iter_python_files(project_dir):
+        try:
+            source = python_path.read_text(encoding="utf-8")
+            tree = ast.parse(source)
+        except (OSError, UnicodeDecodeError, SyntaxError):
+            continue
+
+        pydantic_agent_symbols: set[str] = set()
+        pydantic_module_aliases: set[str] = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("pydantic_ai"):
+                for alias in node.names:
+                    if alias.name == "Agent":
+                        pydantic_agent_symbols.add(alias.asname or alias.name)
+            elif isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.name == "pydantic_ai":
+                        pydantic_module_aliases.add(alias.asname or "pydantic_ai")
+
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+
+            call_is_pydantic_agent = False
+            if isinstance(node.func, ast.Name) and node.func.id in pydantic_agent_symbols:
+                call_is_pydantic_agent = True
+            elif (
+                isinstance(node.func, ast.Attribute)
+                and node.func.attr == "Agent"
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id in pydantic_module_aliases
+            ):
+                call_is_pydantic_agent = True
+
+            if not call_is_pydantic_agent:
+                continue
+
+            for keyword in node.keywords:
+                if keyword.arg != "deps_type":
+                    continue
+
+                if isinstance(keyword.value, ast.Name):
+                    deps_class_name = keyword.value.id
+                elif isinstance(keyword.value, ast.Attribute):
+                    deps_class_name = keyword.value.attr
+                elif isinstance(keyword.value, ast.Constant) and isinstance(keyword.value.value, str):
+                    deps_class_name = keyword.value.value
+
+                break
+
+            if deps_class_name:
+                break
+
+        if not deps_class_name:
+            continue
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ClassDef) and node.name == deps_class_name:
+                extracted_fields: list[str] = []
+                for statement in node.body:
+                    if isinstance(statement, ast.AnnAssign) and isinstance(statement.target, ast.Name):
+                        extracted_fields.append(statement.target.id)
+                    elif isinstance(statement, ast.Assign):
+                        for target in statement.targets:
+                            if isinstance(target, ast.Name):
+                                extracted_fields.append(target.id)
+                deps_fields = sorted(set(extracted_fields))
+                break
+
+        return deps_class_name, deps_fields
+
+    return None, []
+
+
+def _detect_pydanticai_deps_type(project_dir: Path) -> DetectorResult:
+    deps_class_name, deps_fields = _extract_pydanticai_deps_signature(project_dir)
+    if deps_class_name:
+        return DetectorResult(
+            value={"class_name": deps_class_name, "fields": deps_fields},
+            confidence=0.9 if deps_fields else 0.82,
+            evidence=(
+                "Detected PydanticAI deps_type pattern "
+                f"(deps_type={deps_class_name}, fields={len(deps_fields)})."
+            ),
+            warning=None,
+        )
+
+    return DetectorResult(
+        value=None,
+        confidence=0.0,
+        evidence="No PydanticAI deps_type pattern detected.",
+        warning=None,
+    )
+
+
 def _detect_input_type(project_dir: Path) -> DetectorResult:
+    deps_class_name, deps_fields = _extract_pydanticai_deps_signature(project_dir)
+    if deps_class_name:
+        return DetectorResult(
+            value="json",
+            confidence=0.92 if deps_fields else 0.85,
+            evidence=(
+                "Detected PydanticAI Agent(deps_type=...) pattern "
+                f"(deps_type={deps_class_name}); mapped to inputs.type=json."
+            ),
+            warning=None,
+        )
+
     parsed_files = 0
     sys_argv_usages = 0
     input_calls = 0
@@ -1867,6 +1978,7 @@ def _detector_registry() -> dict[str, Detector]:
         "framework": _detect_framework,
         "model": _detect_model,
         "dependencies": _detect_dependencies,
+        "deps_type": _detect_pydanticai_deps_type,
         "inputs": _detect_input_type,
         "inputs_required": _detect_inputs_required,
         "async_entrypoint": _detect_async_entrypoint,
