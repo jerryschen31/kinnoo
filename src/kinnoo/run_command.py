@@ -35,6 +35,7 @@ from .runtime_monitor import predict_dry_run_actions
 from .runtime_monitor import posix_resource_limits_supported
 from .runtime_monitor import resolve_monitor_policy_summary
 from .runtime_monitor import resolve_violation_enforcement
+from .terminal_colors import style_text
 from .supervisor import (
     build_daemon_state_payload,
     clear_daemon_state,
@@ -115,7 +116,8 @@ def _load_agent_dotenv(dotenv_path: Path) -> dict[str, str]:
 
 def _emit_preflight_line(passed: bool, message: str) -> None:
     status = "PASS" if passed else "FAIL"
-    print(f"- [{status}] {message}")
+    color = "green" if passed else "red"
+    print(style_text(f"- [{status}] {message}", color=color, stream=sys.stdout))
 
 
 def _load_declared_services(manifest: dict | None) -> list[dict[str, object]]:
@@ -836,11 +838,11 @@ def run_preflight(agent_dir_arg: str) -> int:
         and service_checks_ok
         and daemon_state_ok
     ):
-        print("Ready to run")
-        print("Preflight result: PASS")
+        print(style_text("Ready to run", color="green", bold=True, stream=sys.stdout))
+        print(style_text("Preflight result: PASS", color="green", bold=True, stream=sys.stdout))
         return 0
 
-    print("Not ready to run")
+    print(style_text("Not ready to run", color="red", bold=True, stream=sys.stdout))
     print("Remediation summary:")
     if not runtime_constraint_ok:
         if runtime_language == "nodejs":
@@ -861,7 +863,7 @@ def run_preflight(agent_dir_arg: str) -> int:
     if daemon_lifecycle_result is not None and not daemon_lifecycle_result.healthy:
         print(f"- daemon: {daemon_lifecycle_result.guidance}")
 
-    print("Preflight result: FAIL")
+    print(style_text("Preflight result: FAIL", color="red", bold=True, stream=sys.stdout))
     return 1
 
 

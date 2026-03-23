@@ -11,10 +11,12 @@ from pathlib import Path
 try:
     from kinnoo.schema import NAME_PATTERN
     from kinnoo import __version__ as KINNOO_VERSION
+    from kinnoo.terminal_colors import style_text
 except ImportError:
     # fallback for direct script execution
     from .schema import NAME_PATTERN
     from . import __version__ as KINNOO_VERSION
+    from .terminal_colors import style_text
 
 
 RUN_USAGE_TEXT = (
@@ -26,6 +28,85 @@ RUN_USAGE_TEXT = (
 )
 
 IMPORT_USAGE_TEXT = "Usage: kinnoo import [path]"
+
+
+def _format_top_level_help_text() -> str:
+    title = style_text("Kinnoo CLI", color="cyan", bold=True, stream=sys.stdout)
+    usage_label = style_text("usage:", color="purple", bold=True, stream=sys.stdout)
+    usage_kinnoo = style_text("kinnoo", color="pink", bold=True, stream=sys.stdout)
+    usage_help = style_text("-h", color="neon_green", stream=sys.stdout)
+    usage_version = style_text("--version", color="light_blue", bold=True, stream=sys.stdout)
+    usage_commands = style_text(
+        "{init,run,stop,attach,logs,install,pack,keygen,inspect,publish,list,search,import,check}",
+        color="neon_green",
+        bold=True,
+        stream=sys.stdout,
+    )
+
+    positional_header = style_text("positional arguments:", color="purple", bold=True, stream=sys.stdout)
+    all_agents_header = style_text("all agents:", color="purple", bold=True, stream=sys.stdout)
+    daemon_header = style_text("daemon agents:", color="purple", bold=True, stream=sys.stdout)
+    registry_header = style_text("registry:", color="purple", bold=True, stream=sys.stdout)
+    other_header = style_text("other:", color="purple", bold=True, stream=sys.stdout)
+    options_header = style_text("options:", color="purple", bold=True, stream=sys.stdout)
+
+    all_agents_set = style_text("{init,run,install,pack,inspect, import,check}", color="neon_green", bold=True, stream=sys.stdout)
+    daemon_set = style_text("{stop,attach,logs}", color="neon_green", bold=True, stream=sys.stdout)
+    registry_set = style_text("{publish,install,list,search}", color="neon_green", bold=True, stream=sys.stdout)
+    other_set = style_text("{keygen}", color="neon_green", bold=True, stream=sys.stdout)
+
+    init_cmd = style_text("init", color="neon_green", bold=True, stream=sys.stdout)
+    run_cmd = style_text("run", color="neon_green", bold=True, stream=sys.stdout)
+    pack_cmd = style_text("pack", color="neon_green", bold=True, stream=sys.stdout)
+    inspect_cmd = style_text("inspect", color="neon_green", bold=True, stream=sys.stdout)
+    import_cmd = style_text("import", color="neon_green", bold=True, stream=sys.stdout)
+    check_cmd = style_text("check", color="neon_green", bold=True, stream=sys.stdout)
+    stop_cmd = style_text("stop", color="neon_green", bold=True, stream=sys.stdout)
+    attach_cmd = style_text("attach", color="neon_green", bold=True, stream=sys.stdout)
+    logs_cmd = style_text("logs", color="neon_green", bold=True, stream=sys.stdout)
+    publish_cmd = style_text("publish", color="neon_green", bold=True, stream=sys.stdout)
+    install_cmd = style_text("install", color="neon_green", bold=True, stream=sys.stdout)
+    list_cmd = style_text("list", color="neon_green", bold=True, stream=sys.stdout)
+    search_cmd = style_text("search", color="neon_green", bold=True, stream=sys.stdout)
+    keygen_cmd = style_text("keygen", color="neon_green", bold=True, stream=sys.stdout)
+
+    opt_help = style_text("--help", color="light_blue", bold=True, stream=sys.stdout)
+    opt_version = style_text("--version", color="light_blue", bold=True, stream=sys.stdout)
+
+    return (
+        f"{title}\n\n"
+        f"{usage_label} {usage_kinnoo} [{usage_help}] [{opt_version}] {usage_commands} ...\n\n"
+        f"{positional_header}\n"
+        f"{all_agents_header}\n"
+        f"    {all_agents_set}\n"
+        f"        {init_cmd}                Scaffold a new kinnoo agent\n"
+        f"        {run_cmd}                 Run a kinnoo agent\n"
+        f"        {pack_cmd}                Package an agent directory into a .kno archive\n"
+        f"        {inspect_cmd}             Inspect metadata from an agent directory or .kno archive\n"
+        f"        {import_cmd}              Import an existing agent project in-place and prepare kinnoo metadata\n"
+        f"        {check_cmd}               Run combined import/inspect/preflight compatibility checks\n\n"
+        f"{daemon_header}\n"
+        f"    {daemon_set}\n"
+        f"        {stop_cmd}                Stop a running daemon agent\n"
+        f"        {attach_cmd}              Attach to a running daemon agent session\n"
+        f"        {logs_cmd}                Show daemon logs (tail or follow)\n\n"
+        f"{registry_header}\n"
+        f"    {registry_set}\n"
+        f"        {publish_cmd}             Publish latest archived agent artifact to the registry\n"
+        f"        {install_cmd}             Install a kinnoo agent from archive (.kno) or registry\n"
+        f"        {list_cmd}                List agents from local archive (default) or remote registry\n"
+        f"        {search_cmd}              Search agents from local archive (default) or remote registry\n\n"
+        f"{other_header}\n"
+        f"    {other_set}\n"
+        f"        {keygen_cmd}              Generate an Ed25519 keypair for archive signing\n\n"
+        f"{options_header}\n"
+        f"    -h, {opt_help}            show this help message and exit\n"
+        f"    {opt_version}             show program's version number and exit\n"
+    )
+
+
+def _print_top_level_help() -> None:
+    print(_format_top_level_help_text())
 
 
 class KinnooArgumentParser(argparse.ArgumentParser):
@@ -50,6 +131,10 @@ class KinnooArgumentParser(argparse.ArgumentParser):
 
 def main():
     import os
+    if len(sys.argv) == 2 and sys.argv[1] in {"-h", "--help"}:
+        _print_top_level_help()
+        sys.exit(0)
+
     parser = KinnooArgumentParser(
         prog="kinnoo",
         description="Kinnoo CLI",
@@ -99,6 +184,11 @@ def main():
             "  mcp-server     - Model Context Protocol server\n"
             "  openclaw       - OpenClaw Node.js daemon agent"
         ),
+    )
+    init_parser.add_argument(
+        "--language",
+        choices=["python", "js", "javascript", "ts", "typescript"],
+        help="(Optional) Scaffold language: python, js/javascript, ts/typescript",
     )
 
     # Add 'run' subcommand
@@ -311,6 +401,11 @@ def main():
         "--signing-key",
         help="Path to Ed25519 private key PEM used with --sign",
     )
+    pack_parser.add_argument(
+        "--preflight",
+        action="store_true",
+        help="Run preflight checks before packaging; on FAIL prompt to continue.",
+    )
 
     # Add 'keygen' subcommand
     keygen_parser = subparsers.add_parser(
@@ -441,18 +536,45 @@ def main():
         epilog=(
             "Examples:\n"
             "  kinnoo import\n"
-            "  kinnoo import ./existing-project --force"
+            "  kinnoo import ./existing-project --force\n"
+            "  kinnoo import https://github.com/org/repo\n"
+            "  kinnoo import https://github.com/org/repo ./imported-agent"
         ),
     )
     import_parser.add_argument(
-        "path",
+        "target",
         nargs="?",
-        help="(Optional) Path to existing project directory (defaults to current directory)",
+        help=(
+            "(Optional) Existing local project path (defaults to current directory), "
+            "or a GitHub repository URL"
+        ),
+    )
+    import_parser.add_argument(
+        "import_path",
+        nargs="?",
+        help="(URL import only) Destination path for downloaded project",
     )
     import_parser.add_argument(
         "--force",
         action="store_true",
         help="Overwrite existing kinnoo.yaml in target directory",
+    )
+
+    check_parser = subparsers.add_parser(
+        "check",
+        help="Run import/inspect/preflight compatibility checks",
+        formatter_class=argparse.RawTextHelpFormatter,
+        description="Run import + inspect + preflight checks for a local project or GitHub URL",
+        epilog=(
+            "Examples:\n"
+            "  kinnoo check ./my-agent\n"
+            "  kinnoo check https://github.com/org/repo"
+        ),
+    )
+    check_parser.add_argument(
+        "target",
+        nargs="?",
+        help="Path to local agent directory, or a GitHub repository URL",
     )
 
     # Pre-parse sys.argv for missing args to print custom usage before argparse error
@@ -485,7 +607,7 @@ def main():
         from kinnoo.init_command import init_agent
         # from pathlib import Path
         try:
-            init_agent(args.agent_name, Path.cwd(), framework=args.framework)
+            init_agent(args.agent_name, Path.cwd(), framework=args.framework, language=getattr(args, "language", None))
             print(f"Initialized agent: {args.agent_name}")
         except FileExistsError as e:
             print(f"Error: {e}", file=sys.stderr)
@@ -627,6 +749,7 @@ def main():
             bump=getattr(args, "bump", None),
             sign=bool(getattr(args, "sign", False)),
             signing_key_path=getattr(args, "signing_key", None),
+            preflight=bool(getattr(args, "preflight", False)),
         )
         sys.exit(exit_code)
 
@@ -747,7 +870,8 @@ def main():
         sys.exit(exit_code)
 
     elif args.command == "import":
-        target_path_arg = getattr(args, "path", None)
+        target_path_arg = getattr(args, "target", None)
+        import_path_arg = getattr(args, "import_path", None)
         force = bool(getattr(args, "force", False))
 
         try:
@@ -755,7 +879,25 @@ def main():
         except ImportError:
             from .import_command import import_agent
 
-        exit_code = import_agent(target_path_arg=target_path_arg, force=force)
+        exit_code = import_agent(
+            target_path_arg=target_path_arg,
+            import_path_arg=import_path_arg,
+            force=force,
+        )
+        sys.exit(exit_code)
+
+    elif args.command == "check":
+        target = getattr(args, "target", None)
+        if target is None:
+            print("Usage: kinnoo check <agent-dir | github-url>", file=sys.stderr)
+            sys.exit(1)
+
+        try:
+            from kinnoo.check_command import check_target
+        except ImportError:
+            from .check_command import check_target
+
+        exit_code = check_target(target)
         sys.exit(exit_code)
 
 if __name__ == "__main__":

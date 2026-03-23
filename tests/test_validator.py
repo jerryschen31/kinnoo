@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from kinnoo.validator import validate  # noqa: E402
 from kinnoo.schema import normalize_manifest_defaults  # noqa: E402
+from kinnoo.analyzer import analyze_project  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -357,6 +358,79 @@ def test_feature32_runtime_type_daemon_validation(tmp_path: Path) -> None:
         assert is_valid is True, (
             f"Expected runtime.type={runtime_type!r} to pass validation; errors: {errors}"
         )
+
+
+def test_analyzer_detects_text_input_type(tmp_path: Path) -> None:
+    """Feature46 test364: analyzer infers text input from sys.argv usage."""
+    project_dir = tmp_path / "feature46-analyzer-text-input"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "run.py").write_text(
+        "import sys\n"
+        "if __name__ == '__main__':\n"
+        "    print(sys.argv[1] if len(sys.argv) > 1 else '')\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(project_dir)
+
+    assert report.inferred.get("inputs") == "text"
+    assert float(report.confidence.get("inputs", {}).get("score", 0.0)) >= 0.7
+    assert "sys.argv" in str(report.confidence.get("inputs", {}).get("evidence", ""))
+
+
+def test_analyzer_detects_json_input_type(tmp_path: Path) -> None:
+    """Feature46 test365: analyzer infers json input from json.loads patterns."""
+    project_dir = tmp_path / "feature46-analyzer-json-input"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "run.py").write_text(
+        "import json\n"
+        "import sys\n"
+        "if __name__ == '__main__':\n"
+        "    payload = json.loads(sys.argv[1])\n"
+        "    print(payload.get('message', ''))\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(project_dir)
+
+    assert report.inferred.get("inputs") == "json"
+    assert float(report.confidence.get("inputs", {}).get("score", 0.0)) >= 0.7
+    evidence = str(report.confidence.get("inputs", {}).get("evidence", ""))
+    assert "json.loads" in evidence
+
+
+def test_analyzer_detects_model_gemini(tmp_path: Path) -> None:
+    """Feature46 test369: analyzer infers Gemini model literals from source."""
+    project_dir = tmp_path / "feature46-model-gemini"
+    project_dir.mkdir()
+    (project_dir / "run.py").write_text(
+        "from google import genai\n"
+        "def run(prompt):\n"
+        "    client = genai.Client()\n"
+        "    return client.models.generate_content(model='gemini-2.5-flash-lite', contents=prompt)\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(project_dir).as_dict()
+    assert report["inferred"]["model"] == "gemini-2.5-flash-lite"
+    assert report["confidence"]["model"]["score"] >= 0.8
+
+
+def test_analyzer_detects_model_chatgpt(tmp_path: Path) -> None:
+    """Feature46 test370: analyzer infers OpenAI model literals from source."""
+    project_dir = tmp_path / "feature46-model-chatgpt"
+    project_dir.mkdir()
+    (project_dir / "run.py").write_text(
+        "from openai import OpenAI\n"
+        "client = OpenAI()\n"
+        "def run(prompt):\n"
+        "    return client.chat.completions.create(model=\"gpt-5-nano\", messages=[{'role': 'user', 'content': prompt}])\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(project_dir).as_dict()
+    assert report["inferred"]["model"] == "gpt-5-nano"
+    assert report["confidence"]["model"]["score"] >= 0.8
 
     invalid = dict(_VALID_MANIFEST)
     invalid["runtime"] = dict(invalid["runtime"])

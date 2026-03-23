@@ -418,6 +418,98 @@ assets:
         assert "data/config.json" in names
 
 
+def test_pack_preflight_pass_records_status(tmp_path):
+    """Feature46 test366: pack --preflight writes PASS metadata to kinnoo.yaml."""
+    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_cmd = ["python3", str(cli_script)]
+
+    agent = tmp_path / "pack-preflight-pass-agent"
+    agent.mkdir()
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: pack-preflight-pass-agent
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.py").write_text("print('ok')\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    result = subprocess.run(
+        cli_cmd + ["pack", str(agent), "--preflight"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, output
+    assert "Preflight result: PASS" in output
+
+    manifest_text = (agent / "kinnoo.yaml").read_text(encoding="utf-8")
+    assert "preflight_status: PASS" in manifest_text
+    assert "preflight_date:" in manifest_text
+
+
+def test_pack_preflight_fail_warns(tmp_path):
+    """Feature46 test367: pack --preflight warns on FAIL and proceeds only with confirmation."""
+    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_cmd = ["python3", str(cli_script)]
+
+    agent = tmp_path / "pack-preflight-fail-agent"
+    agent.mkdir()
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: pack-preflight-fail-agent
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.py").write_text("print('ok')\n", encoding="utf-8")
+    # Non-empty requirements and missing .venv should produce preflight FAIL.
+    (agent / "requirements.txt").write_text("requests==2.31.0\n", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    proceed_result = subprocess.run(
+        cli_cmd + ["pack", str(agent), "--preflight"],
+        cwd=tmp_path,
+        input="y\n",
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    proceed_output = f"{proceed_result.stdout}\n{proceed_result.stderr}"
+    assert "Preflight result: FAIL" in proceed_output
+    assert "Warning: preflight checks failed before pack." in proceed_output
+    assert "Preflight failed. Continue packing anyway? [y/N]:" in proceed_output
+    assert proceed_result.returncode == 0, proceed_output
+
+
 def test_feature22_pack_skips_assets_when_bundle_false(tmp_path):
     agent = tmp_path / "asset-optout"
     agent.mkdir()
