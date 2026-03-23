@@ -746,6 +746,168 @@ def _extract_env_var_names(tree: ast.AST) -> set[str]:
     return names
 
 
+def _is_sys_argv_subscript(node: ast.AST) -> bool:
+    return (
+        isinstance(node, ast.Subscript)
+        and isinstance(node.value, ast.Attribute)
+        and isinstance(node.value.value, ast.Name)
+        and node.value.value.id == "sys"
+        and node.value.attr == "argv"
+    )
+
+
+def _is_json_loads_call(node: ast.AST) -> bool:
+    return (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "json"
+        and node.func.attr == "loads"
+    )
+
+
+def _is_json_dumps_call(node: ast.AST) -> bool:
+    return (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "json"
+        and node.func.attr == "dumps"
+    )
+
+
+def _detect_input_type(project_dir: Path) -> DetectorResult:
+    parsed_files = 0
+    sys_argv_usages = 0
+    input_calls = 0
+    argparse_add_argument_calls = 0
+    parse_args_calls = 0
+    json_loads_calls = 0
+
+    for python_path in _iter_python_files(project_dir):
+        try:
+            source = python_path.read_text(encoding="utf-8")
+            tree = ast.parse(source)
+        except (OSError, UnicodeDecodeError, SyntaxError):
+            continue
+
+        parsed_files += 1
+        for node in ast.walk(tree):
+            if _is_sys_argv_subscript(node):
+                sys_argv_usages += 1
+
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "input":
+                input_calls += 1
+
+            if _is_json_loads_call(node):
+                json_loads_calls += 1
+
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+                if node.func.attr == "add_argument":
+                    argparse_add_argument_calls += 1
+                elif node.func.attr == "parse_args":
+                    parse_args_calls += 1
+
+    if json_loads_calls > 0 and (sys_argv_usages > 0 or parse_args_calls > 0):
+        return DetectorResult(
+            value="json",
+            confidence=0.9,
+            evidence=(
+                "Detected json.loads usage alongside CLI argument handling "
+                f"(json.loads={json_loads_calls}, sys.argv={sys_argv_usages}, parse_args={parse_args_calls})."
+            ),
+            warning=None,
+        )
+
+    if parse_args_calls > 0 and argparse_add_argument_calls > 0:
+        # Parameterized CLI contracts map best to structured JSON payloads in kinnoo manifests.
+        return DetectorResult(
+            value="json",
+            confidence=0.78,
+            evidence=(
+                "Detected argparse parameterized CLI input "
+                f"(parse_args={parse_args_calls}, add_argument={argparse_add_argument_calls}); "
+                "mapped to inputs.type=json for structured invocation."
+            ),
+            warning=None,
+        )
+
+    if sys_argv_usages > 0 or input_calls > 0:
+        return DetectorResult(
+            value="text",
+            confidence=0.84 if sys_argv_usages > 0 else 0.74,
+            evidence=(
+                "Detected text-oriented input handling "
+                f"(sys.argv={sys_argv_usages}, input()={input_calls})."
+            ),
+            warning=None,
+        )
+
+    return DetectorResult(
+        value="text",
+        confidence=0.3,
+        evidence=f"No explicit input handling detected across {parsed_files} python file(s).",
+        warning="Could not infer input contract; defaulting inputs.type to text.",
+    )
+
+
+def _detect_output_type(project_dir: Path) -> DetectorResult:
+    parsed_files = 0
+    print_calls = 0
+    json_dumps_calls = 0
+    returns_collection_literal = 0
+
+    for python_path in _iter_python_files(project_dir):
+        try:
+            source = python_path.read_text(encoding="utf-8")
+            tree = ast.parse(source)
+        except (OSError, UnicodeDecodeError, SyntaxError):
+            continue
+
+        parsed_files += 1
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "print":
+                print_calls += 1
+            if _is_json_dumps_call(node):
+                json_dumps_calls += 1
+            if isinstance(node, ast.Return) and isinstance(node.value, (ast.Dict, ast.List, ast.Tuple)):
+                returns_collection_literal += 1
+
+    if json_dumps_calls > 0:
+        return DetectorResult(
+            value="json",
+            confidence=0.88,
+            evidence=f"Detected json.dumps output serialization calls: {json_dumps_calls}.",
+            warning=None,
+        )
+
+    if returns_collection_literal > 0 and print_calls == 0:
+        return DetectorResult(
+            value="json",
+            confidence=0.72,
+            evidence=(
+                "Detected structured return values (dict/list/tuple) without explicit print-based text output; "
+                "mapped to outputs.type=json."
+            ),
+            warning=None,
+        )
+
+    if print_calls > 0:
+        return DetectorResult(
+            value="text",
+            confidence=0.82,
+            evidence=f"Detected print-based output calls: {print_calls}.",
+            warning=None,
+        )
+
+    return DetectorResult(
+        value="text",
+        confidence=0.3,
+        evidence=f"No explicit output patterns detected across {parsed_files} python file(s).",
+        warning="Could not infer output contract; defaulting outputs.type to text.",
+    )
+
+
 def _detect_env_vars(project_dir: Path) -> DetectorResult:
     env_names: set[str] = set()
     parsed_files = 0
@@ -837,6 +999,110 @@ def _collect_string_literals(tree: ast.AST) -> list[str]:
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
             literals.append(node.value)
     return literals
+
+
+_MODEL_NAME_KEYS = {
+    "model",
+    "model_name",
+    "model_id",
+    "default_model",
+}
+
+_MODEL_LITERAL_PATTERNS = [
+    re.compile(r"^(?:openai:)?gpt-[A-Za-z0-9_.:-]+$"),
+    re.compile(r"^claude-[A-Za-z0-9_.:-]+$"),
+    re.compile(r"^gemini-[A-Za-z0-9_.:-]+$"),
+    re.compile(r"^(?:openai:)?o[0-9]+(?:-[A-Za-z0-9_.:-]+)?$"),
+]
+
+
+def _looks_like_model_identifier(value: str) -> bool:
+    candidate = value.strip()
+    if not candidate:
+        return False
+    return any(pattern.fullmatch(candidate) for pattern in _MODEL_LITERAL_PATTERNS)
+
+
+def _detect_model(project_dir: Path) -> DetectorResult:
+    explicit_model_hits: list[tuple[str, str]] = []
+    assigned_model_hits: list[tuple[str, str]] = []
+    heuristic_model_hits: list[tuple[str, str]] = []
+
+    for python_path in _iter_python_files(project_dir):
+        try:
+            source = python_path.read_text(encoding="utf-8")
+            tree = ast.parse(source)
+        except (OSError, UnicodeDecodeError, SyntaxError):
+            continue
+
+        rel_path = _relative_path(project_dir, python_path)
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                for keyword in node.keywords:
+                    if keyword.arg not in _MODEL_NAME_KEYS:
+                        continue
+                    literal = _literal_string(keyword.value)
+                    if literal and _looks_like_model_identifier(literal):
+                        explicit_model_hits.append((literal, f"{rel_path}:{keyword.arg}"))
+
+            if isinstance(node, ast.Assign):
+                literal = _literal_string(node.value)
+                if not literal or not _looks_like_model_identifier(literal):
+                    continue
+
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        target_name = target.id.strip().lower()
+                        if target_name in _MODEL_NAME_KEYS:
+                            assigned_model_hits.append((literal, f"{rel_path}:{target.id}"))
+
+        for literal in _collect_string_literals(tree):
+            if _looks_like_model_identifier(literal):
+                heuristic_model_hits.append((literal, rel_path))
+
+    if explicit_model_hits:
+        model_name, evidence = explicit_model_hits[0]
+        return DetectorResult(
+            value=model_name,
+            confidence=0.93,
+            evidence=(
+                "Detected model string literal via explicit model keyword "
+                f"argument ({evidence})."
+            ),
+            warning=None,
+        )
+
+    if assigned_model_hits:
+        model_name, evidence = assigned_model_hits[0]
+        return DetectorResult(
+            value=model_name,
+            confidence=0.79,
+            evidence=(
+                "Detected model string literal via model-like variable assignment "
+                f"({evidence})."
+            ),
+            warning=None,
+        )
+
+    if heuristic_model_hits:
+        model_name, evidence = heuristic_model_hits[0]
+        return DetectorResult(
+            value=model_name,
+            confidence=0.62,
+            evidence=(
+                "Detected model-like string literal in source text; "
+                f"manual verification recommended ({evidence})."
+            ),
+            warning="Model inference confidence is moderate; verify inferred model in kinnoo.yaml.",
+        )
+
+    return DetectorResult(
+        value=None,
+        confidence=0.0,
+        evidence="No model string literals detected in project source.",
+        warning="Could not infer model automatically.",
+    )
 
 
 def _collect_path_literal_assets(project_dir: Path) -> tuple[set[str], list[str]]:
@@ -986,7 +1252,10 @@ def _detector_registry() -> dict[str, Detector]:
         "entrypoint": _detect_entrypoint,
         "runtime": _detect_runtime,
         "framework": _detect_framework,
+        "model": _detect_model,
         "dependencies": _detect_dependencies,
+        "inputs": _detect_input_type,
+        "outputs": _detect_output_type,
         "env_vars": _detect_env_vars,
         "assets": _detect_assets,
         "services": _detect_services,

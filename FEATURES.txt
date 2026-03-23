@@ -1624,3 +1624,37 @@ features:
     owner: techlead-agent
     dependencies: [feature23, feature26]
     status: needs-review
+
+  - id: feature46
+    title: "UAT Phase 3/4 continuation — agent analysis, CLI improvements, and bug fixes"
+    description: |
+      Continuation of user acceptance testing for Phase 3 and 4. Covers analysis of
+      42-agent corpus across LangChain, OpenAI Agents SDK, PydanticAI, and OpenClaw
+      frameworks; CLI UX improvements (help formatting, color output, init language flag);
+      analyzer enhancements (input/output type detection, model auto-detection); new
+      commands (kinnoo check, kinnoo import from URL); and a preflight venv bug fix.
+    tasks: [task258, task259, task260, task261, task262, task263, task264, task265, task266, task267, task268]
+    acceptance_criteria:
+      - id: AC1
+        description: "Analyzer detects input/output types and model metadata for imported agents."
+      - id: AC2
+        description: "`kinnoo pack --preflight` runs preflight and records status in kinnoo.yaml."
+      - id: AC3
+        description: "Daemon commands (attach, stop, logs) are in a separate section in `kinnoo -h`."
+      - id: AC4
+        description: "`kinnoo init -h` shows one framework per line with descriptions."
+      - id: AC5
+        description: "`kinnoo init --language` flag works for python, js, ts with incompatible combination errors."
+      - id: AC6
+        description: "OpenClaw init does not generate requirements.txt or run.py."
+      - id: AC7
+        description: "`kinnoo import <github-url>` downloads and imports with collision/error handling."
+      - id: AC8
+        description: "`kinnoo check` runs import+inspect+preflight in one go with intelligent error messages."
+      - id: AC9
+        description: "CLI commands use colored output for PASS/FAIL/WARN and user prompts."
+      - id: AC10
+        description: "Preflight passes when runtime.path is set but .venv does not yet exist."
+    owner: techlead-agent
+    dependencies: [feature3, feature19, feature20, feature27, feature44]
+    status: not-started

@@ -246,7 +246,7 @@ def _create_run_trace_agent(tmp_path: Path, agent_name: str) -> Path:
     )
     (agent_dir / "run.py").write_text(
         "import sys\n"
-        "print(f'run input: {sys.argv[1] if len(sys.argv) > 1 else ''}')\n",
+        "print(f\"run input: {sys.argv[1] if len(sys.argv) > 1 else ''}\")\n",
         encoding="utf-8",
     )
     (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
