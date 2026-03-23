@@ -120,10 +120,18 @@ def _is_offline_mode_enabled() -> bool:
     return kinnoo_offline in offline_values or pip_no_index in offline_values
 
 
-def _resolve_node_package_manager(runtime: dict[str, object]) -> tuple[str | None, str | None]:
+def _detect_node_package_manager_from_lockfile(target_dir: Path) -> str:
+    if (target_dir / "pnpm-lock.yaml").exists():
+        return "pnpm"
+    if (target_dir / "yarn.lock").exists():
+        return "yarn"
+    return "npm"
+
+
+def _resolve_node_package_manager(runtime: dict[str, object], target_dir: Path) -> tuple[str | None, str | None]:
     package_manager_value = runtime.get("package_manager")
     if package_manager_value is None:
-        return "npm", None
+        return _detect_node_package_manager_from_lockfile(target_dir), None
 
     if not isinstance(package_manager_value, str) or not package_manager_value.strip():
         return None, "runtime.package_manager must be a non-empty string when provided for nodejs runtime"
@@ -287,7 +295,7 @@ def _install_node_dependencies(
         )
         return 1
 
-    package_manager, resolution_error = _resolve_node_package_manager(runtime)
+    package_manager, resolution_error = _resolve_node_package_manager(runtime, target_dir)
     if package_manager is None:
         print(f"Error: {resolution_error}", file=sys.stderr)
         return 1

@@ -1559,8 +1559,12 @@ def run_agent(
             subprocess_env["PYTHONPATH"] = os.pathsep.join(pythonpath_parts)
 
     if runtime_language == "nodejs":
-        node_runtime = str(runtime_path) if runtime_path is not None else "node"
-        process_args = [node_runtime, str(entrypoint_path)]
+        entrypoint_suffix = entrypoint_path.suffix.lower()
+        if entrypoint_suffix in {".ts", ".tsx"}:
+            process_args = ["npx", "tsx", str(entrypoint_path)]
+        else:
+            node_runtime = str(runtime_path) if runtime_path is not None else "node"
+            process_args = [node_runtime, str(entrypoint_path)]
     else:
         process_args = [str(python_exe), str(entrypoint_path)]
     if effective_input_arg is not None:

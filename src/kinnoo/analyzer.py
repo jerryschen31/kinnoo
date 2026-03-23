@@ -10,6 +10,7 @@ from __future__ import annotations
 import ast
 import json
 import re
+import shlex
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -83,6 +84,66 @@ def _has_main_guard(file_path: Path) -> bool:
     except (OSError, UnicodeDecodeError):
         return False
     return "if __name__ == '__main__':" in source or "if __name__ == \"__main__\":" in source
+
+
+def _load_package_json(project_dir: Path) -> dict[str, Any] | None:
+    package_json_path = project_dir / "package.json"
+    if not package_json_path.exists() or not package_json_path.is_file():
+        return None
+
+    try:
+        payload = json.loads(package_json_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+
+    if isinstance(payload, dict):
+        return payload
+    return None
+
+
+def _extract_entrypoint_from_start_script(start_script: str) -> str | None:
+    try:
+        tokens = shlex.split(start_script)
+    except ValueError:
+        return None
+
+    for token in tokens:
+        if token.startswith("-"):
+            continue
+        candidate = token.strip()
+        if candidate.endswith((".js", ".mjs", ".cjs", ".ts", ".tsx")):
+            return candidate
+    return None
+
+
+def _detect_node_entrypoint(project_dir: Path) -> tuple[str | None, str | None]:
+    package_json = _load_package_json(project_dir)
+    if not package_json:
+        return None, None
+
+    main_value = package_json.get("main")
+    if isinstance(main_value, str) and main_value.strip():
+        return main_value.strip(), "Detected package.json main field."
+
+    scripts = package_json.get("scripts")
+    if isinstance(scripts, dict):
+        start_value = scripts.get("start")
+        if isinstance(start_value, str) and start_value.strip():
+            entrypoint = _extract_entrypoint_from_start_script(start_value)
+            if entrypoint:
+                return entrypoint, "Detected package.json scripts.start entrypoint command."
+
+    conventional_candidates = [
+        "src/index.ts",
+        "src/index.js",
+        "index.ts",
+        "index.js",
+    ]
+    for candidate in conventional_candidates:
+        if (project_dir / candidate).exists():
+            return candidate, "Detected conventional Node.js entrypoint path."
+
+    return None, None
 
 
 def _entrypoint_candidate_score(project_dir: Path, file_path: Path, *, has_main_guard: bool) -> tuple[int, int, int, str]:
@@ -245,6 +306,15 @@ def _detect_entrypoint(project_dir: Path) -> DetectorResult:
             warning=None,
         )
 
+    node_entrypoint, node_evidence = _detect_node_entrypoint(project_dir)
+    if isinstance(node_entrypoint, str) and node_entrypoint.strip():
+        return DetectorResult(
+            value=node_entrypoint,
+            confidence=0.76,
+            evidence=node_evidence or "Detected Node.js package.json entrypoint.",
+            warning=None,
+        )
+
     # Search entrypoint candidates up to depth 4 to better support common src/source layouts.
     python_files = _iter_python_files_with_depth(project_dir, max_depth=4)
     guarded = [path for path in python_files if _has_main_guard(path)]
@@ -352,7 +422,39 @@ def _detect_runtime_port_hint(project_dir: Path) -> int | None:
     return None
 
 
+def _detect_node_runtime_version(project_dir: Path) -> str:
+    package_json = _load_package_json(project_dir)
+    if not package_json:
+        return ">=20.0.0"
+
+    engines = package_json.get("engines")
+    if isinstance(engines, dict):
+        node_constraint = engines.get("node")
+        if isinstance(node_constraint, str) and node_constraint.strip():
+            return node_constraint.strip()
+
+    return ">=20.0.0"
+
+
 def _detect_runtime(project_dir: Path) -> DetectorResult:
+    package_json = _load_package_json(project_dir)
+    if package_json is not None:
+        runtime: dict[str, Any] = {
+            "language": "nodejs",
+            "version": _detect_node_runtime_version(project_dir),
+            "type": "one-shot",
+            "package_manager": _detect_node_package_manager(project_dir),
+        }
+        if (project_dir / "tsconfig.json").exists():
+            runtime["typescript"] = True
+
+        return DetectorResult(
+            value=runtime,
+            confidence=0.86,
+            evidence="Detected package.json runtime metadata for Node.js project.",
+            warning=None,
+        )
+
     python_files = _iter_python_files(project_dir)
     if not python_files:
         return DetectorResult(
@@ -668,6 +770,8 @@ def _detect_openclaw_weighted_signals(project_dir: Path) -> dict[str, Any]:
 def _detect_node_package_manager(project_dir: Path) -> str:
     if (project_dir / "pnpm-lock.yaml").exists():
         return "pnpm"
+    if (project_dir / "yarn.lock").exists():
+        return "yarn"
     return "npm"
 
 
