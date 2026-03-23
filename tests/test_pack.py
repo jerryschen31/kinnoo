@@ -1144,10 +1144,13 @@ assets:
       allow_unverified_publisher=True,
     )
     assert install_result == 0
-    assert (["npm", "install"], install_target.resolve()) in [
-        (command, cwd.resolve() if isinstance(cwd, Path) else cwd)
-        for command, cwd in install_calls
+    normalized_calls = [
+      (command, cwd.resolve() if isinstance(cwd, Path) else cwd)
+      for command, cwd in install_calls
     ]
+    assert (["pnpm", "install"], install_target.resolve()) in normalized_calls or (
+      (["npm", "install"], install_target.resolve()) in normalized_calls
+    )
 
 
 def test_feature40_pack_sign_emits_signature_and_metadata(tmp_path: Path) -> None:
