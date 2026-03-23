@@ -308,6 +308,47 @@ def test_feature31_runtime_language_rejects_unsupported_values(tmp_path: Path) -
     )
 
 
+def test_analyzer_class_only_detection(tmp_path: Path) -> None:
+    """Feature47 test384: analyzer detects class-only agent fallback entrypoint metadata."""
+    project_dir = tmp_path / "class-only-agent"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "base.py").write_text(
+        "from langchain.agents import BaseSingleActionAgent\n\n"
+        "class MyAgent(BaseSingleActionAgent):\n"
+        "    pass\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(project_dir).as_dict()
+    inferred_entrypoint = report["inferred"]["entrypoint"]
+    entrypoint_confidence = report["confidence"]["entrypoint"]["score"]
+
+    assert isinstance(inferred_entrypoint, dict)
+    assert inferred_entrypoint.get("entrypoint_type") == "class"
+    assert inferred_entrypoint.get("agent_class") == "MyAgent"
+    assert inferred_entrypoint.get("agent_module") == "base"
+    assert float(entrypoint_confidence) >= 0.40
+
+
+def test_analyzer_subdirectory_entrypoint(tmp_path: Path) -> None:
+    """Feature47 test388: analyzer prefers conventional subdirectory main.py entrypoint."""
+    project_dir = tmp_path / "subdir-agent"
+    source_dir = project_dir / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    (source_dir / "main.py").write_text(
+        "if __name__ == '__main__':\n"
+        "    print('ok')\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(project_dir).as_dict()
+    inferred_entrypoint = report["inferred"]["entrypoint"]
+    score = float(report["confidence"]["entrypoint"]["score"])
+
+    assert inferred_entrypoint == "source/main.py"
+    assert score >= 0.50
+
+
 def test_feature42_manifest_accepts_json_input_output_types(tmp_path: Path) -> None:
     """Feature42 test270: validator accepts json for inputs.type and outputs.type."""
     data = dict(_VALID_MANIFEST)

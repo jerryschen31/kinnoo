@@ -333,6 +333,44 @@ def _generate_entrypoint_wrapper(target_path: Path, original_entrypoint: str) ->
     return wrapper_name
 
 
+def _load_wrapper_template(template_name: str) -> str:
+    template_path = Path(__file__).resolve().parent / "wrapper_templates" / template_name
+    return template_path.read_text(encoding="utf-8")
+
+
+def _render_wrapper_template(template_text: str, agent_module: str, agent_class: str) -> str:
+    return (
+        template_text
+        .replace("{{agent_module}}", agent_module)
+        .replace("{{agent_class}}", agent_class)
+    )
+
+
+def _generate_class_wrapper_entrypoint(
+    target_path: Path,
+    *,
+    framework: str | None,
+    agent_module: str,
+    agent_class: str,
+    force: bool,
+) -> str:
+    wrapper_name = "run.py"
+    wrapper_path = target_path / wrapper_name
+    if wrapper_path.exists() and not force:
+        raise FileExistsError(
+            "Class-wrapper generation aborted: run.py already exists. Use --force to overwrite."
+        )
+
+    template_name = "langchain_wrapper.py.j2"
+    if framework == "openai-agents":
+        template_name = "openai_agents_wrapper.py.j2"
+
+    template_text = _load_wrapper_template(template_name)
+    wrapper_source = _render_wrapper_template(template_text, agent_module, agent_class)
+    wrapper_path.write_text(wrapper_source, encoding="utf-8")
+    return wrapper_name
+
+
 def _build_manifest_from_analysis(
     target_path: Path,
     report: dict[str, Any],
@@ -699,9 +737,11 @@ def import_agent(
 
     session = PromptSession()
     entrypoint_warning: str | None = None
+    report_for_manifest: dict[str, Any] | None = None
 
     try:
         report = analyze_project(target_path).as_dict()
+        report_for_manifest = report
         _show_detected_values(report)
 
         warning_messages = report.get("warnings", [])
@@ -719,7 +759,36 @@ def import_agent(
             print("Import cancelled by user.")
             return 1
 
-        manifest_text = _build_manifest_from_analysis(target_path, report, session=session)
+        inferred = report.get("inferred", {})
+        detected_entrypoint = inferred.get("entrypoint")
+        if isinstance(detected_entrypoint, dict) and detected_entrypoint.get("entrypoint_type") == "class":
+            agent_class = detected_entrypoint.get("agent_class")
+            agent_module = detected_entrypoint.get("agent_module")
+            if isinstance(agent_class, str) and isinstance(agent_module, str):
+                if _prompt_yes_no(
+                    "Generate class-based run.py wrapper entrypoint? [y/N]: ",
+                    False,
+                    session=session,
+                ):
+                    try:
+                        wrapper_entrypoint = _generate_class_wrapper_entrypoint(
+                            target_path,
+                            framework=inferred.get("framework") if isinstance(inferred.get("framework"), str) else None,
+                            agent_module=agent_module,
+                            agent_class=agent_class,
+                            force=force,
+                        )
+                        generated_wrapper_path = target_path / wrapper_entrypoint
+                    except Exception as exc:
+                        print(style_text(f"Error: class-wrapper generation failed: {exc}", color="red"))
+                        return 1
+
+                    manifest_inferred = dict(inferred)
+                    manifest_inferred["entrypoint"] = wrapper_entrypoint
+                    report_for_manifest = dict(report)
+                    report_for_manifest["inferred"] = manifest_inferred
+
+        manifest_text = _build_manifest_from_analysis(target_path, report_for_manifest or report, session=session)
         selected_entrypoint = _extract_entrypoint_from_manifest(manifest_text)
         entrypoint_warning = _assess_entrypoint_contract(target_path, selected_entrypoint)
         if entrypoint_warning:

@@ -59,3 +59,48 @@ def test_install_makes_agent_runnable(tmp_path):
     ], capture_output=True, text=True)
     assert run_result.returncode == 0, f"kinnoo run failed: {run_result.stderr}"
     assert "agent ran: test input" in run_result.stdout, f"Unexpected output: {run_result.stdout}"
+
+
+@pytest.mark.integration
+def test_run_subdirectory_entrypoint(tmp_path):
+    """Feature47 test389: kinnoo run executes subdirectory entrypoint with import-safe PYTHONPATH."""
+    agent_dir = tmp_path / "subdir-runnable-agent"
+    source_dir = agent_dir / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+
+    (agent_dir / "kinnoo.yaml").write_text(
+        "entrypoint: source/main.py\n"
+        "dependencies: []\n"
+        "inputs:\n  type: string\n"
+        "outputs:\n  type: string\n"
+        "runtime:\n"
+        "  type: one-shot\n"
+        "  language: python\n"
+        "  version: \"3.10\"\n"
+        "name: subdir-runnable-agent\n"
+        "version: 0.1.0\n",
+        encoding="utf-8",
+    )
+    (source_dir / "__init__.py").write_text("", encoding="utf-8")
+    (source_dir / "helper.py").write_text(
+        "def render(value: str) -> str:\n"
+        "    return f'subdir ran: {value}'\n",
+        encoding="utf-8",
+    )
+    (source_dir / "main.py").write_text(
+        "import sys\n"
+        "from source.helper import render\n\n"
+        "if __name__ == '__main__':\n"
+        "    print(render(sys.argv[1]))\n",
+        encoding="utf-8",
+    )
+
+    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    run_result = subprocess.run(
+        [sys.executable, str(cli_path), "run", str(agent_dir), "hello"],
+        capture_output=True,
+        text=True,
+    )
+
+    assert run_result.returncode == 0, f"kinnoo run failed: {run_result.stderr}"
+    assert "subdir ran: hello" in run_result.stdout

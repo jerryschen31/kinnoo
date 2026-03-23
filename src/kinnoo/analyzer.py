@@ -55,6 +55,23 @@ def _iter_python_files(project_dir: Path) -> list[Path]:
     return sorted(path for path in project_dir.rglob("*.py") if path.is_file())
 
 
+def _iter_python_files_with_depth(project_dir: Path, *, max_depth: int) -> list[Path]:
+    """Return python files up to max relative path depth from project root."""
+    files: list[Path] = []
+    for path in sorted(project_dir.rglob("*.py")):
+        if not path.is_file():
+            continue
+        try:
+            relative_parts = path.relative_to(project_dir).parts
+        except ValueError:
+            continue
+        # File depth measured by parent directories only.
+        depth = len(relative_parts) - 1
+        if depth <= max_depth:
+            files.append(path)
+    return files
+
+
 def _relative_path(project_dir: Path, file_path: Path) -> str:
     return file_path.relative_to(project_dir).as_posix()
 
@@ -67,6 +84,156 @@ def _has_main_guard(file_path: Path) -> bool:
     return "if __name__ == '__main__':" in source or "if __name__ == \"__main__\":" in source
 
 
+def _entrypoint_candidate_score(project_dir: Path, file_path: Path, *, has_main_guard: bool) -> tuple[int, int, int, str]:
+    """Score entrypoint candidates: guard, conventional dir, then shallower depth."""
+    conventional_dirs = {"src", "source", "app", "backend", "python-backend", "lambda", "lib"}
+    relative = file_path.relative_to(project_dir)
+    parent_parts = [part.lower() for part in relative.parts[:-1]]
+    filename = relative.name.lower()
+
+    conventional_boost = 0
+    if any(part in conventional_dirs for part in parent_parts):
+        conventional_boost = 1
+
+    conventional_filename = 1 if filename in {"main.py", "run.py", "app.py"} else 0
+    depth = len(relative.parts) - 1
+    # Higher tuple is better. Depth is inverted to prefer shallower paths.
+    return (
+        1 if has_main_guard else 0,
+        conventional_boost,
+        conventional_filename,
+        f"{-depth:04d}",
+    )
+
+
+def _select_best_entrypoint_candidate(project_dir: Path, candidates: list[Path]) -> tuple[Path | None, bool]:
+    """Pick a best candidate deterministically, returning ambiguity flag on ties."""
+    if not candidates:
+        return None, False
+
+    scored: list[tuple[tuple[int, int, int, str], Path]] = []
+    for path in candidates:
+        scored.append(
+            (
+                _entrypoint_candidate_score(project_dir, path, has_main_guard=_has_main_guard(path)),
+                path,
+            )
+        )
+    scored.sort(key=lambda item: item[0], reverse=True)
+
+    best_score, best_path = scored[0]
+    tie_count = sum(1 for score, _ in scored if score == best_score)
+    return best_path, tie_count > 1
+
+
+def _name_from_ast_node(node: ast.AST) -> str | None:
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        base = _name_from_ast_node(node.value)
+        if base:
+            return f"{base}.{node.attr}"
+        return node.attr
+    return None
+
+
+def _detect_class_entrypoint(project_dir: Path, python_files: list[Path]) -> DetectorResult:
+    known_agent_bases = {
+        "BaseSingleActionAgent",
+        "BaseMultiActionAgent",
+        "Agent",
+    }
+    candidates: list[dict[str, str]] = []
+
+    for python_file in python_files:
+        try:
+            source = python_file.read_text(encoding="utf-8")
+            tree = ast.parse(source)
+        except (OSError, UnicodeDecodeError, SyntaxError):
+            continue
+
+        imported_modules: set[str] = set()
+        imported_symbols: set[str] = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    imported_modules.add(alias.name)
+            elif isinstance(node, ast.ImportFrom):
+                if node.module:
+                    imported_modules.add(node.module)
+                for alias in node.names:
+                    imported_symbols.add(alias.name)
+
+        has_langchain_signal = any(module.startswith("langchain") for module in imported_modules)
+        has_openai_agents_signal = (
+            "agents" in imported_modules
+            or "Agent" in imported_symbols
+        )
+
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ClassDef):
+                continue
+            class_name = node.name
+            base_names = [
+                value for value in (_name_from_ast_node(base) for base in node.bases) if isinstance(value, str)
+            ]
+            has_known_base = any(
+                base_name in known_agent_bases or base_name.split(".")[-1] in known_agent_bases
+                for base_name in base_names
+            )
+            class_looks_like_agent = class_name.lower().endswith("agent")
+
+            if not (has_known_base or (class_looks_like_agent and (has_langchain_signal or has_openai_agents_signal))):
+                continue
+
+            candidates.append(
+                {
+                    "agent_class": class_name,
+                    "agent_module": _module_name_for_path(project_dir, python_file),
+                    "module_path": _relative_path(project_dir, python_file),
+                }
+            )
+
+    if len(candidates) == 1:
+        candidate = candidates[0]
+        return DetectorResult(
+            value={
+                "entrypoint": None,
+                "entrypoint_type": "class",
+                "agent_class": candidate["agent_class"],
+                "agent_module": candidate["agent_module"],
+            },
+            confidence=0.60,
+            evidence=(
+                "Detected class-only agent candidate "
+                f"{candidate['agent_class']} in {candidate['module_path']}."
+            ),
+            warning="Class-only agent detected; generate a wrapper entrypoint to run with kinnoo.",
+        )
+
+    if len(candidates) > 1:
+        candidate_labels = ", ".join(
+            f"{candidate['agent_class']} ({candidate['module_path']})" for candidate in candidates
+        )
+        return DetectorResult(
+            value={
+                "entrypoint": None,
+                "entrypoint_type": "class",
+                "candidates": candidates,
+            },
+            confidence=0.40,
+            evidence=f"Detected multiple class-only agent candidates: {candidate_labels}.",
+            warning="Multiple class-only agent candidates detected; choose one and generate wrapper manually.",
+        )
+
+    return DetectorResult(
+        value=None,
+        confidence=0.0,
+        evidence="No class-only agent candidates detected.",
+        warning=None,
+    )
+
+
 def _detect_entrypoint(project_dir: Path) -> DetectorResult:
     run_py = project_dir / "run.py"
     if run_py.exists() and run_py.is_file():
@@ -77,7 +244,8 @@ def _detect_entrypoint(project_dir: Path) -> DetectorResult:
             warning=None,
         )
 
-    python_files = _iter_python_files(project_dir)
+    # Search entrypoint candidates up to depth 4 to better support common src/source layouts.
+    python_files = _iter_python_files_with_depth(project_dir, max_depth=4)
     guarded = [path for path in python_files if _has_main_guard(path)]
 
     if len(guarded) == 1:
@@ -90,6 +258,19 @@ def _detect_entrypoint(project_dir: Path) -> DetectorResult:
         )
 
     if len(guarded) > 1:
+        selected, ambiguous = _select_best_entrypoint_candidate(project_dir, guarded)
+        if selected is not None and not ambiguous:
+            entrypoint = _relative_path(project_dir, selected)
+            return DetectorResult(
+                value=entrypoint,
+                confidence=0.72,
+                evidence=(
+                    "Multiple __main__ candidates detected; selected best candidate "
+                    f"using conventional-directory and shallow-depth weighting: {entrypoint}."
+                ),
+                warning=None,
+            )
+
         candidates = ", ".join(_relative_path(project_dir, path) for path in guarded)
         return DetectorResult(
             value=None,
@@ -97,6 +278,10 @@ def _detect_entrypoint(project_dir: Path) -> DetectorResult:
             evidence=f"Multiple __main__ candidates detected: {candidates}.",
             warning="Entrypoint is ambiguous; multiple executable modules were found.",
         )
+
+    class_candidate = _detect_class_entrypoint(project_dir, python_files)
+    if class_candidate.confidence >= 0.4:
+        return class_candidate
 
     if len(python_files) == 1:
         entrypoint = _relative_path(project_dir, python_files[0])
@@ -106,6 +291,23 @@ def _detect_entrypoint(project_dir: Path) -> DetectorResult:
             evidence=f"Only one python file found: {entrypoint}.",
             warning="Entrypoint inferred from single-file layout; verify before import.",
         )
+
+    conventional_candidates = [
+        path for path in python_files if path.name.lower() in {"main.py", "run.py", "app.py"}
+    ]
+    if conventional_candidates:
+        selected, ambiguous = _select_best_entrypoint_candidate(project_dir, conventional_candidates)
+        if selected is not None and not ambiguous:
+            entrypoint = _relative_path(project_dir, selected)
+            return DetectorResult(
+                value=entrypoint,
+                confidence=0.50,
+                evidence=(
+                    "Detected conventional entrypoint filename and selected best candidate "
+                    f"using directory/depth weighting: {entrypoint}."
+                ),
+                warning="Entrypoint inferred heuristically from conventional filenames; verify before import.",
+            )
 
     return DetectorResult(
         value=None,
