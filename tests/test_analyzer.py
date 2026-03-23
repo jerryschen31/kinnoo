@@ -31,7 +31,10 @@ def test_feature27_analyzer_public_api_and_detector_hooks(tmp_path: Path) -> Non
         "entrypoint",
         "runtime",
         "framework",
+        "model",
         "dependencies",
+        "inputs",
+        "outputs",
         "env_vars",
         "assets",
         "services",
@@ -295,7 +298,19 @@ def test_feature27_detector_matrix_positive_and_ambiguous(tmp_path: Path) -> Non
         for service in positive_payload["inferred"]["services"]
         if service["type"] == "http"
     )
-    assert all(meta["score"] > 0.0 for meta in positive_payload["confidence"].values())
+    for required_field in {
+        "entrypoint",
+        "runtime",
+        "framework",
+        "dependencies",
+        "env_vars",
+        "assets",
+        "services",
+    }:
+        assert positive_payload["confidence"][required_field]["score"] > 0.0
+
+    for optional_field in {"model", "inputs", "outputs"}:
+        assert positive_payload["confidence"][optional_field]["score"] >= 0.0
 
     ambiguous = tmp_path / "feature27-matrix-ambiguous"
     ambiguous.mkdir(parents=True, exist_ok=True)

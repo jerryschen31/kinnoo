@@ -74,15 +74,15 @@ _TS_RUN_TEMPLATE = """const inputText = process.argv[2] ?? '';
 console.log(`Hello from TS agent. Input: ${inputText}`);
 """
 
-_NODE_PACKAGE_JSON_TEMPLATE = """{
+_NODE_PACKAGE_JSON_TEMPLATE = """{{
     "name": "{name}",
     "version": "0.1.0",
     "private": true,
     "type": "module",
-    "scripts": {
+    "scripts": {{
         "start": "node {entrypoint}"
-    }
-}
+    }}
+}}
 """
 
 _NODE_README_TEMPLATE = """# {name}

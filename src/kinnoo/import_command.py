@@ -651,6 +651,7 @@ def import_agent(
 
     if import_path_arg is not None and not is_github_url(target_arg):
         print(style_text("Error: import-path positional argument is only supported for GitHub URL imports.", color="red"))
+        print("Usage: kinnoo import [target] [import-path] [--force]")
         return 1
 
     target_path: Path
