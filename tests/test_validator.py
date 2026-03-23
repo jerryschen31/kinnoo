@@ -453,6 +453,30 @@ def test_analyzer_service_detection(tmp_path: Path) -> None:
     assert "postgresql" in names
 
 
+def test_analyzer_pydanticai_deps(tmp_path: Path) -> None:
+    """Feature47 test398: analyzer detects PydanticAI deps_type and infers json input."""
+    project_dir = tmp_path / "pydanticai-deps-agent"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "main.py").write_text(
+        "from pydantic import BaseModel\n"
+        "from pydantic_ai import Agent\n\n"
+        "class MyDeps(BaseModel):\n"
+        "    account_id: str\n"
+        "    amount: float\n\n"
+        "agent = Agent('openai:gpt-4o-mini', deps_type=MyDeps)\n"
+        "print(agent)\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(project_dir).as_dict()
+    deps_type = report["inferred"]["deps_type"]
+
+    assert isinstance(deps_type, dict)
+    assert deps_type.get("class_name") == "MyDeps"
+    assert set(deps_type.get("fields", [])) >= {"account_id", "amount"}
+    assert report["inferred"]["inputs"] == "json"
+
+
 def test_feature42_manifest_accepts_json_input_output_types(tmp_path: Path) -> None:
     """Feature42 test270: validator accepts json for inputs.type and outputs.type."""
     data = dict(_VALID_MANIFEST)

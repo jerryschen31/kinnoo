@@ -397,6 +397,7 @@ def _build_manifest_from_analysis(
     services = _normalize_inferred_services(inferred.get("services"))
     permissions: dict[str, Any] | None = None
     inferred_input_type = inferred.get("inputs") if isinstance(inferred.get("inputs"), str) else "string"
+    inferred_deps_type = inferred.get("deps_type")
     inferred_inputs_required = inferred.get("inputs_required")
     inferred_output_type = inferred.get("outputs") if isinstance(inferred.get("outputs"), str) else "string"
     allowed_io_types = {"text", "string", "file", "json"}
@@ -404,6 +405,8 @@ def _build_manifest_from_analysis(
         inferred_input_type = "string"
     if inferred_output_type not in allowed_io_types:
         inferred_output_type = "string"
+    if isinstance(inferred_deps_type, dict) and inferred_deps_type.get("class_name"):
+        inferred_input_type = "json"
     if not isinstance(inferred_inputs_required, bool):
         inferred_inputs_required = True
 
