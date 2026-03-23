@@ -10,6 +10,7 @@ from __future__ import annotations
 import ast
 import json
 import re
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -728,6 +729,142 @@ def _normalize_package_name(name: str) -> str:
     return re.sub(r"[-_.]+", "-", name.strip().lower())
 
 
+IMPORT_TO_PYPI: dict[str, str] = {
+    "langchain": "langchain",
+    "langchain_core": "langchain-core",
+    "langchain_classic": "langchain-classic",
+    "langchain_openai": "langchain-openai",
+    "langchain_community": "langchain-community",
+    "langchain_text_splitters": "langchain-text-splitters",
+    "langchain_experimental": "langchain-experimental",
+    "langchain_google_genai": "langchain-google-genai",
+    "langgraph": "langgraph",
+    "langsmith": "langsmith",
+    "pydantic_ai": "pydantic-ai",
+    "openai": "openai",
+    "agents": "openai-agents",
+    "anthropic": "anthropic",
+    "google.genai": "google-genai",
+    "google.generativeai": "google-generativeai",
+    "cohere": "cohere",
+    "mistralai": "mistralai",
+    "vertexai": "google-cloud-aiplatform",
+    "boto3": "boto3",
+    "botocore": "botocore",
+    "azure": "azure",
+    "httpx": "httpx",
+    "requests": "requests",
+    "aiohttp": "aiohttp",
+    "fastapi": "fastapi",
+    "uvicorn": "uvicorn",
+    "flask": "flask",
+    "django": "django",
+    "streamlit": "streamlit",
+    "gradio": "gradio",
+    "litellm": "litellm",
+    "tiktoken": "tiktoken",
+    "tokenizers": "tokenizers",
+    "transformers": "transformers",
+    "sentence_transformers": "sentence-transformers",
+    "torch": "torch",
+    "tensorflow": "tensorflow",
+    "numpy": "numpy",
+    "pandas": "pandas",
+    "scipy": "scipy",
+    "sklearn": "scikit-learn",
+    "matplotlib": "matplotlib",
+    "seaborn": "seaborn",
+    "plotly": "plotly",
+    "pydantic": "pydantic",
+    "dotenv": "python-dotenv",
+    "yaml": "pyyaml",
+    "jinja2": "jinja2",
+    "loguru": "loguru",
+    "redis": "redis",
+    "psycopg2": "psycopg2-binary",
+    "asyncpg": "asyncpg",
+    "sqlalchemy": "sqlalchemy",
+    "chromadb": "chromadb",
+    "pinecone": "pinecone-client",
+    "faiss": "faiss-cpu",
+    "mcp": "mcp",
+    "crewai": "crewai",
+    "crewai_tools": "crewai-tools",
+}
+
+
+def _stdlib_module_names() -> set[str]:
+    stdlib = getattr(sys, "stdlib_module_names", None)
+    if isinstance(stdlib, set):
+        return set(stdlib)
+    return {
+        "argparse",
+        "asyncio",
+        "collections",
+        "contextlib",
+        "datetime",
+        "functools",
+        "hashlib",
+        "itertools",
+        "json",
+        "logging",
+        "math",
+        "os",
+        "pathlib",
+        "random",
+        "re",
+        "subprocess",
+        "sys",
+        "tempfile",
+        "threading",
+        "time",
+        "typing",
+        "uuid",
+    }
+
+
+def _project_module_roots(project_dir: Path) -> set[str]:
+    roots: set[str] = set()
+    for python_path in _iter_python_files(project_dir):
+        module_name = _module_name_for_path(project_dir, python_path)
+        if module_name:
+            roots.add(module_name.split(".")[0])
+    return roots
+
+
+def _map_import_to_package(import_name: str) -> str | None:
+    if import_name in IMPORT_TO_PYPI:
+        return IMPORT_TO_PYPI[import_name]
+
+    for module_prefix, package_name in IMPORT_TO_PYPI.items():
+        if import_name.startswith(f"{module_prefix}."):
+            return package_name
+
+    top_level = import_name.split(".")[0]
+    if top_level in IMPORT_TO_PYPI:
+        return IMPORT_TO_PYPI[top_level]
+    return None
+
+
+def _infer_requirements(project_dir: Path | str) -> list[str]:
+    """Infer PyPI package names from Python imports, excluding stdlib and local modules."""
+    resolved_project_dir = _validate_project_dir(project_dir)
+    import_names = _collect_import_names(resolved_project_dir)
+    stdlib_names = _stdlib_module_names()
+    local_roots = _project_module_roots(resolved_project_dir)
+
+    inferred_packages: set[str] = set()
+    for import_name in sorted(import_names):
+        top_level = import_name.split(".")[0]
+        if top_level in stdlib_names or top_level in local_roots:
+            continue
+        package_name = _map_import_to_package(import_name)
+        if package_name:
+            inferred_packages.add(package_name)
+
+    return sorted(inferred_packages)
+
+
 def _split_requirement_name_and_constraint(requirement: str) -> tuple[str, str]:
     # Keep parsing intentionally narrow/deterministic: name + optional tail constraints.
     requirement = requirement.strip()
@@ -853,37 +990,12 @@ def _detect_dependencies(project_dir: Path) -> DetectorResult:
             warning=None,
         )
 
-    import_dependency_map = {
-        "langchain": "langchain",
-        "langchain_core": "langchain-core",
-        "langchain_classic": "langchain-classic",
-        "langchain_openai": "langchain-openai",
-        "langchain_community": "langchain-community",
-        "langchain_text_splitters": "langchain-text-splitters",
-        "langchain_experimental": "langchain-experimental",
-        "langgraph": "langgraph",
-        "openai": "openai",
-        "anthropic": "anthropic",
-        "google.genai": "google-genai",
-        "google.generativeai": "google-generativeai",
-        "pydantic_ai": "pydantic-ai",
-        "mcp": "mcp",
-    }
-
-    inferred_from_imports: set[str] = set()
-    import_evidence: list[str] = []
-    import_names = _collect_import_names(project_dir)
-    for import_name in sorted(import_names):
-        for module_prefix, package_name in import_dependency_map.items():
-            if import_name == module_prefix or import_name.startswith(f"{module_prefix}."):
-                inferred_from_imports.add(package_name)
-                import_evidence.append(f"imports:{import_name}->{package_name}")
-                break
+    inferred_from_imports = _infer_requirements(project_dir)
+    import_evidence = [f"imports:{package_name}" for package_name in inferred_from_imports]
 
     if inferred_from_imports:
-        inferred_list = sorted(inferred_from_imports)
         return DetectorResult(
-            value=inferred_list,
+            value=inferred_from_imports,
             confidence=0.68,
             evidence=(
                 "Inferred dependencies from known import namespaces in source files: "
