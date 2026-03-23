@@ -5655,3 +5655,24 @@ tasks:
     dependencies: [task269, task272]
     tests: [test406, test407, test409]
     status: deprecated
+
+  - id: task280
+    title: OpenClaw-like analyzer detection without root package.json
+    type: enhancement
+    description: |
+      Improve analyzer inference for OpenClaw-like JS/TS projects that do not include
+      a root-level package.json but still contain clear runtime/framework evidence
+      (for example README OpenClaw markers plus nested server/bridge/src entrypoint files).
+      Ensure import output detects meaningful metadata instead of all-none defaults.
+    files:
+      - src/kinnoo/analyzer.py
+      - tests/test_analyzer.py
+    steps:
+      - 'step1: Add Node/TS entrypoint fallback heuristics for nested project layouts when root package.json is absent'
+      - 'step2: Add Node runtime fallback inference from JS/TS file presence with confidence-aware evidence/warnings'
+      - 'step3: Extend OpenClaw weighted detection with lightweight project signals (README markers and Node layout)'
+      - 'step4: Add barebones analyzer fixtures similar to selfclaw/nanobot/build-your-own/openclaw-core patterns in tests'
+      - 'step5: Validate targeted analyzer regressions with pytest --testmon'
+    dependencies: [task275, task276]
+    tests: [test410, test411, test412, test413]
+    status: needs-review

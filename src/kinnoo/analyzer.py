@@ -74,6 +74,32 @@ def _iter_python_files_with_depth(project_dir: Path, *, max_depth: int) -> list[
     return files
 
 
+def _iter_node_files_with_depth(project_dir: Path, *, max_depth: int) -> list[Path]:
+    """Return JS/TS files up to max relative path depth from project root."""
+    files: list[Path] = []
+    valid_suffixes = {".js", ".mjs", ".cjs", ".ts", ".tsx"}
+    ignored_segments = {"node_modules", ".git", ".venv", "dist", "build", "coverage"}
+
+    for path in sorted(project_dir.rglob("*")):
+        if not path.is_file():
+            continue
+        if path.suffix.lower() not in valid_suffixes:
+            continue
+        try:
+            relative_parts = path.relative_to(project_dir).parts
+        except ValueError:
+            continue
+
+        if any(part in ignored_segments for part in relative_parts):
+            continue
+
+        depth = len(relative_parts) - 1
+        if depth <= max_depth:
+            files.append(path)
+
+    return files
+
+
 def _relative_path(project_dir: Path, file_path: Path) -> str:
     return file_path.relative_to(project_dir).as_posix()
 
@@ -119,29 +145,80 @@ def _extract_entrypoint_from_start_script(start_script: str) -> str | None:
 def _detect_node_entrypoint(project_dir: Path) -> tuple[str | None, str | None]:
     package_json = _load_package_json(project_dir)
     if not package_json:
-        return None, None
+        package_json = None
 
-    main_value = package_json.get("main")
-    if isinstance(main_value, str) and main_value.strip():
-        return main_value.strip(), "Detected package.json main field."
+    if package_json is not None:
+        main_value = package_json.get("main")
+        if isinstance(main_value, str) and main_value.strip():
+            return main_value.strip(), "Detected package.json main field."
 
-    scripts = package_json.get("scripts")
-    if isinstance(scripts, dict):
-        start_value = scripts.get("start")
-        if isinstance(start_value, str) and start_value.strip():
-            entrypoint = _extract_entrypoint_from_start_script(start_value)
-            if entrypoint:
-                return entrypoint, "Detected package.json scripts.start entrypoint command."
+        scripts = package_json.get("scripts")
+        if isinstance(scripts, dict):
+            start_value = scripts.get("start")
+            if isinstance(start_value, str) and start_value.strip():
+                entrypoint = _extract_entrypoint_from_start_script(start_value)
+                if entrypoint:
+                    return entrypoint, "Detected package.json scripts.start entrypoint command."
 
-    conventional_candidates = [
+    conventional_root_candidates = [
+        "src/entry.ts",
         "src/index.ts",
+        "src/server.ts",
+        "src/entry.js",
         "src/index.js",
+        "src/server.js",
+        "entry.ts",
         "index.ts",
+        "server.ts",
+        "entry.js",
         "index.js",
+        "server.js",
+        "boot.mjs",
     ]
-    for candidate in conventional_candidates:
+    for candidate in conventional_root_candidates:
         if (project_dir / candidate).exists():
             return candidate, "Detected conventional Node.js entrypoint path."
+
+    priority_filenames = [
+        "boot.mjs",
+        "entry.ts",
+        "entry.mjs",
+        "entry.js",
+        "server.ts",
+        "server.mjs",
+        "server.js",
+        "index.ts",
+        "index.mjs",
+        "index.js",
+        "main.ts",
+        "main.mjs",
+        "main.js",
+        "cli.ts",
+        "cli.mjs",
+        "cli.js",
+    ]
+    priority_rank = {name: index for index, name in enumerate(priority_filenames)}
+    conventional_dirs = {"src", "server", "bridge", "app", "cli", "bin", "daemon", "gateway"}
+
+    node_files = _iter_node_files_with_depth(project_dir, max_depth=6)
+    candidates = [
+        path for path in node_files if path.name.lower() in priority_rank
+    ]
+    if candidates:
+        selected = min(
+            candidates,
+            key=lambda path: (
+                priority_rank[path.name.lower()],
+                0 if any(part.lower() in conventional_dirs for part in path.relative_to(project_dir).parts[:-1]) else 1,
+                len(path.relative_to(project_dir).parts) - 1,
+                _relative_path(project_dir, path),
+            ),
+        )
+        selected_entrypoint = _relative_path(project_dir, selected)
+        return selected_entrypoint, (
+            "Detected conventional Node.js/TS entrypoint candidate from nested project layout: "
+            f"{selected_entrypoint}."
+        )
 
     return None, None
 
@@ -455,6 +532,35 @@ def _detect_runtime(project_dir: Path) -> DetectorResult:
             warning=None,
         )
 
+    node_files = _iter_node_files_with_depth(project_dir, max_depth=6)
+    if node_files:
+        node_entrypoint, _ = _detect_node_entrypoint(project_dir)
+        runtime = {
+            "language": "nodejs",
+            "version": _detect_node_runtime_version(project_dir),
+            "package_manager": _detect_node_package_manager(project_dir),
+        }
+        if any(path.suffix.lower() in {".ts", ".tsx"} for path in node_files):
+            runtime["typescript"] = True
+        if node_entrypoint:
+            runtime["type"] = "one-shot"
+
+        confidence = 0.78 if node_entrypoint else 0.62
+        evidence_parts = [f"Detected {len(node_files)} Node.js/TS source file(s)."]
+        if node_entrypoint:
+            evidence_parts.append(f"Entrypoint hint: {node_entrypoint}.")
+
+        warning = None
+        if not node_entrypoint:
+            warning = "Runtime type is inferred from Node.js/TS source layout; verify entrypoint manually."
+
+        return DetectorResult(
+            value=runtime,
+            confidence=confidence,
+            evidence=" ".join(evidence_parts),
+            warning=warning,
+        )
+
     python_files = _iter_python_files(project_dir)
     if not python_files:
         return DetectorResult(
@@ -639,35 +745,119 @@ def _detect_framework(project_dir: Path) -> DetectorResult:
 
 
 def _openclaw_dependency_marker_count(project_dir: Path) -> tuple[int, list[str]]:
-    package_json_path = project_dir / "package.json"
-    if not package_json_path.exists() or not package_json_path.is_file():
-        return 0, []
-
-    try:
-        package_data = json.loads(package_json_path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
-        return 0, []
-
     markers: list[str] = []
-    dependency_sections = [
+    dependency_sections = (
         "dependencies",
         "devDependencies",
         "peerDependencies",
         "optionalDependencies",
-    ]
-    for section_name in dependency_sections:
-        section = package_data.get(section_name)
-        if not isinstance(section, dict):
+    )
+
+    candidate_package_json_paths: list[Path] = []
+    root_package_json = project_dir / "package.json"
+    if root_package_json.exists() and root_package_json.is_file():
+        candidate_package_json_paths.append(root_package_json)
+
+    ignored_segments = {"node_modules", ".git", "dist", "build"}
+    for path in sorted(project_dir.rglob("package.json")):
+        if path == root_package_json:
+            continue
+        try:
+            relative_parts = path.relative_to(project_dir).parts
+        except ValueError:
+            continue
+        if any(part in ignored_segments for part in relative_parts):
+            continue
+        depth = len(relative_parts) - 1
+        if depth > 4:
+            continue
+        candidate_package_json_paths.append(path)
+
+    for package_json_path in candidate_package_json_paths:
+        try:
+            package_data = json.loads(package_json_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        if not isinstance(package_data, dict):
             continue
 
-        for package_name in sorted(section.keys()):
-            normalized = str(package_name).strip().lower()
-            if not normalized:
-                continue
-            if normalized == "openclaw" or normalized.startswith("@openclaw/") or "openclaw" in normalized:
-                markers.append(f"package.json:{section_name}:{package_name}")
+        path_label = _relative_path(project_dir, package_json_path)
 
-    return len(markers), markers
+        package_name_value = package_data.get("name")
+        if isinstance(package_name_value, str):
+            normalized_name = package_name_value.strip().lower()
+            if "openclaw" in normalized_name:
+                markers.append(f"{path_label}:name:{package_name_value.strip()}")
+
+        openclaw_section = package_data.get("openclaw")
+        if isinstance(openclaw_section, (dict, list, str, bool, int, float)):
+            markers.append(f"{path_label}:openclaw-config")
+
+        for section_name in dependency_sections:
+            section = package_data.get(section_name)
+            if not isinstance(section, dict):
+                continue
+
+            for package_name in sorted(section.keys()):
+                normalized = str(package_name).strip().lower()
+                if not normalized:
+                    continue
+                if normalized == "openclaw" or normalized.startswith("@openclaw/") or "openclaw" in normalized:
+                    markers.append(f"{path_label}:{section_name}:{package_name}")
+
+    unique_markers = sorted(set(markers))
+    return len(unique_markers), unique_markers
+
+
+def _openclaw_readme_signal(project_dir: Path) -> tuple[float, list[str]]:
+    candidate_files = [
+        project_dir / "README.md",
+        project_dir / "README.source.md",
+    ]
+    total_mentions = 0
+    evidence: list[str] = []
+
+    for candidate in candidate_files:
+        if not candidate.exists() or not candidate.is_file():
+            continue
+        try:
+            content = candidate.read_text(encoding="utf-8").lower()
+        except (OSError, UnicodeDecodeError):
+            continue
+
+        mentions = len(re.findall(r"\bopenclaw\b", content))
+        if mentions <= 0:
+            continue
+        total_mentions += mentions
+        evidence.append(f"readme-openclaw:{_relative_path(project_dir, candidate)}:{mentions}")
+
+    if total_mentions >= 3:
+        return 0.5, evidence
+    if total_mentions >= 1:
+        return 0.3, evidence
+    return 0.0, []
+
+
+def _openclaw_node_layout_signal(project_dir: Path) -> tuple[float, str | None]:
+    node_files = _iter_node_files_with_depth(project_dir, max_depth=6)
+    if not node_files:
+        return 0.0, None
+
+    python_files = _iter_python_files_with_depth(project_dir, max_depth=6)
+    score = 0.08
+    if not python_files:
+        score += 0.12
+
+    has_openclaw_style_dir = any(
+        any(segment in {"server", "bridge", "gateway", "daemon"} for segment in path.relative_to(project_dir).parts[:-1])
+        for path in node_files
+    )
+    if has_openclaw_style_dir:
+        score += 0.08
+
+    return min(0.3, score), (
+        f"node-layout:node_files={len(node_files)};python_files={len(python_files)}"
+    )
 
 
 def _openclaw_skills_signal(project_dir: Path) -> tuple[bool, str | None]:
@@ -758,6 +948,17 @@ def _detect_openclaw_weighted_signals(project_dir: Path) -> dict[str, Any]:
     if identity_score > 0:
         score += identity_score
         medium_evidence.extend(identity_evidence)
+
+    readme_score, readme_evidence = _openclaw_readme_signal(project_dir)
+    if readme_score > 0:
+        score += readme_score
+        medium_evidence.extend(readme_evidence)
+
+    node_layout_score, node_layout_evidence = _openclaw_node_layout_signal(project_dir)
+    if node_layout_score > 0:
+        score += node_layout_score
+        if node_layout_evidence:
+            medium_evidence.append(node_layout_evidence)
 
     normalized_score = min(1.0, score)
     evidence = strong_evidence + medium_evidence

@@ -510,3 +510,90 @@ def test_dependency_inference_uses_known_import_namespaces(tmp_path: Path) -> No
     assert "langchain-core" in dependencies
     assert "langchain-openai" in dependencies
     assert payload["confidence"]["dependencies"]["score"] > 0.6
+
+
+def _write_openclaw_like_readme(project_dir: Path) -> None:
+    (project_dir / "README.source.md").write_text(
+        "# OpenClaw derivative\n"
+        "This project integrates OpenClaw gateway patterns.\n"
+        "OpenClaw onboarding and OpenClaw runtime behavior are documented here.\n",
+        encoding="utf-8",
+    )
+
+
+def test_feature47_openclaw_like_selfclaw_layout_inference(tmp_path: Path) -> None:
+    """test410: selfclaw-like nested server layout infers openclaw metadata without root package.json."""
+    project_dir = tmp_path / "feature47-openclaw-like-selfclaw"
+    (project_dir / "server").mkdir(parents=True, exist_ok=True)
+    _write_openclaw_like_readme(project_dir)
+
+    (project_dir / "server" / "boot.mjs").write_text(
+        "console.log('boot');\n",
+        encoding="utf-8",
+    )
+    (project_dir / "server" / "index.ts").write_text(
+        "export const started = true;\n",
+        encoding="utf-8",
+    )
+
+    payload = analyze_project(project_dir).as_dict()
+    assert payload["inferred"]["framework"] == "openclaw"
+    assert payload["inferred"]["runtime"]["language"] == "nodejs"
+    assert payload["inferred"]["entrypoint"] == "server/boot.mjs"
+    assert payload["inferred"]["inputs"] == "text"
+
+
+def test_feature47_openclaw_like_nanobot_layout_inference(tmp_path: Path) -> None:
+    """test411: nanobot-like bridge layout infers node runtime and nested server entrypoint."""
+    project_dir = tmp_path / "feature47-openclaw-like-nanobot"
+    (project_dir / "bridge" / "src").mkdir(parents=True, exist_ok=True)
+    _write_openclaw_like_readme(project_dir)
+
+    (project_dir / "bridge" / "src" / "server.ts").write_text(
+        "export const bridgeServer = true;\n",
+        encoding="utf-8",
+    )
+
+    payload = analyze_project(project_dir).as_dict()
+    assert payload["inferred"]["framework"] == "openclaw"
+    assert payload["inferred"]["runtime"]["language"] == "nodejs"
+    assert payload["inferred"]["entrypoint"] == "bridge/src/server.ts"
+
+
+def test_feature47_openclaw_like_build_your_own_layout_inference(tmp_path: Path) -> None:
+    """test412: build-your-own style deep tutorial layout still infers node runtime and entrypoint."""
+    project_dir = tmp_path / "feature47-openclaw-like-build-your-own"
+    nested_dir = project_dir / "11-multi-agent-routing" / "src" / "mybot" / "cli"
+    nested_dir.mkdir(parents=True, exist_ok=True)
+    _write_openclaw_like_readme(project_dir)
+
+    (nested_dir / "index.ts").write_text(
+        "export const run = () => 'ok';\n",
+        encoding="utf-8",
+    )
+
+    payload = analyze_project(project_dir).as_dict()
+    assert payload["inferred"]["runtime"]["language"] == "nodejs"
+    assert payload["inferred"]["framework"] == "openclaw"
+    assert payload["inferred"]["entrypoint"] == "11-multi-agent-routing/src/mybot/cli/index.ts"
+
+
+def test_feature47_openclaw_like_core_layout_inference(tmp_path: Path) -> None:
+    """test413: openclaw-core-like src layout prefers src/entry.ts over generic index.ts."""
+    project_dir = tmp_path / "feature47-openclaw-like-core"
+    (project_dir / "src").mkdir(parents=True, exist_ok=True)
+    _write_openclaw_like_readme(project_dir)
+
+    (project_dir / "src" / "entry.ts").write_text(
+        "export const entry = true;\n",
+        encoding="utf-8",
+    )
+    (project_dir / "src" / "index.ts").write_text(
+        "export const index = true;\n",
+        encoding="utf-8",
+    )
+
+    payload = analyze_project(project_dir).as_dict()
+    assert payload["inferred"]["framework"] == "openclaw"
+    assert payload["inferred"]["runtime"]["language"] == "nodejs"
+    assert payload["inferred"]["entrypoint"] == "src/entry.ts"

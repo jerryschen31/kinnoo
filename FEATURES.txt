@@ -1673,7 +1673,7 @@ features:
       SmolAgents, AutoGen, Semantic Kernel, MetaGPT, LlamaIndex, and Anthropic frameworks
       deferred to a future feature. Creates implementation tasks (task269-task279, task270
       deprecated) to extend kinnoo to support the majority of real agents encountered.
-    tasks: [task269, task271, task272, task273, task274, task275, task276, task277, task278]
+    tasks: [task269, task271, task272, task273, task274, task275, task276, task277, task278, task280]
     acceptance_criteria:
       - id: AC1
         description: "Analyzer detects class-only agents and import generates run.py wrapper."
@@ -1696,6 +1696,8 @@ features:
       - id: AC11
         description: "DEPRECATED — All 9 extended framework detections (CrewAI, Swarm, Agno, SmolAgents, AutoGen, Semantic Kernel, MetaGPT, LlamaIndex, Anthropic) are deferred to a future feature per human review (2025-03-23)."
         status: deprecated
+      - id: AC12
+        description: "Analyzer detects OpenClaw-like JS/TS projects that lack a root package.json by inferring node runtime, entrypoint candidates, and OpenClaw framework signals from lightweight project evidence."
     owner: techlead-agent
     dependencies: [feature46]
     status: not-started

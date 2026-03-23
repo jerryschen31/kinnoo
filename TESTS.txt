@@ -6754,3 +6754,67 @@ tests:
     pass_criteria: crewai and swarm keys exist in IMPORT_TO_PYPI dict
     automated: false
     automation_path: tests/test_validator.py::test_import_to_pypi_completeness
+
+  - id: test410
+    title: Analyzer infers OpenClaw-like metadata for selfclaw-style nested server layout
+    type: unit
+    preconditions: Barebones fixture with README OpenClaw markers and nested server/boot.mjs entrypoint
+    steps:
+      - step1: Create minimal selfclaw-like fixture (no root package.json)
+      - step2: Run analyzer
+      - step3: Validate inferred entrypoint/runtime/framework/inputs fields
+    expected: Analyzer infers node runtime and a concrete nested entrypoint with openclaw framework confidence
+    pass_criteria: framework==openclaw, runtime.language==nodejs, entrypoint points to nested server file, inputs defaults to text
+    automated: true
+    automation_path: tests/test_analyzer.py::test_feature47_openclaw_like_selfclaw_layout_inference
+    covers:
+      - feature: feature47
+        ac: AC12
+
+  - id: test411
+    title: Analyzer infers OpenClaw-like metadata for nanobot-style bridge layout
+    type: unit
+    preconditions: Barebones fixture with README OpenClaw markers and bridge/src/server.ts
+    steps:
+      - step1: Create minimal nanobot-like fixture (no root package.json)
+      - step2: Run analyzer
+      - step3: Validate inferred runtime and entrypoint
+    expected: Analyzer detects node runtime and bridge/src entrypoint with openclaw framework signal
+    pass_criteria: runtime.language==nodejs, entrypoint is bridge/src/server.ts, framework==openclaw
+    automated: true
+    automation_path: tests/test_analyzer.py::test_feature47_openclaw_like_nanobot_layout_inference
+    covers:
+      - feature: feature47
+        ac: AC12
+
+  - id: test412
+    title: Analyzer infers OpenClaw-like metadata for build-your-own tutorial layout
+    type: unit
+    preconditions: Barebones fixture with README OpenClaw markers and deeply nested TS entrypoint
+    steps:
+      - step1: Create minimal build-your-own-like fixture under tutorial step folder
+      - step2: Run analyzer
+      - step3: Validate inferred runtime and nested entrypoint
+    expected: Analyzer infers node runtime and nested tutorial entrypoint instead of returning None
+    pass_criteria: runtime.language==nodejs and entrypoint is non-empty nested TS path
+    automated: true
+    automation_path: tests/test_analyzer.py::test_feature47_openclaw_like_build_your_own_layout_inference
+    covers:
+      - feature: feature47
+        ac: AC12
+
+  - id: test413
+    title: Analyzer infers OpenClaw-like metadata for openclaw-core-style src entrypoint layout
+    type: unit
+    preconditions: Barebones fixture with README OpenClaw markers and src/entry.ts
+    steps:
+      - step1: Create minimal openclaw-core-like fixture
+      - step2: Run analyzer
+      - step3: Validate framework/runtime/entrypoint confidence metadata
+    expected: Analyzer returns openclaw framework and src/entry.ts entrypoint with node runtime inference
+    pass_criteria: framework==openclaw, runtime.language==nodejs, entrypoint==src/entry.ts
+    automated: true
+    automation_path: tests/test_analyzer.py::test_feature47_openclaw_like_core_layout_inference
+    covers:
+      - feature: feature47
+        ac: AC12
