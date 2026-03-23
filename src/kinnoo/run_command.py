@@ -1549,6 +1549,15 @@ def run_agent(
     subprocess_env = os.environ.copy()
     subprocess_env.update(resolved_env_vars)
 
+    if runtime_language == "python":
+        entrypoint_parent = entrypoint_path.parent
+        if entrypoint_parent != agent_dir:
+            existing_pythonpath = subprocess_env.get("PYTHONPATH", "")
+            pythonpath_parts = [str(agent_dir), str(entrypoint_parent)]
+            if existing_pythonpath:
+                pythonpath_parts.append(existing_pythonpath)
+            subprocess_env["PYTHONPATH"] = os.pathsep.join(pythonpath_parts)
+
     if runtime_language == "nodejs":
         node_runtime = str(runtime_path) if runtime_path is not None else "node"
         process_args = [node_runtime, str(entrypoint_path)]
