@@ -1867,7 +1867,12 @@ def _service_name_from_endpoint(endpoint: str, service_type: str) -> str:
         return "mongodb"
     parsed = urlsplit(endpoint)
     if parsed.hostname:
-        return parsed.hostname.replace(".", "-")
+        hostname = parsed.hostname.replace(".", "-")
+        if service_type == "http" and parsed.path not in {"", "/"}:
+            sanitized_path = parsed.path.strip("/").replace("/", "-")
+            if sanitized_path:
+                return f"{hostname}-{sanitized_path}"
+        return hostname
     return service_type
 
 

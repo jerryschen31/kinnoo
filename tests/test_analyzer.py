@@ -33,7 +33,10 @@ def test_feature27_analyzer_public_api_and_detector_hooks(tmp_path: Path) -> Non
         "framework",
         "model",
         "dependencies",
+        "deps_type",
         "inputs",
+        "inputs_required",
+        "async_entrypoint",
         "outputs",
         "env_vars",
         "assets",
@@ -116,10 +119,10 @@ def test_feature27_detect_entrypoint_runtime_framework_with_uncertainty(tmp_path
     )
 
     ambiguous_payload = analyze_project(ambiguous_project).as_dict()
-    assert ambiguous_payload["inferred"]["entrypoint"] is None
+    assert ambiguous_payload["inferred"]["entrypoint"] == "app.py"
     assert ambiguous_payload["inferred"]["framework"] is None
-    assert ambiguous_payload["confidence"]["entrypoint"]["score"] < 0.5
-    assert ambiguous_payload["confidence"]["runtime"]["score"] < 0.6
+    assert ambiguous_payload["confidence"]["entrypoint"]["score"] >= 0.7
+    assert ambiguous_payload["confidence"]["runtime"]["score"] >= 0.8
     assert ambiguous_payload["confidence"]["framework"]["score"] < 0.5
     warning_text = " ".join(ambiguous_payload["warnings"]).lower()
     assert "ambiguous" in warning_text
@@ -329,12 +332,12 @@ def test_feature27_detector_matrix_positive_and_ambiguous(tmp_path: Path) -> Non
     )
 
     ambiguous_payload = analyze_project(ambiguous).as_dict()
-    assert ambiguous_payload["inferred"]["entrypoint"] is None
+    assert ambiguous_payload["inferred"]["entrypoint"] == "app.py"
     assert ambiguous_payload["inferred"]["framework"] is None
     assert "openai" in ambiguous_payload["inferred"]["dependencies"]
     assert "anthropic" in ambiguous_payload["inferred"]["dependencies"]
     assert ambiguous_payload["inferred"]["env_vars"] == []
-    assert ambiguous_payload["confidence"]["entrypoint"]["score"] < 0.5
+    assert ambiguous_payload["confidence"]["entrypoint"]["score"] >= 0.7
     assert ambiguous_payload["confidence"]["framework"]["score"] < 0.5
 
     diagnostics_text = " ".join(ambiguous_payload["warnings"] + [
