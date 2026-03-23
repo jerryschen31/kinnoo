@@ -95,7 +95,9 @@ All 6 agents are single `base.py` class definitions extracted from `langchain_cl
 
 **Roadmap**: See Section 5.1 (Auto-Wrapper Generation)
 
-### 4.2 LangGraph Notebooks (5 agents)
+### 4.2 LangGraph Notebooks (5 agents) — SKIPPED
+
+> **SKIPPED per human review (2025-03-23):** Notebook conversion burden is on the agent developer. These 5 agents are excluded from feature47 scope. task270 deprecated.
 
 | Agent | Pattern | Commonality | Supportability | Notes |
 |-------|---------|-------------|----------------|-------|
@@ -105,9 +107,11 @@ All 6 agents are single `base.py` class definitions extracted from `langchain_cl
 | langgraph-tool-calling-graph | .ipynb only | Very Common | LOW | Tool-calling via StateGraph |
 | langgraph-web-voyager | .ipynb only | Very Common | LOW | Browser automation agent |
 
-**Roadmap**: See Section 5.2 (Notebook Conversion)
+**Roadmap**: ~~See Section 5.2 (Notebook Conversion)~~ SKIPPED — task270 deprecated.
 
-### 4.3 LangGraph with Python Entrypoints (3 agents)
+### 4.3 LangGraph with Python Entrypoints (3 agents) — SKIPPED
+
+> **SKIPPED per human review (2025-03-23):** All LangGraph agents (7-14) excluded from feature47 scope, including these 3 agents with Python entrypoints. They could be supported via task271/task272 but were explicitly excluded.
 
 | Agent | Pattern | Commonality | Supportability | Notes |
 |-------|---------|-------------|----------------|-------|
@@ -302,9 +306,11 @@ Ported from feature46-notes.md Section 4. All JS/TS plugins running in the OpenC
 
 **Estimated effort**: Medium. ~200 lines of new code + templates.
 
-### 5.2 Roadmap: Jupyter Notebook to Python Conversion
+### 5.2 Roadmap: Jupyter Notebook to Python Conversion — DEPRECATED
 
-**Agents supported**: langgraph-customer-support-graph, langgraph-hierarchical-agent-teams, langgraph-react-from-scratch, langgraph-tool-calling-graph, langgraph-web-voyager
+> **DEPRECATED per human review (2025-03-23):** Notebook conversion is the agent developer’s burden. task270 deprecated. Agents 7-11 marked NO.
+
+**Agents supported**: ~~langgraph-customer-support-graph, langgraph-hierarchical-agent-teams, langgraph-react-from-scratch, langgraph-tool-calling-graph, langgraph-web-voyager~~ None (skipped)
 
 **Pattern commonality**: VERY COMMON -- most LangGraph tutorials and >50% of ML/AI notebooks in the wild are .ipynb format.
 
@@ -468,7 +474,7 @@ Tasks are grouped by roadmap section. Each task targets one or more specific kin
 | Task | Roadmap | Agents Supported | Priority |
 |------|---------|-----------------|----------|
 | task269 | 5.1 Auto-Wrapper Generation | 7 LangChain/library agents | HIGH |
-| task270 | 5.2 Notebook Conversion | 5 LangGraph notebook agents | MEDIUM |
+| ~~task270~~ | ~~5.2 Notebook Conversion~~ | ~~5 LangGraph notebook agents~~ | ~~DEPRECATED~~ |
 | task271 | 5.3 Subdirectory Entrypoint | ~7 multi-dir agents | HIGH |
 | task272 | 5.4 Requirements Auto-Inference | All Python agents missing requirements.txt | MEDIUM |
 | task273 | 5.5 Node.js/TS Import & Run | ~25 JS/TS agents | HIGH |
@@ -773,9 +779,11 @@ ashishpatel26-500-ai-agents-projects-harshhh28-hia, ashishpatel26-500-ai-agents-
 
 **Estimated effort**: Small-Medium. ~80 lines of new code.
 
-### A13.2 Roadmap: Extended Framework Detection (task279)
+### A13.2 Roadmap: Extended Framework Detection (task279) -- DEPRECATED
 
-**Agents supported**: All agents using CrewAI, OpenAI Swarm, Agno/Phi, SmolAgents, AutoGen, Semantic Kernel, MetaGPT, LlamaIndex, Anthropic
+> **DEPRECATED per human review (2025-03-23):** All 9 extended framework detections deferred to a future feature.
+
+**Agents supported**: All agents using CrewAI, OpenAI Swarm, Agno/Phi, SmolAgents, AutoGen, Semantic Kernel, MetaGPT, LlamaIndex, Anthropic -- DEFERRED
 
 **Pattern commonality**: COMMON to VERY COMMON — These 9 frameworks represent the second tier of popular agent frameworks after LangChain/OpenAI SDK. CrewAI alone has 40K+ GitHub stars.
 
@@ -814,7 +822,7 @@ ashishpatel26-500-ai-agents-projects-harshhh28-hia, ashishpatel26-500-ai-agents-
 | Task | Roadmap | Agents Supported | Priority |
 |------|---------|-----------------|----------|
 | task278 | A13.1 Streamlit/Gradio UI Support | 9 UI agents | MEDIUM |
-| task279 | A13.2 Extended Framework Detection | ~15 new framework agents | MEDIUM |
+| ~~task279~~ | ~~A13.2 Extended Framework Detection~~ | ~~15 new framework agents~~ | ~~DEPRECATED~~ |
 
 Existing tasks from scratch-1 also apply to many scratch-2 agents:
 - task269 (Auto-Wrapper): 8+ library/SDK agents in scratch-2
@@ -824,3 +832,47 @@ Existing tasks from scratch-1 also apply to many scratch-2 agents:
 - task274 (Async/Input Detection): Many agents with no __main__ guard
 - task275 (Service Detection): FastAPI/Flask server agents
 - task277 (E2E Validation): All agents
+
+# Revision: Human Review (2025-03-23)
+
+## Decisions Applied
+
+### scratch-1 Decisions
+1. **LangChain class-only (1-6)**: YES -- support running via auto-wrapper (task269). Tool calling is best-effort.
+2. **LangGraph notebooks (7-11)**: NO -- notebook conversion burden is on the developer. task270 deprecated.
+3. **LangGraph Python entrypoints (12-14)**: NO -- explicitly excluded per human review despite having Python entrypoints.
+4. **PydanticAI (15-24)**: ALL YES -- goal is to make sure they run, not necessarily produce correct output.
+5. **Agent 19 (rag-agent)**: YES (task275, task277) -- even if it crashes on DB setup, that is the developer's problem.
+6. **OpenAI SDK (27-36, 38-39)**: YES -- agents 36 (streaming) and 39 (realtime/Next.js) promoted from FUTURE.
+7. **OpenClaw (40-44, 46)**: YES -- agent 43 (lobster) promoted from FUTURE. User will install deps.
+8. **MCP clients (52-64)**: ALL YES -- agents 56/57/60/61 promoted from FUTURE.
+9. **MCP servers (65-71, 73)**: YES. Agent 72 (tavily-search) was already YES.
+10. **Vanilla JS (74-78)**: YES (unchanged).
+11. **Vanilla Python (79-84, 86, 88-91)**: YES. Agent 85 stays FUTURE (Azure samples). Agent 87 stays NO.
+
+### scratch-2 Decisions
+1. **LangChain/LangGraph agents**: keep supporting (low-to-medium complexity)
+2. **Streamlit UI agents**: YES (task278)
+3. **Gradio UI agents**: YES (task278)
+4. **LlamaIndex agents**: DEFER to FUTURE
+5. **SmolAgents**: DEFER to FUTURE
+6. **AutoGen agents**: DEFER to FUTURE
+7. **Agno agents**: DEFER to FUTURE
+8. **Anthropic agents**: DEFER to FUTURE
+9. **CrewAI, MetaGPT, Swarm**: DO NOT SUPPORT -- all deferred to future feature
+
+### Key Principle
+> "Import should not throw errors unless the agent itself has issues. And kinnoo run should run the agent, but, depending on if the agent code itself has bugs, may or may not get to a successful output."
+
+### Manifest Changes Applied
+- **AC2** (notebook conversion): Removed from feature47
+- **AC11**: DEPRECATED -- all 9 extended framework detections deferred to future feature
+- **task270**: Deprecated (notebook conversion)
+- **task279**: DEPRECATED -- all extended framework detection deferred to future feature
+- **test386, test387**: Deprecated (notebook tests, AC2 removed)
+- **test406, test407, test408, test409**: Deprecated (extended framework detection deferred)
+
+### Statistics After Revision
+- **scratch-1**: YES=74, FUTURE=1, NO=18 (was 72/11/10)
+- **scratch-2**: YES=82, FUTURE=16, NO=11 (was 90/10/9)
+- **Combined**: YES=156, FUTURE=17, NO=29

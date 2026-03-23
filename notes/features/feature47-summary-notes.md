@@ -21,24 +21,24 @@
 | 4 | langchain-tool-calling-agent | LangChain | LOW | Very Common | YES | task269 | Simplest LangChain to wrap |
 | 5 | langchain-openai-functions-multi-agent | LangChain | LOW | Common | YES | task269 | Parallel functions |
 | 6 | langchain-openai-assistant-agent | LangChain | LOW | Common | YES | task269 | Stateful/async |
-| 7 | langgraph-customer-support-graph | LangGraph | LOW | Very Common | YES | task270 | Notebook only |
-| 8 | langgraph-hierarchical-agent-teams | LangGraph | LOW | Very Common | YES | task270 | Notebook only |
-| 9 | langgraph-react-from-scratch | LangGraph | LOW | Very Common | YES | task270 | Notebook only |
-| 10 | langgraph-tool-calling-graph | LangGraph | LOW | Very Common | YES | task270 | Notebook only |
-| 11 | langgraph-web-voyager | LangGraph | LOW | Very Common | YES | task270 | Notebook only |
-| 12 | langgraph-20-real-world-projects | LangGraph | MEDIUM | Common | YES | task271, task272 | Nested main.py |
-| 13 | langgraph-multi-agent-router | LangGraph | MEDIUM | Common | YES | task271, task272 | Multi-framework deps |
-| 14 | langgraph-deep-agents-harness | LangGraph | MEDIUM | Common | YES | task271 | Deeply nested entrypoint |
+| 7 | langgraph-customer-support-graph | LangGraph | LOW | Very Common | NO | -- | Notebook only; skipped per human review |
+| 8 | langgraph-hierarchical-agent-teams | LangGraph | LOW | Very Common | NO | -- | Notebook only; skipped per human review |
+| 9 | langgraph-react-from-scratch | LangGraph | LOW | Very Common | NO | -- | Notebook only; skipped per human review |
+| 10 | langgraph-tool-calling-graph | LangGraph | LOW | Very Common | NO | -- | Notebook only; skipped per human review |
+| 11 | langgraph-web-voyager | LangGraph | LOW | Very Common | NO | -- | Notebook only; skipped per human review |
+| 12 | langgraph-20-real-world-projects | LangGraph | MEDIUM | Common | NO | -- | Skipped per human review (has Python entrypoint, but LangGraph excluded) |
+| 13 | langgraph-multi-agent-router | LangGraph | MEDIUM | Common | NO | -- | Skipped per human review (has Python entrypoint, but LangGraph excluded) |
+| 14 | langgraph-deep-agents-harness | LangGraph | MEDIUM | Common | NO | -- | Skipped per human review (has Python entrypoint, but LangGraph excluded) |
 | 15 | pydanticai-weather-agent | PydanticAI | HIGH | Very Common | YES | task277 | Already works |
 | 16 | pydanticai-roulette-wheel-agent | PydanticAI | HIGH | Very Common | YES | task277 | Already works |
 | 17 | pydanticai-bank-support-agent | PydanticAI | MEDIUM | Very Common | YES | task276 | Needs JSON input for deps |
 | 18 | pydanticai-flight-booking-agent | PydanticAI | MEDIUM | Common | YES | task276 | Needs JSON input |
-| 19 | pydanticai-rag-agent | PydanticAI | LOW | Common | FUTURE | -- | Requires vector DB |
-| 20 | pydanticai-data-analyst-agent | PydanticAI | MEDIUM | Common | FUTURE | -- | External data sources |
+| 19 | pydanticai-rag-agent | PydanticAI | LOW | Common | YES | task275, task277 | Requires vector DB; run even if DB setup crashes |
+| 20 | pydanticai-data-analyst-agent | PydanticAI | MEDIUM | Common | YES | task277 | External data sources; run even if data unavailable |
 | 21 | pydantic-ai-official-bank-example | PydanticAI | HIGH | Common | YES | task277 | Multiple examples with __main__ |
 | 22 | pydantic-ai-pydantic-ai-agent | PydanticAI | HIGH | Common | YES | task277 | Well-structured multi-file |
 | 23 | pydantic-ai-rag-with-pydantic | PydanticAI | HIGH | Common | YES | task277 | Multiple examples |
-| 24 | pydantic-ai-github-agent | PydanticAI | MEDIUM | Common | FUTURE | -- | Eval examples |
+| 24 | pydantic-ai-github-agent | PydanticAI | MEDIUM | Common | YES | task277 | Eval examples |
 | 25 | pydantic-ai-pydantic-ai-history | PydanticAI | LOW | Moderate | NO | -- | Library, not agent |
 | 26 | pydantic-ai-serverless-agents | PydanticAI | LOW | Common | NO | -- | Lambda pattern |
 | 27 | openai-agents-hello-world | OpenAI SDK | HIGH | Very Common | YES | task274, task277 | Hardcoded input |
@@ -50,14 +50,14 @@
 | 33 | openai-agents-sdk-agent-search-tools | OpenAI SDK | HIGH | Common | YES | task274, task277 | Async examples |
 | 34 | openai-agents-sdk-customer-service | OpenAI SDK | HIGH | Common | YES | task271, task277 | python-backend/main.py |
 | 35 | openai-agents-sdk-function-tool-demo | OpenAI SDK | HIGH | Common | YES | task277 | Standard example |
-| 36 | openai-agents-sdk-streaming-agent | OpenAI SDK | MEDIUM | Common | FUTURE | -- | Voice streaming |
+| 36 | openai-agents-sdk-streaming-agent | OpenAI SDK | MEDIUM | Common | YES | task277 | Voice streaming; run even if streaming setup fails |
 | 37 | openai-agents-sdk-temporal-demos | OpenAI SDK | LOW | Moderate | NO | -- | Needs Temporal server |
 | 38 | openai-agents-sdk-openai-sdk-knowledge | OpenAI SDK | MEDIUM | Common | YES | task273 | TypeScript agent |
-| 39 | openai-agents-sdk-realtime-agents | OpenAI SDK | MEDIUM | Common | FUTURE | -- | Next.js app |
+| 39 | openai-agents-sdk-realtime-agents | OpenAI SDK | MEDIUM | Common | YES | task273 | Next.js app |
 | 40 | openclaw-diffs-extension-agent | OpenClaw | HIGH | Moderate | YES | task277 | Already supported via daemon |
 | 41 | openclaw-ollama-extension-agent | OpenClaw | HIGH | Moderate | YES | task275, task277 | Needs Ollama service decl |
 | 42 | openclaw-llm-task-extension-agent | OpenClaw | HIGH | Moderate | YES | task277 | Standard extension |
-| 43 | openclaw-lobster-extension-agent | OpenClaw | MEDIUM | Moderate | FUTURE | -- | External Lobster dep |
+| 43 | openclaw-lobster-extension-agent | OpenClaw | MEDIUM | Moderate | YES | task277 | External Lobster dep; user will install deps |
 | 44 | openclaw-open-prose-extension-agent | OpenClaw | HIGH | Moderate | YES | task277 | Skills pattern |
 | 45 | openclaw-voice-call-extension-agent | OpenClaw | LOW | Moderate | NO | -- | Heavy telephony deps |
 | 46 | openclaw-build-your-own | OpenClaw | MEDIUM | Common | YES | task271 | Deeply nested Python CLI |
@@ -70,12 +70,12 @@
 | 53 | mcp-client-completion-client | MCP Client | HIGH | Common | YES | task277 | Has __main__ |
 | 54 | mcp-client-streamable-basic-client | MCP Client | HIGH | Common | YES | task277 | Has __main__ |
 | 55 | mcp-client-pagination-client | MCP Client | HIGH | Common | YES | task277 | Has __main__ |
-| 56 | mcp-client-oauth-client | MCP Client | MEDIUM | Common | FUTURE | -- | OAuth setup |
-| 57 | mcp-client-url-elicitation-client | MCP Client | MEDIUM | Common | FUTURE | -- | URL elicitation |
+| 56 | mcp-client-oauth-client | MCP Client | MEDIUM | Common | YES | task277 | OAuth setup; run even if OAuth fails |
+| 57 | mcp-client-url-elicitation-client | MCP Client | MEDIUM | Common | YES | task277 | URL elicitation |
 | 58 | agents-with-mcp-client-code-basic-client-demo | MCP Client | HIGH | Common | YES | task277 | Clean example |
 | 59 | agents-with-mcp-client-code-simple-scraping-agent | MCP Client | HIGH | Common | YES | task277 | Well-structured |
-| 60 | agents-with-mcp-client-code-enrichmcp-orm | MCP Client | MEDIUM | Common | FUTURE | -- | Multi-framework |
-| 61 | agents-with-mcp-client-code-mcp-agent-loop | MCP Client | MEDIUM | Common | FUTURE | -- | Complex loop |
+| 60 | agents-with-mcp-client-code-enrichmcp-orm | MCP Client | MEDIUM | Common | YES | task277 | Multi-framework |
+| 61 | agents-with-mcp-client-code-mcp-agent-loop | MCP Client | MEDIUM | Common | YES | task277 | Complex loop; run even if loop diverges |
 | 62 | agents-with-mcp-client-code-langchainjs-burger | MCP Client | MEDIUM | Common | YES | task273 | TS MCP client |
 | 63 | agents-with-mcp-client-code-mcp-browser-agent | MCP Client | MEDIUM | Common | YES | task273 | TS browser agent |
 | 64 | agents-with-mcp-client-code-opencode | MCP Client | MEDIUM | Common | YES | task273 | TS editor |
@@ -147,10 +147,10 @@
 | HIGH supportability | 45 |
 | MEDIUM supportability | 33 |
 | LOW supportability | 15 |
-| Will support (YES) | 72 |
-| Future support (FUTURE) | 11 |
-| Will not support (NO) | 10 |
-| Enabling tasks created | 9 (task269-task277) |
+| Will support (YES) | 74 |
+| Future support (FUTURE) | 1 |
+| Will not support (NO) | 18 |
+| Enabling tasks created | 10 (task269, task271-task279; task270 deprecated) |
 
 
 ---
@@ -163,15 +163,15 @@
 |---|-----------|-----------|----------------|-------------|---------------|---------------|-------|
 | 115 | ashishpatel26-500-ai-agents-projects-ahmadvh-ai-agents-for-medical-diagnostics | langchain | LOW | Moderate | NO | -- | SDK/library fragment, no entrypoint |
 | 116 | ashishpatel26-500-ai-agents-projects-aleksnestu-ai-real-estate-assistant | fastapi, langchain | MEDIUM | Very Common | YES | task271, task275, task272 | FastAPI server, entry: apps/api/api/main.py |
-| 117 | ashishpatel26-500-ai-agents-projects-awesomelistsio-awesome-ai-agents-agno-agi-agno | agno_phi | MEDIUM | Common | YES | task279, task271 | Agno/Phi framework, 46 code files, entry: cookbook/01_demo/run.py |
+| 117 | ashishpatel26-500-ai-agents-projects-awesomelistsio-awesome-ai-agents-agno-agi-agno | agno_phi | MEDIUM | Common | FUTURE | task279 | Agno/Phi framework, 46 code files; deferred per human review |
 | 118 | ashishpatel26-500-ai-agents-projects-awesomelistsio-awesome-ai-agents-langchain-ai-langgraph | langchain, langgraph | LOW | Common | FUTURE | task269 | Large library (22 code files), needs auto-wrapper |
-| 119 | ashishpatel26-500-ai-agents-projects-crewaiinc-crewai-examples | crewai, langchain | MEDIUM | Common | YES | task279, task272 | CrewAI crew pattern with __main__, entry: crews/trip_planner/main.py |
+| 119 | ashishpatel26-500-ai-agents-projects-crewaiinc-crewai-examples | crewai, langchain | MEDIUM | Common | NO | -- | CrewAI framework; deferred per human review |
 | 120 | ashishpatel26-500-ai-agents-projects-crosleythomas-mirrorgpt | langchain | MEDIUM | Very Common | YES | task271, task272 | LangChain/LangGraph agent, entry: mirror/mirror_agent/agent.py, no __main__ |
 | 121 | ashishpatel26-500-ai-agents-projects-firica-legalai | langchain, streamlit | HIGH | Very Common | YES | task277 | LangChain/LangGraph agent, entry: agent.py, has __main__ |
 | 122 | ashishpatel26-500-ai-agents-projects-harshhh28-hia | langchain, streamlit | MEDIUM | Common | YES | task278 | Streamlit UI app, has __main__, no deps file |
 | 123 | ashishpatel26-500-ai-agents-projects-hoanganhvu123-shoppinggpt | flask, langchain | MEDIUM | Common | YES | task275 | Flask server, entry: app.py, deps: requirements.txt |
 | 124 | ashishpatel26-500-ai-agents-projects-hqanhh-edugpt | gradio, langchain | MEDIUM | Common | YES | task278 | Gradio UI app, no deps file |
-| 125 | ashishpatel26-500-ai-agents-projects-kyrolabs-awesome-agents-microsoft-autogen | autogen | MEDIUM | Common | YES | task279, task271 | Microsoft AutoGen, entry: python/samples/core_chess_game/main.py |
+| 125 | ashishpatel26-500-ai-agents-projects-kyrolabs-awesome-agents-microsoft-autogen | autogen | MEDIUM | Common | FUTURE | task279 | Microsoft AutoGen; deferred per human review |
 | 126 | ashishpatel26-500-ai-agents-projects-microsoft-optiguide | openai | MEDIUM | Very Common | YES | task271, task277, task272 | OpenAI SDK agent, entry: milp-evolve/src/milp_evolve_llm/main.py, has __main__ |
 | 127 | ashishpatel26-500-ai-agents-projects-microsoft-recai | openai | MEDIUM | Very Common | YES | task271, task277 | OpenAI SDK agent, entry: RecLM-gen/main.py, has __main__ |
 | 128 | ashishpatel26-500-ai-agents-projects-mingyuj666-stockagent | openai | HIGH | Very Common | YES | task277 | OpenAI SDK agent, entry: agent.py, has __main__ |
@@ -181,14 +181,14 @@
 | 132 | awesomelistsio-awesome-ai-agents-agno-agi-agent-ui | vanilla | LOW | Moderate | NO | -- | SDK/library fragment, no entrypoint |
 | 133 | awesomelistsio-awesome-ai-agents-bytedance-deer-flow | fastapi | MEDIUM | Very Common | YES | task271, task275, task272 | FastAPI server, entry: docker/provisioner/app.py |
 | 134 | awesomelistsio-awesome-ai-agents-crewai-inc-crewai | crewai | LOW | Moderate | NO | -- | SDK/library fragment, no entrypoint |
-| 135 | awesomelistsio-awesome-ai-agents-huggingface-smolagents | smolagents | MEDIUM | Moderate | YES | task279, task275 | HuggingFace SmolAgents, entry: examples/server/main.py |
+| 135 | awesomelistsio-awesome-ai-agents-huggingface-smolagents | smolagents | MEDIUM | Moderate | FUTURE | task279 | HuggingFace SmolAgents; deferred per human review |
 | 136 | awesomelistsio-awesome-ai-agents-jgravelle-autogroq | anthropic, streamlit | MEDIUM | Common | YES | task278 | Streamlit UI app, has __main__, no deps file |
 | 137 | awesomelistsio-awesome-ai-agents-josefdc-imageagent | langchain, langgraph, streamlit | MEDIUM | Common | YES | task278 | Streamlit UI app, has __main__, deps: requirements.txt |
 | 138 | awesomelistsio-awesome-ai-agents-kyrolabs-awesome-agents-botpress-botpress | vanilla | MEDIUM | Common | YES | task273 | Node.js/TS agent (vanilla), entry: bots/clog/src/index.ts |
 | 139 | awesomelistsio-awesome-ai-agents-kyrolabs-awesome-agents-mastra-ai-mastra | vanilla | MEDIUM | Common | YES | task273 | Node.js/TS agent (vanilla), entry: stores/pg/src/index.ts |
 | 140 | awesomelistsio-awesome-ai-agents-kyrolabs-awesome-agents-microsoft-semantic-kernel | semantic_kernel | MEDIUM | Common | FUTURE | task279 | Microsoft Semantic Kernel, samples only, no clear entrypoint |
-| 141 | awesomelistsio-awesome-ai-agents-kyrolabs-awesome-agents-openai-swarm | swarm | MEDIUM | Common | YES | task279, task271 | OpenAI Swarm multi-agent, entry: examples/airline/main.py |
-| 142 | awesomelistsio-awesome-ai-agents-kyrolabs-awesome-agents-phidatahq-phidata | agno_phi | MEDIUM | Common | YES | task279, task271 | Agno/Phi framework, 46 code files, entry: cookbook/01_demo/run.py |
+| 141 | awesomelistsio-awesome-ai-agents-kyrolabs-awesome-agents-openai-swarm | swarm | MEDIUM | Common | NO | -- | OpenAI Swarm; deferred per human review |
+| 142 | awesomelistsio-awesome-ai-agents-kyrolabs-awesome-agents-phidatahq-phidata | agno_phi | MEDIUM | Common | FUTURE | task279 | Agno/Phi framework, 46 code files; deferred per human review |
 | 143 | awesomelistsio-awesome-ai-agents-langchain-ai-langchain | langchain | LOW | Moderate | NO | -- | SDK/library fragment, no entrypoint |
 | 144 | awesomelistsio-awesome-ai-agents-pydantic-pydantic-ai | vanilla | MEDIUM | Very Common | YES | task271, task277, task272 | Python script + __main__, entry: docs/.hooks/main.py |
 | 145 | awesomelistsio-awesome-ai-agents-rasahq-rasa | vanilla | MEDIUM | Common | YES | task271, task274, task272 | Python multi-file, entry: rasa/cli/run.py, no __main__ |
@@ -206,7 +206,7 @@
 | 157 | kyrolabs-awesome-agents-cline-cline | streamlit | MEDIUM | Common | YES | task271, task274 | Has __main__ guards but no standard entrypoint found, needs investigation |
 | 158 | kyrolabs-awesome-agents-csunny-db-gpt | fastapi | LOW | Very Common | FUTURE | task275, task272 | FastAPI server, no clear entrypoint |
 | 159 | kyrolabs-awesome-agents-deepset-ai-haystack | vanilla | MEDIUM | Common | YES | task271, task274, task272 | Python multi-file, entry: haystack/components/agents/agent.py, no __main__ |
-| 160 | kyrolabs-awesome-agents-doriandarko-claude-engineer | anthropic | MEDIUM | Common | YES | task279, task272 | Anthropic client agent, entry: Claude-Eng-v2/main.py |
+| 160 | kyrolabs-awesome-agents-doriandarko-claude-engineer | anthropic | MEDIUM | Common | FUTURE | task279 | Anthropic client agent; deferred per human review |
 | 161 | kyrolabs-awesome-agents-doriandarko-maestro | flask | MEDIUM | Common | YES | task271, task275 | Flask server, entry: flask_app/app.py, deps: flask_app/requirements.txt |
 | 162 | kyrolabs-awesome-agents-dust-tt-dust | vanilla | MEDIUM | Common | YES | task273 | Node.js/TS agent (vanilla), entry: sdks/js/src/index.ts |
 | 163 | kyrolabs-awesome-agents-e2b-dev-e2b | vanilla | LOW | Common | FUTURE | task269 | Large library (16 code files), needs auto-wrapper |
@@ -233,7 +233,7 @@
 | 184 | kyrolabs-awesome-agents-landing-ai-vision-agent | fastapi | MEDIUM | Very Common | YES | task271, task275 | FastAPI server, entry: examples/chat/run.py, deps: examples/chat/requirements.txt |
 | 185 | kyrolabs-awesome-agents-litanlitudan-skyagi | langchain | LOW | Moderate | NO | -- | SDK/library fragment, no entrypoint |
 | 186 | kyrolabs-awesome-agents-littlebearapps-untether | vanilla | MEDIUM | Very Common | YES | task271, task277, task272 | Python script + __main__, entry: src/untether/cli/run.py |
-| 187 | kyrolabs-awesome-agents-liu-hy-genomas | anthropic, openai | MEDIUM | Common | YES | task279, task272 | Anthropic client agent, entry: main.py |
+| 187 | kyrolabs-awesome-agents-liu-hy-genomas | anthropic, openai | MEDIUM | Common | FUTURE | task279 | Anthropic client agent; deferred per human review |
 | 188 | kyrolabs-awesome-agents-maximilian-winter-llama-cpp-agent | vanilla | MEDIUM | Common | YES | task271, task274, task272 | Python multi-file, entry: examples/07_Memory/MemoryAssistant/main.py, no __main__ |
 | 189 | kyrolabs-awesome-agents-meta-llama-llama-agentic-system | vanilla | MEDIUM | Very Common | YES | task271, task277, task272 | Python script + __main__, entry: examples/DocQA/app.py |
 | 190 | kyrolabs-awesome-agents-microsoft-taskweaver | vanilla | MEDIUM | Very Common | YES | task271, task277, task272 | Python script + __main__, entry: playground/UI/app.py |
@@ -311,9 +311,9 @@
 | HIGH supportability | 5 |
 | MEDIUM supportability | 86 |
 | LOW supportability | 18 |
-| Will support (YES) | 90 |
-| Future support (FUTURE) | 10 |
-| Will not support (NO) | 9 |
+| Will support (YES) | 82 |
+| Future support (FUTURE) | 16 |
+| Will not support (NO) | 11 |
 | New tasks created | 2 (task278-task279) |
 
 ## Combined Statistics (scratch-1 + scratch-2)
@@ -326,4 +326,7 @@
 | HIGH supportability | 45 | 5 | 50 |
 | MEDIUM supportability | 33 | 86 | 119 |
 | LOW supportability | 15 | 18 | 33 |
-| Enabling tasks | 9 | 2 new | 11 (task269-task279) |
+| Will support (YES) | 74 | 82 | 156 |
+| Future support (FUTURE) | 1 | 16 | 17 |
+| Will not support (NO) | 18 | 11 | 29 |
+| Enabling tasks | 10 | 2 new | 11 (task269, task271-task279; task270/task279 deprecated) |

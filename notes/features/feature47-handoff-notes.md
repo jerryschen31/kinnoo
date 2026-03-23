@@ -45,7 +45,9 @@ These notes provide implementation guidance for each task in feature47. The SWE 
 
 ---
 
-## task270: Jupyter Notebook to Python Script Conversion
+## task270: Jupyter Notebook to Python Script Conversion -- DEPRECATED
+
+> **DEPRECATED per human review (2025-03-23):** Notebook conversion is the agent developer's burden. Agents 7-11 marked NO. task270 deprecated in TASKS.txt. test386/test387 deprecated in TESTS.txt.
 
 ### Target agents
 - langgraph-customer-support-graph
@@ -369,7 +371,9 @@ All TS/JS agents including:
 
 ---
 
-## task279: Extended Framework Detection (CrewAI, Swarm, Agno, etc.)
+## task279: Extended Framework Detection -- DEPRECATED
+
+> **DEPRECATED per human review (2025-03-23):** All 9 extended framework detections (CrewAI, Swarm, Agno, SmolAgents, AutoGen, Semantic Kernel, MetaGPT, LlamaIndex, Anthropic) are deferred to a future feature. AC11 deprecated. test406/test407/test408/test409 deprecated. Agents #117/#119/#125/#135/#141/#142/#160/#187 moved to NO or FUTURE.
 
 ### Target agents (from scratch-2)
 - ashishpatel26-500-ai-agents-projects-awesomelistsio-awesome-ai-agents-agno-agi-agno (Agno/Phi)
