@@ -400,6 +400,37 @@ def test_analyzer_nodejs_detection(tmp_path: Path) -> None:
     assert entrypoint == "src/index.ts"
 
 
+def test_analyzer_input_detection(tmp_path: Path) -> None:
+    """Feature47 test394: analyzer distinguishes parameterized and hardcoded input usage."""
+    parameterized_dir = tmp_path / "parameterized-input-agent"
+    parameterized_dir.mkdir(parents=True, exist_ok=True)
+    (parameterized_dir / "run.py").write_text(
+        "import sys\n"
+        "def main() -> None:\n"
+        "    value = sys.argv[1]\n"
+        "    print(value)\n"
+        "if __name__ == '__main__':\n"
+        "    main()\n",
+        encoding="utf-8",
+    )
+
+    hardcoded_dir = tmp_path / "hardcoded-input-agent"
+    hardcoded_dir.mkdir(parents=True, exist_ok=True)
+    (hardcoded_dir / "run.py").write_text(
+        "from agents import Runner, Agent\n"
+        "agent = Agent(name='demo')\n"
+        "result = Runner.run_sync(agent, 'hello world')\n"
+        "print(result)\n",
+        encoding="utf-8",
+    )
+
+    parameterized_report = analyze_project(parameterized_dir).as_dict()
+    hardcoded_report = analyze_project(hardcoded_dir).as_dict()
+
+    assert parameterized_report["inferred"]["inputs_required"] is True
+    assert hardcoded_report["inferred"]["inputs_required"] is False
+
+
 def test_feature42_manifest_accepts_json_input_output_types(tmp_path: Path) -> None:
     """Feature42 test270: validator accepts json for inputs.type and outputs.type."""
     data = dict(_VALID_MANIFEST)

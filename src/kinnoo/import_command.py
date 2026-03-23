@@ -395,12 +395,15 @@ def _build_manifest_from_analysis(
     services = _normalize_inferred_services(inferred.get("services"))
     permissions: dict[str, Any] | None = None
     inferred_input_type = inferred.get("inputs") if isinstance(inferred.get("inputs"), str) else "string"
+    inferred_inputs_required = inferred.get("inputs_required")
     inferred_output_type = inferred.get("outputs") if isinstance(inferred.get("outputs"), str) else "string"
     allowed_io_types = {"text", "string", "file", "json"}
     if inferred_input_type not in allowed_io_types:
         inferred_input_type = "string"
     if inferred_output_type not in allowed_io_types:
         inferred_output_type = "string"
+    if not isinstance(inferred_inputs_required, bool):
+        inferred_inputs_required = True
 
     # If analyzer inferred an entrypoint and user confirmed detected values,
     # keep it without re-prompting even when confidence is low.
@@ -470,6 +473,7 @@ def _build_manifest_from_analysis(
         dependency_lines,
         "inputs:",
         f"  type: {inferred_input_type}",
+        f"  required: {str(inferred_inputs_required).lower()}",
         "outputs:",
         f"  type: {inferred_output_type}",
     ]
