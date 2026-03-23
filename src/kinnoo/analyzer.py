@@ -1269,6 +1269,112 @@ def _detect_input_type(project_dir: Path) -> DetectorResult:
     )
 
 
+def _detect_inputs_required(project_dir: Path) -> DetectorResult:
+    parsed_files = 0
+    sys_argv_usages = 0
+    argparse_add_argument_calls = 0
+    parse_args_calls = 0
+    input_calls = 0
+    hardcoded_run_calls = 0
+
+    for python_path in _iter_python_files(project_dir):
+        try:
+            source = python_path.read_text(encoding="utf-8")
+            tree = ast.parse(source)
+        except (OSError, UnicodeDecodeError, SyntaxError):
+            continue
+
+        parsed_files += 1
+        for node in ast.walk(tree):
+            if _is_sys_argv_subscript(node):
+                sys_argv_usages += 1
+
+            if isinstance(node, ast.Call):
+                if isinstance(node.func, ast.Name) and node.func.id == "input":
+                    input_calls += 1
+
+                if isinstance(node.func, ast.Attribute):
+                    if node.func.attr == "add_argument":
+                        argparse_add_argument_calls += 1
+                    elif node.func.attr == "parse_args":
+                        parse_args_calls += 1
+                    elif node.func.attr in {"run", "run_sync"}:
+                        if any(isinstance(arg, ast.Constant) and isinstance(arg.value, str) for arg in node.args):
+                            hardcoded_run_calls += 1
+
+    if sys_argv_usages > 0 or parse_args_calls > 0 or argparse_add_argument_calls > 0 or input_calls > 0:
+        return DetectorResult(
+            value=True,
+            confidence=0.9,
+            evidence=(
+                "Detected parameterized input handling "
+                f"(sys.argv={sys_argv_usages}, argparse={parse_args_calls}/{argparse_add_argument_calls}, input()={input_calls})."
+            ),
+            warning=None,
+        )
+
+    if hardcoded_run_calls > 0:
+        return DetectorResult(
+            value=False,
+            confidence=0.85,
+            evidence=(
+                "Detected hardcoded literal input in agent execution calls "
+                f"(run/run_sync literal call count={hardcoded_run_calls})."
+            ),
+            warning=None,
+        )
+
+    return DetectorResult(
+        value=True,
+        confidence=0.4,
+        evidence=f"No explicit input-source patterns found across {parsed_files} python file(s).",
+        warning="Input requiredness is uncertain; defaulting to required=true.",
+    )
+
+
+def _detect_async_entrypoint(project_dir: Path) -> DetectorResult:
+    async_function_count = 0
+    asyncio_run_calls = 0
+
+    for python_path in _iter_python_files(project_dir):
+        try:
+            tree = ast.parse(python_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, SyntaxError):
+            continue
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef):
+                async_function_count += 1
+
+            if isinstance(node, ast.Call):
+                if (
+                    isinstance(node.func, ast.Attribute)
+                    and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id == "asyncio"
+                    and node.func.attr == "run"
+                ):
+                    asyncio_run_calls += 1
+
+    is_async = async_function_count > 0 or asyncio_run_calls > 0
+    if is_async:
+        return DetectorResult(
+            value=True,
+            confidence=0.86,
+            evidence=(
+                "Detected async entrypoint signals "
+                f"(async defs={async_function_count}, asyncio.run calls={asyncio_run_calls})."
+            ),
+            warning=None,
+        )
+
+    return DetectorResult(
+        value=False,
+        confidence=0.65,
+        evidence="No async entrypoint signals detected.",
+        warning=None,
+    )
+
+
 def _detect_output_type(project_dir: Path) -> DetectorResult:
     parsed_files = 0
     print_calls = 0
@@ -1673,6 +1779,8 @@ def _detector_registry() -> dict[str, Detector]:
         "model": _detect_model,
         "dependencies": _detect_dependencies,
         "inputs": _detect_input_type,
+        "inputs_required": _detect_inputs_required,
+        "async_entrypoint": _detect_async_entrypoint,
         "outputs": _detect_output_type,
         "env_vars": _detect_env_vars,
         "assets": _detect_assets,

@@ -5554,7 +5554,7 @@ tasks:
       - 'step4: Test with openai-agents-hello-world (hardcoded) and an argparse agent'
     dependencies: []
     tests: [test394, test395]
-    status: not-started
+    status: needs-review
 
   - id: task275
     title: Service dependency auto-detection
