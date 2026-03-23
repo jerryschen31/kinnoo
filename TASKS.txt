@@ -5434,7 +5434,7 @@ tasks:
       - 'step4: Add test for preflight FAIL with no runtime.path and no venv (existing behavior)'
     dependencies: [task257]
     tests: [test382, test383]
-    status: not-started
+    status: needs-review
 
   - id: task269
     title: Auto-wrapper generation for class-only Python agents
@@ -5653,3 +5653,4 @@ tasks:
       - 'step1: DEPRECATED'
     dependencies: [task269, task272]
     tests: [test406, test407, test409]
+    status: deprecated
