@@ -3568,3 +3568,152 @@ outputs:
     combined = f"{result.stdout}\n{result.stderr}"
     assert result.returncode == 0, combined
     assert "\u001b[" not in combined
+
+
+@pytest.mark.integration
+def test_e2e_python_oneshot(tmp_path):
+    """Feature47 test400: import/pack/install/run succeeds for a one-shot Python agent."""
+    source_agent_dir = tmp_path / "feature47-e2e-python-agent"
+    source_agent_dir.mkdir(parents=True, exist_ok=True)
+    (source_agent_dir / "run.py").write_text(
+        "import sys\n"
+        "if __name__ == '__main__':\n"
+        "    print(f'e2e-python:{sys.argv[1]}')\n",
+        encoding="utf-8",
+    )
+    (source_agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = dict(os.environ)
+    env["KINNOO_ARCHIVE_ROOT"] = str(tmp_path / "archive-root")
+
+    import_result = subprocess.run(
+        [sys.executable, str(CLI_SCRIPT_PATH), "import", str(source_agent_dir), "--force"],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert import_result.returncode == 0, (
+        f"kinnoo import failed: {import_result.stdout}\n{import_result.stderr}"
+    )
+
+    pack_result = subprocess.run(
+        [sys.executable, str(CLI_SCRIPT_PATH), "pack", str(source_agent_dir)],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert pack_result.returncode == 0, (
+        f"kinnoo pack failed: {pack_result.stdout}\n{pack_result.stderr}"
+    )
+
+    archive_path = tmp_path / "archive-root" / "feature47-e2e-python-agent" / "1.0.0" / "feature47-e2e-python-agent.kno"
+    assert archive_path.exists(), f"Expected archive not found: {archive_path}"
+
+    install_result = subprocess.run(
+        [
+            sys.executable,
+            str(CLI_SCRIPT_PATH),
+            "install",
+            str(archive_path),
+            "--yes",
+            "--allow-unverified-publisher",
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert install_result.returncode == 0, (
+        f"kinnoo install failed: {install_result.stdout}\n{install_result.stderr}"
+    )
+
+    installed_agent_dir = tmp_path / "feature47-e2e-python-agent"
+    assert installed_agent_dir.exists(), f"Installed agent dir not found: {installed_agent_dir}"
+
+    run_result = subprocess.run(
+        [sys.executable, str(CLI_SCRIPT_PATH), "run", str(installed_agent_dir), "hello-e2e"],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert run_result.returncode == 0, f"kinnoo run failed: {run_result.stdout}\n{run_result.stderr}"
+    assert "e2e-python:hello-e2e" in run_result.stdout
+
+
+@pytest.mark.integration
+def test_e2e_mcp_server(tmp_path):
+    """Feature47 test401: import/pack/install/run succeeds for an MCP-server runtime agent."""
+    source_agent_dir = tmp_path / "feature47-e2e-mcp-server"
+    source_agent_dir.mkdir(parents=True, exist_ok=True)
+    (source_agent_dir / "run.py").write_text(
+        "import time\n"
+        "if __name__ == '__main__':\n"
+        "    print('mcp-server-started', flush=True)\n"
+        "    time.sleep(0.2)\n"
+        "    print('mcp-server-ready', flush=True)\n",
+        encoding="utf-8",
+    )
+    (source_agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = dict(os.environ)
+    env["KINNOO_ARCHIVE_ROOT"] = str(tmp_path / "archive-root")
+
+    import_result = subprocess.run(
+        [sys.executable, str(CLI_SCRIPT_PATH), "import", str(source_agent_dir), "--force"],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert import_result.returncode == 0, (
+        f"kinnoo import failed: {import_result.stdout}\n{import_result.stderr}"
+    )
+
+    manifest_path = source_agent_dir / "kinnoo.yaml"
+    manifest_text = manifest_path.read_text(encoding="utf-8")
+    manifest_text = manifest_text.replace("type: one-shot", "type: mcp-server", 1)
+    manifest_path.write_text(manifest_text, encoding="utf-8")
+
+    pack_result = subprocess.run(
+        [sys.executable, str(CLI_SCRIPT_PATH), "pack", str(source_agent_dir)],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert pack_result.returncode == 0, (
+        f"kinnoo pack failed: {pack_result.stdout}\n{pack_result.stderr}"
+    )
+
+    archive_path = tmp_path / "archive-root" / "feature47-e2e-mcp-server" / "1.0.0" / "feature47-e2e-mcp-server.kno"
+    assert archive_path.exists(), f"Expected archive not found: {archive_path}"
+
+    install_result = subprocess.run(
+        [
+            sys.executable,
+            str(CLI_SCRIPT_PATH),
+            "install",
+            str(archive_path),
+            "--yes",
+            "--allow-unverified-publisher",
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert install_result.returncode == 0, (
+        f"kinnoo install failed: {install_result.stdout}\n{install_result.stderr}"
+    )
+
+    installed_agent_dir = tmp_path / "feature47-e2e-mcp-server"
+    assert installed_agent_dir.exists(), f"Installed agent dir not found: {installed_agent_dir}"
+
+    run_result = subprocess.run(
+        [sys.executable, str(CLI_SCRIPT_PATH), "run", str(installed_agent_dir), "ping"],
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=10,
+    )
+    assert run_result.returncode == 0, f"kinnoo run failed: {run_result.stdout}\n{run_result.stderr}"
+    combined = f"{run_result.stdout}\n{run_result.stderr}"
+    assert "mcp-server-started" in combined
