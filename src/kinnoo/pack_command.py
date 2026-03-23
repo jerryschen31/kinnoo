@@ -342,7 +342,7 @@ def build_wheels(requirements_path: Path, wheels_dir: Path):
     failed_requirements: list[str] = []
     for requirement in requirements:
         cmd = [
-            "python3", "-m", "pip", "wheel",
+            sys.executable, "-m", "pip", "wheel",
             requirement,
             "--wheel-dir", str(wheels_dir),
         ]

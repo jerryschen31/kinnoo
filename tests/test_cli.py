@@ -560,7 +560,7 @@ outputs:
 """
     )
     (agent_dir / "run.py").write_text(
-        'import sys\nprint(f"input: {sys.argv[1] if len(sys.argv) > 1 else \"\"}")\n'
+        'import sys\nprint(f"input: {sys.argv[1] if len(sys.argv) > 1 else \'\'}")\n'
     )
     (agent_dir / "README.md").write_text("feature20 backward-compat test")
     (agent_dir / "tools").mkdir()

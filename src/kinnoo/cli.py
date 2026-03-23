@@ -165,7 +165,7 @@ def main():
             "  kinnoo init --framework claude-chat my-claude-agent\n"
             "  kinnoo init --framework openclaw my-openclaw-agent \n"
             "  kinnoo init --framework mcp-client  my-mcp-client\n"
-            "  kinnoo init --framework mcp-server my-mcp-server"
+            "  kinnoo init my-mcp-server --framework mcp-server"
         ),
     )
     init_parser.add_argument("agent_name", nargs="?", help="Name of the agent to create")
