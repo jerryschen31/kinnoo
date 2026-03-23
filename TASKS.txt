@@ -5210,3 +5210,228 @@ tasks:
     dependencies: [task39, task93]
     tests: [test362, test363]
     status: needs-review
+
+  - id: task258
+    title: Analyzer input/output type auto-detection
+    type: task
+    description: |
+      Extend the analyzer to detect the type of inputs an imported agent expects
+      (text, JSON, parameterized, none) and the type of outputs it produces. Record
+      detected types in kinnoo.yaml fields inputs.type and outputs.type with
+      confidence scores.
+    files:
+      - src/kinnoo/analyzer.py
+      - tests/test_validator.py
+    steps:
+      - 'step1: Add _detect_input_type() detector scanning for sys.argv, argparse, input(), json.loads, etc.'
+      - 'step2: Add _detect_output_type() detector scanning for print(), json.dumps, return types'
+      - 'step3: Wire detectors into AnalysisReport and import wizard'
+      - 'step4: Add tests for each input/output type detection scenario'
+    dependencies: [task135]
+    tests: [test364, test365]
+    status: needs-review
+
+  - id: task259
+    title: Add --preflight flag to kinnoo pack
+    type: task
+    description: |
+      Add a --preflight flag to the pack command that runs preflight checks before
+      packing. If preflight passes, record preflight_status and preflight_date in
+      kinnoo.yaml metadata. If preflight fails, warn but allow packing (with
+      confirmation prompt).
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/pack_command.py
+      - tests/test_pack.py
+    steps:
+      - 'step1: Add --preflight argument to pack subparser'
+      - 'step2: Call preflight logic before packing when flag is set'
+      - 'step3: Write preflight_status and preflight_date to kinnoo.yaml on PASS'
+      - 'step4: On FAIL, warn and prompt for confirmation to continue packing'
+      - 'step5: Add tests for pack --preflight PASS and FAIL scenarios'
+    dependencies: [task172]
+    tests: [test366, test367]
+    status: needs-review
+
+  - id: task260
+    title: Separate daemon commands in help output
+    type: task
+    description: |
+      Group the daemon-specific commands (attach, stop, logs) into their own
+      "Daemon Commands" section in the top-level kinnoo -h output, separate from
+      the main agent lifecycle commands.
+    files:
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Create a separate argument group for daemon commands in argparse'
+      - 'step2: Move attach, stop, logs subparsers into the daemon group'
+      - 'step3: Verify kinnoo -h output shows separate sections'
+      - 'step4: Add test asserting daemon commands appear in separate section'
+    dependencies: []
+    tests: [test368]
+    status: not-started
+
+  - id: task261
+    title: Analyzer model auto-detection
+    type: task
+    description: |
+      Extend the analyzer to auto-detect the model name from agent source code
+      (string literals like model="gpt-4o-mini", model_name="claude-sonnet-4-20250514",
+      etc.) and populate the model field in kinnoo.yaml. Test against default
+      Gemini, Claude-chat, and ChatGPT init templates.
+    files:
+      - src/kinnoo/analyzer.py
+      - tests/test_validator.py
+    steps:
+      - 'step1: Add _detect_model() scanning for model string literal patterns'
+      - 'step2: Wire into AnalysisReport with confidence scoring'
+      - 'step3: Test detection against gemini, claude-chat, chatgpt init templates'
+    dependencies: [task135]
+    tests: [test369, test370]
+    status: needs-review
+
+  - id: task262
+    title: Framework help — one per line with descriptions
+    type: task
+    description: |
+      Reformat the kinnoo init --framework help text to show one framework per line
+      with a one-liner description, instead of listing all frameworks on a single line.
+    files:
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Define framework descriptions mapping (name -> one-liner)'
+      - 'step2: Update --framework help text and init epilog to use multi-line format'
+      - 'step3: Add test asserting each framework appears on its own line with description'
+    dependencies: []
+    tests: [test371]
+    status: not-started
+
+  - id: task263
+    title: Add --language flag to kinnoo init
+    type: task
+    description: |
+      Add a --language flag to kinnoo init supporting python, js/javascript, and
+      ts/typescript. Error on incompatible combinations (e.g., --framework openclaw
+      --language python). Language-only initializations produce barebones templates.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/init_command.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add --language argument to init subparser with choices'
+      - 'step2: Define compatibility matrix (framework x language)'
+      - 'step3: Add barebones templates for js and ts language-only init'
+      - 'step4: Error with clear message on incompatible combinations'
+      - 'step5: Add tests for valid and invalid language/framework combinations'
+    dependencies: []
+    tests: [test372, test373]
+    status: needs-review
+
+  - id: task264
+    title: Remove remnant Python files from OpenClaw init
+    type: task
+    description: |
+      Fix the OpenClaw init scaffold to not generate run.py and requirements.txt.
+      Currently OpenClaw is not in the framework_templates dict, so it falls through
+      to the default Python template before overlaying JS files.
+    files:
+      - src/kinnoo/init_command.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add openclaw to framework_templates or skip default Python file writes'
+      - 'step2: Verify openclaw scaffold only contains JS/OpenClaw files'
+      - 'step3: Add test asserting run.py and requirements.txt are absent in openclaw scaffold'
+    dependencies: []
+    tests: [test374]
+    status: not-started
+
+  - id: task265
+    title: kinnoo import from GitHub URL
+    type: task
+    description: |
+      Extend kinnoo import to accept a GitHub URL as the first argument. Downloads
+      agent code to the specified import-path (or cwd/<agent-code-dir>/ by default).
+      Error if target directory already exists. Handle clone/download failures with
+      intelligent error messages.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/import_command.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Detect GitHub URL pattern in import argument'
+      - 'step2: Clone/download agent code to target directory'
+      - 'step3: Error if target directory already exists with clear message'
+      - 'step4: Handle clone failures (missing credentials, URL not found) with descriptive errors'
+      - 'step5: Run standard import flow on downloaded directory'
+      - 'step6: Add tests for URL import, collision, and failure scenarios'
+    dependencies: [task135]
+    tests: [test375, test376, test377]
+    status: needs-review
+
+  - id: task266
+    title: Add kinnoo check command
+    type: task
+    description: |
+      Add a kinnoo check command that runs import + inspect + run preflight in one go
+      with intelligent fail messages. Accepts agent-dir or GitHub URL. If URL, downloads
+      to /tmp/kinnoo-agent-check/<agent-code>/ first.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/check_command.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add check subcommand to CLI parser'
+      - 'step2: Implement check_command.py orchestrating import, inspect, preflight'
+      - 'step3: Handle GitHub URL by downloading to temp dir first'
+      - 'step4: Provide per-step PASS/FAIL with actionable guidance on failures'
+      - 'step5: Add tests for check command against local dir and URL scenarios'
+    dependencies: [task135, task258]
+    tests: [test378, test379]
+    status: needs-review
+
+  - id: task267
+    title: Pretty print with color across CLI commands
+    type: task
+    description: |
+      Add colored output (ANSI escape codes) to import, preflight, pack, publish,
+      install, and user prompt commands. Use green for PASS/success, red for
+      FAIL/error, yellow for WARN, cyan for informational, and bold for headers.
+      Respect NO_COLOR and TERM=dumb env vars.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/run_command.py
+      - src/kinnoo/pack_command.py
+      - src/kinnoo/import_command.py
+    steps:
+      - 'step1: Create a color utility module or helper functions'
+      - 'step2: Apply colored output to preflight PASS/FAIL/WARN lines'
+      - 'step3: Apply colored output to pack size reporting and success/failure'
+      - 'step4: Apply colored output to import wizard and user prompts'
+      - 'step5: Respect NO_COLOR env var and non-TTY detection'
+      - 'step6: Add tests verifying color codes in output when TTY and absence when not'
+    dependencies: []
+    tests: [test380, test381]
+    status: needs-review
+
+  - id: task268
+    title: Fix preflight venv check when runtime.path is set
+    type: issue
+    description: |
+      Bug fix: preflight dependency check fails with "virtual environment not found"
+      when runtime.path is configured in kinnoo.yaml, even though kinnoo run would
+      create the venv using that interpreter. The fix should make preflight aware of
+      runtime.path and report PASS with an informational note that venv will be
+      created at run time.
+    files:
+      - src/kinnoo/run_command.py
+      - tests/test_run_preflight.py
+    steps:
+      - 'step1: Pass runtime section to _check_preflight_dependencies'
+      - 'step2: When venv missing but runtime.path is valid executable, report PASS with info note'
+      - 'step3: Add test for preflight PASS with runtime.path and no venv'
+      - 'step4: Add test for preflight FAIL with no runtime.path and no venv (existing behavior)'
+    dependencies: [task257]
+    tests: [test382, test383]
+    status: not-started

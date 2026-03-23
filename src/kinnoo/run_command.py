@@ -35,6 +35,7 @@ from .runtime_monitor import predict_dry_run_actions
 from .runtime_monitor import posix_resource_limits_supported
 from .runtime_monitor import resolve_monitor_policy_summary
 from .runtime_monitor import resolve_violation_enforcement
+from .terminal_colors import style_text
 from .supervisor import (
     build_daemon_state_payload,
     clear_daemon_state,
@@ -115,7 +116,8 @@ def _load_agent_dotenv(dotenv_path: Path) -> dict[str, str]:
 
 def _emit_preflight_line(passed: bool, message: str) -> None:
     status = "PASS" if passed else "FAIL"
-    print(f"- [{status}] {message}")
+    color = "green" if passed else "red"
+    print(style_text(f"- [{status}] {message}", color=color, stream=sys.stdout))
 
 
 def _load_declared_services(manifest: dict | None) -> list[dict[str, object]]:
@@ -352,7 +354,7 @@ def _resolve_venv_pip(venv_dir: Path) -> Path | None:
     return None
 
 
-def _check_preflight_dependencies(manifest: dict, agent_dir: Path) -> tuple[bool, str]:
+def _check_preflight_dependencies(manifest: dict, agent_dir: Path, runtime_path_raw: str | None = None) -> tuple[bool, str]:
     del manifest
     requirements_path = agent_dir / "requirements.txt"
     dependency_names = _extract_dependency_names(requirements_path)
@@ -361,6 +363,15 @@ def _check_preflight_dependencies(manifest: dict, agent_dir: Path) -> tuple[bool
 
     venv_dir = agent_dir / ".venv"
     if not venv_dir.exists() or not venv_dir.is_dir():
+        # When runtime.path is configured and resolves to a valid Python executable,
+        # kinnoo run will create the venv at run time using that interpreter.
+        if runtime_path_raw is not None:
+            resolved, mode = _resolve_runtime_path_executable(runtime_path_raw)
+            if mode in {"file", "path"} and resolved is not None:
+                return True, (
+                    f"dependency readiness check passed: .venv not found but runtime.path "
+                    f"'{runtime_path_raw}' is a valid executable — venv will be created at run time"
+                )
         return False, f"dependency readiness check failed: virtual environment not found at {venv_dir}"
 
     pip_exe = _resolve_venv_pip(venv_dir)
@@ -726,7 +737,7 @@ def run_preflight(agent_dir_arg: str) -> int:
             if dependencies_message == "dependency readiness check failed: manifest validation prerequisite not met":
                 dependencies_ok, dependencies_message = check_node_package_manager_availability(package_manager)
         else:
-            dependencies_ok, dependencies_message = _check_preflight_dependencies(manifest, agent_dir)
+            dependencies_ok, dependencies_message = _check_preflight_dependencies(manifest, agent_dir, runtime_path_raw)
 
     _emit_preflight_line(runtime_constraint_ok, runtime_message)
     _emit_preflight_line(env_vars_ok, env_vars_message)
@@ -827,11 +838,11 @@ def run_preflight(agent_dir_arg: str) -> int:
         and service_checks_ok
         and daemon_state_ok
     ):
-        print("Ready to run")
-        print("Preflight result: PASS")
+        print(style_text("Ready to run", color="green", bold=True, stream=sys.stdout))
+        print(style_text("Preflight result: PASS", color="green", bold=True, stream=sys.stdout))
         return 0
 
-    print("Not ready to run")
+    print(style_text("Not ready to run", color="red", bold=True, stream=sys.stdout))
     print("Remediation summary:")
     if not runtime_constraint_ok:
         if runtime_language == "nodejs":
@@ -852,7 +863,7 @@ def run_preflight(agent_dir_arg: str) -> int:
     if daemon_lifecycle_result is not None and not daemon_lifecycle_result.healthy:
         print(f"- daemon: {daemon_lifecycle_result.guidance}")
 
-    print("Preflight result: FAIL")
+    print(style_text("Preflight result: FAIL", color="red", bold=True, stream=sys.stdout))
     return 1
 
 

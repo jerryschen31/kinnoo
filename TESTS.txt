@@ -6051,3 +6051,304 @@ tests:
     covers:
       - feature: feature3
         ac: AC10
+
+  - id: test364
+    title: Analyzer detects text input type from sys.argv usage
+    type: unit
+    preconditions: analyzer module available
+    steps:
+      - step1: Create agent fixture using sys.argv[1] for input
+      - step2: Run analyzer on fixture directory
+    expected: inputs.type detected as "text" with evidence citing sys.argv
+    pass_criteria: inferred inputs.type == "text" with confidence >= 0.7
+    automated: true
+    automation_path: tests/test_validator.py::test_analyzer_detects_text_input_type
+    covers:
+      - feature: feature46
+        ac: AC1
+
+  - id: test365
+    title: Analyzer detects JSON input type from json.loads or argparse JSON patterns
+    type: unit
+    preconditions: analyzer module available
+    steps:
+      - step1: Create agent fixture using json.loads(sys.argv[1]) for input
+      - step2: Run analyzer on fixture directory
+    expected: inputs.type detected as "json" with evidence
+    pass_criteria: inferred inputs.type == "json" with confidence >= 0.7
+    automated: true
+    automation_path: tests/test_validator.py::test_analyzer_detects_json_input_type
+    covers:
+      - feature: feature46
+        ac: AC1
+
+  - id: test366
+    title: kinnoo pack --preflight records PASS status in kinnoo.yaml
+    type: integration
+    preconditions: packable agent fixture with passing preflight
+    steps:
+      - step1: Run kinnoo pack --preflight on agent fixture
+      - step2: Inspect kinnoo.yaml after packing
+    expected: kinnoo.yaml contains preflight_status PASS and preflight_date
+    pass_criteria: preflight_status field present and set to PASS
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_preflight_pass_records_status
+    covers:
+      - feature: feature46
+        ac: AC2
+
+  - id: test367
+    title: kinnoo pack --preflight warns on FAIL and prompts to continue
+    type: integration
+    preconditions: agent fixture with failing preflight (missing deps)
+    steps:
+      - step1: Run kinnoo pack --preflight on agent fixture with missing dependencies
+      - step2: Check output for warning and confirmation prompt
+    expected: Warning about preflight failure shown with option to continue
+    pass_criteria: stderr contains preflight FAIL warning; packing proceeds after confirmation
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_preflight_fail_warns
+    covers:
+      - feature: feature46
+        ac: AC2
+
+  - id: test368
+    title: Daemon commands in separate help section
+    type: integration
+    preconditions: kinnoo CLI available
+    steps:
+      - step1: Run kinnoo -h
+      - step2: Parse output for command grouping
+    expected: attach, stop, logs appear in a separate "Daemon Commands" section
+    pass_criteria: kinnoo -h output contains distinct daemon commands section header
+    automated: true
+    automation_path: tests/test_cli.py::test_help_daemon_commands_separate_section
+    covers:
+      - feature: feature46
+        ac: AC3
+
+  - id: test369
+    title: Analyzer detects model from gemini init template
+    type: unit
+    preconditions: analyzer module available
+    steps:
+      - step1: Init agent with --framework gemini
+      - step2: Run analyzer on generated directory
+    expected: model field detected matching gemini model string
+    pass_criteria: inferred model matches expected gemini model name
+    automated: true
+    automation_path: tests/test_validator.py::test_analyzer_detects_model_gemini
+    covers:
+      - feature: feature46
+        ac: AC1
+
+  - id: test370
+    title: Analyzer detects model from chatgpt init template
+    type: unit
+    preconditions: analyzer module available
+    steps:
+      - step1: Init agent with --framework chatgpt
+      - step2: Run analyzer on generated directory
+    expected: model field detected matching chatgpt/openai model string
+    pass_criteria: inferred model matches expected openai model name
+    automated: true
+    automation_path: tests/test_validator.py::test_analyzer_detects_model_chatgpt
+    covers:
+      - feature: feature46
+        ac: AC1
+
+  - id: test371
+    title: Init help shows one framework per line with descriptions
+    type: integration
+    preconditions: kinnoo CLI available
+    steps:
+      - step1: Run kinnoo init -h
+      - step2: Parse framework listing in output
+    expected: Each framework appears on its own line with a description
+    pass_criteria: output contains separate lines for each of the 9 frameworks with descriptions
+    automated: true
+    automation_path: tests/test_cli.py::test_init_help_frameworks_one_per_line
+    covers:
+      - feature: feature46
+        ac: AC4
+
+  - id: test372
+    title: kinnoo init --language python creates barebones Python template
+    type: integration
+    preconditions: kinnoo CLI available
+    steps:
+      - step1: Run kinnoo init test-agent --language python
+      - step2: Inspect generated files
+    expected: Barebones Python agent directory with run.py and requirements.txt
+    pass_criteria: Agent dir created with Python-specific files and runtime.language set to python
+    automated: true
+    automation_path: tests/test_cli.py::test_init_language_python
+    covers:
+      - feature: feature46
+        ac: AC5
+
+  - id: test373
+    title: kinnoo init --framework openclaw --language python errors
+    type: integration
+    preconditions: kinnoo CLI available
+    steps:
+      - step1: Run kinnoo init test-agent --framework openclaw --language python
+      - step2: Check exit code and error message
+    expected: Error indicating incompatible combination
+    pass_criteria: Non-zero exit code with error message about incompatible framework/language
+    automated: true
+    automation_path: tests/test_cli.py::test_init_incompatible_framework_language
+    covers:
+      - feature: feature46
+        ac: AC5
+
+  - id: test374
+    title: OpenClaw init does not generate run.py or requirements.txt
+    type: integration
+    preconditions: kinnoo CLI available
+    steps:
+      - step1: Run kinnoo init test-agent --framework openclaw
+      - step2: Check for presence of run.py and requirements.txt
+    expected: Neither run.py nor requirements.txt exists in generated directory
+    pass_criteria: run.py absent AND requirements.txt absent in openclaw scaffold
+    automated: true
+    automation_path: tests/test_cli.py::test_init_openclaw_no_python_remnants
+    covers:
+      - feature: feature46
+        ac: AC6
+
+  - id: test375
+    title: kinnoo import from GitHub URL downloads and imports
+    type: integration
+    preconditions: git available, network access
+    steps:
+      - step1: Run kinnoo import <test-github-url> <temp-dir>
+      - step2: Verify agent code downloaded and kinnoo.yaml created
+    expected: Agent code cloned to target dir with kinnoo.yaml generated
+    pass_criteria: Target directory contains cloned code and valid kinnoo.yaml
+    automated: true
+    automation_path: tests/test_cli.py::test_import_github_url
+    covers:
+      - feature: feature46
+        ac: AC7
+
+  - id: test376
+    title: kinnoo import errors when target directory already exists
+    type: integration
+    preconditions: kinnoo CLI available
+    steps:
+      - step1: Create target directory
+      - step2: Run kinnoo import <url> <existing-dir>
+    expected: Error message indicating directory already exists
+    pass_criteria: Non-zero exit code with collision error message
+    automated: true
+    automation_path: tests/test_cli.py::test_import_url_collision_error
+    covers:
+      - feature: feature46
+        ac: AC7
+
+  - id: test377
+    title: kinnoo import handles download failure gracefully
+    type: integration
+    preconditions: kinnoo CLI available
+    steps:
+      - step1: Run kinnoo import <invalid-url>
+      - step2: Check error message
+    expected: Descriptive error about download/clone failure
+    pass_criteria: Non-zero exit code with descriptive clone failure message
+    automated: true
+    automation_path: tests/test_cli.py::test_import_url_download_failure
+    covers:
+      - feature: feature46
+        ac: AC7
+
+  - id: test378
+    title: kinnoo check passes on a valid local agent
+    type: integration
+    preconditions: valid agent fixture with passing import/inspect/preflight
+    steps:
+      - step1: Run kinnoo check <agent-dir>
+      - step2: Verify all three checks pass
+    expected: All checks (import, inspect, preflight) report PASS
+    pass_criteria: Exit code 0 with PASS for each check step
+    automated: true
+    automation_path: tests/test_cli.py::test_check_command_local_pass
+    covers:
+      - feature: feature46
+        ac: AC8
+
+  - id: test379
+    title: kinnoo check reports intelligent failure messages
+    type: integration
+    preconditions: agent fixture with known issues
+    steps:
+      - step1: Run kinnoo check on agent with missing entrypoint
+      - step2: Verify failure message identifies the specific issue
+    expected: Check reports which step failed with actionable guidance
+    pass_criteria: Output contains specific step failure and guidance text
+    automated: true
+    automation_path: tests/test_cli.py::test_check_command_intelligent_failure
+    covers:
+      - feature: feature46
+        ac: AC8
+
+  - id: test380
+    title: CLI uses colored output for PASS/FAIL/WARN on TTY
+    type: integration
+    preconditions: kinnoo CLI available, TTY terminal
+    steps:
+      - step1: Run kinnoo run --preflight on agent fixture in TTY mode
+      - step2: Check output for ANSI color codes
+    expected: PASS lines have green color, FAIL lines have red, WARN has yellow
+    pass_criteria: Output contains expected ANSI escape sequences for color
+    automated: true
+    automation_path: tests/test_cli.py::test_colored_output_tty
+    covers:
+      - feature: feature46
+        ac: AC9
+
+  - id: test381
+    title: CLI respects NO_COLOR env var
+    type: integration
+    preconditions: kinnoo CLI available
+    steps:
+      - step1: Set NO_COLOR=1 env var
+      - step2: Run kinnoo run --preflight
+      - step3: Check output for absence of ANSI codes
+    expected: No ANSI color codes in output when NO_COLOR is set
+    pass_criteria: Output contains no ANSI escape sequences
+    automated: true
+    automation_path: tests/test_cli.py::test_no_color_env_respected
+    covers:
+      - feature: feature46
+        ac: AC9
+
+  - id: test382
+    title: Preflight passes with runtime.path and no venv
+    type: integration
+    preconditions: agent fixture with runtime.path set, no .venv directory
+    steps:
+      - step1: Create agent fixture with runtime.path pointing to valid Python
+      - step2: Run kinnoo run --preflight
+    expected: Preflight passes with info note about venv creation at run time
+    pass_criteria: Preflight reports PASS for dependency check with informational message
+    automated: true
+    automation_path: tests/test_run_preflight.py::test_preflight_pass_runtime_path_no_venv
+    covers:
+      - feature: feature46
+        ac: AC10
+
+  - id: test383
+    title: Preflight fails with no runtime.path and no venv
+    type: integration
+    preconditions: agent fixture with no runtime.path, no .venv directory
+    steps:
+      - step1: Create agent fixture without runtime.path and without .venv
+      - step2: Run kinnoo run --preflight
+    expected: Preflight fails with venv not found error
+    pass_criteria: Preflight reports FAIL for dependency check citing missing venv
+    automated: true
+    automation_path: tests/test_run_preflight.py::test_preflight_fail_no_runtime_path_no_venv
+    covers:
+      - feature: feature46
+        ac: AC10

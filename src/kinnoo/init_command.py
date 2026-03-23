@@ -38,6 +38,61 @@ SUPPORTED_FRAMEWORKS = [
     "openclaw",
 ]
 
+SUPPORTED_LANGUAGES = [
+    "python",
+    "js",
+    "javascript",
+    "ts",
+    "typescript",
+]
+
+_LANGUAGE_ALIASES = {
+    "python": "python",
+    "js": "javascript",
+    "javascript": "javascript",
+    "ts": "typescript",
+    "typescript": "typescript",
+}
+
+_FRAMEWORK_LANGUAGE_COMPATIBILITY = {
+    "gemini": {"python"},
+    "chatgpt": {"python"},
+    "claude-chat": {"python"},
+    "pydantic-ai": {"python"},
+    "langgraph": {"python"},
+    "openai-agents": {"python"},
+    "mcp-client": {"python"},
+    "mcp-server": {"python"},
+    "openclaw": {"javascript", "typescript"},
+}
+
+_JS_RUN_TEMPLATE = """const inputText = process.argv[2] || '';
+console.log(`Hello from JS agent. Input: ${inputText}`);
+"""
+
+_TS_RUN_TEMPLATE = """const inputText = process.argv[2] ?? '';
+console.log(`Hello from TS agent. Input: ${inputText}`);
+"""
+
+_NODE_PACKAGE_JSON_TEMPLATE = """{{
+    "name": "{name}",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "scripts": {{
+        "start": "node {entrypoint}"
+    }}
+}}
+"""
+
+_NODE_README_TEMPLATE = """# {name}
+
+This is a Kinnoo agent scaffolded with `kinnoo init --language {language_flag}`.
+
+- Edit `{entrypoint}` to implement your agent logic.
+- See `kinnoo.yaml` for manifest fields.
+"""
+
 KNOWN_FRAMEWORK_DEFAULT_MODELS = {
     "gemini": "gemini-2.5-flash-lite",
     "chatgpt": "gpt-5-nano",
@@ -45,10 +100,66 @@ KNOWN_FRAMEWORK_DEFAULT_MODELS = {
     "pydantic-ai": "openai:gpt-4o-mini",
 }
 
-def init_agent(name: str, target_dir: Path, framework: Optional[str] = None):
+def _normalize_language(language: Optional[str]) -> str | None:
+    if language is None:
+        return None
+    return _LANGUAGE_ALIASES.get(language.lower())
+
+
+def _build_node_manifest(name: str, *, entrypoint: str) -> str:
+    return (
+        f"name: {name}\n"
+        "version: 0.1.0\n"
+        "description: \"TODO: Add a short agent description\"\n"
+        "author: \"TODO: Add author name\"\n"
+        f"entrypoint: {entrypoint}\n"
+        "runtime:\n"
+        "  language: nodejs\n"
+        "  version: \">=20\"\n"
+        "  type: one-shot\n"
+        "dependencies: []\n"
+        "inputs:\n"
+        "  type: text\n"
+        "outputs:\n"
+        "  type: text\n"
+    )
+
+
+def init_agent(
+    name: str,
+    target_dir: Path,
+    framework: Optional[str] = None,
+    language: Optional[str] = None,
+):
     agent_dir = target_dir / name
     if agent_dir.exists():
         raise FileExistsError(f"Directory {agent_dir} already exists.")
+
+    normalized_language = _normalize_language(language)
+    if language is not None and normalized_language is None:
+        raise ValueError(
+            "Unsupported language. Supported languages: "
+            + ", ".join(SUPPORTED_LANGUAGES)
+            + "."
+        )
+
+    if framework is not None:
+        allowed_languages = _FRAMEWORK_LANGUAGE_COMPATIBILITY.get(framework, {"python"})
+        chosen_language = normalized_language or ("javascript" if framework == "openclaw" else "python")
+        if chosen_language not in allowed_languages:
+            allowed_label = ", ".join(sorted(allowed_languages))
+            raise ValueError(
+                f"Incompatible --framework/--language combination: {framework} + {chosen_language}. "
+                f"Allowed language(s) for {framework}: {allowed_label}."
+            )
+
+    effective_language = normalized_language or ("javascript" if framework == "openclaw" else "python")
+    entrypoint_name = {
+        "python": "run.py",
+        "javascript": "run.js",
+        "typescript": "run.ts",
+    }[effective_language]
+
     agent_dir.mkdir()
     (agent_dir / "tools").mkdir()
     (agent_dir / "prompts").mkdir()
@@ -58,6 +169,8 @@ def init_agent(name: str, target_dir: Path, framework: Optional[str] = None):
         manifest_content = OPENCLAW_KINNOO_YAML_TEMPLATE.format(name=name)
     elif framework == "mcp-server":
         manifest_content = MCP_SERVER_KINNOO_YAML_TEMPLATE.format(name=name)
+    elif effective_language in {"javascript", "typescript"}:
+        manifest_content = _build_node_manifest(name, entrypoint=entrypoint_name)
     else:
         manifest_content = KINNOO_YAML_TEMPLATE.format(name=name)
 
@@ -85,7 +198,33 @@ def init_agent(name: str, target_dir: Path, framework: Optional[str] = None):
         (agent_dir / "run.py").write_text(run_template)
         (agent_dir / "requirements.txt").write_text(requirements_template)
         (agent_dir / "README.md").write_text(readme_template.format(name=name))
-    else:
+    elif effective_language == "javascript":
+        (agent_dir / "run.js").write_text(_JS_RUN_TEMPLATE)
+        (agent_dir / "package.json").write_text(
+            _NODE_PACKAGE_JSON_TEMPLATE.format(name=name, entrypoint="run.js")
+        )
+        (agent_dir / "requirements.txt").write_text("")
+        (agent_dir / "README.md").write_text(
+            _NODE_README_TEMPLATE.format(
+                name=name,
+                language_flag="js",
+                entrypoint="run.js",
+            )
+        )
+    elif effective_language == "typescript":
+        (agent_dir / "run.ts").write_text(_TS_RUN_TEMPLATE)
+        (agent_dir / "package.json").write_text(
+            _NODE_PACKAGE_JSON_TEMPLATE.format(name=name, entrypoint="run.ts")
+        )
+        (agent_dir / "requirements.txt").write_text("")
+        (agent_dir / "README.md").write_text(
+            _NODE_README_TEMPLATE.format(
+                name=name,
+                language_flag="ts",
+                entrypoint="run.ts",
+            )
+        )
+    elif framework != "openclaw":
         (agent_dir / "run.py").write_text(RUN_PY_TEMPLATE)
         (agent_dir / "requirements.txt").write_text(REQUIREMENTS_TXT_TEMPLATE)
         (agent_dir / "README.md").write_text(README_MD_TEMPLATE.format(name=name))
@@ -114,6 +253,7 @@ def main():
     )
     parser.add_argument("agent_name", nargs="?", help="Name of the agent directory to create.")
     parser.add_argument("--framework", type=str, default=None, help="Optional framework for agent template.")
+    parser.add_argument("--language", type=str, default=None, help="Optional language (python/js/ts) for agent template.")
     args = parser.parse_args()
 
     # Print usage if agent_name is missing
@@ -130,10 +270,27 @@ def main():
             sys.exit(1)
         framework = fw
 
+    language = args.language
+    if language is not None:
+        language = language.lower()
+        if language not in SUPPORTED_LANGUAGES:
+            print(
+                f"Unsupported language. Supported languages: {', '.join(SUPPORTED_LANGUAGES)}.",
+                file=sys.stderr,
+            )
+            print(
+                "Usage: kinnoo init <agent_name> [--framework <framework>] [--language <language>]",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
     # Directory creation and template generation
     try:
-        init_agent(args.agent_name, Path(os.getcwd()), framework=framework)
+        init_agent(args.agent_name, Path(os.getcwd()), framework=framework, language=language)
     except FileExistsError as e:
+        print(str(e), file=sys.stderr)
+        sys.exit(1)
+    except ValueError as e:
         print(str(e), file=sys.stderr)
         sys.exit(1)
 
