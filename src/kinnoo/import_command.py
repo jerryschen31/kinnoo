@@ -389,6 +389,7 @@ def _build_manifest_from_analysis(
     runtime_version = runtime.get("version") or ">=3.10"
     runtime_type = runtime.get("type")
     runtime_package_manager = runtime.get("package_manager") if isinstance(runtime.get("package_manager"), str) else None
+    runtime_run_command = runtime.get("run_command") if isinstance(runtime.get("run_command"), str) else None
 
     framework = inferred.get("framework")
     model = inferred.get("model") if isinstance(inferred.get("model"), str) else None
@@ -431,6 +432,12 @@ def _build_manifest_from_analysis(
             session=session,
         )
         framework = framework_input or None
+
+    if framework in {"streamlit", "gradio"}:
+        runtime_type = "daemon"
+        inferred_inputs_required = False
+    if framework == "streamlit":
+        runtime_run_command = f"streamlit run {entrypoint}"
 
     inferred_skills: list[str] = []
     inferred_state_dirs: list[str] = []
@@ -485,6 +492,9 @@ def _build_manifest_from_analysis(
 
     if runtime_package_manager:
         manifest_lines.insert(6, f"  package_manager: {runtime_package_manager}")
+    if runtime_run_command and runtime_run_command.strip():
+        dependencies_index = manifest_lines.index("dependencies:")
+        manifest_lines.insert(dependencies_index, f"  run_command: {runtime_run_command.strip()}")
 
     if framework:
         manifest_lines.append(f"framework: {framework}")

@@ -549,6 +549,8 @@ def _detect_framework(project_dir: Path) -> DetectorResult:
     imports = _collect_import_names(project_dir)
 
     framework_patterns: dict[str, tuple[str, ...]] = {
+        "streamlit": ("streamlit",),
+        "gradio": ("gradio",),
         "gemini": ("google.genai", "google.generativeai"),
         "langchain": (
             "langchain",

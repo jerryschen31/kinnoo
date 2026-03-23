@@ -5636,7 +5636,7 @@ tasks:
       - 'step5: Test with nirbar1985-ai-travel-agent and aymenfurter-microagents'
     dependencies: []
     tests: [test402, test403, test404, test405]
-    status: not-started
+    status: needs-review
 
   - id: task279
     title: "DEPRECATED — Extended framework detection (CrewAI, Swarm, Agno, etc.)"

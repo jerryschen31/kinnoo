@@ -3717,3 +3717,74 @@ def test_e2e_mcp_server(tmp_path):
     assert run_result.returncode == 0, f"kinnoo run failed: {run_result.stdout}\n{run_result.stderr}"
     combined = f"{run_result.stdout}\n{run_result.stderr}"
     assert "mcp-server-started" in combined
+
+
+@pytest.mark.integration
+def test_streamlit_import_daemon(tmp_path):
+    """Feature47 test404: streamlit import emits daemon runtime with streamlit run command."""
+    agent_dir = tmp_path / "streamlit-import-agent"
+    agent_dir.mkdir(parents=True, exist_ok=True)
+    (agent_dir / "app.py").write_text(
+        "import streamlit as st\n"
+        "st.title('Demo')\n"
+        "st.chat_input('Ask something')\n",
+        encoding="utf-8",
+    )
+
+    import_result = subprocess.run(
+        [sys.executable, str(CLI_SCRIPT_PATH), "import", str(agent_dir), "--force"],
+        capture_output=True,
+        text=True,
+    )
+    assert import_result.returncode == 0, (
+        f"kinnoo import failed: {import_result.stdout}\n{import_result.stderr}"
+    )
+
+    manifest_text = (agent_dir / "kinnoo.yaml").read_text(encoding="utf-8")
+    assert "type: daemon" in manifest_text
+    assert "run_command: streamlit run" in manifest_text
+
+
+def test_streamlit_run_command(tmp_path, monkeypatch):
+    """Feature47 test405: run uses runtime.run_command override for Streamlit daemon agents."""
+    from kinnoo import run_command
+
+    agent_dir = tmp_path / "streamlit-run-agent"
+    agent_dir.mkdir(parents=True, exist_ok=True)
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    (agent_dir / "app.py").write_text("print('streamlit app')\n", encoding="utf-8")
+    (agent_dir / "kinnoo.yaml").write_text(
+        "name: streamlit-run-agent\n"
+        "version: 0.1.0\n"
+        "entrypoint: app.py\n"
+        "runtime:\n"
+        "  language: python\n"
+        "  version: \">=3.10\"\n"
+        "  type: daemon\n"
+        "  run_command: streamlit run app.py\n"
+        "dependencies: []\n"
+        "inputs:\n"
+        "  type: text\n"
+        "  required: false\n"
+        "outputs:\n"
+        "  type: text\n",
+        encoding="utf-8",
+    )
+
+    captured_args: list[list[str]] = []
+
+    class _FakeProcess:
+        def __init__(self) -> None:
+            self.pid = 43210
+
+    def _fake_popen(args, **kwargs):
+        captured_args.append(list(args))
+        return _FakeProcess()
+
+    monkeypatch.setattr(run_command.subprocess, "Popen", _fake_popen)
+
+    exit_code = run_command.run_agent(str(agent_dir), None)
+
+    assert exit_code == 0
+    assert captured_args, "Expected daemon launcher to invoke subprocess.Popen"
+    assert captured_args[0][:3] == ["streamlit", "run", "app.py"]
