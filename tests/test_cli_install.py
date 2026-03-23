@@ -78,6 +78,38 @@ def test_import_class_only_wrapper(tmp_path: Path) -> None:
     assert "entrypoint: run.py" in manifest_text
 
 
+def test_import_infer_requirements(tmp_path: Path) -> None:
+    """Feature47 test391: import can generate requirements.txt from inferred imports."""
+    agent_dir = tmp_path / "infer-reqs-agent"
+    agent_dir.mkdir(parents=True, exist_ok=True)
+    (agent_dir / "main.py").write_text(
+        "import openai\n"
+        "import httpx\n"
+        "import sys\n\n"
+        "if __name__ == '__main__':\n"
+        "    print(sys.argv[1])\n",
+        encoding="utf-8",
+    )
+
+    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    result = subprocess.run(
+        [sys.executable, str(cli_path), "import", str(agent_dir), "--force"],
+        cwd=tmp_path,
+        input="y\ny\n",
+        capture_output=True,
+        text=True,
+    )
+
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, output
+
+    requirements_path = agent_dir / "requirements.txt"
+    assert requirements_path.exists()
+    requirements_lines = requirements_path.read_text(encoding="utf-8").splitlines()
+    assert "openai" in requirements_lines
+    assert "httpx" in requirements_lines
+
+
 def test_install_delegates_to_install_command(tmp_path):
     cli_source = Path("src/kinnoo/cli.py").read_text()
     install_branch_start = cli_source.find('elif args.command == "install":')

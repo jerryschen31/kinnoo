@@ -593,6 +593,7 @@ def _ensure_import_requirements_file(
     *,
     inferred_dependencies: Any,
     runtime_language: str,
+    session: PromptSession | None = None,
 ) -> bool:
     """Create requirements.txt for imported Python projects when missing.
 
@@ -607,6 +608,14 @@ def _ensure_import_requirements_file(
 
     dependencies = _normalize_dependency_list(inferred_dependencies)
     if dependencies:
+        should_generate = _prompt_yes_no(
+            "No requirements.txt found. Generate one from inferred imports? [Y/n]: ",
+            True,
+            session=session,
+        )
+        if not should_generate:
+            print("Skipped requirements.txt generation by user choice.")
+            return False
         requirements_path.write_text("\n".join(dependencies) + "\n", encoding="utf-8")
         print("Generated requirements.txt from analyzer-detected dependencies.")
         return True
@@ -827,6 +836,7 @@ def import_agent(
             target_path,
             inferred_dependencies=inferred.get("dependencies"),
             runtime_language=runtime_language,
+            session=session,
         )
     except FileExistsError as exc:
         if generated_wrapper_path and generated_wrapper_path.exists():

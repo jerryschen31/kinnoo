@@ -349,6 +349,30 @@ def test_analyzer_subdirectory_entrypoint(tmp_path: Path) -> None:
     assert score >= 0.50
 
 
+def test_analyzer_requirements_inference(tmp_path: Path) -> None:
+    """Feature47 test390: analyzer infers PyPI dependency names from imports."""
+    project_dir = tmp_path / "requirements-inference-agent"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "agent.py").write_text(
+        "import os\n"
+        "import openai\n"
+        "from pydantic_ai import Agent\n"
+        "from langchain_core.prompts import ChatPromptTemplate\n\n"
+        "def run() -> None:\n"
+        "    _ = (Agent, ChatPromptTemplate)\n"
+        "    print('ok')\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(project_dir).as_dict()
+    dependencies = report["inferred"]["dependencies"]
+
+    assert "openai" in dependencies
+    assert "pydantic-ai" in dependencies
+    assert "langchain-core" in dependencies
+    assert "os" not in dependencies
+
+
 def test_feature42_manifest_accepts_json_input_output_types(tmp_path: Path) -> None:
     """Feature42 test270: validator accepts json for inputs.type and outputs.type."""
     data = dict(_VALID_MANIFEST)
