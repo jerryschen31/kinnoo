@@ -185,6 +185,8 @@ def _map_service_type(raw_type: str) -> str:
         "postgresql": "database",
         "database": "database",
         "redis": "database",
+        "mongodb": "database",
+        "postgres": "database",
         "vector-db": "vector-db",
         "mcp-server": "mcp-server",
         "local-process": "local-process",
@@ -204,10 +206,10 @@ def _normalize_inferred_services(services_value: Any) -> list[dict[str, Any]]:
             continue
         service_type = _map_service_type(str(service.get("type", "api")))
         endpoint = service.get("endpoint") if isinstance(service.get("endpoint"), str) else None
-        service_name = f"service-{index}"
+        service_name = service.get("name") if isinstance(service.get("name"), str) else f"service-{index}"
         if endpoint:
             parsed = urlsplit(endpoint)
-            if parsed.hostname:
+            if service_name.startswith("service-") and parsed.hostname:
                 service_name = parsed.hostname.replace(".", "-")
 
         normalized_service: dict[str, Any] = {

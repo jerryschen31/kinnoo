@@ -1701,8 +1701,29 @@ def _detect_assets(project_dir: Path) -> DetectorResult:
 def _extract_service_endpoints_from_tree(tree: ast.AST) -> set[str]:
     endpoints: set[str] = set()
     for literal in _collect_string_literals(tree):
-        if literal.startswith(("http://", "https://", "redis://", "postgres://", "postgresql://")):
-            endpoints.add(literal.strip())
+        candidate = literal.strip()
+        if candidate.startswith((
+            "http://",
+            "https://",
+            "redis://",
+            "postgres://",
+            "postgresql://",
+            "mongodb://",
+        )):
+            endpoints.add(candidate)
+            continue
+
+        lower_candidate = candidate.lower()
+        if "localhost:11434" in lower_candidate:
+            endpoints.add("http://localhost:11434")
+        if "localhost:6379" in lower_candidate:
+            endpoints.add("redis://localhost:6379")
+        if "localhost:5432" in lower_candidate:
+            endpoints.add("postgresql://localhost:5432")
+        if "localhost:27017" in lower_candidate:
+            endpoints.add("mongodb://localhost:27017")
+        if "localhost:8000" in lower_candidate and "chroma" in lower_candidate:
+            endpoints.add("http://localhost:8000")
     return endpoints
 
 
@@ -1712,9 +1733,65 @@ def _service_type_from_endpoint(endpoint: str) -> str:
         return "redis"
     if lower.startswith(("postgres://", "postgresql://")):
         return "postgres"
+    if lower.startswith("mongodb://"):
+        return "mongodb"
     if lower.startswith(("http://", "https://")):
         return "http"
     return "unknown"
+
+
+def _service_name_from_endpoint(endpoint: str, service_type: str) -> str:
+    lower = endpoint.lower()
+    if "11434" in lower:
+        return "ollama"
+    if "8000" in lower and service_type == "http":
+        return "chromadb"
+    if service_type == "redis":
+        return "redis"
+    if service_type == "postgres":
+        return "postgresql"
+    if service_type == "mongodb":
+        return "mongodb"
+    parsed = urlsplit(endpoint)
+    if parsed.hostname:
+        return parsed.hostname.replace(".", "-")
+    return service_type
+
+
+def _extract_import_names(tree: ast.AST) -> set[str]:
+    imports: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                imports.add(alias.name)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imports.add(node.module)
+    return imports
+
+
+def _services_from_imports(import_names: set[str]) -> list[dict[str, Any]]:
+    service_markers: list[tuple[str, str, str, str | None]] = [
+        ("ollama", "ollama", "api", "http://localhost:11434"),
+        ("chromadb", "chromadb", "vector-db", "http://localhost:8000"),
+        ("pinecone", "pinecone", "vector-db", None),
+        ("redis", "redis", "redis", "redis://localhost:6379"),
+        ("psycopg2", "postgresql", "postgres", "postgresql://localhost:5432"),
+        ("asyncpg", "postgresql", "postgres", "postgresql://localhost:5432"),
+        ("sqlalchemy", "postgresql", "postgres", "postgresql://localhost:5432"),
+        ("pymongo", "mongodb", "mongodb", "mongodb://localhost:27017"),
+    ]
+
+    discovered: dict[str, dict[str, Any]] = {}
+    for marker, service_name, service_type, endpoint in service_markers:
+        if any(name == marker or name.startswith(f"{marker}.") for name in import_names):
+            payload: dict[str, Any] = {
+                "name": service_name,
+                "type": service_type,
+            }
+            if endpoint is not None:
+                payload["endpoint"] = endpoint
+            discovered[payload["name"]] = payload
+    return [discovered[key] for key in sorted(discovered)]
 
 
 def _health_check_hint(service_type: str, endpoint: str) -> str | None:
@@ -1731,6 +1808,7 @@ def _health_check_hint(service_type: str, endpoint: str) -> str | None:
 
 def _detect_services(project_dir: Path) -> DetectorResult:
     discovered: dict[tuple[str, str], dict[str, Any]] = {}
+    import_derived: dict[str, dict[str, Any]] = {}
 
     for python_path in _iter_python_files(project_dir):
         try:
@@ -1738,12 +1816,17 @@ def _detect_services(project_dir: Path) -> DetectorResult:
         except (OSError, UnicodeDecodeError, SyntaxError):
             continue
 
+        for service in _services_from_imports(_extract_import_names(tree)):
+            import_derived[service["name"]] = service
+
         for endpoint in _extract_service_endpoints_from_tree(tree):
             service_type = _service_type_from_endpoint(endpoint)
             if service_type == "unknown":
                 continue
-            key = (service_type, endpoint)
+            service_name = _service_name_from_endpoint(endpoint, service_type)
+            key = (service_name, endpoint)
             service = {
+                "name": service_name,
                 "type": service_type,
                 "endpoint": endpoint,
             }
@@ -1752,7 +1835,13 @@ def _detect_services(project_dir: Path) -> DetectorResult:
                 service["health_check_hint"] = hint
             discovered[key] = service
 
-    services = [discovered[key] for key in sorted(discovered.keys())]
+    services_by_name: dict[str, dict[str, Any]] = {}
+    for service in import_derived.values():
+        services_by_name[service["name"]] = service
+    for service in [discovered[key] for key in sorted(discovered.keys())]:
+        services_by_name[service["name"]] = service
+
+    services = [services_by_name[key] for key in sorted(services_by_name.keys())]
     if services:
         with_hints = sum(1 for service in services if "health_check_hint" in service)
         return DetectorResult(

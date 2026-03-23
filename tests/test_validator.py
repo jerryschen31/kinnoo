@@ -431,6 +431,28 @@ def test_analyzer_input_detection(tmp_path: Path) -> None:
     assert hardcoded_report["inferred"]["inputs_required"] is False
 
 
+def test_analyzer_service_detection(tmp_path: Path) -> None:
+    """Feature47 test396: analyzer detects service dependencies from imports and literals."""
+    project_dir = tmp_path / "service-detection-agent"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "main.py").write_text(
+        "import ollama\n"
+        "import redis\n"
+        "import psycopg2\n"
+        "API_URL = 'http://localhost:11434'\n"
+        "_ = (ollama, redis, psycopg2, API_URL)\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(project_dir).as_dict()
+    services = report["inferred"]["services"]
+    names = {service.get("name") for service in services if isinstance(service, dict)}
+
+    assert "ollama" in names
+    assert "redis" in names
+    assert "postgresql" in names
+
+
 def test_feature42_manifest_accepts_json_input_output_types(tmp_path: Path) -> None:
     """Feature42 test270: validator accepts json for inputs.type and outputs.type."""
     data = dict(_VALID_MANIFEST)
