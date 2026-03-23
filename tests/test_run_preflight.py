@@ -318,6 +318,64 @@ def test_preflight_entrypoint_and_dependency_checks(tmp_path: Path) -> None:
     assert "Action: create agent .venv and install requirements" in dependency_fail_output
 
 
+def test_preflight_pass_runtime_path_no_venv(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "preflight-runtime-path-pass-agent"
+    _create_agent_fixture(agent_dir, with_manifest=True)
+    (agent_dir / "requirements.txt").write_text("requests==2.31.0\n", encoding="utf-8")
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: preflight-runtime-path-pass-agent",
+                "version: 1.0.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.10\"",
+                "  type: one-shot",
+                f"  path: \"{sys.executable}\"",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "run", str(agent_dir), "--preflight"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+
+    assert result.returncode == 0
+    assert "[PASS] dependency readiness check passed" in output
+    assert ".venv not found but runtime.path" in output
+    assert "venv will be created at run time" in output
+
+
+def test_preflight_fail_no_runtime_path_no_venv(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "preflight-no-runtime-path-fail-agent"
+    _create_agent_fixture(agent_dir, with_manifest=True)
+    (agent_dir / "requirements.txt").write_text("requests==2.31.0\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "run", str(agent_dir), "--preflight"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+
+    assert result.returncode != 0
+    assert "[FAIL] dependency readiness check failed" in output
+    assert "virtual environment not found" in output
+
+
 def test_preflight_checklist_and_ready_summary(tmp_path: Path) -> None:
     pass_agent = tmp_path / "ready-pass-agent"
     _create_agent_fixture(pass_agent, with_manifest=True)
