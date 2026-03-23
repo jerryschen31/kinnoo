@@ -1607,7 +1607,7 @@ features:
         description: "publish supports optional pack-and-publish flow from agent directories via --pack, including optional --bump major/minor/patch with clear guardrail errors"
     owner: techlead-agent
     dependencies: [feature30]
-    status: needs-review
+    status: completed
 
   - id: feature45
     title: "kinnoo init mcp-server framework scaffolding"
@@ -1623,7 +1623,7 @@ features:
         description: "`kinnoo init -h` includes an explicit example showing mcp-server initialization usage."
     owner: techlead-agent
     dependencies: [feature23, feature26]
-    status: needs-review
+    status: completed
 
   - id: feature46
     title: "UAT Phase 3/4 continuation — agent analysis, CLI improvements, and bug fixes"
@@ -1657,26 +1657,26 @@ features:
         description: "Preflight passes when runtime.path is set but .venv does not yet exist."
     owner: techlead-agent
     dependencies: [feature3, feature19, feature20, feature27, feature44]
-    status: not-started
+    status: completed
+
   - id: feature47
     title: "Agent supportability assessment and kinnoo compatibility roadmap"
     description: |
       Assessment of 246 downloaded agent examples (114 from scratch-1 + 132 from scratch-2)
       across LangChain, LangGraph, PydanticAI, OpenAI Agents SDK, OpenClaw, MCP,
-      CrewAI, Swarm, Agno, SmolAgents, AutoGen, Semantic Kernel, MetaGPT, LlamaIndex,
-      Anthropic, Streamlit, Gradio, and vanilla Python/JS/TS frameworks. Classifies
-      each agent's code pattern and supportability (HIGH/MEDIUM/LOW). Defines 10 roadmaps
-      covering auto-wrapper generation, notebook conversion, subdirectory entrypoint
-      detection, requirements auto-inference, Node.js/TS improvements, async/input
-      detection, deps injection, service auto-detection, Streamlit/Gradio UI support,
-      and extended framework detection. Creates implementation tasks (task269-task279)
-      to extend kinnoo to support the majority of real agents encountered.
-    tasks: [task269, task270, task271, task272, task273, task274, task275, task276, task277, task278, task279]
+      CrewAI, Swarm, Streamlit, Gradio, and vanilla Python/JS/TS frameworks. Classifies
+      each agent's code pattern and supportability (HIGH/MEDIUM/LOW). Defines 9 roadmaps
+      covering auto-wrapper generation, subdirectory entrypoint detection, requirements
+      auto-inference, Node.js/TS improvements, async/input detection, deps injection,
+      service auto-detection, Streamlit/Gradio UI support, and CrewAI/Swarm framework
+      detection. Notebook conversion deferred to agent developers. Support for Agno,
+      SmolAgents, AutoGen, Semantic Kernel, MetaGPT, LlamaIndex, and Anthropic frameworks
+      deferred to a future feature. Creates implementation tasks (task269-task279, task270
+      deprecated) to extend kinnoo to support the majority of real agents encountered.
+    tasks: [task269, task271, task272, task273, task274, task275, task276, task277, task278]
     acceptance_criteria:
       - id: AC1
         description: "Analyzer detects class-only agents and import generates run.py wrapper."
-      - id: AC2
-        description: "Analyzer detects .ipynb notebooks and import converts to executable .py."
       - id: AC3
         description: "Analyzer finds entrypoints in src/, source/, backend/ subdirectories (depth 4)."
       - id: AC4
@@ -1694,7 +1694,8 @@ features:
       - id: AC10
         description: "Kinnoo detects Streamlit/Gradio UI agents and sets daemon runtime type with appropriate run command."
       - id: AC11
-        description: "Kinnoo detects 9 new agent frameworks (CrewAI, Swarm, Agno, SmolAgents, AutoGen, Semantic Kernel, MetaGPT, LlamaIndex, Anthropic) and applies framework-specific import/run configuration."
+        description: "DEPRECATED — All 9 extended framework detections (CrewAI, Swarm, Agno, SmolAgents, AutoGen, Semantic Kernel, MetaGPT, LlamaIndex, Anthropic) are deferred to a future feature per human review (2025-03-23)."
+        status: deprecated
     owner: techlead-agent
     dependencies: [feature46]
     status: not-started

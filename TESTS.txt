@@ -6383,7 +6383,9 @@ tests:
         ac: AC1
 
   - id: test386
-    title: Analyzer detects Jupyter notebook entrypoint
+    title: "DEPRECATED — Analyzer detects Jupyter notebook entrypoint"
+    status: deprecated
+    deprecation_note: "Skipped per human review (2025-03-23) — notebook conversion removed (AC2 dropped); developer burden."
     type: unit
     preconditions: Directory with .ipynb file containing agent code and no .py entrypoint
     steps:
@@ -6391,14 +6393,13 @@ tests:
       - step2: Run analyzer._detect_entrypoint() on fixture
     expected: Returns entrypoint_type "notebook" with notebook_path
     pass_criteria: entrypoint_type is "notebook" and notebook_path points to the .ipynb file
-    automated: true
+    automated: false
     automation_path: tests/test_validator.py::test_analyzer_notebook_detection
-    covers:
-      - feature: feature47
-        ac: AC2
 
   - id: test387
-    title: Notebook conversion produces valid Python script
+    title: "DEPRECATED — Notebook conversion produces valid Python script"
+    status: deprecated
+    deprecation_note: "Skipped per human review (2025-03-23) — notebook conversion removed (AC2 dropped); developer burden."
     type: integration
     preconditions: Agent directory with detected .ipynb notebook
     steps:
@@ -6406,11 +6407,8 @@ tests:
       - step2: Accept conversion prompt
     expected: Converted .py file has code cells extracted and __main__ guard
     pass_criteria: Generated .py file compiles without SyntaxError and has if __name__ guard
-    automated: true
+    automated: false
     automation_path: tests/test_cli_install.py::test_import_notebook_conversion
-    covers:
-      - feature: feature47
-        ac: AC2
 
   - id: test388
     title: Analyzer finds entrypoint in subdirectories
@@ -6691,7 +6689,9 @@ tests:
         ac: AC10
 
   - id: test406
-    title: Verify analyzer detects CrewAI framework from imports
+    title: "DEPRECATED — Verify analyzer detects CrewAI framework from imports"
+    status: deprecated
+    deprecation_note: "Deferred per human review (2025-03-23) — all extended framework detection moved to future feature."
     type: unit
     preconditions: Python agent with 'from crewai import' in code
     steps:
@@ -6700,14 +6700,13 @@ tests:
       - step3: Check result contains framework='crewai'
     expected: Analyzer detects CrewAI framework
     pass_criteria: framework field is 'crewai'
-    automated: true
+    automated: false
     automation_path: tests/test_validator.py::test_crewai_detection
-    covers:
-      - feature: feature47
-        ac: AC11
 
   - id: test407
-    title: Verify analyzer detects OpenAI Swarm framework from imports
+    title: "DEPRECATED — Verify analyzer detects OpenAI Swarm framework from imports"
+    status: deprecated
+    deprecation_note: "Deferred per human review (2025-03-23) — all extended framework detection moved to future feature."
     type: unit
     preconditions: Python agent with 'from swarm import' in code
     steps:
@@ -6716,14 +6715,13 @@ tests:
       - step3: Check result contains framework='swarm'
     expected: Analyzer detects OpenAI Swarm framework
     pass_criteria: framework field is 'swarm'
-    automated: true
+    automated: false
     automation_path: tests/test_validator.py::test_swarm_detection
-    covers:
-      - feature: feature47
-        ac: AC11
 
   - id: test408
-    title: Verify analyzer detects Agno/Phi framework from imports
+    title: "DEPRECATED — Verify analyzer detects Agno/Phi framework from imports"
+    status: deprecated
+    deprecation_note: "Deferred per human review (2025-03-23) — Agno detection moved to FUTURE; will be implemented in a follow-up feature."
     type: unit
     preconditions: Python agent with 'from agno import' or 'from phi import' in code
     steps:
@@ -6732,23 +6730,19 @@ tests:
       - step3: Check result contains framework='agno'
     expected: Analyzer detects Agno/Phi framework
     pass_criteria: framework field is 'agno'
-    automated: true
+    automated: false
     automation_path: tests/test_validator.py::test_agno_detection
-    covers:
-      - feature: feature47
-        ac: AC11
 
   - id: test409
-    title: Verify IMPORT_TO_PYPI mapping includes all new frameworks
+    title: "DEPRECATED — Verify IMPORT_TO_PYPI mapping includes extended frameworks"
+    status: deprecated
+    deprecation_note: "Deferred per human review (2025-03-23) — all extended framework detection moved to future feature."
     type: unit
     preconditions: Updated IMPORT_TO_PYPI dict in analyzer.py
     steps:
       - step1: Import IMPORT_TO_PYPI from analyzer module
-      - step2: Verify keys include crewai, swarm, agno, smolagents, autogen, semantic_kernel, metagpt, llama_index, anthropic
-    expected: All 9 new framework import names are mapped to PyPI package names
-    pass_criteria: All 9 framework keys exist in IMPORT_TO_PYPI dict
-    automated: true
+      - step2: Verify keys include crewai, swarm
+    expected: CrewAI and Swarm import names are mapped to PyPI package names
+    pass_criteria: crewai and swarm keys exist in IMPORT_TO_PYPI dict
+    automated: false
     automation_path: tests/test_validator.py::test_import_to_pypi_completeness
-    covers:
-      - feature: feature47
-        ac: AC11
