@@ -6818,3 +6818,108 @@ tests:
     covers:
       - feature: feature47
         ac: AC12
+
+  - id: test414
+    title: Inspect --full prints all known metadata fields including N/A values
+    type: unit
+    preconditions: Valid agent directory manifest with only required fields and minimal optional fields
+    steps:
+      - step1: Run `python src/kinnoo/cli.py inspect <agent-dir> --full`
+      - step2: Verify output includes optional metadata labels with N/A placeholders
+    expected: Full mode includes both populated and unset known metadata fields
+    pass_criteria: Output contains representative unset fields rendered as N/A without crashing
+    automated: true
+    automation_path: tests/test_cli_inspect.py::test_feature48_inspect_full_shows_all_known_fields_with_na
+    covers:
+      - feature: feature48
+        ac: AC1
+
+  - id: test415
+    title: Inspect --raw prints filled metadata as dotted path fields
+    type: unit
+    preconditions: Valid agent directory manifest with several populated nested fields
+    steps:
+      - step1: Run `python src/kinnoo/cli.py inspect <agent-dir> --raw`
+      - step2: Verify output includes dotted keys for populated fields only
+    expected: Raw mode prints flat dotted key/value output for present metadata
+    pass_criteria: Output contains keys like runtime.type and runtime.language and omits unset optional fields
+    automated: true
+    automation_path: tests/test_cli_inspect.py::test_feature48_inspect_raw_shows_filled_dotted_fields
+    covers:
+      - feature: feature48
+        ac: AC2
+
+  - id: test416
+    title: Inspect --raw --full prints all known metadata as dotted path fields with N/A
+    type: unit
+    preconditions: Valid agent directory manifest with sparse optional metadata
+    steps:
+      - step1: Run `python src/kinnoo/cli.py inspect <agent-dir> --raw --full`
+      - step2: Verify output contains known optional dotted keys with N/A values
+    expected: Combined raw+full mode prints all known dotted keys regardless of presence
+    pass_criteria: Output includes dotted optional keys rendered as N/A for unset fields
+    automated: true
+    automation_path: tests/test_cli_inspect.py::test_feature48_inspect_raw_full_shows_all_dotted_fields
+    covers:
+      - feature: feature48
+        ac: AC3
+
+  - id: test417
+    title: Inspect --update prompts for confirmation and applies accepted change
+    type: integration
+    preconditions: Writable agent directory with valid kinnoo.yaml and runtime.language field
+    steps:
+      - step1: Run `python src/kinnoo/cli.py inspect --update <agent-dir> runtime.language nodejs` and respond `y`
+      - step2: Re-read kinnoo.yaml and verify updated value
+    expected: Update command prompts and persists accepted metadata mutation
+    pass_criteria: Command exits 0 and manifest reflects new value when confirmation is yes
+    automated: true
+    automation_path: tests/test_cli_inspect.py::test_feature48_inspect_update_prompts_and_applies_on_yes
+    covers:
+      - feature: feature48
+        ac: AC4
+
+  - id: test418
+    title: Inspect --update aborts on default no confirmation and leaves manifest unchanged
+    type: integration
+    preconditions: Writable agent directory with valid kinnoo.yaml and runtime.language field
+    steps:
+      - step1: Run `python src/kinnoo/cli.py inspect --update <agent-dir> runtime.language nodejs` and respond with newline
+      - step2: Re-read kinnoo.yaml and verify original value remains
+    expected: Update command defaults to no and does not mutate manifest
+    pass_criteria: Command exits non-zero and manifest stays unchanged when confirmation is not yes
+    automated: true
+    automation_path: tests/test_cli_inspect.py::test_feature48_inspect_update_aborts_on_default_no
+    covers:
+      - feature: feature48
+        ac: AC4
+
+  - id: test419
+    title: Inspect --update supports --skip-warnings to bypass confirmation prompt
+    type: integration
+    preconditions: Writable agent directory with valid kinnoo.yaml and runtime.language field
+    steps:
+      - step1: Run `python src/kinnoo/cli.py inspect --skip-warnings --update <agent-dir> runtime.language nodejs`
+      - step2: Re-read kinnoo.yaml and verify updated value
+    expected: Update command applies mutation without interactive prompt when skip flag is used
+    pass_criteria: Command exits 0 and manifest updates with no prompt dependency
+    automated: true
+    automation_path: tests/test_cli_inspect.py::test_feature48_inspect_update_skip_warnings_bypasses_prompt
+    covers:
+      - feature: feature48
+        ac: AC4
+
+  - id: test420
+    title: Inspect --update rejects invalid updates that break manifest validation
+    type: integration
+    preconditions: Writable agent directory with valid kinnoo.yaml
+    steps:
+      - step1: Run `python src/kinnoo/cli.py inspect --skip-warnings --update <agent-dir> runtime.language javascript`
+      - step2: Verify command reports validation errors and manifest remains unchanged
+    expected: Invalid mutation is rejected and original manifest is preserved
+    pass_criteria: Command exits non-zero, emits validation guidance, and file contents are unchanged
+    automated: true
+    automation_path: tests/test_cli_inspect.py::test_feature48_inspect_update_rejects_invalid_manifest_value
+    covers:
+      - feature: feature48
+        ac: AC4

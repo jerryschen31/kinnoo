@@ -1701,3 +1701,25 @@ features:
     owner: techlead-agent
     dependencies: [feature46]
     status: not-started
+
+  - id: feature48
+    title: "kinnoo inspect advanced metadata views and manifest update workflow"
+    description: |
+      Extend `kinnoo inspect` with richer metadata rendering modes and a controlled
+      manifest metadata update workflow. Add `--full` to render all known metadata
+      fields including N/A values, `--raw` to render metadata as raw dotted-path
+      fields, and `--update` to modify a manifest metadata field in-place with a
+      confirmation warning that can be bypassed via `--skip-warnings`.
+    tasks: [task281]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo inspect <target> --full` shows all known metadata fields, including fields that are currently N/A."
+      - id: AC2
+        description: "`kinnoo inspect <target> --raw` shows currently filled metadata fields as raw dotted-path key/value pairs."
+      - id: AC3
+        description: "`kinnoo inspect <target> --raw --full` shows all known metadata fields as raw dotted-path key/value pairs, with N/A for unset fields."
+      - id: AC4
+        description: "`kinnoo inspect --update <target> <old-key> <new-value>` updates manifest metadata with interactive warning prompt (`y/N`) and supports `--skip-warnings` to bypass prompt."
+    owner: techlead-agent
+    dependencies: [feature11, feature24]
+    status: not-started
