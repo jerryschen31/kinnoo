@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -18,6 +19,11 @@ try:
     from kinnoo.validator import validate as validate_manifest
 except ImportError:
     from .validator import validate as validate_manifest
+
+try:
+    from kinnoo.terminal_colors import style_text
+except ImportError:
+    from .terminal_colors import style_text
 
 
 DEFAULT_IMPORTED_MANIFEST = """name: imported-agent
@@ -45,6 +51,51 @@ class PromptSession:
     def __init__(self) -> None:
         self.answers_received = 0
         self.non_interactive = not os.isatty(0)
+
+
+_GITHUB_URL_RE = re.compile(
+    r"^https://github\.com/(?P<owner>[A-Za-z0-9_.-]+)/(?P<repo>[A-Za-z0-9_.-]+?)(?:\.git)?/?$",
+    re.IGNORECASE,
+)
+
+
+def is_github_url(value: str | None) -> bool:
+    if not isinstance(value, str):
+        return False
+    return _GITHUB_URL_RE.fullmatch(value.strip()) is not None
+
+
+def github_repo_dir_name(url: str) -> str:
+    match = _GITHUB_URL_RE.fullmatch(url.strip())
+    if match is None:
+        raise ValueError(f"Not a supported GitHub URL: {url}")
+
+    repo_name = match.group("repo")
+    if repo_name.lower().endswith(".git"):
+        repo_name = repo_name[:-4]
+    return repo_name
+
+
+def clone_github_repo(url: str, destination: Path) -> tuple[bool, str]:
+    git_executable = shutil.which("git")
+    if git_executable is None:
+        return False, "git is not installed or not available on PATH"
+
+    result = subprocess.run(
+        [git_executable, "clone", "--depth", "1", url, str(destination)],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0:
+        return True, ""
+
+    combined = (result.stderr or result.stdout or "").strip()
+    lowered = combined.lower()
+    if "repository not found" in lowered or "not found" in lowered:
+        return False, "repository URL not found or not accessible"
+    if "authentication" in lowered or "permission denied" in lowered or "could not read" in lowered:
+        return False, "authentication/credentials error while cloning repository"
+    return False, combined or "git clone failed"
 
 
 def _resolve_import_target(target_path_arg: str | None) -> Path:
@@ -81,8 +132,8 @@ def _prompt_with_default(prompt: str, default: str, session: PromptSession | Non
 def _show_detected_values(report: dict[str, Any]) -> None:
     inferred = report.get("inferred", {})
     confidence = report.get("confidence", {})
-    print("Detected values from analyzer:")
-    for key in ("entrypoint", "runtime", "framework", "dependencies", "env_vars", "services"):
+    print(style_text("Detected values from analyzer:", color="cyan", bold=True))
+    for key in ("entrypoint", "runtime", "framework", "model", "dependencies", "inputs", "outputs", "env_vars", "services"):
         print(f"  - {key}: {inferred.get(key)}")
 
     framework_confidence = confidence.get("framework")
@@ -300,10 +351,18 @@ def _build_manifest_from_analysis(
     runtime_package_manager = runtime.get("package_manager") if isinstance(runtime.get("package_manager"), str) else None
 
     framework = inferred.get("framework")
+    model = inferred.get("model") if isinstance(inferred.get("model"), str) else None
     dependencies = inferred.get("dependencies") if isinstance(inferred.get("dependencies"), list) else []
     env_vars = inferred.get("env_vars") if isinstance(inferred.get("env_vars"), list) else []
     services = _normalize_inferred_services(inferred.get("services"))
     permissions: dict[str, Any] | None = None
+    inferred_input_type = inferred.get("inputs") if isinstance(inferred.get("inputs"), str) else "string"
+    inferred_output_type = inferred.get("outputs") if isinstance(inferred.get("outputs"), str) else "string"
+    allowed_io_types = {"text", "string", "file", "json"}
+    if inferred_input_type not in allowed_io_types:
+        inferred_input_type = "string"
+    if inferred_output_type not in allowed_io_types:
+        inferred_output_type = "string"
 
     # If analyzer inferred an entrypoint and user confirmed detected values,
     # keep it without re-prompting even when confidence is low.
@@ -372,9 +431,9 @@ def _build_manifest_from_analysis(
         "dependencies:",
         dependency_lines,
         "inputs:",
-        "  type: string",
+        f"  type: {inferred_input_type}",
         "outputs:",
-        "  type: string",
+        f"  type: {inferred_output_type}",
     ]
 
     if runtime_package_manager:
@@ -382,6 +441,9 @@ def _build_manifest_from_analysis(
 
     if framework:
         manifest_lines.append(f"framework: {framework}")
+
+    if model and model.strip():
+        manifest_lines.append(f"model: {model.strip()}")
 
     if inferred_skills:
         manifest_lines.append("skills:")
@@ -558,9 +620,9 @@ def _print_manifest_validation_and_guidance(
 ) -> None:
     is_valid, errors = validate_manifest(str(manifest_path))
     if is_valid:
-        print("Generated manifest validation: PASS")
+        print(style_text("Generated manifest validation: PASS", color="green", bold=True))
     else:
-        print("Generated manifest validation: WARNING")
+        print(style_text("Generated manifest validation: WARNING", color="yellow", bold=True))
         for error in errors:
             print(f"  - {error}")
 
@@ -568,7 +630,7 @@ def _print_manifest_validation_and_guidance(
     if is_valid and not unresolved_guidance:
         return
 
-    print("TODO guidance:")
+    print(style_text("TODO guidance:", color="yellow", bold=True))
     for item in unresolved_guidance:
         print(f"  - {item}")
 
@@ -576,26 +638,62 @@ def _print_manifest_validation_and_guidance(
         print("  - Update kinnoo.yaml to resolve validation warnings before packaging or distribution.")
 
 
-def import_agent(target_path_arg: str | None, *, force: bool = False) -> int:
+def import_agent(
+    target_path_arg: str | None,
+    import_path_arg: str | None = None,
+    *,
+    force: bool = False,
+) -> int:
     """Import a project in-place by writing kinnoo.yaml safely into target root."""
-    target_path = _resolve_import_target(target_path_arg)
+    target_arg = target_path_arg
+    if target_arg is None:
+        target_arg = str(Path.cwd())
+
+    if import_path_arg is not None and not is_github_url(target_arg):
+        print(style_text("Error: import-path positional argument is only supported for GitHub URL imports.", color="red"))
+        return 1
+
+    target_path: Path
+    if is_github_url(target_arg):
+        repo_url = target_arg.strip()
+        if import_path_arg is None:
+            destination = Path.cwd() / github_repo_dir_name(repo_url)
+        else:
+            destination = Path(import_path_arg).expanduser().resolve()
+
+        if destination.exists():
+            print(style_text(f"Error: import target directory already exists: {destination}", color="red"))
+            return 1
+
+        cloned, clone_error = clone_github_repo(repo_url, destination)
+        if not cloned:
+            print(style_text(
+                "Error: failed to download/clone agent code from GitHub URL "
+                f"'{repo_url}': {clone_error}"
+            , color="red"))
+            return 1
+
+        target_path = destination
+    else:
+        target_path = _resolve_import_target(target_arg)
+
     manifest_path = target_path / "kinnoo.yaml"
     generated_wrapper_path: Path | None = None
     created_requirements_file = False
 
     if not target_path.exists():
-        print(f"Error: import target does not exist: {target_path}")
+        print(style_text(f"Error: import target does not exist: {target_path}", color="red"))
         return 1
 
     if not target_path.is_dir():
-        print(f"Error: import target must be a directory: {target_path}")
+        print(style_text(f"Error: import target must be a directory: {target_path}", color="red"))
         return 1
 
     if manifest_path.exists() and not force:
-        print(
+        print(style_text(
             "Error: Import aborted: kinnoo.yaml already exists. "
             "Use --force to explicitly override and overwrite."
-        )
+        , color="red"))
         return 1
 
     session = PromptSession()
@@ -607,7 +705,7 @@ def import_agent(target_path_arg: str | None, *, force: bool = False) -> int:
 
         warning_messages = report.get("warnings", [])
         if warning_messages:
-            print("Analyzer warnings:")
+            print(style_text("Analyzer warnings:", color="yellow", bold=True))
             for warning in warning_messages:
                 print(f"  - {warning}")
 
@@ -638,7 +736,7 @@ def import_agent(target_path_arg: str | None, *, force: bool = False) -> int:
                     wrapper_entrypoint = _generate_entrypoint_wrapper(target_path, selected_entrypoint)
                     generated_wrapper_path = target_path / wrapper_entrypoint
                 except Exception as exc:
-                    print(f"Error: optional wrapper generation failed: {exc}")
+                    print(style_text(f"Error: optional wrapper generation failed: {exc}", color="red"))
                     return 1
                 manifest_text = _replace_manifest_entrypoint(manifest_text, wrapper_entrypoint)
     except ImportWizardInterrupted:
@@ -663,7 +761,7 @@ def import_agent(target_path_arg: str | None, *, force: bool = False) -> int:
     except FileExistsError as exc:
         if generated_wrapper_path and generated_wrapper_path.exists():
             generated_wrapper_path.unlink()
-        print(f"Error: {exc}")
+        print(style_text(f"Error: {exc}", color="red"))
         return 1
     except Exception as exc:
         if created_requirements_file:
@@ -674,7 +772,7 @@ def import_agent(target_path_arg: str | None, *, force: bool = False) -> int:
             manifest_path.unlink()
         if generated_wrapper_path and generated_wrapper_path.exists():
             generated_wrapper_path.unlink()
-        print(f"Error: import failed and rolled back partial artifacts: {exc}")
+        print(style_text(f"Error: import failed and rolled back partial artifacts: {exc}", color="red"))
         return 1
 
     _print_manifest_validation_and_guidance(
@@ -683,5 +781,5 @@ def import_agent(target_path_arg: str | None, *, force: bool = False) -> int:
         entrypoint_warning,
     )
 
-    print(f"Imported project in-place: {target_path}")
+    print(style_text(f"Imported project in-place: {target_path}", color="green", bold=True))
     return 0

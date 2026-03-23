@@ -8,6 +8,7 @@ import tempfile
 import zipfile
 from fnmatch import fnmatch
 from pathlib import Path
+from datetime import datetime, timezone
 
 import yaml
 
@@ -21,6 +22,7 @@ from .code_sweep import (
 from .schema import normalize_env_vars
 from .signing import create_detached_signature_artifacts
 from .size_format import format_size_human_readable, size_in_megabytes
+from .terminal_colors import style_text
 
 class WheelBuildError(Exception):
     pass
@@ -361,6 +363,7 @@ def pack_agent(
     bump: str | None = None,
     sign: bool = False,
     signing_key_path: str | None = None,
+    preflight: bool = False,
 ) -> int:
     abs_agent_dir = os.path.abspath(agent_dir)
     cwd = os.path.abspath(os.getcwd())
@@ -446,6 +449,29 @@ def pack_agent(
         version = bumped_version
         with open(kinnoo_yaml_path, "w", encoding="utf-8") as manifest_file:
             yaml.safe_dump(manifest, manifest_file, sort_keys=False)
+
+    if preflight:
+        try:
+            from kinnoo.run_command import run_preflight
+        except ImportError:
+            from .run_command import run_preflight
+
+        preflight_exit_code = run_preflight(abs_agent_dir)
+        if preflight_exit_code == 0:
+            manifest["preflight_status"] = "PASS"
+            manifest["preflight_date"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            with open(kinnoo_yaml_path, "w", encoding="utf-8") as manifest_file:
+                yaml.safe_dump(manifest, manifest_file, sort_keys=False)
+        else:
+            print(style_text("Warning: preflight checks failed before pack.", color="yellow"), file=sys.stderr)
+            try:
+                continue_response = input(style_text("Preflight failed. Continue packing anyway? [y/N]: ", color="yellow", bold=True))
+            except EOFError:
+                continue_response = ""
+
+            if continue_response.strip().lower() != "y":
+                print(style_text("[kinnoo pack] Aborted due to preflight failure.", color="red", bold=True))
+                return 1
 
     entrypoint = manifest.get("entrypoint")
     if not entrypoint:
@@ -550,7 +576,7 @@ def pack_agent(
             file=sys.stderr,
         )
 
-    print(f"[kinnoo pack] Packaging agent directory: {agent_dir}")
+    print(style_text(f"[kinnoo pack] Packaging agent directory: {agent_dir}", color="cyan", bold=True))
     wheels_dir = tempfile.TemporaryDirectory(prefix="kinnoo_wheels_")
 
     wheel_files, failed_requirements = build_wheels(Path(requirements_path), Path(wheels_dir.name))
@@ -660,8 +686,8 @@ def pack_agent(
             wheels_dir.cleanup()
             return 1
 
-    print(f"[kinnoo pack] Archive created: {stored_record.archive_path}")
-    print(f"[kinnoo pack] Checksum sidecar written: {checksum_sidecar_path}")
+    print(style_text(f"[kinnoo pack] Archive created: {stored_record.archive_path}", color="green", bold=True))
+    print(style_text(f"[kinnoo pack] Checksum sidecar written: {checksum_sidecar_path}", color="cyan"))
     if signature_result is not None:
         print(f"[kinnoo pack] Signature artifact written: {signature_result.signature_path}")
         print(f"[kinnoo pack] Signature metadata written: {signature_result.metadata_path}")

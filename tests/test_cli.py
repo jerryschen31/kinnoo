@@ -27,6 +27,76 @@ def test_cli_version_flag():
     assert re.search(r"\b\d+\.\d+\.\d+\b", output), f"Expected semantic version in output, got: {output!r}"
 
 
+def test_top_level_help_grouped_menu_exact_text():
+    result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "-h"],
+        capture_output=True,
+        text=True,
+    )
+
+    expected = """Kinnoo CLI
+
+usage: kinnoo [-h] [--version] {init,run,stop,attach,logs,install,pack,keygen,inspect,publish,list,search,import,check} ...
+
+positional arguments:
+all agents:
+    {init,run,install,pack,inspect, import,check}
+        init                Scaffold a new kinnoo agent
+        run                 Run a kinnoo agent
+        pack                Package an agent directory into a .kno archive
+        inspect             Inspect metadata from an agent directory or .kno archive
+        import              Import an existing agent project in-place and prepare kinnoo metadata
+        check               Run combined import/inspect/preflight compatibility checks
+
+daemon agents:
+    {stop,attach,logs}
+        stop                Stop a running daemon agent
+        attach              Attach to a running daemon agent session
+        logs                Show daemon logs (tail or follow)
+
+registry:
+    {publish,install,list,search}
+        publish             Publish latest archived agent artifact to the registry
+        install             Install a kinnoo agent from archive (.kno) or registry
+        list                List agents from local archive (default) or remote registry
+        search              Search agents from local archive (default) or remote registry
+
+other:
+    {keygen}
+        keygen              Generate an Ed25519 keypair for archive signing
+
+options:
+    -h, --help            show this help message and exit
+    --version             show program's version number and exit
+"""
+
+    assert result.returncode == 0
+    assert result.stdout == expected + "\n"
+
+
+def test_top_level_help_colored_when_forced():
+    env = dict(os.environ)
+    env["KINNOO_FORCE_COLOR"] = "1"
+
+    result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "-h"],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert result.returncode == 0
+    assert "\u001b[" in result.stdout
+    assert "Kinnoo CLI" in result.stdout
+    assert "all agents:" in result.stdout
+    assert "\u001b[1m\u001b[34musage:\u001b[0m" in result.stdout
+    assert "\u001b[1m\u001b[35mkinnoo\u001b[0m" in result.stdout
+    assert "\u001b[1m\u001b[36m--version\u001b[0m" in result.stdout
+    assert "\u001b[1m\u001b[36m--help\u001b[0m" in result.stdout
+    assert "\u001b[1m\u001b[32minit\u001b[0m" in result.stdout
+    assert "\u001b[1m\u001b[32m{init,run,install,pack,inspect, import,check}\u001b[0m" in result.stdout
+
+
 def test_backend_selection(monkeypatch, tmp_path):
     from kinnoo import install_command, publish_command
 
@@ -186,6 +256,9 @@ import sys
 import venv
 from pathlib import Path
 from kinnoo.registry import InstallTargetSpec, RegistryRecord
+
+
+CLI_SCRIPT_PATH = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
 
 def test_run_installs_requirements(tmp_path):
         """Test that kinnoo run installs requirements.txt packages into .venv/"""
@@ -3222,3 +3295,276 @@ def test_feature40_keygen_generates_ed25519_keypair(tmp_path):
 
     assert verify_signature(public_key, payload, signature) is True
     assert verify_signature(public_key, b"tampered", signature) is False
+
+
+def test_init_language_python(tmp_path):
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(CLI_SCRIPT_PATH),
+            "init",
+            "feature46-language-python",
+            "--language",
+            "python",
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, f"init failed: {result.stdout}\n{result.stderr}"
+    agent_dir = tmp_path / "feature46-language-python"
+    assert (agent_dir / "run.py").exists()
+    manifest_text = (agent_dir / "kinnoo.yaml").read_text(encoding="utf-8")
+    assert "language: python" in manifest_text
+
+
+def test_init_incompatible_framework_language(tmp_path):
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(CLI_SCRIPT_PATH),
+            "init",
+            "feature46-language-invalid",
+            "--framework",
+            "openclaw",
+            "--language",
+            "python",
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+
+    combined = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode != 0
+    assert "Incompatible --framework/--language combination" in combined
+
+
+def test_import_github_url(monkeypatch, tmp_path):
+    from kinnoo import import_command
+    from kinnoo.cli import main
+
+    source_repo = tmp_path / "source-repo"
+    source_repo.mkdir()
+    (source_repo / "run.py").write_text("print('hello')\n", encoding="utf-8")
+
+    def _fake_clone(_url: str, destination: Path) -> tuple[bool, str]:
+        shutil.copytree(source_repo, destination)
+        return True, ""
+
+    monkeypatch.setattr(import_command, "clone_github_repo", _fake_clone)
+    monkeypatch.setattr("builtins.input", lambda _prompt="": "y")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "kinnoo",
+            "import",
+            "https://github.com/acme/feature46-agent",
+            str(tmp_path / "downloaded-agent"),
+        ],
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == 0
+    assert (tmp_path / "downloaded-agent" / "kinnoo.yaml").exists()
+
+
+def test_import_url_collision_error(monkeypatch, tmp_path):
+    from kinnoo.cli import main
+
+    existing_target = tmp_path / "existing-import-target"
+    existing_target.mkdir()
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "kinnoo",
+            "import",
+            "https://github.com/acme/feature46-agent",
+            str(existing_target),
+        ],
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == 1
+
+
+def test_import_url_download_failure(monkeypatch, tmp_path):
+    from kinnoo import import_command
+    from kinnoo.cli import main
+
+    def _fake_clone(_url: str, _destination: Path) -> tuple[bool, str]:
+        return False, "repository URL not found or not accessible"
+
+    monkeypatch.setattr(import_command, "clone_github_repo", _fake_clone)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "kinnoo",
+            "import",
+            "https://github.com/acme/missing-agent",
+            str(tmp_path / "missing-agent"),
+        ],
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == 1
+
+
+def test_check_command_local_pass(tmp_path):
+    agent_dir = tmp_path / "feature46-check-pass"
+    agent_dir.mkdir()
+    (agent_dir / "kinnoo.yaml").write_text(
+        """
+name: feature46-check-pass
+version: 0.1.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: \">=3.10\"
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+""",
+        encoding="utf-8",
+    )
+    (agent_dir / "run.py").write_text("print('ok')\n", encoding="utf-8")
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "check", str(agent_dir)],
+        capture_output=True,
+        text=True,
+    )
+
+    combined = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, combined
+    assert "Check result: PASS" in combined
+    assert "import compatibility" in combined
+    assert "inspect" in combined
+    assert "preflight" in combined
+
+
+def test_check_command_intelligent_failure(tmp_path):
+    broken_agent_dir = tmp_path / "feature46-check-fail"
+    broken_agent_dir.mkdir()
+    (broken_agent_dir / "kinnoo.yaml").write_text(
+        """
+name: feature46-check-fail
+version: 0.1.0
+entrypoint: missing.py
+runtime:
+  language: python
+  version: \">=3.10\"
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+""",
+        encoding="utf-8",
+    )
+    (broken_agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "check", str(broken_agent_dir)],
+        capture_output=True,
+        text=True,
+    )
+
+    combined = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode != 0
+    assert "Check result: FAIL" in combined
+    assert "Guidance" in combined
+
+
+def test_colored_output_tty(tmp_path):
+    agent_dir = tmp_path / "feature46-color-pass"
+    agent_dir.mkdir()
+    (agent_dir / "kinnoo.yaml").write_text(
+        """
+name: feature46-color-pass
+version: 0.1.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: \">=3.10\"
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+""",
+        encoding="utf-8",
+    )
+    (agent_dir / "run.py").write_text("print('ok')\n", encoding="utf-8")
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = dict(os.environ)
+    env["KINNOO_FORCE_COLOR"] = "1"
+
+    result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "run", str(agent_dir), "--preflight"],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    combined = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, combined
+    assert "\u001b[" in combined
+    assert "Preflight result: PASS" in combined
+
+
+def test_no_color_env_respected(tmp_path):
+    agent_dir = tmp_path / "feature46-no-color"
+    agent_dir.mkdir()
+    (agent_dir / "kinnoo.yaml").write_text(
+        """
+name: feature46-no-color
+version: 0.1.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: \">=3.10\"
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+""",
+        encoding="utf-8",
+    )
+    (agent_dir / "run.py").write_text("print('ok')\n", encoding="utf-8")
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = dict(os.environ)
+    env["KINNOO_FORCE_COLOR"] = "1"
+    env["NO_COLOR"] = "1"
+
+    result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "run", str(agent_dir), "--preflight"],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    combined = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, combined
+    assert "\u001b[" not in combined

@@ -5229,7 +5229,7 @@ tasks:
       - 'step4: Add tests for each input/output type detection scenario'
     dependencies: [task135]
     tests: [test364, test365]
-    status: not-started
+    status: needs-review
 
   - id: task259
     title: Add --preflight flag to kinnoo pack
@@ -5251,7 +5251,7 @@ tasks:
       - 'step5: Add tests for pack --preflight PASS and FAIL scenarios'
     dependencies: [task172]
     tests: [test366, test367]
-    status: not-started
+    status: needs-review
 
   - id: task260
     title: Separate daemon commands in help output
@@ -5289,7 +5289,7 @@ tasks:
       - 'step3: Test detection against gemini, claude-chat, chatgpt init templates'
     dependencies: [task135]
     tests: [test369, test370]
-    status: not-started
+    status: needs-review
 
   - id: task262
     title: Framework help — one per line with descriptions
@@ -5327,7 +5327,7 @@ tasks:
       - 'step5: Add tests for valid and invalid language/framework combinations'
     dependencies: []
     tests: [test372, test373]
-    status: not-started
+    status: needs-review
 
   - id: task264
     title: Remove remnant Python files from OpenClaw init
@@ -5368,7 +5368,7 @@ tasks:
       - 'step6: Add tests for URL import, collision, and failure scenarios'
     dependencies: [task135]
     tests: [test375, test376, test377]
-    status: not-started
+    status: needs-review
 
   - id: task266
     title: Add kinnoo check command
@@ -5389,7 +5389,7 @@ tasks:
       - 'step5: Add tests for check command against local dir and URL scenarios'
     dependencies: [task135, task258]
     tests: [test378, test379]
-    status: not-started
+    status: needs-review
 
   - id: task267
     title: Pretty print with color across CLI commands
@@ -5413,7 +5413,7 @@ tasks:
       - 'step6: Add tests verifying color codes in output when TTY and absence when not'
     dependencies: []
     tests: [test380, test381]
-    status: not-started
+    status: needs-review
 
   - id: task268
     title: Fix preflight venv check when runtime.path is set
