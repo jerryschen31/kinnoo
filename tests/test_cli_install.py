@@ -40,6 +40,133 @@ def _create_valid_archive(tmp_path: Path) -> tuple[Path, Path]:
     return archive_path, expected_dir
 
 
+def test_import_class_only_wrapper(tmp_path: Path) -> None:
+    """Feature47 test385: class-only import flow can generate run.py wrapper."""
+    agent_dir = tmp_path / "class-only-import-agent"
+    agent_dir.mkdir(parents=True, exist_ok=True)
+    (agent_dir / "base.py").write_text(
+        "from langchain.agents import BaseSingleActionAgent\n\n"
+        "class MyAgent(BaseSingleActionAgent):\n"
+        "    pass\n",
+        encoding="utf-8",
+    )
+
+    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+
+    # Prompt flow:
+    # 1) Proceed with detected values? -> y
+    # 2) Generate class-based run.py wrapper entrypoint? -> y
+    result = subprocess.run(
+        [sys.executable, str(cli_path), "import", str(agent_dir), "--force"],
+        cwd=tmp_path,
+        input="y\ny\n",
+        capture_output=True,
+        text=True,
+    )
+
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, output
+
+    generated_wrapper = agent_dir / "run.py"
+    assert generated_wrapper.exists()
+    wrapper_source = generated_wrapper.read_text(encoding="utf-8")
+    assert "from base import MyAgent" in wrapper_source
+
+    manifest_path = agent_dir / "kinnoo.yaml"
+    assert manifest_path.exists()
+    manifest_text = manifest_path.read_text(encoding="utf-8")
+    assert "entrypoint: run.py" in manifest_text
+
+
+def test_import_infer_requirements(tmp_path: Path) -> None:
+    """Feature47 test391: import can generate requirements.txt from inferred imports."""
+    agent_dir = tmp_path / "infer-reqs-agent"
+    agent_dir.mkdir(parents=True, exist_ok=True)
+    (agent_dir / "main.py").write_text(
+        "import openai\n"
+        "import httpx\n"
+        "import sys\n\n"
+        "if __name__ == '__main__':\n"
+        "    print(sys.argv[1])\n",
+        encoding="utf-8",
+    )
+
+    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    result = subprocess.run(
+        [sys.executable, str(cli_path), "import", str(agent_dir), "--force"],
+        cwd=tmp_path,
+        input="y\ny\n",
+        capture_output=True,
+        text=True,
+    )
+
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, output
+
+    requirements_path = agent_dir / "requirements.txt"
+    assert requirements_path.exists()
+    requirements_lines = requirements_path.read_text(encoding="utf-8").splitlines()
+    assert "openai" in requirements_lines
+    assert "httpx" in requirements_lines
+
+
+def test_import_input_detection_yaml(tmp_path: Path) -> None:
+    """Feature47 test395: import writes inputs.required=false for hardcoded agent input."""
+    agent_dir = tmp_path / "hardcoded-input-import-agent"
+    agent_dir.mkdir(parents=True, exist_ok=True)
+    (agent_dir / "main.py").write_text(
+        "from agents import Runner, Agent\n"
+        "agent = Agent(name='demo')\n"
+        "result = Runner.run_sync(agent, 'hardcoded hello')\n"
+        "print(result)\n",
+        encoding="utf-8",
+    )
+
+    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    result = subprocess.run(
+        [sys.executable, str(cli_path), "import", str(agent_dir), "--force"],
+        cwd=tmp_path,
+        input="y\n",
+        capture_output=True,
+        text=True,
+    )
+
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, output
+
+    manifest_text = (agent_dir / "kinnoo.yaml").read_text(encoding="utf-8")
+    assert "inputs:" in manifest_text
+    assert "required: false" in manifest_text
+
+
+def test_import_service_detection_yaml(tmp_path: Path) -> None:
+    """Feature47 test397: kinnoo import includes detected services in generated manifest."""
+    agent_dir = tmp_path / "service-import-agent"
+    agent_dir.mkdir(parents=True, exist_ok=True)
+    (agent_dir / "main.py").write_text(
+        "import ollama\n"
+        "if __name__ == '__main__':\n"
+        "    print('ok')\n",
+        encoding="utf-8",
+    )
+
+    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    result = subprocess.run(
+        [sys.executable, str(cli_path), "import", str(agent_dir), "--force"],
+        cwd=tmp_path,
+        input="y\n",
+        capture_output=True,
+        text=True,
+    )
+
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, output
+
+    manifest_text = (agent_dir / "kinnoo.yaml").read_text(encoding="utf-8")
+    assert "services:" in manifest_text
+    assert "name: ollama" in manifest_text
+
+
 def test_install_delegates_to_install_command(tmp_path):
     cli_source = Path("src/kinnoo/cli.py").read_text()
     install_branch_start = cli_source.find('elif args.command == "install":')

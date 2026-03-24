@@ -1607,7 +1607,7 @@ features:
         description: "publish supports optional pack-and-publish flow from agent directories via --pack, including optional --bump major/minor/patch with clear guardrail errors"
     owner: techlead-agent
     dependencies: [feature30]
-    status: needs-review
+    status: completed
 
   - id: feature45
     title: "kinnoo init mcp-server framework scaffolding"
@@ -1623,7 +1623,7 @@ features:
         description: "`kinnoo init -h` includes an explicit example showing mcp-server initialization usage."
     owner: techlead-agent
     dependencies: [feature23, feature26]
-    status: needs-review
+    status: completed
 
   - id: feature46
     title: "UAT Phase 3/4 continuation — agent analysis, CLI improvements, and bug fixes"
@@ -1657,4 +1657,69 @@ features:
         description: "Preflight passes when runtime.path is set but .venv does not yet exist."
     owner: techlead-agent
     dependencies: [feature3, feature19, feature20, feature27, feature44]
+    status: completed
+
+  - id: feature47
+    title: "Agent supportability assessment and kinnoo compatibility roadmap"
+    description: |
+      Assessment of 246 downloaded agent examples (114 from scratch-1 + 132 from scratch-2)
+      across LangChain, LangGraph, PydanticAI, OpenAI Agents SDK, OpenClaw, MCP,
+      CrewAI, Swarm, Streamlit, Gradio, and vanilla Python/JS/TS frameworks. Classifies
+      each agent's code pattern and supportability (HIGH/MEDIUM/LOW). Defines 9 roadmaps
+      covering auto-wrapper generation, subdirectory entrypoint detection, requirements
+      auto-inference, Node.js/TS improvements, async/input detection, deps injection,
+      service auto-detection, Streamlit/Gradio UI support, and CrewAI/Swarm framework
+      detection. Notebook conversion deferred to agent developers. Support for Agno,
+      SmolAgents, AutoGen, Semantic Kernel, MetaGPT, LlamaIndex, and Anthropic frameworks
+      deferred to a future feature. Creates implementation tasks (task269-task279, task270
+      deprecated) to extend kinnoo to support the majority of real agents encountered.
+    tasks: [task269, task271, task272, task273, task274, task275, task276, task277, task278, task280]
+    acceptance_criteria:
+      - id: AC1
+        description: "Analyzer detects class-only agents and import generates run.py wrapper."
+      - id: AC3
+        description: "Analyzer finds entrypoints in src/, source/, backend/ subdirectories (depth 4)."
+      - id: AC4
+        description: "Analyzer infers requirements from Python imports when requirements.txt is missing."
+      - id: AC5
+        description: "Analyzer detects Node.js/TS agents from package.json and supports tsx execution."
+      - id: AC6
+        description: "Analyzer distinguishes hardcoded input from parameterized (sys.argv/argparse)."
+      - id: AC7
+        description: "Analyzer detects external service dependencies (Ollama, Redis, PostgreSQL, etc.)."
+      - id: AC8
+        description: "Analyzer detects PydanticAI deps_type pattern and sets inputs.type to json."
+      - id: AC9
+        description: "E2E pipeline (import-pack-install-run) works for representative agents from each pattern."
+      - id: AC10
+        description: "Kinnoo detects Streamlit/Gradio UI agents and sets daemon runtime type with appropriate run command."
+      - id: AC11
+        description: "DEPRECATED — All 9 extended framework detections (CrewAI, Swarm, Agno, SmolAgents, AutoGen, Semantic Kernel, MetaGPT, LlamaIndex, Anthropic) are deferred to a future feature per human review (2025-03-23)."
+        status: deprecated
+      - id: AC12
+        description: "Analyzer detects OpenClaw-like JS/TS projects that lack a root package.json by inferring node runtime, entrypoint candidates, and OpenClaw framework signals from lightweight project evidence."
+    owner: techlead-agent
+    dependencies: [feature46]
+    status: not-started
+
+  - id: feature48
+    title: "kinnoo inspect advanced metadata views and manifest update workflow"
+    description: |
+      Extend `kinnoo inspect` with richer metadata rendering modes and a controlled
+      manifest metadata update workflow. Add `--full` to render all known metadata
+      fields including N/A values, `--raw` to render metadata as raw dotted-path
+      fields, and `--update` to modify a manifest metadata field in-place with a
+      confirmation warning that can be bypassed via `--skip-warnings`.
+    tasks: [task281]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo inspect <target> --full` shows all known metadata fields, including fields that are currently N/A."
+      - id: AC2
+        description: "`kinnoo inspect <target> --raw` shows currently filled metadata fields as raw dotted-path key/value pairs."
+      - id: AC3
+        description: "`kinnoo inspect <target> --raw --full` shows all known metadata fields as raw dotted-path key/value pairs, with N/A for unset fields."
+      - id: AC4
+        description: "`kinnoo inspect --update <target> <old-key> <new-value>` updates manifest metadata with interactive warning prompt (`y/N`) and supports `--skip-warnings` to bypass prompt."
+    owner: techlead-agent
+    dependencies: [feature11, feature24]
     status: not-started

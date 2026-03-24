@@ -10,6 +10,8 @@ from __future__ import annotations
 import ast
 import json
 import re
+import shlex
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -55,6 +57,49 @@ def _iter_python_files(project_dir: Path) -> list[Path]:
     return sorted(path for path in project_dir.rglob("*.py") if path.is_file())
 
 
+def _iter_python_files_with_depth(project_dir: Path, *, max_depth: int) -> list[Path]:
+    """Return python files up to max relative path depth from project root."""
+    files: list[Path] = []
+    for path in sorted(project_dir.rglob("*.py")):
+        if not path.is_file():
+            continue
+        try:
+            relative_parts = path.relative_to(project_dir).parts
+        except ValueError:
+            continue
+        # File depth measured by parent directories only.
+        depth = len(relative_parts) - 1
+        if depth <= max_depth:
+            files.append(path)
+    return files
+
+
+def _iter_node_files_with_depth(project_dir: Path, *, max_depth: int) -> list[Path]:
+    """Return JS/TS files up to max relative path depth from project root."""
+    files: list[Path] = []
+    valid_suffixes = {".js", ".mjs", ".cjs", ".ts", ".tsx"}
+    ignored_segments = {"node_modules", ".git", ".venv", "dist", "build", "coverage"}
+
+    for path in sorted(project_dir.rglob("*")):
+        if not path.is_file():
+            continue
+        if path.suffix.lower() not in valid_suffixes:
+            continue
+        try:
+            relative_parts = path.relative_to(project_dir).parts
+        except ValueError:
+            continue
+
+        if any(part in ignored_segments for part in relative_parts):
+            continue
+
+        depth = len(relative_parts) - 1
+        if depth <= max_depth:
+            files.append(path)
+
+    return files
+
+
 def _relative_path(project_dir: Path, file_path: Path) -> str:
     return file_path.relative_to(project_dir).as_posix()
 
@@ -67,6 +112,267 @@ def _has_main_guard(file_path: Path) -> bool:
     return "if __name__ == '__main__':" in source or "if __name__ == \"__main__\":" in source
 
 
+def _load_package_json(project_dir: Path) -> dict[str, Any] | None:
+    package_json_path = project_dir / "package.json"
+    if not package_json_path.exists() or not package_json_path.is_file():
+        return None
+
+    try:
+        payload = json.loads(package_json_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+
+    if isinstance(payload, dict):
+        return payload
+    return None
+
+
+def _extract_entrypoint_from_start_script(start_script: str) -> str | None:
+    try:
+        tokens = shlex.split(start_script)
+    except ValueError:
+        return None
+
+    for token in tokens:
+        if token.startswith("-"):
+            continue
+        candidate = token.strip()
+        if candidate.endswith((".js", ".mjs", ".cjs", ".ts", ".tsx")):
+            return candidate
+    return None
+
+
+def _detect_node_entrypoint(project_dir: Path) -> tuple[str | None, str | None]:
+    package_json = _load_package_json(project_dir)
+    if not package_json:
+        package_json = None
+
+    if package_json is not None:
+        main_value = package_json.get("main")
+        if isinstance(main_value, str) and main_value.strip():
+            return main_value.strip(), "Detected package.json main field."
+
+        scripts = package_json.get("scripts")
+        if isinstance(scripts, dict):
+            start_value = scripts.get("start")
+            if isinstance(start_value, str) and start_value.strip():
+                entrypoint = _extract_entrypoint_from_start_script(start_value)
+                if entrypoint:
+                    return entrypoint, "Detected package.json scripts.start entrypoint command."
+
+    conventional_root_candidates = [
+        "src/entry.ts",
+        "src/index.ts",
+        "src/server.ts",
+        "src/entry.js",
+        "src/index.js",
+        "src/server.js",
+        "entry.ts",
+        "index.ts",
+        "server.ts",
+        "entry.js",
+        "index.js",
+        "server.js",
+        "boot.mjs",
+    ]
+    for candidate in conventional_root_candidates:
+        if (project_dir / candidate).exists():
+            return candidate, "Detected conventional Node.js entrypoint path."
+
+    priority_filenames = [
+        "boot.mjs",
+        "entry.ts",
+        "entry.mjs",
+        "entry.js",
+        "server.ts",
+        "server.mjs",
+        "server.js",
+        "index.ts",
+        "index.mjs",
+        "index.js",
+        "main.ts",
+        "main.mjs",
+        "main.js",
+        "cli.ts",
+        "cli.mjs",
+        "cli.js",
+    ]
+    priority_rank = {name: index for index, name in enumerate(priority_filenames)}
+    conventional_dirs = {"src", "server", "bridge", "app", "cli", "bin", "daemon", "gateway"}
+
+    node_files = _iter_node_files_with_depth(project_dir, max_depth=6)
+    candidates = [
+        path for path in node_files if path.name.lower() in priority_rank
+    ]
+    if candidates:
+        selected = min(
+            candidates,
+            key=lambda path: (
+                priority_rank[path.name.lower()],
+                0 if any(part.lower() in conventional_dirs for part in path.relative_to(project_dir).parts[:-1]) else 1,
+                len(path.relative_to(project_dir).parts) - 1,
+                _relative_path(project_dir, path),
+            ),
+        )
+        selected_entrypoint = _relative_path(project_dir, selected)
+        return selected_entrypoint, (
+            "Detected conventional Node.js/TS entrypoint candidate from nested project layout: "
+            f"{selected_entrypoint}."
+        )
+
+    return None, None
+
+
+def _entrypoint_candidate_score(project_dir: Path, file_path: Path, *, has_main_guard: bool) -> tuple[int, int, int, str]:
+    """Score entrypoint candidates: guard, conventional dir, then shallower depth."""
+    conventional_dirs = {"src", "source", "app", "backend", "python-backend", "lambda", "lib"}
+    relative = file_path.relative_to(project_dir)
+    parent_parts = [part.lower() for part in relative.parts[:-1]]
+    filename = relative.name.lower()
+
+    conventional_boost = 0
+    if any(part in conventional_dirs for part in parent_parts):
+        conventional_boost = 1
+
+    conventional_filename = 1 if filename in {"main.py", "run.py", "app.py"} else 0
+    depth = len(relative.parts) - 1
+    # Higher tuple is better. Depth is inverted to prefer shallower paths.
+    return (
+        1 if has_main_guard else 0,
+        conventional_boost,
+        conventional_filename,
+        f"{-depth:04d}",
+    )
+
+
+def _select_best_entrypoint_candidate(project_dir: Path, candidates: list[Path]) -> tuple[Path | None, bool]:
+    """Pick a best candidate deterministically, returning ambiguity flag on ties."""
+    if not candidates:
+        return None, False
+
+    scored: list[tuple[tuple[int, int, int, str], Path]] = []
+    for path in candidates:
+        scored.append(
+            (
+                _entrypoint_candidate_score(project_dir, path, has_main_guard=_has_main_guard(path)),
+                path,
+            )
+        )
+    scored.sort(key=lambda item: item[0], reverse=True)
+
+    best_score, best_path = scored[0]
+    tie_count = sum(1 for score, _ in scored if score == best_score)
+    return best_path, tie_count > 1
+
+
+def _name_from_ast_node(node: ast.AST) -> str | None:
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        base = _name_from_ast_node(node.value)
+        if base:
+            return f"{base}.{node.attr}"
+        return node.attr
+    return None
+
+
+def _detect_class_entrypoint(project_dir: Path, python_files: list[Path]) -> DetectorResult:
+    known_agent_bases = {
+        "BaseSingleActionAgent",
+        "BaseMultiActionAgent",
+        "Agent",
+    }
+    candidates: list[dict[str, str]] = []
+
+    for python_file in python_files:
+        try:
+            source = python_file.read_text(encoding="utf-8")
+            tree = ast.parse(source)
+        except (OSError, UnicodeDecodeError, SyntaxError):
+            continue
+
+        imported_modules: set[str] = set()
+        imported_symbols: set[str] = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    imported_modules.add(alias.name)
+            elif isinstance(node, ast.ImportFrom):
+                if node.module:
+                    imported_modules.add(node.module)
+                for alias in node.names:
+                    imported_symbols.add(alias.name)
+
+        has_langchain_signal = any(module.startswith("langchain") for module in imported_modules)
+        has_openai_agents_signal = (
+            "agents" in imported_modules
+            or "Agent" in imported_symbols
+        )
+
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ClassDef):
+                continue
+            class_name = node.name
+            base_names = [
+                value for value in (_name_from_ast_node(base) for base in node.bases) if isinstance(value, str)
+            ]
+            has_known_base = any(
+                base_name in known_agent_bases or base_name.split(".")[-1] in known_agent_bases
+                for base_name in base_names
+            )
+            class_looks_like_agent = class_name.lower().endswith("agent")
+
+            if not (has_known_base or (class_looks_like_agent and (has_langchain_signal or has_openai_agents_signal))):
+                continue
+
+            candidates.append(
+                {
+                    "agent_class": class_name,
+                    "agent_module": _module_name_for_path(project_dir, python_file),
+                    "module_path": _relative_path(project_dir, python_file),
+                }
+            )
+
+    if len(candidates) == 1:
+        candidate = candidates[0]
+        return DetectorResult(
+            value={
+                "entrypoint": None,
+                "entrypoint_type": "class",
+                "agent_class": candidate["agent_class"],
+                "agent_module": candidate["agent_module"],
+            },
+            confidence=0.60,
+            evidence=(
+                "Detected class-only agent candidate "
+                f"{candidate['agent_class']} in {candidate['module_path']}."
+            ),
+            warning="Class-only agent detected; generate a wrapper entrypoint to run with kinnoo.",
+        )
+
+    if len(candidates) > 1:
+        candidate_labels = ", ".join(
+            f"{candidate['agent_class']} ({candidate['module_path']})" for candidate in candidates
+        )
+        return DetectorResult(
+            value={
+                "entrypoint": None,
+                "entrypoint_type": "class",
+                "candidates": candidates,
+            },
+            confidence=0.40,
+            evidence=f"Detected multiple class-only agent candidates: {candidate_labels}.",
+            warning="Multiple class-only agent candidates detected; choose one and generate wrapper manually.",
+        )
+
+    return DetectorResult(
+        value=None,
+        confidence=0.0,
+        evidence="No class-only agent candidates detected.",
+        warning=None,
+    )
+
+
 def _detect_entrypoint(project_dir: Path) -> DetectorResult:
     run_py = project_dir / "run.py"
     if run_py.exists() and run_py.is_file():
@@ -77,7 +383,17 @@ def _detect_entrypoint(project_dir: Path) -> DetectorResult:
             warning=None,
         )
 
-    python_files = _iter_python_files(project_dir)
+    node_entrypoint, node_evidence = _detect_node_entrypoint(project_dir)
+    if isinstance(node_entrypoint, str) and node_entrypoint.strip():
+        return DetectorResult(
+            value=node_entrypoint,
+            confidence=0.76,
+            evidence=node_evidence or "Detected Node.js package.json entrypoint.",
+            warning=None,
+        )
+
+    # Search entrypoint candidates up to depth 4 to better support common src/source layouts.
+    python_files = _iter_python_files_with_depth(project_dir, max_depth=4)
     guarded = [path for path in python_files if _has_main_guard(path)]
 
     if len(guarded) == 1:
@@ -90,6 +406,19 @@ def _detect_entrypoint(project_dir: Path) -> DetectorResult:
         )
 
     if len(guarded) > 1:
+        selected, ambiguous = _select_best_entrypoint_candidate(project_dir, guarded)
+        if selected is not None and not ambiguous:
+            entrypoint = _relative_path(project_dir, selected)
+            return DetectorResult(
+                value=entrypoint,
+                confidence=0.72,
+                evidence=(
+                    "Multiple __main__ candidates detected; selected best candidate "
+                    f"using conventional-directory and shallow-depth weighting: {entrypoint}."
+                ),
+                warning=None,
+            )
+
         candidates = ", ".join(_relative_path(project_dir, path) for path in guarded)
         return DetectorResult(
             value=None,
@@ -97,6 +426,10 @@ def _detect_entrypoint(project_dir: Path) -> DetectorResult:
             evidence=f"Multiple __main__ candidates detected: {candidates}.",
             warning="Entrypoint is ambiguous; multiple executable modules were found.",
         )
+
+    class_candidate = _detect_class_entrypoint(project_dir, python_files)
+    if class_candidate.confidence >= 0.4:
+        return class_candidate
 
     if len(python_files) == 1:
         entrypoint = _relative_path(project_dir, python_files[0])
@@ -106,6 +439,23 @@ def _detect_entrypoint(project_dir: Path) -> DetectorResult:
             evidence=f"Only one python file found: {entrypoint}.",
             warning="Entrypoint inferred from single-file layout; verify before import.",
         )
+
+    conventional_candidates = [
+        path for path in python_files if path.name.lower() in {"main.py", "run.py", "app.py"}
+    ]
+    if conventional_candidates:
+        selected, ambiguous = _select_best_entrypoint_candidate(project_dir, conventional_candidates)
+        if selected is not None and not ambiguous:
+            entrypoint = _relative_path(project_dir, selected)
+            return DetectorResult(
+                value=entrypoint,
+                confidence=0.50,
+                evidence=(
+                    "Detected conventional entrypoint filename and selected best candidate "
+                    f"using directory/depth weighting: {entrypoint}."
+                ),
+                warning="Entrypoint inferred heuristically from conventional filenames; verify before import.",
+            )
 
     return DetectorResult(
         value=None,
@@ -149,7 +499,68 @@ def _detect_runtime_port_hint(project_dir: Path) -> int | None:
     return None
 
 
+def _detect_node_runtime_version(project_dir: Path) -> str:
+    package_json = _load_package_json(project_dir)
+    if not package_json:
+        return ">=20.0.0"
+
+    engines = package_json.get("engines")
+    if isinstance(engines, dict):
+        node_constraint = engines.get("node")
+        if isinstance(node_constraint, str) and node_constraint.strip():
+            return node_constraint.strip()
+
+    return ">=20.0.0"
+
+
 def _detect_runtime(project_dir: Path) -> DetectorResult:
+    package_json = _load_package_json(project_dir)
+    if package_json is not None:
+        runtime: dict[str, Any] = {
+            "language": "nodejs",
+            "version": _detect_node_runtime_version(project_dir),
+            "type": "one-shot",
+            "package_manager": _detect_node_package_manager(project_dir),
+        }
+        if (project_dir / "tsconfig.json").exists():
+            runtime["typescript"] = True
+
+        return DetectorResult(
+            value=runtime,
+            confidence=0.86,
+            evidence="Detected package.json runtime metadata for Node.js project.",
+            warning=None,
+        )
+
+    node_files = _iter_node_files_with_depth(project_dir, max_depth=6)
+    if node_files:
+        node_entrypoint, _ = _detect_node_entrypoint(project_dir)
+        runtime = {
+            "language": "nodejs",
+            "version": _detect_node_runtime_version(project_dir),
+            "package_manager": _detect_node_package_manager(project_dir),
+        }
+        if any(path.suffix.lower() in {".ts", ".tsx"} for path in node_files):
+            runtime["typescript"] = True
+        if node_entrypoint:
+            runtime["type"] = "one-shot"
+
+        confidence = 0.78 if node_entrypoint else 0.62
+        evidence_parts = [f"Detected {len(node_files)} Node.js/TS source file(s)."]
+        if node_entrypoint:
+            evidence_parts.append(f"Entrypoint hint: {node_entrypoint}.")
+
+        warning = None
+        if not node_entrypoint:
+            warning = "Runtime type is inferred from Node.js/TS source layout; verify entrypoint manually."
+
+        return DetectorResult(
+            value=runtime,
+            confidence=confidence,
+            evidence=" ".join(evidence_parts),
+            warning=warning,
+        )
+
     python_files = _iter_python_files(project_dir)
     if not python_files:
         return DetectorResult(
@@ -244,6 +655,8 @@ def _detect_framework(project_dir: Path) -> DetectorResult:
     imports = _collect_import_names(project_dir)
 
     framework_patterns: dict[str, tuple[str, ...]] = {
+        "streamlit": ("streamlit",),
+        "gradio": ("gradio",),
         "gemini": ("google.genai", "google.generativeai"),
         "langchain": (
             "langchain",
@@ -332,35 +745,119 @@ def _detect_framework(project_dir: Path) -> DetectorResult:
 
 
 def _openclaw_dependency_marker_count(project_dir: Path) -> tuple[int, list[str]]:
-    package_json_path = project_dir / "package.json"
-    if not package_json_path.exists() or not package_json_path.is_file():
-        return 0, []
-
-    try:
-        package_data = json.loads(package_json_path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
-        return 0, []
-
     markers: list[str] = []
-    dependency_sections = [
+    dependency_sections = (
         "dependencies",
         "devDependencies",
         "peerDependencies",
         "optionalDependencies",
-    ]
-    for section_name in dependency_sections:
-        section = package_data.get(section_name)
-        if not isinstance(section, dict):
+    )
+
+    candidate_package_json_paths: list[Path] = []
+    root_package_json = project_dir / "package.json"
+    if root_package_json.exists() and root_package_json.is_file():
+        candidate_package_json_paths.append(root_package_json)
+
+    ignored_segments = {"node_modules", ".git", "dist", "build"}
+    for path in sorted(project_dir.rglob("package.json")):
+        if path == root_package_json:
+            continue
+        try:
+            relative_parts = path.relative_to(project_dir).parts
+        except ValueError:
+            continue
+        if any(part in ignored_segments for part in relative_parts):
+            continue
+        depth = len(relative_parts) - 1
+        if depth > 4:
+            continue
+        candidate_package_json_paths.append(path)
+
+    for package_json_path in candidate_package_json_paths:
+        try:
+            package_data = json.loads(package_json_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        if not isinstance(package_data, dict):
             continue
 
-        for package_name in sorted(section.keys()):
-            normalized = str(package_name).strip().lower()
-            if not normalized:
-                continue
-            if normalized == "openclaw" or normalized.startswith("@openclaw/") or "openclaw" in normalized:
-                markers.append(f"package.json:{section_name}:{package_name}")
+        path_label = _relative_path(project_dir, package_json_path)
 
-    return len(markers), markers
+        package_name_value = package_data.get("name")
+        if isinstance(package_name_value, str):
+            normalized_name = package_name_value.strip().lower()
+            if "openclaw" in normalized_name:
+                markers.append(f"{path_label}:name:{package_name_value.strip()}")
+
+        openclaw_section = package_data.get("openclaw")
+        if isinstance(openclaw_section, (dict, list, str, bool, int, float)):
+            markers.append(f"{path_label}:openclaw-config")
+
+        for section_name in dependency_sections:
+            section = package_data.get(section_name)
+            if not isinstance(section, dict):
+                continue
+
+            for package_name in sorted(section.keys()):
+                normalized = str(package_name).strip().lower()
+                if not normalized:
+                    continue
+                if normalized == "openclaw" or normalized.startswith("@openclaw/") or "openclaw" in normalized:
+                    markers.append(f"{path_label}:{section_name}:{package_name}")
+
+    unique_markers = sorted(set(markers))
+    return len(unique_markers), unique_markers
+
+
+def _openclaw_readme_signal(project_dir: Path) -> tuple[float, list[str]]:
+    candidate_files = [
+        project_dir / "README.md",
+        project_dir / "README.source.md",
+    ]
+    total_mentions = 0
+    evidence: list[str] = []
+
+    for candidate in candidate_files:
+        if not candidate.exists() or not candidate.is_file():
+            continue
+        try:
+            content = candidate.read_text(encoding="utf-8").lower()
+        except (OSError, UnicodeDecodeError):
+            continue
+
+        mentions = len(re.findall(r"\bopenclaw\b", content))
+        if mentions <= 0:
+            continue
+        total_mentions += mentions
+        evidence.append(f"readme-openclaw:{_relative_path(project_dir, candidate)}:{mentions}")
+
+    if total_mentions >= 3:
+        return 0.5, evidence
+    if total_mentions >= 1:
+        return 0.3, evidence
+    return 0.0, []
+
+
+def _openclaw_node_layout_signal(project_dir: Path) -> tuple[float, str | None]:
+    node_files = _iter_node_files_with_depth(project_dir, max_depth=6)
+    if not node_files:
+        return 0.0, None
+
+    python_files = _iter_python_files_with_depth(project_dir, max_depth=6)
+    score = 0.08
+    if not python_files:
+        score += 0.12
+
+    has_openclaw_style_dir = any(
+        any(segment in {"server", "bridge", "gateway", "daemon"} for segment in path.relative_to(project_dir).parts[:-1])
+        for path in node_files
+    )
+    if has_openclaw_style_dir:
+        score += 0.08
+
+    return min(0.3, score), (
+        f"node-layout:node_files={len(node_files)};python_files={len(python_files)}"
+    )
 
 
 def _openclaw_skills_signal(project_dir: Path) -> tuple[bool, str | None]:
@@ -452,6 +949,17 @@ def _detect_openclaw_weighted_signals(project_dir: Path) -> dict[str, Any]:
         score += identity_score
         medium_evidence.extend(identity_evidence)
 
+    readme_score, readme_evidence = _openclaw_readme_signal(project_dir)
+    if readme_score > 0:
+        score += readme_score
+        medium_evidence.extend(readme_evidence)
+
+    node_layout_score, node_layout_evidence = _openclaw_node_layout_signal(project_dir)
+    if node_layout_score > 0:
+        score += node_layout_score
+        if node_layout_evidence:
+            medium_evidence.append(node_layout_evidence)
+
     normalized_score = min(1.0, score)
     evidence = strong_evidence + medium_evidence
     return {
@@ -465,6 +973,8 @@ def _detect_openclaw_weighted_signals(project_dir: Path) -> dict[str, Any]:
 def _detect_node_package_manager(project_dir: Path) -> str:
     if (project_dir / "pnpm-lock.yaml").exists():
         return "pnpm"
+    if (project_dir / "yarn.lock").exists():
+        return "yarn"
     return "npm"
 
 
@@ -524,6 +1034,142 @@ def infer_openclaw_project_hints(project_dir: str | Path) -> dict[str, Any]:
 
 def _normalize_package_name(name: str) -> str:
     return re.sub(r"[-_.]+", "-", name.strip().lower())
+
+
+IMPORT_TO_PYPI: dict[str, str] = {
+    "langchain": "langchain",
+    "langchain_core": "langchain-core",
+    "langchain_classic": "langchain-classic",
+    "langchain_openai": "langchain-openai",
+    "langchain_community": "langchain-community",
+    "langchain_text_splitters": "langchain-text-splitters",
+    "langchain_experimental": "langchain-experimental",
+    "langchain_google_genai": "langchain-google-genai",
+    "langgraph": "langgraph",
+    "langsmith": "langsmith",
+    "pydantic_ai": "pydantic-ai",
+    "openai": "openai",
+    "agents": "openai-agents",
+    "anthropic": "anthropic",
+    "google.genai": "google-genai",
+    "google.generativeai": "google-generativeai",
+    "cohere": "cohere",
+    "mistralai": "mistralai",
+    "vertexai": "google-cloud-aiplatform",
+    "boto3": "boto3",
+    "botocore": "botocore",
+    "azure": "azure",
+    "httpx": "httpx",
+    "requests": "requests",
+    "aiohttp": "aiohttp",
+    "fastapi": "fastapi",
+    "uvicorn": "uvicorn",
+    "flask": "flask",
+    "django": "django",
+    "streamlit": "streamlit",
+    "gradio": "gradio",
+    "litellm": "litellm",
+    "tiktoken": "tiktoken",
+    "tokenizers": "tokenizers",
+    "transformers": "transformers",
+    "sentence_transformers": "sentence-transformers",
+    "torch": "torch",
+    "tensorflow": "tensorflow",
+    "numpy": "numpy",
+    "pandas": "pandas",
+    "scipy": "scipy",
+    "sklearn": "scikit-learn",
+    "matplotlib": "matplotlib",
+    "seaborn": "seaborn",
+    "plotly": "plotly",
+    "pydantic": "pydantic",
+    "dotenv": "python-dotenv",
+    "yaml": "pyyaml",
+    "jinja2": "jinja2",
+    "loguru": "loguru",
+    "redis": "redis",
+    "psycopg2": "psycopg2-binary",
+    "asyncpg": "asyncpg",
+    "sqlalchemy": "sqlalchemy",
+    "chromadb": "chromadb",
+    "pinecone": "pinecone-client",
+    "faiss": "faiss-cpu",
+    "mcp": "mcp",
+    "crewai": "crewai",
+    "crewai_tools": "crewai-tools",
+}
+
+
+def _stdlib_module_names() -> set[str]:
+    stdlib = getattr(sys, "stdlib_module_names", None)
+    if isinstance(stdlib, set):
+        return set(stdlib)
+    return {
+        "argparse",
+        "asyncio",
+        "collections",
+        "contextlib",
+        "datetime",
+        "functools",
+        "hashlib",
+        "itertools",
+        "json",
+        "logging",
+        "math",
+        "os",
+        "pathlib",
+        "random",
+        "re",
+        "subprocess",
+        "sys",
+        "tempfile",
+        "threading",
+        "time",
+        "typing",
+        "uuid",
+    }
+
+
+def _project_module_roots(project_dir: Path) -> set[str]:
+    roots: set[str] = set()
+    for python_path in _iter_python_files(project_dir):
+        module_name = _module_name_for_path(project_dir, python_path)
+        if module_name:
+            roots.add(module_name.split(".")[0])
+    return roots
+
+
+def _map_import_to_package(import_name: str) -> str | None:
+    if import_name in IMPORT_TO_PYPI:
+        return IMPORT_TO_PYPI[import_name]
+
+    for module_prefix, package_name in IMPORT_TO_PYPI.items():
+        if import_name.startswith(f"{module_prefix}."):
+            return package_name
+
+    top_level = import_name.split(".")[0]
+    if top_level in IMPORT_TO_PYPI:
+        return IMPORT_TO_PYPI[top_level]
+    return None
+
+
+def _infer_requirements(project_dir: Path | str) -> list[str]:
+    """Infer PyPI package names from Python imports, excluding stdlib and local modules."""
+    resolved_project_dir = _validate_project_dir(project_dir)
+    import_names = _collect_import_names(resolved_project_dir)
+    stdlib_names = _stdlib_module_names()
+    local_roots = _project_module_roots(resolved_project_dir)
+
+    inferred_packages: set[str] = set()
+    for import_name in sorted(import_names):
+        top_level = import_name.split(".")[0]
+        if top_level in stdlib_names or top_level in local_roots:
+            continue
+        package_name = _map_import_to_package(import_name)
+        if package_name:
+            inferred_packages.add(package_name)
+
+    return sorted(inferred_packages)
 
 
 def _split_requirement_name_and_constraint(requirement: str) -> tuple[str, str]:
@@ -651,37 +1297,12 @@ def _detect_dependencies(project_dir: Path) -> DetectorResult:
             warning=None,
         )
 
-    import_dependency_map = {
-        "langchain": "langchain",
-        "langchain_core": "langchain-core",
-        "langchain_classic": "langchain-classic",
-        "langchain_openai": "langchain-openai",
-        "langchain_community": "langchain-community",
-        "langchain_text_splitters": "langchain-text-splitters",
-        "langchain_experimental": "langchain-experimental",
-        "langgraph": "langgraph",
-        "openai": "openai",
-        "anthropic": "anthropic",
-        "google.genai": "google-genai",
-        "google.generativeai": "google-generativeai",
-        "pydantic_ai": "pydantic-ai",
-        "mcp": "mcp",
-    }
-
-    inferred_from_imports: set[str] = set()
-    import_evidence: list[str] = []
-    import_names = _collect_import_names(project_dir)
-    for import_name in sorted(import_names):
-        for module_prefix, package_name in import_dependency_map.items():
-            if import_name == module_prefix or import_name.startswith(f"{module_prefix}."):
-                inferred_from_imports.add(package_name)
-                import_evidence.append(f"imports:{import_name}->{package_name}")
-                break
+    inferred_from_imports = _infer_requirements(project_dir)
+    import_evidence = [f"imports:{package_name}" for package_name in inferred_from_imports]
 
     if inferred_from_imports:
-        inferred_list = sorted(inferred_from_imports)
         return DetectorResult(
-            value=inferred_list,
+            value=inferred_from_imports,
             confidence=0.68,
             evidence=(
                 "Inferred dependencies from known import namespaces in source files: "
@@ -776,7 +1397,118 @@ def _is_json_dumps_call(node: ast.AST) -> bool:
     )
 
 
+def _extract_pydanticai_deps_signature(project_dir: Path) -> tuple[str | None, list[str]]:
+    deps_class_name: str | None = None
+    deps_fields: list[str] = []
+
+    for python_path in _iter_python_files(project_dir):
+        try:
+            source = python_path.read_text(encoding="utf-8")
+            tree = ast.parse(source)
+        except (OSError, UnicodeDecodeError, SyntaxError):
+            continue
+
+        pydantic_agent_symbols: set[str] = set()
+        pydantic_module_aliases: set[str] = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("pydantic_ai"):
+                for alias in node.names:
+                    if alias.name == "Agent":
+                        pydantic_agent_symbols.add(alias.asname or alias.name)
+            elif isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.name == "pydantic_ai":
+                        pydantic_module_aliases.add(alias.asname or "pydantic_ai")
+
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+
+            call_is_pydantic_agent = False
+            if isinstance(node.func, ast.Name) and node.func.id in pydantic_agent_symbols:
+                call_is_pydantic_agent = True
+            elif (
+                isinstance(node.func, ast.Attribute)
+                and node.func.attr == "Agent"
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id in pydantic_module_aliases
+            ):
+                call_is_pydantic_agent = True
+
+            if not call_is_pydantic_agent:
+                continue
+
+            for keyword in node.keywords:
+                if keyword.arg != "deps_type":
+                    continue
+
+                if isinstance(keyword.value, ast.Name):
+                    deps_class_name = keyword.value.id
+                elif isinstance(keyword.value, ast.Attribute):
+                    deps_class_name = keyword.value.attr
+                elif isinstance(keyword.value, ast.Constant) and isinstance(keyword.value.value, str):
+                    deps_class_name = keyword.value.value
+
+                break
+
+            if deps_class_name:
+                break
+
+        if not deps_class_name:
+            continue
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ClassDef) and node.name == deps_class_name:
+                extracted_fields: list[str] = []
+                for statement in node.body:
+                    if isinstance(statement, ast.AnnAssign) and isinstance(statement.target, ast.Name):
+                        extracted_fields.append(statement.target.id)
+                    elif isinstance(statement, ast.Assign):
+                        for target in statement.targets:
+                            if isinstance(target, ast.Name):
+                                extracted_fields.append(target.id)
+                deps_fields = sorted(set(extracted_fields))
+                break
+
+        return deps_class_name, deps_fields
+
+    return None, []
+
+
+def _detect_pydanticai_deps_type(project_dir: Path) -> DetectorResult:
+    deps_class_name, deps_fields = _extract_pydanticai_deps_signature(project_dir)
+    if deps_class_name:
+        return DetectorResult(
+            value={"class_name": deps_class_name, "fields": deps_fields},
+            confidence=0.9 if deps_fields else 0.82,
+            evidence=(
+                "Detected PydanticAI deps_type pattern "
+                f"(deps_type={deps_class_name}, fields={len(deps_fields)})."
+            ),
+            warning=None,
+        )
+
+    return DetectorResult(
+        value=None,
+        confidence=0.0,
+        evidence="No PydanticAI deps_type pattern detected.",
+        warning=None,
+    )
+
+
 def _detect_input_type(project_dir: Path) -> DetectorResult:
+    deps_class_name, deps_fields = _extract_pydanticai_deps_signature(project_dir)
+    if deps_class_name:
+        return DetectorResult(
+            value="json",
+            confidence=0.92 if deps_fields else 0.85,
+            evidence=(
+                "Detected PydanticAI Agent(deps_type=...) pattern "
+                f"(deps_type={deps_class_name}); mapped to inputs.type=json."
+            ),
+            warning=None,
+        )
+
     parsed_files = 0
     sys_argv_usages = 0
     input_calls = 0
@@ -848,6 +1580,112 @@ def _detect_input_type(project_dir: Path) -> DetectorResult:
         confidence=0.3,
         evidence=f"No explicit input handling detected across {parsed_files} python file(s).",
         warning="Could not infer input contract; defaulting inputs.type to text.",
+    )
+
+
+def _detect_inputs_required(project_dir: Path) -> DetectorResult:
+    parsed_files = 0
+    sys_argv_usages = 0
+    argparse_add_argument_calls = 0
+    parse_args_calls = 0
+    input_calls = 0
+    hardcoded_run_calls = 0
+
+    for python_path in _iter_python_files(project_dir):
+        try:
+            source = python_path.read_text(encoding="utf-8")
+            tree = ast.parse(source)
+        except (OSError, UnicodeDecodeError, SyntaxError):
+            continue
+
+        parsed_files += 1
+        for node in ast.walk(tree):
+            if _is_sys_argv_subscript(node):
+                sys_argv_usages += 1
+
+            if isinstance(node, ast.Call):
+                if isinstance(node.func, ast.Name) and node.func.id == "input":
+                    input_calls += 1
+
+                if isinstance(node.func, ast.Attribute):
+                    if node.func.attr == "add_argument":
+                        argparse_add_argument_calls += 1
+                    elif node.func.attr == "parse_args":
+                        parse_args_calls += 1
+                    elif node.func.attr in {"run", "run_sync"}:
+                        if any(isinstance(arg, ast.Constant) and isinstance(arg.value, str) for arg in node.args):
+                            hardcoded_run_calls += 1
+
+    if sys_argv_usages > 0 or parse_args_calls > 0 or argparse_add_argument_calls > 0 or input_calls > 0:
+        return DetectorResult(
+            value=True,
+            confidence=0.9,
+            evidence=(
+                "Detected parameterized input handling "
+                f"(sys.argv={sys_argv_usages}, argparse={parse_args_calls}/{argparse_add_argument_calls}, input()={input_calls})."
+            ),
+            warning=None,
+        )
+
+    if hardcoded_run_calls > 0:
+        return DetectorResult(
+            value=False,
+            confidence=0.85,
+            evidence=(
+                "Detected hardcoded literal input in agent execution calls "
+                f"(run/run_sync literal call count={hardcoded_run_calls})."
+            ),
+            warning=None,
+        )
+
+    return DetectorResult(
+        value=True,
+        confidence=0.4,
+        evidence=f"No explicit input-source patterns found across {parsed_files} python file(s).",
+        warning="Input requiredness is uncertain; defaulting to required=true.",
+    )
+
+
+def _detect_async_entrypoint(project_dir: Path) -> DetectorResult:
+    async_function_count = 0
+    asyncio_run_calls = 0
+
+    for python_path in _iter_python_files(project_dir):
+        try:
+            tree = ast.parse(python_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, SyntaxError):
+            continue
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef):
+                async_function_count += 1
+
+            if isinstance(node, ast.Call):
+                if (
+                    isinstance(node.func, ast.Attribute)
+                    and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id == "asyncio"
+                    and node.func.attr == "run"
+                ):
+                    asyncio_run_calls += 1
+
+    is_async = async_function_count > 0 or asyncio_run_calls > 0
+    if is_async:
+        return DetectorResult(
+            value=True,
+            confidence=0.86,
+            evidence=(
+                "Detected async entrypoint signals "
+                f"(async defs={async_function_count}, asyncio.run calls={asyncio_run_calls})."
+            ),
+            warning=None,
+        )
+
+    return DetectorResult(
+        value=False,
+        confidence=0.65,
+        evidence="No async entrypoint signals detected.",
+        warning=None,
     )
 
 
@@ -1177,8 +2015,29 @@ def _detect_assets(project_dir: Path) -> DetectorResult:
 def _extract_service_endpoints_from_tree(tree: ast.AST) -> set[str]:
     endpoints: set[str] = set()
     for literal in _collect_string_literals(tree):
-        if literal.startswith(("http://", "https://", "redis://", "postgres://", "postgresql://")):
-            endpoints.add(literal.strip())
+        candidate = literal.strip()
+        if candidate.startswith((
+            "http://",
+            "https://",
+            "redis://",
+            "postgres://",
+            "postgresql://",
+            "mongodb://",
+        )):
+            endpoints.add(candidate)
+            continue
+
+        lower_candidate = candidate.lower()
+        if "localhost:11434" in lower_candidate:
+            endpoints.add("http://localhost:11434")
+        if "localhost:6379" in lower_candidate:
+            endpoints.add("redis://localhost:6379")
+        if "localhost:5432" in lower_candidate:
+            endpoints.add("postgresql://localhost:5432")
+        if "localhost:27017" in lower_candidate:
+            endpoints.add("mongodb://localhost:27017")
+        if "localhost:8000" in lower_candidate and "chroma" in lower_candidate:
+            endpoints.add("http://localhost:8000")
     return endpoints
 
 
@@ -1188,9 +2047,70 @@ def _service_type_from_endpoint(endpoint: str) -> str:
         return "redis"
     if lower.startswith(("postgres://", "postgresql://")):
         return "postgres"
+    if lower.startswith("mongodb://"):
+        return "mongodb"
     if lower.startswith(("http://", "https://")):
         return "http"
     return "unknown"
+
+
+def _service_name_from_endpoint(endpoint: str, service_type: str) -> str:
+    lower = endpoint.lower()
+    if "11434" in lower:
+        return "ollama"
+    if "8000" in lower and service_type == "http":
+        return "chromadb"
+    if service_type == "redis":
+        return "redis"
+    if service_type == "postgres":
+        return "postgresql"
+    if service_type == "mongodb":
+        return "mongodb"
+    parsed = urlsplit(endpoint)
+    if parsed.hostname:
+        hostname = parsed.hostname.replace(".", "-")
+        if service_type == "http" and parsed.path not in {"", "/"}:
+            sanitized_path = parsed.path.strip("/").replace("/", "-")
+            if sanitized_path:
+                return f"{hostname}-{sanitized_path}"
+        return hostname
+    return service_type
+
+
+def _extract_import_names(tree: ast.AST) -> set[str]:
+    imports: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                imports.add(alias.name)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imports.add(node.module)
+    return imports
+
+
+def _services_from_imports(import_names: set[str]) -> list[dict[str, Any]]:
+    service_markers: list[tuple[str, str, str, str | None]] = [
+        ("ollama", "ollama", "api", "http://localhost:11434"),
+        ("chromadb", "chromadb", "vector-db", "http://localhost:8000"),
+        ("pinecone", "pinecone", "vector-db", None),
+        ("redis", "redis", "redis", "redis://localhost:6379"),
+        ("psycopg2", "postgresql", "postgres", "postgresql://localhost:5432"),
+        ("asyncpg", "postgresql", "postgres", "postgresql://localhost:5432"),
+        ("sqlalchemy", "postgresql", "postgres", "postgresql://localhost:5432"),
+        ("pymongo", "mongodb", "mongodb", "mongodb://localhost:27017"),
+    ]
+
+    discovered: dict[str, dict[str, Any]] = {}
+    for marker, service_name, service_type, endpoint in service_markers:
+        if any(name == marker or name.startswith(f"{marker}.") for name in import_names):
+            payload: dict[str, Any] = {
+                "name": service_name,
+                "type": service_type,
+            }
+            if endpoint is not None:
+                payload["endpoint"] = endpoint
+            discovered[payload["name"]] = payload
+    return [discovered[key] for key in sorted(discovered)]
 
 
 def _health_check_hint(service_type: str, endpoint: str) -> str | None:
@@ -1207,6 +2127,7 @@ def _health_check_hint(service_type: str, endpoint: str) -> str | None:
 
 def _detect_services(project_dir: Path) -> DetectorResult:
     discovered: dict[tuple[str, str], dict[str, Any]] = {}
+    import_derived: dict[str, dict[str, Any]] = {}
 
     for python_path in _iter_python_files(project_dir):
         try:
@@ -1214,12 +2135,17 @@ def _detect_services(project_dir: Path) -> DetectorResult:
         except (OSError, UnicodeDecodeError, SyntaxError):
             continue
 
+        for service in _services_from_imports(_extract_import_names(tree)):
+            import_derived[service["name"]] = service
+
         for endpoint in _extract_service_endpoints_from_tree(tree):
             service_type = _service_type_from_endpoint(endpoint)
             if service_type == "unknown":
                 continue
-            key = (service_type, endpoint)
+            service_name = _service_name_from_endpoint(endpoint, service_type)
+            key = (service_name, endpoint)
             service = {
+                "name": service_name,
                 "type": service_type,
                 "endpoint": endpoint,
             }
@@ -1228,7 +2154,13 @@ def _detect_services(project_dir: Path) -> DetectorResult:
                 service["health_check_hint"] = hint
             discovered[key] = service
 
-    services = [discovered[key] for key in sorted(discovered.keys())]
+    services_by_name: dict[str, dict[str, Any]] = {}
+    for service in import_derived.values():
+        services_by_name[service["name"]] = service
+    for service in [discovered[key] for key in sorted(discovered.keys())]:
+        services_by_name[service["name"]] = service
+
+    services = [services_by_name[key] for key in sorted(services_by_name.keys())]
     if services:
         with_hints = sum(1 for service in services if "health_check_hint" in service)
         return DetectorResult(
@@ -1254,7 +2186,10 @@ def _detector_registry() -> dict[str, Detector]:
         "framework": _detect_framework,
         "model": _detect_model,
         "dependencies": _detect_dependencies,
+        "deps_type": _detect_pydanticai_deps_type,
         "inputs": _detect_input_type,
+        "inputs_required": _detect_inputs_required,
+        "async_entrypoint": _detect_async_entrypoint,
         "outputs": _detect_output_type,
         "env_vars": _detect_env_vars,
         "assets": _detect_assets,

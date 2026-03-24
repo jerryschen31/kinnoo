@@ -5916,7 +5916,9 @@ tests:
         ac: AC2
 
   - id: test356
-    title: Import matrix validates all 42 curated agents
+    title: "DEPRECATED — Import matrix validates all 42 curated agents"
+    status: deprecated
+    deprecation_note: "[agent] Deprecated because task254/task255 were deprecated; corpus matrix test module has been retired."
     type: integration
     preconditions: |
       Curated corpus from task254 exists with 42 staged agent folders under
@@ -5928,11 +5930,13 @@ tests:
       - step3: Capture per-agent pass/fail diagnostics and summarize totals by framework and complexity
     expected: Import validation can execute across the full 42-agent corpus with deterministic per-agent results
     pass_criteria: Matrix executes across all 42 mapped agents and outputs stable per-agent import status with aggregate summary
-    automated: true
+    automated: false
     automation_path: tests/test_corpus_matrix.py::test_task255_import_matrix_all_agents
 
   - id: test357
-    title: Inspect matrix validates all 42 curated agents
+    title: "DEPRECATED — Inspect matrix validates all 42 curated agents"
+    status: deprecated
+    deprecation_note: "[agent] Deprecated because task254/task255 were deprecated; corpus matrix test module has been retired."
     type: integration
     preconditions: |
       Curated corpus from task254 exists with 42 staged agent folders under
@@ -5944,11 +5948,13 @@ tests:
       - step3: Verify inspect output includes stable manifest identity fields and no unexpected crashes
     expected: Inspect flow executes across full corpus and returns deterministic, actionable output per agent
     pass_criteria: All 42 inspect attempts complete with stable output schema and summarized success/failure report
-    automated: true
+    automated: false
     automation_path: tests/test_corpus_matrix.py::test_task255_inspect_matrix_all_agents
 
   - id: test358
-    title: Run matrix exercises all 42 curated agents with deterministic reporting
+    title: "DEPRECATED — Run matrix exercises all 42 curated agents with deterministic reporting"
+    status: deprecated
+    deprecation_note: "[agent] Deprecated because task254/task255 were deprecated; corpus matrix test module has been retired."
     type: integration
     preconditions: |
       Curated corpus from task254 exists and each staged folder is reachable via
@@ -5960,11 +5966,13 @@ tests:
       - step3: Emit per-framework and per-complexity aggregate pass/fail metrics
     expected: Run matrix executes all mapped agents and records reproducible run outcomes
     pass_criteria: 42 run attempts are executed with stable reporting format and complete aggregate summary
-    automated: true
+    automated: false
     automation_path: tests/test_corpus_matrix.py::test_task255_run_matrix_all_agents
 
   - id: test359
-    title: Pack matrix exercises all 42 curated agents and validates artifact creation
+    title: "DEPRECATED — Pack matrix exercises all 42 curated agents and validates artifact creation"
+    status: deprecated
+    deprecation_note: "[agent] Deprecated because task254/task255 were deprecated; corpus matrix test module has been retired."
     type: integration
     preconditions: |
       Curated corpus from task254 exists in example-scratch/agents/ and each
@@ -5975,7 +5983,7 @@ tests:
       - step3: Verify `.kno` artifact creation status and summarize outcomes across frameworks and complexity buckets
     expected: Pack flow can be exercised across full corpus with deterministic artifact-status reporting
     pass_criteria: Matrix executes 42 pack attempts with stable per-agent artifact status and aggregate summary
-    automated: true
+    automated: false
     automation_path: tests/test_corpus_matrix.py::test_task255_pack_matrix_all_agents
 
   - id: test360
@@ -6352,3 +6360,566 @@ tests:
     covers:
       - feature: feature46
         ac: AC10
+  - id: test384
+    title: Analyzer detects class-only agent pattern
+    type: unit
+    preconditions: Python file with agent class definition but no __main__ guard
+    steps:
+      - step1: Create fixture with class MyAgent(BaseSingleActionAgent) definition
+      - step2: Run analyzer._detect_entrypoint() on fixture
+    expected: Returns entrypoint_type "class" with agent_class name and confidence >= 0.40
+    pass_criteria: entrypoint_type is "class" and agent_class matches the class name
+    automated: true
+    automation_path: tests/test_validator.py::test_analyzer_class_only_detection
+    covers:
+      - feature: feature47
+        ac: AC1
+
+  - id: test385
+    title: Import generates wrapper for class-only agent
+    type: integration
+    preconditions: Agent directory with class-only agent detected by analyzer
+    steps:
+      - step1: Run kinnoo import on class-only agent fixture
+      - step2: Accept wrapper generation prompt
+    expected: run.py wrapper is generated with correct imports and execution logic
+    pass_criteria: Generated run.py is syntactically valid Python and imports the agent class
+    automated: true
+    automation_path: tests/test_cli_install.py::test_import_class_only_wrapper
+    covers:
+      - feature: feature47
+        ac: AC1
+
+  - id: test386
+    title: "DEPRECATED — Analyzer detects Jupyter notebook entrypoint"
+    status: deprecated
+    deprecation_note: "Skipped per human review (2025-03-23) — notebook conversion removed (AC2 dropped); developer burden."
+    type: unit
+    preconditions: Directory with .ipynb file containing agent code and no .py entrypoint
+    steps:
+      - step1: Create fixture with a .ipynb file containing LangGraph code cells
+      - step2: Run analyzer._detect_entrypoint() on fixture
+    expected: Returns entrypoint_type "notebook" with notebook_path
+    pass_criteria: entrypoint_type is "notebook" and notebook_path points to the .ipynb file
+    automated: false
+    automation_path: tests/test_validator.py::test_analyzer_notebook_detection
+
+  - id: test387
+    title: "DEPRECATED — Notebook conversion produces valid Python script"
+    status: deprecated
+    deprecation_note: "Skipped per human review (2025-03-23) — notebook conversion removed (AC2 dropped); developer burden."
+    type: integration
+    preconditions: Agent directory with detected .ipynb notebook
+    steps:
+      - step1: Run kinnoo import on notebook agent fixture
+      - step2: Accept conversion prompt
+    expected: Converted .py file has code cells extracted and __main__ guard
+    pass_criteria: Generated .py file compiles without SyntaxError and has if __name__ guard
+    automated: false
+    automation_path: tests/test_cli_install.py::test_import_notebook_conversion
+
+  - id: test388
+    title: Analyzer finds entrypoint in subdirectories
+    type: unit
+    preconditions: Agent with main.py in src/, source/, or python-backend/ subdirectory
+    steps:
+      - step1: Create fixture with main.py in source/ subdirectory (depth 2)
+      - step2: Run analyzer._detect_entrypoint() on fixture
+    expected: Returns entrypoint as relative path "source/main.py" with confidence >= 0.50
+    pass_criteria: Entrypoint path includes the subdirectory prefix
+    automated: true
+    automation_path: tests/test_validator.py::test_analyzer_subdirectory_entrypoint
+    covers:
+      - feature: feature47
+        ac: AC3
+
+  - id: test389
+    title: Run command executes subdirectory entrypoint
+    type: integration
+    preconditions: Installed agent with entrypoint in a subdirectory
+    steps:
+      - step1: Set up agent with entrypoint "source/main.py" in kinnoo.yaml
+      - step2: Run kinnoo run on the agent
+    expected: Agent runs from correct working directory with proper PYTHONPATH
+    pass_criteria: Process exits 0 and script output appears in stdout
+    automated: true
+    automation_path: tests/test_cli_install_runnable.py::test_run_subdirectory_entrypoint
+    covers:
+      - feature: feature47
+        ac: AC3
+
+  - id: test390
+    title: Import-to-PyPI mapping for common agent imports
+    type: unit
+    preconditions: Python files with known third-party imports
+    steps:
+      - step1: Create fixture with imports like langchain_core, pydantic_ai, openai
+      - step2: Run analyzer._infer_requirements() on fixture
+    expected: Returns correct PyPI package names (langchain-core, pydantic-ai, openai)
+    pass_criteria: All mapped imports resolve to correct PyPI names, stdlib is excluded
+    automated: true
+    automation_path: tests/test_validator.py::test_analyzer_requirements_inference
+    covers:
+      - feature: feature47
+        ac: AC4
+
+  - id: test391
+    title: Requirements.txt generation from inferred imports
+    type: integration
+    preconditions: Agent directory without requirements.txt but with .py files importing third-party packages
+    steps:
+      - step1: Run kinnoo import on agent fixture without requirements.txt
+      - step2: Accept requirements generation prompt
+    expected: requirements.txt is created with inferred package names
+    pass_criteria: generated requirements.txt contains the inferred PyPI package names
+    automated: true
+    automation_path: tests/test_cli_install.py::test_import_infer_requirements
+    covers:
+      - feature: feature47
+        ac: AC4
+
+  - id: test392
+    title: Analyzer detects Node.js agent from package.json
+    type: unit
+    preconditions: Agent directory with package.json and src/index.ts
+    steps:
+      - step1: Create fixture with package.json containing main and scripts.start fields
+      - step2: Run analyzer on fixture
+    expected: Returns runtime.language as nodejs and correct entrypoint
+    pass_criteria: runtime.language is "nodejs" and entrypoint matches package.json main or scripts.start
+    automated: true
+    automation_path: tests/test_validator.py::test_analyzer_nodejs_detection
+    covers:
+      - feature: feature47
+        ac: AC5
+
+  - id: test393
+    title: Run command handles TypeScript entrypoints
+    type: integration
+    preconditions: Installed Node.js agent with .ts entrypoint
+    steps:
+      - step1: Set up agent with TypeScript entrypoint in kinnoo.yaml
+      - step2: Run kinnoo run on the agent
+    expected: Agent runs via npx tsx or ts-node
+    pass_criteria: Process starts and TypeScript file is executed (exit code 0 or expected error)
+    automated: true
+    automation_path: tests/test_cli_install_runnable.py::test_run_typescript_entrypoint
+    covers:
+      - feature: feature47
+        ac: AC5
+
+  - id: test394
+    title: Analyzer detects hardcoded vs parameterized input
+    type: unit
+    preconditions: Two Python agent fixtures — one with sys.argv, one with hardcoded prompt
+    steps:
+      - step1: Agent A has sys.argv[1] as input to agent.run()
+      - step2: Agent B has hardcoded string in agent.run("hello")
+      - step3: Run analyzer on both
+    expected: Agent A gets inputs.required=true, Agent B gets inputs.required=false
+    pass_criteria: inputs.required correctly reflects parameterized vs hardcoded input
+    automated: true
+    automation_path: tests/test_validator.py::test_analyzer_input_detection
+    covers:
+      - feature: feature47
+        ac: AC6
+
+  - id: test395
+    title: Generated kinnoo.yaml reflects input detection
+    type: integration
+    preconditions: Agent with hardcoded input
+    steps:
+      - step1: Run kinnoo import on agent with hardcoded input
+      - step2: Inspect generated kinnoo.yaml
+    expected: kinnoo.yaml has inputs.required set to false
+    pass_criteria: inputs section in kinnoo.yaml matches analyzer detection
+    automated: true
+    automation_path: tests/test_cli_install.py::test_import_input_detection_yaml
+    covers:
+      - feature: feature47
+        ac: AC6
+
+  - id: test396
+    title: Analyzer detects service dependencies from imports
+    type: unit
+    preconditions: Python file importing ollama, redis, or psycopg2
+    steps:
+      - step1: Create fixture with import ollama and import redis
+      - step2: Run analyzer._detect_services() on fixture
+    expected: Returns detected services including ollama and redis
+    pass_criteria: Detected services list includes correct service names and default URLs
+    automated: true
+    automation_path: tests/test_validator.py::test_analyzer_service_detection
+    covers:
+      - feature: feature47
+        ac: AC7
+
+  - id: test397
+    title: Detected services included in generated kinnoo.yaml
+    type: integration
+    preconditions: Agent with detectable service imports
+    steps:
+      - step1: Run kinnoo import on agent with ollama import
+      - step2: Inspect generated kinnoo.yaml
+    expected: kinnoo.yaml services section includes detected service with URL
+    pass_criteria: services field in kinnoo.yaml contains detected service entries
+    automated: true
+    automation_path: tests/test_cli_install.py::test_import_service_detection_yaml
+    covers:
+      - feature: feature47
+        ac: AC7
+
+  - id: test398
+    title: Analyzer detects PydanticAI deps_type pattern
+    type: unit
+    preconditions: Python file with Agent(deps_type=MyDeps) pattern
+    steps:
+      - step1: Create fixture with PydanticAI agent using deps_type parameter
+      - step2: Run analyzer on fixture
+    expected: Returns deps_type detected with class name and inputs.type set to json
+    pass_criteria: deps_type field in analysis matches the Pydantic model class name
+    automated: true
+    automation_path: tests/test_validator.py::test_analyzer_pydanticai_deps
+    covers:
+      - feature: feature47
+        ac: AC8
+
+  - id: test399
+    title: JSON input passes through for PydanticAI deps
+    type: integration
+    preconditions: Installed PydanticAI agent with deps_type
+    steps:
+      - step1: Run kinnoo run with --json-input containing deps fields
+      - step2: Verify the JSON reaches the agent process
+    expected: Agent receives the JSON input as structured data
+    pass_criteria: Agent process stdout/stderr shows it received the JSON fields
+    automated: true
+    automation_path: tests/test_cli_install_runnable.py::test_run_json_input_pydanticai
+    covers:
+      - feature: feature47
+        ac: AC8
+
+  - id: test400
+    title: E2E import-pack-install-run for Python one-shot agent
+    type: e2e
+    preconditions: Python agent with __main__ guard and requirements.txt
+    steps:
+      - step1: kinnoo import <agent-dir>
+      - step2: kinnoo pack <agent-dir>
+      - step3: kinnoo install <archive>.kno
+      - step4: kinnoo run <agent> "test input"
+    expected: Full pipeline completes with agent producing output
+    pass_criteria: All four commands exit 0 and agent output appears in stdout
+    automated: true
+    automation_path: tests/test_cli.py::test_e2e_python_oneshot
+    covers:
+      - feature: feature47
+        ac: AC9
+
+  - id: test401
+    title: E2E import-pack-install-run for MCP server agent
+    type: e2e
+    preconditions: MCP server agent with proper entrypoint
+    steps:
+      - step1: kinnoo import <mcp-server-dir>
+      - step2: kinnoo pack <mcp-server-dir>
+      - step3: kinnoo install <archive>.kno
+      - step4: kinnoo run <mcp-server> (verify starts and can be stopped)
+    expected: Full pipeline completes; MCP server starts and responds to health check
+    pass_criteria: All commands succeed; server process starts and can be gracefully stopped
+    automated: true
+    automation_path: tests/test_cli.py::test_e2e_mcp_server
+    covers:
+      - feature: feature47
+        ac: AC9
+  - id: test402
+    title: Verify analyzer detects Streamlit import and sets ui_framework
+    type: unit
+    preconditions: Python agent with 'import streamlit' in code
+    steps:
+      - step1: Create a temp directory with app.py containing 'import streamlit as st'
+      - step2: Run analyzer._detect_framework() on the directory
+      - step3: Check result contains ui_framework='streamlit'
+    expected: Analyzer returns ui_framework='streamlit' for Streamlit agents
+    pass_criteria: ui_framework field is 'streamlit'
+    automated: true
+    automation_path: tests/test_validator.py::test_streamlit_detection
+    covers:
+      - feature: feature47
+        ac: AC10
+
+  - id: test403
+    title: Verify analyzer detects Gradio import and sets ui_framework
+    type: unit
+    preconditions: Python agent with 'import gradio' in code
+    steps:
+      - step1: Create a temp directory with app.py containing 'import gradio as gr'
+      - step2: Run analyzer._detect_framework() on the directory
+      - step3: Check result contains ui_framework='gradio'
+    expected: Analyzer returns ui_framework='gradio' for Gradio agents
+    pass_criteria: ui_framework field is 'gradio'
+    automated: true
+    automation_path: tests/test_validator.py::test_gradio_detection
+    covers:
+      - feature: feature47
+        ac: AC10
+
+  - id: test404
+    title: Verify kinnoo.yaml sets daemon type for Streamlit agents
+    type: integration
+    preconditions: Analyzer detects Streamlit UI pattern
+    steps:
+      - step1: Run kinnoo import on a Streamlit agent
+      - step2: Read generated kinnoo.yaml
+      - step3: Verify runtime.type is 'daemon' and run_command contains 'streamlit run'
+    expected: kinnoo.yaml has daemon runtime type with Streamlit run command
+    pass_criteria: runtime.type=='daemon' and 'streamlit run' in runtime.run_command
+    automated: true
+    automation_path: tests/test_cli.py::test_streamlit_import_daemon
+    covers:
+      - feature: feature47
+        ac: AC10
+
+  - id: test405
+    title: Verify kinnoo run uses streamlit run command
+    type: integration
+    preconditions: Installed Streamlit agent with daemon runtime
+    steps:
+      - step1: Install a Streamlit agent
+      - step2: Run kinnoo run <agent>
+      - step3: Verify process invokes 'streamlit run' not 'python'
+    expected: kinnoo run launches Streamlit via 'streamlit run' command
+    pass_criteria: Process command starts with 'streamlit run'
+    automated: true
+    automation_path: tests/test_cli.py::test_streamlit_run_command
+    covers:
+      - feature: feature47
+        ac: AC10
+
+  - id: test406
+    title: "DEPRECATED — Verify analyzer detects CrewAI framework from imports"
+    status: deprecated
+    deprecation_note: "Deferred per human review (2025-03-23) — all extended framework detection moved to future feature."
+    type: unit
+    preconditions: Python agent with 'from crewai import' in code
+    steps:
+      - step1: Create temp directory with main.py containing 'from crewai import Crew'
+      - step2: Run analyzer framework detection
+      - step3: Check result contains framework='crewai'
+    expected: Analyzer detects CrewAI framework
+    pass_criteria: framework field is 'crewai'
+    automated: false
+    automation_path: tests/test_validator.py::test_crewai_detection
+
+  - id: test407
+    title: "DEPRECATED — Verify analyzer detects OpenAI Swarm framework from imports"
+    status: deprecated
+    deprecation_note: "Deferred per human review (2025-03-23) — all extended framework detection moved to future feature."
+    type: unit
+    preconditions: Python agent with 'from swarm import' in code
+    steps:
+      - step1: Create temp directory with main.py containing 'from swarm import Agent'
+      - step2: Run analyzer framework detection
+      - step3: Check result contains framework='swarm'
+    expected: Analyzer detects OpenAI Swarm framework
+    pass_criteria: framework field is 'swarm'
+    automated: false
+    automation_path: tests/test_validator.py::test_swarm_detection
+
+  - id: test408
+    title: "DEPRECATED — Verify analyzer detects Agno/Phi framework from imports"
+    status: deprecated
+    deprecation_note: "Deferred per human review (2025-03-23) — Agno detection moved to FUTURE; will be implemented in a follow-up feature."
+    type: unit
+    preconditions: Python agent with 'from agno import' or 'from phi import' in code
+    steps:
+      - step1: Create temp directory with run.py containing 'from agno import Agent'
+      - step2: Run analyzer framework detection
+      - step3: Check result contains framework='agno'
+    expected: Analyzer detects Agno/Phi framework
+    pass_criteria: framework field is 'agno'
+    automated: false
+    automation_path: tests/test_validator.py::test_agno_detection
+
+  - id: test409
+    title: "DEPRECATED — Verify IMPORT_TO_PYPI mapping includes extended frameworks"
+    status: deprecated
+    deprecation_note: "Deferred per human review (2025-03-23) — all extended framework detection moved to future feature."
+    type: unit
+    preconditions: Updated IMPORT_TO_PYPI dict in analyzer.py
+    steps:
+      - step1: Import IMPORT_TO_PYPI from analyzer module
+      - step2: Verify keys include crewai, swarm
+    expected: CrewAI and Swarm import names are mapped to PyPI package names
+    pass_criteria: crewai and swarm keys exist in IMPORT_TO_PYPI dict
+    automated: false
+    automation_path: tests/test_validator.py::test_import_to_pypi_completeness
+
+  - id: test410
+    title: Analyzer infers OpenClaw-like metadata for selfclaw-style nested server layout
+    type: unit
+    preconditions: Barebones fixture with README OpenClaw markers and nested server/boot.mjs entrypoint
+    steps:
+      - step1: Create minimal selfclaw-like fixture (no root package.json)
+      - step2: Run analyzer
+      - step3: Validate inferred entrypoint/runtime/framework/inputs fields
+    expected: Analyzer infers node runtime and a concrete nested entrypoint with openclaw framework confidence
+    pass_criteria: framework==openclaw, runtime.language==nodejs, entrypoint points to nested server file, inputs defaults to text
+    automated: true
+    automation_path: tests/test_analyzer.py::test_feature47_openclaw_like_selfclaw_layout_inference
+    covers:
+      - feature: feature47
+        ac: AC12
+
+  - id: test411
+    title: Analyzer infers OpenClaw-like metadata for nanobot-style bridge layout
+    type: unit
+    preconditions: Barebones fixture with README OpenClaw markers and bridge/src/server.ts
+    steps:
+      - step1: Create minimal nanobot-like fixture (no root package.json)
+      - step2: Run analyzer
+      - step3: Validate inferred runtime and entrypoint
+    expected: Analyzer detects node runtime and bridge/src entrypoint with openclaw framework signal
+    pass_criteria: runtime.language==nodejs, entrypoint is bridge/src/server.ts, framework==openclaw
+    automated: true
+    automation_path: tests/test_analyzer.py::test_feature47_openclaw_like_nanobot_layout_inference
+    covers:
+      - feature: feature47
+        ac: AC12
+
+  - id: test412
+    title: Analyzer infers OpenClaw-like metadata for build-your-own tutorial layout
+    type: unit
+    preconditions: Barebones fixture with README OpenClaw markers and deeply nested TS entrypoint
+    steps:
+      - step1: Create minimal build-your-own-like fixture under tutorial step folder
+      - step2: Run analyzer
+      - step3: Validate inferred runtime and nested entrypoint
+    expected: Analyzer infers node runtime and nested tutorial entrypoint instead of returning None
+    pass_criteria: runtime.language==nodejs and entrypoint is non-empty nested TS path
+    automated: true
+    automation_path: tests/test_analyzer.py::test_feature47_openclaw_like_build_your_own_layout_inference
+    covers:
+      - feature: feature47
+        ac: AC12
+
+  - id: test413
+    title: Analyzer infers OpenClaw-like metadata for openclaw-core-style src entrypoint layout
+    type: unit
+    preconditions: Barebones fixture with README OpenClaw markers and src/entry.ts
+    steps:
+      - step1: Create minimal openclaw-core-like fixture
+      - step2: Run analyzer
+      - step3: Validate framework/runtime/entrypoint confidence metadata
+    expected: Analyzer returns openclaw framework and src/entry.ts entrypoint with node runtime inference
+    pass_criteria: framework==openclaw, runtime.language==nodejs, entrypoint==src/entry.ts
+    automated: true
+    automation_path: tests/test_analyzer.py::test_feature47_openclaw_like_core_layout_inference
+    covers:
+      - feature: feature47
+        ac: AC12
+
+  - id: test414
+    title: Inspect --full prints all known metadata fields including N/A values
+    type: unit
+    preconditions: Valid agent directory manifest with only required fields and minimal optional fields
+    steps:
+      - step1: Run `python src/kinnoo/cli.py inspect <agent-dir> --full`
+      - step2: Verify output includes optional metadata labels with N/A placeholders
+    expected: Full mode includes both populated and unset known metadata fields
+    pass_criteria: Output contains representative unset fields rendered as N/A without crashing
+    automated: true
+    automation_path: tests/test_cli_inspect.py::test_feature48_inspect_full_shows_all_known_fields_with_na
+    covers:
+      - feature: feature48
+        ac: AC1
+
+  - id: test415
+    title: Inspect --raw prints filled metadata as dotted path fields
+    type: unit
+    preconditions: Valid agent directory manifest with several populated nested fields
+    steps:
+      - step1: Run `python src/kinnoo/cli.py inspect <agent-dir> --raw`
+      - step2: Verify output includes dotted keys for populated fields only
+    expected: Raw mode prints flat dotted key/value output for present metadata
+    pass_criteria: Output contains keys like runtime.type and runtime.language and omits unset optional fields
+    automated: true
+    automation_path: tests/test_cli_inspect.py::test_feature48_inspect_raw_shows_filled_dotted_fields
+    covers:
+      - feature: feature48
+        ac: AC2
+
+  - id: test416
+    title: Inspect --raw --full prints all known metadata as dotted path fields with N/A
+    type: unit
+    preconditions: Valid agent directory manifest with sparse optional metadata
+    steps:
+      - step1: Run `python src/kinnoo/cli.py inspect <agent-dir> --raw --full`
+      - step2: Verify output contains known optional dotted keys with N/A values
+    expected: Combined raw+full mode prints all known dotted keys regardless of presence
+    pass_criteria: Output includes dotted optional keys rendered as N/A for unset fields
+    automated: true
+    automation_path: tests/test_cli_inspect.py::test_feature48_inspect_raw_full_shows_all_dotted_fields
+    covers:
+      - feature: feature48
+        ac: AC3
+
+  - id: test417
+    title: Inspect --update prompts for confirmation and applies accepted change
+    type: integration
+    preconditions: Writable agent directory with valid kinnoo.yaml and runtime.language field
+    steps:
+      - step1: Run `python src/kinnoo/cli.py inspect --update <agent-dir> runtime.language nodejs` and respond `y`
+      - step2: Re-read kinnoo.yaml and verify updated value
+    expected: Update command prompts and persists accepted metadata mutation
+    pass_criteria: Command exits 0 and manifest reflects new value when confirmation is yes
+    automated: true
+    automation_path: tests/test_cli_inspect.py::test_feature48_inspect_update_prompts_and_applies_on_yes
+    covers:
+      - feature: feature48
+        ac: AC4
+
+  - id: test418
+    title: Inspect --update aborts on default no confirmation and leaves manifest unchanged
+    type: integration
+    preconditions: Writable agent directory with valid kinnoo.yaml and runtime.language field
+    steps:
+      - step1: Run `python src/kinnoo/cli.py inspect --update <agent-dir> runtime.language nodejs` and respond with newline
+      - step2: Re-read kinnoo.yaml and verify original value remains
+    expected: Update command defaults to no and does not mutate manifest
+    pass_criteria: Command exits non-zero and manifest stays unchanged when confirmation is not yes
+    automated: true
+    automation_path: tests/test_cli_inspect.py::test_feature48_inspect_update_aborts_on_default_no
+    covers:
+      - feature: feature48
+        ac: AC4
+
+  - id: test419
+    title: Inspect --update supports --skip-warnings to bypass confirmation prompt
+    type: integration
+    preconditions: Writable agent directory with valid kinnoo.yaml and runtime.language field
+    steps:
+      - step1: Run `python src/kinnoo/cli.py inspect --skip-warnings --update <agent-dir> runtime.language nodejs`
+      - step2: Re-read kinnoo.yaml and verify updated value
+    expected: Update command applies mutation without interactive prompt when skip flag is used
+    pass_criteria: Command exits 0 and manifest updates with no prompt dependency
+    automated: true
+    automation_path: tests/test_cli_inspect.py::test_feature48_inspect_update_skip_warnings_bypasses_prompt
+    covers:
+      - feature: feature48
+        ac: AC4
+
+  - id: test420
+    title: Inspect --update rejects invalid updates that break manifest validation
+    type: integration
+    preconditions: Writable agent directory with valid kinnoo.yaml
+    steps:
+      - step1: Run `python src/kinnoo/cli.py inspect --skip-warnings --update <agent-dir> runtime.language javascript`
+      - step2: Verify command reports validation errors and manifest remains unchanged
+    expected: Invalid mutation is rejected and original manifest is preserved
+    pass_criteria: Command exits non-zero, emits validation guidance, and file contents are unchanged
+    automated: true
+    automation_path: tests/test_cli_inspect.py::test_feature48_inspect_update_rejects_invalid_manifest_value
+    covers:
+      - feature: feature48
+        ac: AC4

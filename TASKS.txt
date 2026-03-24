@@ -5023,7 +5023,7 @@ tasks:
       - 'step4: Preserve existing pagination/session behavior and add focused integration coverage'
     dependencies: [task247, task248]
     tests: [test347]
-    status: needs-review
+    status: completed
 
   - id: task250
     title: "Published Agents table framework column"
@@ -5042,7 +5042,7 @@ tasks:
       - 'step4: Add integration coverage verifying both populated and N/A framework rendering cases'
     dependencies: [task247]
     tests: [test348]
-    status: needs-review
+    status: completed
 
   - id: task251
     title: Remote list/search summary-shape compatibility fix
@@ -5062,7 +5062,7 @@ tasks:
       - 'step4: Verify nearby remote list mode regression remains green'
     dependencies: [task232, task233]
     tests: [test349, test350]
-    status: needs-review
+    status: completed
 
   - id: task252
     title: Publish optional pack-and-bump flow
@@ -5086,7 +5086,7 @@ tasks:
       - 'step5: Add focused tests for happy-path pack-and-publish, bump-and-publish, and guardrail errors'
     dependencies: [task83, task106, task232]
     tests: [test351, test352, test353]
-    status: needs-review
+    status: completed
 
   - id: task253
     title: Add mcp-server framework option to kinnoo init
@@ -5107,7 +5107,7 @@ tasks:
       - 'step4: Add tests for template generation plus help output example regression coverage'
     dependencies: [task157]
     tests: [test354, test355]
-    status: needs-review
+    status: completed
 
   - id: task254
     title: Curate and stage real-world open-source agent examples for import/run/pack trials
@@ -5129,7 +5129,7 @@ tasks:
       - 'step4: Write curated list with links to example-scratch/agents-list.md and clone each selected example into a dedicated subfolder under example-scratch/'
     dependencies: [task253]
     tests: []
-    status: needs-review
+    status: deprecated
 
   - id: task255
     title: Execute 42-agent import/inspect/run/pack validation matrix
@@ -5156,7 +5156,7 @@ tasks:
       - 'step6: Add test harness utilities to keep matrix runs deterministic, resilient to per-agent failures, and actionable in CI output'
     dependencies: [task254]
     tests: [test356, test357, test358, test359]
-    status: in-progress
+    status: deprecated
 
   - id: task256
     title: Auto-generate requirements.txt during kinnoo import
@@ -5181,7 +5181,7 @@ tasks:
       - 'step5: Document assessment that earlier feature19 tasks did not fully satisfy packaging-readiness expectations'
     dependencies: [task164, task165, task167]
     tests: [test360, test361]
-    status: needs-review
+    status: completed
 
   - id: task257
     title: Add runtime.path executable override for kinnoo run
@@ -5209,7 +5209,7 @@ tasks:
       - 'step5: Add integration tests covering nodejs runtime.path override behavior and fallback semantics'
     dependencies: [task39, task93]
     tests: [test362, test363]
-    status: needs-review
+    status: completed
 
   - id: task258
     title: Analyzer input/output type auto-detection
@@ -5229,7 +5229,7 @@ tasks:
       - 'step4: Add tests for each input/output type detection scenario'
     dependencies: [task135]
     tests: [test364, test365]
-    status: needs-review
+    status: completed
 
   - id: task259
     title: Add --preflight flag to kinnoo pack
@@ -5251,7 +5251,7 @@ tasks:
       - 'step5: Add tests for pack --preflight PASS and FAIL scenarios'
     dependencies: [task172]
     tests: [test366, test367]
-    status: needs-review
+    status: completed
 
   - id: task260
     title: Separate daemon commands in help output
@@ -5270,7 +5270,7 @@ tasks:
       - 'step4: Add test asserting daemon commands appear in separate section'
     dependencies: []
     tests: [test368]
-    status: not-started
+    status: completed
 
   - id: task261
     title: Analyzer model auto-detection
@@ -5289,7 +5289,7 @@ tasks:
       - 'step3: Test detection against gemini, claude-chat, chatgpt init templates'
     dependencies: [task135]
     tests: [test369, test370]
-    status: needs-review
+    status: completed
 
   - id: task262
     title: Framework help — one per line with descriptions
@@ -5306,7 +5306,7 @@ tasks:
       - 'step3: Add test asserting each framework appears on its own line with description'
     dependencies: []
     tests: [test371]
-    status: not-started
+    status: completed
 
   - id: task263
     title: Add --language flag to kinnoo init
@@ -5327,7 +5327,7 @@ tasks:
       - 'step5: Add tests for valid and invalid language/framework combinations'
     dependencies: []
     tests: [test372, test373]
-    status: needs-review
+    status: completed
 
   - id: task264
     title: Remove remnant Python files from OpenClaw init
@@ -5345,7 +5345,7 @@ tasks:
       - 'step3: Add test asserting run.py and requirements.txt are absent in openclaw scaffold'
     dependencies: []
     tests: [test374]
-    status: not-started
+    status: completed
 
   - id: task265
     title: kinnoo import from GitHub URL
@@ -5368,7 +5368,7 @@ tasks:
       - 'step6: Add tests for URL import, collision, and failure scenarios'
     dependencies: [task135]
     tests: [test375, test376, test377]
-    status: needs-review
+    status: completed
 
   - id: task266
     title: Add kinnoo check command
@@ -5389,7 +5389,7 @@ tasks:
       - 'step5: Add tests for check command against local dir and URL scenarios'
     dependencies: [task135, task258]
     tests: [test378, test379]
-    status: needs-review
+    status: completed
 
   - id: task267
     title: Pretty print with color across CLI commands
@@ -5413,7 +5413,7 @@ tasks:
       - 'step6: Add tests verifying color codes in output when TTY and absence when not'
     dependencies: []
     tests: [test380, test381]
-    status: needs-review
+    status: completed
 
   - id: task268
     title: Fix preflight venv check when runtime.path is set
@@ -5434,4 +5434,268 @@ tasks:
       - 'step4: Add test for preflight FAIL with no runtime.path and no venv (existing behavior)'
     dependencies: [task257]
     tests: [test382, test383]
-    status: not-started
+    status: needs-review
+
+  - id: task269
+    title: Auto-wrapper generation for class-only Python agents
+    type: enhancement
+    description: |
+      Add class-based agent detection to analyzer.py when no __main__ guard or main()
+      function is found. When a class inheriting from a known agent base class (LangChain
+      BaseSingleActionAgent, OpenAI SDK Agent, etc.) is detected, offer to auto-generate
+      a run.py wrapper during kinnoo import. Includes framework-specific wrapper templates
+      in src/kinnoo/wrapper_templates/.
+    files:
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/import_command.py
+      - src/kinnoo/wrapper_templates/langchain_wrapper.py.j2
+      - src/kinnoo/wrapper_templates/openai_agents_wrapper.py.j2
+    steps:
+      - 'step1: Add class-based agent detection fallback in _detect_entrypoint()'
+      - 'step2: Create wrapper_templates/ directory with LangChain and OpenAI SDK templates'
+      - 'step3: Add wrapper generation logic in import_command.py for entrypoint_type class'
+      - 'step4: Test with langchain-tool-calling-agent and openai-agents-basic-tools'
+    dependencies: []
+    tests: [test384, test385]
+    status: needs-review
+
+  - id: task270
+    title: Jupyter notebook to Python script conversion
+    type: enhancement
+    description: |
+      DEPRECATED — Skipped per human review (2026-03-23). Notebook conversion burden
+      is on the agent developer, not kinnoo. Developers should extract code from .ipynb
+      to .py files themselves before importing into kinnoo.
+    files:
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/import_command.py
+    steps:
+      - 'step1: Add .ipynb scanning in _detect_entrypoint() after .py/.js/.ts scan'
+      - 'step2: Implement notebook JSON parsing and code cell extraction'
+      - 'step3: Add conversion logic in import_command.py for entrypoint_type notebook'
+      - 'step4: Test with langgraph-react-from-scratch notebook'
+    dependencies: []
+    tests: [test386, test387]
+    status: deprecated
+
+  - id: task271
+    title: Subdirectory entrypoint detection improvement
+    type: enhancement
+    description: |
+      Improve _detect_entrypoint() to search deeper subdirectories (depth 4 instead of 2)
+      and prioritize conventional directory names like src/, source/, app/, backend/.
+      Verify run_command.py correctly handles relative subdirectory entrypoints with
+      proper PYTHONPATH setup.
+    files:
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/run_command.py
+    steps:
+      - 'step1: Increase os.walk max depth to 4 in _detect_entrypoint()'
+      - 'step2: Add priority weighting for conventional subdirectory names'
+      - 'step3: Verify run_command.py handles relative paths like source/main.py'
+      - 'step4: Test with openai-agents-sdk-customer-service and vanilla-python-octoagent'
+    dependencies: []
+    tests: [test388, test389]
+    status: needs-review
+
+  - id: task272
+    title: Requirements auto-inference from Python imports
+    type: enhancement
+    description: |
+      Add _infer_requirements() function to analyzer.py that scans Python imports and
+      maps them to PyPI package names via a curated dict. When no requirements.txt
+      exists, import_command.py offers to generate one from inferred dependencies.
+    files:
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/import_command.py
+    steps:
+      - 'step1: Create IMPORT_TO_PYPI mapping dict with ~50 common AI/ML packages'
+      - 'step2: Implement _infer_requirements() scanning all .py files for imports'
+      - 'step3: Add requirements.txt generation offer in import_command.py'
+      - 'step4: Test with langgraph-multi-agent-router (compare inferred vs actual)'
+    dependencies: []
+    tests: [test390, test391]
+    status: needs-review
+
+  - id: task273
+    title: Node.js/TypeScript agent import and run improvements
+    type: enhancement
+    description: |
+      Improve analyzer.py detection of Node.js/TS agents via package.json parsing.
+      Add TypeScript execution support via npx tsx in run_command.py. Support multiple
+      package managers (npm, yarn, pnpm) in install_command.py based on lockfile type.
+    files:
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/run_command.py
+      - src/kinnoo/install_command.py
+    steps:
+      - 'step1: Parse package.json for main/scripts.start entrypoint and tsconfig.json detection'
+      - 'step2: Add lockfile-based package manager detection (npm/yarn/pnpm)'
+      - 'step3: Add TypeScript execution via npx tsx in run_command.py'
+      - 'step4: Test with vanilla-typescript-easy-agent'
+    dependencies: []
+    tests: [test392, test393]
+    status: needs-review
+
+  - id: task274
+    title: Async entrypoint and hardcoded input detection
+    type: enhancement
+    description: |
+      Add detection of async entrypoint patterns (asyncio.run, async def main) and
+      hardcoded vs parameterized input (sys.argv/argparse vs literal strings in agent.run
+      calls) in analyzer.py. Set inputs.required accordingly in generated kinnoo.yaml.
+    files:
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/import_command.py
+    steps:
+      - 'step1: Detect asyncio.run() and async def main() patterns in entrypoint'
+      - 'step2: Detect sys.argv/argparse usage vs hardcoded prompt strings'
+      - 'step3: Set inputs.required field in kinnoo.yaml based on detection'
+      - 'step4: Test with openai-agents-hello-world (hardcoded) and an argparse agent'
+    dependencies: []
+    tests: [test394, test395]
+    status: needs-review
+
+  - id: task275
+    title: Service dependency auto-detection
+    type: enhancement
+    description: |
+      Add _detect_services() to analyzer.py that scans imports and string literals for
+      known service patterns (Ollama, ChromaDB, Redis, PostgreSQL, MongoDB). Detected
+      services are included in generated kinnoo.yaml under the services field.
+    files:
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/import_command.py
+    steps:
+      - 'step1: Create service pattern mapping (import names and URL patterns)'
+      - 'step2: Implement _detect_services() scanning .py files'
+      - 'step3: Include detected services in kinnoo.yaml during import'
+      - 'step4: Test with vanilla-python-reze-agent and openclaw-ollama-extension-agent'
+    dependencies: []
+    tests: [test396, test397]
+    status: needs-review
+
+  - id: task276
+    title: PydanticAI dependency injection (deps) support
+    type: enhancement
+    description: |
+      Detect PydanticAI Agent(deps_type=...) pattern in analyzer.py. Extract deps class
+      fields and set inputs.type to json in generated kinnoo.yaml. Validate that existing
+      --json-input flow correctly passes structured data for deps injection.
+    files:
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/import_command.py
+    steps:
+      - 'step1: Detect Agent(deps_type=...) pattern in PydanticAI agents'
+      - 'step2: Extract deps class name and fields from Pydantic model'
+      - 'step3: Set inputs.type to json when deps injection detected'
+      - 'step4: Validate --json-input with pydanticai-bank-support-agent'
+    dependencies: []
+    tests: [test398, test399]
+    status: needs-review
+
+  - id: task277
+    title: End-to-end validation with representative agents
+    type: validation
+    description: |
+      Run kinnoo import/pack/install/run on representative agents from each supported
+      pattern. Verify the full pipeline works for one-shot Python scripts, multi-file
+      agents, MCP servers, MCP clients, and OpenClaw plugins. Document results as PASS,
+      PARTIAL (kinnoo works but agent errors), or FAIL (kinnoo error).
+    files:
+      - tests/test_cli.py
+    steps:
+      - 'step1: Run E2E for pydanticai-roulette-wheel-agent (simple Python script)'
+      - 'step2: Run E2E for openai-agents-customer-service (multi-file)'
+      - 'step3: Run E2E for mcp-server-time-server (MCP server)'
+      - 'step4: Run E2E for agents-with-mcp-client-code-basic-client-demo (MCP client)'
+      - 'step5: Run E2E for vanilla-typescript-easy-agent (Node.js/TS, if task273 done)'
+      - 'step6: Document results in test report'
+    dependencies: [task269, task271, task272, task273, task274, task275, task276]
+    tests: [test400, test401]
+    status: needs-review
+    
+  - id: task278
+    title: Streamlit/Gradio UI agent support
+    type: feature
+    description: |
+      Detect Streamlit and Gradio UI frameworks in agent code. When detected,
+      set runtime.type to 'daemon' and configure the appropriate run command
+      (e.g., 'streamlit run app.py' for Streamlit agents). Gradio agents auto-launch
+      a web server so they also need daemon runtime type. This enables kinnoo to
+      properly import, install, and run UI-based agent demos.
+    files:
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/import_command.py
+      - src/kinnoo/run_command.py
+    steps:
+      - 'step1: Add Streamlit/Gradio import detection in analyzer.py'
+      - 'step2: Add UI pattern confirmation (st.chat_input, gr.Interface, etc.)'
+      - 'step3: Set runtime.type=daemon and run_command in import_command.py'
+      - 'step4: Handle streamlit run command in run_command.py'
+      - 'step5: Test with nirbar1985-ai-travel-agent and aymenfurter-microagents'
+    dependencies: []
+    tests: [test402, test403, test404, test405]
+    status: needs-review
+
+  - id: task279
+    title: "DEPRECATED — Extended framework detection (CrewAI, Swarm, Agno, etc.)"
+    type: feature
+    status: deprecated
+    deprecation_note: "All 9 extended framework detections deferred per human review (2025-03-23). Will be addressed in a future feature."
+    description: |
+      Extend kinnoo's analyzer to detect CrewAI, Swarm, Agno, SmolAgents, AutoGen,
+      Semantic Kernel, MetaGPT, LlamaIndex, and Anthropic agent frameworks.
+      DEPRECATED — deferred to a future feature.
+    files:
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/import_command.py
+    steps:
+      - 'step1: DEPRECATED'
+    dependencies: [task269, task272]
+    tests: [test406, test407, test409]
+    status: deprecated
+
+  - id: task280
+    title: OpenClaw-like analyzer detection without root package.json
+    type: enhancement
+    description: |
+      Improve analyzer inference for OpenClaw-like JS/TS projects that do not include
+      a root-level package.json but still contain clear runtime/framework evidence
+      (for example README OpenClaw markers plus nested server/bridge/src entrypoint files).
+      Ensure import output detects meaningful metadata instead of all-none defaults.
+    files:
+      - src/kinnoo/analyzer.py
+      - tests/test_analyzer.py
+    steps:
+      - 'step1: Add Node/TS entrypoint fallback heuristics for nested project layouts when root package.json is absent'
+      - 'step2: Add Node runtime fallback inference from JS/TS file presence with confidence-aware evidence/warnings'
+      - 'step3: Extend OpenClaw weighted detection with lightweight project signals (README markers and Node layout)'
+      - 'step4: Add barebones analyzer fixtures similar to selfclaw/nanobot/build-your-own/openclaw-core patterns in tests'
+      - 'step5: Validate targeted analyzer regressions with pytest --testmon'
+    dependencies: [task275, task276]
+    tests: [test410, test411, test412, test413]
+    status: needs-review
+
+  - id: task281
+    title: Inspect full/raw rendering and metadata update command
+    type: enhancement
+    description: |
+      Add inspect metadata rendering modes for complete-field visibility and raw
+      dotted-path output, plus a guarded metadata update flow that edits kinnoo.yaml
+      fields in place with confirmation prompts and optional prompt bypass.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/inspect_command.py
+      - tests/test_cli_inspect.py
+    steps:
+      - 'step1: Add inspect CLI flags `--full`, `--raw`, `--update`, and `--skip-warnings` with clear argument contracts'
+      - 'step2: Implement full rendering mode to include all known manifest metadata fields with N/A placeholders'
+      - 'step3: Implement raw rendering mode using dotted-path key/value output for filled fields and full+raw for all known fields'
+      - 'step4: Implement inspect update flow for directory manifests with confirmation prompt and --skip-warnings bypass'
+      - 'step5: Validate update writes by reloading and validating manifest after mutation, with actionable errors on invalid updates'
+      - 'step6: Add targeted CLI inspect tests for full/raw combinations and update flows'
+      - 'step7: Run focused pytest coverage for inspect command changes'
+    dependencies: [task66, task67, task68, task69, task148]
+    tests: [test414, test415, test416, test417, test418, test419, test420]
+    status: needs-review

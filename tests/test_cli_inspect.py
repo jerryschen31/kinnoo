@@ -4,6 +4,8 @@ import sys
 import zipfile
 from pathlib import Path
 
+import yaml
+
 
 def test_inspect_missing_target_prints_usage() -> None:
     result = subprocess.run(
@@ -396,3 +398,186 @@ def test_feature24_inspect_displays_services(tmp_path: Path) -> None:
                 assert "  - legacy-worker (process)" in result.stdout
                 # Service without health_check should not emit placeholder/noise lines.
                 assert "health_check: (none)" not in result.stdout
+
+
+def _create_feature48_agent(agent_dir: Path) -> None:
+    agent_dir.mkdir(parents=True, exist_ok=True)
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    (agent_dir / "run.py").write_text("print('ok')\n", encoding="utf-8")
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: feature48-agent",
+                "version: 1.0.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \"3.10\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_feature48_inspect_full_shows_all_known_fields_with_na(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "feature48-full-agent"
+    _create_feature48_agent(agent_dir)
+
+    result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "inspect", str(agent_dir), "--full"],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert "- All Metadata Fields:" in result.stdout
+    assert "  - description: N/A" in result.stdout
+    assert "  - runtime.run_command: N/A" in result.stdout
+    assert "  - runtime.type: one-shot" in result.stdout
+
+
+def test_feature48_inspect_raw_shows_filled_dotted_fields(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "feature48-raw-agent"
+    _create_feature48_agent(agent_dir)
+
+    result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "inspect", str(agent_dir), "--raw"],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert "Manifest metadata (raw):" in result.stdout
+    assert "runtime.language: python" in result.stdout
+    assert "runtime.type: one-shot" in result.stdout
+    assert "description: N/A" not in result.stdout
+
+
+def test_feature48_inspect_raw_full_shows_all_dotted_fields(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "feature48-raw-full-agent"
+    _create_feature48_agent(agent_dir)
+
+    result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "inspect", str(agent_dir), "--raw", "--full"],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert "Manifest metadata (raw):" in result.stdout
+    assert "runtime.language: python" in result.stdout
+    assert "description: N/A" in result.stdout
+    assert "runtime.run_command: N/A" in result.stdout
+
+
+def test_feature48_inspect_update_prompts_and_applies_on_yes(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "feature48-update-yes-agent"
+    _create_feature48_agent(agent_dir)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "inspect",
+            "--update",
+            str(agent_dir),
+            "runtime.language",
+            "nodejs",
+        ],
+        input="y\n",
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert "Warning: are you sure you want to modify runtime.language to have the new value nodejs?" in result.stdout
+    assert "Manifest metadata updated." in result.stdout
+
+    manifest_data = yaml.safe_load((agent_dir / "kinnoo.yaml").read_text(encoding="utf-8"))
+    assert manifest_data["runtime"]["language"] == "nodejs"
+
+
+def test_feature48_inspect_update_aborts_on_default_no(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "feature48-update-no-agent"
+    _create_feature48_agent(agent_dir)
+
+    before_manifest = (agent_dir / "kinnoo.yaml").read_text(encoding="utf-8")
+    result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "inspect",
+            "--update",
+            str(agent_dir),
+            "runtime.language",
+            "nodejs",
+        ],
+        input="\n",
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode != 0
+    assert "Update aborted." in result.stdout
+    after_manifest = (agent_dir / "kinnoo.yaml").read_text(encoding="utf-8")
+    assert after_manifest == before_manifest
+
+
+def test_feature48_inspect_update_skip_warnings_bypasses_prompt(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "feature48-update-skip-agent"
+    _create_feature48_agent(agent_dir)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "inspect",
+            "--skip-warnings",
+            "--update",
+            str(agent_dir),
+            "runtime.language",
+            "nodejs",
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert "Warning: are you sure you want to modify" not in result.stdout
+    manifest_data = yaml.safe_load((agent_dir / "kinnoo.yaml").read_text(encoding="utf-8"))
+    assert manifest_data["runtime"]["language"] == "nodejs"
+
+
+def test_feature48_inspect_update_rejects_invalid_manifest_value(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "feature48-update-invalid-agent"
+    _create_feature48_agent(agent_dir)
+
+    before_manifest = (agent_dir / "kinnoo.yaml").read_text(encoding="utf-8")
+    result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "inspect",
+            "--skip-warnings",
+            "--update",
+            str(agent_dir),
+            "runtime.language",
+            "javascript",
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode != 0
+    combined = f"{result.stdout}\n{result.stderr}"
+    assert "Manifest validation failed" in combined
+    assert "runtime.language" in combined
+    after_manifest = (agent_dir / "kinnoo.yaml").read_text(encoding="utf-8")
+    assert after_manifest == before_manifest

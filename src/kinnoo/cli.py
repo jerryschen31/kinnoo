@@ -435,6 +435,27 @@ def main():
         nargs="?",
         help="Path to agent directory or .kno archive",
     )
+    inspect_parser.add_argument(
+        "--full",
+        action="store_true",
+        help="Show all known metadata fields, including N/A values",
+    )
+    inspect_parser.add_argument(
+        "--raw",
+        action="store_true",
+        help="Show metadata as raw dotted-path key/value fields",
+    )
+    inspect_parser.add_argument(
+        "--update",
+        nargs=3,
+        metavar=("TARGET", "OLD_KEY", "NEW_VALUE"),
+        help="Update a manifest metadata field (for example: --update myagent runtime.language nodejs)",
+    )
+    inspect_parser.add_argument(
+        "--skip-warnings",
+        action="store_true",
+        help="Bypass interactive warning prompts for inspect update operations",
+    )
 
     # Add 'publish' subcommand
     publish_parser = subparsers.add_parser(
@@ -782,17 +803,38 @@ def main():
         sys.exit(0)
 
     elif args.command == "inspect":
+        update_args = getattr(args, "update", None)
         target = getattr(args, "target", None)
+        full = bool(getattr(args, "full", False))
+        raw = bool(getattr(args, "raw", False))
+        skip_warnings = bool(getattr(args, "skip_warnings", False))
+
+        try:
+            from kinnoo.inspect_command import inspect_target, inspect_update_target
+        except ImportError:
+            from .inspect_command import inspect_target, inspect_update_target
+
+        if update_args is not None:
+            if target is not None:
+                print("Error: positional <target> cannot be combined with --update.", file=sys.stderr)
+                sys.exit(1)
+            if full or raw:
+                print("Error: --full/--raw cannot be combined with --update.", file=sys.stderr)
+                sys.exit(1)
+            update_target, old_key, new_value = update_args
+            exit_code = inspect_update_target(
+                update_target,
+                old_key,
+                new_value,
+                skip_warnings=skip_warnings,
+            )
+            sys.exit(exit_code)
+
         if target is None:
             print("Usage: kinnoo inspect <target>", file=sys.stderr)
             sys.exit(1)
 
-        try:
-            from kinnoo.inspect_command import inspect_target
-        except ImportError:
-            from .inspect_command import inspect_target
-
-        exit_code = inspect_target(target)
+        exit_code = inspect_target(target, full=full, raw=raw)
         sys.exit(exit_code)
 
     elif args.command == "publish":
