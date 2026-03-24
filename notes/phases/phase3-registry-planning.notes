@@ -1,0 +1,364 @@
+Great timing. Feature28-30 already define a clean staged architecture, so we can implement without guessing.
+
+How the registry will be built (Feature28-30)
+1. Feature28: CLI-side backend abstraction + remote client
+- We introduce a RegistryBackend interface used by publish/install/list/search in the CLI.
+- We keep LocalRegistryBackend for existing local behavior.
+- We add RemoteRegistryClient that talks HTTP to a server URL.
+- Registry URL comes from config file or env var, with env var precedence.
+- Source of truth: [FEATURES.txt](FEATURES.txt) (feature28 section).
+
+2. Feature29: Remote registry server
+- New FastAPI app under a separate server folder.
+- Server exposes REST endpoints for publish/list/details/download/search/auth.
+- Archive binaries are stored in S3 (or S3-compatible object storage).
+- Metadata is stored as a JSON index (per current spec), not a relational DB.
+- Source of truth: [FEATURES.txt](FEATURES.txt) (feature29 section).
+
+3. Feature30: Web UI on same FastAPI app
+- Jinja2 pages for login, listing, and agent profile/version views.
+- Download uses presigned URLs (browser goes directly to object storage).
+- Browsing is read-only and unauthenticated per current AC; publishing requires auth.
+- Source of truth: [FEATURES.txt](FEATURES.txt) (feature30 section).
+
+Answers to your questions
+
+1. Is there a database for a user registry? If not, where is metadata stored?
+- Per current feature definition: no traditional database is required.
+- Metadata is stored in a JSON metadata index, and archives are stored in S3/object storage.
+- So the planned default is object storage + JSON index.
+
+2. If metadata is in S3, do you need an AWS account + S3 bucket before starting?
+- For local development and implementation: no, not strictly.
+- We can develop with a mocked or local backend first (the feature notes explicitly expect mockable storage for tests).
+- For real deploy/integration testing of end-to-end publish/download: yes, you need either:
+  - AWS account + S3 bucket, or
+  - S3-compatible alternative (MinIO, LocalStack, etc.).
+
+3. Other prerequisites before implementing feature28-30
+1. Product/security decisions:
+- Multi-tenant model: per-user namespace format (for example user/agent/version).
+- Visibility model: public read-only vs private-by-default option.
+- Auth model details: token issuance/rotation/revocation and session login policy.
+
+2. Infra and secrets:
+- Object storage target (AWS S3 or S3-compatible), bucket naming, region.
+- IAM credentials/policy with least privilege (read/write specific prefix).
+- Server env vars for storage and auth secrets.
+
+3. Repository governance prerequisite:
+- In your project rules, implementation should not start until tasks/tests exist and are linked.
+- Feature28-30 currently show no task IDs in the provided feature definitions.
+- So before coding, we should add task/test entries and link them in manifests.
+
+4. Runtime/dev prerequisites:
+- Decide FastAPI server layout under server folder and dependency isolation there.
+- Define API contract error schema and pagination defaults.
+- Decide deployment baseline (local only first vs cloud-ready from day one).
+
+4. Is each user registry public by default?
+- As currently written, discovery/browsing is public by default in the web UI (read-only pages allowed without login).
+- Publish requires auth.
+- So yes, with current ACs, other users can browse registry listings/profiles unless we intentionally add a privacy mode.
+- If you want private registries by default, we should modify feature30 acceptance criteria before implementation.
+
+If you want, next step can be:
+1. I draft a concrete data model and API contract for feature29 (JSON index schema, object key layout, auth claims).
+2. Then I propose task/test entries for feature28-30 so implementation can start immediately under your project workflow.
+
+---
+
+## Feature29 Concrete Design Draft (Simple and Secure V1)
+
+### Goals
+- Keep V1 simple enough to implement quickly.
+- Keep security posture strong enough for internet-facing use.
+- Avoid irreversible design choices that block a V2 database migration.
+
+### Recommended V1 Path Forward
+- Use object storage for both archive binaries and metadata JSON documents.
+- Keep one global index plus per-agent metadata documents to reduce write contention.
+- Use opaque immutable object keys for archives and signatures/checksums where applicable.
+- Use short-lived access tokens for API clients and signed, HttpOnly sessions for web login.
+- Start with public read + authenticated publish, but include per-namespace visibility flag now.
+
+### Multi-tenant model
+Recommended namespace format:
+- tenant_slug: stable account identifier (for example org_abc123 or user_jerry)
+- agent_slug: normalized package name
+- version: semantic version string
+
+Canonical tuple:
+- tenant_slug/agent_slug/version
+
+Benefits:
+- Human-readable object layout.
+- Easy IAM prefix scoping per tenant.
+- Clear future path to private registries and org-level ACLs.
+
+### Visibility model
+Recommended V1 default:
+- Public read metadata for discoverability.
+- Publish/overwrite/delete always authenticated.
+- Per-tenant visibility flag available now with two values:
+  - public
+  - private
+
+Policy rules:
+- public tenant: anonymous can list/search/view metadata and request download redirects.
+- private tenant: anonymous cannot list/search/view; authenticated caller must be owner or approved collaborator.
+
+Why this path:
+- Matches current feature acceptance criteria for public browsing.
+- Adds private support without breaking URLs or storage layout later.
+
+### Auth model details
+Token model for CLI:
+- Access token only (JWT or signed opaque token), short TTL (for example 60 minutes).
+- Include claims: sub, tenant_slug, scopes, token_id, iat, exp.
+- Scope examples:
+  - registry:read
+  - registry:publish
+  - registry:admin
+
+Session model for web:
+- Server-issued signed session cookie, HttpOnly, Secure, SameSite=Lax.
+- Session TTL 8 to 12 hours.
+- CSRF token required on state-changing HTML form POSTs.
+
+Rotation and revocation:
+- Rotate signing keys via key id header (kid) and key ring in config.
+- Maintain token denylist by token_id for emergency revocation.
+- Maintain user session store with server-side invalidation on logout/password reset.
+
+Minimal claims payload for access token:
+- iss: registry service name
+- sub: user id
+- tenant_slug: owner namespace
+- scopes: array of scope strings
+- token_id: unique id for revocation
+- exp: expiration epoch seconds
+- iat: issued at epoch seconds
+
+### JSON metadata model
+Use three metadata document types in object storage.
+
+1. Global index
+Path:
+- metadata/index.v1.json
+
+Purpose:
+- Fast listing/search bootstrap.
+
+Shape:
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-03-19T12:00:00Z",
+  "tenants": [
+    {
+      "tenant_slug": "user_jerry",
+      "visibility": "public",
+      "agents": [
+        {
+          "agent_slug": "my-agent",
+          "latest_version": "1.2.0",
+          "description": "Agent summary",
+          "updated_at": "2026-03-19T11:55:00Z"
+        }
+      ]
+    }
+  ]
+}
+
+2. Agent index
+Path:
+- metadata/tenants/{tenant_slug}/agents/{agent_slug}/index.v1.json
+
+Purpose:
+- Version history and summary per agent.
+
+Shape:
+{
+  "schema_version": "1.0",
+  "tenant_slug": "user_jerry",
+  "agent_slug": "my-agent",
+  "visibility": "public",
+  "latest_version": "1.2.0",
+  "versions": [
+    {
+      "version": "1.2.0",
+      "published_at": "2026-03-19T11:55:00Z",
+      "archive_size_bytes": 2450012,
+      "sha256": "hexstring",
+      "publisher": "user_123"
+    }
+  ]
+}
+
+3. Version metadata
+Path:
+- metadata/tenants/{tenant_slug}/agents/{agent_slug}/versions/{version}.v1.json
+
+Purpose:
+- Source of truth for download and audit details.
+
+Shape:
+{
+  "schema_version": "1.0",
+  "tenant_slug": "user_jerry",
+  "agent_slug": "my-agent",
+  "version": "1.2.0",
+  "manifest": {
+    "name": "my-agent",
+    "version": "1.2.0",
+    "description": "Agent summary",
+    "author": "Jerry"
+  },
+  "storage": {
+    "archive_key": "archives/tenants/user_jerry/agents/my-agent/versions/1.2.0/my-agent.kno",
+    "checksum_key": "archives/tenants/user_jerry/agents/my-agent/versions/1.2.0/my-agent.kno.sha256"
+  },
+  "integrity": {
+    "sha256": "hexstring"
+  },
+  "published_by": {
+    "user_id": "user_123",
+    "display_name": "Jerry"
+  },
+  "published_at": "2026-03-19T11:55:00Z",
+  "visibility": "public"
+}
+
+### Object key layout
+Recommended storage keys:
+- archives/tenants/{tenant_slug}/agents/{agent_slug}/versions/{version}/{agent_slug}.kno
+- archives/tenants/{tenant_slug}/agents/{agent_slug}/versions/{version}/{agent_slug}.kno.sha256
+- metadata/index.v1.json
+- metadata/tenants/{tenant_slug}/agents/{agent_slug}/index.v1.json
+- metadata/tenants/{tenant_slug}/agents/{agent_slug}/versions/{version}.v1.json
+
+Design notes:
+- Use immutable version keys; do not overwrite same version payload.
+- For duplicate publish attempts, return 409 conflict.
+- Keep metadata schema-versioned in filename and payload.
+
+### API contract (feature29)
+Base path:
+- /api
+
+Auth endpoint:
+- POST /api/auth/token
+  - request: username/password or API key exchange.
+  - response 200: { access_token, token_type, expires_in, scopes }
+  - errors: 401 invalid credentials, 429 rate limit.
+
+Publish endpoint:
+- POST /api/publish
+  - auth: required scope registry:publish.
+  - body: multipart archive upload + optional metadata fields.
+  - behavior: parse manifest from archive, enforce tenant ownership, reject duplicate version.
+  - response 201: publish result with tenant, agent, version, checksums, object key references.
+  - errors: 400 invalid archive, 401/403 auth, 409 duplicate version.
+
+List endpoint:
+- GET /api/agents?tenant={tenant_slug}&offset=0&limit=50
+  - auth: optional for public tenants, required for private.
+  - response 200: paginated list.
+
+Agent detail endpoint:
+- GET /api/agents/{tenant_slug}/{agent_slug}
+  - response 200: agent index metadata and versions.
+  - errors: 404 not found, 403 private without auth.
+
+Download endpoint:
+- GET /api/agents/{tenant_slug}/{agent_slug}/{version}/download
+  - auth: optional for public tenants, required for private.
+  - response 200: { download_url, expires_in }
+  - notes: presigned URL points directly to object storage.
+
+Search endpoint:
+- GET /api/search?q={query}&offset=0&limit=50
+  - returns name/description matches over authorized visible scope.
+
+Common error schema:
+{
+  "error": {
+    "code": "duplicate_version",
+    "message": "Agent version already exists",
+    "request_id": "req_abc123",
+    "details": {}
+  }
+}
+
+### Security controls to include in V1
+- Enforce max upload size and content-type allowlist.
+- Verify archive extension and validate archive structure before store.
+- Recompute SHA256 server-side and persist in metadata.
+- Require TLS in production; reject insecure cookie settings.
+- Rate-limit auth and publish endpoints.
+- Add audit logs for auth success/failure and publish attempts.
+- Never log secrets, credentials, or full tokens.
+
+### Infra and secrets recommendations
+Object storage target:
+- Start with S3-compatible abstraction in code.
+- Use AWS S3 in production, MinIO or LocalStack in local/dev.
+
+Bucket and region:
+- One bucket per environment preferred:
+  - kinnoo-registry-dev
+  - kinnoo-registry-staging
+  - kinnoo-registry-prod
+- Set explicit region and enforce in config.
+
+Least-privilege IAM shape:
+- App role can read/write only:
+  - arn:aws:s3:::kinnoo-registry-<env>/archives/*
+  - arn:aws:s3:::kinnoo-registry-<env>/metadata/*
+- Deny bucket delete and deny wildcard admin actions.
+- Separate deploy role from runtime app role.
+
+Suggested server env vars:
+- REGISTRY_ENV
+- REGISTRY_URL
+- REGISTRY_STORAGE_BACKEND (s3|minio|local)
+- REGISTRY_S3_BUCKET
+- REGISTRY_S3_REGION
+- REGISTRY_S3_ENDPOINT (optional for S3-compatible)
+- REGISTRY_S3_ACCESS_KEY_ID (if not IAM role)
+- REGISTRY_S3_SECRET_ACCESS_KEY (if not IAM role)
+- REGISTRY_S3_FORCE_PATH_STYLE (true|false)
+- REGISTRY_AUTH_SIGNING_KEY_CURRENT
+- REGISTRY_AUTH_SIGNING_KEY_PREVIOUS (optional for rotation)
+- REGISTRY_SESSION_SECRET
+- REGISTRY_TOKEN_TTL_SECONDS
+- REGISTRY_PRESIGN_TTL_SECONDS
+- REGISTRY_MAX_UPLOAD_MB
+
+### Implementation sequence (pragmatic)
+1. Implement metadata and storage interfaces with local filesystem backend first.
+2. Implement publish/list/detail/search/download endpoints against local backend.
+3. Add auth middleware with scoped tokens and session login.
+4. Add S3 backend implementation and switch by config.
+5. Add visibility enforcement rules and private tenant tests.
+6. Add migration utility to rebuild metadata/index.v1.json from version metadata docs.
+
+### Open questions to lock before coding
+- Should tenant_slug be user-chosen handle or immutable generated id? [jerry: user-chosen handle - do not allow duplicates and let user know if tenant handle already exists]
+- Do we allow agent transfer across tenants in V1? [jerry: no]
+- Do we want anonymous download for public tenants or only authenticated read? [jerry: only authenticated read]
+- What is our account bootstrap flow for first token issuance? [jerry: see answer below]
+- Do we need soft delete or immutable history-only for V1? [jerry: soft delete okay for V1]
+
+### What is our account bootstrap flow for first token issuance?
+Response:
+1. On first startup, run a one-time bootstrap command to create the first admin account (jerry-admin).
+2. Bootstrap outputs a one-time temporary password (or setup link) and forces password change on first login.
+3. After first admin exists, bootstrap is disabled by default.
+4. Admin can then create additional users/tenants.
+5. API tokens are always short-lived and issued only after normal login.
+
+Note that:
+1. Only the bootstrap admin account (me - jerry) can create users and tenants.
+2. Regular users cannot self-register and cannot create tenants.
+3. I will later expand to delegated tenant admins or self-service signup in V2, once full web UI is built out

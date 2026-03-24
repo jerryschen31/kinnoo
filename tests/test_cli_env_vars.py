@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from kinnoo.config import load_registry_config
 from kinnoo import run_command
 
 
@@ -458,6 +459,39 @@ env_vars:
                 outputs=[captured.out, captured.err],
                 sentinels=sentinels,
         )
+
+
+def test_registry_config_precedence(tmp_path: Path, monkeypatch) -> None:
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "registry_url: https://from-file.example.test",
+                "registry_token: file-token",
+                "tenant_slug: file-tenant",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.delenv("KINNOO_REGISTRY_URL", raising=False)
+    monkeypatch.delenv("KINNOO_REGISTRY_TOKEN", raising=False)
+    monkeypatch.delenv("KINNOO_TENANT_SLUG", raising=False)
+
+    file_config = load_registry_config(config_path=config_path)
+    assert file_config.registry_url == "https://from-file.example.test"
+    assert file_config.registry_token == "file-token"
+    assert file_config.tenant_slug == "file-tenant"
+
+    monkeypatch.setenv("KINNOO_REGISTRY_URL", "https://from-env.example.test")
+    monkeypatch.setenv("KINNOO_REGISTRY_TOKEN", "env-token")
+    monkeypatch.setenv("KINNOO_TENANT_SLUG", "env-tenant")
+
+    env_config = load_registry_config(config_path=config_path)
+    assert env_config.registry_url == "https://from-env.example.test"
+    assert env_config.registry_token == "env-token"
+    assert env_config.tenant_slug == "env-tenant"
 
 
 @pytest.mark.skip(reason="Placeholder for test88 implementation")

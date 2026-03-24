@@ -1,5 +1,12 @@
-Fix: Pass --framework argument from CLI to init_agent
+Fix: Install requirements when runtime.path overrides Python interpreter
 
-- Update src/kinnoo/cli.py to pass the parsed --framework argument to init_agent.
-- Ensures that kinnoo init --framework <framework> generates the correct framework-specific templates (run.py, requirements.txt, README.md) for Gemini, ChatGPT, and Claude-Chat agents.
-- Addresses issue where framework-specific files were not being created despite the flag being parsed.
+- Update src/kinnoo/run_command.py so Python runtime.path override still honors dependency setup.
+- When runtime.path is set and requirements.txt is non-empty:
+  - create/use .venv with the overridden interpreter (runtime.path -m venv .venv),
+  - install dependencies into that .venv,
+  - execute entrypoint with .venv Python.
+- Keep direct execution with runtime.path when requirements.txt is empty (no unnecessary .venv creation).
+- Preserve existing fallback behavior when runtime.path is unresolved.
+- Add regression coverage in tests/test_cli.py:
+  - test_run_runtime_path_python_installs_requirements validates venv creation + pip install under runtime.path,
+  - existing runtime.path tests continue to pass for command lookup, direct override, and node fallback behavior.
