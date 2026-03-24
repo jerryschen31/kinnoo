@@ -185,6 +185,8 @@ def _map_service_type(raw_type: str) -> str:
         "postgresql": "database",
         "database": "database",
         "redis": "database",
+        "mongodb": "database",
+        "postgres": "database",
         "vector-db": "vector-db",
         "mcp-server": "mcp-server",
         "local-process": "local-process",
@@ -204,10 +206,10 @@ def _normalize_inferred_services(services_value: Any) -> list[dict[str, Any]]:
             continue
         service_type = _map_service_type(str(service.get("type", "api")))
         endpoint = service.get("endpoint") if isinstance(service.get("endpoint"), str) else None
-        service_name = f"service-{index}"
+        service_name = service.get("name") if isinstance(service.get("name"), str) else f"service-{index}"
         if endpoint:
             parsed = urlsplit(endpoint)
-            if parsed.hostname:
+            if service_name.startswith("service-") and parsed.hostname:
                 service_name = parsed.hostname.replace(".", "-")
 
         normalized_service: dict[str, Any] = {
@@ -333,6 +335,44 @@ def _generate_entrypoint_wrapper(target_path: Path, original_entrypoint: str) ->
     return wrapper_name
 
 
+def _load_wrapper_template(template_name: str) -> str:
+    template_path = Path(__file__).resolve().parent / "wrapper_templates" / template_name
+    return template_path.read_text(encoding="utf-8")
+
+
+def _render_wrapper_template(template_text: str, agent_module: str, agent_class: str) -> str:
+    return (
+        template_text
+        .replace("{{agent_module}}", agent_module)
+        .replace("{{agent_class}}", agent_class)
+    )
+
+
+def _generate_class_wrapper_entrypoint(
+    target_path: Path,
+    *,
+    framework: str | None,
+    agent_module: str,
+    agent_class: str,
+    force: bool,
+) -> str:
+    wrapper_name = "run.py"
+    wrapper_path = target_path / wrapper_name
+    if wrapper_path.exists() and not force:
+        raise FileExistsError(
+            "Class-wrapper generation aborted: run.py already exists. Use --force to overwrite."
+        )
+
+    template_name = "langchain_wrapper.py.j2"
+    if framework == "openai-agents":
+        template_name = "openai_agents_wrapper.py.j2"
+
+    template_text = _load_wrapper_template(template_name)
+    wrapper_source = _render_wrapper_template(template_text, agent_module, agent_class)
+    wrapper_path.write_text(wrapper_source, encoding="utf-8")
+    return wrapper_name
+
+
 def _build_manifest_from_analysis(
     target_path: Path,
     report: dict[str, Any],
@@ -349,6 +389,7 @@ def _build_manifest_from_analysis(
     runtime_version = runtime.get("version") or ">=3.10"
     runtime_type = runtime.get("type")
     runtime_package_manager = runtime.get("package_manager") if isinstance(runtime.get("package_manager"), str) else None
+    runtime_run_command = runtime.get("run_command") if isinstance(runtime.get("run_command"), str) else None
 
     framework = inferred.get("framework")
     model = inferred.get("model") if isinstance(inferred.get("model"), str) else None
@@ -357,12 +398,18 @@ def _build_manifest_from_analysis(
     services = _normalize_inferred_services(inferred.get("services"))
     permissions: dict[str, Any] | None = None
     inferred_input_type = inferred.get("inputs") if isinstance(inferred.get("inputs"), str) else "string"
+    inferred_deps_type = inferred.get("deps_type")
+    inferred_inputs_required = inferred.get("inputs_required")
     inferred_output_type = inferred.get("outputs") if isinstance(inferred.get("outputs"), str) else "string"
     allowed_io_types = {"text", "string", "file", "json"}
     if inferred_input_type not in allowed_io_types:
         inferred_input_type = "string"
     if inferred_output_type not in allowed_io_types:
         inferred_output_type = "string"
+    if isinstance(inferred_deps_type, dict) and inferred_deps_type.get("class_name"):
+        inferred_input_type = "json"
+    if not isinstance(inferred_inputs_required, bool):
+        inferred_inputs_required = True
 
     # If analyzer inferred an entrypoint and user confirmed detected values,
     # keep it without re-prompting even when confidence is low.
@@ -385,6 +432,12 @@ def _build_manifest_from_analysis(
             session=session,
         )
         framework = framework_input or None
+
+    if framework in {"streamlit", "gradio"}:
+        runtime_type = "daemon"
+        inferred_inputs_required = False
+    if framework == "streamlit":
+        runtime_run_command = f"streamlit run {entrypoint}"
 
     inferred_skills: list[str] = []
     inferred_state_dirs: list[str] = []
@@ -432,12 +485,16 @@ def _build_manifest_from_analysis(
         dependency_lines,
         "inputs:",
         f"  type: {inferred_input_type}",
+        f"  required: {str(inferred_inputs_required).lower()}",
         "outputs:",
         f"  type: {inferred_output_type}",
     ]
 
     if runtime_package_manager:
         manifest_lines.insert(6, f"  package_manager: {runtime_package_manager}")
+    if runtime_run_command and runtime_run_command.strip():
+        dependencies_index = manifest_lines.index("dependencies:")
+        manifest_lines.insert(dependencies_index, f"  run_command: {runtime_run_command.strip()}")
 
     if framework:
         manifest_lines.append(f"framework: {framework}")
@@ -555,6 +612,7 @@ def _ensure_import_requirements_file(
     *,
     inferred_dependencies: Any,
     runtime_language: str,
+    session: PromptSession | None = None,
 ) -> bool:
     """Create requirements.txt for imported Python projects when missing.
 
@@ -569,6 +627,14 @@ def _ensure_import_requirements_file(
 
     dependencies = _normalize_dependency_list(inferred_dependencies)
     if dependencies:
+        should_generate = _prompt_yes_no(
+            "No requirements.txt found. Generate one from inferred imports? [Y/n]: ",
+            True,
+            session=session,
+        )
+        if not should_generate:
+            print("Skipped requirements.txt generation by user choice.")
+            return False
         requirements_path.write_text("\n".join(dependencies) + "\n", encoding="utf-8")
         print("Generated requirements.txt from analyzer-detected dependencies.")
         return True
@@ -699,9 +765,11 @@ def import_agent(
 
     session = PromptSession()
     entrypoint_warning: str | None = None
+    report_for_manifest: dict[str, Any] | None = None
 
     try:
         report = analyze_project(target_path).as_dict()
+        report_for_manifest = report
         _show_detected_values(report)
 
         warning_messages = report.get("warnings", [])
@@ -719,7 +787,36 @@ def import_agent(
             print("Import cancelled by user.")
             return 1
 
-        manifest_text = _build_manifest_from_analysis(target_path, report, session=session)
+        inferred = report.get("inferred", {})
+        detected_entrypoint = inferred.get("entrypoint")
+        if isinstance(detected_entrypoint, dict) and detected_entrypoint.get("entrypoint_type") == "class":
+            agent_class = detected_entrypoint.get("agent_class")
+            agent_module = detected_entrypoint.get("agent_module")
+            if isinstance(agent_class, str) and isinstance(agent_module, str):
+                if _prompt_yes_no(
+                    "Generate class-based run.py wrapper entrypoint? [y/N]: ",
+                    False,
+                    session=session,
+                ):
+                    try:
+                        wrapper_entrypoint = _generate_class_wrapper_entrypoint(
+                            target_path,
+                            framework=inferred.get("framework") if isinstance(inferred.get("framework"), str) else None,
+                            agent_module=agent_module,
+                            agent_class=agent_class,
+                            force=force,
+                        )
+                        generated_wrapper_path = target_path / wrapper_entrypoint
+                    except Exception as exc:
+                        print(style_text(f"Error: class-wrapper generation failed: {exc}", color="red"))
+                        return 1
+
+                    manifest_inferred = dict(inferred)
+                    manifest_inferred["entrypoint"] = wrapper_entrypoint
+                    report_for_manifest = dict(report)
+                    report_for_manifest["inferred"] = manifest_inferred
+
+        manifest_text = _build_manifest_from_analysis(target_path, report_for_manifest or report, session=session)
         selected_entrypoint = _extract_entrypoint_from_manifest(manifest_text)
         entrypoint_warning = _assess_entrypoint_contract(target_path, selected_entrypoint)
         if entrypoint_warning:
@@ -758,6 +855,7 @@ def import_agent(
             target_path,
             inferred_dependencies=inferred.get("dependencies"),
             runtime_language=runtime_language,
+            session=session,
         )
     except FileExistsError as exc:
         if generated_wrapper_path and generated_wrapper_path.exists():

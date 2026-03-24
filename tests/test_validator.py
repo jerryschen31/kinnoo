@@ -308,6 +308,203 @@ def test_feature31_runtime_language_rejects_unsupported_values(tmp_path: Path) -
     )
 
 
+def test_analyzer_class_only_detection(tmp_path: Path) -> None:
+    """Feature47 test384: analyzer detects class-only agent fallback entrypoint metadata."""
+    project_dir = tmp_path / "class-only-agent"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "base.py").write_text(
+        "from langchain.agents import BaseSingleActionAgent\n\n"
+        "class MyAgent(BaseSingleActionAgent):\n"
+        "    pass\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(project_dir).as_dict()
+    inferred_entrypoint = report["inferred"]["entrypoint"]
+    entrypoint_confidence = report["confidence"]["entrypoint"]["score"]
+
+    assert isinstance(inferred_entrypoint, dict)
+    assert inferred_entrypoint.get("entrypoint_type") == "class"
+    assert inferred_entrypoint.get("agent_class") == "MyAgent"
+    assert inferred_entrypoint.get("agent_module") == "base"
+    assert float(entrypoint_confidence) >= 0.40
+
+
+def test_analyzer_subdirectory_entrypoint(tmp_path: Path) -> None:
+    """Feature47 test388: analyzer prefers conventional subdirectory main.py entrypoint."""
+    project_dir = tmp_path / "subdir-agent"
+    source_dir = project_dir / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    (source_dir / "main.py").write_text(
+        "if __name__ == '__main__':\n"
+        "    print('ok')\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(project_dir).as_dict()
+    inferred_entrypoint = report["inferred"]["entrypoint"]
+    score = float(report["confidence"]["entrypoint"]["score"])
+
+    assert inferred_entrypoint == "source/main.py"
+    assert score >= 0.50
+
+
+def test_analyzer_requirements_inference(tmp_path: Path) -> None:
+    """Feature47 test390: analyzer infers PyPI dependency names from imports."""
+    project_dir = tmp_path / "requirements-inference-agent"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "agent.py").write_text(
+        "import os\n"
+        "import openai\n"
+        "from pydantic_ai import Agent\n"
+        "from langchain_core.prompts import ChatPromptTemplate\n\n"
+        "def run() -> None:\n"
+        "    _ = (Agent, ChatPromptTemplate)\n"
+        "    print('ok')\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(project_dir).as_dict()
+    dependencies = report["inferred"]["dependencies"]
+
+    assert "openai" in dependencies
+    assert "pydantic-ai" in dependencies
+    assert "langchain-core" in dependencies
+    assert "os" not in dependencies
+
+
+def test_analyzer_nodejs_detection(tmp_path: Path) -> None:
+    """Feature47 test392: analyzer infers nodejs runtime and package.json entrypoint."""
+    project_dir = tmp_path / "node-agent"
+    src_dir = project_dir / "src"
+    src_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "package.json").write_text(
+        "{\n"
+        "  \"name\": \"node-agent\",\n"
+        "  \"version\": \"1.0.0\",\n"
+        "  \"main\": \"src/index.ts\",\n"
+        "  \"scripts\": {\"start\": \"node src/index.ts\"}\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    (project_dir / "tsconfig.json").write_text("{}\n", encoding="utf-8")
+    (src_dir / "index.ts").write_text("console.log('ok')\n", encoding="utf-8")
+
+    report = analyze_project(project_dir).as_dict()
+    runtime = report["inferred"]["runtime"]
+    entrypoint = report["inferred"]["entrypoint"]
+
+    assert isinstance(runtime, dict)
+    assert runtime.get("language") == "nodejs"
+    assert runtime.get("package_manager") in {"npm", "yarn", "pnpm"}
+    assert entrypoint == "src/index.ts"
+
+
+def test_analyzer_input_detection(tmp_path: Path) -> None:
+    """Feature47 test394: analyzer distinguishes parameterized and hardcoded input usage."""
+    parameterized_dir = tmp_path / "parameterized-input-agent"
+    parameterized_dir.mkdir(parents=True, exist_ok=True)
+    (parameterized_dir / "run.py").write_text(
+        "import sys\n"
+        "def main() -> None:\n"
+        "    value = sys.argv[1]\n"
+        "    print(value)\n"
+        "if __name__ == '__main__':\n"
+        "    main()\n",
+        encoding="utf-8",
+    )
+
+    hardcoded_dir = tmp_path / "hardcoded-input-agent"
+    hardcoded_dir.mkdir(parents=True, exist_ok=True)
+    (hardcoded_dir / "run.py").write_text(
+        "from agents import Runner, Agent\n"
+        "agent = Agent(name='demo')\n"
+        "result = Runner.run_sync(agent, 'hello world')\n"
+        "print(result)\n",
+        encoding="utf-8",
+    )
+
+    parameterized_report = analyze_project(parameterized_dir).as_dict()
+    hardcoded_report = analyze_project(hardcoded_dir).as_dict()
+
+    assert parameterized_report["inferred"]["inputs_required"] is True
+    assert hardcoded_report["inferred"]["inputs_required"] is False
+
+
+def test_analyzer_service_detection(tmp_path: Path) -> None:
+    """Feature47 test396: analyzer detects service dependencies from imports and literals."""
+    project_dir = tmp_path / "service-detection-agent"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "main.py").write_text(
+        "import ollama\n"
+        "import redis\n"
+        "import psycopg2\n"
+        "API_URL = 'http://localhost:11434'\n"
+        "_ = (ollama, redis, psycopg2, API_URL)\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(project_dir).as_dict()
+    services = report["inferred"]["services"]
+    names = {service.get("name") for service in services if isinstance(service, dict)}
+
+    assert "ollama" in names
+    assert "redis" in names
+    assert "postgresql" in names
+
+
+def test_analyzer_pydanticai_deps(tmp_path: Path) -> None:
+    """Feature47 test398: analyzer detects PydanticAI deps_type and infers json input."""
+    project_dir = tmp_path / "pydanticai-deps-agent"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "main.py").write_text(
+        "from pydantic import BaseModel\n"
+        "from pydantic_ai import Agent\n\n"
+        "class MyDeps(BaseModel):\n"
+        "    account_id: str\n"
+        "    amount: float\n\n"
+        "agent = Agent('openai:gpt-4o-mini', deps_type=MyDeps)\n"
+        "print(agent)\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(project_dir).as_dict()
+    deps_type = report["inferred"]["deps_type"]
+
+    assert isinstance(deps_type, dict)
+    assert deps_type.get("class_name") == "MyDeps"
+    assert set(deps_type.get("fields", [])) >= {"account_id", "amount"}
+    assert report["inferred"]["inputs"] == "json"
+
+
+def test_streamlit_detection(tmp_path: Path) -> None:
+    """Feature47 test402: analyzer detects Streamlit framework from imports."""
+    project_dir = tmp_path / "streamlit-agent"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "app.py").write_text(
+        "import streamlit as st\n"
+        "st.chat_input('Say hi')\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(project_dir).as_dict()
+    assert report["inferred"]["framework"] == "streamlit"
+
+
+def test_gradio_detection(tmp_path: Path) -> None:
+    """Feature47 test403: analyzer detects Gradio framework from imports."""
+    project_dir = tmp_path / "gradio-agent"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "app.py").write_text(
+        "import gradio as gr\n"
+        "demo = gr.Interface(fn=lambda x: x, inputs='text', outputs='text')\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(project_dir).as_dict()
+    assert report["inferred"]["framework"] == "gradio"
+
+
 def test_feature42_manifest_accepts_json_input_output_types(tmp_path: Path) -> None:
     """Feature42 test270: validator accepts json for inputs.type and outputs.type."""
     data = dict(_VALID_MANIFEST)
