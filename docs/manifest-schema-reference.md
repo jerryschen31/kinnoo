@@ -45,6 +45,11 @@ The CLI uses this list for two things: showing users what they're about to insta
 
 This describes the **shape of data the agent expects to receive**. For the MVP, only `text` is supported — meaning the agent receives a plain string as its only input (passed as a command-line argument).
 
+Supported values now include:
+- `text` / `string` for plain CLI input
+- `json` for structured payload input
+- `file` for path-oriented workflows
+
 This exists as a field because in future versions it will expand to:
 - `json` — structured data object
 - `file` — a file path
@@ -59,9 +64,22 @@ Declaring this upfront makes agents self-describing and enables the CLI to valid
 
 Same idea, but for what the agent **produces**. For the MVP, `text` means the agent prints a plain string to stdout and exits.
 
+Supported values now include:
+- `text` / `string`
+- `json`
+- `file`
+
 Future values would include `json`, `file`, `stream` (for streaming token output), etc.
 
 Declaring output type is what makes agents composable — if agent A outputs `json` and agent B accepts `json` as input, the CLI can eventually wire them together automatically.
+
+Feature42 runtime contract note:
+- when `outputs.type` includes `json` (for one-shot runtimes), stdout must be valid JSON;
+- malformed JSON output fails deterministically with parse context (line/column).
+
+Feature42 run modes:
+- `kinnoo run <agent-dir> --json-input '<json>'`
+- `kinnoo run <agent-dir> --json-file <json-file>`
 
 ---
 
@@ -75,6 +93,117 @@ This field exists because future versions will support other execution models:
 - `worker` — a background queue consumer
 
 The CLI's behavior on `kinnoo run` is determined entirely by this field.
+
+---
+
+### Feature33 manifest extensions (`runtime.package_manager`, `channels`, `skills`, `state_dirs`)
+
+Feature33 adds optional schema fields for OpenClaw-oriented and generic Node.js agent workflows.
+
+- `runtime.package_manager` (optional): string
+  - supported values: `npm`, `pnpm`
+  - if present with any other value, validation fails with allowed-values guidance
+- `channels` (optional): list[string]
+  - each item must be a non-empty string
+- `skills` (optional): list[string]
+  - each item must be a non-empty relative path
+  - absolute paths and parent traversal (`..`) are rejected
+- `state_dirs` (optional): list[string]
+  - each item must be a non-empty relative path
+  - absolute paths and parent traversal (`..`) are rejected
+
+OpenClaw-targeted validation (`framework: openclaw`):
+
+- `runtime.language` must be `nodejs`
+- `runtime.type` must be `daemon`
+- `runtime.package_manager` is required and must be `npm` or `pnpm`
+- `channels` must include `stdio`
+
+Non-openclaw compatibility note:
+
+- manifests that omit these fields remain valid
+- non-openclaw manifests may include these fields in valid shape without triggering OpenClaw-only diagnostics
+
+### Feature35 mutable state snapshots (`state_dirs`)
+
+Feature35 defines `state_dirs` as mutable runtime state snapshot roots. This behavior is intentionally distinct from immutable `assets`.
+
+Behavior summary:
+
+- `assets` are immutable packaged resources and keep their existing bundle semantics.
+- `state_dirs` are mutable runtime state and are archived under `state_snapshots/<state-dir>/...`.
+- install restores state snapshots back into their declared state roots.
+
+Structured `state_dirs` entries may include `exclude` patterns:
+
+```yaml
+state_dirs:
+  - path: memory
+    exclude:
+      - daily/*.md
+      - secrets/*
+```
+
+Exclude semantics:
+
+- excluded files are omitted during pack snapshot collection,
+- omitted files are not restored during install,
+- non-excluded files remain part of snapshot/restore flow.
+
+Install overwrite semantics:
+
+- default install path is warning-first and non-destructive for existing state,
+- existing state is preserved unless explicit overwrite control is provided,
+- `kinnoo install ... --state-overwrite` enables deterministic replacement of existing state roots.
+
+Example layout after pack when `state_dirs: [memory]`:
+
+```text
+state_snapshots/
+  memory/
+    core/profile.json
+    sessions/latest.json
+```
+
+Example restore behavior:
+
+- archive entry `state_snapshots/memory/core/profile.json`
+- restores to `<install-target>/memory/core/profile.json`
+
+Compatibility guarantee:
+
+- manifests without `state_dirs` preserve pre-Feature35 asset-only behavior.
+
+### Feature40 signed pack artifacts (`kinnoo pack --sign`)
+
+Feature40 adds optional authenticity artifacts for packaged archives.
+
+Usage:
+
+- `kinnoo pack <agent-dir> --sign --signing-key <private-key.pem>`
+
+Behavior summary:
+
+- existing checksum behavior remains unchanged (`<archive>.kno.sha256` is still emitted),
+- signed pack emits detached signature artifacts alongside the archive:
+  - `<archive>.kno.sig`
+  - `<archive>.kno.sig.json`
+
+Signature metadata (`.sig.json`) fields:
+
+- `schema_version`: currently `1`
+- `algorithm`: currently `ed25519`
+- `archive_filename`: archive basename
+- `archive_sha256`: SHA256 of archive payload bytes
+- `signature_filename`: detached signature basename
+- `signature_base64`: base64-encoded detached signature bytes
+- `public_key_fingerprint_sha256`: signer public-key fingerprint
+- `public_key_pem`: signer public key for verification workflows
+- `verification_hint`: operator-facing verification guidance
+
+Security note:
+
+- signing requires explicit private-key path via `--signing-key`; private key material is never written into pack logs.
 
 ---
 
@@ -133,6 +262,83 @@ Safe troubleshooting:
 - verify that required names are present in `env_vars`
 - confirm those names are set in process environment or `.env`
 - when prompted, enter values interactively without echoing values into logs
+
+### Feature22 assets bundling (`assets`)
+
+Feature22 adds an optional `assets` object to declare static files/directories that should be bundled with the agent archive.
+
+Supported schema:
+
+```yaml
+assets:
+  paths:
+    - data/embeddings.npz
+    - data/reference_docs/
+    - models/classifier.onnx
+  bundle: true
+  max_bundle_size_mb: 100
+```
+
+Field semantics:
+
+- `assets.paths` (optional): list of relative paths rooted at the agent directory. Each item may be a file or directory path.
+- `assets.bundle` (optional): boolean, default `true`. When `false`, declared assets are retained as metadata but are not included in the `.kno` archive.
+- `assets.max_bundle_size_mb` (optional): number, default `100`. Overrides the pack warning threshold for total archive size.
+
+How inclusion works:
+
+- directory paths are bundled recursively (for example, `data/` includes all nested files and folders)
+- specifying a top-level folder is valid when you have multiple subfolders
+- paths must stay within the agent root (path traversal such as `../` is rejected)
+- manifests without `assets` remain fully compatible with pre-Feature22 pack/install behavior
+
+What can be included:
+
+- reference documents (for example markdown, txt, pdf)
+- embeddings or vector artifacts
+- local model files and weights
+- runtime lookup tables, prompt libraries, and other static resources needed at runtime
+
+Security sweep behavior for assets:
+
+- pack performs filename-based checks for likely secret-bearing files and emits warnings
+- pack performs regex-based checks on size-limited UTF-8 text assets and emits warnings for likely credentials
+- binary assets are skipped for regex text scanning
+- findings are warning-only during pack (heuristic, may produce false positives)
+
+### Feature39 permissions schema (`permissions`)
+
+Feature39 adds an optional `permissions` object for explicit capability declarations.
+
+Supported fields:
+
+- `permissions.network` (optional): boolean
+- `permissions.filesystem_scope` (optional): enum string
+  - allowed values: `none`, `read-only`, `workspace-write`, `full`
+- `permissions.shell` (optional): boolean
+- `permissions.browser` (optional): boolean
+- `permissions.env_access` (optional): list[string]
+  - each item must be a non-empty string
+
+Validation behavior:
+
+- unknown keys in `permissions` fail validation with allowed-key guidance
+- invalid `filesystem_scope` enum values fail validation with supported-values guidance
+- invalid `env_access` shape (non-list or non-string entries) fails validation with field-specific errors
+- manifests without `permissions` remain valid (backward compatibility)
+
+Example:
+
+```yaml
+permissions:
+  network: true
+  filesystem_scope: workspace-write
+  shell: false
+  browser: false
+  env_access:
+    - OPENAI_API_KEY
+    - KINNOO_ENV
+```
 
 ---
 
@@ -200,6 +406,64 @@ kinnoo run research-summarizer "Summarize recent advances in fusion energy"
 
 ---
 
+### Example 3 — OpenClaw Node.js daemon manifest
+
+```yaml
+name: openclaw-agent
+version: 1.0.0
+entrypoint: run.js
+framework: openclaw
+runtime:
+  language: nodejs
+  version: ">=20.0.0"
+  type: daemon
+  package_manager: pnpm
+channels:
+  - stdio
+  - events
+skills:
+  - skills/openclaw/core.md
+state_dirs:
+  - state/openclaw
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+```
+
+### Example 4 — Generic Node.js manifest with optional Feature33 fields
+
+```yaml
+name: generic-node-agent
+version: 1.0.0
+entrypoint: run.js
+framework: custom-framework
+runtime:
+  language: nodejs
+  version: ">=20.0.0"
+  type: one-shot
+  package_manager: npm
+channels:
+  - events
+skills:
+  - skills/common/assistant.md
+state_dirs:
+  - state/cache
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+```
+
+Compatibility behavior for Example 4:
+
+- valid extension field shape is accepted
+- OpenClaw-only constraints are not enforced because `framework` is not `openclaw`
+
+---
+
 ## Key Insight: Framework Agnosticism
 
 Notice that both examples look nearly identical from the CLI's perspective — `kinnoo` doesn't know or care that one uses LangChain and the other uses CrewAI. That's the entire point of the `entrypoint` + `inputs/outputs` contract: **the runtime abstraction makes the framework irrelevant to the platform.** The complexity lives inside `run.py` / `agent.py`, not in the manifest.
@@ -215,11 +479,16 @@ Notice that both examples look nearly identical from the CLI's perspective — `
 | entrypoint       | yes      | string       | non-empty file path                             |
 | runtime.language | yes      | string       | e.g., "python"                                  |
 | runtime.version  | yes      | string       | version constraint (e.g., ">=3.10")             |
-| runtime.type     | yes      | string       | must be `"one-shot"` for MVP                    |
+| runtime.type     | yes      | string       | supported values include `one-shot`, `mcp-server`, `daemon` |
+| runtime.package_manager | no | string       | optional; allowed values: `npm`, `pnpm`          |
 | dependencies     | yes      | list[string] | can be empty list                               |
 | inputs.type      | yes      | string       | e.g., "text"                                    |
 | outputs.type     | yes      | string       | e.g., "text"                                    |
 | framework        | no       | string       | optional, e.g., "langchain", "crewai"           |
+| channels         | no       | list[string] | optional; non-empty string items                |
+| skills           | no       | list[string] | optional; relative paths only                   |
+| state_dirs       | no       | list[string] | optional; relative paths only                   |
+| assets           | no       | object       | optional; keys: `paths` (list[string]), `bundle` (bool, default true), `max_bundle_size_mb` (number, default 100) |
 | description      | no       | string       | optional metadata                                 |
 | author           | no       | string       | optional metadata                                 |
 | license          | no       | string       | optional metadata                                 |

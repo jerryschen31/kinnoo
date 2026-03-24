@@ -1,5 +1,128 @@
 
 
+## Phase 3 Feature Definition (2026-03-13)
+
+### Feature22 scan policy update (2026-03-15)
+
+- Approved direction: asset credential detection during `kinnoo pack` remains warning-only because packing is a local operation.
+- Follow-up design note: evaluate stricter/blocking secret scans at `kinnoo publish` time for registry-bound artifacts.
+
+### Onboarding complexity strategy update (2026-03-16)
+
+- Captured Phase 3 onboarding strategy in `notes/phases/phase3-notes-schema-complexity-thoughts.md`.
+- Decision recorded from user: proceed with Strategy 1 (smart defaults/inference) and Strategy 2 (analyzer + wizard), defer Strategy 3 (`--ai` manifest generation).
+- `feature19` redesigned as analyzer-backed `kinnoo import` with confirm-first wizard UX.
+- Added new `feature27` for reusable analyzer module and detector set (`entrypoint`, `runtime`, `framework`, `dependencies`, `env_vars`, `assets`, `services`).
+- Registry roadmap IDs were shifted forward to avoid collision after adding feature27:
+  - `feature28`: Registry Backend Abstraction & Remote Client
+  - `feature29`: Remote Registry Server
+  - `feature30`: Registry Web UI
+- Sequencing update (explicit): implement feature23-feature26 first, then feature27, then feature19.
+- Manifest updates validated with `python3 src/validate_project_manifests.py` (pass).
+
+### Feature19 import model refinement (2026-03-16)
+
+- Updated `feature19` to in-place onboarding: `kinnoo import [path]` (default `.`), no `<new-agent-dir>` argument.
+- Removed copy/scaffold-clone expectation from ACs; import now writes `kinnoo.yaml` into target project without modifying existing source files.
+- Added explicit acceptance criterion for entrypoint compatibility handling: warning-first, non-blocking default, optional wrapper generation path.
+- Directional rationale: maximize adoption by adding kinnoo metadata to existing projects instead of requiring a duplicate project tree.
+
+### Feature19 implementation planning (2026-03-16)
+
+- Added task decomposition for feature19: `task163`-`task167` in `TASKS.txt`.
+- Added test plan for feature19: `test252`-`test262` in `TESTS.txt` with AC coverage mapping for AC1-AC10.
+- Updated `FEATURES.txt` feature19 `tasks` list to include `task163`-`task167`.
+- Corrected feature19 AC5 wording to reflect in-place rollback semantics (no `<new-agent-dir>` model).
+- Replaced `notes/swe-handoff.md` with a dedicated feature19 SWE handoff brief.
+
+Created 10 features (feature20–feature29) for Phase 3: "Share any agent. Run it with its full stack."
+
+### Decomposition from Phase 3 Notes (6 high-level → 10 features)
+
+The 6 high-level features from `notes/phases/phase3-notes-opus-4-6.md` were decomposed as follows:
+
+1. **Remote Registry** (3-4 weeks) → split into 3 features:
+   - **feature27**: Registry Backend Abstraction & Remote Client (CLI-side protocol + HTTP client)
+   - **feature28**: Remote Registry Server (FastAPI + S3 + JSON metadata + auth)
+   - **feature29**: Registry Web UI (Jinja2 templates, session auth, browsing)
+
+2. **Flexible Runtime Inputs** (3-5 days) → 1 feature:
+   - **feature20**: No-input run + `--` pass-through arguments + `inputs.required` schema field
+
+3. **Service Declarations & Health Checks** (1.5-2.5 weeks) → split into 2 features:
+   - **feature24**: Service Declarations Schema (manifest `services` section + validation only)
+   - **feature25**: Service Health Checks Runtime (preflight checks: HTTP, TCP, process)
+
+4. **Data & Asset Bundling** (4-7 days) → 1 feature:
+   - **feature22**: Manifest `data` section, pack/install integration, size warnings
+
+5. **MCP Server Packaging & Client Templates** (2-3 weeks) → split into 2 features:
+   - **feature23**: MCP Server Runtime Type (schema + supervisor lifecycle in run_command)
+   - **feature26**: MCP Server Packages & Client Templates (FS MCP server, GitHub MCP server, mcp-client template, permissions)
+
+6. **Framework & Template Expansion** (1-1.5 weeks) → 1 feature:
+   - **feature21**: PydanticAI, LangGraph, OpenAI Agents SDK templates
+
+### Implementation Order (recommended)
+
+**Wave 1 — Quick wins, independent (parallel):**
+- feature20 (Flexible Runtime Inputs) — small, high-value
+- feature21 (Framework Templates) — self-contained, no cross-cutting changes
+- feature22 (Data Bundling) — small, builds on existing pack/install
+
+**Wave 2 — New runtime type:**
+- feature23 (MCP Server Runtime Type) — establishes `mcp-server` in schema + supervisor
+
+**Wave 3 — Schema extensions:**
+- feature24 (Service Declarations Schema) — schema-only, clean
+
+**Wave 4 — MCP ecosystem:**
+- feature26 (MCP Packages & Client Templates) — depends on feature23 + feature21
+
+**Wave 5 — Runtime integration:**
+- feature25 (Service Health Checks) — depends on feature24, benefits from feature23
+
+**Wave 6 — Registry (longest tail, can overlap with waves 2-5):**
+- feature27 (Registry Client Abstraction) — start anytime
+- feature28 (Registry Server) — depends on feature27
+- feature29 (Registry Web UI) — depends on feature28
+
+### Regression Risk Summary
+
+| Feature | Risk | Tests to Verify |
+|---------|------|-----------------|
+| feature20 | HIGH — changes `kinnoo run` argparse (input is currently required positional) | test_cli.py, test_install.py |
+| feature21 | MEDIUM — adds --framework choices to cli.py/init_command.py | test_init.py, test_cli.py |
+| feature22 | MEDIUM — changes pack/install archive handling | test_pack.py, test_cli_install.py, test_cli_install_extract.py |
+| feature23 | HIGH — adds `mcp-server` to SUPPORTED_RUNTIME_TYPES, may break validator tests that assert only `one-shot` | test_validator.py |
+| feature24 | LOW — additive schema change only | test_validator.py |
+| feature25 | LOW — additive runtime behavior | test_cli.py (preflight tests) |
+| feature26 | MEDIUM — new --framework choice + permissions schema | test_init.py, test_validator.py |
+| feature27 | HIGH — refactors publish/install/list/search internals | test_cli.py, test_cli_install.py, test_install.py |
+| feature28 | NONE — new server app, separate from CLI | (new server tests) |
+| feature29 | NONE — extends server app | (new server tests) |
+
+### Key Design Decisions
+
+- Split Remote Registry into 3 features (client → server → UI) to allow incremental delivery and review
+- Split MCP into runtime type + packages to avoid a monolithic feature
+- Split Service Declarations into schema + runtime for cleaner separation of concerns
+- All features have explicit regression notes in YAML so SWE agents know which test suites to run
+- Manifest validator passes after all additions (confirmed via `python3 src/validate_project_manifests.py`)
+
+---
+
+## Feature20 SWE Handoff Created (2026-03-15)
+
+- Created dedicated handoff brief at `notes/features/feature20-notes.md`.
+- Handoff includes:
+  - ordered execution plan for `task121` -> `task124`
+  - per-task file targets and expected tests
+  - full AC-to-test mapping for feature20 (AC1-AC8)
+  - explicit regression test commands and risk callouts
+- Branching guidance included: `phase3/feature20/main` + per-task branches.
+
+
 ## Feature18 Task Breakdown (2026-03-13)
 
 - Created 4 tasks (task116–task119) and 16 tests (test149–test164) for feature18 "Input Safety Guard".
@@ -135,6 +258,13 @@ print(result)
 - This works because MVP treats agents as black boxes — no framework awareness needed.
 
 ### V2+ Framework Adapters (Post-MVP)
+
+## Feature40 Review Snapshot (2026-03-19)
+
+- Reviewed feature40 (Archive Signing & Publisher Verification) implementation against tasks `task219`-`task223` and tests `test317`-`test321`.
+- Feature40 focused AC gate passes (`5 passed`) for keygen, pack signing, install signature verification, unsigned warning/confirmation, and registry publisher key association.
+- Required full regression command `python3 -m pytest --testmon` is currently red with cross-feature install regressions caused by stricter unsigned publisher enforcement defaults.
+- Merge recommendation: blocked until install compatibility policy is reconciled and full regression returns green.
 - When framework-specific features add value, implement as coherent V2 feature set:
 
 - Feature N: Framework-Aware Scaffolding
@@ -1243,4 +1373,294 @@ This sequence covers the core agent sharing workflow.
 2. Add explicit publish manifest metadata validation before copy (agent name/version consistency checks).
 3. Emit deterministic, parse-friendly output lines for CI and future UX tooling.
 4. Keep untagged rollover logic isolated in a small utility to simplify future remote-registry adapter parity.
+
+---
+
+## What You Have After Feature 1–41 (Pre-1.0 Assessment)
+
+### What kinnoo is at that point
+
+After all 41 features are implemented, kinnoo is a **multi-runtime, security-conscious CLI tool for packaging, distributing, inspecting, and running AI agents** — essentially `npm`/`pip` meets `docker` for the agent ecosystem.
+
+Here is what a developer can do with it:
+
+**Core lifecycle (Python and Node.js):**
+- `kinnoo init <name>` — scaffold a new agent project from a growing library of framework templates (vanilla Python, Gemini, ChatGPT, Claude, PydanticAI, LangGraph, OpenAI Agents SDK, OpenClaw, MCP client/server)
+- `kinnoo run <dir> "<input>"` — validate manifest, resolve env vars, install deps, execute entrypoint, stream output — one command
+- `kinnoo pack <dir>` — bundle code + deps + assets + state snapshots + checksums + signature into a portable `.kno` archive (zip-based)
+- `kinnoo install <archive.kno>` or `kinnoo install <name>` — extract, verify integrity/signature, install deps, run security sweep, ready to run
+- `kinnoo publish <name>` — push a versioned archive to a registry (local mock in v1, remote in feature28-30)
+
+**Transparency and trust (the real differentiator):**
+- `kinnoo inspect` — read-only metadata preview for archives and directories, including env var name disclosure, dependency summary, checksum, archive size, and heuristic security sweep
+- `kinnoo run --preflight` — non-destructive readiness checklist (runtime version, env vars, entrypoint, deps, service health) before execution
+- Input safety guard — regex-based injection detection (SQL, shell, path traversal, SSRF, XSS, template injection) with pluggable Protocol design
+- Heuristic code sweep at pack and inspect time — flags env var exposure patterns across Python, JS/TS, and JSON files
+- Archive checksums (SHA256 sidecar) and Ed25519 signing for integrity + publisher authenticity
+- Manifest permissions model — declared capabilities (network, filesystem, shell, browser) with install-time consent and sandbox enforcement
+- Runtime behavior monitoring with kill-switch — policy enforcement, resource limits, behavioral telemetry
+- Node.js dependency audit with CVE gating and lifecycle script visibility
+
+**Multi-runtime support:**
+- Python: venv-based isolation, pip/wheel offline install, one-shot and MCP server runtime types
+- Node.js: npm/pnpm package manager awareness, node_modules exclusion from archives, .js/.mjs execution, daemon runtime type
+- OpenClaw: framework-aware scaffold, import detection, skill/memory/identity conventions, state directory snapshots
+
+**Onboarding for existing projects:**
+- `kinnoo import [path]` — analyzer-backed wizard that infers manifest fields from project structure (entrypoint, runtime, framework, deps, env vars, assets, services) with confidence-aware output
+
+**Registry (partially implemented — features 28-30 paused):**
+- Local archive management with `kinnoo list`, `kinnoo search`
+- Mock registry publish/install with versioning and overwrite protection
+- Remote registry client abstraction ready but server not built yet
+
+### How to describe it to a developer
+
+> **Kinnoo is a CLI tool that lets you package, share, and run AI agents — like Docker for agent projects.** You define a manifest (`kinnoo.yaml`), and kinnoo handles dependency isolation, environment setup, security scanning, and reproducible execution across Python and Node.js runtimes. It works with any LLM framework (LangChain, PydanticAI, OpenAI Agents SDK, OpenClaw, etc.) and provides built-in input safety guards, archive signing, and a permissions model that keeps humans in control of what agents can do.
+
+### What is genuinely missing before a 1.0 release
+
+This is the honest gap list, ordered roughly by priority for external adoption:
+
+#### 1. Remote registry (features 28-30) — currently paused
+Without a real remote registry, there is no `pip install <agent>` equivalent. Developers can share `.kno` files manually, but there is no `kinnoo install my-cool-agent` from a hosted source. This is the **single biggest gap** for adoption. Features 28-30 cover the backend abstraction, FastAPI server, and web UI. They are paused, not cancelled — but they are the bridge between "useful personal tool" and "developer platform."
+
+#### 2. Real-world testing with actual agents
+Every feature has unit and integration tests, but kinnoo has not yet been battle-tested against a diverse set of real-world agents across different frameworks and dependency trees. Before 1.0 you need:
+- A handful of non-trivial agents (multi-dep, framework-heavy, MCP servers, daemon processes) packed, published, installed, and run through the full lifecycle
+- Edge case exposure: large dependency trees, platform-specific wheels, slow network installs, agents with mutable state
+- At least one external developer (not you) trying `kinnoo init` → `kinnoo pack` → `kinnoo install` cold, with no guidance beyond the README
+
+#### 3. Documentation for humans
+The README is functional but internal-facing. A 1.0 needs:
+- **Quickstart guide** — 5 minutes from install to running your first agent
+- **Manifest reference** — complete field-by-field docs (you have `docs/manifest-schema-reference.md` but it needs to stay current with V4 schema additions)
+- **Security model explainer** — what kinnoo checks, when, and what it does not protect against (honest threat model)
+- **Framework guides** — one page per supported framework showing init → configure → pack → share flow
+- **CLI reference** — every command, every flag, one-line description, example
+
+#### 4. Polish and UX cleanup
+- Error messages should be reviewed end-to-end for consistency (capitalization, formatting, actionable guidance)
+- Output formatting across commands should feel like one tool, not 41 features bolted together
+- `--help` text for every subcommand needs to be useful and accurate
+- Exit codes should be documented and consistent (0 = success, 1 = user error, 2 = internal error, etc.)
+- Consider adding `--json` output mode for commands like `inspect`, `list`, `search` for CI/tooling integration
+
+#### 5. Packaging and distribution of kinnoo itself
+- `pip install kinnoo` should work from PyPI (you have pyproject.toml but need to verify the publish pipeline)
+- `brew install kinnoo` or `npx kinnoo` would lower friction significantly
+- Verify the tool works on Linux and Windows (you have been developing on macOS)
+
+#### 6. TypeScript entrypoint support
+Feature31 explicitly defers TS transpilation — only `.js/.mjs` execution. If you are targeting OpenClaw and the broader JS/TS ecosystem, many agents will be written in TypeScript. You need either `tsx`/`ts-node` integration or a pre-run transpile step. This is a gap that real Node.js developers will hit immediately.
+
+#### 7. Versioning and upgrade story
+- What happens when you `kinnoo install agent-v2` and already have `agent-v1` installed? Side-by-side? Overwrite? Currently this is partially handled but the UX around versioned agent management on disk is not fully cohesive.
+- Schema versioning: when the manifest schema changes, what happens to old `.kno` archives? Forward/backward compatibility story needs to be explicit.
+
+#### 8. CI/CD integration story
+You have `--yes` flags and non-interactive modes, but there is no documented GitHub Actions / CI pipeline example showing: lint manifest → pack → publish → install → run → verify exit code. This is table-stakes for developer adoption.
+
+### What you do NOT need for 1.0
+
+To keep scope honest, these are things that are **nice-to-have but not blocking**:
+- Full OpenClaw gateway orchestration (explicitly deferred)
+- ML-based input guard (Protocol is ready, regex is fine for 1.0)
+- Channel/QR onboarding UX
+- Deep syscall-level runtime monitoring (baseline process monitoring is enough)
+- Marketplace / monetization / agent ratings
+- GPU/hardware requirement declarations
+- Multi-agent orchestration or composition primitives
+
+### Honest self-assessment
+
+After feature 1-41, kinnoo is a **genuinely useful and differentiated tool** that solves a real problem no one else is solving well. The security posture (input guard, code sweep, permissions, signing, monitoring) is far ahead of anything in the agent ecosystem today. The multi-runtime story (Python + Node.js + OpenClaw) covers the two ecosystems where 95%+ of agents live.
+
+The gap between "feature-complete" and "1.0 release" is mostly **distribution, documentation, and real-world validation** — not more features. The registry (features 28-30) is the one significant missing feature set, and even without it, kinnoo is useful for local and team workflows with manual `.kno` file sharing.
+
+If you are preparing for AI Engineer interviews, kinnoo already demonstrates: manifest-driven packaging, multi-runtime orchestration, Protocol-based extensibility (input guard, registry backend, health checks), defense-in-depth security design, and a CLI architecture that follows the same patterns as Docker, npm, and pip. That is a strong portfolio piece regardless of whether the registry ships before your interviews.
+
 5. Mark old feature12 local-registry install/list/search scope as deprecated or explicitly out-of-scope after refactor to avoid dual-behavior confusion.
+
+#### Summary of the section:
+
+After all 41 features, kinnoo is a multi-runtime, security-conscious CLI tool for packaging, distributing, inspecting, and running AI agents — covering the full lifecycle across Python, Node.js, and OpenClaw with 9 framework templates, archive signing, input safety guards, a permissions model, and runtime monitoring.
+
+#### The 8 gaps before a real 1.0 release:
+
+- Remote registry (features 28-30, paused) — the single biggest adoption blocker
+- Real-world testing with diverse, non-trivial agents
+- Human-facing documentation — quickstart, manifest reference, security model, framework guides
+- UX polish — consistent error messages, help text, exit codes, --json output mode
+- Distribution of kinnoo itself — PyPI publish pipeline, cross-platform verification
+- TypeScript entrypoint support — .ts execution is deferred but Node devs will expect it
+- Versioning/upgrade story — side-by-side installs, schema forward-compatibility
+- CI/CD integration examples — documented GitHub Actions pipeline
+- The takeaway: the gap from feature-complete to 1.0 is distribution, docs, and validation — not more features. You already have a genuinely differentiated tool.
+
+## AI Workflow Strategy Guidance (2026-03-22)
+
+This is a great question and worth thinking through carefully. I'll give you a direct assessment based on what I've observed in the kinnoo codebase.
+
+## Your Current Approach
+
+You're running a **task-serial pipeline**: Tech Lead defines feature -> breaks into tasks -> SWE agent does one task -> review -> next task. Looking at your manifest files, feature3 (`kinnoo run`) was 8 tasks (task7-task14), each individually implemented and reviewed. Feature10 (`env_vars`) was 6 tasks (task53-task58). That's 6-8 round trips per feature, each with a handoff brief, implementation, review, status updates, and manifest bookkeeping.
+
+## The Spec-Driven One-Shot Alternative
+
+The idea: instead of 8 serial agent sessions for feature3, you write one comprehensive spec document that includes:
+- Full feature description with all edge cases
+- All acceptance criteria
+- All test specifications (inputs, expected outputs, pass criteria)
+- Architectural constraints and file-change scope
+
+Then hand the entire bundle to an SWE agent and say: "Implement until all tests pass."
+
+## Concrete Kinnoo Example: How You'd Do It
+
+Take **feature3 (kinnoo run)** as a retrospective example. Instead of 8 separate tasks, you'd produce one spec file like this:
+
+```markdown
+# Feature Spec: kinnoo run — Agent Execution from Source
+
+## Scope
+Implement `kinnoo run <path> "<input>"` end-to-end in a single pass.
+
+## Files to Create/Modify
+- src/kinnoo/cli.py (add run subcommand)
+- src/kinnoo/run_command.py (new module)
+- tests/test_cli.py (add run tests)
+
+## Behavioral Contract
+1. Validate kinnoo.yaml via existing validator; abort with errors if invalid/missing
+2. Create .venv/ in agent dir if absent; skip if present
+3. Install requirements.txt into .venv/ via pip
+4. Execute entrypoint with input as sys.argv[1]
+5. Stream stdout+stderr in real-time
+6. Propagate exit code
+7. Print usage error if args missing
+8. Print error if entrypoint file missing
+
+## Test Specifications
+
+### test_run_invalid_manifest
+- Setup: agent dir with invalid kinnoo.yaml
+- Run: python src/kinnoo/cli.py run <dir> "input"
+- Assert: exit != 0, stderr contains "Error"
+
+### test_run_creates_venv
+- Setup: valid agent dir, no .venv/
+- Run: python src/kinnoo/cli.py run <dir> "input"
+- Assert: .venv/ exists after run
+
+### test_run_installs_requirements
+- Setup: agent dir with requirements.txt containing `requests`
+- Run: python src/kinnoo/cli.py run <dir> "input"
+- Assert: requests importable from .venv/
+
+### test_run_entrypoint_input
+- Setup: entrypoint that prints sys.argv[1]
+- Run: python src/kinnoo/cli.py run <dir> "hello world"
+- Assert: stdout contains "hello world"
+
+### test_run_streams_output
+- Setup: entrypoint that writes to stdout and stderr
+- Assert: both captured in output
+
+### test_run_exit_code
+- Setup: entrypoint that exits with code 42
+- Assert: CLI exits with 42
+
+### test_run_missing_args
+- Run: python src/kinnoo/cli.py run (no args)
+- Assert: exit != 0, output contains "Usage"
+
+### test_run_missing_entrypoint
+- Setup: manifest declares run.py but file doesn't exist
+- Assert: exit != 0, output contains error about missing entrypoint
+
+## Constraints
+- Use validator from src/kinnoo/validator.py (no duplicate validation)
+- CLI invocation in tests: python src/kinnoo/cli.py, not python -m kinnoo
+- No file modifications outside agent directory
+- No secret values in output
+```
+
+Then you'd give the SWE agent one instruction: **"Implement this spec. Iterate until all 8 tests pass. Run `python3 -m pytest tests/test_cli.py -k test_run` after each change."**
+
+## Pros and Cons
+
+### Your Current Approach (Task-Serial)
+
+**Pros:**
+- Maximum control and visibility at every step
+- Easy to catch architectural drift early - you review after each small unit
+- Natural learning cadence - you see each piece land and understand it
+- Low blast radius when an agent goes sideways (one task, not an entire feature)
+- Manifest/status tracking gives you a paper trail of exactly what happened when
+
+**Cons:**
+- Slow: 8 round trips for feature3, each with handoff overhead, context reload, manifest bookkeeping
+- Context fragmentation: agent loses state between sessions; you compensate with handoff briefs
+- Manifest management tax: updating TASKS.txt, TESTS.txt, FEATURES.txt, running validator, writing task-notes.md files for every atomic unit is real overhead
+- Over-decomposition risk: some tasks (like task11 "stream stdout" and task12 "propagate exit code") are 5-line changes that don't need their own task lifecycle
+
+### Spec-Driven One-Shot
+
+**Pros:**
+- Dramatically faster for well-scoped features - one session instead of 8
+- Agent has full context in one pass, so implementation decisions are globally coherent
+- Test-driven: agent has concrete pass/fail signals and can self-correct
+- Less manifest/bookkeeping overhead per feature
+- Better utilization of agent capability - LLMs are good at implementing against a complete spec
+
+**Cons:**
+- Requires higher up-front investment in spec quality - vague specs produce vague code
+- Larger blast radius: if the agent goes down a wrong architectural path, it taints the whole feature
+- Harder to review: a 400-line PR is harder to evaluate than six 50-line PRs
+- Debugging failures takes longer - "test 6 of 8 fails" could be a deep structural issue
+- Less learning opportunity for you per unit of output - you see the finished product, not the construction process
+
+## My Assessment
+
+**You should use both approaches, depending on the work.**
+
+Here's the heuristic:
+
+| Characteristic | One-Shot Friendly | Task-Serial Friendly |
+|---|---|---|
+| Well-understood domain | Yes | — |
+| Clear input/output contract | Yes | — |
+| Isolated module (few cross-cutting deps) | Yes | — |
+| Novel architecture or design decisions | — | Yes |
+| Security-sensitive (secrets, auth, permissions) | — | Yes |
+| Multi-system integration (server + client + UI) | — | Yes |
+| You want to learn the internals | — | Yes |
+
+**Concrete kinnoo examples:**
+
+**One-shot candidates** (you already know the shape; it's execution, not design):
+- feature3 (`kinnoo run`) - 8 tasks that are really one coherent module
+- feature5 (`kinnoo pack`) - 6 tasks, well-defined archive contract
+- feature6 (`kinnoo install`) - extraction/venv/deps, clear input->output
+- feature9 (optional V2 manifest fields) - schema extension, straightforward
+- feature11 (inspect command) - read-only query command, simple contract
+- **task255** (the corpus matrix you just defined) - perfect one-shot candidate: clear inputs (agents-map.txt), clear outputs (test pass/fail), isolated test file
+
+**Task-serial candidates** (design decisions, security boundaries, multi-system):
+- feature43 (auth/user/tenant management) - security-critical, needs review at each boundary
+- features 28-30 (registry backend/server/web UI) - cross-system integration, architectural choices
+- feature39 (permission declarations) - security policy design requires iterative review
+- feature10 (env_vars resolution chain) - secret-handling code where you explicitly want to review each resolution layer
+
+**Hybrid approach for maximum leverage:**
+
+For your next feature, try this workflow:
+1. **You** (or Tech Lead agent) write the spec + test specifications up front - invest the time here
+2. **One SWE agent session** implements the full spec and iterates until tests pass
+3. **You review the PR as a whole** - one review instead of 8
+4. Reserve task-serial for security-sensitive or architecturally novel work where you need per-step oversight
+
+The key insight: **the bottleneck in your current workflow isn't the AI agent's capability - it's the context-reload and handoff overhead between sessions.** A well-written spec eliminates that overhead by giving the agent everything it needs in one shot.
+
+Your manifest system (FEATURES.txt / TASKS.txt / TESTS.txt) is still valuable as a planning and tracking tool. You'd still define the feature and tests up front. You'd just collapse the execution from N serial sessions into 1 session with a comprehensive spec.

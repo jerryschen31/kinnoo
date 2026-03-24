@@ -3,7 +3,7 @@ from __future__ import annotations
 # Manifest normalization: inject defaults for missing fields
 # ---------------------------------------------------------------------------
 def normalize_manifest_defaults(manifest: dict) -> dict:
-    """Inject defaults for dependencies, inputs, outputs if missing."""
+    """Inject defaults for dependencies, inputs, outputs, and assets fields."""
     m = dict(manifest)  # shallow copy
     if "dependencies" not in m:
         m["dependencies"] = []
@@ -15,6 +15,16 @@ def normalize_manifest_defaults(manifest: dict) -> dict:
         m["outputs"] = {"type": "string"}
     elif "type" not in m["outputs"]:
         m["outputs"]["type"] = "string"
+
+    if "assets" in m and isinstance(m["assets"], dict):
+        m["assets"] = dict(m["assets"])  # avoid mutating original nested object
+        if "paths" not in m["assets"]:
+            m["assets"]["paths"] = []
+        if "bundle" not in m["assets"]:
+            m["assets"]["bundle"] = True
+        if "max_bundle_size_mb" not in m["assets"]:
+            m["assets"]["max_bundle_size_mb"] = 100
+
     return m
 
 # ---------------------------------------------------------------------------
@@ -85,8 +95,88 @@ FIELD_TYPES: dict[str, type] = {
     "outputs.type": list,
 }
 
-# The only supported runtime type in this version of kinnoo.
-SUPPORTED_RUNTIME_TYPES: list[str] = ["one-shot"]
+# Supported runtime types in this version of kinnoo.
+SUPPORTED_RUNTIME_TYPES: list[str] = ["one-shot", "mcp-server", "daemon"]
+
+# Supported runtime languages in this version of kinnoo.
+SUPPORTED_RUNTIME_LANGUAGES: list[str] = ["python", "nodejs"]
+
+# Supported manifest I/O contract type values.
+# Keep both 'text' and 'string' for backward compatibility with existing
+# manifests and default normalization behavior.
+SUPPORTED_INPUT_TYPES: list[str] = ["text", "string", "file", "json"]
+SUPPORTED_OUTPUT_TYPES: list[str] = ["text", "string", "file", "json"]
+
+# Supported Node.js package managers for runtime.language == nodejs.
+SUPPORTED_NODE_PACKAGE_MANAGERS: list[str] = ["npm", "pnpm"]
+
+# Feature23 readiness probe method values for mcp-server runtime workflows.
+SUPPORTED_READINESS_METHODS: list[str] = ["tcp", "stdout"]
+
+# Feature24 service declaration types for optional manifest services entries.
+SUPPORTED_SERVICE_TYPES: list[str] = [
+    "mcp-server",
+    "vector-db",
+    "database",
+    "api",
+    "local-process",
+    # Backward-compatible aliases accepted by validator.
+    "postgres",
+    "redis",
+    "http-api",
+    "process",
+]
+
+# Backward-compatibility aliases mapped to canonical feature24 taxonomy.
+SERVICE_TYPE_ALIASES: dict[str, str] = {
+    "postgres": "database",
+    "redis": "database",
+    "http-api": "api",
+    "process": "local-process",
+}
+
+# Feature24 health-check method values for service declarations.
+SUPPORTED_HEALTH_CHECK_METHODS: list[str] = ["tcp", "http", "process"]
+
+# Feature26 manifest permissions keys for runtime.type == mcp-server.
+MCP_SERVER_PERMISSION_KEYS: list[str] = [
+    "read_only",
+    "allow_write",
+    "allow_create",
+    "allowed_paths",
+]
+
+MCP_SERVER_PERMISSION_BOOL_FIELDS: list[str] = [
+    "read_only",
+    "allow_write",
+    "allow_create",
+]
+
+# Feature39 manifest permissions keys for explicit sandbox policy declarations.
+PERMISSIONS_KEYS: list[str] = [
+    "network",
+    "filesystem_scope",
+    "shell",
+    "browser",
+    "env_access",
+]
+
+PERMISSIONS_BOOL_FIELDS: list[str] = [
+    "network",
+    "shell",
+    "browser",
+]
+
+SUPPORTED_FILESYSTEM_SCOPES: list[str] = [
+    "none",
+    "read-only",
+    "workspace-write",
+    "full",
+]
+
+# Feature25 default timeout values for runtime service health checks.
+DEFAULT_HTTP_HEALTH_CHECK_TIMEOUT_SECONDS: float = 5.0
+DEFAULT_TCP_HEALTH_CHECK_TIMEOUT_SECONDS: float = 3.0
 
 # Optional V2 manifest metadata fields (feature9).
 # These are intentionally optional and should not be included in REQUIRED_FIELDS.
@@ -95,15 +185,43 @@ OPTIONAL_FIELDS: list[str] = [
     "author",
     "license",
     "env_vars",
+    "runtime.path",
+    "runtime.run_command",
+    "runtime.package_manager",
+    "channels",
+    "skills",
+    "state_dirs",
+    "inputs.required",
+    "model",
+    "assets",
+    "assets.paths",
+    "assets.bundle",
+    "assets.max_bundle_size_mb",
+    "services",
+    "permissions",
 ]
 
 # Expected types for optional V2 fields when present.
 # Enforced in a later validation phase to keep feature rollout scoped by task.
-OPTIONAL_FIELD_TYPES: dict[str, type] = {
+OPTIONAL_FIELD_TYPES: dict[str, object] = {
     "description": str,
     "author": str,
     "license": str,
     "env_vars": list,
+    "runtime.path": str,
+    "runtime.run_command": str,
+    "runtime.package_manager": str,
+    "channels": list,
+    "skills": list,
+    "state_dirs": list,
+    "inputs.required": bool,
+    "model": str,
+    "assets": dict,
+    "assets.paths": list,
+    "assets.bundle": bool,
+    "assets.max_bundle_size_mb": (int, float),
+    "services": list,
+    "permissions": dict,
 }
 
 # Regex for a valid semver string: MAJOR.MINOR.PATCH with optional pre-release
