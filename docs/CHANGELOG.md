@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.28.0] - 2026-03034
+### Added
+- Better support for openclaw agents
+- Improved kinnoo import
+- UX improvements
+
+### Changed
+- Added --full, --update, --raw flags to kinnoo inspect
+
 
 ## [v0.27.0] - 2026-03-20
 ### Added
