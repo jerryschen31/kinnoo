@@ -2194,7 +2194,7 @@ tasks:
       - 'step7: Ensure the module is importable and `get_default_guard()` returns an instance with both `check` and `check_inputs` methods'
     dependencies: []
     tests: [test149, test150]
-    status: needs-review
+    status: completed
 
   - id: task117
     title: "RegexInputGuard — comprehensive injection pattern library"
@@ -2276,7 +2276,7 @@ tasks:
       - 'step6: Ensure each pattern can be tested individually via the PATTERNS dict'
     dependencies: [task116]
     tests: [test151, test152, test153, test154, test155, test156, test157, test158, test159]
-    status: needs-review
+    status: completed
 
   - id: task118
     title: "CLI --no-guard flag and run_command integration"
@@ -2310,7 +2310,7 @@ tasks:
       - 'step6: Ensure the guard does not run in preflight mode (preflight=True already returns early, but verify)'
     dependencies: [task117]
     tests: [test160, test161, test162, test163]
-    status: needs-review
+    status: completed
 
   - id: task119
     title: "Docs and regression coverage for feature18"
@@ -2331,7 +2331,7 @@ tasks:
       - 'step3: Add test_feature18_docs_cover_input_safety_guard test in test_docs.py asserting required feature18 documentation strings are present'
     dependencies: [task116, task117, task118]
     tests: [test164]
-    status: needs-review
+    status: completed
 
   - id: task120
     title: "Reduce SQL comment false positives while preserving detection rigor"
@@ -2353,4 +2353,3349 @@ tasks:
       - 'step4: Re-run feature18 tests and full suite to verify precision improvements do not regress category coverage'
     dependencies: [task117]
     tests: [test165, test166]
+    status: completed
+
+  - id: task121
+    title: "Add inputs.required manifest field"
+    type: task
+    description: |
+      Extend manifest schema and validation to support `inputs.required` as an optional
+      boolean field (default behavior true). This field is used by feature20 to allow
+      no-input execution mode for agents that do not require user input.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+      - tests/test_validator.py
+    steps:
+      - 'step1: Add `inputs.required` to optional schema/validation type maps as boolean'
+      - 'step2: Ensure manifests without `inputs.required` remain valid and behave as required=true'
+      - 'step3: Emit clear validator errors when `inputs.required` is present but non-boolean'
+      - 'step4: Add/extend validator tests for valid and invalid `inputs.required` values'
+    dependencies: [task50]
+    tests: [test167, test168, test169]
+    status: completed
+
+  - id: task122
+    title: "Update run CLI parsing for no-input and pass-through"
+    type: task
+    description: |
+      Update `kinnoo run` argument parsing to support both no-input mode and
+      parameterized pass-through arguments after `--`, while preserving existing
+      single positional input behavior.
+    files:
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Adjust run parser to support optional positional input plus pass-through remainder'
+      - 'step2: Ensure arguments after `--` are captured and forwarded to run_command'
+      - 'step3: Preserve current usage/errors for legacy single-input invocation'
+      - 'step4: Add CLI tests for no-input, pass-through, and backward compatibility'
+    dependencies: [task121]
+    tests: [test170, test171, test172]
+    status: completed
+
+  - id: task123
+    title: "Implement run_command flexible input execution flow"
+    type: task
+    description: |
+      Implement runtime behavior for no-input and pass-through input execution in
+      `run_command`, including input guard aggregation over pass-through arguments and
+      continued support for `--no-guard`.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/input_guard.py
+      - tests/test_input_guard_integration.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Allow execution without positional input when manifest declares `inputs.required: false`'
+      - 'step2: Forward pass-through argv entries to subprocess after entrypoint path'
+      - 'step3: Run guard over pass-through arguments using aggregated `check_inputs()` when guard is enabled'
+      - 'step4: Ensure `--no-guard` bypasses guard checks in all input modes'
+      - 'step5: Add integration tests for reject/proceed/no-guard behavior in pass-through mode'
+    dependencies: [task122, task118]
+    tests: [test173, test174, test175, test176]
+    status: completed
+
+  - id: task124
+    title: "Feature20 regression suite verification"
+    type: task
+    description: |
+      Verify feature20 changes do not break existing V2 functionality and tests,
+      especially legacy `kinnoo run <dir> \"<input>\"` behavior and install/run flows.
+    files:
+      - tests/test_cli.py
+      - tests/test_install.py
+      - tests/test_regression_v1.py
+    steps:
+      - 'step1: Run targeted legacy run/install tests after feature20 implementation'
+      - 'step2: Confirm legacy single-input invocation behavior remains unchanged'
+      - 'step3: Add a focused regression assertion covering feature20 backward compatibility contract'
+      - 'step4: Record pass/fail evidence in task notes before handoff to review'
+    dependencies: [task123]
+    tests: [test177]
+    status: completed
+
+  - id: task125
+    title: "Feature20 merge-fix: enforce required input and refresh run usage guidance"
+    type: task
+    description: |
+      Address TechLead merge findings for feature20 by enforcing strict required-input
+      contract semantics (no bypass via pass-through args when `inputs.required: true`)
+      and updating `kinnoo run` usage/help text to include no-input and pass-through
+      invocation modes.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+      - FEATURES.txt
+    steps:
+      - 'step1: Enforce required positional input whenever `inputs.required` is true, even if pass-through args are present'
+      - 'step2: Add regression test for required=true + pass-through invocation without positional input (must fail)'
+      - 'step3: Update run usage/help text to document legacy, no-input, and pass-through invocation modes'
+      - 'step4: Add regression test asserting updated run usage/help guidance appears on missing-args path'
+    dependencies: [task123]
+    tests: [test178, test179]
+    status: completed
+
+  - id: task126
+    title: "Extend init --framework parsing for feature21"
+    type: task
+    description: |
+      Update CLI/init argument parsing to accept `pydantic-ai`, `langgraph`, and
+      `openai-agents` as supported framework values while preserving existing
+      framework behavior and error guidance for invalid inputs.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/init_command.py
+      - tests/test_init.py
+    steps:
+      - 'step1: Add new framework options to init parsing/validation paths'
+      - 'step2: Keep invalid-framework error output explicit and list all valid choices'
+      - 'step3: Confirm existing framework choices remain accepted without behavior changes'
+      - 'step4: Add/extend parser-focused tests for new and invalid choices'
+    dependencies: [task16]
+    tests: [test180, test181]
+    status: completed
+
+  - id: task127
+    title: "Generate framework templates and metadata artifacts"
+    type: task
+    description: |
+      Implement framework-specific template content for `pydantic-ai`, `langgraph`,
+      and `openai-agents`, including `run.py`, `requirements.txt`, `kinnoo.yaml`,
+      and README setup guidance.
+    files:
+      - src/kinnoo/templates.py
+      - src/kinnoo/init_command.py
+      - tests/test_init.py
+    steps:
+      - 'step1: Add template definitions for run/requirements/README for each new framework'
+      - 'step2: Pin framework dependencies to major-version ranges in requirements'
+      - 'step3: Ensure generated manifests include framework field and pass validator'
+      - 'step4: Add/extend tests for generated file contents and manifest validity'
+    dependencies: [task126, task18]
+    tests: [test182, test183, test184, test185, test186, test187]
+    status: completed
+
+  - id: task128
+    title: "Add runnable smoke tests for new frameworks"
+    type: task
+    description: |
+      Add runnable smoke coverage for generated `pydantic-ai`, `langgraph`, and
+      `openai-agents` templates using basic inputs and test-safe configuration,
+      validating the runtime contract and end-to-end `kinnoo run` compatibility.
+    files:
+      - tests/test_init.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Create smoke fixtures for each new framework using `kinnoo init --framework`'
+      - 'step2: Run `kinnoo run <dir> "hello"` for each fixture with deterministic test-safe config'
+      - 'step3: Assert non-empty stdout and absence of template-level execution errors'
+      - 'step4: Validate contract expectations (input handling/stdout path/env-var guidance) for each framework template'
+    dependencies: [task127, task10]
+    tests: [test188, test189, test190]
+    status: completed
+
+  - id: task129
+    title: "Feature21 regression gate for existing frameworks"
+    type: task
+    description: |
+      Run and codify regression checks proving that adding the three new
+      framework templates does not break existing `gemini`, `chatgpt`, and
+      `claude-chat` init/template behavior.
+    files:
+      - tests/test_init.py
+      - tests/test_cli.py
+      - tests/test_regression_v1.py
+    steps:
+      - 'step1: Execute existing framework template generation tests for gemini/chatgpt/claude-chat'
+      - 'step2: Add focused regression assertion that old frameworks remain valid and runnable at baseline level'
+      - 'step3: Capture regression evidence for handoff/review'
+    dependencies: [task126, task127, task128]
+    tests: [test191]
+    status: completed
+
+  - id: task130
+    title: "Feature21 dependency compatibility pinning update"
+    type: task
+    description: |
+      Replace placeholder `<1.0` dependency constraints with tested compatibility
+      ranges for framework templates. For stable major versions, use bounded major
+      ranges; for pre-1.0 frameworks, use explicitly tested bounded ranges or exact
+      tested pins.
+    files:
+      - src/kinnoo/templates.py
+      - src/kinnoo/init_command.py
+      - tests/test_init.py
+      - FEATURES.txt
+    steps:
+      - 'step1: Determine tested dependency versions/ranges for pydantic-ai, langgraph, and openai-agents templates'
+      - 'step2: Update requirements template strings to use compatibility bounds matching tested versions'
+      - 'step3: Add tests asserting constraints are stable-major bounded or explicit tested pre-1.0 pins'
+      - 'step4: Ensure AC4 wording and tests stay aligned with implemented version policy'
+    dependencies: [task127]
+    tests: [test192, test193]
+    status: completed
+
+  - id: task131
+    title: "Feature21 implement real PydanticAI runnable template"
+    type: task
+    description: |
+      Replace placeholder behavior in the `pydantic-ai` template with a real
+      framework-native runnable agent flow in `run.py`, including a test-safe mode
+      so CI can execute without external API calls.
+    files:
+      - src/kinnoo/templates.py
+      - src/kinnoo/init_command.py
+      - tests/test_init.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Implement PydanticAI template run.py using framework-native agent/model/tool constructs'
+      - 'step2: Add deterministic test-safe path for local execution with basic input when credentials/network are unavailable'
+      - 'step3: Update README guidance for real runtime path and test-safe mode behavior'
+      - 'step4: Add tests asserting framework-native code markers and runnable behavior with basic input'
+    dependencies: [task130, task128]
+    tests: [test194, test195]
+    status: completed
+
+  - id: task132
+    title: "Feature21 implement real LangGraph runnable template"
+    type: task
+    description: |
+      Replace placeholder behavior in the `langgraph` template with a real
+      graph-based runnable agent flow in `run.py`, including deterministic
+      test-safe execution support for CI.
+    files:
+      - src/kinnoo/templates.py
+      - src/kinnoo/init_command.py
+      - tests/test_init.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Implement LangGraph template run.py using state + graph/node execution constructs'
+      - 'step2: Add deterministic test-safe path for local basic-input runs without external API dependency'
+      - 'step3: Update README guidance for graph execution flow and test-safe mode behavior'
+      - 'step4: Add tests asserting framework-native graph constructs and runnable behavior with basic input'
+    dependencies: [task130, task128]
+    tests: [test196, test197]
+    status: completed
+
+  - id: task133
+    title: "Feature21 implement real OpenAI Agents runnable template"
+    type: task
+    description: |
+      Replace placeholder behavior in the `openai-agents` template with a real
+      framework-native runnable agent flow in `run.py` (agent/handoff or tools),
+      including deterministic test-safe execution support.
+    files:
+      - src/kinnoo/templates.py
+      - src/kinnoo/init_command.py
+      - tests/test_init.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Implement OpenAI Agents template run.py using framework-native agent workflow constructs'
+      - 'step2: Add deterministic test-safe path for local basic-input runs without external API dependency'
+      - 'step3: Update README guidance for production API path and local test-safe mode behavior'
+      - 'step4: Add tests asserting framework-native constructs and runnable behavior with basic input'
+    dependencies: [task130, task128]
+    tests: [test198, test199]
+    status: completed
+
+  - id: task134
+    title: "Feature21 optional kinnoo.yaml model metadata field"
+    type: task
+    description: |
+      Add support for an optional `model` field in generated `kinnoo.yaml` when
+      the template has a known default underlying model. Keep this metadata
+      non-breaking for agents where model is unknown or intentionally user-chosen
+      at runtime.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+      - src/kinnoo/templates.py
+      - src/kinnoo/init_command.py
+      - tests/test_validator.py
+      - tests/test_init.py
+    steps:
+      - 'step1: Define `model` as an optional manifest metadata field with clear type constraints'
+      - 'step2: Update validator/schema logic so existing manifests remain compatible when `model` is absent'
+      - 'step3: Populate known default model values in generated framework templates where appropriate'
+      - 'step4: Add tests for validator acceptance and template generation behavior with/without `model`'
+    dependencies: [task127, task50]
+    tests: [test200, test201]
+    status: completed
+
+  - id: task135
+    title: "Feature22 manifest assets schema and validation"
+    type: task
+    description: |
+      Add manifest support for optional `assets` object with `paths`, optional
+      `bundle`, and optional `max_bundle_size_mb` fields. Enforce type and
+      structure validation with clear errors and defaults.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+      - tests/test_validator.py
+    steps:
+      - 'step1: Define assets schema contract in validator/schema and keep backward compatibility for manifests without assets'
+      - 'step2: Validate `assets.paths` as list[string], `assets.bundle` as bool, and `assets.max_bundle_size_mb` as number when present'
+      - 'step3: Apply defaults (`bundle: true`, `max_bundle_size_mb: 100`) in normalized manifest handling'
+      - 'step4: Add tests for valid and invalid assets field structures with field-specific errors'
+    dependencies: [task50]
+    tests: [test202, test203]
+    status: completed
+
+  - id: task136
+    title: "Feature22 pack asset path inclusion and safety"
+    type: task
+    description: |
+      Extend pack flow to include declared asset files/directories recursively
+      when bundling is enabled, support bundle opt-out behavior, and enforce
+      path traversal protection plus missing-path warnings.
+    files:
+      - src/kinnoo/pack_command.py
+      - tests/test_pack.py
+    steps:
+      - 'step1: Collect asset paths from `assets.paths` and expand directories recursively into deterministic archive entries'
+      - 'step2: Respect `assets.bundle` default true; when false, skip inclusion and print informational message'
+      - 'step3: Reject traversal paths escaping agent root and warn (non-fatal) for missing declared asset paths'
+      - 'step4: Add tests for inclusion, opt-out, traversal rejection, and missing path warning behavior'
+    dependencies: [task135, task25]
+    tests: [test204, test205, test206, test207]
+    status: completed
+
+  - id: task137
+    title: "Feature22 install extraction and inspect visibility"
+    type: task
+    description: |
+      Ensure bundled assets extract into the installed agent directory preserving
+      relative paths and expose asset path/size metadata in inspect output for
+      both source directories and archives.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/inspect_command.py
+      - tests/test_cli_install_extract.py
+      - tests/test_cli_inspect.py
+    steps:
+      - 'step1: Verify/install extraction behavior preserves bundled asset relative paths and directory structure'
+      - 'step2: Extend inspect output to display declared asset paths and computed sizes'
+      - 'step3: Keep behavior stable for both inspect target modes (agent dir and archive)'
+      - 'step4: Add tests for install extraction and inspect asset visibility'
+    dependencies: [task136, task63]
+    tests: [test208, test210]
+    status: completed
+
+  - id: task138
+    title: "Feature22 archive size threshold behavior for assets"
+    type: task
+    description: |
+      Apply asset-aware archive size warnings with default 100 MB threshold and
+      optional override from `assets.max_bundle_size_mb`.
+    files:
+      - src/kinnoo/pack_command.py
+      - tests/test_pack.py
+    steps:
+      - 'step1: Read warning threshold from normalized assets config, defaulting to 100 MB'
+      - 'step2: Emit warning only when final archive exceeds configured threshold'
+      - 'step3: Preserve existing size reporting format and deterministic wording'
+      - 'step4: Add tests covering default threshold and custom override threshold behavior'
+    dependencies: [task135, task136, task113]
+    tests: [test209]
+    status: completed
+
+  - id: task139
+    title: "Feature22 asset credential warning sweep in pack"
+    type: task
+    description: |
+      Add a non-blocking credential-warning sweep for assets during pack,
+      including filename pattern checks and regex checks over size-limited
+      UTF-8 text files while skipping binary files.
+    files:
+      - src/kinnoo/code_sweep.py
+      - src/kinnoo/pack_command.py
+      - tests/test_pack.py
+    steps:
+      - 'step1: Implement filename-pattern warnings for likely secret-bearing files in asset paths'
+      - 'step2: Implement regex-based text credential checks for size-limited UTF-8 asset files and skip binary files'
+      - 'step3: Keep findings warning-only and include heuristic-scan disclaimer text in output'
+      - 'step4: Add tests for filename warnings, regex warnings, binary-file skip behavior, and non-blocking continuation'
+    dependencies: [task136, task103]
+    tests: [test212, test213]
+    status: completed
+
+  - id: task140
+    title: "Feature22 documentation and regression gate"
+    type: task
+    description: |
+      Document assets usage guidance and verify no-assets regressions across
+      pack/install flows.
+    files:
+      - README.md
+      - docs/manifest-schema-reference.md
+      - tests/test_pack.py
+      - tests/test_cli_install.py
+    steps:
+      - 'step1: Add docs showing what asset types can be included and how folder-based inclusion works (including base-folder recursive behavior)'
+      - 'step2: Add regression test proving agents without assets retain pre-feature22 pack/install behavior'
+      - 'step3: Verify docs stay aligned with implemented schema and defaults'
+      - 'step4: Run manifest and regression validations and prepare review evidence'
+    dependencies: [task136, task137, task138, task139]
+    tests: [test211]
+    status: completed
+
+  - id: task141
+    title: "Feature23 schema support for mcp-server runtime type"
+    type: task
+    description: |
+      Extend schema and validator support so `runtime.type: mcp-server` is
+      accepted alongside `one-shot`, while preserving clear validation errors
+      for unsupported runtime types.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+      - tests/test_validator.py
+    steps:
+      - 'step1: Add `mcp-server` to supported runtime type constants in schema'
+      - 'step2: Keep validator error messaging explicit and actionable for invalid runtime.type values'
+      - 'step3: Add tests for acceptance of `mcp-server` and continued rejection of unknown runtime types'
+      - 'step4: Verify existing manifest validation behavior remains backward compatible for one-shot agents'
+    dependencies: [task50]
+    tests: [test214]
+    status: completed
+
+  - id: task142
+    title: "Feature23 supervisor lifecycle and readiness probes"
+    type: task
+    description: |
+      Implement a standalone supervisor module for long-running MCP server
+      processes, including readiness probe strategies and fallback behavior when
+      explicit readiness configuration is absent.
+    files:
+      - src/kinnoo/supervisor.py
+      - src/kinnoo/schema.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Create supervisor API for spawn, readiness wait, stream handling, and shutdown'
+      - 'step2: Support readiness probes for TCP port and stdout marker modes'
+      - 'step3: Implement default readiness fallback (configured TCP when available, otherwise immediate-ready)'
+      - 'step4: Add tests for readiness success/failure and fallback behavior'
+    dependencies: [task141]
+    tests: [test216, test221]
+    status: completed
+
+  - id: task143
+    title: "Feature23 run_command integration for mcp-server mode"
+    type: task
+    description: |
+      Integrate supervisor-driven lifecycle into `kinnoo run` for manifests that
+      declare `runtime.type: mcp-server`, ensuring long-running execution mode
+      and real-time stdout/stderr streaming.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Branch run flow by runtime type and route mcp-server execution through supervisor'
+      - 'step2: Ensure mcp-server mode does not use one-shot wait semantics'
+      - 'step3: Preserve real-time stdout/stderr streaming behavior during server runtime'
+      - 'step4: Add integration tests for long-running launch behavior and stream passthrough'
+    dependencies: [task142, task39]
+    tests: [test215, test218]
+    status: completed
+
+  - id: task144
+    title: "Feature23 graceful shutdown and trace logging"
+    type: task
+    description: |
+      Implement Ctrl+C signal handling and graceful teardown for mcp-server
+      runtime mode, including timeout-based escalation and trace logging of
+      lifecycle events.
+    files:
+      - src/kinnoo/supervisor.py
+      - src/kinnoo/run_command.py
+      - tests/test_cli.py
+      - tests/test_trust_baseline.py
+    steps:
+      - 'step1: On SIGINT send SIGTERM to server process and wait for exit within timeout'
+      - 'step2: Escalate to SIGKILL when server does not terminate gracefully in time'
+      - 'step3: Record start timestamp, stop timestamp, and final exit code/signal in trace logs'
+      - 'step4: Add tests for graceful and forced shutdown paths plus trace log contents'
+    dependencies: [task143, task100]
+    tests: [test217, test219]
+    status: completed
+
+  - id: task145
+    title: "Feature23 regression gate for one-shot runtime"
+    type: task
+    description: |
+      Verify feature23 changes do not regress one-shot runtime behavior and
+      preserve baseline run semantics for existing agents.
+    files:
+      - tests/test_cli.py
+      - tests/test_regression_v1.py
+    steps:
+      - 'step1: Add focused regression test asserting one-shot runtime behavior remains unchanged'
+      - 'step2: Run targeted regression suite for run-related one-shot workflows'
+      - 'step3: Ensure runtime-type branching does not alter one-shot output/exit semantics'
+      - 'step4: Capture evidence for feature23 AC7 before handoff'
+    dependencies: [task143, task144]
+    tests: [test220]
+    status: completed
+
+  - id: task146
+    title: "Feature24 schema constants and manifest shape support for services"
+    type: task
+    description: |
+      Add schema-level support for optional `services` declarations and health-check
+      method/service-type constants used by validator and inspect flows.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+    steps:
+      - 'step1: Add SUPPORTED_SERVICE_TYPES and SUPPORTED_HEALTH_CHECK_METHODS constants in schema.py'
+      - 'step2: Add optional-field typing support for services and nested health_check payloads'
+      - 'step3: Keep feature9 compatibility: manifests without services remain valid'
+      - 'step4: Keep schema additions modular for feature25 runtime health-check consumption'
+    dependencies: [task50]
+    tests: [test222, test225]
+    status: completed
+
+  - id: task147
+    title: "Feature24 validator rules for services objects and duplicates"
+    type: task
+    description: |
+      Implement validator enforcement for `services` entries including required fields,
+      allowed values, method-specific health-check fields, and duplicate-name detection.
+    files:
+      - src/kinnoo/validator.py
+      - tests/test_validator.py
+    steps:
+      - 'step1: Validate services is a list of objects with required name/type'
+      - 'step2: Validate service type and health_check.method against allowed sets with clear error messaging'
+      - 'step3: Validate method-specific fields (tcp.port, http.url, process.process_name) when method is declared'
+      - 'step4: Reject duplicate service names within a manifest and emit deterministic error text'
+    dependencies: [task146]
+    tests: [test223, test224, test227]
+    status: completed
+
+  - id: task148
+    title: "Feature24 inspect output support for declared services"
+    type: task
+    description: |
+      Extend `kinnoo inspect` output so declared services are rendered in human-readable
+      form with service name, service type, and health-check configuration.
+    files:
+      - src/kinnoo/inspect_command.py
+      - tests/test_cli_inspect.py
+    steps:
+      - 'step1: Add services display section to inspect output for agent dirs and archives'
+      - 'step2: Render health-check method plus method-specific fields when present'
+      - 'step3: Omit empty/missing optional health-check details while preserving readability'
+      - 'step4: Keep existing inspect output stable for manifests without services'
+    dependencies: [task147, task63]
+    tests: [test226]
+    status: completed
+
+  - id: task149
+    title: "Feature24 AC coverage and regression gate"
+    type: task
+    description: |
+      Complete feature24 coverage with focused validator/inspect tests and run targeted
+      regression checks to ensure no behavior drift for manifests without services.
+    files:
+      - tests/test_validator.py
+      - tests/test_cli_inspect.py
+      - tests/test_regression_v1.py
+    steps:
+      - 'step1: Add/confirm feature24 AC mapping for test222-test227 in TESTS.txt alignment'
+      - 'step2: Run focused suite for validator and inspect service-declaration behavior'
+      - 'step3: Run regression checks for manifests lacking services to confirm unchanged behavior'
+      - 'step4: Capture evidence and mark tasks ready for TechLead review'
+    dependencies: [task147, task148]
+    tests: [test222, test223, test224, test225, test226, test227]
+    status: completed
+
+  - id: task150
+    title: "Feature25 health-check module and checker primitives"
+    type: task
+    description: |
+      Create a dedicated service health-check module with checker functions for
+      HTTP, TCP, and process checks, including configurable timeout support and
+      actionable result messages that can be rendered by run/preflight flows.
+    files:
+      - src/kinnoo/health_check.py
+      - src/kinnoo/schema.py
+      - tests/test_health_check.py
+    steps:
+      - 'step1: Create src/kinnoo/health_check.py with a small checker interface and result model'
+      - 'step2: Implement HTTP GET check using urllib.request with default 5s timeout and override support'
+      - 'step3: Implement TCP localhost socket probe with default 3s timeout and override support'
+      - 'step4: Implement process-name check using pgrep (or cross-platform equivalent fallback) and return actionable guidance messages'
+    dependencies: [task149]
+    tests: [test228, test229, test230]
+    status: completed
+
+  - id: task151
+    title: "Feature25 integrate service checks into run and preflight output"
+    type: task
+    description: |
+      Integrate service health checks into `kinnoo run` and `kinnoo run --preflight`
+      so all declared services are evaluated and reported before agent execution.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/cli.py
+      - tests/test_run_preflight.py
+    steps:
+      - 'step1: Load declared services from manifest and execute health checks for all entries before runtime execution'
+      - 'step2: Ensure failures include service name, service type, and actionable guidance in output'
+      - 'step3: Extend --preflight output to include per-service health results alongside existing checks'
+      - 'step4: Keep output human-readable and deterministic for multi-service manifests'
+    dependencies: [task150, task97]
+    tests: [test231, test232]
+    status: completed
+
+  - id: task152
+    title: "Feature25 interactive and non-interactive failure policy"
+    type: task
+    description: |
+      Enforce service health-check failure behavior by execution mode: interactive
+      prompts can proceed/abort, while non-interactive runs fail-fast on failure.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: In interactive mode, show warning and prompt "Service <name> is not healthy. Proceed anyway? [y/N]" for failed services'
+      - 'step2: Allow user to proceed even when checks fail and continue to entrypoint execution when confirmed'
+      - 'step3: In non-interactive mode, abort execution immediately when any service health check fails'
+      - 'step4: Keep prompt and exit-code behavior consistent with existing confirmation patterns'
+    dependencies: [task151]
+    tests: [test233, test234]
+    status: completed
+
+  - id: task153
+    title: "Feature25 AC coverage and no-services regression gate"
+    type: task
+    description: |
+      Complete feature25 acceptance-criteria coverage and verify no-regression
+      behavior for agents that do not declare services.
+    files:
+      - tests/test_health_check.py
+      - tests/test_run_preflight.py
+      - tests/test_cli.py
+      - tests/test_regression_v1.py
+    steps:
+      - 'step1: Add/confirm AC mapping for feature25 tests in TESTS.txt'
+      - 'step2: Run focused feature25 suites for checker logic, preflight rendering, and run-mode behavior'
+      - 'step3: Run no-services regression checks to confirm V2 behavior remains unchanged'
+      - 'step4: Capture command evidence and set tasks ready for TechLead review'
+    dependencies: [task150, task151, task152]
+    tests: [test228, test229, test230, test231, test232, test233, test234, test235]
+    status: completed
+
+  - id: task154
+    title: "Feature26 filesystem MCP server package and permissions schema"
+    type: task
+    description: |
+      Add a first-party Filesystem MCP server agent fixture that is packable with
+      `runtime.type: mcp-server`, and enforce filesystem permissions schema in
+      manifest validation for mcp-server manifests.
+    files:
+      - src/kinnoo/validator.py
+      - src/kinnoo/schema.py
+      - scratch/
+      - tests/test_validator.py
+      - tests/test_pack.py
+    steps:
+      - 'step1: Add Filesystem MCP server reference agent fixture with mcp-server runtime and packable layout'
+      - 'step2: Add validator rules for permissions schema keys: read_only, allow_write, allow_create, allowed_paths'
+      - 'step3: Enforce permissions schema only when runtime.type is mcp-server'
+      - 'step4: Add validation/pack tests to prove fixture is valid and packable as .kno'
+    dependencies: [task143, task147]
+    tests: [test236, test237]
+    status: completed
+
+  - id: task155
+    title: "Feature26 filesystem MCP runtime permission enforcement"
+    type: task
+    description: |
+      Implement filesystem MCP server runtime guardrails so read-only mode rejects
+      write/create tool calls by default, with opt-in behavior controlled by
+      permissions fields in the server manifest.
+    files:
+      - scratch/
+      - tests/
+    steps:
+      - 'step1: Implement permission gate in filesystem MCP server wrapper, not kinnoo CLI core'
+      - 'step2: Enforce default read_only true behavior when permissions are omitted'
+      - 'step3: Allow write/create only when explicit manifest permissions permit them'
+      - 'step4: Add runtime tests for reject/allow branches with actionable error messaging'
+    dependencies: [task154]
+    tests: [test238]
+    status: completed
+
+  - id: task156
+    title: "Feature26 github MCP server package and mcp-client init template"
+    type: task
+    description: |
+      Add GitHub MCP server reference packaging plus a new `--framework mcp-client`
+      init template that demonstrates connecting to an MCP server and includes
+      end-to-end workflow instructions.
+    files:
+      - src/kinnoo/init_command.py
+      - src/kinnoo/templates.py
+      - tests/test_init.py
+      - scratch/
+    steps:
+      - 'step1: Add GitHub MCP server reference agent fixture with packable manifest and entrypoint'
+      - 'step2: Extend framework choices to include mcp-client and generate template files'
+      - 'step3: Ensure template README documents connection workflow to MCP servers'
+      - 'step4: Ensure template entrypoint follows kinnoo contract (sys.argv[1] input, stdout output) and passes validation'
+    dependencies: [task154, task132]
+    tests: [test239, test240, test241]
+    status: completed
+
+  - id: task157
+    title: "Feature26 AC coverage and regression gate"
+    type: task
+    description: |
+      Close feature26 acceptance criteria with focused tests and a regression gate
+      covering framework-template stability and MCP permissions validation behavior.
+    files:
+      - tests/test_validator.py
+      - tests/test_init.py
+      - tests/test_regression_v1.py
+    steps:
+      - 'step1: Add/confirm AC mapping for feature26 tests in TESTS.txt'
+      - 'step2: Run focused tests for filesystem/github MCP package fixtures and mcp-client template generation'
+      - 'step3: Run focused regression for existing init frameworks to avoid template regressions'
+      - 'step4: Capture evidence and set tasks ready for TechLead review'
+    dependencies: [task154, task155, task156]
+    tests: [test236, test237, test238, test239, test240, test241, test242]
+    status: completed
+
+  - id: task158
+    title: "Feature27 analyzer core API and report model"
+    type: task
+    description: |
+      Create the analyzer module foundation with a stable public API
+      `analyze_project(project_dir) -> AnalysisReport` and composable detector
+      interfaces that return value, confidence, and evidence metadata.
+    files:
+      - src/kinnoo/analyzer.py
+      - tests/test_analyzer.py
+    steps:
+      - 'step1: Define analyzer report/data model for inferred fields, confidence metadata, and warnings'
+      - 'step2: Implement public analyze_project(project_dir) entrypoint with detector orchestration hooks'
+      - 'step3: Keep detector contracts independent and composable for future extension'
+      - 'step4: Add baseline tests for module/API existence and report-section structure'
+    dependencies: []
+    tests: [test243, test249, test250]
+    status: completed
+
+  - id: task159
+    title: "Feature27 entrypoint runtime framework detectors"
+    type: task
+    description: |
+      Implement entrypoint, runtime, and framework detectors with confidence-based
+      outcomes and uncertainty handling for ambiguous project layouts.
+    files:
+      - src/kinnoo/analyzer.py
+      - tests/test_analyzer.py
+    steps:
+      - 'step1: Implement _detect_entrypoint for common Python layouts and __main__ discovery'
+      - 'step2: Implement _detect_runtime for language/version/type and runtime port hints'
+      - 'step3: Implement _detect_framework via imports/usages with uncertainty-safe outputs'
+      - 'step4: Add tests for positive and ambiguous detection paths with actionable diagnostics'
+    dependencies: [task158]
+    tests: [test244]
+    status: completed
+
+  - id: task160
+    title: "Feature27 dependencies and env var detectors"
+    type: task
+    description: |
+      Implement dependency and environment-variable inference using stdlib-first
+      parsing so analyzer output is normalized, deduplicated, and confidence-scored.
+    files:
+      - src/kinnoo/analyzer.py
+      - tests/test_analyzer.py
+    steps:
+      - 'step1: Implement _detect_dependencies from requirements.txt and pyproject.toml dependencies'
+      - 'step2: Normalize package names/constraints and merge duplicates safely'
+      - 'step3: Implement _detect_env_vars for getenv/environ patterns with deduplication'
+      - 'step4: Add tests covering detection accuracy and noisy/partial input cases'
+    dependencies: [task158]
+    tests: [test245, test246]
+    status: completed
+
+  - id: task161
+    title: "Feature27 assets and services detectors"
+    type: task
+    description: |
+      Implement asset and service detectors that infer likely bundle candidates and
+      service declarations with path-safety filtering and health-check hints.
+    files:
+      - src/kinnoo/analyzer.py
+      - tests/test_analyzer.py
+    steps:
+      - 'step1: Implement _detect_assets for model/data artifacts and directory candidates'
+      - 'step2: Add path-safety filtering so traversal and unsafe candidates are excluded/warned'
+      - 'step3: Implement _detect_services from recognizable connection patterns'
+      - 'step4: Add tests for service-type hints and optional health-check suggestions'
+    dependencies: [task158]
+    tests: [test247, test248]
+    status: completed
+
+  - id: task162
+    title: "Feature27 analyzer validation suite and import reusability gate"
+    type: task
+    description: |
+      Add comprehensive analyzer-only tests that cover positive and uncertain cases
+      across all detectors and prove analyzer reuse readiness for feature19 import
+      workflows without duplicating inference logic in command modules.
+    files:
+      - src/kinnoo/analyzer.py
+      - tests/test_analyzer.py
+      - tests/test_regression_v1.py
+    steps:
+      - 'step1: Add detector matrix tests covering positive and ambiguous scenarios for each detector'
+      - 'step2: Validate that failure diagnostics are actionable for debugging detector behavior'
+      - 'step3: Add focused regression gate proving analyzer can be invoked as a reusable library path'
+      - 'step4: Capture AC coverage evidence and prepare tasks for TechLead review'
+    dependencies: [task159, task160, task161]
+    tests: [test251]
+    status: completed
+
+  - id: task163
+    title: "Feature19 import CLI surface and path resolution"
+    type: task
+    description: |
+      Add the `kinnoo import [path]` command surface to the CLI with default
+      current-directory behavior and strict argument validation for invalid
+      or unsupported invocation forms.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/import_command.py
+      - tests/test_cli_import.py
+    steps:
+      - 'step1: Add import subcommand parser and usage text aligned with in-place import model'
+      - 'step2: Resolve target path with default `.` behavior when argument is omitted'
+      - 'step3: Reject invalid argument forms and emit clear actionable usage/help output'
+      - 'step4: Add focused CLI tests for default path and invalid argument cases'
+    dependencies: [task158]
+    tests: [test252, test253]
+    status: completed
+
+  - id: task164
+    title: "Feature19 in-place manifest write, collision safety, and rollback"
+    type: task
+    description: |
+      Implement safe in-place output behavior for import: write `kinnoo.yaml`
+      into target projects without scaffold copying, prevent accidental
+      overwrite, and ensure rollback of partial artifacts when failures occur.
+    files:
+      - src/kinnoo/import_command.py
+      - src/kinnoo/validator.py
+      - tests/test_cli_import.py
+    steps:
+      - 'step1: Generate and write kinnoo.yaml in target project directory only'
+      - 'step2: Implement collision checks for existing kinnoo.yaml and explicit force/confirm path'
+      - 'step3: Ensure no scaffold-copy behavior and no source file mutation'
+      - 'step4: Add rollback cleanup path for failures after write start'
+    dependencies: [task163]
+    tests: [test254, test255, test256]
+    status: completed
+
+  - id: task165
+    title: "Feature19 analyzer integration and confirm-first wizard"
+    type: task
+    description: |
+      Integrate feature27 analyzer output into import generation and implement
+      confirm-first wizard flow that minimizes prompts by asking only for
+      missing or ambiguous fields.
+    files:
+      - src/kinnoo/import_command.py
+      - src/kinnoo/analyzer.py
+      - tests/test_cli_import.py
+    steps:
+      - 'step1: Invoke analyze_project as the single inference backend for import'
+      - 'step2: Map inferred/confidence/warnings data into generated manifest fields'
+      - 'step3: Implement one-shot confirmation view and prompt only unresolved/ambiguous fields'
+      - 'step4: Add tests proving analyzer invocation and prompt minimization behavior'
+    dependencies: [task162, task163]
+    tests: [test257, test258]
+    status: completed
+
+  - id: task166
+    title: "Feature19 schema-conditional prompts and entrypoint bridge handling"
+    type: task
+    description: |
+      Implement conditional prompting for feature23-26 schema extensions and
+      warning-first entrypoint compatibility handling with optional wrapper
+      generation rather than default hard failure.
+    files:
+      - src/kinnoo/import_command.py
+      - src/kinnoo/schema.py
+      - tests/test_cli_import.py
+    steps:
+      - 'step1: Prompt for runtime.type/services/permissions only when analyzer confidence is low or values are missing'
+      - 'step2: Detect entrypoint contract mismatch and emit non-blocking warning'
+      - 'step3: Offer optional wrapper generation path and keep default flow non-blocking'
+      - 'step4: Add tests for conditional prompt gating and wrapper-option behavior'
+    dependencies: [task165]
+    tests: [test259, test260]
+    status: completed
+
+  - id: task167
+    title: "Feature19 interruption safety and in-place runnability gate"
+    type: task
+    description: |
+      Add interruption-safe import termination semantics and validate that
+      imported projects run in-place with the standard kinnoo execution path.
+    files:
+      - src/kinnoo/import_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli_import.py
+      - tests/test_regression_v1.py
+    steps:
+      - 'step1: Handle Ctrl+C/EOF during wizard as safe non-zero exit'
+      - 'step2: Ensure interruption paths leave no partial artifacts'
+      - 'step3: Add integration gate that validates in-place import output runs via kinnoo run'
+      - 'step4: Add feature19 regression gate wiring to avoid future UX regressions'
+    dependencies: [task164, task166]
+    tests: [test261, test262]
+    status: completed
+
+  - id: task168
+    title: "Feature31 schema and validator support for runtime.language nodejs"
+    type: task
+    description: |
+      Extend manifest schema/validator to support `runtime.language: nodejs`
+      with clear validation errors for unsupported runtime language values.
+      Preserve existing python validation behavior and error quality.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+      - tests/test_validator.py
+    steps:
+      - 'step1: Add nodejs to supported runtime language constants and validator checks'
+      - 'step2: Ensure unsupported runtime.language values return actionable errors'
+      - 'step3: Verify existing python manifests remain valid without changes'
+      - 'step4: Add focused validator tests for nodejs acceptance and invalid-language rejection'
+    dependencies: []
+    tests: [test263, test264]
+    status: completed
+
+  - id: task169
+    title: "Feature31 run path for Node.js entrypoints"
+    type: task
+    description: |
+      Add Node.js execution support to kinnoo run so nodejs agents execute via
+      `node <entrypoint> <input>` with parity for stdout/stderr streaming and
+      argument passing behavior.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Branch runtime execution flow by runtime.language in run command'
+      - 'step2: Execute node entrypoint with input argument contract matching python path semantics'
+      - 'step3: Preserve real-time stdout/stderr streaming and exit-code propagation'
+      - 'step4: Add integration test covering node run success path and streamed output'
+    dependencies: [task168]
+    tests: [test265]
+    status: completed
+
+  - id: task170
+    title: "Feature31 Node.js dependency install via npm or pnpm"
+    type: task
+    description: |
+      Add Node.js dependency installation support to kinnoo install with
+      package manager selection (`npm` default, `pnpm` optional) and actionable
+      failure handling for install errors.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/schema.py
+      - tests/test_install.py
+    steps:
+      - 'step1: Implement package-manager resolution for nodejs runtime installs'
+      - 'step2: Run npm/pnpm install in agent directory with clear command/error reporting'
+      - 'step3: Ensure install path remains a no-op for python agents'
+      - 'step4: Add tests for npm default, pnpm override, and actionable failure output'
+    dependencies: [task168]
+    tests: [test266]
+    status: completed
+
+  - id: task171
+    title: "Feature31 pack/install archive behavior for node_modules and lockfiles"
+    type: task
+    description: |
+      Update package assembly rules for nodejs agents so archives exclude
+      node_modules while preserving package manifests and lockfiles needed for
+      reproducible installs.
+    files:
+      - src/kinnoo/pack_command.py
+      - src/kinnoo/install_command.py
+      - tests/test_pack.py
+      - tests/test_install.py
+    steps:
+      - 'step1: Exclude node_modules during archive collection for nodejs runtime agents'
+      - 'step2: Preserve package.json and lockfiles in archive output'
+      - 'step3: Verify install uses preserved metadata to restore dependencies'
+      - 'step4: Add archive-content test that asserts exclusion/inclusion behavior'
+    dependencies: [task168, task170]
+    tests: [test267]
+    status: completed
+
+  - id: task172
+    title: "Feature31 Node.js preflight checks"
+    type: task
+    description: |
+      Extend preflight/runtime checks to validate Node.js toolchain readiness:
+      node executable presence, version constraint (>=22), and selected package
+      manager availability before nodejs run/install flows.
+    files:
+      - src/kinnoo/health_check.py
+      - src/kinnoo/run_command.py
+      - src/kinnoo/install_command.py
+      - tests/test_run_preflight.py
+    steps:
+      - 'step1: Add node binary detection and version parsing checks for nodejs runtime'
+      - 'step2: Add package manager executable checks for npm/pnpm based on manifest configuration'
+      - 'step3: Emit actionable guidance when checks fail (install/upgrade commands)'
+      - 'step4: Add tests for success and failure preflight paths with clear diagnostics'
+    dependencies: [task168]
+    tests: [test268]
+    status: completed
+
+  - id: task173
+    title: "Feature31 python runtime regression gate"
+    type: task
+    description: |
+      Add regression coverage proving feature31 changes do not alter existing
+      python run/pack/install behavior. This task is the safety gate before
+      feature31 review handoff.
+    files:
+      - tests/test_cli.py
+      - tests/test_pack.py
+      - tests/test_install.py
+      - tests/test_regression_v1.py
+    steps:
+      - 'step1: Add or update targeted regression assertions across run/pack/install python paths'
+      - 'step2: Execute regression suite slices focused on python runtime behavior'
+      - 'step3: Document any behavior deltas and ensure parity with pre-feature31 expectations'
+      - 'step4: Attach regression evidence to task completion notes for techlead review'
+    dependencies: [task169, task170, task171, task172]
+    tests: [test269]
+    status: completed
+
+  - id: task174
+    title: "Feature42 schema and validator support for json input/output types"
+    type: task
+    description: |
+      Extend schema/validator support so `inputs.type` and `outputs.type`
+      accept `json` in addition to existing values. Keep validation errors
+      explicit for unsupported types and preserve current backward compatibility.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+      - tests/test_validator.py
+    steps:
+      - 'step1: Add json to supported input and output type enums/constants in schema and validator paths'
+      - 'step2: Ensure unsupported input/output types fail with actionable error messages naming allowed values'
+      - 'step3: Verify existing manifests using text input/output continue validating unchanged'
+      - 'step4: Add focused unit tests for json acceptance and invalid type rejection'
+    dependencies: []
+    tests: [test270, test271]
+    status: completed
+
+  - id: task175
+    title: "Feature42 run path JSON input modes"
+    type: task
+    description: |
+      Add JSON input delivery modes for run command so agents declaring
+      `inputs.type: json` can receive structured payloads via inline JSON and
+      JSON file sources while preserving existing text input behavior.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/run_command.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add CLI input flags for json payloads (inline and file-based) with clear precedence and usage errors'
+      - 'step2: Parse/validate JSON inputs before process execution and surface deterministic parse diagnostics'
+      - 'step3: Pass normalized JSON payload to agent subprocess in a stable contract-compatible form'
+      - 'step4: Add integration tests for inline json mode and json-file mode across runtime paths'
+    dependencies: [task174]
+    tests: [test272, test273]
+    status: completed
+
+  - id: task176
+    title: "Feature42 json output contract enforcement"
+    type: task
+    description: |
+      Enforce JSON output contract for agents declaring `outputs.type: json` by
+      validating emitted payloads and returning actionable errors when output is
+      malformed or incompatible with JSON expectations.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/inspect_command.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add output validation path that checks emitted payload for valid JSON when outputs.type is json'
+      - 'step2: Preserve streamed output behavior while providing deterministic failure semantics on invalid json output'
+      - 'step3: Ensure diagnostics include parse context safely without leaking secret values'
+      - 'step4: Add integration coverage for valid json output pass and invalid json output failure'
+    dependencies: [task175]
+    tests: [test274]
+    status: completed
+
+  - id: task177
+    title: "Feature42 docs preflight inspect and regression gates"
+    type: task
+    description: |
+      Document JSON I/O runtime contract and add regression checks proving text
+      workflows remain unchanged while JSON contract behavior is visible in
+      inspect, preflight, and help output.
+    files:
+      - README.md
+      - docs/manifest-schema-reference.md
+      - src/kinnoo/run_command.py
+      - src/kinnoo/inspect_command.py
+      - tests/test_docs.py
+      - tests/test_regression_v1.py
+    steps:
+      - 'step1: Update command/help/docs with explicit guidance for json input and output contract usage'
+      - 'step2: Ensure inspect/preflight surface json contract expectations clearly for operators'
+      - 'step3: Add regression tests covering legacy text flows for python and node agents'
+      - 'step4: Add docs regression assertions for feature42 contract coverage'
+    dependencies: [task174, task175, task176]
+    tests: [test275]
+    status: completed
+
+  - id: task178
+    title: "Feature32 daemon runtime schema and validation"
+    type: task
+    description: |
+      Extend schema/validator support so `runtime.type: daemon` is accepted as
+      a first-class runtime mode while preserving existing runtime type support
+      and actionable validation errors for unsupported values.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+      - tests/test_validator.py
+    steps:
+      - 'step1: Add daemon to supported runtime.type values in schema/validator paths'
+      - 'step2: Keep unsupported runtime.type errors explicit with allowed values guidance'
+      - 'step3: Verify one-shot and mcp-server validation behavior remains backward compatible'
+      - 'step4: Add focused validator tests for daemon acceptance and invalid type rejection'
+    dependencies: [task168]
+    tests: [test276]
+    status: completed
+
+  - id: task179
+    title: "Feature32 daemon start path and persisted state"
+    type: task
+    description: |
+      Implement daemon start behavior in run flow so `kinnoo run` launches
+      daemon agents in the background, returns terminal control, and persists
+      deterministic process metadata required for subsequent control commands.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/run_command.py
+      - src/kinnoo/supervisor.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add daemon runtime branch for background process launch in run flow'
+      - 'step2: Persist daemon PID/state metadata in a stable location for lifecycle commands'
+      - 'step3: Emit clear operator output confirming daemon start and control hints'
+      - 'step4: Add integration tests for python and node daemon start semantics'
+    dependencies: [task178]
+    tests: [test277]
+    status: completed
+
+  - id: task180
+    title: "Feature32 daemon stop command and graceful termination"
+    type: task
+    description: |
+      Add `kinnoo stop <agent>` lifecycle control that terminates tracked daemon
+      processes with SIGTERM-first behavior and deterministic fallback when the
+      process does not exit promptly.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/run_command.py
+      - src/kinnoo/supervisor.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add stop subcommand and argument parsing with usage/error handling'
+      - 'step2: Resolve daemon metadata and send SIGTERM with bounded wait semantics'
+      - 'step3: Apply deterministic fallback behavior for unresponsive daemons and clear diagnostics'
+      - 'step4: Add integration coverage for graceful stop and fallback stop paths'
+    dependencies: [task179]
+    tests: [test278]
+    status: completed
+
+  - id: task181
+    title: "Feature32 daemon attach interactive control"
+    type: task
+    description: |
+      Add `kinnoo attach <agent>` operator flow so supported daemon runtimes can
+      be interactively attached to active sessions with robust non-interactive
+      safeguards and actionable unsupported-mode diagnostics.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/run_command.py
+      - src/kinnoo/supervisor.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add attach subcommand and daemon session discovery from persisted state'
+      - 'step2: Implement attach bridge for runtimes that expose interactive streams'
+      - 'step3: Return deterministic errors for non-running daemon, unsupported mode, and non-tty contexts'
+      - 'step4: Add integration tests for successful attach and expected guarded failures'
+    dependencies: [task179]
+    tests: [test279]
+    status: completed
+
+  - id: task182
+    title: "Feature32 daemon logs command and contextual output"
+    type: task
+    description: |
+      Add `kinnoo logs <agent>` command to stream or tail daemon logs with clear
+      source and timestamp context, including deterministic handling for missing
+      log files and non-running daemon states.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/run_command.py
+      - src/kinnoo/supervisor.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add logs subcommand and options for follow/tail behavior'
+      - 'step2: Ensure log output preserves source and timestamp context per line'
+      - 'step3: Handle absent or rotated logs with actionable guidance'
+      - 'step4: Add integration tests for tail and follow behavior across daemon runtimes'
+    dependencies: [task179]
+    tests: [test280]
+    status: completed
+
+  - id: task183
+    title: "Feature32 supervisor health state diagnostics and regression gate"
+    type: task
+    description: |
+      Integrate daemon lifecycle state with supervisor/health checks so operators
+      get deterministic healthy, unhealthy, and not-running diagnostics while
+      preserving backward compatibility for existing one-shot and mcp-server flows.
+    files:
+      - src/kinnoo/health_check.py
+      - src/kinnoo/run_command.py
+      - src/kinnoo/supervisor.py
+      - tests/test_run_preflight.py
+      - tests/test_regression_v1.py
+    steps:
+      - 'step1: Add daemon state evaluation hooks for not-running, unhealthy, and healthy states'
+      - 'step2: Surface actionable diagnostics consistently across run/preflight/control commands'
+      - 'step3: Add compatibility assertions proving one-shot and mcp-server behavior remains unchanged'
+      - 'step4: Add regression gate for daemon controls against existing python/node workflows'
+    dependencies: [task179, task180, task181, task182]
+    tests: [test281]
+    status: completed
+
+  - id: task184
+    title: "Feature33 runtime.package_manager schema and validator support"
+    type: task
+    description: |
+      Extend manifest schema and validator support for `runtime.package_manager`
+      so Node.js manifests can declare `npm` or `pnpm` explicitly with
+      deterministic validation errors for unsupported values.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+      - tests/test_validator.py
+    steps:
+      - 'step1: Add runtime.package_manager schema contract with allowed values npm and pnpm'
+      - 'step2: Enforce validator errors for invalid package manager values with clear allowed-values guidance'
+      - 'step3: Ensure behavior is additive and does not change manifests that omit package manager'
+      - 'step4: Add focused validator tests for valid and invalid runtime.package_manager values'
+    dependencies: [task168]
+    tests: [test282]
+    status: completed
+
+  - id: task185
+    title: "Feature33 channels skills and state_dirs type/path validation"
+    type: task
+    description: |
+      Add schema and validator handling for optional `channels`, `skills`, and
+      `state_dirs` fields with strict type checking and path safety validation
+      suitable for OpenClaw and generic JS/TS agents.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+      - tests/test_validator.py
+    steps:
+      - 'step1: Define schema shapes for channels, skills, and state_dirs fields as optional metadata blocks'
+      - 'step2: Enforce strict type validation for list/object members with actionable error messages'
+      - 'step3: Add path safety checks for skills/state_dirs entries (relative-only and traversal-safe)'
+      - 'step4: Add validator tests covering valid payloads and representative type/path failures'
+    dependencies: [task184]
+    tests: [test283]
+    status: completed
+
+  - id: task186
+    title: "Feature33 framework openclaw targeted validation rules"
+    type: task
+    description: |
+      Implement framework-targeted validation behavior so manifests that declare
+      `framework: openclaw` receive OpenClaw-specific diagnostics and structural
+      guidance while remaining within the generic kinnoo schema model.
+    files:
+      - src/kinnoo/validator.py
+      - tests/test_validator.py
+    steps:
+      - 'step1: Add openclaw-specific validation branch keyed off framework=openclaw'
+      - 'step2: Emit framework-targeted error messages for invalid OpenClaw field usage'
+      - 'step3: Keep diagnostics deterministic and scoped to relevant fields only'
+      - 'step4: Add tests proving openclaw-specific rules execute only when framework is openclaw'
+    dependencies: [task185]
+    tests: [test284]
+    status: completed
+
+  - id: task187
+    title: "Feature33 non-openclaw compatibility and non-breaking guard"
+    type: task
+    description: |
+      Ensure new manifest extension fields remain optional and non-breaking for
+      non-openclaw manifests so existing Python and generic Node.js workflows
+      remain valid without requiring new fields.
+    files:
+      - src/kinnoo/validator.py
+      - tests/test_validator.py
+      - tests/test_regression_v1.py
+    steps:
+      - 'step1: Verify validator accepts manifests with no new feature33 fields'
+      - 'step2: Verify non-openclaw manifests can include or omit extension fields without framework-only failures'
+      - 'step3: Add regression checks for existing python and node manifest fixtures'
+      - 'step4: Add guard tests ensuring no backward-incompatible validation drift'
+    dependencies: [task184, task185, task186]
+    tests: [test285]
+    status: completed
+
+  - id: task188
+    title: "Feature33 manifest docs updates for OpenClaw and generic Node examples"
+    type: task
+    description: |
+      Update manifest reference documentation with concrete examples for
+      OpenClaw and generic Node.js agents using new feature33 fields so
+      schema behavior is clear and operator-facing guidance is actionable.
+    files:
+      - docs/manifest-schema-reference.md
+      - README.md
+      - tests/test_docs.py
+    steps:
+      - 'step1: Document runtime.package_manager channels skills and state_dirs fields with constraints and examples'
+      - 'step2: Add one OpenClaw example manifest and one generic Node.js example manifest'
+      - 'step3: Clarify optional/non-breaking behavior when framework is not openclaw'
+      - 'step4: Add docs tests asserting feature33 field guidance and examples are present'
+    dependencies: [task184, task185, task186, task187]
+    tests: [test286]
+    status: completed
+
+  - id: task189
+    title: "Feature34 OpenClaw scaffold file and directory generation"
+    type: task
+    description: |
+      Implement OpenClaw framework scaffold generation for `kinnoo init` so
+      standalone OpenClaw-style projects are created with required identity,
+      runtime, and skills/memory structure.
+    files:
+      - src/kinnoo/templates.py
+      - src/kinnoo/init_command.py
+      - tests/test_init.py
+    steps:
+      - 'step1: Add openclaw template wiring in init command framework routing'
+      - 'step2: Generate package.json openclaw.json index.mjs skills/default/SKILL.md memory AGENTS.md and SOUL.md'
+      - 'step3: Ensure generated directory tree is deterministic and matches expected names/paths'
+      - 'step4: Add scaffold tests validating required files and directories are created'
+    dependencies: [task168, task184, task185, task186]
+    tests: [test287]
+    status: completed
+
+  - id: task190
+    title: "Feature34 generated OpenClaw manifest validation contract"
+    type: task
+    description: |
+      Ensure generated kinnoo.yaml for OpenClaw scaffold uses correct framework,
+      runtime, and feature33 extension fields so validation passes reliably.
+    files:
+      - src/kinnoo/templates.py
+      - src/kinnoo/init_command.py
+      - tests/test_init.py
+      - tests/test_validator.py
+    steps:
+      - 'step1: Emit kinnoo.yaml with framework openclaw and Node daemon runtime fields'
+      - 'step2: Include required openclaw validation fields such as runtime.package_manager and stdio channel'
+      - 'step3: Verify manifest passes validator without warnings/errors'
+      - 'step4: Add tests asserting generated manifest schema correctness'
+    dependencies: [task189]
+    tests: [test288]
+    status: completed
+
+  - id: task191
+    title: "Feature34 OpenClaw template runnable via kinnoo run"
+    type: task
+    description: |
+      Provide a runnable OpenClaw template entrypoint and test harness so
+      generated projects execute through `kinnoo run` when required env vars
+      are configured, while preserving deterministic test behavior.
+    files:
+      - src/kinnoo/templates.py
+      - src/kinnoo/run_command.py
+      - tests/test_cli.py
+      - tests/test_init.py
+    steps:
+      - 'step1: Implement minimal but real Node entrypoint contract in index.mjs for template run path'
+      - 'step2: Ensure template run path respects required environment variable checks'
+      - 'step3: Add integration test executing kinnoo run against generated openclaw scaffold under test-safe env setup'
+      - 'step4: Confirm output/exit behavior follows one-shot invocation expectations for scaffold smoke run'
+    dependencies: [task189, task190]
+    tests: [test289]
+    status: completed
+
+  - id: task192
+    title: "Feature34 OpenClaw template README setup guidance"
+    type: task
+    description: |
+      Update generated OpenClaw README content to include actionable setup
+      instructions for Node prerequisites, dependency install path, and
+      required environment variable names before running.
+    files:
+      - src/kinnoo/templates.py
+      - README.md
+      - tests/test_init.py
+      - tests/test_docs.py
+    steps:
+      - 'step1: Add Node version prerequisite and dependency install guidance to openclaw template README'
+      - 'step2: Document required environment variable names and run commands'
+      - 'step3: Keep instructions concise deterministic and aligned with existing README style'
+      - 'step4: Add tests asserting required setup guidance appears in generated README/docs output'
+    dependencies: [task189]
+    tests: [test290]
+    status: completed
+
+  - id: task193
+    title: "Feature34 deterministic scaffold output without openclaw CLI dependency"
+    type: task
+    description: |
+      Guarantee scaffold generation is deterministic and does not shell out to
+      any external `openclaw` binary at init time, preserving offline and CI
+      reliability.
+    files:
+      - src/kinnoo/init_command.py
+      - src/kinnoo/templates.py
+      - tests/test_init.py
+      - tests/test_regression_v1.py
+    steps:
+      - 'step1: Keep framework generation fully template-driven within kinnoo codebase'
+      - 'step2: Add guard tests to detect unintended subprocess calls to openclaw CLI'
+      - 'step3: Add deterministic output assertions for repeat scaffold generation'
+      - 'step4: Add regression gate ensuring existing framework init behavior remains stable'
+    dependencies: [task189, task190, task191, task192]
+    tests: [test291]
+    status: completed
+
+  - id: task194
+    title: "Feature35 state_dirs schema contract and validation rules"
+    type: task
+    description: |
+      Extend schema and validator behavior for mutable state directory handling
+      so `state_dirs` entries are validated for safe relative paths and support
+      structured exclude policy metadata.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+      - tests/test_validator.py
+    steps:
+      - 'step1: Define or extend state_dirs entry contract to support predictable snapshot metadata including exclude patterns'
+      - 'step2: Enforce path-safety validation for state directory roots (relative-only no traversal and no absolute paths)'
+      - 'step3: Validate exclude pattern field shape and reject invalid types or unsafe values'
+      - 'step4: Add validator tests covering positive and negative state_dirs contract cases'
+    dependencies: [task185]
+    tests: [test292]
+    status: completed
+
+  - id: task195
+    title: "Feature35 pack snapshot capture for mutable state directories"
+    type: task
+    description: |
+      Implement pack-time state snapshot inclusion for `state_dirs` so mutable
+      runtime folders are archived with deterministic layout separate from
+      immutable assets behavior.
+    files:
+      - src/kinnoo/pack_command.py
+      - src/kinnoo/archive_utils.py
+      - tests/test_pack.py
+    steps:
+      - 'step1: Add pack-time collection of declared state_dirs with deterministic archive paths'
+      - 'step2: Ensure snapshot structure is predictable and does not flatten or rename state roots unexpectedly'
+      - 'step3: Keep existing assets inclusion behavior unchanged for manifests without state_dirs'
+      - 'step4: Add tests verifying expected snapshot layout in produced archives'
+    dependencies: [task194, task27]
+    tests: [test293]
+    status: completed
+
+  - id: task196
+    title: "Feature35 install restore flow with overwrite warning and force controls"
+    type: task
+    description: |
+      Implement install-time restore for state snapshots with explicit operator
+      warning before overwrite and deterministic force behavior when overwrite
+      is explicitly approved.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/cli.py
+      - tests/test_install.py
+    steps:
+      - 'step1: Restore packed state snapshot directories during install with predictable destination mapping'
+      - 'step2: Detect pre-existing target state and emit warning without destructive overwrite by default'
+      - 'step3: Respect explicit overwrite or force controls to replace existing state when requested'
+      - 'step4: Add integration tests for no-overwrite default and explicit force overwrite path'
+    dependencies: [task195, task30]
+    tests: [test294]
+    status: completed
+
+  - id: task197
+    title: "Feature35 selective snapshot exclusions for state_dirs"
+    type: task
+    description: |
+      Implement `state_dirs[].exclude` support so noisy or sensitive files can
+      be omitted from state snapshots while retaining core warm-start state.
+    files:
+      - src/kinnoo/pack_command.py
+      - src/kinnoo/install_command.py
+      - tests/test_pack.py
+      - tests/test_install.py
+    steps:
+      - 'step1: Apply exclude patterns during state snapshot capture for each declared state directory'
+      - 'step2: Ensure excluded files are omitted while non-excluded files remain in archive snapshots'
+      - 'step3: Verify install restore reflects exclusion policy output without restoring omitted files'
+      - 'step4: Add tests for representative patterns such as memory daily logs and edge cases'
+    dependencies: [task194, task195, task196]
+    tests: [test295]
+    status: completed
+
+  - id: task198
+    title: "Feature35 docs and compatibility regression safeguards"
+    type: task
+    description: |
+      Document mutable state snapshot semantics and establish regression guards
+      proving existing asset-only workflows remain backward-compatible when
+      state_dirs are absent.
+    files:
+      - README.md
+      - docs/manifest-schema-reference.md
+      - tests/test_docs.py
+      - tests/test_regression_v1.py
+    steps:
+      - 'step1: Document state_dirs mutable snapshot semantics and distinction from immutable assets'
+      - 'step2: Document overwrite warning and force behavior plus exclude pattern usage guidance'
+      - 'step3: Add docs coverage tests for state_dirs semantics and examples'
+      - 'step4: Add regression tests proving asset bundling behavior remains unchanged for non-state_dirs manifests'
+    dependencies: [task194, task195, task196, task197]
+    tests: [test296]
+    status: completed
+
+  - id: task199
+    title: "Feature36 OpenClaw detector evidence and confidence scoring"
+    type: task
+    description: |
+      Extend analyzer detection logic to identify OpenClaw projects using
+      weighted strong and medium signals and emit explicit confidence/evidence
+      metadata for import consumers.
+    files:
+      - src/kinnoo/analyzer.py
+      - tests/test_analyzer.py
+      - tests/test_cli_import.py
+    steps:
+      - 'step1: Implement OpenClaw signal detectors for openclaw.json and package dependency markers as strong evidence'
+      - 'step2: Implement medium-confidence detectors for skills structure and memory directory conventions'
+      - 'step3: Aggregate signals into deterministic confidence output with evidence list'
+      - 'step4: Add analyzer and import-facing tests verifying confidence and evidence reporting behavior'
+    dependencies: [task158, task163, task184]
+    tests: [test297]
+    status: completed
+
+  - id: task200
+    title: "Feature36 manifest inference for runtime package manager skills and state dirs"
+    type: task
+    description: |
+      Add inference mapping for detected OpenClaw projects so generated manifest
+      suggestions include runtime language/type, package manager, skill paths,
+      and candidate mutable state directories.
+    files:
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/import_command.py
+      - tests/test_analyzer.py
+      - tests/test_cli_import.py
+    steps:
+      - 'step1: Infer nodejs daemon runtime and package manager from project metadata and lockfile/tooling hints'
+      - 'step2: Infer skills entries from discovered SKILL.md paths and map state directories from memory conventions'
+      - 'step3: Ensure inferred field shapes align with feature33 and feature35 manifest contracts'
+      - 'step4: Add tests asserting inferred runtime package manager skills and state_dirs output for representative fixtures'
+    dependencies: [task199, task185, task194]
+    tests: [test298]
+    status: completed
+
+  - id: task201
+    title: "Feature36 identity signal detection for SOUL AGENTS and optional USER docs"
+    type: task
+    description: |
+      Recognize OpenClaw identity artifacts as explicit inference signals and
+      include them in analyzer evidence output for clearer import diagnostics.
+    files:
+      - src/kinnoo/analyzer.py
+      - tests/test_analyzer.py
+      - tests/test_cli_import.py
+    steps:
+      - 'step1: Add identity signal detectors for SOUL.md AGENTS.md and optional USER.md'
+      - 'step2: Include identity-signal evidence in confidence output with deterministic wording'
+      - 'step3: Ensure missing optional USER.md does not reduce valid OpenClaw detection to failure'
+      - 'step4: Add tests covering identity artifact presence and optional-file behavior'
+    dependencies: [task199]
+    tests: [test299]
+    status: completed
+
+  - id: task202
+    title: "Feature36 import output validity and unresolved-field guidance"
+    type: task
+    description: |
+      Ensure import-generated kinnoo manifests are valid when inference is
+      complete, or include clear TODO/warning guidance when unresolved fields
+      remain so operators can safely complete onboarding.
+    files:
+      - src/kinnoo/import_command.py
+      - src/kinnoo/validator.py
+      - tests/test_cli_import.py
+      - tests/test_validator.py
+    steps:
+      - 'step1: Wire inferred OpenClaw fields into generated kinnoo.yaml output shape'
+      - 'step2: Emit explicit TODO or warning guidance for unresolved required fields without silent assumptions'
+      - 'step3: Validate generated output against manifest validator when inference completeness allows'
+      - 'step4: Add tests asserting valid generation path and warning-first unresolved guidance path'
+    dependencies: [task200, task201]
+    tests: [test300]
+    status: completed
+
+  - id: task203
+    title: "Feature36 non-openclaw regression safeguards"
+    type: task
+    description: |
+      Add regression protections proving existing non-OpenClaw analyzer/import
+      workflows continue to behave as before and do not regress due to new
+      OpenClaw-specific detection and inference logic.
+    files:
+      - tests/test_regression_v1.py
+      - tests/test_cli_import.py
+      - tests/test_analyzer.py
+    steps:
+      - 'step1: Add regression fixtures for non-openclaw projects that should not be misclassified as openclaw'
+      - 'step2: Verify existing analyzer-backed import behavior remains stable for Python and generic Node projects'
+      - 'step3: Assert confidence and warning output remains actionable for ambiguous non-openclaw projects'
+      - 'step4: Add regression gate test protecting non-openclaw import behavior across future changes'
+    dependencies: [task199, task200, task201, task202]
+    tests: [test301]
+    status: completed
+
+  - id: task204
+    title: "Feature37 Node audit summary and severity reporting"
+    type: task
+    description: |
+      Add Node.js dependency audit execution during install for Node agents and
+      surface deterministic severity summaries (critical/high/moderate/low)
+      to operators.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli_install.py
+    steps:
+      - 'step1: Detect Node.js runtime installs and run npm audit or equivalent command in the installed project context'
+      - 'step2: Parse and print deterministic severity summary for critical high moderate and low findings'
+      - 'step3: Keep Python-agent installs on existing path without invoking Node audit tooling'
+      - 'step4: Add integration tests validating summary output and non-node no-op behavior'
+    dependencies: [task165, task168]
+    tests: [test302]
+    status: completed
+
+  - id: task205
+    title: "Feature37 critical CVE install gate and override control"
+    type: task
+    description: |
+      Enforce critical vulnerability blocking behavior for Node installs by
+      default while supporting explicit operator override with
+      --allow-vulnerable.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli_install.py
+    steps:
+      - 'step1: Add CLI install flag --allow-vulnerable with clear help text describing security implications'
+      - 'step2: Block install when audit reports critical vulnerabilities and override is not set'
+      - 'step3: Permit install continuation when --allow-vulnerable is set while preserving warning visibility'
+      - 'step4: Add tests for default block path and explicit override continuation path'
+    dependencies: [task204]
+    tests: [test303]
+    status: completed
+
+  - id: task206
+    title: "Feature37 lifecycle script detection warnings and ignore-scripts"
+    type: task
+    description: |
+      Detect package lifecycle scripts for Node installs, warn before execution,
+      and support --ignore-scripts policy mode to reduce install-time execution
+      risk.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli_install.py
+    steps:
+      - 'step1: Detect lifecycle script declarations from package metadata and render warning-first summary'
+      - 'step2: Add CLI install flag --ignore-scripts and pass through equivalent package-manager behavior'
+      - 'step3: Ensure logs and console output clearly show whether scripts were allowed or ignored'
+      - 'step4: Add tests for script-detected warning path and ignore-scripts enforcement path'
+    dependencies: [task204]
+    tests: [test304]
+    status: completed
+
+  - id: task207
+    title: "Feature37 machine-readable audit and install decision trace"
+    type: task
+    description: |
+      Persist dependency-audit outcomes and operator/policy decisions in a
+      machine-readable install trace for later security review and automation.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/install_trace.py
+      - tests/test_cli_install.py
+    steps:
+      - 'step1: Define deterministic trace schema fields for audit severity counts lifecycle-script detection and decision outcomes'
+      - 'step2: Record block/allow outcomes including whether --allow-vulnerable or --ignore-scripts influenced behavior'
+      - 'step3: Ensure trace captures metadata only and does not leak secret values'
+      - 'step4: Add tests asserting trace schema and expected decision records for blocked and override installs'
+    dependencies: [task205, task206]
+    tests: [test305]
+    status: completed
+
+  - id: task208
+    title: "Feature37 non-node install regression safeguards"
+    type: task
+    description: |
+      Add regression protections proving Python install workflows remain
+      unchanged when feature37 Node-specific security controls are introduced.
+    files:
+      - tests/test_regression_v1.py
+      - tests/test_cli_install.py
+    steps:
+      - 'step1: Add regression fixtures for Python agents and validate Node audit commands are not invoked'
+      - 'step2: Verify legacy Python install output and behavior remain stable with new flags present'
+      - 'step3: Assert no-op behavior for feature37 controls on non-node manifests'
+      - 'step4: Add explicit regression gate test to prevent future cross-runtime behavior drift'
+    dependencies: [task204, task205, task206, task207]
+    tests: [test306]
+    status: completed
+
+  - id: task209
+    title: "Feature38 JS TS JSON credential scanning rules"
+    type: task
+    description: |
+      Extend static security sweep coverage to `.js`, `.mjs`, `.ts`, and `.json`
+      files for high-confidence credential and token pattern detection with
+      warning-first reporting.
+    files:
+      - src/kinnoo/code_sweep.py
+      - src/kinnoo/pack_command.py
+      - tests/test_trust_baseline.py
+    steps:
+      - 'step1: Expand sweep file discovery to include js mjs ts and json artifacts while preserving existing Python coverage'
+      - 'step2: Add high-confidence credential/token detectors suitable for JS TS and JSON payloads'
+      - 'step3: Ensure findings are warning-first and redact secret-like values from output'
+      - 'step4: Add tests proving JS TS JSON credential patterns are detected with deterministic warning messages'
+    dependencies: []
+    tests: [test307]
+    status: completed
+
+  - id: task210
+    title: "Feature38 risky JS execution primitive detection"
+    type: task
+    description: |
+      Detect high-risk JavaScript and TypeScript execution primitives such as
+      eval-like dynamic execution and shell process spawning and report
+      file/line evidence.
+    files:
+      - src/kinnoo/code_sweep.py
+      - tests/test_trust_baseline.py
+    steps:
+      - 'step1: Add signatures for risky primitives including eval Function constructor and child_process shell-spawn patterns'
+      - 'step2: Emit deterministic finding records with file path and line number evidence'
+      - 'step3: Keep warnings non-blocking and avoid false positives from benign literals where feasible'
+      - 'step4: Add tests asserting file/line evidence is present for flagged risky primitive fixtures'
+    dependencies: [task209]
+    tests: [test308]
+    status: completed
+
+  - id: task211
+    title: "Feature38 OpenClaw config danger rule set"
+    type: task
+    description: |
+      Add targeted security checks for dangerous OpenClaw configuration states
+      in JSON artifacts and produce actionable warning guidance.
+    files:
+      - src/kinnoo/code_sweep.py
+      - tests/test_trust_baseline.py
+    steps:
+      - 'step1: Define dangerous OpenClaw config indicators and corresponding warning messages'
+      - 'step2: Parse relevant JSON configuration files and evaluate configured values against the danger rule set'
+      - 'step3: Report findings with path-localized context while preserving warning-first behavior'
+      - 'step4: Add tests covering dangerous config detection and non-dangerous config no-warning baselines'
+    dependencies: [task209]
+    tests: [test309]
+    status: completed
+
+  - id: task212
+    title: "Feature38 memory snapshot credential scan before pack"
+    type: task
+    description: |
+      Scan memory snapshot candidates for credential-like patterns during pack
+      workflows and emit warning-first findings before archive creation.
+    files:
+      - src/kinnoo/pack_command.py
+      - src/kinnoo/code_sweep.py
+      - tests/test_pack_robustness.py
+    steps:
+      - 'step1: Integrate sweep hooks for memory snapshot candidate files identified during pack flow'
+      - 'step2: Emit warning-first findings when credential-like patterns are detected in snapshot candidates'
+      - 'step3: Preserve pack completion behavior while clearly surfacing potential security risk'
+      - 'step4: Add tests proving warnings are emitted for risky memory candidates and pack remains non-blocking'
+    dependencies: [task209]
+    tests: [test310]
+    status: completed
+
+  - id: task213
+    title: "Feature38 sweep output contract and no-secret regression safeguards"
+    type: task
+    description: |
+      Ensure JS/TS sweep findings remain format-consistent with existing UX and
+      preserve no-secret-value output invariants via regression coverage.
+    files:
+      - src/kinnoo/code_sweep.py
+      - tests/test_regression_v1.py
+      - tests/test_trust_baseline.py
+    steps:
+      - 'step1: Normalize feature38 finding output shape to match existing security sweep conventions'
+      - 'step2: Enforce redaction/no-secret-value safeguards across new JS TS JSON finding categories'
+      - 'step3: Add regression guard validating output format stability across mixed Python and JS sweep inputs'
+      - 'step4: Add regression tests proving secret-like values are never echoed in sweep output'
+    dependencies: [task209, task210, task211, task212]
+    tests: [test311]
+    status: completed
+
+  - id: task214
+    title: "Feature39 permissions schema and validator contract"
+    type: task
+    description: |
+      Extend manifest schema and validation to support explicit `permissions`
+      declarations including network, filesystem scope, shell, browser, and
+      env var access fields with deterministic validation errors.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+      - docs/manifest-schema-reference.md
+      - tests/test_validator.py
+    steps:
+      - 'step1: Define schema shape and allowed values for permissions fields including filesystem scope enum and env_access list validation'
+      - 'step2: Validate permissions field types and constraints with actionable error messages for invalid or unsupported values'
+      - 'step3: Ensure manifests without permissions remain backward-compatible and valid'
+      - 'step4: Add validator and schema-reference tests for valid and invalid permissions declarations'
+    dependencies: []
+    tests: [test312]
+    status: completed
+
+  - id: task215
+    title: "Feature39 install-time permission disclosure and consent flow"
+    type: task
+    description: |
+      Add install-time permission disclosure and explicit consent workflow so
+      operators can review requested capabilities before install/run trust
+      decisions are accepted.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli_install.py
+      - README.md
+    steps:
+      - 'step1: Render a deterministic human-readable permission summary from manifest declarations during install'
+      - 'step2: Add explicit confirmation prompt path with default-safe deny behavior when consent is not provided'
+      - 'step3: Add non-interactive override flag for automation workflows and ensure behavior is explicit in output/help text'
+      - 'step4: Add integration tests for consent accepted denied and non-interactive override paths'
+    dependencies: [task214]
+    tests: [test313]
+    status: completed
+
+  - id: task216
+    title: "Feature39 sandbox execution mode and enforcement backend"
+    type: task
+    description: |
+      Implement `kinnoo run --sandbox` execution path that enforces declared
+      permissions via a documented sandbox backend with deterministic failure
+      behavior when unsupported policies or violations occur.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/cli.py
+      - src/kinnoo/sandbox.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add run CLI flag --sandbox and route execution through sandbox orchestration layer'
+      - 'step2: Implement baseline enforcement controls for filesystem network and shell policy gates via documented backend strategy'
+      - 'step3: Define deterministic failure modes for unsupported platforms/backends and explicit permission violations'
+      - 'step4: Add integration tests covering successful sandboxed run and deterministic failure paths'
+    dependencies: [task214]
+    tests: [test314]
+    status: completed
+
+  - id: task217
+    title: "Feature39 cross-runtime permission enforcement for Python and Node"
+    type: task
+    description: |
+      Ensure permission policy enforcement applies consistently for both Python
+      and Node.js agents where technically feasible, including parity in
+      diagnostics and fallback behavior.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/install_command.py
+      - src/kinnoo/sandbox.py
+      - tests/test_regression_v1.py
+    steps:
+      - 'step1: Add runtime-aware policy adapters for Python and Node execution paths using shared permission model'
+      - 'step2: Enforce consistent policy checks for declared permissions and document any capability gaps by platform/runtime'
+      - 'step3: Ensure fallback behavior is deterministic when specific enforcement primitives are unavailable'
+      - 'step4: Add regression coverage proving both runtime types honor policy checks without cross-runtime drift'
+    dependencies: [task215, task216]
+    tests: [test315]
+    status: completed
+
+  - id: task218
+    title: "Feature39 violation diagnostics and secret-safe logging"
+    type: task
+    description: |
+      Emit structured permission violation diagnostics and logs that remain
+      actionable for operators while preserving no-secret-value output
+      invariants.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/install_trace.py
+      - src/kinnoo/logging_utils.py
+      - tests/test_run_preflight.py
+    steps:
+      - 'step1: Define violation event schema including capability type attempted action and remediation hints'
+      - 'step2: Add log/event emission for denied operations across install/run enforcement boundaries'
+      - 'step3: Redact sensitive values from diagnostics while retaining useful context for debugging'
+      - 'step4: Add tests asserting actionable diagnostics and explicit no-secret-value protections'
+    dependencies: [task215, task216, task217]
+    tests: [test316]
+    status: completed
+
+  - id: task219
+    title: "Feature40 key generation workflow"
+    type: task
+    description: |
+      Add `kinnoo keygen` support to generate an Ed25519 keypair suitable for
+      archive signing and publisher-verification workflows.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/signing.py
+      - tests/test_cli.py
+      - README.md
+    steps:
+      - 'step1: Add `kinnoo keygen` CLI command with deterministic output paths and operator guidance'
+      - 'step2: Implement Ed25519 keypair generation with secure file permissions and PEM/text serialization format'
+      - 'step3: Emit clear success diagnostics with public-key fingerprint summary while avoiding private-key leakage'
+      - 'step4: Add tests proving keys are generated, readable in expected format, and usable by signing helpers'
+    dependencies: []
+    tests: [test317]
+    status: completed
+
+  - id: task220
+    title: "Feature40 pack signing integration"
+    type: task
+    description: |
+      Integrate archive signing into pack workflow via `kinnoo pack --sign`,
+      emitting signature artifacts and metadata alongside existing checksum
+      outputs.
+    files:
+      - src/kinnoo/pack_command.py
+      - src/kinnoo/signing.py
+      - tests/test_pack.py
+      - docs/manifest-schema-reference.md
+    steps:
+      - 'step1: Add `--sign` pack flag and load signing key material from explicit CLI/config inputs'
+      - 'step2: Sign deterministic archive payload bytes using Ed25519 and emit detached signature artifact'
+      - 'step3: Extend pack metadata/output to include signature location and verification hints alongside checksum details'
+      - 'step4: Add tests validating signed pack path emits expected signature artifacts and metadata contract'
+    dependencies: [task219]
+    tests: [test318]
+    status: completed
+
+  - id: task221
+    title: "Feature40 install signature verification gate"
+    type: task
+    description: |
+      Enforce signature verification during install when signature artifacts are
+      present and block installation on invalid signatures with actionable
+      remediation guidance.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/signing.py
+      - tests/test_install.py
+      - tests/test_cli_install.py
+    steps:
+      - 'step1: Detect signed archive metadata and resolve publisher verification material'
+      - 'step2: Verify detached signature against archive payload and public key'
+      - 'step3: Block install on signature mismatch/verification failure with deterministic diagnostics'
+      - 'step4: Add tests for valid-signature allow path and invalid-signature block path'
+    dependencies: [task220]
+    tests: [test319]
+    status: completed
+
+  - id: task222
+    title: "Feature40 unsigned archive warning and confirmation path"
+    type: task
+    description: |
+      Label unsigned archives as unverified during install and require explicit
+      operator confirmation flow (with non-interactive behavior defined) before
+      continuation.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli_install.py
+      - README.md
+    steps:
+      - 'step1: Add explicit unsigned/unverified publisher messaging in install output when signature metadata is absent'
+      - 'step2: Require confirmation in interactive mode before continuing unsigned installs'
+      - 'step3: Define deterministic non-interactive behavior and override controls for automation pipelines'
+      - 'step4: Add tests covering interactive confirmation and non-interactive unsigned handling paths'
+    dependencies: [task221]
+    tests: [test320]
+    status: completed
+
+  - id: task223
+    title: "Feature40 registry publisher key association"
+    type: task
+    description: |
+      Extend registry metadata model to associate publisher public keys with
+      agent identities to support verified distribution and anti-spoofing
+      install workflows.
+    files:
+      - src/kinnoo/registry.py
+      - src/kinnoo/install_command.py
+      - tests/test_registry.py
+      - tests/test_cli_registry.py
+    steps:
+      - 'step1: Extend registry schema/storage to persist publisher public-key association per agent identity'
+      - 'step2: Add registry read/write validation for key association integrity and update semantics'
+      - 'step3: Integrate install-time lookup path to consume associated publisher key material for verification'
+      - 'step4: Add tests validating key association persistence lookup and anti-spoofing verification path'
+    dependencies: [task219, task221]
+    tests: [test321]
+    status: completed
+
+  - id: task224
+    title: "Feature41 runtime event monitoring baseline"
+    type: task
+    description: |
+      Implement baseline runtime telemetry capture for process spawn, network
+      access attempts, and filesystem write events during agent execution with
+      structured event records.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/runtime_monitor.py
+      - tests/test_run_preflight.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add runtime monitor lifecycle wiring to run flow for monitored execution paths'
+      - 'step2: Define structured event schema for process spawn network and filesystem write observations'
+      - 'step3: Persist or emit deterministic monitor event records without leaking secret values'
+      - 'step4: Add tests proving expected event categories are captured with stable field shapes'
+    dependencies: [task217, task218]
+    tests: [test322]
+    status: completed
+
+  - id: task225
+    title: "Feature41 permission violation enforcement and kill switch"
+    type: task
+    description: |
+      Enforce deterministic policy actions when monitored runtime behavior
+      violates declared permissions, including warn/terminate modes and a hard
+      kill-switch path for critical violations.
+    files:
+      - src/kinnoo/runtime_monitor.py
+      - src/kinnoo/run_command.py
+      - src/kinnoo/sandbox.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Implement policy evaluation that compares observed behavior against feature39 permissions model'
+      - 'step2: Add deterministic enforcement actions for warn and terminate modes with explicit reason codes'
+      - 'step3: Add hard-violation kill-switch path that terminates monitored run when policy requires'
+      - 'step4: Add tests validating warn-only and kill-switch enforcement outcomes for representative violations'
+    dependencies: [task224]
+    tests: [test323]
+    status: completed
+
+  - id: task226
+    title: "Feature41 resource control enforcement"
+    type: task
+    description: |
+      Add configurable resource controls for wall-clock timeout and baseline
+      CPU/memory budget enforcement where platform support exists, with
+      deterministic behavior when controls are unavailable.
+    files:
+      - src/kinnoo/runtime_monitor.py
+      - src/kinnoo/run_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add runtime configuration fields and CLI plumbing for timeout and resource budget controls'
+      - 'step2: Enforce wall-clock timeout and platform-supported CPU/memory bounds during monitored runs'
+      - 'step3: Emit deterministic degraded-mode guidance when specific resource controls are unsupported'
+      - 'step4: Add tests covering enforced limits and graceful unsupported-platform fallback behavior'
+    dependencies: [task224]
+    tests: [test324]
+    status: completed
+
+  - id: task227
+    title: "Feature41 dry-run monitoring mode"
+    type: task
+    description: |
+      Implement `kinnoo run --dry-run` tracing mode that reports likely runtime
+      actions through monitor diagnostics while minimizing side-effect execution.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/runtime_monitor.py
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add dry-run run-mode flag handling and route execution through low-risk tracing path'
+      - 'step2: Emit predicted action diagnostics for process/network/filesystem behaviors'
+      - 'step3: Ensure side-effect execution is suppressed or safely short-circuited under dry-run mode'
+      - 'step4: Add tests validating dry-run outputs and side-effect suppression guarantees'
+    dependencies: [task224]
+    tests: [test325]
+    status: completed
+
+  - id: task228
+    title: "Feature41 feature39 integration and graceful degradation"
+    type: task
+    description: |
+      Integrate runtime monitoring with feature39 permission declarations for
+      Python and Node runtimes and ensure graceful degradation where low-level
+      telemetry is unavailable.
+    files:
+      - src/kinnoo/runtime_monitor.py
+      - src/kinnoo/run_command.py
+      - src/kinnoo/validator.py
+      - tests/test_regression_v1.py
+    steps:
+      - 'step1: Bind monitor policy resolution to feature39 permissions declarations and defaults'
+      - 'step2: Ensure monitoring parity for Python and Node agents where technically feasible'
+      - 'step3: Add deterministic fallback/degradation behavior when platform telemetry primitives are unavailable'
+      - 'step4: Add regression tests proving integration with feature39 policies and graceful degradation messaging'
+    dependencies: [task224, task225, task226, task227]
+    tests: [test326]
+    status: completed
+
+  # ======================================================================
+  # Feature28: Registry Backend Abstraction & Remote Client
+  # ======================================================================
+
+  - id: task229
+    title: "RegistryBackend protocol + LocalRegistryBackend refactor"
+    type: task
+    description: |
+      Define a RegistryBackend protocol (Python Protocol class) with methods for
+      publish, resolve, search, list_agents. Refactor existing local registry logic
+      into a LocalRegistryBackend that implements this protocol. All existing local
+      behavior must be preserved identically.
+    files:
+      - src/kinnoo/registry_backend.py
+      - src/kinnoo/registry.py
+      - tests/test_registry.py
+    steps:
+      - 'step1: Define RegistryBackend protocol with methods: publish(archive_path) -> result, resolve(tenant, name, version) -> archive_path, search(query) -> list, list_agents(tenant) -> list'
+      - 'step2: Create LocalRegistryBackend class that wraps existing local registry logic and implements the protocol'
+      - 'step3: Refactor existing registry module to delegate to LocalRegistryBackend internally'
+      - 'step4: Add unit tests verifying LocalRegistryBackend matches existing behavior exactly'
+      - 'step5: Run full regression suite to confirm no local behavior changes'
+    dependencies: []
+    tests: [test327]
+    status: completed
+
+  - id: task230
+    title: "RemoteRegistryClient HTTP implementation"
+    type: task
+    description: |
+      Implement RemoteRegistryClient that implements RegistryBackend protocol via
+      HTTP calls to a remote server. Uses urllib.request (stdlib) for HTTP.
+      Supports multi-tenant paths (tenant_slug/agent_slug/version). All requests
+      attach Authorization header with Bearer token.
+    files:
+      - src/kinnoo/remote_client.py
+      - tests/test_remote_client.py
+    steps:
+      - 'step1: Create RemoteRegistryClient class implementing RegistryBackend protocol'
+      - 'step2: Implement publish method with multipart upload to POST /api/publish'
+      - 'step3: Implement resolve method via GET /api/agents/{tenant}/{agent}/{version}/download'
+      - 'step4: Implement search method via GET /api/search?q={query}'
+      - 'step5: Implement list_agents method via GET /api/agents?tenant={tenant_slug}'
+      - 'step6: Add Authorization: Bearer {token} header to all requests'
+      - 'step7: Add unit tests using mock HTTP responses'
+    dependencies: [task229]
+    tests: [test328]
+    status: completed
+
+  - id: task231
+    title: "Registry config system (URL, token, tenant)"
+    type: task
+    description: |
+      Implement configuration loading for remote registry settings from
+      ~/.kinnoo/config.yaml and environment variables. Env vars take precedence.
+      Config fields: registry_url, registry_token, tenant_slug.
+    files:
+      - src/kinnoo/config.py
+      - tests/test_cli_env_vars.py
+    steps:
+      - 'step1: Add config loading for registry_url, registry_token, tenant_slug from ~/.kinnoo/config.yaml'
+      - 'step2: Add env var overrides: KINNOO_REGISTRY_URL, KINNOO_REGISTRY_TOKEN, KINNOO_TENANT_SLUG'
+      - 'step3: Env vars take precedence over config file values'
+      - 'step4: Add tests for config loading with and without env var overrides'
+    dependencies: []
+    tests: [test329]
+    status: completed
+
+  - id: task232
+    title: "CLI command integration with backend abstraction"
+    type: task
+    description: |
+      Update kinnoo CLI commands (publish, install, list, search) to use the
+      RegistryBackend abstraction. When registry_url is configured, use
+      RemoteRegistryClient; otherwise fall back to LocalRegistryBackend.
+      Preserve --local flag behavior.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/publish_command.py
+      - src/kinnoo/install_command.py
+      - tests/test_cli.py
+      - tests/test_cli_install.py
+    steps:
+      - 'step1: Add backend selection logic: if registry_url configured, use RemoteRegistryClient; else LocalRegistryBackend'
+      - 'step2: Update publish command to use backend.publish() with --local override'
+      - 'step3: Update install command to use backend.resolve() with --local/--remote flags'
+      - 'step4: Update list command to use backend.list_agents()'
+      - 'step5: Update search command to use backend.search()'
+      - 'step6: Run full CLI regression test suite'
+    dependencies: [task229, task230, task231]
+    tests: [test330]
+    status: completed
+
+  - id: task233
+    title: "Remote client error handling"
+    type: task
+    description: |
+      Add comprehensive error handling to RemoteRegistryClient for all HTTP
+      error scenarios. Each error type produces a clear, actionable CLI message.
+    files:
+      - src/kinnoo/remote_client.py
+      - tests/test_remote_client.py
+    steps:
+      - 'step1: Handle connection refused (server not reachable) with clear message'
+      - 'step2: Handle 401 unauthorized with token refresh guidance'
+      - 'step3: Handle 403 forbidden with permission explanation'
+      - 'step4: Handle 404 not found with agent/version not found message'
+      - 'step5: Handle 409 conflict with duplicate version message'
+      - 'step6: Handle 429 rate limit with retry-after guidance'
+      - 'step7: Handle 500 server error with generic server error message'
+      - 'step8: Add tests for each error scenario'
+    dependencies: [task230]
+    tests: [test331]
+    status: completed
+
+  # ======================================================================
+  # Feature43: Auth, User & Tenant Management
+  # ======================================================================
+
+  - id: task234
+    title: "User model and password hashing"
+    type: task
+    description: |
+      Implement user model with secure password hashing (argon2 or bcrypt).
+      User data stored as JSON documents in the storage backend. Fields: id,
+      username, password_hash, role (admin/user), created_at, updated_at.
+      Passwords are never stored or logged in plaintext.
+    files:
+      - server/models/user.py
+      - server/storage/user_store.py
+      - server/tests/test_user_model.py
+    steps:
+      - 'step1: Define User model with fields: id, username, password_hash, role, created_at, updated_at'
+      - 'step2: Implement password hashing with argon2 (preferred) or bcrypt fallback'
+      - 'step3: Implement UserStore that reads/writes user JSON documents to storage backend'
+      - 'step4: Add password verification method (constant-time comparison)'
+      - 'step5: Add unit tests for model creation, password hashing, and verification'
+      - 'step6: Verify no plaintext passwords appear in any log or error output'
+    dependencies: []
+    tests: [test332]
+    status: completed
+
+  - id: task235
+    title: "Bootstrap admin CLI command"
+    type: task
+    description: |
+      Implement a one-time bootstrap CLI command (kinnoo-server bootstrap) that
+      creates the first admin account. Outputs a temporary password. Forces
+      password change on first login. Bootstrap is disabled once an admin exists.
+    files:
+      - server/cli.py
+      - server/bootstrap.py
+      - server/tests/test_bootstrap.py
+    steps:
+      - 'step1: Create kinnoo-server bootstrap CLI command'
+      - 'step2: Check if any admin user exists — if yes, refuse with explanation'
+      - 'step3: Generate secure temporary password'
+      - 'step4: Create admin user with force_password_change=true flag'
+      - 'step5: Print temporary password once (never log it)'
+      - 'step6: Add tests for bootstrap success, duplicate prevention, and password output'
+    dependencies: [task234]
+    tests: [test333]
+    status: completed
+
+  - id: task236
+    title: "Tenant model and slug management"
+    type: task
+    description: |
+      Implement tenant model with user-chosen slugs. Slugs must be unique,
+      lowercase alphanumeric with hyphens. Only admin can create tenants.
+      Tenant data stored as JSON documents in storage backend.
+    files:
+      - server/models/tenant.py
+      - server/storage/tenant_store.py
+      - server/tests/test_tenant_model.py
+    steps:
+      - 'step1: Define Tenant model with fields: tenant_slug, owner_user_id, visibility (public/private), created_at'
+      - 'step2: Implement slug validation: lowercase, alphanumeric + hyphens, starts with letter'
+      - 'step3: Implement TenantStore that reads/writes tenant JSON documents to storage backend'
+      - 'step4: Add uniqueness check — reject duplicate slugs with clear error'
+      - 'step5: Add admin-only authorization check for tenant creation'
+      - 'step6: Add unit tests for model, slug validation, uniqueness, and authorization'
+    dependencies: [task234]
+    tests: [test334]
+    status: completed
+
+  - id: task237
+    title: "JWT access token issuance and validation"
+    type: task
+    description: |
+      Implement JWT token issuance (POST /api/auth/token) and validation
+      middleware. Tokens include scoped claims (registry:read, registry:publish,
+      registry:admin). Short-lived (60 min default). Supports key rotation
+      via kid header and token denylist for emergency revocation.
+    files:
+      - server/auth/token.py
+      - server/auth/middleware.py
+      - server/tests/test_jwt_auth.py
+    steps:
+      - 'step1: Implement JWT signing with configurable signing key and kid header'
+      - 'step2: Define token claims: iss, sub, tenant_slug, scopes, token_id, exp, iat'
+      - 'step3: Implement POST /api/auth/token endpoint: username+password -> JWT'
+      - 'step4: Implement auth middleware that validates JWT on all protected endpoints'
+      - 'step5: Implement scope enforcement per endpoint (read/publish/admin)'
+      - 'step6: Add token denylist check for emergency revocation by token_id'
+      - 'step7: Add key rotation support: try current key, fall back to previous key via kid'
+      - 'step8: Add tests for issuance, validation, scope enforcement, denylist, and rotation'
+    dependencies: [task234]
+    tests: [test335]
+    status: completed
+
+  - id: task238
+    title: "Session cookie auth for web UI"
+    type: task
+    description: |
+      Implement session-based authentication for the web UI. Sessions use
+      signed HttpOnly cookies with Secure and SameSite=Lax flags. CSRF tokens
+      required on all POST forms. Server-side session invalidation on logout
+      and password reset. Session TTL 8-12 hours.
+    files:
+      - server/auth/session.py
+      - server/tests/test_session_auth.py
+    steps:
+      - 'step1: Implement session creation with signed cookie (HttpOnly, Secure, SameSite=Lax)'
+      - 'step2: Implement server-side session store (JSON docs in storage backend)'
+      - 'step3: Add CSRF token generation and validation for POST forms'
+      - 'step4: Add session TTL enforcement (8-12 hours configurable)'
+      - 'step5: Implement session invalidation on logout and password reset'
+      - 'step6: Add tests for session lifecycle, CSRF, expiration, and invalidation'
+    dependencies: [task234, task237]
+    tests: [test336]
+    status: completed
+
+  # ======================================================================
+  # Feature29: Remote Registry Server
+  # ======================================================================
+
+  - id: task239
+    title: "FastAPI server scaffold + S3 storage abstraction"
+    type: task
+    description: |
+      Create the server/ directory structure with FastAPI app, config module,
+      and a StorageBackend abstraction with three implementations:
+      LocalStorageBackend (filesystem), MockS3Backend (moto), and
+      S3StorageBackend (real S3/MinIO). Backend selected via
+      REGISTRY_STORAGE_BACKEND env var (local|mock|s3).
+    files:
+      - server/__init__.py
+      - server/app.py
+      - server/config.py
+      - server/storage/__init__.py
+      - server/storage/base.py
+      - server/storage/local.py
+      - server/storage/mock_s3.py
+      - server/storage/s3.py
+      - server/requirements.txt
+      - server/tests/test_storage.py
+    steps:
+      - 'step1: Create server/ directory with __init__.py, app.py (FastAPI), config.py'
+      - 'step2: Define StorageBackend protocol with methods: put_object, get_object, list_objects, delete_object, generate_presigned_url'
+      - 'step3: Implement LocalStorageBackend using filesystem paths'
+      - 'step4: Implement MockS3Backend using moto library for S3 simulation'
+      - 'step5: Implement S3StorageBackend using boto3 for real S3/MinIO'
+      - 'step6: Add config loading from env vars (REGISTRY_STORAGE_BACKEND, S3 connection vars)'
+      - 'step7: Add server/requirements.txt with fastapi, uvicorn, boto3, moto, python-jose, argon2-cffi'
+      - 'step8: Add tests for all three storage backends (read, write, list, delete, presign)'
+    dependencies: []
+    tests: [test337]
+    status: completed
+
+  - id: task240
+    title: "JSON metadata model (3-tier)"
+    type: task
+    description: |
+      Implement the three-tier JSON metadata document model: global index,
+      per-agent index, and per-version metadata. Documents are stored in
+      the storage backend under metadata/ prefix. Schema-versioned (v1)
+      in both filename and payload.
+    files:
+      - server/metadata/__init__.py
+      - server/metadata/models.py
+      - server/metadata/manager.py
+      - server/tests/test_metadata.py
+    steps:
+      - 'step1: Define GlobalIndex model (schema_version, generated_at, tenants with agent summaries)'
+      - 'step2: Define AgentIndex model (schema_version, tenant_slug, agent_slug, visibility, versions list)'
+      - 'step3: Define VersionMetadata model (schema_version, manifest, storage keys, integrity, publisher info)'
+      - 'step4: Implement MetadataManager that reads/writes/updates all three document types via storage backend'
+      - 'step5: Implement atomic update strategy for global index (read-modify-write with retry)'
+      - 'step6: Add tests for all three document types: create, read, update operations'
+    dependencies: [task239]
+    tests: [test338]
+    status: completed
+
+  - id: task241
+    title: "Publish endpoint (POST /api/publish)"
+    type: task
+    description: |
+      Implement the publish endpoint that accepts archive upload, validates
+      structure, recomputes SHA256 server-side, stores archive in object
+      storage, and creates/updates JSON metadata documents. Reject duplicate
+      tenant+agent+version with 409 Conflict. Enforce max upload size.
+    files:
+      - server/routes/publish.py
+      - server/tests/test_publish.py
+    steps:
+      - 'step1: Create POST /api/publish route with multipart file upload'
+      - 'step2: Validate archive extension and basic structure'
+      - 'step3: Recompute SHA256 server-side from uploaded bytes'
+      - 'step4: Check for duplicate tenant+agent+version — return 409 if exists'
+      - 'step5: Store archive binary at archives/tenants/{tenant}/agents/{agent}/versions/{version}/{agent}.kno'
+      - 'step6: Store SHA256 checksum at matching .sha256 path'
+      - 'step7: Update version metadata, agent index, and global index documents'
+      - 'step8: Enforce max upload size from config (REGISTRY_MAX_UPLOAD_MB)'
+      - 'step9: Require registry:publish scope in auth token'
+      - 'step10: Add tests using TestClient and mock storage'
+    dependencies: [task239, task240, task237]
+    tests: [test339]
+    status: completed
+
+  - id: task242
+    title: "List and detail endpoints"
+    type: task
+    description: |
+      Implement GET /api/agents (paginated list) and GET /api/agents/{tenant}/{agent}
+      (agent detail with version history). Both require valid auth token with
+      registry:read scope. Respect per-tenant visibility rules.
+    files:
+      - server/routes/agents.py
+      - server/tests/test_agents_routes.py
+    steps:
+      - 'step1: Create GET /api/agents with offset/limit pagination and optional tenant filter'
+      - 'step2: Return agent summaries from global index metadata'
+      - 'step3: Create GET /api/agents/{tenant}/{agent} returning agent index with all versions'
+      - 'step4: Enforce auth requirement (registry:read scope) on both endpoints'
+      - 'step5: Respect per-tenant visibility (private tenants visible only to owner/collaborators)'
+      - 'step6: Return 404 for non-existent agents, 403 for unauthorized private tenant access'
+      - 'step7: Add tests for pagination, visibility enforcement, and error cases'
+    dependencies: [task239, task240, task237]
+    tests: [test340]
+    status: completed
+
+  - id: task243
+    title: "Download endpoint with presigned URLs"
+    type: task
+    description: |
+      Implement GET /api/agents/{tenant}/{agent}/{version}/download that returns
+      a presigned download URL. Archive is never proxied through the server.
+      Requires valid auth token with registry:read scope.
+    files:
+      - server/routes/download.py
+      - server/tests/test_download.py
+    steps:
+      - 'step1: Create GET /api/agents/{tenant}/{agent}/{version}/download endpoint'
+      - 'step2: Look up version metadata to find archive storage key'
+      - 'step3: Generate presigned URL via storage backend (configurable TTL from REGISTRY_PRESIGN_TTL_SECONDS)'
+      - 'step4: Return JSON response with download_url and expires_in'
+      - 'step5: Return 404 if version not found'
+      - 'step6: Require registry:read scope in auth token'
+      - 'step7: Add tests using mock storage presigned URL generation'
+    dependencies: [task239, task240, task237]
+    tests: [test341]
+    status: completed
+
+  - id: task244
+    title: "Search endpoint and auth middleware + rate limiting"
+    type: task
+    description: |
+      Implement GET /api/search with name/description substring matching.
+      Add auth middleware that validates JWT on all protected routes.
+      Add rate limiting on auth and publish endpoints.
+    files:
+      - server/routes/search.py
+      - server/middleware.py
+      - server/tests/test_search.py
+      - server/tests/test_middleware.py
+    steps:
+      - 'step1: Create GET /api/search?q={query}&offset=0&limit=50 endpoint'
+      - 'step2: Filter agents by name and description substring match from global index'
+      - 'step3: Respect visibility rules (only show authorized tenants)'
+      - 'step4: Add auth middleware dependency that validates JWT and injects user context'
+      - 'step5: Add rate limiting middleware for /api/auth/token and /api/publish'
+      - 'step6: Add tests for search results, empty queries, visibility filtering, and rate limits'
+    dependencies: [task239, task240, task237]
+    tests: [test342]
+    status: completed
+
+  # ======================================================================
+  # Feature30: Registry Web UI
+  # ======================================================================
+
+  - id: task245
+    title: "Jinja2 template setup + base layout"
+    type: task
+    description: |
+      Set up Jinja2 template engine in the FastAPI server app. Create base
+      layout template with consistent styling (simple CSS). All pages extend
+      the base template.
+    files:
+      - server/templates/base.html
+      - server/templates/static/style.css
+      - server/app.py
+      - server/tests/test_templates.py
+    steps:
+      - 'step1: Add Jinja2 template engine to FastAPI app configuration'
+      - 'step2: Create base.html layout with header, nav, content block, footer'
+      - 'step3: Create simple CSS stylesheet for clean, readable styling'
+      - 'step4: Add static file serving for CSS'
+      - 'step5: Add tests verifying template engine is configured and base layout renders'
+    dependencies: [task239]
+    tests: [test343]
+    status: completed
+
+  - id: task246
+    title: "Login page + session auth flow"
+    type: task
+    description: |
+      Implement /login page with session cookie authentication. GET /login
+      renders form; POST /login authenticates and sets session cookie.
+      Logout endpoint clears session. CSRF tokens on all forms.
+    files:
+      - server/templates/login.html
+      - server/routes/web_auth.py
+      - server/tests/test_web_auth.py
+    steps:
+      - 'step1: Create login.html template with username/password form + CSRF token'
+      - 'step2: Create GET /login route that renders login form'
+      - 'step3: Create POST /login route that authenticates and sets session cookie'
+      - 'step4: Create POST /logout route that invalidates session'
+      - 'step5: Add middleware to redirect unauthenticated requests to /login'
+      - 'step6: Add tests for login success, failure, logout, CSRF validation'
+    dependencies: [task238, task245]
+    tests: [test344]
+    status: completed
+
+  - id: task247
+    title: "Agent listing + search pages"
+    type: task
+    description: |
+      Implement /agents page with paginated HTML table of all published agents
+      and /search page with query results. Both require active session.
+    files:
+      - server/templates/agents.html
+      - server/templates/search.html
+      - server/routes/web_agents.py
+      - server/tests/test_web_agents.py
+    steps:
+      - 'step1: Create agents.html template with paginated table (tenant, name, version, author, size, description)'
+      - 'step2: Create GET /agents route that reads global index and renders table'
+      - 'step3: Add pagination controls (prev/next) to agent listing'
+      - 'step4: Create search.html template with search form + results table'
+      - 'step5: Create GET /search?q={query} route that filters and renders results'
+      - 'step6: Add tests for listing, pagination, search, and session requirement'
+    dependencies: [task245, task240]
+    tests: [test345]
+    status: completed
+
+  - id: task248
+    title: "Agent profile + download pages"
+    type: task
+    description: |
+      Implement /agents/{tenant}/{agent} profile page showing all versions,
+      metadata, and download buttons. Download triggers presigned URL redirect.
+    files:
+      - server/templates/agent_profile.html
+      - server/routes/web_agents.py
+      - server/tests/test_web_agents.py
+    steps:
+      - 'step1: Create agent_profile.html template with version history table and metadata display'
+      - 'step2: Create GET /agents/{tenant}/{agent} route that reads agent index and renders profile'
+      - 'step3: Add download button per version that generates presigned URL and redirects'
+      - 'step4: Show agent metadata: description, author, latest version, total versions, visibility'
+      - 'step5: Add tests for profile rendering, download redirect, and missing agent 404'
+    dependencies: [task245, task240, task243]
+    tests: [test346]
+    status: completed
+
+  - id: task249
+    title: "Agents page clickable name + right-side manifest key/value table"
+    type: task
+    description: |
+      Under the Published Agents table, make Name entries clickable. Clicking an
+      agent name should render a right-side panel on the same Agents page showing
+      a key/value table representing the full kinnoo.yaml schema fields for the
+      selected agent.
+    files:
+      - server/templates/agents.html
+      - server/routes/web_agents.py
+      - server/tests/test_web_agents.py
+    steps:
+      - 'step1: Update agents listing rows so the Name cell renders a link targeting the selected agent on /agents'
+      - 'step2: Extend /agents route context to load selected agent manifest fields for right-side rendering'
+      - 'step3: Render a right-side key/value table that includes all kinnoo.yaml schema fields with safe defaults for missing optional values'
+      - 'step4: Preserve existing pagination/session behavior and add focused integration coverage'
+    dependencies: [task247, task248]
+    tests: [test347]
+    status: completed
+
+  - id: task250
+    title: "Published Agents table framework column"
+    type: task
+    description: |
+      Add a framework column to the Published Agents table. Display the manifest
+      framework value when present; otherwise show N/A.
+    files:
+      - server/templates/agents.html
+      - server/routes/web_agents.py
+      - server/tests/test_web_agents.py
+    steps:
+      - 'step1: Extend agent row view-model generation to include framework field from latest manifest metadata'
+      - 'step2: Add Framework column to Published Agents table and render N/A when framework is not set'
+      - 'step3: Keep table ordering and existing columns stable apart from additive framework column'
+      - 'step4: Add integration coverage verifying both populated and N/A framework rendering cases'
+    dependencies: [task247]
+    tests: [test348]
+    status: completed
+
+  - id: task251
+    title: Remote list/search summary-shape compatibility fix
+    type: issue
+    description: |
+      Fix CLI remote list/search rendering to support dict-shaped agent summaries
+      returned by RemoteRegistryClient-backed registry endpoints, while preserving
+      compatibility with object-style summary instances used by local flows.
+    files:
+      - src/kinnoo/list_command.py
+      - src/kinnoo/search_command.py
+      - tests/test_cli_remote_summary_shape.py
+    steps:
+      - 'step1: Normalize summary field access in list command to support both dict and object summary types'
+      - 'step2: Apply the same summary-shape normalization in remote search output rendering'
+      - 'step3: Add focused regressions covering dict-shaped summaries for remote list and remote search code paths'
+      - 'step4: Verify nearby remote list mode regression remains green'
+    dependencies: [task232, task233]
+    tests: [test349, test350]
+    status: completed
+
+  - id: task252
+    title: Publish optional pack-and-bump flow
+    type: task
+    description: |
+      Add optional `kinnoo publish --pack` behavior that packs an agent directory
+      before publish when requested, with optional `--bump` support (`major`,
+      `minor`, `patch`) delegated through pack semantics. Preserve existing
+      default publish behavior (archive-first) when `--pack` is not provided.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/publish_command.py
+      - src/kinnoo/pack_command.py
+      - tests/test_cli.py
+      - tests/test_publish_command.py
+    steps:
+      - 'step1: Extend publish CLI parsing with optional --pack and optional --bump {major,minor,patch}'
+      - 'step2: When --pack is provided, validate an agent directory exists, invoke pack flow, then continue publish using the newly packed archive'
+      - 'step3: Wire --bump only for --pack mode and surface clear usage errors for invalid combinations'
+      - 'step4: Preserve existing archive-first publish path and actionable error guidance when archive is missing and --pack is not set'
+      - 'step5: Add focused tests for happy-path pack-and-publish, bump-and-publish, and guardrail errors'
+    dependencies: [task83, task106, task232]
+    tests: [test351, test352, test353]
+    status: completed
+
+  - id: task253
+    title: Add mcp-server framework option to kinnoo init
+    type: task
+    description: |
+      Add `mcp-server` to `kinnoo init --framework` supported values and scaffold a
+      minimal MCP server template for new agents. Update init help text so
+      `kinnoo init -h` includes a concrete mcp-server initialization example.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/init_command.py
+      - src/kinnoo/templates.py
+      - tests/test_init.py
+    steps:
+      - 'step1: Add mcp-server to --framework CLI choices and pass-through handling in init command path'
+      - 'step2: Add mcp-server template generation with runnable scaffold and manifest/runtime fields aligned to MCP server mode'
+      - 'step3: Add/adjust `kinnoo init -h` examples so one explicitly demonstrates `--framework mcp-server`'
+      - 'step4: Add tests for template generation plus help output example regression coverage'
+    dependencies: [task157]
+    tests: [test354, test355]
+    status: completed
+
+  - id: task254
+    title: Curate and stage real-world open-source agent examples for import/run/pack trials
+    type: task
+    description: |
+      Find at least 6 real-world open-source agent examples spanning supported
+      frameworks (PydanticAI, LangChain, LangGraph, OpenAI Agents SDK, MCP client,
+      MCP server, OpenClaw), with at least 2 simple, 2 medium, and 2 high-complexity
+      examples. Record source links and framework mapping in a markdown inventory,
+      and download each example into its own subfolder under example-scratch/.
+    files:
+      - TASKS.txt
+      - example-scratch/agents-list.md
+      - example-scratch/
+    steps:
+      - 'step1: Source public agent repos from common open-source registries (GitHub/GitLab/Hugging Face or equivalent) and verify cloneability'
+      - 'step2: Classify examples by complexity (simple/medium/high) with at least two per bucket'
+      - 'step3: Ensure coverage across all supported frameworks using at least one example per framework where possible'
+      - 'step4: Write curated list with links to example-scratch/agents-list.md and clone each selected example into a dedicated subfolder under example-scratch/'
+    dependencies: [task253]
+    tests: []
+    status: deprecated
+
+  - id: task255
+    title: Execute 42-agent import/inspect/run/pack validation matrix
+    type: task
+    description: |
+      Define and implement an automated validation matrix that exercises the full
+      curated corpus of 42 staged open-source agents (from task254) through
+      import, inspect, run, and pack workflows. Use
+      example-scratch/agents-map.txt as the canonical source of truth for matrix
+      enumeration and reporting.
+    files:
+      - TASKS.txt
+      - TESTS.txt
+      - example-scratch/agents-map.txt
+      - example-scratch/agents-list.md
+      - notes/tasks/task254-notes.md
+      - tests/test_corpus_matrix.py
+    steps:
+      - 'step1: Build matrix enumeration from example-scratch/agents-map.txt and verify it resolves exactly 42 local staged agent folders'
+      - 'step2: Implement import matrix execution and deterministic per-agent/per-framework reporting'
+      - 'step3: Implement inspect matrix execution and deterministic output-shape assertions with per-agent diagnostics'
+      - 'step4: Implement run matrix execution using stable sample inputs and capture reproducible pass/fail summaries'
+      - 'step5: Implement pack matrix execution with `.kno` artifact-status checks and aggregate framework/complexity metrics'
+      - 'step6: Add test harness utilities to keep matrix runs deterministic, resilient to per-agent failures, and actionable in CI output'
+    dependencies: [task254]
+    tests: [test356, test357, test358, test359]
+    status: deprecated
+
+  - id: task256
+    title: Auto-generate requirements.txt during kinnoo import
+    type: issue
+    description: |
+      Ensure `kinnoo import` creates `requirements.txt` for Python projects when
+      it is missing. Use analyzer-inferred dependencies when present, otherwise
+      attempt uv export detection, and fall back to an empty requirements file
+      with clear user guidance when inference/export cannot resolve packages.
+    files:
+      - src/kinnoo/import_command.py
+      - tests/test_cli_import.py
+      - TASKS.txt
+      - TESTS.txt
+      - FEATURES.txt
+      - notes/tasks/task256-notes.md
+    steps:
+      - 'step1: Add import post-processing that creates missing requirements.txt for Python runtime imports'
+      - 'step2: Prefer analyzer dependency inference, then uv export, then deterministic empty fallback with message'
+      - 'step3: Preserve rollback safety so failures do not leave partial import artifacts'
+      - 'step4: Add focused CLI tests for uv-export success path and empty-fallback path'
+      - 'step5: Document assessment that earlier feature19 tasks did not fully satisfy packaging-readiness expectations'
+    dependencies: [task164, task165, task167]
+    tests: [test360, test361]
+    status: completed
+
+  - id: task257
+    title: Add runtime.path executable override for kinnoo run
+    type: task
+    description: |
+      Add optional `runtime.path` support in `kinnoo.yaml` as an agent-level
+      runtime executable override. During `kinnoo run`, when `runtime.path` is
+      present and exists, execute the agent with that runtime executable.
+      When missing or invalid, preserve current behavior by using the runtime
+      executable inferred from the invoking Kinnoo process (Python) or default
+      runtime command (Node.js).
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/validator.py
+      - tests/test_cli.py
+      - TASKS.txt
+      - TESTS.txt
+      - FEATURES.txt
+      - notes/tasks/task257-notes.md
+    steps:
+      - 'step1: Extend manifest validation/schema handling to accept optional runtime.path as a non-empty string path'
+      - 'step2: In run flow, resolve runtime.path for python/nodejs and use it only when it exists and is executable'
+      - 'step3: Preserve current fallback behavior when runtime.path is absent or invalid, with clear diagnostics'
+      - 'step4: Add integration tests proving Python runtime override can differ from the interpreter that launched kinnoo run'
+      - 'step5: Add integration tests covering nodejs runtime.path override behavior and fallback semantics'
+    dependencies: [task39, task93]
+    tests: [test362, test363]
+    status: completed
+
+  - id: task258
+    title: Analyzer input/output type auto-detection
+    type: task
+    description: |
+      Extend the analyzer to detect the type of inputs an imported agent expects
+      (text, JSON, parameterized, none) and the type of outputs it produces. Record
+      detected types in kinnoo.yaml fields inputs.type and outputs.type with
+      confidence scores.
+    files:
+      - src/kinnoo/analyzer.py
+      - tests/test_validator.py
+    steps:
+      - 'step1: Add _detect_input_type() detector scanning for sys.argv, argparse, input(), json.loads, etc.'
+      - 'step2: Add _detect_output_type() detector scanning for print(), json.dumps, return types'
+      - 'step3: Wire detectors into AnalysisReport and import wizard'
+      - 'step4: Add tests for each input/output type detection scenario'
+    dependencies: [task135]
+    tests: [test364, test365]
+    status: completed
+
+  - id: task259
+    title: Add --preflight flag to kinnoo pack
+    type: task
+    description: |
+      Add a --preflight flag to the pack command that runs preflight checks before
+      packing. If preflight passes, record preflight_status and preflight_date in
+      kinnoo.yaml metadata. If preflight fails, warn but allow packing (with
+      confirmation prompt).
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/pack_command.py
+      - tests/test_pack.py
+    steps:
+      - 'step1: Add --preflight argument to pack subparser'
+      - 'step2: Call preflight logic before packing when flag is set'
+      - 'step3: Write preflight_status and preflight_date to kinnoo.yaml on PASS'
+      - 'step4: On FAIL, warn and prompt for confirmation to continue packing'
+      - 'step5: Add tests for pack --preflight PASS and FAIL scenarios'
+    dependencies: [task172]
+    tests: [test366, test367]
+    status: completed
+
+  - id: task260
+    title: Separate daemon commands in help output
+    type: task
+    description: |
+      Group the daemon-specific commands (attach, stop, logs) into their own
+      "Daemon Commands" section in the top-level kinnoo -h output, separate from
+      the main agent lifecycle commands.
+    files:
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Create a separate argument group for daemon commands in argparse'
+      - 'step2: Move attach, stop, logs subparsers into the daemon group'
+      - 'step3: Verify kinnoo -h output shows separate sections'
+      - 'step4: Add test asserting daemon commands appear in separate section'
+    dependencies: []
+    tests: [test368]
+    status: completed
+
+  - id: task261
+    title: Analyzer model auto-detection
+    type: task
+    description: |
+      Extend the analyzer to auto-detect the model name from agent source code
+      (string literals like model="gpt-4o-mini", model_name="claude-sonnet-4-20250514",
+      etc.) and populate the model field in kinnoo.yaml. Test against default
+      Gemini, Claude-chat, and ChatGPT init templates.
+    files:
+      - src/kinnoo/analyzer.py
+      - tests/test_validator.py
+    steps:
+      - 'step1: Add _detect_model() scanning for model string literal patterns'
+      - 'step2: Wire into AnalysisReport with confidence scoring'
+      - 'step3: Test detection against gemini, claude-chat, chatgpt init templates'
+    dependencies: [task135]
+    tests: [test369, test370]
+    status: completed
+
+  - id: task262
+    title: Framework help — one per line with descriptions
+    type: task
+    description: |
+      Reformat the kinnoo init --framework help text to show one framework per line
+      with a one-liner description, instead of listing all frameworks on a single line.
+    files:
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Define framework descriptions mapping (name -> one-liner)'
+      - 'step2: Update --framework help text and init epilog to use multi-line format'
+      - 'step3: Add test asserting each framework appears on its own line with description'
+    dependencies: []
+    tests: [test371]
+    status: completed
+
+  - id: task263
+    title: Add --language flag to kinnoo init
+    type: task
+    description: |
+      Add a --language flag to kinnoo init supporting python, js/javascript, and
+      ts/typescript. Error on incompatible combinations (e.g., --framework openclaw
+      --language python). Language-only initializations produce barebones templates.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/init_command.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add --language argument to init subparser with choices'
+      - 'step2: Define compatibility matrix (framework x language)'
+      - 'step3: Add barebones templates for js and ts language-only init'
+      - 'step4: Error with clear message on incompatible combinations'
+      - 'step5: Add tests for valid and invalid language/framework combinations'
+    dependencies: []
+    tests: [test372, test373]
+    status: completed
+
+  - id: task264
+    title: Remove remnant Python files from OpenClaw init
+    type: task
+    description: |
+      Fix the OpenClaw init scaffold to not generate run.py and requirements.txt.
+      Currently OpenClaw is not in the framework_templates dict, so it falls through
+      to the default Python template before overlaying JS files.
+    files:
+      - src/kinnoo/init_command.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add openclaw to framework_templates or skip default Python file writes'
+      - 'step2: Verify openclaw scaffold only contains JS/OpenClaw files'
+      - 'step3: Add test asserting run.py and requirements.txt are absent in openclaw scaffold'
+    dependencies: []
+    tests: [test374]
+    status: completed
+
+  - id: task265
+    title: kinnoo import from GitHub URL
+    type: task
+    description: |
+      Extend kinnoo import to accept a GitHub URL as the first argument. Downloads
+      agent code to the specified import-path (or cwd/<agent-code-dir>/ by default).
+      Error if target directory already exists. Handle clone/download failures with
+      intelligent error messages.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/import_command.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Detect GitHub URL pattern in import argument'
+      - 'step2: Clone/download agent code to target directory'
+      - 'step3: Error if target directory already exists with clear message'
+      - 'step4: Handle clone failures (missing credentials, URL not found) with descriptive errors'
+      - 'step5: Run standard import flow on downloaded directory'
+      - 'step6: Add tests for URL import, collision, and failure scenarios'
+    dependencies: [task135]
+    tests: [test375, test376, test377]
+    status: completed
+
+  - id: task266
+    title: Add kinnoo check command
+    type: task
+    description: |
+      Add a kinnoo check command that runs import + inspect + run preflight in one go
+      with intelligent fail messages. Accepts agent-dir or GitHub URL. If URL, downloads
+      to /tmp/kinnoo-agent-check/<agent-code>/ first.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/check_command.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add check subcommand to CLI parser'
+      - 'step2: Implement check_command.py orchestrating import, inspect, preflight'
+      - 'step3: Handle GitHub URL by downloading to temp dir first'
+      - 'step4: Provide per-step PASS/FAIL with actionable guidance on failures'
+      - 'step5: Add tests for check command against local dir and URL scenarios'
+    dependencies: [task135, task258]
+    tests: [test378, test379]
+    status: completed
+
+  - id: task267
+    title: Pretty print with color across CLI commands
+    type: task
+    description: |
+      Add colored output (ANSI escape codes) to import, preflight, pack, publish,
+      install, and user prompt commands. Use green for PASS/success, red for
+      FAIL/error, yellow for WARN, cyan for informational, and bold for headers.
+      Respect NO_COLOR and TERM=dumb env vars.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/run_command.py
+      - src/kinnoo/pack_command.py
+      - src/kinnoo/import_command.py
+    steps:
+      - 'step1: Create a color utility module or helper functions'
+      - 'step2: Apply colored output to preflight PASS/FAIL/WARN lines'
+      - 'step3: Apply colored output to pack size reporting and success/failure'
+      - 'step4: Apply colored output to import wizard and user prompts'
+      - 'step5: Respect NO_COLOR env var and non-TTY detection'
+      - 'step6: Add tests verifying color codes in output when TTY and absence when not'
+    dependencies: []
+    tests: [test380, test381]
+    status: completed
+
+  - id: task268
+    title: Fix preflight venv check when runtime.path is set
+    type: issue
+    description: |
+      Bug fix: preflight dependency check fails with "virtual environment not found"
+      when runtime.path is configured in kinnoo.yaml, even though kinnoo run would
+      create the venv using that interpreter. The fix should make preflight aware of
+      runtime.path and report PASS with an informational note that venv will be
+      created at run time.
+    files:
+      - src/kinnoo/run_command.py
+      - tests/test_run_preflight.py
+    steps:
+      - 'step1: Pass runtime section to _check_preflight_dependencies'
+      - 'step2: When venv missing but runtime.path is valid executable, report PASS with info note'
+      - 'step3: Add test for preflight PASS with runtime.path and no venv'
+      - 'step4: Add test for preflight FAIL with no runtime.path and no venv (existing behavior)'
+    dependencies: [task257]
+    tests: [test382, test383]
+    status: needs-review
+
+  - id: task269
+    title: Auto-wrapper generation for class-only Python agents
+    type: enhancement
+    description: |
+      Add class-based agent detection to analyzer.py when no __main__ guard or main()
+      function is found. When a class inheriting from a known agent base class (LangChain
+      BaseSingleActionAgent, OpenAI SDK Agent, etc.) is detected, offer to auto-generate
+      a run.py wrapper during kinnoo import. Includes framework-specific wrapper templates
+      in src/kinnoo/wrapper_templates/.
+    files:
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/import_command.py
+      - src/kinnoo/wrapper_templates/langchain_wrapper.py.j2
+      - src/kinnoo/wrapper_templates/openai_agents_wrapper.py.j2
+    steps:
+      - 'step1: Add class-based agent detection fallback in _detect_entrypoint()'
+      - 'step2: Create wrapper_templates/ directory with LangChain and OpenAI SDK templates'
+      - 'step3: Add wrapper generation logic in import_command.py for entrypoint_type class'
+      - 'step4: Test with langchain-tool-calling-agent and openai-agents-basic-tools'
+    dependencies: []
+    tests: [test384, test385]
+    status: needs-review
+
+  - id: task270
+    title: Jupyter notebook to Python script conversion
+    type: enhancement
+    description: |
+      DEPRECATED — Skipped per human review (2026-03-23). Notebook conversion burden
+      is on the agent developer, not kinnoo. Developers should extract code from .ipynb
+      to .py files themselves before importing into kinnoo.
+    files:
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/import_command.py
+    steps:
+      - 'step1: Add .ipynb scanning in _detect_entrypoint() after .py/.js/.ts scan'
+      - 'step2: Implement notebook JSON parsing and code cell extraction'
+      - 'step3: Add conversion logic in import_command.py for entrypoint_type notebook'
+      - 'step4: Test with langgraph-react-from-scratch notebook'
+    dependencies: []
+    tests: [test386, test387]
+    status: deprecated
+
+  - id: task271
+    title: Subdirectory entrypoint detection improvement
+    type: enhancement
+    description: |
+      Improve _detect_entrypoint() to search deeper subdirectories (depth 4 instead of 2)
+      and prioritize conventional directory names like src/, source/, app/, backend/.
+      Verify run_command.py correctly handles relative subdirectory entrypoints with
+      proper PYTHONPATH setup.
+    files:
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/run_command.py
+    steps:
+      - 'step1: Increase os.walk max depth to 4 in _detect_entrypoint()'
+      - 'step2: Add priority weighting for conventional subdirectory names'
+      - 'step3: Verify run_command.py handles relative paths like source/main.py'
+      - 'step4: Test with openai-agents-sdk-customer-service and vanilla-python-octoagent'
+    dependencies: []
+    tests: [test388, test389]
+    status: needs-review
+
+  - id: task272
+    title: Requirements auto-inference from Python imports
+    type: enhancement
+    description: |
+      Add _infer_requirements() function to analyzer.py that scans Python imports and
+      maps them to PyPI package names via a curated dict. When no requirements.txt
+      exists, import_command.py offers to generate one from inferred dependencies.
+    files:
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/import_command.py
+    steps:
+      - 'step1: Create IMPORT_TO_PYPI mapping dict with ~50 common AI/ML packages'
+      - 'step2: Implement _infer_requirements() scanning all .py files for imports'
+      - 'step3: Add requirements.txt generation offer in import_command.py'
+      - 'step4: Test with langgraph-multi-agent-router (compare inferred vs actual)'
+    dependencies: []
+    tests: [test390, test391]
+    status: needs-review
+
+  - id: task273
+    title: Node.js/TypeScript agent import and run improvements
+    type: enhancement
+    description: |
+      Improve analyzer.py detection of Node.js/TS agents via package.json parsing.
+      Add TypeScript execution support via npx tsx in run_command.py. Support multiple
+      package managers (npm, yarn, pnpm) in install_command.py based on lockfile type.
+    files:
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/run_command.py
+      - src/kinnoo/install_command.py
+    steps:
+      - 'step1: Parse package.json for main/scripts.start entrypoint and tsconfig.json detection'
+      - 'step2: Add lockfile-based package manager detection (npm/yarn/pnpm)'
+      - 'step3: Add TypeScript execution via npx tsx in run_command.py'
+      - 'step4: Test with vanilla-typescript-easy-agent'
+    dependencies: []
+    tests: [test392, test393]
+    status: needs-review
+
+  - id: task274
+    title: Async entrypoint and hardcoded input detection
+    type: enhancement
+    description: |
+      Add detection of async entrypoint patterns (asyncio.run, async def main) and
+      hardcoded vs parameterized input (sys.argv/argparse vs literal strings in agent.run
+      calls) in analyzer.py. Set inputs.required accordingly in generated kinnoo.yaml.
+    files:
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/import_command.py
+    steps:
+      - 'step1: Detect asyncio.run() and async def main() patterns in entrypoint'
+      - 'step2: Detect sys.argv/argparse usage vs hardcoded prompt strings'
+      - 'step3: Set inputs.required field in kinnoo.yaml based on detection'
+      - 'step4: Test with openai-agents-hello-world (hardcoded) and an argparse agent'
+    dependencies: []
+    tests: [test394, test395]
+    status: needs-review
+
+  - id: task275
+    title: Service dependency auto-detection
+    type: enhancement
+    description: |
+      Add _detect_services() to analyzer.py that scans imports and string literals for
+      known service patterns (Ollama, ChromaDB, Redis, PostgreSQL, MongoDB). Detected
+      services are included in generated kinnoo.yaml under the services field.
+    files:
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/import_command.py
+    steps:
+      - 'step1: Create service pattern mapping (import names and URL patterns)'
+      - 'step2: Implement _detect_services() scanning .py files'
+      - 'step3: Include detected services in kinnoo.yaml during import'
+      - 'step4: Test with vanilla-python-reze-agent and openclaw-ollama-extension-agent'
+    dependencies: []
+    tests: [test396, test397]
+    status: needs-review
+
+  - id: task276
+    title: PydanticAI dependency injection (deps) support
+    type: enhancement
+    description: |
+      Detect PydanticAI Agent(deps_type=...) pattern in analyzer.py. Extract deps class
+      fields and set inputs.type to json in generated kinnoo.yaml. Validate that existing
+      --json-input flow correctly passes structured data for deps injection.
+    files:
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/import_command.py
+    steps:
+      - 'step1: Detect Agent(deps_type=...) pattern in PydanticAI agents'
+      - 'step2: Extract deps class name and fields from Pydantic model'
+      - 'step3: Set inputs.type to json when deps injection detected'
+      - 'step4: Validate --json-input with pydanticai-bank-support-agent'
+    dependencies: []
+    tests: [test398, test399]
+    status: needs-review
+
+  - id: task277
+    title: End-to-end validation with representative agents
+    type: validation
+    description: |
+      Run kinnoo import/pack/install/run on representative agents from each supported
+      pattern. Verify the full pipeline works for one-shot Python scripts, multi-file
+      agents, MCP servers, MCP clients, and OpenClaw plugins. Document results as PASS,
+      PARTIAL (kinnoo works but agent errors), or FAIL (kinnoo error).
+    files:
+      - tests/test_cli.py
+    steps:
+      - 'step1: Run E2E for pydanticai-roulette-wheel-agent (simple Python script)'
+      - 'step2: Run E2E for openai-agents-customer-service (multi-file)'
+      - 'step3: Run E2E for mcp-server-time-server (MCP server)'
+      - 'step4: Run E2E for agents-with-mcp-client-code-basic-client-demo (MCP client)'
+      - 'step5: Run E2E for vanilla-typescript-easy-agent (Node.js/TS, if task273 done)'
+      - 'step6: Document results in test report'
+    dependencies: [task269, task271, task272, task273, task274, task275, task276]
+    tests: [test400, test401]
+    status: needs-review
+    
+  - id: task278
+    title: Streamlit/Gradio UI agent support
+    type: feature
+    description: |
+      Detect Streamlit and Gradio UI frameworks in agent code. When detected,
+      set runtime.type to 'daemon' and configure the appropriate run command
+      (e.g., 'streamlit run app.py' for Streamlit agents). Gradio agents auto-launch
+      a web server so they also need daemon runtime type. This enables kinnoo to
+      properly import, install, and run UI-based agent demos.
+    files:
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/import_command.py
+      - src/kinnoo/run_command.py
+    steps:
+      - 'step1: Add Streamlit/Gradio import detection in analyzer.py'
+      - 'step2: Add UI pattern confirmation (st.chat_input, gr.Interface, etc.)'
+      - 'step3: Set runtime.type=daemon and run_command in import_command.py'
+      - 'step4: Handle streamlit run command in run_command.py'
+      - 'step5: Test with nirbar1985-ai-travel-agent and aymenfurter-microagents'
+    dependencies: []
+    tests: [test402, test403, test404, test405]
+    status: needs-review
+
+  - id: task279
+    title: "DEPRECATED — Extended framework detection (CrewAI, Swarm, Agno, etc.)"
+    type: feature
+    status: deprecated
+    deprecation_note: "All 9 extended framework detections deferred per human review (2025-03-23). Will be addressed in a future feature."
+    description: |
+      Extend kinnoo's analyzer to detect CrewAI, Swarm, Agno, SmolAgents, AutoGen,
+      Semantic Kernel, MetaGPT, LlamaIndex, and Anthropic agent frameworks.
+      DEPRECATED — deferred to a future feature.
+    files:
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/import_command.py
+    steps:
+      - 'step1: DEPRECATED'
+    dependencies: [task269, task272]
+    tests: [test406, test407, test409]
+    status: deprecated
+
+  - id: task280
+    title: OpenClaw-like analyzer detection without root package.json
+    type: enhancement
+    description: |
+      Improve analyzer inference for OpenClaw-like JS/TS projects that do not include
+      a root-level package.json but still contain clear runtime/framework evidence
+      (for example README OpenClaw markers plus nested server/bridge/src entrypoint files).
+      Ensure import output detects meaningful metadata instead of all-none defaults.
+    files:
+      - src/kinnoo/analyzer.py
+      - tests/test_analyzer.py
+    steps:
+      - 'step1: Add Node/TS entrypoint fallback heuristics for nested project layouts when root package.json is absent'
+      - 'step2: Add Node runtime fallback inference from JS/TS file presence with confidence-aware evidence/warnings'
+      - 'step3: Extend OpenClaw weighted detection with lightweight project signals (README markers and Node layout)'
+      - 'step4: Add barebones analyzer fixtures similar to selfclaw/nanobot/build-your-own/openclaw-core patterns in tests'
+      - 'step5: Validate targeted analyzer regressions with pytest --testmon'
+    dependencies: [task275, task276]
+    tests: [test410, test411, test412, test413]
+    status: needs-review
+
+  - id: task281
+    title: Inspect full/raw rendering and metadata update command
+    type: enhancement
+    description: |
+      Add inspect metadata rendering modes for complete-field visibility and raw
+      dotted-path output, plus a guarded metadata update flow that edits kinnoo.yaml
+      fields in place with confirmation prompts and optional prompt bypass.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/inspect_command.py
+      - tests/test_cli_inspect.py
+    steps:
+      - 'step1: Add inspect CLI flags `--full`, `--raw`, `--update`, and `--skip-warnings` with clear argument contracts'
+      - 'step2: Implement full rendering mode to include all known manifest metadata fields with N/A placeholders'
+      - 'step3: Implement raw rendering mode using dotted-path key/value output for filled fields and full+raw for all known fields'
+      - 'step4: Implement inspect update flow for directory manifests with confirmation prompt and --skip-warnings bypass'
+      - 'step5: Validate update writes by reloading and validating manifest after mutation, with actionable errors on invalid updates'
+      - 'step6: Add targeted CLI inspect tests for full/raw combinations and update flows'
+      - 'step7: Run focused pytest coverage for inspect command changes'
+    dependencies: [task66, task67, task68, task69, task148]
+    tests: [test414, test415, test416, test417, test418, test419, test420]
     status: needs-review

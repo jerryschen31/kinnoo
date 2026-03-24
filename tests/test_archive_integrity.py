@@ -166,6 +166,7 @@ def test_install_verifies_checksum_when_present(tmp_path: Path) -> None:
             str(archive_path),
             str(target_dir),
             "--yes",
+            "--allow-unverified-publisher",
         ],
         cwd=tmp_path,
         capture_output=True,
@@ -175,6 +176,7 @@ def test_install_verifies_checksum_when_present(tmp_path: Path) -> None:
     output = f"{result.stdout}\n{result.stderr}"
     assert result.returncode == 0, output
     assert "[kinnoo install] Archive checksum verified." in output
+    assert "UNVERIFIED PUBLISHER" in output
     assert target_dir.exists()
     assert (target_dir / "kinnoo.yaml").exists()
 

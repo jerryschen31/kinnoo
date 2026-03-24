@@ -5,19 +5,42 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from .config import load_registry_config
 from .archive import LocalArchiveBackend
 from .registry import RegistryService
 from .registry_backends import MockFilesystemRegistryBackend
+from .remote_client import RemoteRegistryClient
 from .size_format import format_size_human_readable
 
 
 def list_agents(source: str = "local") -> int:
-    if source == "remote":
-        registry_root = os.environ.get("KINNOO_REGISTRY_ROOT")
-        backend_root = Path(registry_root).expanduser() if registry_root else None
+    config = load_registry_config()
+    effective_source = source
+    if source == "auto":
+        effective_source = "remote" if config.registry_url else "local"
 
-        backend = MockFilesystemRegistryBackend(root=backend_root)
-        service = RegistryService(backend=backend)
+    if effective_source == "remote":
+        if config.registry_url and config.registry_token and config.tenant_slug:
+            service = RegistryService(
+                backend=RemoteRegistryClient(
+                    base_url=config.registry_url,
+                    token=config.registry_token,
+                    tenant_slug=config.tenant_slug,
+                )
+            )
+        elif config.registry_url:
+            print(
+                "Error: Remote registry URL is configured but token/tenant settings are missing.",
+            )
+            return 1
+        else:
+            # Preserve existing remote-mode behavior for local mock workflows.
+            registry_root = os.environ.get("KINNOO_REGISTRY_ROOT")
+            backend_root = Path(registry_root).expanduser() if registry_root else None
+
+            backend = MockFilesystemRegistryBackend(root=backend_root)
+            service = RegistryService(backend=backend)
+
         summaries = service.list_latest_agents()
 
         if not summaries:
@@ -26,10 +49,12 @@ def list_agents(source: str = "local") -> int:
 
         print("Remote registry agents:")
         for summary in summaries:
-            description = summary.description if summary.description else "(no description)"
-            archive_size = _format_archive_size(summary.archive_size_bytes)
+            description = _summary_text(summary=summary, field="description", default="(no description)")
+            archive_size = _format_archive_size(_summary_size_bytes(summary=summary))
+            name = _summary_text(summary=summary, field="name", default="(unknown)")
+            latest_version = _summary_text(summary=summary, field="latest_version", default="(unknown)")
             print(
-                f"- {summary.name} | latest: {summary.latest_version} | "
+                f"- {name} | latest: {latest_version} | "
                 f"description: {description} | size: {archive_size}"
             )
 
@@ -47,10 +72,12 @@ def list_agents(source: str = "local") -> int:
 
     print("Local archive agents:")
     for summary in summaries:
-        description = summary.description if summary.description else "(no description)"
-        archive_size = _format_archive_size(summary.archive_size_bytes)
+        description = _summary_text(summary=summary, field="description", default="(no description)")
+        archive_size = _format_archive_size(_summary_size_bytes(summary=summary))
+        name = _summary_text(summary=summary, field="name", default="(unknown)")
+        latest_version = _summary_text(summary=summary, field="latest_version", default="(unknown)")
         print(
-            f"- {summary.name} | latest: {summary.latest_version} | "
+            f"- {name} | latest: {latest_version} | "
             f"description: {description} | size: {archive_size}"
         )
 
@@ -61,3 +88,23 @@ def _format_archive_size(size_bytes: int | None) -> str:
     if size_bytes is None:
         return "unknown"
     return format_size_human_readable(size_bytes)
+
+
+def _summary_text(*, summary: object, field: str, default: str) -> str:
+    value = _summary_value(summary=summary, field=field)
+    if value in (None, ""):
+        return default
+    return str(value)
+
+
+def _summary_size_bytes(*, summary: object) -> int | None:
+    value = _summary_value(summary=summary, field="archive_size_bytes")
+    if isinstance(value, int):
+        return value
+    return None
+
+
+def _summary_value(*, summary: object, field: str) -> object | None:
+    if isinstance(summary, dict):
+        return summary.get(field)
+    return getattr(summary, field, None)

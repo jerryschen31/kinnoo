@@ -2,6 +2,10 @@ import subprocess
 import sys
 from pathlib import Path
 import os
+import socket
+import threading
+import json
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
 CLI_PATH = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
@@ -314,6 +318,64 @@ def test_preflight_entrypoint_and_dependency_checks(tmp_path: Path) -> None:
     assert "Action: create agent .venv and install requirements" in dependency_fail_output
 
 
+def test_preflight_pass_runtime_path_no_venv(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "preflight-runtime-path-pass-agent"
+    _create_agent_fixture(agent_dir, with_manifest=True)
+    (agent_dir / "requirements.txt").write_text("requests==2.31.0\n", encoding="utf-8")
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: preflight-runtime-path-pass-agent",
+                "version: 1.0.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.10\"",
+                "  type: one-shot",
+                f"  path: \"{sys.executable}\"",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "run", str(agent_dir), "--preflight"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+
+    assert result.returncode == 0
+    assert "[PASS] dependency readiness check passed" in output
+    assert ".venv not found but runtime.path" in output
+    assert "venv will be created at run time" in output
+
+
+def test_preflight_fail_no_runtime_path_no_venv(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "preflight-no-runtime-path-fail-agent"
+    _create_agent_fixture(agent_dir, with_manifest=True)
+    (agent_dir / "requirements.txt").write_text("requests==2.31.0\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "run", str(agent_dir), "--preflight"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+
+    assert result.returncode != 0
+    assert "[FAIL] dependency readiness check failed" in output
+    assert "virtual environment not found" in output
+
+
 def test_preflight_checklist_and_ready_summary(tmp_path: Path) -> None:
     pass_agent = tmp_path / "ready-pass-agent"
     _create_agent_fixture(pass_agent, with_manifest=True)
@@ -355,3 +417,464 @@ def test_preflight_checklist_and_ready_summary(tmp_path: Path) -> None:
     assert "Remediation summary:" in fail_output
     assert "- dependencies: create .venv and install requirements" in fail_output
     assert "Ready to run" not in fail_output
+
+
+def test_preflight_runtime_path_diagnostic_resolved(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "runtime-path-diagnostic-resolved"
+    _create_agent_fixture(agent_dir, with_manifest=True)
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: runtime-path-diagnostic-resolved",
+                "version: 1.0.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.10\"",
+                "  type: one-shot",
+                f"  path: \"{sys.executable}\"",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "run", str(agent_dir), "--preflight"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+
+    assert result.returncode == 0
+    assert "runtime.path diagnostic:" in output
+    assert "resolved to" in output
+    assert str(Path(sys.executable)) in output
+
+
+def test_preflight_runtime_path_diagnostic_unresolved(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "runtime-path-diagnostic-unresolved"
+    _create_agent_fixture(agent_dir, with_manifest=True)
+    unresolved_command = "definitely-missing-runtime-cmd-for-preflight"
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: runtime-path-diagnostic-unresolved",
+                "version: 1.0.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.10\"",
+                "  type: one-shot",
+                f"  path: \"{unresolved_command}\"",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "run", str(agent_dir), "--preflight"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+
+    assert result.returncode == 0
+    assert "runtime.path diagnostic:" in output
+    assert unresolved_command in output
+    assert "was not resolved as an executable file or PATH command" in output
+
+
+def test_feature25_preflight_includes_service_health_results(tmp_path: Path) -> None:
+    class HealthHandler(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:  # noqa: N802
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"ok")
+
+        def log_message(self, format: str, *args: object) -> None:  # noqa: A003
+            del format, args
+
+    http_server = ThreadingHTTPServer(("127.0.0.1", 0), HealthHandler)
+    http_host, http_port = http_server.server_address
+    http_thread = threading.Thread(target=http_server.serve_forever, daemon=True)
+    http_thread.start()
+
+    tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    tcp_socket.bind(("127.0.0.1", 0))
+    tcp_socket.listen(1)
+    tcp_port = tcp_socket.getsockname()[1]
+    stop_accept = threading.Event()
+
+    def _accept_loop() -> None:
+        while not stop_accept.is_set():
+            try:
+                tcp_socket.settimeout(0.1)
+                conn, _ = tcp_socket.accept()
+                conn.close()
+            except TimeoutError:
+                continue
+            except OSError:
+                break
+
+    tcp_thread = threading.Thread(target=_accept_loop, daemon=True)
+    tcp_thread.start()
+
+    agent_dir = tmp_path / "feature25-preflight-agent"
+    agent_dir.mkdir(parents=True, exist_ok=True)
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    (agent_dir / "run.py").write_text(
+        "from pathlib import Path\n"
+        "Path('feature25-entrypoint.flag').write_text('ran', encoding='utf-8')\n"
+        "print('feature25-entrypoint-ran')\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: feature25-preflight-agent",
+                "version: 1.0.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.10\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+                "services:",
+                "  - name: local-api",
+                "    type: api",
+                "    health_check:",
+                "      method: http",
+                f"      url: http://{http_host}:{http_port}/health",
+                "  - name: local-db",
+                "    type: database",
+                "    health_check:",
+                "      method: tcp",
+                f"      port: {tcp_port}",
+                "  - name: local-redis",
+                "    type: local-process",
+                "    health_check:",
+                "      method: process",
+                "      process_name: feature25-missing-process",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    try:
+        result = subprocess.run(
+            [sys.executable, str(CLI_PATH), "run", str(agent_dir), "--preflight"],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+        )
+        output = f"{result.stdout}\n{result.stderr}"
+
+        assert result.returncode != 0
+        assert "Service health checks:" in output
+        assert "[PASS] service 'local-api'" in output
+        assert "[PASS] service 'local-db'" in output
+        assert "[FAIL] service 'local-redis'" in output
+        assert "(type: local-process, method: process)" in output
+        assert "Guidance:" in output
+        assert "Preflight result: FAIL" in output
+        assert not (tmp_path / "feature25-entrypoint.flag").exists()
+    finally:
+        stop_accept.set()
+        tcp_socket.close()
+        http_server.shutdown()
+        http_server.server_close()
+
+
+def test_feature39_violation_diagnostics_secret_safe(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "feature39-violation-diagnostics-agent"
+    agent_dir.mkdir(parents=True, exist_ok=True)
+
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: feature39-violation-diagnostics-agent",
+                "version: 1.0.0",
+                "entrypoint: run.js",
+                "runtime:",
+                "  language: nodejs",
+                "  version: \">=20.0.0\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "env_vars:",
+                "  - FEATURE39_SECRET_TOKEN",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+                "permissions:",
+                "  network: true",
+                "  filesystem_scope: read-only",
+                "  shell: false",
+                "  browser: false",
+                "  env_access: []",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    (agent_dir / "run.js").write_text("console.log('should-not-run');\n", encoding="utf-8")
+
+    secret_token = "feature39-secret-token-value"
+    env = dict(os.environ)
+    env["FEATURE39_SECRET_TOKEN"] = secret_token
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(CLI_PATH),
+            "run",
+            str(agent_dir),
+            "hello",
+            "--sandbox",
+            "--",
+            "--exec",
+            secret_token,
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+
+    assert result.returncode != 0
+    assert "classification=policy_violation" in output
+    assert "capability=shell action=shell_execution" in output
+    assert "Remediation:" in output
+    assert "[kinnoo security] violation event:" in output
+    assert secret_token not in output
+
+    violation_trace_path = agent_dir / ".kinnoo" / "violation-events.jsonl"
+    assert violation_trace_path.exists(), output
+
+    trace_lines = [
+        line for line in violation_trace_path.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
+    assert trace_lines, "Expected at least one violation event entry"
+
+    event_payload = json.loads(trace_lines[-1])
+    assert event_payload["event_type"] == "permission_violation"
+    assert event_payload["boundary"] == "run"
+    assert event_payload["classification"] == "policy_violation"
+    assert event_payload["capability"] == "shell"
+    assert event_payload["attempted_action"] == "shell_execution"
+    assert "remediation" in event_payload and event_payload["remediation"]
+    assert secret_token not in trace_lines[-1]
+
+
+def test_feature31_node_preflight_toolchain_guards(tmp_path: Path) -> None:
+    def _write_node_agent(agent_dir: Path, *, runtime_version: str, package_manager: str | None = None) -> None:
+        agent_dir.mkdir(parents=True, exist_ok=True)
+        package_manager_lines: list[str] = []
+        if package_manager is not None:
+            package_manager_lines = [f"  package_manager: {package_manager}"]
+
+        manifest_lines = [
+            "name: feature31-node-preflight-agent",
+            "version: 1.0.0",
+            "entrypoint: run.js",
+            "runtime:",
+            "  language: nodejs",
+            f"  version: '{runtime_version}'",
+            *package_manager_lines,
+            "  type: one-shot",
+            "dependencies: []",
+            "inputs:",
+            "  type: string",
+            "outputs:",
+            "  type: string",
+        ]
+        (agent_dir / "kinnoo.yaml").write_text("\n".join(manifest_lines) + "\n", encoding="utf-8")
+        (agent_dir / "run.js").write_text("console.log('ok');\n", encoding="utf-8")
+        (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+
+    # Step 1: node missing from PATH should fail with node guidance.
+    missing_node_agent = tmp_path / "feature31-node-missing"
+    _write_node_agent(missing_node_agent, runtime_version=">=22")
+
+    empty_bin = tmp_path / "empty-bin"
+    empty_bin.mkdir(parents=True, exist_ok=True)
+    missing_node_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "run", str(missing_node_agent), "--preflight"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env={**os.environ, "PATH": str(empty_bin)},
+    )
+    missing_node_output = f"{missing_node_result.stdout}\n{missing_node_result.stderr}"
+    assert missing_node_result.returncode != 0
+    assert "node executable not found in PATH" in missing_node_output
+    assert "Action: install or upgrade Node.js so runtime.version in kinnoo.yaml is satisfied" in missing_node_output
+
+    fake_bin = tmp_path / "fake-bin"
+    fake_bin.mkdir(parents=True, exist_ok=True)
+
+    # Step 2: node below required version should fail with version guidance.
+    low_node_script = fake_bin / "node"
+    low_node_script.write_text("#!/bin/sh\necho v20.11.0\n", encoding="utf-8")
+    low_node_script.chmod(0o755)
+    npm_script = fake_bin / "npm"
+    npm_script.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    npm_script.chmod(0o755)
+
+    low_version_agent = tmp_path / "feature31-node-low-version"
+    _write_node_agent(low_version_agent, runtime_version=">=22")
+    low_version_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "run", str(low_version_agent), "--preflight"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env={**os.environ, "PATH": str(fake_bin)},
+    )
+    low_version_output = f"{low_version_result.stdout}\n{low_version_result.stderr}"
+    assert low_version_result.returncode != 0
+    assert "current Node 20.11.0 does not satisfy runtime.version '>=22'" in low_version_output
+    assert "runtime version: install or upgrade Node.js to satisfy runtime.version" in low_version_output
+
+    # Step 3: configured package manager missing should fail with actionable diagnostics.
+    good_node_script = fake_bin / "node"
+    good_node_script.write_text("#!/bin/sh\necho v22.4.1\n", encoding="utf-8")
+    good_node_script.chmod(0o755)
+    pnpm_path = fake_bin / "pnpm"
+    if pnpm_path.exists():
+        pnpm_path.unlink()
+
+    missing_pm_agent = tmp_path / "feature31-node-missing-pm"
+    _write_node_agent(missing_pm_agent, runtime_version=">=22", package_manager="pnpm")
+    missing_pm_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "run", str(missing_pm_agent), "--preflight"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env={**os.environ, "PATH": str(fake_bin)},
+    )
+    missing_pm_output = f"{missing_pm_result.stdout}\n{missing_pm_result.stderr}"
+    assert missing_pm_result.returncode != 0
+    assert "node package manager 'pnpm' not found in PATH" in missing_pm_output
+    assert "Action: install the configured Node package manager and ensure it is on PATH" in missing_pm_output
+
+
+def test_feature41_runtime_event_monitoring_baseline(tmp_path: Path) -> None:
+    monitor_agent = tmp_path / "feature41-monitor-agent"
+    monitor_agent.mkdir(parents=True, exist_ok=True)
+
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(1)
+    host, port = listener.getsockname()
+    stop_accept = threading.Event()
+
+    def _accept_once() -> None:
+        while not stop_accept.is_set():
+            try:
+                listener.settimeout(0.1)
+                conn, _ = listener.accept()
+                conn.close()
+                return
+            except TimeoutError:
+                continue
+            except OSError:
+                return
+
+    accept_thread = threading.Thread(target=_accept_once, daemon=True)
+    accept_thread.start()
+
+    (monitor_agent / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: feature41-monitor-agent",
+                "version: 1.0.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.10\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (monitor_agent / "requirements.txt").write_text("", encoding="utf-8")
+    (monitor_agent / "run.py").write_text(
+        "from pathlib import Path\n"
+        "import socket\n"
+        f"socket.create_connection(('{host}', {port}), timeout=1).close()\n"
+        "Path('runtime-write.txt').write_text('monitor-write', encoding='utf-8')\n"
+        "print('feature41-monitor-ran')\n",
+        encoding="utf-8",
+    )
+
+    try:
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(CLI_PATH),
+                "run",
+                str(monitor_agent),
+                "feature41-secret-input",
+            ],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+        )
+        output = f"{result.stdout}\n{result.stderr}"
+        assert result.returncode == 0, output
+
+        monitor_events_path = monitor_agent / ".kinnoo" / "runtime-monitor-events.jsonl"
+        assert monitor_events_path.exists(), output
+
+        lines = [
+            line.strip()
+            for line in monitor_events_path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        assert lines
+
+        events = [json.loads(line) for line in lines]
+        categories = {event["category"] for event in events}
+        assert "process" in categories
+        assert "network" in categories
+        assert "filesystem" in categories
+
+        for event in events:
+            assert event["schema_version"] == "1.0"
+            assert isinstance(event.get("run_id"), str) and event["run_id"]
+            assert isinstance(event.get("sequence"), int) and event["sequence"] >= 1
+            assert isinstance(event.get("timestamp"), str) and event["timestamp"]
+            assert isinstance(event.get("event_type"), str) and event["event_type"]
+            assert isinstance(event.get("details"), dict)
+
+        assert "feature41-secret-input" not in "\n".join(lines)
+    finally:
+        stop_accept.set()
+        listener.close()

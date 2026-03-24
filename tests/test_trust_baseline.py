@@ -54,7 +54,7 @@ def test_install_summary_and_confirmation_prompt(tmp_path: Path) -> None:
     target_yes = tmp_path / "installed-trust-agent-yes"
     yes_result = subprocess.run(
         [sys.executable, "src/kinnoo/cli.py", "install", str(archive_path), str(target_yes)],
-        input="y\n",
+        input="y\ny\n",
         capture_output=True,
         text=True,
     )
@@ -69,6 +69,7 @@ def test_install_summary_and_confirmation_prompt(tmp_path: Path) -> None:
     assert "- Env Vars:" in yes_output
     assert "  - OPENAI_API_KEY" in yes_output
     assert "  - ANTHROPIC_API_KEY" in yes_output
+    assert "UNVERIFIED PUBLISHER" in yes_output
     assert "Continue with install? [y/N]:" in yes_output
     assert target_yes.exists()
 
@@ -82,8 +83,8 @@ def test_install_summary_and_confirmation_prompt(tmp_path: Path) -> None:
 
     no_output = f"{no_result.stdout}\n{no_result.stderr}"
     assert no_result.returncode != 0
-    assert "Continue with install? [y/N]:" in no_output
-    assert "Install aborted by user." in no_output
+    assert "UNVERIFIED PUBLISHER" in no_output
+    assert "Install aborted: unverified publisher not approved." in no_output
     assert not target_no.exists()
 
     target_empty = tmp_path / "installed-trust-agent-empty"
@@ -96,8 +97,8 @@ def test_install_summary_and_confirmation_prompt(tmp_path: Path) -> None:
 
     empty_output = f"{empty_result.stdout}\n{empty_result.stderr}"
     assert empty_result.returncode != 0
-    assert "Continue with install? [y/N]:" in empty_output
-    assert "Install aborted by user." in empty_output
+    assert "UNVERIFIED PUBLISHER" in empty_output
+    assert "Install aborted: unverified publisher not approved." in empty_output
     assert not target_empty.exists()
 
 
@@ -117,6 +118,7 @@ def test_install_yes_flag_bypasses_prompt(tmp_path: Path) -> None:
             str(archive_path),
             str(target_long_flag),
             "--yes",
+            "--allow-unverified-publisher",
         ],
         capture_output=True,
         text=True,
@@ -129,6 +131,7 @@ def test_install_yes_flag_bypasses_prompt(tmp_path: Path) -> None:
     assert "  - pip" in long_flag_output
     assert "  - OPENAI_API_KEY" in long_flag_output
     assert "Continue with install? [y/N]:" not in long_flag_output
+    assert "Unverified publisher override acknowledged" in long_flag_output
     assert target_long_flag.exists()
 
     target_short_flag = tmp_path / "installed-yes-short"
@@ -140,6 +143,7 @@ def test_install_yes_flag_bypasses_prompt(tmp_path: Path) -> None:
             str(archive_path),
             str(target_short_flag),
             "-y",
+            "--allow-unverified-publisher",
         ],
         capture_output=True,
         text=True,
@@ -152,6 +156,7 @@ def test_install_yes_flag_bypasses_prompt(tmp_path: Path) -> None:
     assert "  - pip" in short_flag_output
     assert "  - OPENAI_API_KEY" in short_flag_output
     assert "Continue with install? [y/N]:" not in short_flag_output
+    assert "Unverified publisher override acknowledged" in short_flag_output
     assert target_short_flag.exists()
 
 
@@ -204,6 +209,7 @@ def test_install_unverified_source_warning(tmp_path: Path) -> None:
             str(archive_path),
             str(target_verified),
             "--yes",
+            "--allow-unverified-publisher",
         ],
         capture_output=True,
         text=True,
@@ -211,7 +217,7 @@ def test_install_unverified_source_warning(tmp_path: Path) -> None:
 
     verified_output = f"{verified_result.stdout}\n{verified_result.stderr}"
     assert verified_result.returncode == 0, verified_output
-    assert "This agent is from an unverified source." not in verified_output
+    assert "UNVERIFIED PUBLISHER" in verified_output
     assert target_verified.exists()
 
 
@@ -240,7 +246,7 @@ def _create_run_trace_agent(tmp_path: Path, agent_name: str) -> Path:
     )
     (agent_dir / "run.py").write_text(
         "import sys\n"
-        "print(f'run input: {sys.argv[1] if len(sys.argv) > 1 else ''}')\n",
+        "print(f\"run input: {sys.argv[1] if len(sys.argv) > 1 else ''}\")\n",
         encoding="utf-8",
     )
     (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
@@ -476,3 +482,279 @@ def test_pack_security_sweep_non_blocking(tmp_path: Path) -> None:
     assert clean_result.returncode == 0, clean_output
     assert "Security sweep warnings:" not in clean_output
     assert "[kinnoo pack] Archive created:" in clean_output
+
+
+def test_feature38_scans_jstsjson_credentials(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "feature38-multilang-sweep-agent"
+    agent_dir.mkdir(parents=True, exist_ok=True)
+
+    (agent_dir / "kinnoo.yaml").write_text(
+        (
+            "name: feature38-multilang-sweep-agent\n"
+            "version: 1.0.0\n"
+            "entrypoint: run.py\n"
+            "runtime:\n"
+            "  type: one-shot\n"
+            "  language: python\n"
+            "  version: \"3.10\"\n"
+            "dependencies: []\n"
+            "inputs:\n"
+            "  type: string\n"
+            "outputs:\n"
+            "  type: string\n"
+        ),
+        encoding="utf-8",
+    )
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    (agent_dir / "run.py").write_text("print('ok')\n", encoding="utf-8")
+
+    js_secret = "ghp_abcdefghijklmnopqrstuvwxyz0123456789AB"
+    mjs_secret = "sk-abcdefghijklmnopqrstuvwxyz123456"
+    ts_secret = "xoxb-1234567890-1234567890-abcdefghijklmnopqrstuv"
+    json_secret = "AKIAABCDEFGHIJKLMNOP"
+
+    (agent_dir / "client.js").write_text(
+        f"const token = '{js_secret}';\nconsole.log('client loaded');\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "worker.mjs").write_text(
+        f"export const apiToken = '{mjs_secret}';\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "service.ts").write_text(
+        f"const slackToken = '{ts_secret}';\nexport default slackToken;\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "config.json").write_text(
+        json.dumps(
+            {
+                "aws_access_key_id": json_secret,
+                "api_key": "very-secret-value-12345",
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    inspect_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "inspect", str(agent_dir)],
+        capture_output=True,
+        text=True,
+    )
+
+    output = f"{inspect_result.stdout}\n{inspect_result.stderr}"
+    assert inspect_result.returncode == 0, output
+    assert "Security sweep:" in output
+    assert "client.js:" in output
+    assert "worker.mjs:" in output
+    assert "service.ts:" in output
+    assert "config.json:" in output
+    assert "credential-like pattern" in output
+
+    assert js_secret not in output
+    assert mjs_secret not in output
+    assert ts_secret not in output
+    assert json_secret not in output
+
+
+def test_feature38_flags_risky_js_execution_primitives_with_file_line(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "feature38-risky-js-agent"
+    agent_dir.mkdir(parents=True, exist_ok=True)
+
+    (agent_dir / "kinnoo.yaml").write_text(
+        (
+            "name: feature38-risky-js-agent\n"
+            "version: 1.0.0\n"
+            "entrypoint: run.py\n"
+            "runtime:\n"
+            "  type: one-shot\n"
+            "  language: python\n"
+            "  version: \"3.10\"\n"
+            "dependencies: []\n"
+            "inputs:\n"
+            "  type: string\n"
+            "outputs:\n"
+            "  type: string\n"
+        ),
+        encoding="utf-8",
+    )
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    (agent_dir / "run.py").write_text("print('ok')\n", encoding="utf-8")
+
+    (agent_dir / "danger-eval.js").write_text(
+        "const payload = '2 + 2';\n"
+        "const result = eval(payload);\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "danger-function.mjs").write_text(
+        "const fn = new Function('a', 'b', 'return a + b');\n"
+        "export default fn;\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "danger-child-process.ts").write_text(
+        "import { execSync } from 'child_process';\n"
+        "const output = execSync('echo hi');\n"
+        "export default output;\n",
+        encoding="utf-8",
+    )
+
+    inspect_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "inspect", str(agent_dir)],
+        capture_output=True,
+        text=True,
+    )
+
+    output = f"{inspect_result.stdout}\n{inspect_result.stderr}"
+    assert inspect_result.returncode == 0, output
+    assert "Security sweep:" in output
+    assert "danger-eval.js:2: risky js execution primitive (eval)" in output
+    assert "danger-function.mjs:1: risky js execution primitive (Function constructor)" in output
+    assert "danger-child-process.ts:2: risky js execution primitive (child process execution)" in output
+
+
+def test_feature38_openclaw_config_dangerous_settings_warning(tmp_path: Path) -> None:
+    dangerous_agent = tmp_path / "feature38-openclaw-danger-agent"
+    dangerous_agent.mkdir(parents=True, exist_ok=True)
+
+    manifest_text = (
+        "name: feature38-openclaw-danger-agent\n"
+        "version: 1.0.0\n"
+        "entrypoint: run.py\n"
+        "runtime:\n"
+        "  type: one-shot\n"
+        "  language: python\n"
+        "  version: \"3.10\"\n"
+        "dependencies: []\n"
+        "inputs:\n"
+        "  type: string\n"
+        "outputs:\n"
+        "  type: string\n"
+    )
+    (dangerous_agent / "kinnoo.yaml").write_text(manifest_text, encoding="utf-8")
+    (dangerous_agent / "requirements.txt").write_text("", encoding="utf-8")
+    (dangerous_agent / "run.py").write_text("print('ok')\n", encoding="utf-8")
+    (dangerous_agent / "openclaw-config.json").write_text(
+        json.dumps(
+            {
+                "openclaw": {
+                    "allow_shell": True,
+                    "disable_sandbox": True,
+                    "tool_policy": "allow_all",
+                }
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    dangerous_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "inspect", str(dangerous_agent)],
+        capture_output=True,
+        text=True,
+    )
+    dangerous_output = f"{dangerous_result.stdout}\n{dangerous_result.stderr}"
+    assert dangerous_result.returncode == 0, dangerous_output
+    assert "Security sweep:" in dangerous_output
+    assert "openclaw-config.json" in dangerous_output
+    assert "dangerous openclaw config (allow_shell=true enables shell command execution)" in dangerous_output
+    assert "dangerous openclaw config (disable_sandbox=true removes runtime isolation)" in dangerous_output
+    assert "dangerous openclaw config (tool_policy=allow_all disables tool restrictions)" in dangerous_output
+
+    safe_agent = tmp_path / "feature38-openclaw-safe-agent"
+    safe_agent.mkdir(parents=True, exist_ok=True)
+    (safe_agent / "kinnoo.yaml").write_text(
+        manifest_text.replace("feature38-openclaw-danger-agent", "feature38-openclaw-safe-agent"),
+        encoding="utf-8",
+    )
+    (safe_agent / "requirements.txt").write_text("", encoding="utf-8")
+    (safe_agent / "run.py").write_text("print('ok')\n", encoding="utf-8")
+    (safe_agent / "openclaw-config.json").write_text(
+        json.dumps(
+            {
+                "openclaw": {
+                    "allow_shell": False,
+                    "disable_sandbox": False,
+                    "tool_policy": "allowlist",
+                }
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    safe_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "inspect", str(safe_agent)],
+        capture_output=True,
+        text=True,
+    )
+    safe_output = f"{safe_result.stdout}\n{safe_result.stderr}"
+    assert safe_result.returncode == 0, safe_output
+    assert "dangerous openclaw config" not in safe_output
+
+
+def _create_mcp_trace_agent(tmp_path: Path, agent_name: str) -> Path:
+    agent_dir = tmp_path / agent_name
+    agent_dir.mkdir()
+
+    (agent_dir / "kinnoo.yaml").write_text(
+        (
+            f"name: {agent_name}\n"
+            "version: 1.0.0\n"
+            "entrypoint: run.py\n"
+            "runtime:\n"
+            "  type: mcp-server\n"
+            "  language: python\n"
+            "  version: \">=3.10\"\n"
+            "  shutdown_timeout_seconds: 0.25\n"
+            "  readiness_probe:\n"
+            "    method: stdout\n"
+            "    marker: SERVER_READY\n"
+            "dependencies: []\n"
+            "inputs:\n"
+            "  type: string\n"
+            "  required: false\n"
+            "outputs:\n"
+            "  type: string\n"
+        ),
+        encoding="utf-8",
+    )
+    (agent_dir / "run.py").write_text(
+        "import time\n"
+        "print('SERVER_READY', flush=True)\n"
+        "time.sleep(0.2)\n"
+        "print('SERVER_STOPPING', flush=True)\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    return agent_dir
+
+
+def test_feature23_trace_log_server_lifecycle_fields(tmp_path: Path) -> None:
+    agent_dir = _create_mcp_trace_agent(tmp_path, "trace-mcp-agent")
+    env = os.environ.copy()
+    env["HOME"] = str(tmp_path)
+    env["PYTHONPATH"] = str(Path(__file__).resolve().parents[1] / "src")
+
+    result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "run", str(agent_dir)],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert result.returncode == 0, f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+
+    log_path = _latest_run_trace_log(tmp_path)
+    payload = json.loads(log_path.read_text(encoding="utf-8"))
+
+    assert payload["runtime_type"] == "mcp-server"
+    assert "start_timestamp" in payload
+    assert "stop_timestamp" in payload
+    assert "server_exit_code" in payload
+    assert "server_exit_signal" in payload
+    assert "shutdown_sigterm_sent" in payload
+    assert "shutdown_sigkill_sent" in payload
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", str(payload["start_timestamp"]))
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", str(payload["stop_timestamp"]))

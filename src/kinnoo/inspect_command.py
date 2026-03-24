@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 import zipfile
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
@@ -10,7 +11,7 @@ import yaml
 try:
     from kinnoo.checksum import ChecksumParseError, read_checksum_sidecar
     from kinnoo.code_sweep import sweep_env_var_exposure
-    from kinnoo.schema import normalize_manifest_defaults, normalize_type_field
+    from kinnoo.schema import REQUIRED_FIELDS, OPTIONAL_FIELDS, normalize_manifest_defaults, normalize_type_field
     from kinnoo.size_format import format_size_human_readable
     from kinnoo.templates import (
         INSPECT_MINIMAL_KINNOO_YAML_EXAMPLE,
@@ -20,7 +21,7 @@ try:
 except ImportError:
     from .checksum import ChecksumParseError, read_checksum_sidecar
     from .code_sweep import sweep_env_var_exposure
-    from .schema import normalize_manifest_defaults, normalize_type_field
+    from .schema import REQUIRED_FIELDS, OPTIONAL_FIELDS, normalize_manifest_defaults, normalize_type_field
     from .size_format import format_size_human_readable
     from .templates import (
         INSPECT_MINIMAL_KINNOO_YAML_EXAMPLE,
@@ -158,12 +159,287 @@ def _archive_checksum_for_display(archive_path: Path) -> str | None:
     return expected_checksum
 
 
+def _path_within_root(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
+def _declared_asset_paths(manifest_data: dict[str, Any]) -> list[str]:
+    assets = manifest_data.get("assets")
+    if not isinstance(assets, dict):
+        return []
+
+    paths = assets.get("paths", [])
+    if not isinstance(paths, list):
+        return []
+
+    normalized: list[str] = []
+    for item in paths:
+        text = str(item).strip()
+        if text:
+            normalized.append(text)
+    return normalized
+
+
+def _asset_file_sizes_for_directory(
+    manifest_data: dict[str, Any],
+    directory_path: Path,
+) -> dict[str, int]:
+    file_sizes: dict[str, int] = {}
+    for declared_path in _declared_asset_paths(manifest_data):
+        candidate = (directory_path / declared_path).resolve(strict=False)
+        if not _path_within_root(candidate, directory_path):
+            continue
+
+        if candidate.is_file():
+            rel = candidate.relative_to(directory_path).as_posix()
+            file_sizes[rel] = candidate.stat().st_size
+            continue
+
+        if candidate.is_dir():
+            for child in sorted(candidate.rglob("*")):
+                if not child.is_file():
+                    continue
+                rel = child.relative_to(directory_path).as_posix()
+                file_sizes[rel] = child.stat().st_size
+
+    return file_sizes
+
+
+def _asset_file_sizes_for_archive(
+    manifest_data: dict[str, Any],
+    archive_path: Path,
+) -> dict[str, int]:
+    file_sizes: dict[str, int] = {}
+    declared_paths = [path.strip("/") for path in _declared_asset_paths(manifest_data)]
+    if not declared_paths:
+        return file_sizes
+
+    try:
+        with zipfile.ZipFile(archive_path, "r") as archive_zip:
+            for member in archive_zip.infolist():
+                member_name = member.filename.strip("/")
+                if not member_name or member.is_dir():
+                    continue
+
+                for declared in declared_paths:
+                    if not declared:
+                        continue
+                    if member_name == declared or member_name.startswith(f"{declared}/"):
+                        file_sizes[member_name] = member.file_size
+                        break
+    except (OSError, zipfile.BadZipFile):
+        return {}
+
+    return file_sizes
+
+
+def _print_asset_metadata(
+    manifest_data: dict[str, Any],
+    asset_file_sizes: dict[str, int],
+) -> None:
+    declared_paths = _declared_asset_paths(manifest_data)
+    if not declared_paths:
+        return
+
+    print("- Asset Paths:")
+    for declared_path in declared_paths:
+        print(f"  - {declared_path}")
+
+    total_size = sum(asset_file_sizes.values())
+    print(f"- Assets Size: {format_size_human_readable(total_size)}")
+
+    if asset_file_sizes:
+        print("- Asset Files:")
+        for rel_path, size_bytes in sorted(asset_file_sizes.items()):
+            print(f"  - {rel_path} ({format_size_human_readable(size_bytes)})")
+
+
+def _print_services_metadata(manifest_data: dict[str, Any]) -> None:
+    """Render optional services declarations in a stable, human-readable shape."""
+    services = manifest_data.get("services")
+    if not isinstance(services, list) or not services:
+        return
+
+    print("- Services:")
+    for index, service in enumerate(services):
+        if not isinstance(service, dict):
+            print(f"  - service[{index}]: (invalid service entry)")
+            continue
+
+        name = service.get("name")
+        service_type = service.get("type")
+        safe_name = name if isinstance(name, str) and name.strip() else f"service[{index}]"
+        safe_type = service_type if isinstance(service_type, str) and service_type.strip() else "(missing)"
+        print(f"  - {safe_name} ({safe_type})")
+
+        health_check = service.get("health_check")
+        if not isinstance(health_check, dict):
+            continue
+
+        method = health_check.get("method")
+        if isinstance(method, str) and method.strip():
+            print(f"    - health_check.method: {method}")
+
+        # Print method-specific fields only when present to preserve readability.
+        if "port" in health_check:
+            print(f"    - health_check.port: {health_check['port']}")
+        if "url" in health_check:
+            print(f"    - health_check.url: {health_check['url']}")
+        if "process_name" in health_check:
+            print(f"    - health_check.process_name: {health_check['process_name']}")
+
+
+KNOWN_MANIFEST_METADATA_FIELDS: list[str] = list(dict.fromkeys([*REQUIRED_FIELDS, *OPTIONAL_FIELDS]))
+KNOWN_MANIFEST_METADATA_FIELD_SET: set[str] = set(KNOWN_MANIFEST_METADATA_FIELDS)
+
+
+def _flatten_manifest_fields(payload: dict[str, Any], prefix: str = "") -> dict[str, Any]:
+    flattened: dict[str, Any] = {}
+    for key, value in payload.items():
+        if not isinstance(key, str):
+            continue
+        dotted_key = f"{prefix}.{key}" if prefix else key
+        if isinstance(value, dict):
+            flattened.update(_flatten_manifest_fields(value, dotted_key))
+        else:
+            flattened[dotted_key] = value
+    return flattened
+
+
+def _render_raw_value(value: Any) -> str:
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, str):
+        return value
+
+    rendered = yaml.safe_dump(
+        value,
+        sort_keys=False,
+        default_flow_style=True,
+    ).strip()
+    return rendered if rendered else "null"
+
+
+def _manifest_path_exists(payload: dict[str, Any], dotted_path: str) -> bool:
+    current: Any = payload
+    for segment in dotted_path.split("."):
+        if not isinstance(current, dict) or segment not in current:
+            return False
+        current = current[segment]
+    return True
+
+
+def _manifest_get_path(payload: dict[str, Any], dotted_path: str) -> Any:
+    current: Any = payload
+    for segment in dotted_path.split("."):
+        if not isinstance(current, dict):
+            return None
+        current = current.get(segment)
+    return current
+
+
+def _manifest_set_path(payload: dict[str, Any], dotted_path: str, value: Any) -> None:
+    segments = dotted_path.split(".")
+    current: dict[str, Any] = payload
+    for segment in segments[:-1]:
+        child = current.get(segment)
+        if not isinstance(child, dict):
+            child = {}
+            current[segment] = child
+        current = child
+    current[segments[-1]] = value
+
+
+def _parse_update_value(raw_value: str) -> Any:
+    try:
+        parsed = yaml.safe_load(raw_value)
+    except yaml.YAMLError:
+        return raw_value
+
+    if parsed is None and raw_value.strip().lower() not in {"null", "~"}:
+        return raw_value
+    return parsed
+
+
+def _print_raw_metadata(
+    target_label: str,
+    manifest_data: dict[str, Any],
+    *,
+    full: bool,
+) -> None:
+    normalized = _normalize_manifest_for_display(manifest_data)
+
+    print(f"Inspect target type: {target_label}")
+    print("Manifest metadata (raw):")
+
+    flattened = _flatten_manifest_fields(normalized)
+    if full:
+        for field in KNOWN_MANIFEST_METADATA_FIELDS:
+            if field in flattened:
+                print(f"{field}: {_render_raw_value(flattened[field])}")
+            else:
+                print(f"{field}: N/A")
+        return
+
+    for field in sorted(flattened.keys()):
+        print(f"{field}: {_render_raw_value(flattened[field])}")
+
+
+def _print_full_metadata_fields(normalized: dict[str, Any]) -> None:
+    print("- All Metadata Fields:")
+    for field in KNOWN_MANIFEST_METADATA_FIELDS:
+        if _manifest_path_exists(normalized, field):
+            value = _manifest_get_path(normalized, field)
+            print(f"  - {field}: {_render_raw_value(value)}")
+        else:
+            print(f"  - {field}: N/A")
+
+
+def _declared_types_for_display(manifest_data: dict[str, Any], section_name: str) -> list[str]:
+    section = manifest_data.get(section_name)
+    if not isinstance(section, dict):
+        return []
+
+    declared_type = section.get("type")
+    if isinstance(declared_type, str):
+        value = declared_type.strip().lower()
+        return [value] if value else []
+
+    if not isinstance(declared_type, list):
+        return []
+
+    normalized: list[str] = []
+    for item in declared_type:
+        if not isinstance(item, str):
+            continue
+        value = item.strip().lower()
+        if value and value not in normalized:
+            normalized.append(value)
+    return normalized
+
+
 def _print_inspect_output(
     target_label: str,
     manifest_data: dict[str, Any],
     archive_checksum: str | None = None,
     archive_size_human: str | None = None,
+    asset_file_sizes: dict[str, int] | None = None,
+    *,
+    full: bool = False,
+    raw: bool = False,
 ) -> None:
+    if raw:
+        _print_raw_metadata(target_label, manifest_data, full=full)
+        return
+
     normalized = _normalize_manifest_for_display(manifest_data)
 
     print(f"Inspect target type: {target_label}")
@@ -171,6 +447,22 @@ def _print_inspect_output(
     print(f"- Name: {normalized['name']}")
     print(f"- Version: {normalized['version']}")
     print(f"- Runtime Type: {normalized['runtime']['type']}")
+
+    input_types = _declared_types_for_display(normalized, "inputs")
+    output_types = _declared_types_for_display(normalized, "outputs")
+    input_label = ", ".join(input_types) if input_types else "(none)"
+    output_label = ", ".join(output_types) if output_types else "(none)"
+    print(f"- Input Types: {input_label}")
+    print(f"- Output Types: {output_label}")
+
+    json_contract_notes: list[str] = []
+    if "json" in input_types:
+        json_contract_notes.append("use --json-input/--json-file for structured input payloads")
+    if normalized["runtime"]["type"] != "mcp-server" and "json" in output_types:
+        json_contract_notes.append("stdout must be valid JSON when outputs.type includes json")
+    if json_contract_notes:
+        print(f"- JSON Contract: {'; '.join(json_contract_notes)}")
+
     if archive_size_human is not None:
         print(f"- Archive Size: {archive_size_human}")
     if archive_checksum is not None:
@@ -204,8 +496,15 @@ def _print_inspect_output(
         else:
             print("- Env Vars: (none)")
 
+    _print_services_metadata(normalized)
 
-def _inspect_archive_target(archive_path: Path) -> int:
+    _print_asset_metadata(normalized, asset_file_sizes or {})
+
+    if full:
+        _print_full_metadata_fields(normalized)
+
+
+def _inspect_archive_target(archive_path: Path, *, full: bool, raw: bool) -> int:
     manifest_data = read_manifest_from_kno_archive(archive_path)
     if manifest_data is None:
         return 1
@@ -217,17 +516,21 @@ def _inspect_archive_target(archive_path: Path) -> int:
 
     archive_size_human = format_size_human_readable(archive_path.stat().st_size)
     archive_checksum = _archive_checksum_for_display(archive_path)
+    asset_file_sizes = _asset_file_sizes_for_archive(manifest_data, archive_path)
     _print_inspect_output(
         "archive (.kno)",
         manifest_data,
         archive_checksum=archive_checksum,
         archive_size_human=archive_size_human,
+        asset_file_sizes=asset_file_sizes,
+        full=full,
+        raw=raw,
     )
 
     return 0
 
 
-def _inspect_directory_target(directory_path: Path) -> int:
+def _inspect_directory_target(directory_path: Path, *, full: bool, raw: bool) -> int:
     manifest_path = directory_path / "kinnoo.yaml"
     requirements_path = directory_path / "requirements.txt"
 
@@ -248,7 +551,17 @@ def _inspect_directory_target(directory_path: Path) -> int:
         _print_manifest_validation_errors(errors)
         return 1
 
-    _print_inspect_output("directory", manifest_data)
+    asset_file_sizes = _asset_file_sizes_for_directory(manifest_data, directory_path)
+    _print_inspect_output(
+        "directory",
+        manifest_data,
+        asset_file_sizes=asset_file_sizes,
+        full=full,
+        raw=raw,
+    )
+
+    if raw:
+        return 0
 
     declared_env_vars = _env_var_names_for_display(_normalize_manifest_for_display(manifest_data))
     sweep_warnings = sweep_env_var_exposure(directory_path, declared_env_vars)
@@ -264,18 +577,18 @@ def _inspect_directory_target(directory_path: Path) -> int:
     return 0
 
 
-def inspect_target(target_arg: str) -> int:
+def inspect_target(target_arg: str, *, full: bool = False, raw: bool = False) -> int:
     target = Path(target_arg)
     if not target.exists():
         print(f"Error: Inspect target '{target}' does not exist.", file=sys.stderr)
         return 1
 
     if target.is_dir():
-        return _inspect_directory_target(target)
+        return _inspect_directory_target(target, full=full, raw=raw)
 
     if target.is_file():
         if target.suffix.lower() == ".kno":
-            return _inspect_archive_target(target)
+            return _inspect_archive_target(target, full=full, raw=raw)
 
         print(
             f"Error: Unsupported inspect target file '{target}'. Expected an agent directory or .kno archive.",
@@ -285,3 +598,86 @@ def inspect_target(target_arg: str) -> int:
 
     print(f"Error: Inspect target '{target}' is neither a directory nor a regular file.", file=sys.stderr)
     return 1
+
+
+def inspect_update_target(
+    target_arg: str,
+    metadata_key: str,
+    new_value_raw: str,
+    *,
+    skip_warnings: bool = False,
+) -> int:
+    target = Path(target_arg)
+    if not target.exists():
+        print(f"Error: Inspect target '{target}' does not exist.", file=sys.stderr)
+        return 1
+    if target.is_file():
+        print("Error: --update only supports agent directories, not archive files.", file=sys.stderr)
+        return 1
+    if not target.is_dir():
+        print(f"Error: Inspect target '{target}' is not a directory.", file=sys.stderr)
+        return 1
+
+    manifest_path = target / "kinnoo.yaml"
+    if not manifest_path.exists():
+        _print_missing_manifest_guidance()
+        return 1
+
+    manifest_data = _load_manifest_from_directory(manifest_path)
+    if manifest_data is None:
+        return 1
+
+    metadata_key = metadata_key.strip()
+    if not metadata_key or any(not segment for segment in metadata_key.split(".")):
+        print("Error: metadata key must be a valid dotted path (for example runtime.language).", file=sys.stderr)
+        return 1
+
+    if (
+        metadata_key not in KNOWN_MANIFEST_METADATA_FIELD_SET
+        and not _manifest_path_exists(manifest_data, metadata_key)
+    ):
+        print(
+            f"Error: Unsupported metadata key '{metadata_key}'. Use a known manifest field.",
+            file=sys.stderr,
+        )
+        return 1
+
+    old_value = _manifest_get_path(manifest_data, metadata_key)
+    parsed_new_value = _parse_update_value(new_value_raw)
+
+    if not skip_warnings:
+        prompt = (
+            f"Warning: are you sure you want to modify {metadata_key} to have the new value "
+            f"{new_value_raw}? (y/N): "
+        )
+        try:
+            response = input(prompt)
+        except EOFError:
+            response = ""
+        if response.strip().lower() not in {"y", "yes"}:
+            print("Update aborted.")
+            return 1
+
+    updated_manifest = deepcopy(manifest_data)
+    _manifest_set_path(updated_manifest, metadata_key, parsed_new_value)
+
+    is_valid, errors = validate_manifest_data(updated_manifest)
+    if not is_valid:
+        _print_manifest_validation_errors(errors)
+        print("No changes were written.", file=sys.stderr)
+        return 1
+
+    try:
+        manifest_path.write_text(
+            yaml.safe_dump(updated_manifest, sort_keys=False),
+            encoding="utf-8",
+        )
+    except OSError as error:
+        print(f"Error: Failed writing '{manifest_path}': {error}", file=sys.stderr)
+        return 1
+
+    print("Manifest metadata updated.")
+    print(f"- key: {metadata_key}")
+    print(f"- old value: {_render_raw_value(old_value) if old_value is not None else 'N/A'}")
+    print(f"- new value: {_render_raw_value(parsed_new_value)}")
+    return 0

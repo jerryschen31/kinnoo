@@ -12,6 +12,8 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from kinnoo.validator import validate  # noqa: E402
+from kinnoo.schema import normalize_manifest_defaults  # noqa: E402
+from kinnoo.analyzer import analyze_project  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -247,6 +249,615 @@ def test_invalid_runtime_type(tmp_path: Path) -> None:
         f"Error should mention 'one-shot'; got: {errors}"
     )
 
+
+def test_feature23_runtime_type_mcp_server_supported(tmp_path: Path) -> None:
+    """Feature23 test214: runtime.type supports mcp-server and rejects unknown values."""
+    valid_data = dict(_VALID_MANIFEST)
+    valid_data["runtime"] = dict(valid_data["runtime"])
+    valid_data["runtime"]["type"] = "mcp-server"
+
+    valid_manifest_path = _write_manifest(valid_data, tmp_path)
+    is_valid, errors = validate(str(valid_manifest_path))
+    assert is_valid is True, f"Expected mcp-server runtime.type to be valid; errors: {errors}"
+    assert errors == []
+
+    invalid_data = dict(_VALID_MANIFEST)
+    invalid_data["runtime"] = dict(invalid_data["runtime"])
+    invalid_data["runtime"]["type"] = "not-a-runtime"
+
+    invalid_manifest_path = tmp_path / "feature23_invalid_runtime.yaml"
+    invalid_manifest_path.write_text(yaml.dump(invalid_data), encoding="utf-8")
+    is_valid, errors = validate(str(invalid_manifest_path))
+    assert is_valid is False, "Expected unsupported runtime.type to fail validation"
+    assert any("runtime.type" in msg for msg in errors), (
+        f"Expected runtime.type guidance in validation errors; got: {errors}"
+    )
+    assert any("one-shot" in msg and "mcp-server" in msg for msg in errors), (
+        f"Expected allowed runtime values guidance; got: {errors}"
+    )
+
+
+def test_feature31_runtime_language_nodejs_is_valid(tmp_path: Path) -> None:
+    """Feature31 test263: nodejs is accepted as a supported runtime.language value."""
+    data = dict(_VALID_MANIFEST)
+    data["runtime"] = dict(data["runtime"])
+    data["runtime"]["language"] = "nodejs"
+
+    manifest_path = _write_manifest(data, tmp_path)
+    is_valid, errors = validate(str(manifest_path))
+
+    assert is_valid is True, f"Expected runtime.language=nodejs to be valid; errors: {errors}"
+    assert not any("runtime.language" in message for message in errors)
+
+
+def test_feature31_runtime_language_rejects_unsupported_values(tmp_path: Path) -> None:
+    """Feature31 test264: unsupported runtime.language values return actionable guidance."""
+    data = dict(_VALID_MANIFEST)
+    data["runtime"] = dict(data["runtime"])
+    data["runtime"]["language"] = "ruby"
+
+    manifest_path = _write_manifest(data, tmp_path)
+    is_valid, errors = validate(str(manifest_path))
+
+    assert is_valid is False, "Expected unsupported runtime.language value to fail validation"
+    assert any("runtime.language" in message for message in errors), (
+        f"Expected runtime.language guidance in errors; got: {errors}"
+    )
+    assert any("python" in message and "nodejs" in message for message in errors), (
+        f"Expected supported runtime languages in error message; got: {errors}"
+    )
+
+
+def test_analyzer_class_only_detection(tmp_path: Path) -> None:
+    """Feature47 test384: analyzer detects class-only agent fallback entrypoint metadata."""
+    project_dir = tmp_path / "class-only-agent"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "base.py").write_text(
+        "from langchain.agents import BaseSingleActionAgent\n\n"
+        "class MyAgent(BaseSingleActionAgent):\n"
+        "    pass\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(project_dir).as_dict()
+    inferred_entrypoint = report["inferred"]["entrypoint"]
+    entrypoint_confidence = report["confidence"]["entrypoint"]["score"]
+
+    assert isinstance(inferred_entrypoint, dict)
+    assert inferred_entrypoint.get("entrypoint_type") == "class"
+    assert inferred_entrypoint.get("agent_class") == "MyAgent"
+    assert inferred_entrypoint.get("agent_module") == "base"
+    assert float(entrypoint_confidence) >= 0.40
+
+
+def test_analyzer_subdirectory_entrypoint(tmp_path: Path) -> None:
+    """Feature47 test388: analyzer prefers conventional subdirectory main.py entrypoint."""
+    project_dir = tmp_path / "subdir-agent"
+    source_dir = project_dir / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    (source_dir / "main.py").write_text(
+        "if __name__ == '__main__':\n"
+        "    print('ok')\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(project_dir).as_dict()
+    inferred_entrypoint = report["inferred"]["entrypoint"]
+    score = float(report["confidence"]["entrypoint"]["score"])
+
+    assert inferred_entrypoint == "source/main.py"
+    assert score >= 0.50
+
+
+def test_analyzer_requirements_inference(tmp_path: Path) -> None:
+    """Feature47 test390: analyzer infers PyPI dependency names from imports."""
+    project_dir = tmp_path / "requirements-inference-agent"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "agent.py").write_text(
+        "import os\n"
+        "import openai\n"
+        "from pydantic_ai import Agent\n"
+        "from langchain_core.prompts import ChatPromptTemplate\n\n"
+        "def run() -> None:\n"
+        "    _ = (Agent, ChatPromptTemplate)\n"
+        "    print('ok')\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(project_dir).as_dict()
+    dependencies = report["inferred"]["dependencies"]
+
+    assert "openai" in dependencies
+    assert "pydantic-ai" in dependencies
+    assert "langchain-core" in dependencies
+    assert "os" not in dependencies
+
+
+def test_analyzer_nodejs_detection(tmp_path: Path) -> None:
+    """Feature47 test392: analyzer infers nodejs runtime and package.json entrypoint."""
+    project_dir = tmp_path / "node-agent"
+    src_dir = project_dir / "src"
+    src_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "package.json").write_text(
+        "{\n"
+        "  \"name\": \"node-agent\",\n"
+        "  \"version\": \"1.0.0\",\n"
+        "  \"main\": \"src/index.ts\",\n"
+        "  \"scripts\": {\"start\": \"node src/index.ts\"}\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    (project_dir / "tsconfig.json").write_text("{}\n", encoding="utf-8")
+    (src_dir / "index.ts").write_text("console.log('ok')\n", encoding="utf-8")
+
+    report = analyze_project(project_dir).as_dict()
+    runtime = report["inferred"]["runtime"]
+    entrypoint = report["inferred"]["entrypoint"]
+
+    assert isinstance(runtime, dict)
+    assert runtime.get("language") == "nodejs"
+    assert runtime.get("package_manager") in {"npm", "yarn", "pnpm"}
+    assert entrypoint == "src/index.ts"
+
+
+def test_analyzer_input_detection(tmp_path: Path) -> None:
+    """Feature47 test394: analyzer distinguishes parameterized and hardcoded input usage."""
+    parameterized_dir = tmp_path / "parameterized-input-agent"
+    parameterized_dir.mkdir(parents=True, exist_ok=True)
+    (parameterized_dir / "run.py").write_text(
+        "import sys\n"
+        "def main() -> None:\n"
+        "    value = sys.argv[1]\n"
+        "    print(value)\n"
+        "if __name__ == '__main__':\n"
+        "    main()\n",
+        encoding="utf-8",
+    )
+
+    hardcoded_dir = tmp_path / "hardcoded-input-agent"
+    hardcoded_dir.mkdir(parents=True, exist_ok=True)
+    (hardcoded_dir / "run.py").write_text(
+        "from agents import Runner, Agent\n"
+        "agent = Agent(name='demo')\n"
+        "result = Runner.run_sync(agent, 'hello world')\n"
+        "print(result)\n",
+        encoding="utf-8",
+    )
+
+    parameterized_report = analyze_project(parameterized_dir).as_dict()
+    hardcoded_report = analyze_project(hardcoded_dir).as_dict()
+
+    assert parameterized_report["inferred"]["inputs_required"] is True
+    assert hardcoded_report["inferred"]["inputs_required"] is False
+
+
+def test_analyzer_service_detection(tmp_path: Path) -> None:
+    """Feature47 test396: analyzer detects service dependencies from imports and literals."""
+    project_dir = tmp_path / "service-detection-agent"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "main.py").write_text(
+        "import ollama\n"
+        "import redis\n"
+        "import psycopg2\n"
+        "API_URL = 'http://localhost:11434'\n"
+        "_ = (ollama, redis, psycopg2, API_URL)\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(project_dir).as_dict()
+    services = report["inferred"]["services"]
+    names = {service.get("name") for service in services if isinstance(service, dict)}
+
+    assert "ollama" in names
+    assert "redis" in names
+    assert "postgresql" in names
+
+
+def test_analyzer_pydanticai_deps(tmp_path: Path) -> None:
+    """Feature47 test398: analyzer detects PydanticAI deps_type and infers json input."""
+    project_dir = tmp_path / "pydanticai-deps-agent"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "main.py").write_text(
+        "from pydantic import BaseModel\n"
+        "from pydantic_ai import Agent\n\n"
+        "class MyDeps(BaseModel):\n"
+        "    account_id: str\n"
+        "    amount: float\n\n"
+        "agent = Agent('openai:gpt-4o-mini', deps_type=MyDeps)\n"
+        "print(agent)\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(project_dir).as_dict()
+    deps_type = report["inferred"]["deps_type"]
+
+    assert isinstance(deps_type, dict)
+    assert deps_type.get("class_name") == "MyDeps"
+    assert set(deps_type.get("fields", [])) >= {"account_id", "amount"}
+    assert report["inferred"]["inputs"] == "json"
+
+
+def test_streamlit_detection(tmp_path: Path) -> None:
+    """Feature47 test402: analyzer detects Streamlit framework from imports."""
+    project_dir = tmp_path / "streamlit-agent"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "app.py").write_text(
+        "import streamlit as st\n"
+        "st.chat_input('Say hi')\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(project_dir).as_dict()
+    assert report["inferred"]["framework"] == "streamlit"
+
+
+def test_gradio_detection(tmp_path: Path) -> None:
+    """Feature47 test403: analyzer detects Gradio framework from imports."""
+    project_dir = tmp_path / "gradio-agent"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "app.py").write_text(
+        "import gradio as gr\n"
+        "demo = gr.Interface(fn=lambda x: x, inputs='text', outputs='text')\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(project_dir).as_dict()
+    assert report["inferred"]["framework"] == "gradio"
+
+
+def test_feature42_manifest_accepts_json_input_output_types(tmp_path: Path) -> None:
+    """Feature42 test270: validator accepts json for inputs.type and outputs.type."""
+    data = dict(_VALID_MANIFEST)
+    data["inputs"] = {"type": "json"}
+    data["outputs"] = {"type": "json"}
+
+    manifest_path = _write_manifest(data, tmp_path)
+    is_valid, errors = validate(str(manifest_path))
+
+    assert is_valid is True, (
+        "Expected inputs.type=json and outputs.type=json to pass validation; "
+        f"errors: {errors}"
+    )
+    assert errors == []
+
+
+def test_feature42_manifest_rejects_unsupported_io_types(tmp_path: Path) -> None:
+    """Feature42 test271: unsupported I/O types are rejected with guidance."""
+    data = dict(_VALID_MANIFEST)
+    data["inputs"] = {"type": "xml"}
+    data["outputs"] = {"type": "binary"}
+
+    manifest_path = _write_manifest(data, tmp_path)
+    is_valid, errors = validate(str(manifest_path))
+
+    assert is_valid is False, "Expected unsupported I/O type values to fail validation"
+    assert any("inputs.type" in message and "unsupported value" in message for message in errors), (
+        f"Expected unsupported inputs.type error; got: {errors}"
+    )
+    assert any("outputs.type" in message and "unsupported value" in message for message in errors), (
+        f"Expected unsupported outputs.type error; got: {errors}"
+    )
+    assert any("json" in message and "text" in message and "string" in message for message in errors), (
+        f"Expected supported values guidance (including json) in errors; got: {errors}"
+    )
+
+
+def test_feature32_runtime_type_daemon_validation(tmp_path: Path) -> None:
+    """Feature32 test276: runtime.type accepts daemon and preserves existing support."""
+    for runtime_type in ("daemon", "one-shot", "mcp-server"):
+        data = dict(_VALID_MANIFEST)
+        data["runtime"] = dict(data["runtime"])
+        data["runtime"]["type"] = runtime_type
+
+        manifest_path = _write_manifest(data, tmp_path)
+        is_valid, errors = validate(str(manifest_path))
+
+        assert is_valid is True, (
+            f"Expected runtime.type={runtime_type!r} to pass validation; errors: {errors}"
+        )
+
+
+def test_analyzer_detects_text_input_type(tmp_path: Path) -> None:
+    """Feature46 test364: analyzer infers text input from sys.argv usage."""
+    project_dir = tmp_path / "feature46-analyzer-text-input"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "run.py").write_text(
+        "import sys\n"
+        "if __name__ == '__main__':\n"
+        "    print(sys.argv[1] if len(sys.argv) > 1 else '')\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(project_dir)
+
+    assert report.inferred.get("inputs") == "text"
+    assert float(report.confidence.get("inputs", {}).get("score", 0.0)) >= 0.7
+    assert "sys.argv" in str(report.confidence.get("inputs", {}).get("evidence", ""))
+
+
+def test_analyzer_detects_json_input_type(tmp_path: Path) -> None:
+    """Feature46 test365: analyzer infers json input from json.loads patterns."""
+    project_dir = tmp_path / "feature46-analyzer-json-input"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "run.py").write_text(
+        "import json\n"
+        "import sys\n"
+        "if __name__ == '__main__':\n"
+        "    payload = json.loads(sys.argv[1])\n"
+        "    print(payload.get('message', ''))\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(project_dir)
+
+    assert report.inferred.get("inputs") == "json"
+    assert float(report.confidence.get("inputs", {}).get("score", 0.0)) >= 0.7
+    evidence = str(report.confidence.get("inputs", {}).get("evidence", ""))
+    assert "json.loads" in evidence
+
+
+def test_analyzer_detects_model_gemini(tmp_path: Path) -> None:
+    """Feature46 test369: analyzer infers Gemini model literals from source."""
+    project_dir = tmp_path / "feature46-model-gemini"
+    project_dir.mkdir()
+    (project_dir / "run.py").write_text(
+        "from google import genai\n"
+        "def run(prompt):\n"
+        "    client = genai.Client()\n"
+        "    return client.models.generate_content(model='gemini-2.5-flash-lite', contents=prompt)\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(project_dir).as_dict()
+    assert report["inferred"]["model"] == "gemini-2.5-flash-lite"
+    assert report["confidence"]["model"]["score"] >= 0.8
+
+
+def test_analyzer_detects_model_chatgpt(tmp_path: Path) -> None:
+    """Feature46 test370: analyzer infers OpenAI model literals from source."""
+    project_dir = tmp_path / "feature46-model-chatgpt"
+    project_dir.mkdir()
+    (project_dir / "run.py").write_text(
+        "from openai import OpenAI\n"
+        "client = OpenAI()\n"
+        "def run(prompt):\n"
+        "    return client.chat.completions.create(model=\"gpt-5-nano\", messages=[{'role': 'user', 'content': prompt}])\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_project(project_dir).as_dict()
+    assert report["inferred"]["model"] == "gpt-5-nano"
+    assert report["confidence"]["model"]["score"] >= 0.8
+
+    invalid = dict(_VALID_MANIFEST)
+    invalid["runtime"] = dict(invalid["runtime"])
+    invalid["runtime"]["type"] = "super-daemon"
+
+    invalid_manifest_path = tmp_path / "feature32_invalid_runtime_type.yaml"
+    invalid_manifest_path.write_text(yaml.dump(invalid), encoding="utf-8")
+    is_valid, errors = validate(str(invalid_manifest_path))
+
+    assert is_valid is False, "Expected unsupported runtime.type to fail validation"
+    assert any("runtime.type" in message and "unsupported value" in message for message in errors), (
+        f"Expected runtime.type unsupported guidance; got: {errors}"
+    )
+    assert any(
+        "one-shot" in message and "mcp-server" in message and "daemon" in message
+        for message in errors
+    ), f"Expected allowed runtime type guidance in errors; got: {errors}"
+
+
+def test_feature33_runtime_package_manager_validation(tmp_path: Path) -> None:
+    """Feature33 test282: runtime.package_manager accepts npm/pnpm and rejects others."""
+    for package_manager in ("npm", "pnpm"):
+        valid_data = dict(_VALID_MANIFEST)
+        valid_data["runtime"] = dict(valid_data["runtime"])
+        valid_data["runtime"]["language"] = "nodejs"
+        valid_data["runtime"]["package_manager"] = package_manager
+
+        valid_path = tmp_path / f"feature33_runtime_package_manager_{package_manager}.yaml"
+        valid_path.write_text(yaml.dump(valid_data), encoding="utf-8")
+
+        is_valid, errors = validate(str(valid_path))
+        assert is_valid is True, (
+            f"Expected runtime.package_manager={package_manager!r} to pass validation; "
+            f"errors: {errors}"
+        )
+        assert errors == []
+
+    invalid_data = dict(_VALID_MANIFEST)
+    invalid_data["runtime"] = dict(invalid_data["runtime"])
+    invalid_data["runtime"]["language"] = "nodejs"
+    invalid_data["runtime"]["package_manager"] = "yarn"
+
+    invalid_path = tmp_path / "feature33_runtime_package_manager_invalid.yaml"
+    invalid_path.write_text(yaml.dump(invalid_data), encoding="utf-8")
+
+    is_valid, errors = validate(str(invalid_path))
+    assert is_valid is False, "Expected unsupported runtime.package_manager value to fail"
+    assert any(
+        "runtime.package_manager" in message and "unsupported value" in message
+        for message in errors
+    ), f"Expected runtime.package_manager unsupported-value guidance; got: {errors}"
+    assert any("npm" in message and "pnpm" in message for message in errors), (
+        f"Expected allowed runtime.package_manager values in error message; got: {errors}"
+    )
+
+
+def test_feature33_extension_fields_type_and_path_safety(tmp_path: Path) -> None:
+    """Feature33 test283: channels/skills/state_dirs enforce type and path safety."""
+    valid_data = dict(_VALID_MANIFEST)
+    valid_data["runtime"] = dict(valid_data["runtime"])
+    valid_data["runtime"]["language"] = "nodejs"
+    valid_data["channels"] = ["stdio", "events"]
+    valid_data["skills"] = ["skills/openclaw/core.md", "skills/shared/prompts.md"]
+    valid_data["state_dirs"] = ["state/cache", "state/memory"]
+
+    valid_path = tmp_path / "feature33_extension_fields_valid.yaml"
+    valid_path.write_text(yaml.dump(valid_data), encoding="utf-8")
+
+    is_valid, errors = validate(str(valid_path))
+    assert is_valid is True, f"Expected valid feature33 extension fields to pass; errors: {errors}"
+    assert errors == []
+
+    invalid_types = dict(_VALID_MANIFEST)
+    invalid_types["channels"] = "stdio"
+    invalid_types["skills"] = ["skills/ok.md", 123]
+    invalid_types["state_dirs"] = ["state/cache", None]
+
+    invalid_types_path = tmp_path / "feature33_extension_fields_invalid_types.yaml"
+    invalid_types_path.write_text(yaml.dump(invalid_types), encoding="utf-8")
+
+    is_valid, errors = validate(str(invalid_types_path))
+    assert is_valid is False, "Expected invalid extension field types to fail"
+    assert any("Field 'channels' must be of type list" in message for message in errors), (
+        f"Expected channels list type error; got: {errors}"
+    )
+    assert any("Field 'skills[1]' must be of type str" in message for message in errors), (
+        f"Expected skills item type error; got: {errors}"
+    )
+    assert any("Field 'state_dirs[1]' must be of type str" in message for message in errors), (
+        f"Expected state_dirs item type error; got: {errors}"
+    )
+
+    unsafe_paths = dict(_VALID_MANIFEST)
+    unsafe_paths["skills"] = ["/absolute/skills/core.md"]
+    unsafe_paths["state_dirs"] = ["../outside-state"]
+
+    unsafe_paths_path = tmp_path / "feature33_extension_fields_unsafe_paths.yaml"
+    unsafe_paths_path.write_text(yaml.dump(unsafe_paths), encoding="utf-8")
+
+    is_valid, errors = validate(str(unsafe_paths_path))
+    assert is_valid is False, "Expected unsafe paths in extension fields to fail"
+    assert any("Field 'skills[0]'" in message and "relative path" in message for message in errors), (
+        f"Expected skills path safety error; got: {errors}"
+    )
+    assert any("Field 'state_dirs[0]'" in message and "relative path" in message for message in errors), (
+        f"Expected state_dirs path safety error; got: {errors}"
+    )
+
+
+def test_feature33_openclaw_framework_specific_validation(tmp_path: Path) -> None:
+    """Feature33 test284: framework=openclaw triggers targeted validation rules."""
+    valid_openclaw = dict(_VALID_MANIFEST)
+    valid_openclaw["framework"] = "openclaw"
+    valid_openclaw["runtime"] = dict(valid_openclaw["runtime"])
+    valid_openclaw["runtime"]["language"] = "nodejs"
+    valid_openclaw["runtime"]["type"] = "daemon"
+    valid_openclaw["runtime"]["package_manager"] = "pnpm"
+    valid_openclaw["channels"] = ["stdio", "events"]
+    valid_openclaw["skills"] = ["skills/openclaw/core.md"]
+    valid_openclaw["state_dirs"] = ["state/openclaw"]
+
+    valid_openclaw_path = tmp_path / "feature33_openclaw_valid.yaml"
+    valid_openclaw_path.write_text(yaml.dump(valid_openclaw), encoding="utf-8")
+
+    is_valid, errors = validate(str(valid_openclaw_path))
+    assert is_valid is True, (
+        "Expected valid framework=openclaw manifest to pass targeted validation; "
+        f"errors: {errors}"
+    )
+    assert errors == []
+
+    invalid_openclaw = dict(_VALID_MANIFEST)
+    invalid_openclaw["framework"] = "openclaw"
+    invalid_openclaw["runtime"] = dict(invalid_openclaw["runtime"])
+    invalid_openclaw["runtime"]["package_manager"] = "yarn"
+    invalid_openclaw["channels"] = ["events"]
+
+    invalid_openclaw_path = tmp_path / "feature33_openclaw_invalid.yaml"
+    invalid_openclaw_path.write_text(yaml.dump(invalid_openclaw), encoding="utf-8")
+
+    is_valid, errors = validate(str(invalid_openclaw_path))
+    assert is_valid is False, "Expected invalid framework=openclaw fixture to fail"
+    assert any("framework is 'openclaw'" in message for message in errors), (
+        f"Expected openclaw-targeted diagnostics; got: {errors}"
+    )
+    assert any("runtime.language" in message and "nodejs" in message for message in errors), (
+        f"Expected openclaw runtime.language guidance; got: {errors}"
+    )
+    assert any("runtime.type" in message and "daemon" in message for message in errors), (
+        f"Expected openclaw runtime.type guidance; got: {errors}"
+    )
+    assert any("runtime.package_manager" in message and "openclaw" in message for message in errors), (
+        f"Expected openclaw runtime.package_manager guidance; got: {errors}"
+    )
+    assert any("channels" in message and "stdio" in message for message in errors), (
+        f"Expected openclaw channels guidance; got: {errors}"
+    )
+
+    non_openclaw_control = dict(_VALID_MANIFEST)
+    non_openclaw_control["framework"] = "custom-framework"
+    non_openclaw_control["runtime"] = dict(non_openclaw_control["runtime"])
+    non_openclaw_control["runtime"]["package_manager"] = "npm"
+    non_openclaw_control["channels"] = ["events"]
+
+    non_openclaw_control_path = tmp_path / "feature33_non_openclaw_control.yaml"
+    non_openclaw_control_path.write_text(yaml.dump(non_openclaw_control), encoding="utf-8")
+
+    is_valid, errors = validate(str(non_openclaw_control_path))
+    assert is_valid is True, (
+        "Expected framework-specific rules to be gated to framework=openclaw only; "
+        f"errors: {errors}"
+    )
+    assert errors == []
+
+
+def test_feature35_state_dirs_validation_contract(tmp_path: Path) -> None:
+    """Feature35 test292: state_dirs contract validates safe entries and rejects malformed shapes."""
+    valid_data = dict(_VALID_MANIFEST)
+    valid_data["state_dirs"] = [
+        "memory",
+        {
+            "path": "state/cache",
+            "exclude": ["daily/*.log", "scratch/tmp.json"],
+        },
+    ]
+
+    valid_path = tmp_path / "feature35_state_dirs_valid.yaml"
+    valid_path.write_text(yaml.dump(valid_data), encoding="utf-8")
+
+    is_valid, errors = validate(str(valid_path))
+    assert is_valid is True, f"Expected valid state_dirs contract to pass; errors: {errors}"
+    assert errors == []
+
+    invalid_data = dict(_VALID_MANIFEST)
+    invalid_data["state_dirs"] = [
+        "/absolute/path",
+        "../unsafe-traversal",
+        {"path": 42},
+        {"exclude": ["*.log"]},
+        {"path": "state/memory", "exclude": "*.log"},
+        {"path": "state/memory", "exclude": ["../secrets.log", 99]},
+    ]
+
+    invalid_path = tmp_path / "feature35_state_dirs_invalid.yaml"
+    invalid_path.write_text(yaml.dump(invalid_data), encoding="utf-8")
+
+    is_valid, errors = validate(str(invalid_path))
+    assert is_valid is False, "Expected malformed/unsafe state_dirs contract to fail"
+    assert any("Field 'state_dirs[0]'" in message and "relative path" in message for message in errors), (
+        f"Expected absolute path safety error; got: {errors}"
+    )
+    assert any("Field 'state_dirs[1]'" in message and "relative path" in message for message in errors), (
+        f"Expected traversal safety error; got: {errors}"
+    )
+    assert any("Field 'state_dirs[2].path' must be of type str" in message for message in errors), (
+        f"Expected state_dirs path type error; got: {errors}"
+    )
+    assert any("Missing required field: 'state_dirs[3].path'" in message for message in errors), (
+        f"Expected missing path contract error; got: {errors}"
+    )
+    assert any("Field 'state_dirs[4].exclude' must be of type list" in message for message in errors), (
+        f"Expected exclude list type error; got: {errors}"
+    )
+    assert any("Field 'state_dirs[5].exclude[0]'" in message and "relative pattern" in message for message in errors), (
+        f"Expected unsafe exclude pattern error; got: {errors}"
+    )
+    assert any("Field 'state_dirs[5].exclude[1]' must be of type str" in message for message in errors), (
+        f"Expected exclude item type error; got: {errors}"
+    )
+
 # ---------------------------------------------------------------------------
 # test60 — Manifest loader normalizes "type" field to list (task38)
 # ---------------------------------------------------------------------------
@@ -368,6 +979,35 @@ def test_feature9_invalid_optional_field_types_are_rejected(tmp_path: Path) -> N
     )
 
 
+def test_feature21_optional_model_metadata_field(tmp_path: Path) -> None:
+    with_model = dict(_VALID_MANIFEST)
+    with_model["model"] = "gpt-5-nano"
+    with_model_path = _write_manifest(with_model, tmp_path)
+
+    is_valid, errors = validate(str(with_model_path))
+    assert is_valid is True, f"Expected valid model metadata to pass; errors: {errors}"
+    assert errors == []
+
+    without_model = dict(_VALID_MANIFEST)
+    without_model_path = tmp_path / "feature21_without_model.yaml"
+    without_model_path.write_text(yaml.dump(without_model), encoding="utf-8")
+
+    is_valid, errors = validate(str(without_model_path))
+    assert is_valid is True, f"Expected omitted optional model metadata to pass; errors: {errors}"
+    assert errors == []
+
+    invalid_model = dict(_VALID_MANIFEST)
+    invalid_model["model"] = 123
+    invalid_model_path = tmp_path / "feature21_invalid_model.yaml"
+    invalid_model_path.write_text(yaml.dump(invalid_model), encoding="utf-8")
+
+    is_valid, errors = validate(str(invalid_model_path))
+    assert is_valid is False, "Expected invalid non-string model metadata to fail"
+    assert any("Field 'model' must be of type str" in msg for msg in errors), (
+        f"Expected model type error; got: {errors}"
+    )
+
+
 def test_feature9_env_vars_items_must_be_non_empty_strings(tmp_path: Path) -> None:
     # [agent] test76 validates env_vars non-empty string item constraints.
     invalid_env_vars = dict(_VALID_MANIFEST)
@@ -382,3 +1022,527 @@ def test_feature9_env_vars_items_must_be_non_empty_strings(tmp_path: Path) -> No
     assert any("Field 'env_vars[2]' must be a non-empty string." in msg for msg in errors), (
         f"Expected env_vars[2] non-empty string error; got: {errors}"
     )
+
+
+def test_inputs_required_boolean_values_accepted(tmp_path: Path) -> None:
+    data_true = dict(_VALID_MANIFEST)
+    data_true["inputs"] = {"type": "text", "required": True}
+    p_true = tmp_path / "inputs_required_true.yaml"
+    p_true.write_text(yaml.dump(data_true), encoding="utf-8")
+
+    is_valid, errors = validate(str(p_true))
+    assert is_valid is True, f"Expected inputs.required=true to pass; errors: {errors}"
+    assert errors == []
+
+    data_false = dict(_VALID_MANIFEST)
+    data_false["inputs"] = {"type": "text", "required": False}
+    p_false = tmp_path / "inputs_required_false.yaml"
+    p_false.write_text(yaml.dump(data_false), encoding="utf-8")
+
+    is_valid, errors = validate(str(p_false))
+    assert is_valid is True, f"Expected inputs.required=false to pass; errors: {errors}"
+    assert errors == []
+
+
+def test_inputs_required_non_boolean_rejected(tmp_path: Path) -> None:
+    for bad_value in ("no", 1):
+        data = dict(_VALID_MANIFEST)
+        data["inputs"] = {"type": "text", "required": bad_value}
+        p = tmp_path / f"inputs_required_invalid_{type(bad_value).__name__}.yaml"
+        p.write_text(yaml.dump(data), encoding="utf-8")
+
+        is_valid, errors = validate(str(p))
+        assert is_valid is False, f"Expected inputs.required={bad_value!r} to fail"
+        assert any("inputs.required" in msg for msg in errors), (
+            f"Expected error mentioning inputs.required; got: {errors}"
+        )
+        assert any("type bool" in msg for msg in errors), (
+            f"Expected bool type error for inputs.required; got: {errors}"
+        )
+
+
+def test_feature22_assets_schema_accepts_valid_and_defaults(tmp_path: Path) -> None:
+    with_paths_only = dict(_VALID_MANIFEST)
+    with_paths_only["assets"] = {"paths": ["data/docs", "data/file.txt"]}
+    p_with_paths_only = tmp_path / "feature22_assets_paths_only.yaml"
+    p_with_paths_only.write_text(yaml.dump(with_paths_only), encoding="utf-8")
+
+    is_valid, errors = validate(str(p_with_paths_only))
+    assert is_valid is True, f"Expected assets.paths-only manifest to pass; errors: {errors}"
+    assert errors == []
+
+    normalized_paths_only = normalize_manifest_defaults(with_paths_only)
+    assert normalized_paths_only["assets"]["bundle"] is True
+    assert normalized_paths_only["assets"]["max_bundle_size_mb"] == 100
+
+    with_explicit_values = dict(_VALID_MANIFEST)
+    with_explicit_values["assets"] = {
+        "paths": ["data"],
+        "bundle": False,
+        "max_bundle_size_mb": 256,
+    }
+    p_with_explicit_values = tmp_path / "feature22_assets_explicit.yaml"
+    p_with_explicit_values.write_text(yaml.dump(with_explicit_values), encoding="utf-8")
+
+    is_valid, errors = validate(str(p_with_explicit_values))
+    assert is_valid is True, f"Expected explicit assets config to pass; errors: {errors}"
+    assert errors == []
+
+    normalized_explicit = normalize_manifest_defaults(with_explicit_values)
+    assert normalized_explicit["assets"]["bundle"] is False
+    assert normalized_explicit["assets"]["max_bundle_size_mb"] == 256
+
+
+def test_feature22_assets_schema_rejects_invalid_structure(tmp_path: Path) -> None:
+    bad_paths = dict(_VALID_MANIFEST)
+    bad_paths["assets"] = {"paths": "data"}
+    p_bad_paths = tmp_path / "feature22_assets_bad_paths.yaml"
+    p_bad_paths.write_text(yaml.dump(bad_paths), encoding="utf-8")
+
+    is_valid, errors = validate(str(p_bad_paths))
+    assert is_valid is False, "Expected non-list assets.paths to fail"
+    assert any("Field 'assets.paths' must be of type list" in msg for msg in errors), (
+        f"Expected assets.paths type error; got: {errors}"
+    )
+
+    bad_bundle = dict(_VALID_MANIFEST)
+    bad_bundle["assets"] = {"paths": ["data"], "bundle": "yes"}
+    p_bad_bundle = tmp_path / "feature22_assets_bad_bundle.yaml"
+    p_bad_bundle.write_text(yaml.dump(bad_bundle), encoding="utf-8")
+
+    is_valid, errors = validate(str(p_bad_bundle))
+    assert is_valid is False, "Expected non-bool assets.bundle to fail"
+    assert any("Field 'assets.bundle' must be of type bool" in msg for msg in errors), (
+        f"Expected assets.bundle type error; got: {errors}"
+    )
+
+    bad_max_bundle_size = dict(_VALID_MANIFEST)
+    bad_max_bundle_size["assets"] = {"paths": ["data"], "max_bundle_size_mb": "large"}
+    p_bad_max_bundle_size = tmp_path / "feature22_assets_bad_max_bundle_size.yaml"
+    p_bad_max_bundle_size.write_text(yaml.dump(bad_max_bundle_size), encoding="utf-8")
+
+    is_valid, errors = validate(str(p_bad_max_bundle_size))
+    assert is_valid is False, "Expected invalid assets.max_bundle_size_mb type to fail"
+    assert any("Field 'assets.max_bundle_size_mb' must be of type" in msg for msg in errors), (
+        f"Expected assets.max_bundle_size_mb type error; got: {errors}"
+    )
+
+
+def test_feature24_services_optional_list_is_accepted(tmp_path: Path) -> None:
+    """Feature24 test222: services is optional and valid list payloads are accepted."""
+    with_services = dict(_VALID_MANIFEST)
+    with_services["services"] = [
+        {
+            "name": "primary-db",
+            "type": "postgres",
+            "health_check": {
+                "method": "tcp",
+                "port": 5432,
+            },
+        },
+        {
+            "name": "worker",
+            "type": "process",
+            "health_check": {
+                "method": "process",
+                "process_name": "python",
+            },
+        },
+    ]
+
+    with_services_path = _write_manifest(with_services, tmp_path)
+    is_valid, errors = validate(str(with_services_path))
+    assert is_valid is True, f"Expected valid services list to pass; errors: {errors}"
+    assert errors == []
+
+    without_services = dict(_VALID_MANIFEST)
+    without_services_path = tmp_path / "feature24_without_services.yaml"
+    without_services_path.write_text(yaml.dump(without_services), encoding="utf-8")
+
+    is_valid, errors = validate(str(without_services_path))
+    assert is_valid is True, f"Expected manifest without services to pass; errors: {errors}"
+    assert errors == []
+
+
+def test_feature24_no_services_regression_unchanged(tmp_path: Path) -> None:
+    """Feature24 test225: no-services manifests keep existing pass behavior."""
+    baseline = dict(_VALID_MANIFEST)
+    baseline["assets"] = {"paths": ["docs"]}
+    baseline["env_vars"] = ["KINNOO_ENV"]
+
+    manifest_path = tmp_path / "feature24_no_services_regression.yaml"
+    manifest_path.write_text(yaml.dump(baseline), encoding="utf-8")
+
+    is_valid, errors = validate(str(manifest_path))
+    assert is_valid is True, (
+        "Expected manifest without services to remain valid after feature24 schema updates; "
+        f"errors: {errors}"
+    )
+    assert errors == []
+
+
+def test_feature24_service_required_fields_and_type_validation(tmp_path: Path) -> None:
+    """Feature24 test223: required service fields and allowed service types."""
+    missing_name = dict(_VALID_MANIFEST)
+    missing_name["services"] = [{"type": "postgres"}]
+    missing_name_path = tmp_path / "feature24_missing_service_name.yaml"
+    missing_name_path.write_text(yaml.dump(missing_name), encoding="utf-8")
+
+    is_valid, errors = validate(str(missing_name_path))
+    assert is_valid is False, "Expected missing services[].name to fail"
+    assert any("Missing required field: 'services[0].name'" in msg for msg in errors), (
+        f"Expected missing service name error; got: {errors}"
+    )
+
+    missing_type = dict(_VALID_MANIFEST)
+    missing_type["services"] = [{"name": "primary-db"}]
+    missing_type_path = tmp_path / "feature24_missing_service_type.yaml"
+    missing_type_path.write_text(yaml.dump(missing_type), encoding="utf-8")
+
+    is_valid, errors = validate(str(missing_type_path))
+    assert is_valid is False, "Expected missing services[].type to fail"
+    assert any("Missing required field: 'services[0].type'" in msg for msg in errors), (
+        f"Expected missing service type error; got: {errors}"
+    )
+
+    unsupported_type = dict(_VALID_MANIFEST)
+    unsupported_type["services"] = [{"name": "cache", "type": "sqlite"}]
+    unsupported_type_path = tmp_path / "feature24_unsupported_service_type.yaml"
+    unsupported_type_path.write_text(yaml.dump(unsupported_type), encoding="utf-8")
+
+    is_valid, errors = validate(str(unsupported_type_path))
+    assert is_valid is False, "Expected unsupported services[].type to fail"
+    assert any("services[0].type" in msg and "unsupported value" in msg for msg in errors), (
+        f"Expected unsupported service type error; got: {errors}"
+    )
+    assert any("mcp-server" in msg and "vector-db" in msg and "database" in msg and "api" in msg and "local-process" in msg for msg in errors), (
+        f"Expected allowed service type guidance in error; got: {errors}"
+    )
+
+    taxonomy_types = dict(_VALID_MANIFEST)
+    taxonomy_types["services"] = [
+        {"name": "mcp-gateway", "type": "mcp-server"},
+        {"name": "vectors", "type": "vector-db"},
+        {"name": "main-db", "type": "database"},
+        {"name": "public-api", "type": "api"},
+        {"name": "worker", "type": "local-process"},
+    ]
+    taxonomy_types_path = tmp_path / "feature24_taxonomy_types.yaml"
+    taxonomy_types_path.write_text(yaml.dump(taxonomy_types), encoding="utf-8")
+
+    is_valid, errors = validate(str(taxonomy_types_path))
+    assert is_valid is True, f"Expected canonical feature24 service taxonomy values to pass; errors: {errors}"
+    assert errors == []
+
+    process_alias = dict(_VALID_MANIFEST)
+    process_alias["services"] = [{"name": "legacy-worker", "type": "process"}]
+    process_alias_path = tmp_path / "feature24_process_alias.yaml"
+    process_alias_path.write_text(yaml.dump(process_alias), encoding="utf-8")
+
+    is_valid, errors = validate(str(process_alias_path))
+    assert is_valid is True, f"Expected 'process' alias to be accepted as local-process equivalent; errors: {errors}"
+    assert errors == []
+
+
+def test_feature24_health_check_method_specific_validation(tmp_path: Path) -> None:
+    """Feature24 test224: validate allowed health-check methods and required method fields."""
+    valid_tcp = dict(_VALID_MANIFEST)
+    valid_tcp["services"] = [
+        {
+            "name": "db",
+            "type": "postgres",
+            "health_check": {"method": "tcp", "port": 5432},
+        }
+    ]
+    valid_tcp_path = tmp_path / "feature24_valid_tcp_health_check.yaml"
+    valid_tcp_path.write_text(yaml.dump(valid_tcp), encoding="utf-8")
+
+    is_valid, errors = validate(str(valid_tcp_path))
+    assert is_valid is True, f"Expected tcp health_check payload to pass; errors: {errors}"
+    assert errors == []
+
+    valid_http = dict(_VALID_MANIFEST)
+    valid_http["services"] = [
+        {
+            "name": "api",
+            "type": "http-api",
+            "health_check": {"method": "http", "url": "http://localhost:8080/health"},
+        }
+    ]
+    valid_http_path = tmp_path / "feature24_valid_http_health_check.yaml"
+    valid_http_path.write_text(yaml.dump(valid_http), encoding="utf-8")
+
+    is_valid, errors = validate(str(valid_http_path))
+    assert is_valid is True, f"Expected http health_check payload to pass; errors: {errors}"
+    assert errors == []
+
+    valid_process = dict(_VALID_MANIFEST)
+    valid_process["services"] = [
+        {
+            "name": "worker",
+            "type": "process",
+            "health_check": {"method": "process", "process_name": "python"},
+        }
+    ]
+    valid_process_path = tmp_path / "feature24_valid_process_health_check.yaml"
+    valid_process_path.write_text(yaml.dump(valid_process), encoding="utf-8")
+
+    is_valid, errors = validate(str(valid_process_path))
+    assert is_valid is True, f"Expected process health_check payload to pass; errors: {errors}"
+    assert errors == []
+
+    missing_method = dict(_VALID_MANIFEST)
+    missing_method["services"] = [
+        {"name": "db", "type": "database", "health_check": {"port": 5432}}
+    ]
+    missing_method_path = tmp_path / "feature24_missing_health_method.yaml"
+    missing_method_path.write_text(yaml.dump(missing_method), encoding="utf-8")
+
+    is_valid, errors = validate(str(missing_method_path))
+    assert is_valid is False, "Expected health_check without method to fail"
+    assert any("health_check.method" in msg and "when health_check is declared" in msg for msg in errors), (
+        f"Expected missing health_check.method guidance; got: {errors}"
+    )
+
+    missing_tcp_port = dict(_VALID_MANIFEST)
+    missing_tcp_port["services"] = [
+        {"name": "db", "type": "postgres", "health_check": {"method": "tcp"}}
+    ]
+    missing_tcp_port_path = tmp_path / "feature24_missing_tcp_port.yaml"
+    missing_tcp_port_path.write_text(yaml.dump(missing_tcp_port), encoding="utf-8")
+
+    is_valid, errors = validate(str(missing_tcp_port_path))
+    assert is_valid is False, "Expected tcp health_check without port to fail"
+    assert any("health_check.port" in msg and "method is 'tcp'" in msg for msg in errors), (
+        f"Expected missing tcp.port guidance; got: {errors}"
+    )
+
+    missing_http_url = dict(_VALID_MANIFEST)
+    missing_http_url["services"] = [
+        {"name": "api", "type": "http-api", "health_check": {"method": "http"}}
+    ]
+    missing_http_url_path = tmp_path / "feature24_missing_http_url.yaml"
+    missing_http_url_path.write_text(yaml.dump(missing_http_url), encoding="utf-8")
+
+    is_valid, errors = validate(str(missing_http_url_path))
+    assert is_valid is False, "Expected http health_check without url to fail"
+    assert any("health_check.url" in msg and "method is 'http'" in msg for msg in errors), (
+        f"Expected missing http.url guidance; got: {errors}"
+    )
+
+    missing_process_name = dict(_VALID_MANIFEST)
+    missing_process_name["services"] = [
+        {"name": "worker", "type": "process", "health_check": {"method": "process"}}
+    ]
+    missing_process_name_path = tmp_path / "feature24_missing_process_name.yaml"
+    missing_process_name_path.write_text(yaml.dump(missing_process_name), encoding="utf-8")
+
+    is_valid, errors = validate(str(missing_process_name_path))
+    assert is_valid is False, "Expected process health_check without process_name to fail"
+    assert any(
+        "health_check.process_name" in msg and "method is 'process'" in msg
+        for msg in errors
+    ), f"Expected missing process_name guidance; got: {errors}"
+
+    unsupported_method = dict(_VALID_MANIFEST)
+    unsupported_method["services"] = [
+        {
+            "name": "api",
+            "type": "http-api",
+            "health_check": {"method": "grpc"},
+        }
+    ]
+    unsupported_method_path = tmp_path / "feature24_unsupported_health_method.yaml"
+    unsupported_method_path.write_text(yaml.dump(unsupported_method), encoding="utf-8")
+
+    is_valid, errors = validate(str(unsupported_method_path))
+    assert is_valid is False, "Expected unsupported health_check method to fail"
+    assert any("health_check.method" in msg and "unsupported value" in msg for msg in errors), (
+        f"Expected unsupported method error; got: {errors}"
+    )
+    assert any("tcp" in msg and "http" in msg and "process" in msg for msg in errors), (
+        f"Expected allowed health-check method guidance; got: {errors}"
+    )
+
+
+def test_feature24_duplicate_service_names_rejected(tmp_path: Path) -> None:
+    """Feature24 test227: duplicate service names are rejected deterministically."""
+    duplicate_names = dict(_VALID_MANIFEST)
+    duplicate_names["services"] = [
+        {"name": "primary-db", "type": "postgres"},
+        {"name": "primary-db", "type": "redis"},
+    ]
+    duplicate_names_path = tmp_path / "feature24_duplicate_service_names.yaml"
+    duplicate_names_path.write_text(yaml.dump(duplicate_names), encoding="utf-8")
+
+    is_valid, errors = validate(str(duplicate_names_path))
+    assert is_valid is False, "Expected duplicate services[].name values to fail"
+    assert any("Duplicate service name not allowed: 'primary-db'." in msg for msg in errors), (
+        f"Expected duplicate service-name error; got: {errors}"
+    )
+
+
+def test_feature26_permissions_schema_validation(tmp_path: Path) -> None:
+    """Feature26 test237: validate mcp-server permissions schema behavior."""
+    valid_permissions = dict(_VALID_MANIFEST)
+    valid_permissions["runtime"] = dict(valid_permissions["runtime"])
+    valid_permissions["runtime"]["type"] = "mcp-server"
+    valid_permissions["permissions"] = {
+        "read_only": True,
+        "allow_write": False,
+        "allow_create": False,
+        "allowed_paths": [".", "./docs"],
+    }
+
+    valid_path = tmp_path / "feature26_valid_permissions.yaml"
+    valid_path.write_text(yaml.dump(valid_permissions), encoding="utf-8")
+
+    is_valid, errors = validate(str(valid_path))
+    assert is_valid is True, (
+        "Expected mcp-server manifest with valid permissions schema to pass; "
+        f"errors: {errors}"
+    )
+    assert errors == []
+
+    unknown_key = dict(valid_permissions)
+    unknown_key["runtime"] = dict(valid_permissions["runtime"])
+    unknown_key["permissions"] = dict(valid_permissions["permissions"])
+    unknown_key["permissions"]["allow_delete"] = True
+
+    unknown_key_path = tmp_path / "feature26_unknown_permission_key.yaml"
+    unknown_key_path.write_text(yaml.dump(unknown_key), encoding="utf-8")
+
+    is_valid, errors = validate(str(unknown_key_path))
+    assert is_valid is False, "Expected unknown permissions key to fail validation"
+    assert any("unsupported key" in msg and "allow_delete" in msg for msg in errors), (
+        f"Expected unknown permissions key guidance; got: {errors}"
+    )
+
+    invalid_types = dict(valid_permissions)
+    invalid_types["runtime"] = dict(valid_permissions["runtime"])
+    invalid_types["permissions"] = {
+        "read_only": "yes",
+        "allow_write": 1,
+        "allow_create": None,
+        "allowed_paths": "/tmp",
+    }
+
+    invalid_types_path = tmp_path / "feature26_invalid_permissions_types.yaml"
+    invalid_types_path.write_text(yaml.dump(invalid_types), encoding="utf-8")
+
+    is_valid, errors = validate(str(invalid_types_path))
+    assert is_valid is False, "Expected invalid permissions field types to fail validation"
+    assert any("permissions.read_only" in msg and "bool" in msg for msg in errors), (
+        f"Expected read_only bool type error; got: {errors}"
+    )
+    assert any("permissions.allow_write" in msg and "bool" in msg for msg in errors), (
+        f"Expected allow_write bool type error; got: {errors}"
+    )
+    assert any("permissions.allow_create" in msg and "bool" in msg for msg in errors), (
+        f"Expected allow_create bool type error; got: {errors}"
+    )
+    assert any("permissions.allowed_paths" in msg and "list" in msg for msg in errors), (
+        f"Expected allowed_paths list type error; got: {errors}"
+    )
+
+    non_mcp_server = dict(_VALID_MANIFEST)
+    non_mcp_server["permissions"] = "not-a-dict"
+    non_mcp_server_path = tmp_path / "feature26_non_mcp_permissions_ignored.yaml"
+    non_mcp_server_path.write_text(yaml.dump(non_mcp_server), encoding="utf-8")
+
+    is_valid, errors = validate(str(non_mcp_server_path))
+    assert is_valid is True, (
+        "Expected permissions schema checks to be mcp-server specific; "
+        f"errors: {errors}"
+    )
+    assert errors == []
+
+
+def test_feature39_permissions_schema_validation(tmp_path: Path) -> None:
+    """Feature39 test312: validate explicit permissions schema contract."""
+    valid_permissions = dict(_VALID_MANIFEST)
+    valid_permissions["permissions"] = {
+        "network": True,
+        "filesystem_scope": "workspace-write",
+        "shell": False,
+        "browser": False,
+        "env_access": ["OPENAI_API_KEY", "KINNOO_ENV"],
+    }
+
+    valid_path = tmp_path / "feature39_valid_permissions.yaml"
+    valid_path.write_text(yaml.dump(valid_permissions), encoding="utf-8")
+
+    is_valid, errors = validate(str(valid_path))
+    assert is_valid is True, (
+        "Expected manifest with valid feature39 permissions declaration to pass; "
+        f"errors: {errors}"
+    )
+    assert errors == []
+
+    invalid_scope = dict(_VALID_MANIFEST)
+    invalid_scope["permissions"] = {
+        "network": True,
+        "filesystem_scope": "project-write",
+        "shell": False,
+        "browser": False,
+        "env_access": ["OPENAI_API_KEY"],
+    }
+    invalid_scope_path = tmp_path / "feature39_invalid_filesystem_scope.yaml"
+    invalid_scope_path.write_text(yaml.dump(invalid_scope), encoding="utf-8")
+
+    is_valid, errors = validate(str(invalid_scope_path))
+    assert is_valid is False, "Expected invalid filesystem_scope value to fail"
+    assert any(
+        "permissions.filesystem_scope" in message and "unsupported value" in message
+        for message in errors
+    ), f"Expected filesystem_scope unsupported-value guidance; got: {errors}"
+
+    invalid_env_access = dict(_VALID_MANIFEST)
+    invalid_env_access["permissions"] = {
+        "network": True,
+        "filesystem_scope": "read-only",
+        "shell": False,
+        "browser": False,
+        "env_access": "OPENAI_API_KEY",
+    }
+    invalid_env_access_path = tmp_path / "feature39_invalid_env_access_type.yaml"
+    invalid_env_access_path.write_text(yaml.dump(invalid_env_access), encoding="utf-8")
+
+    is_valid, errors = validate(str(invalid_env_access_path))
+    assert is_valid is False, "Expected non-list env_access to fail validation"
+    assert any(
+        "permissions.env_access" in message and "type list" in message
+        for message in errors
+    ), f"Expected env_access list type guidance; got: {errors}"
+
+    unsupported_permission_field = dict(_VALID_MANIFEST)
+    unsupported_permission_field["permissions"] = {
+        "network": True,
+        "filesystem_scope": "read-only",
+        "shell": False,
+        "browser": False,
+        "env_access": ["OPENAI_API_KEY"],
+        "allow_network_all": True,
+    }
+    unsupported_field_path = tmp_path / "feature39_unsupported_permission_field.yaml"
+    unsupported_field_path.write_text(
+        yaml.dump(unsupported_permission_field), encoding="utf-8"
+    )
+
+    is_valid, errors = validate(str(unsupported_field_path))
+    assert is_valid is False, "Expected unsupported permissions key to fail validation"
+    assert any(
+        "permissions" in message and "unsupported key" in message and "allow_network_all" in message
+        for message in errors
+    ), f"Expected unsupported permissions key guidance; got: {errors}"
+
+    baseline = dict(_VALID_MANIFEST)
+    baseline_path = tmp_path / "feature39_baseline_without_permissions.yaml"
+    baseline_path.write_text(yaml.dump(baseline), encoding="utf-8")
+
+    is_valid, errors = validate(str(baseline_path))
+    assert is_valid is True, (
+        "Expected manifest without permissions to remain backward-compatible; "
+        f"errors: {errors}"
+    )
+    assert errors == []
