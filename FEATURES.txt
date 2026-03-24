@@ -40,6 +40,9 @@
 #     dependencies: []
 #     status: not-started
 #
+# ======================================================================
+# Phase 1 (V1): MVP
+# ======================================================================
 features:
   - id: feature1
     title: Manifest schema and validation
@@ -276,7 +279,11 @@ features:
     owner: techlead-agent
     dependencies: [feature4, feature5]
     status: completed
-  
+
+  # ======================================================================
+  # Phase 2 (V2): expanded CLI
+  # ======================================================================
+
   - id: feature7
     title: "CLI Refactor & Modular Architecture"
     description: |
@@ -641,7 +648,7 @@ features:
       - see feature15-notes.md for more code details
     owner: techlead-agent
     dependencies: [feature3, feature15]
-    status: not-started
+    status: completed
 
   - id: feature19
     title: "kinnoo import — Analyzer-backed onboarding wizard"
@@ -1700,7 +1707,7 @@ features:
         description: "Analyzer detects OpenClaw-like JS/TS projects that lack a root package.json by inferring node runtime, entrypoint candidates, and OpenClaw framework signals from lightweight project evidence."
     owner: techlead-agent
     dependencies: [feature46]
-    status: not-started
+    status: completed
 
   - id: feature48
     title: "kinnoo inspect advanced metadata views and manifest update workflow"
@@ -1722,4 +1729,4 @@ features:
         description: "`kinnoo inspect --update <target> <old-key> <new-value>` updates manifest metadata with interactive warning prompt (`y/N`) and supports `--skip-warnings` to bypass prompt."
     owner: techlead-agent
     dependencies: [feature11, feature24]
-    status: not-started
+    status: completed
