@@ -5,9 +5,11 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from .config import load_registry_config
 from .archive import LocalArchiveBackend
 from .registry import RegistryService
 from .registry_backends import MockFilesystemRegistryBackend
+from .remote_client import RemoteRegistryClient
 
 
 def search_agents(query: str, source: str = "local") -> int:
@@ -18,12 +20,31 @@ def search_agents(query: str, source: str = "local") -> int:
 
     query_normalized = query_text.lower()
 
-    if source == "remote":
-        registry_root = os.environ.get("KINNOO_REGISTRY_ROOT")
-        backend_root = Path(registry_root).expanduser() if registry_root else None
+    config = load_registry_config()
+    effective_source = source
+    if source == "auto":
+        effective_source = "remote" if config.registry_url else "local"
 
-        backend = MockFilesystemRegistryBackend(root=backend_root)
-        service = RegistryService(backend=backend)
+    if effective_source == "remote":
+        if config.registry_url and config.registry_token and config.tenant_slug:
+            service = RegistryService(
+                backend=RemoteRegistryClient(
+                    base_url=config.registry_url,
+                    token=config.registry_token,
+                    tenant_slug=config.tenant_slug,
+                )
+            )
+        elif config.registry_url:
+            print(
+                "Error: Remote registry URL is configured but token/tenant settings are missing.",
+            )
+            return 1
+        else:
+            registry_root = os.environ.get("KINNOO_REGISTRY_ROOT")
+            backend_root = Path(registry_root).expanduser() if registry_root else None
+            backend = MockFilesystemRegistryBackend(root=backend_root)
+            service = RegistryService(backend=backend)
+
         results = service.search_agents(query=query_text)
 
         if not results:
@@ -32,8 +53,10 @@ def search_agents(query: str, source: str = "local") -> int:
 
         print(f"Remote registry search results for: {query_text}")
         for summary in results:
-            description = summary.description if summary.description else "(no description)"
-            print(f"- {summary.name} | latest: {summary.latest_version} | description: {description}")
+            description = _summary_text(summary=summary, field="description", default="(no description)")
+            name = _summary_text(summary=summary, field="name", default="(unknown)")
+            latest_version = _summary_text(summary=summary, field="latest_version", default="(unknown)")
+            print(f"- {name} | latest: {latest_version} | description: {description}")
 
         return 0
 
@@ -55,7 +78,22 @@ def search_agents(query: str, source: str = "local") -> int:
 
     print(f"Local archive search results for: {query_text}")
     for summary in results:
-        description = summary.description if summary.description else "(no description)"
-        print(f"- {summary.name} | latest: {summary.latest_version} | description: {description}")
+        description = _summary_text(summary=summary, field="description", default="(no description)")
+        name = _summary_text(summary=summary, field="name", default="(unknown)")
+        latest_version = _summary_text(summary=summary, field="latest_version", default="(unknown)")
+        print(f"- {name} | latest: {latest_version} | description: {description}")
 
     return 0
+
+
+def _summary_text(*, summary: object, field: str, default: str) -> str:
+    value = _summary_value(summary=summary, field=field)
+    if value in (None, ""):
+        return default
+    return str(value)
+
+
+def _summary_value(*, summary: object, field: str) -> object | None:
+    if isinstance(summary, dict):
+        return summary.get(field)
+    return getattr(summary, field, None)

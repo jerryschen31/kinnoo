@@ -2,9 +2,12 @@ import os
 import subprocess
 import tempfile
 import zipfile
+import json
 import pytest
 from pathlib import Path  # <-- Add this import
 import shutil
+
+from src.kinnoo.validator import validate
 
 KINNOO_CLI = ["python3", "-m", "src.kinnoo.cli"]
 
@@ -360,3 +363,886 @@ outputs:
     invalid_output = f"{invalid.stdout}\n{invalid.stderr}"
     assert invalid.returncode != 0
     assert "[kinnoo pack] Agent version:" not in invalid_output
+
+
+def test_feature22_pack_includes_assets_recursively_when_enabled(tmp_path):
+    agent = tmp_path / "asset-agent"
+    agent.mkdir()
+
+    (agent / "assets" / "nested").mkdir(parents=True)
+    (agent / "assets" / "nested" / "a.txt").write_text("A\n", encoding="utf-8")
+    (agent / "data").mkdir()
+    (agent / "data" / "config.json").write_text('{"ok": true}\n', encoding="utf-8")
+
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: asset-agent
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+assets:
+  paths:
+    - assets
+    - data/config.json
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.py").write_text("print('hello')\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    result = subprocess.run(
+        KINNOO_CLI + ["pack", str(agent)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert result.returncode == 0, f"pack failed: {result.stderr}"
+
+    archive = _canonical_archive_path(tmp_path, "asset-agent", "1.0.0")
+    assert archive.exists()
+
+    with zipfile.ZipFile(archive, "r") as zf:
+        names = set(zf.namelist())
+        assert "assets/nested/a.txt" in names
+        assert "data/config.json" in names
+
+
+def test_pack_preflight_pass_records_status(tmp_path):
+    """Feature46 test366: pack --preflight writes PASS metadata to kinnoo.yaml."""
+    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_cmd = ["python3", str(cli_script)]
+
+    agent = tmp_path / "pack-preflight-pass-agent"
+    agent.mkdir()
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: pack-preflight-pass-agent
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.py").write_text("print('ok')\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    result = subprocess.run(
+        cli_cmd + ["pack", str(agent), "--preflight"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, output
+    assert "Preflight result: PASS" in output
+
+    manifest_text = (agent / "kinnoo.yaml").read_text(encoding="utf-8")
+    assert "preflight_status: PASS" in manifest_text
+    assert "preflight_date:" in manifest_text
+
+
+def test_pack_preflight_fail_warns(tmp_path):
+    """Feature46 test367: pack --preflight warns on FAIL and proceeds only with confirmation."""
+    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_cmd = ["python3", str(cli_script)]
+
+    agent = tmp_path / "pack-preflight-fail-agent"
+    agent.mkdir()
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: pack-preflight-fail-agent
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.py").write_text("print('ok')\n", encoding="utf-8")
+    # Non-empty requirements and missing .venv should produce preflight FAIL.
+    (agent / "requirements.txt").write_text("requests==2.31.0\n", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    proceed_result = subprocess.run(
+        cli_cmd + ["pack", str(agent), "--preflight"],
+        cwd=tmp_path,
+        input="y\n",
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    proceed_output = f"{proceed_result.stdout}\n{proceed_result.stderr}"
+    assert "Preflight result: FAIL" in proceed_output
+    assert "Warning: preflight checks failed before pack." in proceed_output
+    assert "Preflight failed. Continue packing anyway? [y/N]:" in proceed_output
+    assert proceed_result.returncode == 0, proceed_output
+
+
+def test_feature22_pack_skips_assets_when_bundle_false(tmp_path):
+    agent = tmp_path / "asset-optout"
+    agent.mkdir()
+    (agent / "assets").mkdir()
+    (agent / "assets" / "secret.txt").write_text("no bundle\n", encoding="utf-8")
+
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: asset-optout
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+assets:
+  bundle: false
+  paths:
+    - assets
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.py").write_text("print('hello')\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    result = subprocess.run(
+        KINNOO_CLI + ["pack", str(agent)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0
+    assert "Asset bundling disabled" in output
+
+    archive = _canonical_archive_path(tmp_path, "asset-optout", "1.0.0")
+    assert archive.exists()
+
+    with zipfile.ZipFile(archive, "r") as zf:
+        names = set(zf.namelist())
+        assert "assets/secret.txt" not in names
+
+
+def test_feature22_pack_rejects_asset_path_traversal(tmp_path):
+    workspace_secret = tmp_path / "secret.txt"
+    workspace_secret.write_text("hidden\n", encoding="utf-8")
+
+    agent = tmp_path / "asset-traversal"
+    agent.mkdir()
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: asset-traversal
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+assets:
+  paths:
+    - ../secret.txt
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.py").write_text("print('hello')\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    result = subprocess.run(
+        KINNOO_CLI + ["pack", str(agent)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode != 0
+    assert "escapes agent directory" in output
+
+
+def test_feature22_pack_warns_on_missing_asset_path(tmp_path):
+    agent = tmp_path / "asset-missing"
+    agent.mkdir()
+    (agent / "assets").mkdir()
+    (agent / "assets" / "present.txt").write_text("present\n", encoding="utf-8")
+
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: asset-missing
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+assets:
+  paths:
+    - assets/present.txt
+    - assets/missing.txt
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    (agent / "run.py").write_text("print('hello')\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    result = subprocess.run(
+        KINNOO_CLI + ["pack", str(agent)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0
+    assert "Declared asset path 'assets/missing.txt' was not found" in output
+
+    archive = _canonical_archive_path(tmp_path, "asset-missing", "1.0.0")
+    assert archive.exists()
+    with zipfile.ZipFile(archive, "r") as zf:
+        names = set(zf.namelist())
+        assert "assets/present.txt" in names
+        assert "assets/missing.txt" not in names
+
+
+def test_feature35_pack_state_snapshot_layout(tmp_path):
+    """Feature35 test293: pack captures state_dirs snapshots with deterministic layout."""
+    agent = tmp_path / "feature35-state-pack"
+    agent.mkdir()
+
+    (agent / "memory" / "session").mkdir(parents=True)
+    (agent / "memory" / "session" / "journal.md").write_text("state journal\n", encoding="utf-8")
+    (agent / "state" / "cache").mkdir(parents=True)
+    (agent / "state" / "cache" / "index.json").write_text('{"warm": true}\n', encoding="utf-8")
+
+    (agent / "assets").mkdir()
+    (agent / "assets" / "guide.txt").write_text("immutable docs\n", encoding="utf-8")
+
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: feature35-state-pack
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+assets:
+  paths:
+    - assets
+state_dirs:
+  - memory
+  - path: state/cache
+    exclude:
+      - '*.log'
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.py").write_text("print('feature35')\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    result = subprocess.run(
+        KINNOO_CLI + ["pack", str(agent)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert result.returncode == 0, f"pack failed: {result.stderr}"
+
+    archive = _canonical_archive_path(tmp_path, "feature35-state-pack", "1.0.0")
+    assert archive.exists(), "Expected .kno archive to be created"
+
+    with zipfile.ZipFile(archive, "r") as zf:
+        names = sorted(zf.namelist())
+        assert "assets/guide.txt" in names
+        assert "state_snapshots/memory/session/journal.md" in names
+        assert "state_snapshots/state/cache/index.json" in names
+        assert all(not name.startswith("memory/") for name in names)
+        assert all(not name.startswith("state/cache/") for name in names)
+
+
+def test_feature35_state_dirs_exclude_patterns(tmp_path):
+    """Feature35 test295: state_dirs exclude omits targeted files while preserving core snapshot state."""
+    agent = tmp_path / "feature35-state-exclude"
+    agent.mkdir()
+
+    (agent / "memory" / "core").mkdir(parents=True)
+    (agent / "memory" / "daily").mkdir(parents=True)
+    (agent / "memory" / "secrets").mkdir(parents=True)
+    (agent / "memory" / "core" / "profile.json").write_text('{"warm": true}\n', encoding="utf-8")
+    (agent / "memory" / "daily" / "2026-03-19.md").write_text("daily log\n", encoding="utf-8")
+    (agent / "memory" / "secrets" / "tokens.json").write_text('{"token": "redacted"}\n', encoding="utf-8")
+
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: feature35-state-exclude
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+state_dirs:
+  - path: memory
+    exclude:
+      - daily/*.md
+      - secrets/*
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.py").write_text("print('feature35')\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    pack_result = subprocess.run(
+        KINNOO_CLI + ["pack", str(agent)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert pack_result.returncode == 0, f"pack failed: {pack_result.stderr}"
+
+    archive = _canonical_archive_path(tmp_path, "feature35-state-exclude", "1.0.0")
+    assert archive.exists(), "Expected .kno archive to be created"
+
+    with zipfile.ZipFile(archive, "r") as zf:
+        names = set(zf.namelist())
+        assert "state_snapshots/memory/core/profile.json" in names
+        assert "state_snapshots/memory/daily/2026-03-19.md" not in names
+        assert "state_snapshots/memory/secrets/tokens.json" not in names
+
+    install_target = tmp_path / "installed-state-exclude"
+    install_result = subprocess.run(
+      KINNOO_CLI + [
+        "install",
+        str(archive),
+        str(install_target),
+        "--yes",
+        "--allow-unverified-publisher",
+      ],
+      cwd=tmp_path,
+      capture_output=True,
+      text=True,
+      env=env,
+    )
+    assert install_result.returncode == 0, install_result.stderr
+    assert (install_target / "memory" / "core" / "profile.json").exists()
+    assert not (install_target / "memory" / "daily" / "2026-03-19.md").exists()
+    assert not (install_target / "memory" / "secrets" / "tokens.json").exists()
+
+
+def test_feature22_pack_size_warning_uses_assets_threshold(tmp_path):
+    default_agent = tmp_path / "asset-threshold-default"
+    default_agent.mkdir()
+    (default_agent / "kinnoo.yaml").write_text(
+        """
+name: asset-threshold-default
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+assets:
+  paths: []
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (default_agent / "run.py").write_text("print('hello')\n", encoding="utf-8")
+    (default_agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    default_env = _pack_env(tmp_path)
+    default_env.pop("KINNOO_PACK_WARN_THRESHOLD_MB", None)
+    default_result = subprocess.run(
+        KINNOO_CLI + ["pack", str(default_agent)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=default_env,
+    )
+    default_output = f"{default_result.stdout}\n{default_result.stderr}"
+    assert default_result.returncode == 0
+    assert "Warning: archive is large" not in default_output
+
+    override_agent = tmp_path / "asset-threshold-override"
+    override_agent.mkdir()
+    (override_agent / "assets").mkdir()
+    (override_agent / "assets" / "tiny.txt").write_text("tiny\n", encoding="utf-8")
+    (override_agent / "kinnoo.yaml").write_text(
+        """
+name: asset-threshold-override
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+assets:
+  max_bundle_size_mb: 0.000001
+  paths:
+    - assets
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (override_agent / "run.py").write_text("print('hello')\n", encoding="utf-8")
+    (override_agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    override_env = _pack_env(tmp_path)
+    override_env.pop("KINNOO_PACK_WARN_THRESHOLD_MB", None)
+    override_result = subprocess.run(
+        KINNOO_CLI + ["pack", str(override_agent)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=override_env,
+    )
+    override_output = f"{override_result.stdout}\n{override_result.stderr}"
+    assert override_result.returncode == 0
+    assert "Warning: archive is large" in override_output
+
+
+def test_feature22_pack_warns_on_secret_like_asset_filenames(tmp_path):
+    agent = tmp_path / "asset-secret-filenames"
+    agent.mkdir()
+    (agent / "secrets").mkdir(parents=True)
+    (agent / "secrets" / ".env").write_text("DUMMY=1\n", encoding="utf-8")
+    (agent / "secrets" / "id_rsa").write_text("not-real-key\n", encoding="utf-8")
+    (agent / "secrets" / "tls.key").write_text("not-real-tls-key\n", encoding="utf-8")
+    (agent / "secrets" / "certificate.p12").write_text("not-real-p12\n", encoding="utf-8")
+    (agent / "secrets" / "cert-store.pfx").write_text("not-real-pfx\n", encoding="utf-8")
+    (agent / "secrets" / "credentials.json").write_text("{}\n", encoding="utf-8")
+
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: asset-secret-filenames
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+assets:
+  paths:
+    - secrets
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.py").write_text("print('hello')\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    result = subprocess.run(
+        KINNOO_CLI + ["pack", str(agent)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0
+    assert "Asset security sweep warnings:" in output
+    assert "secrets/.env: secret-like filename (.env)" in output
+    assert "secrets/id_rsa: secret-like filename (id_rsa)" in output
+    assert "secrets/tls.key: secret-like filename (.key)" in output
+    assert "secrets/certificate.p12: secret-like filename (*.p12)" in output
+    assert "secrets/cert-store.pfx: secret-like filename (*.pfx)" in output
+    assert "secrets/credentials.json: secret-like filename (credential marker)" in output
+
+
+def test_feature22_pack_text_secret_scan_warning_only_with_binary_skip(tmp_path):
+    agent = tmp_path / "asset-text-and-binary-scan"
+    agent.mkdir()
+    (agent / "assets").mkdir(parents=True)
+    (agent / "assets" / "token.txt").write_text(
+        "api_key = sk_test_token_123456789\n",
+        encoding="utf-8",
+    )
+    (agent / "assets" / "blob.bin").write_bytes(b"\x00\x01\x02\x03")
+
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: asset-text-and-binary-scan
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+assets:
+  paths:
+    - assets
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.py").write_text("print('hello')\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    result = subprocess.run(
+        KINNOO_CLI + ["pack", str(agent)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0
+    assert "Asset security sweep warnings:" in output
+    assert "assets/token.txt: credential-like text pattern (API key assignment)" in output
+    assert "assets/blob.bin: skipped binary file for text credential scan" in output
+    assert "heuristic credential scan over assets - warning-only" in output
+
+
+def test_feature26_filesystem_mcp_fixture_valid_and_packable(tmp_path: Path) -> None:
+    """Feature26 test236: filesystem mcp-server fixture validates and packs."""
+    source_fixture = Path(__file__).resolve().parents[1] / "scratch" / "feature26-filesystem-mcp-server"
+    fixture_dir = tmp_path / "feature26-filesystem-mcp-server"
+    shutil.copytree(source_fixture, fixture_dir)
+
+    manifest_path = fixture_dir / "kinnoo.yaml"
+    is_valid, errors = validate(str(manifest_path))
+    assert is_valid is True, f"Expected filesystem mcp fixture manifest to validate; errors: {errors}"
+    assert errors == []
+
+    env = _pack_env(tmp_path)
+    result = subprocess.run(
+        KINNOO_CLI + ["pack", str(fixture_dir)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert result.returncode == 0, f"kinnoo pack failed for filesystem mcp fixture: {result.stderr}"
+
+    archive = _canonical_archive_path(tmp_path, "filesystem-mcp-server", "1.0.0")
+    assert archive.exists(), "Expected .kno archive for filesystem mcp fixture"
+
+    with zipfile.ZipFile(archive, "r") as zf:
+        names = set(zf.namelist())
+        assert "kinnoo.yaml" in names
+        assert "run.py" in names
+        assert "requirements.txt" in names
+
+
+def test_feature26_github_mcp_fixture_valid_and_packable(tmp_path: Path) -> None:
+    """Feature26 test239: github mcp-server fixture validates and packs."""
+    source_fixture = Path(__file__).resolve().parents[1] / "scratch" / "feature26-github-mcp-server"
+    fixture_dir = tmp_path / "feature26-github-mcp-server"
+    shutil.copytree(source_fixture, fixture_dir)
+
+    manifest_path = fixture_dir / "kinnoo.yaml"
+    is_valid, errors = validate(str(manifest_path))
+    assert is_valid is True, f"Expected github mcp fixture manifest to validate; errors: {errors}"
+    assert errors == []
+
+    env = _pack_env(tmp_path)
+    result = subprocess.run(
+        KINNOO_CLI + ["pack", str(fixture_dir)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert result.returncode == 0, f"kinnoo pack failed for github mcp fixture: {result.stderr}"
+
+    archive = _canonical_archive_path(tmp_path, "github-mcp-server", "1.0.0")
+    assert archive.exists(), "Expected .kno archive for github mcp fixture"
+
+    with zipfile.ZipFile(archive, "r") as zf:
+        names = set(zf.namelist())
+        assert "kinnoo.yaml" in names
+        assert "run.py" in names
+        assert "requirements.txt" in names
+
+
+def test_feature31_pack_node_modules_excluded_lockfiles_preserved(monkeypatch, tmp_path: Path) -> None:
+    from kinnoo import install_command
+
+    monkeypatch.setattr(
+        install_command,
+        "check_node_runtime_constraint",
+        lambda _constraint: (True, "runtime version check passed: current Node 22.0.0 satisfies runtime.version '>=22'"),
+    )
+    monkeypatch.setattr(
+        install_command,
+        "check_node_package_manager_availability",
+        lambda _package_manager: (True, "dependency readiness check passed: node package manager is available"),
+    )
+
+    agent = tmp_path / "feature31-node-pack"
+    agent.mkdir()
+    (agent / "node_modules" / "left-pad").mkdir(parents=True)
+    (agent / "node_modules" / "left-pad" / "index.js").write_text("module.exports = {};\n", encoding="utf-8")
+    (agent / "data").mkdir()
+    (agent / "data" / "notes.txt").write_text("keep this asset\n", encoding="utf-8")
+
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: feature31-node-pack
+version: 1.0.0
+entrypoint: run.js
+runtime:
+  language: nodejs
+  version: '>=22'
+  type: one-shot
+dependencies: []
+inputs:
+  type: string
+outputs:
+  type: string
+assets:
+  paths:
+    - node_modules
+    - data
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.js").write_text("console.log('node agent');\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+    (agent / "package.json").write_text(
+      '{"name":"feature31-node-pack","version":"1.0.0","dependencies":{"left-pad":"1.3.0"}}\n',
+      encoding="utf-8",
+    )
+    (agent / "package-lock.json").write_text('{"name":"feature31-node-pack","lockfileVersion":3}\n', encoding="utf-8")
+    (agent / "pnpm-lock.yaml").write_text("lockfileVersion: '9.0'\n", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    pack_result = subprocess.run(
+        KINNOO_CLI + ["pack", str(agent)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert pack_result.returncode == 0, f"pack failed: {pack_result.stderr}"
+
+    archive = _canonical_archive_path(tmp_path, "feature31-node-pack", "1.0.0")
+    assert archive.exists(), "Expected .kno archive for feature31 node pack fixture"
+
+    with zipfile.ZipFile(archive, "r") as zf:
+        names = set(zf.namelist())
+        assert "package.json" in names
+        assert "package-lock.json" in names
+        assert "pnpm-lock.yaml" in names
+        assert "data/notes.txt" in names
+        assert not any(name.startswith("node_modules/") for name in names)
+
+    install_calls: list[tuple[list[str], Path | None]] = []
+
+    class _Completed:
+        def __init__(self, returncode: int = 0, stderr_text: str = ""):
+            self.returncode = returncode
+            self.stderr = stderr_text
+            self.stdout = ""
+
+    def _fake_run(command, *args, **kwargs):
+        del args
+        install_calls.append((list(command), kwargs.get("cwd")))
+        executable = Path(command[0]).name
+        if executable == "npm":
+            return _Completed(0)
+        return _Completed(0)
+
+    monkeypatch.setattr(install_command.subprocess, "run", _fake_run)
+
+    install_target = tmp_path / "feature31-node-pack-install"
+    install_result = install_command.install_agent(
+        archive_path=str(archive),
+        target_dir_arg=str(install_target),
+        assume_yes=True,
+      allow_unverified_publisher=True,
+    )
+    assert install_result == 0
+    normalized_calls = [
+      (command, cwd.resolve() if isinstance(cwd, Path) else cwd)
+      for command, cwd in install_calls
+    ]
+    assert (["pnpm", "install"], install_target.resolve()) in normalized_calls or (
+      (["npm", "install"], install_target.resolve()) in normalized_calls
+    )
+
+
+def test_feature40_pack_sign_emits_signature_and_metadata(tmp_path: Path) -> None:
+    from src.kinnoo.signing import load_ed25519_public_key, verify_signature
+
+    env = _pack_env(tmp_path)
+
+    key_dir = tmp_path / "keys"
+    key_dir.mkdir()
+    private_key_path = key_dir / "publisher-private.pem"
+    public_key_path = key_dir / "publisher-public.pem"
+
+    keygen_result = subprocess.run(
+        KINNOO_CLI
+        + [
+            "keygen",
+            "--private-key",
+            str(private_key_path),
+            "--public-key",
+            str(public_key_path),
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert keygen_result.returncode == 0, keygen_result.stderr
+
+    agent = tmp_path / "feature40-pack-sign"
+    agent.mkdir()
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: feature40-pack-sign
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.py").write_text("print('feature40')\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    pack_result = subprocess.run(
+        KINNOO_CLI
+        + [
+            "pack",
+            str(agent),
+            "--sign",
+            "--signing-key",
+            str(private_key_path),
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    pack_output = f"{pack_result.stdout}\n{pack_result.stderr}"
+    assert pack_result.returncode == 0, pack_output
+
+    archive = _canonical_archive_path(tmp_path, "feature40-pack-sign", "1.0.0")
+    checksum_sidecar = Path(f"{archive}.sha256")
+    signature_path = Path(f"{archive}.sig")
+    metadata_path = Path(f"{archive}.sig.json")
+
+    assert archive.exists(), "Expected signed .kno archive to be created"
+    assert checksum_sidecar.exists(), "Expected checksum sidecar to remain present"
+    assert signature_path.exists(), "Expected detached signature artifact"
+    assert metadata_path.exists(), "Expected signature metadata artifact"
+
+    assert "[kinnoo pack] Checksum sidecar written:" in pack_output
+    assert "[kinnoo pack] Signature artifact written:" in pack_output
+    assert "[kinnoo pack] Signature metadata written:" in pack_output
+
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    assert metadata["schema_version"] == 1
+    assert metadata["algorithm"] == "ed25519"
+    assert metadata["archive_filename"] == archive.name
+    assert metadata["signature_filename"] == signature_path.name
+    assert metadata["verification_hint"]
+    assert isinstance(metadata["public_key_fingerprint_sha256"], str)
+    assert len(metadata["public_key_fingerprint_sha256"]) == 64
+
+    archive_payload = archive.read_bytes()
+    signature_payload = signature_path.read_bytes()
+    signing_public_key = load_ed25519_public_key(public_key_path)
+    assert verify_signature(signing_public_key, archive_payload, signature_payload) is True

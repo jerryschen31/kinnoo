@@ -1,0 +1,183 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# End-to-end local scratch flow:
+# 1) install deps, 2) bootstrap admin, 3) start server, 4) mint token,
+# 5) create+pack sample agent, 6) publish to remote registry API.
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$ROOT_DIR"
+
+PYTHON_BIN="${PYTHON_BIN:-python3}"
+HOST="${HOST:-localhost}"
+PORT="${PORT:-8000}"
+SCHEME="${SCHEME:-https}"
+BASE_URL="${SCHEME}://${HOST}:${PORT}"
+
+STORE_ROOT="${STORE_ROOT:-$ROOT_DIR/.registry-storage-scratch}"
+LOG_DIR="${LOG_DIR:-$ROOT_DIR/.registry-logs-scratch}"
+VENV_DIR="${VENV_DIR:-$ROOT_DIR/.venv-registry-scratch}"
+ARCHIVE_ROOT="${ARCHIVE_ROOT:-$ROOT_DIR/.registry-archive-scratch}"
+CERT_DIR="${CERT_DIR:-$LOG_DIR/tls}"
+CERT_FILE="${CERT_FILE:-$CERT_DIR/dev-cert.pem}"
+KEY_FILE="${KEY_FILE:-$CERT_DIR/dev-key.pem}"
+AGENT_NAME="${AGENT_NAME:-demo-agent-scratch}"
+TENANT_SLUG="${TENANT_SLUG:-global}"
+ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
+
+# Keep secrets deterministic for scratch mode only.
+export REGISTRY_STORAGE_BACKEND="local"
+export REGISTRY_LOCAL_STORAGE_ROOT="$STORE_ROOT"
+export REGISTRY_TOKEN_SIGNING_SECRET="${REGISTRY_TOKEN_SIGNING_SECRET:-dev-token-secret-scratch}"
+export REGISTRY_SESSION_SIGNING_SECRET="${REGISTRY_SESSION_SIGNING_SECRET:-dev-session-secret-scratch}"
+export REGISTRY_LOGIN_CSRF_SECRET="${REGISTRY_LOGIN_CSRF_SECRET:-dev-csrf-secret-scratch}"
+
+echo "[1/8] Preparing scratch directories..."
+mkdir -p "$STORE_ROOT" "$LOG_DIR" "$CERT_DIR" "$ARCHIVE_ROOT"
+
+echo "[2/8] Ensuring local TLS certificate exists..."
+if [ ! -f "$CERT_FILE" ] || [ ! -f "$KEY_FILE" ]; then
+  if ! command -v openssl >/dev/null 2>&1; then
+    echo "OpenSSL is required to generate local HTTPS certs, but it is not installed." >&2
+    exit 1
+  fi
+
+  TLS_CONF="$CERT_DIR/openssl.cnf"
+  cat >"$TLS_CONF" <<EOF
+[req]
+default_bits = 2048
+prompt = no
+default_md = sha256
+distinguished_name = dn
+x509_extensions = v3_req
+
+[dn]
+CN = $HOST
+
+[v3_req]
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = localhost
+IP.1 = 127.0.0.1
+DNS.2 = $HOST
+EOF
+
+  openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -keyout "$KEY_FILE" \
+    -out "$CERT_FILE" \
+    -config "$TLS_CONF" >/dev/null 2>&1
+fi
+
+# Trust local scratch cert for tooling in this shell (curl + urllib/OpenSSL consumers).
+export SSL_CERT_FILE="$CERT_FILE"
+
+if [ ! -d "$VENV_DIR" ]; then
+  echo "[3/8] Creating virtual environment..."
+  "$PYTHON_BIN" -m venv "$VENV_DIR"
+fi
+
+source "$VENV_DIR/bin/activate"
+
+echo "[4/8] Installing dependencies..."
+python -m pip install --upgrade pip >/dev/null
+python -m pip install -e . >/dev/null
+python -m pip install -r server/requirements.txt >/dev/null
+
+BOOTSTRAP_OUTPUT="$LOG_DIR/bootstrap.out"
+echo "[5/8] Bootstrapping admin account..."
+if python -m server.cli bootstrap --store-root "$STORE_ROOT/auth" --username "$ADMIN_USERNAME" >"$BOOTSTRAP_OUTPUT" 2>&1; then
+  ADMIN_PASSWORD="$(awk -F': ' '/^temporary password:/ {print $2}' "$BOOTSTRAP_OUTPUT" | tail -n 1)"
+  if [ -z "${ADMIN_PASSWORD:-}" ]; then
+    echo "Bootstrap succeeded but temporary password was not found." >&2
+    cat "$BOOTSTRAP_OUTPUT" >&2
+    exit 1
+  fi
+else
+  echo "Bootstrap failed. This script expects a fresh scratch store." >&2
+  echo "Hint: remove $STORE_ROOT and rerun." >&2
+  cat "$BOOTSTRAP_OUTPUT" >&2
+  exit 1
+fi
+
+if lsof -iTCP:"$PORT" -sTCP:LISTEN -n -P >/dev/null 2>&1; then
+  echo "Port $PORT is already in use. Stop that process or set PORT=<new-port>." >&2
+  exit 1
+fi
+
+SERVER_LOG="$LOG_DIR/server.log"
+echo "[6/8] Starting registry server over HTTPS..."
+nohup python -m uvicorn server.app:create_app --factory --host "$HOST" --port "$PORT" \
+  --ssl-keyfile "$KEY_FILE" --ssl-certfile "$CERT_FILE" >"$SERVER_LOG" 2>&1 &
+SERVER_PID=$!
+
+echo "[7/8] Waiting for health check..."
+for _ in $(seq 1 80); do
+  if curl --cacert "$CERT_FILE" -fsS "$BASE_URL/health" >/dev/null 2>&1; then
+    break
+  fi
+  sleep 0.25
+done
+
+if ! curl --cacert "$CERT_FILE" -fsS "$BASE_URL/health" >/dev/null 2>&1; then
+  echo "Server failed to become healthy. See $SERVER_LOG" >&2
+  exit 1
+fi
+
+TOKEN_JSON="$LOG_DIR/token.json"
+echo "[8/8] Requesting API token and running sample publish smoke path..."
+curl --cacert "$CERT_FILE" -fsS -X POST "$BASE_URL/api/auth/token" \
+  -H "Content-Type: application/json" \
+  -d "{\"username\":\"$ADMIN_USERNAME\",\"password\":\"$ADMIN_PASSWORD\",\"tenant_slug\":\"$TENANT_SLUG\"}" \
+  >"$TOKEN_JSON"
+
+ACCESS_TOKEN="$(python - <<'PY' "$TOKEN_JSON"
+import json
+import sys
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    payload = json.load(handle)
+print(payload.get("access_token", ""))
+PY
+)"
+
+if [ -z "${ACCESS_TOKEN:-}" ]; then
+  echo "Token request did not return access_token. Response:" >&2
+  cat "$TOKEN_JSON" >&2
+  exit 1
+fi
+
+TMP_AGENT_DIR="$ROOT_DIR/$AGENT_NAME"
+export KINNOO_ARCHIVE_ROOT="$ARCHIVE_ROOT"
+
+# Keep smoke path non-interactive: clear previously archived demo artifact.
+rm -rf "$ARCHIVE_ROOT/$AGENT_NAME"
+rm -rf "$TMP_AGENT_DIR"
+echo "[8/8] Creating demo agent scaffold..."
+kinnoo init "$AGENT_NAME" >/dev/null
+echo "[8/8] Packing demo agent..."
+kinnoo pack "$AGENT_NAME" >/dev/null
+
+export KINNOO_REGISTRY_URL="$BASE_URL"
+export KINNOO_REGISTRY_TOKEN="$ACCESS_TOKEN"
+export KINNOO_TENANT_SLUG="$TENANT_SLUG"
+export SSL_CERT_FILE="$CERT_FILE"
+
+echo "[8/8] Publishing demo agent..."
+kinnoo publish "$AGENT_NAME" --remote
+
+echo
+echo "Scratch registry is running."
+echo "Server PID: $SERVER_PID"
+echo "Health: $BASE_URL/health"
+echo "Web UI login: $BASE_URL/login"
+echo "login URL: $BASE_URL/login"
+echo "Agents page: $BASE_URL/agents"
+echo "Search page: $BASE_URL/search"
+echo "Admin username: $ADMIN_USERNAME"
+echo "Admin temporary password: $ADMIN_PASSWORD"
+echo "Token saved to: $TOKEN_JSON"
+echo "Server log: $SERVER_LOG"
+echo "TLS cert: $CERT_FILE"
+echo "Archive root: $ARCHIVE_ROOT"
+echo
+echo "To stop server: kill $SERVER_PID"

@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# One-command teardown for start_server_scratch artifacts.
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$ROOT_DIR"
+
+HOST="${HOST:-localhost}"
+PORT="${PORT:-8000}"
+
+STORE_ROOT="${STORE_ROOT:-$ROOT_DIR/.registry-storage-scratch}"
+LOG_DIR="${LOG_DIR:-$ROOT_DIR/.registry-logs-scratch}"
+ARCHIVE_ROOT="${ARCHIVE_ROOT:-$ROOT_DIR/.registry-archive-scratch}"
+CERT_DIR="${CERT_DIR:-$LOG_DIR/tls}"
+VENV_DIR="${VENV_DIR:-$ROOT_DIR/.venv-registry-scratch}"
+AGENT_NAME="${AGENT_NAME:-demo-agent-scratch}"
+
+# Best-effort stop by command pattern first.
+PIDS_BY_PATTERN="$(pgrep -f "uvicorn server.app:create_app --factory --host $HOST --port $PORT" || true)"
+if [ -n "$PIDS_BY_PATTERN" ]; then
+  echo "$PIDS_BY_PATTERN" | xargs kill >/dev/null 2>&1 || true
+fi
+
+# Fallback: stop anything listening on configured port.
+PIDS_BY_PORT="$(lsof -tiTCP:"$PORT" -sTCP:LISTEN || true)"
+if [ -n "$PIDS_BY_PORT" ]; then
+  echo "$PIDS_BY_PORT" | xargs kill >/dev/null 2>&1 || true
+fi
+
+# Give processes a moment, then hard-kill stragglers on port.
+sleep 0.5
+PIDS_STILL_ON_PORT="$(lsof -tiTCP:"$PORT" -sTCP:LISTEN || true)"
+if [ -n "$PIDS_STILL_ON_PORT" ]; then
+  echo "$PIDS_STILL_ON_PORT" | xargs kill -9 >/dev/null 2>&1 || true
+fi
+
+rm -rf "$STORE_ROOT" "$LOG_DIR" "$ARCHIVE_ROOT" "$CERT_DIR" "$VENV_DIR" "$ROOT_DIR/$AGENT_NAME"
+
+echo "Scratch registry server stopped and scratch artifacts removed."
+echo "Removed:"
+echo "- $STORE_ROOT"
+echo "- $LOG_DIR"
+echo "- $ARCHIVE_ROOT"
+echo "- $CERT_DIR"
+echo "- $VENV_DIR"
+echo "- $ROOT_DIR/$AGENT_NAME"
