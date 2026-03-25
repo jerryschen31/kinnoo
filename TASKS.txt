@@ -6354,7 +6354,7 @@ tasks:
       - 'step4: Add regression tests for tenant-path correctness in local mode'
     dependencies: [task312]
     tests: [test461]
-    status: not-started
+    status: needs-review
 
   - id: task314
     title: "Add integration tests for auth fallback, admin bootstrap, and publish paths"
