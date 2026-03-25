@@ -6429,7 +6429,7 @@ tasks:
       - 'step4: Add tests asserting forwarded IP signal reaches limiter path'
     dependencies: [task315]
     tests: [test465]
-    status: not-started
+    status: needs-review
 
   - id: task318
     title: "Finalize Sub-phase 4 integration/hardening test suite"
