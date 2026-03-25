@@ -6003,7 +6003,7 @@ tasks:
       - 'step4: Restore button state after success/failure and render safe error feedback'
     dependencies: [task294]
     tests: [test438, test439, test442]
-    status: not-started
+    status: needs-review
 
   - id: task296
     title: "Implement secure login submission through BFF proxy"
