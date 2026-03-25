@@ -6023,7 +6023,7 @@ tasks:
       - 'step4: Ensure proxy/rewrite configuration forwards request and response headers as expected'
     dependencies: [task294]
     tests: [test440, test441]
-    status: not-started
+    status: needs-review
 
   - id: task297
     title: "Add login page automated tests for validation and auth flow"
