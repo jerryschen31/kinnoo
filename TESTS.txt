@@ -6975,8 +6975,8 @@ tests:
       - step3: "Read web/app/globals.css and verify body has background #000000 and text #F9FAFB"
     expected: All design tokens are defined in Tailwind config and global CSS applies dark theme
     pass_criteria: Custom colors, font family, and border-radius tokens are present in tailwind.config.ts; globals.css sets base dark styles
-    automated: false
-    automation_path: null
+    automated: true
+    automation_path: tests/test_web_frontend_setup.py::test_feature49_task283_tailwind_tokens_and_dark_globals
     covers:
       - feature: feature49
         ac: AC2

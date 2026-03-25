@@ -5752,7 +5752,7 @@ tasks:
       - 'step4: Verify Tailwind compiles with the extended theme by running npm run build'
     dependencies: [task282]
     tests: [test423]
-    status: not-started
+    status: needs-review
 
   - id: task284
     title: "Create directory structure and placeholder route pages"

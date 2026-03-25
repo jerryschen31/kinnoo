@@ -8,7 +8,32 @@ const config: Config = {
     "./lib/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        kinnoo: {
+          bg: "#000000",
+          text: "#F9FAFB",
+          accent: "#3B82F6",
+          surface: "#111111",
+        },
+        "card-border": "rgba(255,255,255,0.1)",
+      },
+      fontFamily: {
+        sans: ['"Avenir Next"', '"Segoe UI"', "sans-serif"],
+      },
+      borderRadius: {
+        card: "8px",
+        button: "4px",
+      },
+      spacing: {
+        2: "8px",
+        3: "12px",
+        4: "16px",
+        6: "24px",
+        8: "32px",
+        12: "48px",
+      },
+    },
   },
   plugins: [],
 };

@@ -36,6 +36,26 @@ def test_feature49_task282_scaffolded_nextjs_project() -> None:
     assert "tailwindcss" in dev_deps
 
 
+def test_feature49_task283_tailwind_tokens_and_dark_globals() -> None:
+    tailwind_config_text = (WEB_DIR / "tailwind.config.ts").read_text(encoding="utf-8")
+    globals_css_text = (WEB_DIR / "app" / "globals.css").read_text(encoding="utf-8")
+
+    assert "bg: \"#000000\"" in tailwind_config_text
+    assert "text: \"#F9FAFB\"" in tailwind_config_text
+    assert "accent: \"#3B82F6\"" in tailwind_config_text
+    assert "surface: \"#111111\"" in tailwind_config_text
+    assert "\"card-border\": \"rgba(255,255,255,0.1)\"" in tailwind_config_text
+    assert "\"Avenir Next\"" in tailwind_config_text
+    assert "\"Segoe UI\"" in tailwind_config_text
+    assert "card: \"8px\"" in tailwind_config_text
+    assert "button: \"4px\"" in tailwind_config_text
+
+    assert "background-color: #000000;" in globals_css_text
+    assert "color: #f9fafb;" in globals_css_text.lower()
+    assert "glass-surface" in globals_css_text
+    assert "card-border-1" in globals_css_text
+
+
 @pytest.mark.integration
 def test_feature49_task282_build_and_dev_start() -> None:
     build_result = subprocess.run(
