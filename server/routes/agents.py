@@ -20,6 +20,9 @@ def list_agents_payload(
     token_service: TokenService,
     metadata_manager: MetadataManager,
     storage_backend: StorageBackend,
+    session_cookie_value: str | None,
+    session_service,
+    user_store,
     offset: int,
     limit: int,
     tenant_filter: str | None,
@@ -29,6 +32,9 @@ def list_agents_payload(
             authorization_header=authorization_header,
             required_scope="registry:read",
             token_service=token_service,
+            session_cookie_value=session_cookie_value,
+            session_service=session_service,
+            user_store=user_store,
         )
     except PermissionError as error:
         status = 403 if "403" in str(error) else 401
@@ -101,6 +107,9 @@ def agent_detail_payload(
     authorization_header: str | None,
     token_service: TokenService,
     metadata_manager: MetadataManager,
+    session_cookie_value: str | None,
+    session_service,
+    user_store,
     tenant_slug: str,
     agent_slug: str,
 ) -> tuple[int, dict[str, object]]:
@@ -109,6 +118,9 @@ def agent_detail_payload(
             authorization_header=authorization_header,
             required_scope="registry:read",
             token_service=token_service,
+            session_cookie_value=session_cookie_value,
+            session_service=session_service,
+            user_store=user_store,
         )
     except PermissionError as error:
         status = 403 if "403" in str(error) else 401
@@ -159,6 +171,9 @@ def create_agents_router(
             token_service=token_service,
             metadata_manager=metadata_manager,
             storage_backend=storage_backend,
+            session_cookie_value=request.cookies.get(request.app.state.session_service.cookie_name),
+            session_service=request.app.state.session_service,
+            user_store=request.app.state.user_store,
             offset=offset,
             limit=limit,
             tenant_filter=tenant,
@@ -185,6 +200,9 @@ def create_agents_router(
             authorization_header=authorization,
             token_service=token_service,
             metadata_manager=metadata_manager,
+            session_cookie_value=request.cookies.get(request.app.state.session_service.cookie_name),
+            session_service=request.app.state.session_service,
+            user_store=request.app.state.user_store,
             tenant_slug=tenant_slug,
             agent_slug=agent_slug,
         )

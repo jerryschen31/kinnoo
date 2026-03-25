@@ -6314,7 +6314,7 @@ tasks:
       - 'step4: Add tests covering Bearer and session-cookie auth paths'
     dependencies: [task309]
     tests: [test459]
-    status: not-started
+    status: needs-review
 
   - id: task312
     title: "Bootstrap local admin account from environment"
