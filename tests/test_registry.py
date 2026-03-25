@@ -485,3 +485,38 @@ def test_feature56_auth_fallback_paths(tmp_path: Path) -> None:
 	missing_client = TestClient(app, base_url="https://testserver")
 	missing = missing_client.get("/api/agents")
 	assert missing.status_code == 401
+
+
+def test_feature56_admin_bootstrap_secret_safe(tmp_path: Path, monkeypatch) -> None:
+	from server.app import create_app
+	from server.bootstrap import bootstrap_admin_from_env
+	from server.config import ServerConfig
+	from server.storage.user_store import UserStore
+
+	secret_password = "feature56-ultra-secret"
+	store_root = tmp_path / "storage"
+	monkeypatch.setenv("REGISTRY_LOCAL_STORAGE_ROOT", str(store_root))
+	monkeypatch.setenv("REGISTRY_ADMIN_EMAIL", "admin-feature56@example.com")
+	monkeypatch.setenv("REGISTRY_ADMIN_PASSWORD", secret_password)
+
+	config = ServerConfig.from_env()
+	create_app(config=config)
+	store = UserStore(store_root / "auth")
+	users_after_first = store.list_users()
+	assert len(users_after_first) == 1
+	assert users_after_first[0].username == "admin-feature56@example.com"
+	assert users_after_first[0].role == "admin"
+
+	# Repeated startup must be idempotent (no duplicate admin creation).
+	create_app(config=config)
+	users_after_second = store.list_users()
+	assert len(users_after_second) == 1
+
+	result = bootstrap_admin_from_env(
+		store_root=store_root / "auth",
+		admin_email="admin-feature56@example.com",
+		admin_password=secret_password,
+	)
+	assert result.username == "admin-feature56@example.com"
+	assert secret_password not in result.message
+	assert result.temporary_password is None
