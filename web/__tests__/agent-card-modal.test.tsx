@@ -132,4 +132,70 @@ describe("AgentCard", () => {
     const urls = fetchSpy.mock.calls.map(([url]) => String(url));
     expect(urls).toContain("/api/agents/acme/calendar-helper");
   });
+
+  it("shows deterministic install command in search modal and copy feedback", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(globalThis.navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+
+      if (url === "/api/agents") {
+        return Promise.resolve(
+          jsonResponse([
+            {
+              tenant_slug: "acme",
+              agent_slug: "calendar-helper",
+              version: "1.2.3",
+              description: "test",
+            },
+          ]),
+        );
+      }
+
+      if (url.startsWith("/api/search")) {
+        return Promise.resolve(
+          jsonResponse([
+            {
+              tenant_slug: "acme",
+              agent_slug: "public-helper",
+              version: "2.0.0",
+              description: "public",
+            },
+          ]),
+        );
+      }
+
+      if (url === "/api/agents/acme/public-helper") {
+        return Promise.resolve(
+          jsonResponse({
+            tenant_slug: "acme",
+            agent_slug: "public-helper",
+            manifest: { name: "public-helper" },
+          }),
+        );
+      }
+
+      return Promise.resolve(jsonResponse([]));
+    });
+
+    render(<RegistryPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    fireEvent.click(await screen.findByRole("button", { name: "public-helper" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("kinnoo install acme/public-helper@2.0.0")).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith("kinnoo install acme/public-helper@2.0.0");
+      expect(screen.getByRole("button", { name: "Copied!" })).toBeTruthy();
+    });
+  });
 });
