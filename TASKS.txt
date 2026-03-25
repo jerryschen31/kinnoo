@@ -6137,7 +6137,7 @@ tasks:
       - 'step4: Reuse component in both My Agents and Search result grids'
     dependencies: [task300]
     tests: [test448]
-    status: not-started
+    status: needs-review
 
   - id: task303
     title: "Implement manifest modal with detail endpoint integration"
@@ -6157,7 +6157,7 @@ tasks:
       - 'step4: Render safe fallback states for loading/error in modal body'
     dependencies: [task302]
     tests: [test449, test450]
-    status: not-started
+    status: needs-review
 
   - id: task304
     title: "Add install command terminal block and copy action in search modal"
@@ -6176,7 +6176,7 @@ tasks:
       - 'step4: Ensure keyboard-accessible interaction and focus styles'
     dependencies: [task303]
     tests: [test451]
-    status: not-started
+    status: needs-review
 
   - id: task305
     title: "Add automated tests for AgentCard and modal copy workflow"
@@ -6194,7 +6194,7 @@ tasks:
       - 'step4: Assert install command copy button copies and shows feedback'
     dependencies: [task303, task304]
     tests: [test448, test449, test450, test451, test452]
-    status: not-started
+    status: needs-review
 
   - id: task306
     title: "Polish landing and header visuals per brand updates"
