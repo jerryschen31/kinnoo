@@ -5868,7 +5868,7 @@ tasks:
       - 'step4: Visually verify at 375px, 640px, 768px, and 1024px widths'
     dependencies: [task287]
     tests: [test431]
-    status: not-started
+    status: needs-review
 
   - id: task289
     title: "Write smoke tests for layout and design tokens"
