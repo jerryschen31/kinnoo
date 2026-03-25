@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import RegistryNav from "../../../components/blocks/RegistryNav";
+import AgentManifestModal from "../../../components/blocks/AgentManifestModal";
 import RegistryTabs from "../../../components/blocks/RegistryTabs";
 import { fetchMyAgents, searchAgents, type AgentSummary } from "../../../lib/registry-client";
 
@@ -26,7 +27,7 @@ export default function RegistryPage() {
     error: null,
     agents: [],
   });
-  const [selectedAgentName, setSelectedAgentName] = useState<string | null>(null);
+  const [selectedAgent, setSelectedAgent] = useState<AgentSummary | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,9 +100,10 @@ export default function RegistryPage() {
         onShowOnlyMyAgentsChange={setShowOnlyMyAgents}
         myAgentsState={myAgentsState}
         searchState={searchState}
-        onAgentNameClick={(agent) => setSelectedAgentName(agent.agent_slug)}
+        onAgentNameClick={(agent) => setSelectedAgent(agent)}
       />
-      {selectedAgentName ? <p className="sr-only">Selected agent: {selectedAgentName}</p> : null}
+
+      <AgentManifestModal selectedAgent={selectedAgent} onClose={() => setSelectedAgent(null)} />
     </div>
   );
 }
