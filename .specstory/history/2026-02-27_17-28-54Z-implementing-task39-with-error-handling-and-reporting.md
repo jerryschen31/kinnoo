@@ -114798,3 +114798,44 @@ Yes, tune the exact shade values (ANSI 256 palette) to match your terminal theme
 _**User (2026-03-23 00:23:35Z)**_
 
 the purple and pink look way off - just copy exactly what the colors are for ```kinnoo inspect -h```
+
+_**User (2026-03-23 04:28:48Z)**_
+
+In agent-examples.md, there are now 10 more examples each for the following agent frameworks: 
+
+1. LangChain
+2. LangGraph
+3. OpenClaw
+4. Pydantic AI
+5. OpenAI Agents SDK
+6. vanilla Javascript
+7. vanilla Typescript
+8. vanilla Python
+9. MCP servers
+10. Agents with MCP client code
+
+Download all of these examples and add them to example-scratch/agents/. Update the agents map and agents list in example-scratch, accordingly.
+
+In addition, there are also many agents that can be found through the "awesome agents" repositories listed in agent-examples.md - specifically:
+1. kyrolabs/awesome-agents (https://github.com/kyrolabs/awesome-agents)
+2. awesomelistsio/awesome-ai-agents (https://github.com/brandonhimpfen/awesome-ai-agents)
+3. ashishpatel26/500-AI-Agents-Projects (https://github.com/ashishpatel26/500-AI-Agents-Projects)
+
+From these pages, download as many agent examples as you can and place them in a new folder example-scratch-2/agents/. For these, also create an agents-map.txt and agents-list.md and place these two files in example-scratch-2/. Make sure the agent examples have what looks like an entrypoint script of some sort - usually agent.py, main.py, app.py, or run.py (for Python agents), and index.js / .ts (for JS-based agents).
+
+
+_**User (2026-03-23 04:57:28Z)**_
+
+Just get the agents that you missed in the first pass. Don't resync or redownload the agents that you've already downloaded into example-scratch/agents/
+
+---
+
+_**Agent (copilot/gpt-5.3-codex)**_
+
+I’ll only target the previously missed examples now: first I’ll compute exactly what’s missing from 
+
+---
+
+_**User (2026-03-23 04:58:42Z)**_
+
+I'm only seeing the entrypoint files for each agent. Redownload / resync all of the agents and make sure you download the entire source code for the agent
