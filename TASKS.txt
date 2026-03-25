@@ -6100,7 +6100,7 @@ tasks:
       - 'step4: Render loading, empty, and error states for both views'
     dependencies: [task299]
     tests: [test447]
-    status: not-started
+    status: needs-review
 
   - id: task301
     title: "Add automated tests for dashboard shell and tab/view behavior"
