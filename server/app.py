@@ -99,6 +99,7 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
         create_auth_router(
             token_service=token_service,
             user_store=user_store,
+            session_service=session_service,
         )
     )
     app.include_router(

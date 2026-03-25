@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from server.auth.session import SessionService
 from server.auth.token import TokenClaims, TokenService, TokenValidationError
+from server.storage.user_store import UserStore
 
 
 def authenticate_request(
@@ -28,3 +30,16 @@ def authenticate_request(
         raise PermissionError(f"403 forbidden: missing required scope '{required_scope}'")
 
     return claims
+
+
+def authenticate_session_identity(
+    *,
+    cookie_value: str | None,
+    session_service: SessionService,
+    user_store: UserStore,
+):
+    record = session_service.validate_session_cookie(cookie_value=cookie_value)
+    user = user_store.get_by_id(record.user_id)
+    if user is None:
+        raise PermissionError("401 unauthorized: actor user not found")
+    return user
