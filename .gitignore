@@ -19,6 +19,8 @@ build/
 scripts/archive/
 .registry-storage/
 *.pem
+.registry*
+.specstory/*.json
 
 # Next.js web frontend
 web/node_modules/
