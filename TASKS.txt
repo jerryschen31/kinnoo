@@ -6042,3 +6042,156 @@ tasks:
     dependencies: [task295, task296]
     tests: [test437, test438, test439, test440, test441, test442]
     status: needs-review
+
+  # ------ Sub-phase 3: Registry Dashboard (feature53, feature54) ------
+
+  - id: task298
+    title: "Implement /registry dashboard shell and secondary nav"
+    type: task
+    description: |
+      Build the authenticated registry route shell with a secondary nav containing My Agents,
+      Search, and Logout controls. Set My Agents as the default active view and keep layout
+      consistent with the global theme and spacing tokens from Sub-phase 1.
+    files:
+      - web/app/(auth)/registry/page.tsx
+      - web/components/blocks/RegistryNav.tsx
+    steps:
+      - 'step1: Build RegistryNav component with My Agents, Search, and Logout controls'
+      - 'step2: Wire default active state to My Agents on initial page render'
+      - 'step3: Add responsive layout and clear selected-tab styling'
+      - 'step4: Ensure keyboard navigation and focus styles for nav controls'
+    dependencies: [task287, task297]
+    tests: [test443, test444]
+    status: not-started
+
+  - id: task299
+    title: "Implement My Agents and Search view state with framer-motion transitions"
+    type: task
+    description: |
+      Implement state-controlled view switching between My Agents and Search and animate
+      transitions using framer-motion. Search view must include search input and a
+      Show only my agents checkbox.
+    files:
+      - web/app/(auth)/registry/page.tsx
+      - web/components/blocks/RegistryTabs.tsx
+    steps:
+      - 'step1: Create tab/view state for My Agents vs Search'
+      - 'step2: Add framer-motion transition wrappers for view changes'
+      - 'step3: Implement Search controls (input + Show only my agents checkbox)'
+      - 'step4: Preserve search control state while switching views where appropriate'
+    dependencies: [task298]
+    tests: [test445, test446]
+    status: not-started
+
+  - id: task300
+    title: "Integrate dashboard data fetching for my agents and search"
+    type: task
+    description: |
+      Connect dashboard views to existing backend API routes through frontend proxy paths.
+      My Agents should load from /api/agents and Search should query /api/search. Requests
+      must remain session-cookie compatible and include resilient loading/error/empty handling.
+    files:
+      - web/lib/registry-client.ts
+      - web/app/(auth)/registry/page.tsx
+    steps:
+      - 'step1: Add typed client functions for /api/agents and /api/search'
+      - 'step2: Fetch My Agents data on initial dashboard load'
+      - 'step3: Implement Search query flow with checkbox filter parameter handling'
+      - 'step4: Render loading, empty, and error states for both views'
+    dependencies: [task299]
+    tests: [test447]
+    status: not-started
+
+  - id: task301
+    title: "Add automated tests for dashboard shell and tab/view behavior"
+    type: task
+    description: |
+      Add component/integration tests covering dashboard shell nav controls, default tab,
+      search controls, and transition-capable tab switching behavior.
+    files:
+      - web/__tests__/registry-dashboard.test.tsx
+      - web/package.json
+    steps:
+      - 'step1: Test secondary nav renders My Agents, Search, Logout'
+      - 'step2: Test default active view is My Agents'
+      - 'step3: Test Search controls render and can be interacted with'
+      - 'step4: Test tab switching updates rendered view content'
+    dependencies: [task299, task300]
+    tests: [test443, test444, test445, test446, test447]
+    status: not-started
+
+  - id: task302
+    title: "Build reusable AgentCard with required metadata fields"
+    type: task
+    description: |
+      Implement a reusable AgentCard component for My Agents and Search result grids.
+      Render required fields: Tenant, Name, Version, Author, Framework, Size, Description.
+      Make Name clickable to trigger manifest modal flow.
+    files:
+      - web/components/blocks/AgentCard.tsx
+      - web/app/(auth)/registry/page.tsx
+    steps:
+      - 'step1: Create typed AgentCard props for required metadata fields'
+      - 'step2: Render all required fields with stable labels and layout'
+      - 'step3: Implement clickable Name affordance to open modal trigger callback'
+      - 'step4: Reuse component in both My Agents and Search result grids'
+    dependencies: [task300]
+    tests: [test448]
+    status: not-started
+
+  - id: task303
+    title: "Implement manifest modal with detail endpoint integration"
+    type: task
+    description: |
+      Build manifest modal/dialog that opens from agent name click, fetches details from
+      GET /api/agents/{tenant_slug}/{agent_slug}, and displays manifest metadata/version history.
+      Include explicit close control (X) and resilient close behavior.
+    files:
+      - web/components/blocks/AgentManifestModal.tsx
+      - web/lib/registry-client.ts
+      - web/app/(auth)/registry/page.tsx
+    steps:
+      - 'step1: Create modal component and open/close state wiring from selected agent card'
+      - 'step2: Fetch and render agent detail payload from /api/agents/{tenant_slug}/{agent_slug}'
+      - 'step3: Add X close control and modal dismiss interactions'
+      - 'step4: Render safe fallback states for loading/error in modal body'
+    dependencies: [task302]
+    tests: [test449, test450]
+    status: not-started
+
+  - id: task304
+    title: "Add install command terminal block and copy action in search modal"
+    type: task
+    description: |
+      For search-result modal context, render a terminal-style install command block and a copy
+      button. Command format should remain deterministic and copy action should provide visible
+      success feedback.
+    files:
+      - web/components/blocks/AgentManifestModal.tsx
+      - web/lib/install-command.ts
+    steps:
+      - 'step1: Generate deterministic install command string from selected agent metadata'
+      - 'step2: Render terminal-like install command block at modal footer'
+      - 'step3: Add copy-to-clipboard button and copied-feedback state'
+      - 'step4: Ensure keyboard-accessible interaction and focus styles'
+    dependencies: [task303]
+    tests: [test451]
+    status: not-started
+
+  - id: task305
+    title: "Add automated tests for AgentCard and modal copy workflow"
+    type: task
+    description: |
+      Add component tests for AgentCard and modal behavior, including card field rendering,
+      name click open/close behavior, manifest display, and install command copy action.
+    files:
+      - web/__tests__/agent-card-modal.test.tsx
+      - web/package.json
+    steps:
+      - 'step1: Assert AgentCard renders all required metadata fields'
+      - 'step2: Assert clicking Name opens modal and X closes it'
+      - 'step3: Assert modal renders fetched manifest data'
+      - 'step4: Assert install command copy button copies and shows feedback'
+    dependencies: [task303, task304]
+    tests: [test448, test449, test450, test451, test452]
+    status: not-started
