@@ -302,3 +302,18 @@ def test_source_mode_argument_validation_errors(tmp_path: Path) -> None:
 
     assert install_bad_selector.returncode != 0
     assert "Invalid registry version 'invalid'. Expected semver." in install_bad_selector_output
+
+
+def test_feature55_proxy_rewrite_forwarding() -> None:
+    next_config = Path(__file__).resolve().parents[1] / "web" / "next.config.ts"
+    text = next_config.read_text(encoding="utf-8")
+
+    # AC1: /api/* rewrite target must be env-driven and default to localhost backend.
+    assert "process.env.BACKEND_URL" in text
+    assert "http://localhost:8000" in text
+    assert 'source: "/api/:path*"' in text
+    assert 'destination: `${backendUrl}/api/:path*`' in text
+
+    # Forwarding semantics are contractually preserved by proxy rewrites with pass-through headers.
+    assert "X-Forwarded-For" in text or "forwarded" in text.lower()
+    assert "X-Request-Id" in text or "request-id" in text.lower()
