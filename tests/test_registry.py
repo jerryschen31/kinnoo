@@ -340,3 +340,46 @@ def test_feature55_api_auth_me_contract(tmp_path: Path) -> None:
 	client.cookies.set(session_cookie.name, f"{session_record.session_id}.tampered")
 	tampered = client.get("/api/auth/me")
 	assert tampered.status_code == 401
+
+
+def test_feature55_auth_integration_suite(tmp_path: Path) -> None:
+	from fastapi.testclient import TestClient
+
+	from server.app import create_app
+	from server.config import ServerConfig
+
+	config = ServerConfig(
+		storage_backend="local",
+		local_storage_root=tmp_path / "storage",
+		s3_bucket="kinnoo-registry-dev",
+		s3_region="us-east-1",
+		s3_endpoint_url=None,
+		s3_access_key_id=None,
+		s3_secret_access_key=None,
+		presign_ttl_seconds=120,
+		max_upload_mb=5,
+	)
+	app = create_app(config=config)
+	client = TestClient(app, base_url="https://testserver")
+
+	# Verify unauthenticated auth-check contract remains 401.
+	unauth = client.get("/api/auth/me")
+	assert unauth.status_code == 401
+
+	# Validate rewrite/auth-client contracts and no browser token persistence usage.
+	next_config = (Path(__file__).resolve().parents[1] / "web" / "next.config.ts").read_text(
+		encoding="utf-8"
+	)
+	auth_client = (Path(__file__).resolve().parents[1] / "web" / "lib" / "auth-client.ts").read_text(
+		encoding="utf-8"
+	)
+	auth_layout = (
+		Path(__file__).resolve().parents[1] / "web" / "app" / "(auth)" / "layout.tsx"
+	).read_text(encoding="utf-8")
+
+	assert 'source: "/api/:path*"' in next_config
+	assert "fetch(\"/api/login\"" in auth_client
+	assert "fetch(\"/api/auth/me\"" in auth_client
+	assert "localStorage" not in auth_client
+	assert "sessionStorage" not in auth_client
+	assert "redirect(\"/login\")" in auth_layout

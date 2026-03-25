@@ -8,6 +8,11 @@ export type LoginResult = {
   status: number;
 };
 
+export type AuthMeResult = {
+  ok: boolean;
+  status: number;
+};
+
 function readCookie(name: string): string | null {
   if (typeof document === "undefined") {
     return null;
@@ -94,6 +99,22 @@ export async function postWithSessionCsrf(path: string): Promise<Response> {
 
 export async function logoutWithSessionCsrf(): Promise<LoginResult> {
   const response = await postWithSessionCsrf("/api/logout");
+  return {
+    ok: response.ok,
+    status: response.status,
+  };
+}
+
+export async function fetchAuthMeServer(cookieHeader: string): Promise<AuthMeResult> {
+  const response = await fetch("/api/auth/me", {
+    method: "GET",
+    cache: "no-store",
+    headers: {
+      Accept: "application/json",
+      ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+    },
+  });
+
   return {
     ok: response.ok,
     status: response.status,
