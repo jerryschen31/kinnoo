@@ -6296,7 +6296,7 @@ tasks:
       - 'step4: Add tests for redirect and success rendering behavior'
     dependencies: [task309]
     tests: [test457, test458]
-    status: not-started
+    status: needs-review
 
   - id: task311
     title: "Add session-cookie fallback auth for JSON API routes"
