@@ -1,4 +1,5 @@
 import TerminalPreview from "../../components/blocks/TerminalPreview";
+import FeatureGrid from "../../components/blocks/FeatureGrid";
 
 export default function LandingPage() {
   return (
@@ -23,7 +24,14 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section aria-label="Features placeholder" />
+      <section aria-label="Features">
+        <div className="space-y-4">
+          <h2 className="text-2xl font-semibold tracking-tight text-kinnoo-text sm:text-3xl">
+            Why builders choose kinnoo
+          </h2>
+          <FeatureGrid />
+        </div>
+      </section>
     </div>
   );
 }

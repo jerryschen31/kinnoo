@@ -5948,7 +5948,7 @@ tasks:
       - 'step4: Ensure card content wraps safely on narrow screens without overflow'
     dependencies: [task290]
     tests: [test434, test435]
-    status: not-started
+    status: needs-review
 
   - id: task293
     title: "Add landing page automated test coverage"
