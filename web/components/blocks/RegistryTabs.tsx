@@ -2,6 +2,8 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 
+import type { AgentSummary } from "../../lib/registry-client";
+
 type RegistryView = "my-agents" | "search";
 
 type RegistryTabsProps = {
@@ -10,6 +12,16 @@ type RegistryTabsProps = {
   showOnlyMyAgents: boolean;
   onSearchQueryChange: (value: string) => void;
   onShowOnlyMyAgentsChange: (checked: boolean) => void;
+  myAgentsState: {
+    isLoading: boolean;
+    error: string | null;
+    agents: AgentSummary[];
+  };
+  searchState: {
+    isLoading: boolean;
+    error: string | null;
+    agents: AgentSummary[];
+  };
 };
 
 const panelMotion = {
@@ -25,6 +37,8 @@ export default function RegistryTabs({
   showOnlyMyAgents,
   onSearchQueryChange,
   onShowOnlyMyAgentsChange,
+  myAgentsState,
+  searchState,
 }: RegistryTabsProps) {
   return (
     <AnimatePresence mode="wait" initial={false}>
@@ -37,7 +51,23 @@ export default function RegistryTabs({
           data-testid="registry-my-agents-view"
         >
           <h1 className="text-2xl font-semibold text-kinnoo-text">My Agents</h1>
-          <p className="mt-2 text-sm text-white/70">Your published agents will appear here.</p>
+          {myAgentsState.isLoading ? (
+            <p className="mt-2 text-sm text-white/70">Loading agents...</p>
+          ) : myAgentsState.error ? (
+            <p role="alert" className="mt-2 text-sm text-red-300">
+              {myAgentsState.error}
+            </p>
+          ) : myAgentsState.agents.length === 0 ? (
+            <p className="mt-2 text-sm text-white/70">No agents published yet.</p>
+          ) : (
+            <ul className="mt-3 space-y-2 text-sm text-white/85">
+              {myAgentsState.agents.map((agent) => (
+                <li key={`${agent.tenant_slug}/${agent.agent_slug}/${agent.version}`}>
+                  {agent.tenant_slug}/{agent.agent_slug} v{agent.version}
+                </li>
+              ))}
+            </ul>
+          )}
         </motion.section>
       ) : (
         <motion.section
@@ -70,6 +100,24 @@ export default function RegistryTabs({
               />
               Show only my agents
             </label>
+
+            {searchState.isLoading ? (
+              <p className="text-sm text-white/70">Loading search results...</p>
+            ) : searchState.error ? (
+              <p role="alert" className="text-sm text-red-300">
+                {searchState.error}
+              </p>
+            ) : searchState.agents.length === 0 ? (
+              <p className="text-sm text-white/70">No matching agents found.</p>
+            ) : (
+              <ul className="space-y-2 text-sm text-white/85">
+                {searchState.agents.map((agent) => (
+                  <li key={`${agent.tenant_slug}/${agent.agent_slug}/${agent.version}`}>
+                    {agent.tenant_slug}/{agent.agent_slug} v{agent.version}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </motion.section>
       )}

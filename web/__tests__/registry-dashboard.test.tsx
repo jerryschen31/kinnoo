@@ -1,10 +1,22 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import RegistryPage from "../app/(auth)/registry/page";
 
+function jsonResponse(payload: unknown, status = 200) {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+beforeEach(() => {
+  vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse([]));
+});
+
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
 });
 
 describe("Registry dashboard", () => {
@@ -70,5 +82,44 @@ describe("Registry dashboard", () => {
         "pydantic",
       );
     });
+  });
+
+  it("uses /api proxy routes and handles loading, empty, and error states", async () => {
+    let resolveAgentsFetch: ((value: Response) => void) | undefined;
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+
+      if (url === "/api/agents") {
+        return new Promise<Response>((resolve) => {
+          resolveAgentsFetch = resolve;
+        });
+      }
+
+      if (url.startsWith("/api/search")) {
+        return Promise.reject(new Error("search service unavailable"));
+      }
+
+      return Promise.resolve(jsonResponse([]));
+    });
+
+    render(<RegistryPage />);
+
+    expect(screen.getByText("Loading agents...")).toBeTruthy();
+
+    resolveAgentsFetch?.(jsonResponse([]));
+
+    await waitFor(() => {
+      expect(screen.getByText("No agents published yet.")).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Unable to search agents right now.")).toBeTruthy();
+    });
+
+    const calledUrls = fetchSpy.mock.calls.map(([url]) => String(url));
+    expect(calledUrls.some((url) => url === "/api/agents")).toBe(true);
+    expect(calledUrls.some((url) => url.startsWith("/api/search"))).toBe(true);
   });
 });
