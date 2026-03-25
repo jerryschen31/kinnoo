@@ -5966,7 +5966,7 @@ tasks:
       - 'step4: Run test suite and ensure deterministic pass results'
     dependencies: [task291, task292]
     tests: [test432, test433, test434, test435, test436]
-    status: not-started
+    status: needs-review
 
   - id: task294
     title: "Implement login page UI card and required fields"
