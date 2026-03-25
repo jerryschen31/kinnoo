@@ -17,7 +17,7 @@ function HeaderButton({ href, children }: HeaderButtonProps) {
   return (
     <Link href={href} passHref legacyBehavior>
       <Slot
-        className="inline-flex h-9 items-center justify-center rounded-button border border-white/20 px-3 text-sm font-medium text-kinnoo-text transition hover:border-kinnoo-accent hover:text-kinnoo-accent"
+        className="inline-flex h-9 items-center justify-center rounded-button border border-white/20 px-3 text-sm font-medium text-kinnoo-text transition hover:border-kinnoo-accent hover:text-kinnoo-accent max-[399px]:px-2 max-[399px]:text-xs"
         style={{ borderRadius: themeConfig.radii.button }}
       >
         <a>{children}</a>
@@ -40,7 +40,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
           color: themeConfig.colors.text,
         }}
       >
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-3">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-2 px-3 py-3 sm:px-4">
           <Dialog.Root>
             <Dialog.Trigger asChild>
               <button
@@ -56,9 +56,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
             <Dialog.Portal>
               <Dialog.Overlay className="fixed inset-0 bg-black/60" />
               <Dialog.Content
-                className="fixed left-4 top-4 w-80 rounded-card border border-white/10 bg-kinnoo-surface p-4 shadow-xl"
+                className="fixed left-0 top-0 h-full w-full rounded-none border border-white/10 bg-kinnoo-surface p-4 shadow-xl sm:left-4 sm:top-4 sm:h-auto sm:w-80 sm:rounded-card"
                 style={{
-                  borderRadius: themeConfig.radii.card,
                   borderColor: themeConfig.colors.cardBorder,
                 }}
               >
@@ -88,7 +87,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
             </Dialog.Portal>
           </Dialog.Root>
 
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             <HeaderButton href="/login">Login</HeaderButton>
             <HeaderButton href="/signup">Sign Up</HeaderButton>
           </div>

@@ -7118,8 +7118,8 @@ tests:
       - step4: Verify header elements are properly laid out
     expected: Header remains usable at mobile and tablet breakpoints
     pass_criteria: No overflow, no overlapping elements at 375px and 768px widths
-    automated: false
-    automation_path: null
+    automated: true
+    automation_path: web/__tests__/layout.test.tsx
     covers:
       - feature: feature50
         ac: AC6
