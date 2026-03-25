@@ -158,11 +158,16 @@ def _resolve_publish_backend(*, use_local: bool, use_remote: bool) -> tuple[Any 
 
     registry_root = os.environ.get("KINNOO_REGISTRY_ROOT")
     backend_root = Path(registry_root).expanduser() if registry_root else None
+    config = load_registry_config()
+
+    tenant_slug = (config.tenant_slug or "").strip()
+    if backend_root is not None and tenant_slug:
+        # Keep local/mock publish layout aligned with tenant-scoped prefix conventions.
+        backend_root = backend_root / "tenants" / tenant_slug
 
     if use_local:
         return MockFilesystemRegistryBackend(root=backend_root), "local", None
 
-    config = load_registry_config()
     remote_requested = use_remote or bool(config.registry_url)
     if remote_requested:
         config_error = _remote_config_error(config)
