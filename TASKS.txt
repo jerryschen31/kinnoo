@@ -6278,7 +6278,7 @@ tasks:
       - 'step4: Add route-level tests for success and 401 failure paths'
     dependencies: [task308]
     tests: [test456]
-    status: not-started
+    status: needs-review
 
   - id: task310
     title: "Implement auth guard in app/(auth)/layout.tsx using /api/auth/me"

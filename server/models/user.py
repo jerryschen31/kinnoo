@@ -7,12 +7,24 @@ from datetime import datetime, timezone
 import hashlib
 import hmac
 import importlib
+import re
 import secrets
 from typing import Literal
 from uuid import uuid4
 
 
 Role = Literal["admin", "user"]
+
+
+def username_to_tenant_slug(username: str) -> str:
+    """Derive a stable tenant slug from username/email for auth identity payloads."""
+    raw = username.strip().lower()
+    if "@" in raw:
+        raw = raw.split("@", 1)[0]
+
+    slug = re.sub(r"[^a-z0-9-]+", "-", raw)
+    slug = re.sub(r"-+", "-", slug).strip("-")
+    return slug or "default"
 
 
 def _utc_now_iso() -> str:
