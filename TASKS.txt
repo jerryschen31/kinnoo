@@ -6041,4 +6041,4 @@ tasks:
       - 'step4: Test fetch call includes credentials and success path navigates to /registry'
     dependencies: [task295, task296]
     tests: [test437, test438, test439, test440, test441, test442]
-    status: not-started
+    status: needs-review
