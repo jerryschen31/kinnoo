@@ -129,7 +129,9 @@ Agent Card Component (All Public Agents - shown after a user successfully search
 - Tenant, Name, Version, Author, Framework, Size, Description, 
 - Clicking on Name shows a modal/dialog overlay showing the entire agent manifest (pulled from that agent's kinnoo.yaml). This modal has an 'X' at the top right that allows the user to close the modal. Also at the bottom of this modal is a terminal-like graphic that shows the kinnoo CLI command for installing this agent, with a "copy" button on the right for copy-to-clipboard for that install command text.
 
-Requirement: Use framer-motion for smooth transitions between the "My Agents" and "Search" tabs.
+Requirement: 
+- Use framer-motion for smooth transitions between the "My Agents" and "Search" tabs.
+- Build upon what has already been built in server/ - don't reinvent the wheel!
 
 Tests: Write component tests for the AgentCard component (renders all fields, name is clickable, modal opens/closes). Write a test that verifies the modal displays manifest data and the copy-to-clipboard button works for the install command.
 

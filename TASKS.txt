@@ -5984,7 +5984,7 @@ tasks:
       - 'step4: Confirm visual alignment with dark theme styles'
     dependencies: [task287]
     tests: [test437]
-    status: not-started
+    status: needs-review
 
   - id: task295
     title: "Add client-side validation and loading-state behavior"
@@ -6003,7 +6003,7 @@ tasks:
       - 'step4: Restore button state after success/failure and render safe error feedback'
     dependencies: [task294]
     tests: [test438, test439, test442]
-    status: not-started
+    status: needs-review
 
   - id: task296
     title: "Implement secure login submission through BFF proxy"
@@ -6023,7 +6023,7 @@ tasks:
       - 'step4: Ensure proxy/rewrite configuration forwards request and response headers as expected'
     dependencies: [task294]
     tests: [test440, test441]
-    status: not-started
+    status: needs-review
 
   - id: task297
     title: "Add login page automated tests for validation and auth flow"
@@ -6041,4 +6041,4 @@ tasks:
       - 'step4: Test fetch call includes credentials and success path navigates to /registry'
     dependencies: [task295, task296]
     tests: [test437, test438, test439, test440, test441, test442]
-    status: not-started
+    status: needs-review
