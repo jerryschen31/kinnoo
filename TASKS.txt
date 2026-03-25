@@ -6373,7 +6373,7 @@ tasks:
       - 'step4: Keep tests deterministic across repeated local runs'
     dependencies: [task311, task312, task313]
     tests: [test459, test460, test461, test462]
-    status: not-started
+    status: needs-review
 
   - id: task315
     title: "Add Next.js security headers middleware for production hardening"
