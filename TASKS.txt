@@ -5929,7 +5929,7 @@ tasks:
       - 'step4: Ensure button has accessible name and visible focus ring'
     dependencies: [task290]
     tests: [test433]
-    status: not-started
+    status: needs-review
 
   - id: task292
     title: "Build six-card Features section with required copy"

@@ -1,3 +1,5 @@
+import TerminalPreview from "../../components/blocks/TerminalPreview";
+
 export default function LandingPage() {
   return (
     <div className="flex flex-col gap-12 pb-12 sm:gap-16 sm:pb-16">
@@ -15,7 +17,11 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section aria-label="Terminal preview placeholder" />
+      <section aria-label="Terminal preview">
+        <div className="max-w-2xl">
+          <TerminalPreview />
+        </div>
+      </section>
 
       <section aria-label="Features placeholder" />
     </div>
