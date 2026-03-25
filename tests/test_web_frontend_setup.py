@@ -1,6 +1,7 @@
 import json
 import subprocess
 import time
+import urllib.request
 from pathlib import Path
 
 import pytest
@@ -54,6 +55,70 @@ def test_feature49_task283_tailwind_tokens_and_dark_globals() -> None:
     assert "color: #f9fafb;" in globals_css_text.lower()
     assert "glass-surface" in globals_css_text
     assert "card-border-1" in globals_css_text
+
+
+def test_feature49_task284_directory_structure() -> None:
+    required_paths = [
+        WEB_DIR / "app" / "(public)" / "page.tsx",
+        WEB_DIR / "app" / "(public)" / "login" / "page.tsx",
+        WEB_DIR / "app" / "(public)" / "signup" / "page.tsx",
+        WEB_DIR / "app" / "(auth)" / "layout.tsx",
+        WEB_DIR / "app" / "(auth)" / "registry" / "page.tsx",
+        WEB_DIR / "components" / "ui",
+        WEB_DIR / "components" / "blocks",
+        WEB_DIR / "lib",
+        WEB_DIR / "__tests__",
+    ]
+
+    for path in required_paths:
+        assert path.exists(), f"Missing required path: {path}"
+
+
+@pytest.mark.integration
+def test_feature49_task284_placeholder_routes_are_navigable() -> None:
+    dev_process = subprocess.Popen(
+        ["npm", "run", "dev", "--", "--hostname", "127.0.0.1", "--port", "3000"],
+        cwd=WEB_DIR,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+
+    try:
+        started = False
+        deadline = time.time() + 45
+        assert dev_process.stdout is not None
+        while time.time() < deadline:
+            line = dev_process.stdout.readline()
+            if not line:
+                if dev_process.poll() is not None:
+                    break
+                continue
+            normalized = line.lower()
+            if "ready" in normalized or "localhost:3000" in normalized:
+                started = True
+                break
+
+        assert started, "npm run dev did not report startup on localhost:3000"
+
+        expected_content = {
+            "/": "Landing Page",
+            "/login": "Login",
+            "/signup": "Sign Up",
+            "/registry": "Registry",
+        }
+
+        for route, marker in expected_content.items():
+            with urllib.request.urlopen(f"http://127.0.0.1:3000{route}", timeout=10) as response:
+                body = response.read().decode("utf-8")
+                assert response.status == 200
+                assert marker in body
+    finally:
+        dev_process.terminate()
+        try:
+            dev_process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            dev_process.kill()
 
 
 @pytest.mark.integration
