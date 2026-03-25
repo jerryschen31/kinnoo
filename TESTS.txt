@@ -7031,8 +7031,8 @@ tests:
       - step5: Verify framer-motion is in dependencies
     expected: All five packages are listed in package.json dependencies
     pass_criteria: All five dependency names are present as keys in the "dependencies" object
-    automated: false
-    automation_path: null
+    automated: true
+    automation_path: tests/test_web_frontend_setup.py::test_feature49_task285_core_ui_dependencies_installed
     covers:
       - feature: feature49
         ac: AC4
