@@ -5848,7 +5848,7 @@ tasks:
       - 'step6: Verify hamburger opens/closes and buttons navigate correctly in dev server'
     dependencies: [task284, task286]
     tests: [test429, test430]
-    status: not-started
+    status: needs-review
 
   - id: task288
     title: "Make layout responsive for mobile viewports"
