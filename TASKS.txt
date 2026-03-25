@@ -6450,3 +6450,250 @@ tasks:
     dependencies: [task314, task316, task317]
     tests: [test453, test454, test455, test456, test457, test458, test463, test464, test465, test466]
     status: needs-review
+
+  # ------ Sub-phase 5: User Registration & Password Reset (feature58, feature59, feature60) ------
+
+  - id: task319
+    title: "Add Sign Up CTA and create /signup + /signup/verify pages"
+    type: task
+    description: |
+      Implement public navigation and pages for registration: add Sign Up CTA in shared layout and
+      login page, build /signup email form card, and build /signup/verify password creation card
+      with client-side validation rules.
+    files:
+      - web/components/blocks/MainLayout.tsx
+      - web/app/(public)/login/page.tsx
+      - web/app/(public)/signup/page.tsx
+      - web/app/(public)/signup/verify/page.tsx
+      - web/components/ui/form-field.tsx
+    steps:
+      - 'step1: Add Sign Up button in top-right layout and login page with route to /signup'
+      - 'step2: Build /signup card with email field and valid-email client validation'
+      - 'step3: Build /signup/verify card with Create Password + Confirm Password fields'
+      - 'step4: Enforce password match and minimum length validation before submit'
+    dependencies: [task287, task295]
+    tests: [test467, test468, test471]
+    status: not-started
+
+  - id: task320
+    title: "Implement POST /api/auth/register-request endpoint"
+    type: task
+    description: |
+      Add backend registration request endpoint that accepts email, applies duplicate-safe behavior,
+      generates signed verification token, dispatches verification link through email service, and
+      returns a privacy-preserving generic success message.
+    files:
+      - server/routes/api.py
+      - server/auth/services.py
+      - server/auth/tokens.py
+      - server/models/user.py
+    steps:
+      - 'step1: Add request model and endpoint for /api/auth/register-request'
+      - 'step2: Validate input email and apply duplicate-safe, non-enumerating response behavior'
+      - 'step3: Generate signed expiring verification token and compose verification link'
+      - 'step4: Invoke email service and return generic 200 response in all account-existence cases'
+    dependencies: [task319]
+    tests: [test469, test470]
+    status: not-started
+
+  - id: task321
+    title: "Implement POST /api/auth/register-confirm endpoint"
+    type: task
+    description: |
+      Add backend registration confirmation endpoint that validates token state, creates user with
+      hashed password, provisions default tenant from email prefix, consumes token, creates session,
+      and returns Set-Cookie for authenticated redirect flow.
+    files:
+      - server/routes/api.py
+      - server/auth/services.py
+      - server/auth/tokens.py
+      - server/models/user.py
+      - server/metadata/manager.py
+    steps:
+      - 'step1: Add /api/auth/register-confirm request/response contract with token + password input'
+      - 'step2: Validate token signature, expiry, and single-use status before mutation'
+      - 'step3: Create user with hashed password and provision default tenant slug from email prefix'
+      - 'step4: Consume token, create session cookie response, and support redirect to /registry'
+    dependencies: [task320]
+    tests: [test472, test473]
+    status: not-started
+
+  - id: task322
+    title: "Add registration integration and component tests"
+    type: task
+    description: |
+      Add comprehensive tests for registration pages and endpoints, including happy path and edge
+      conditions required by planning constraints.
+    files:
+      - tests/test_registry.py
+      - web/__tests__/signup-page.test.tsx
+      - web/__tests__/signup-verify-page.test.tsx
+    steps:
+      - 'step1: Add endpoint tests for register-request happy, duplicate-safe behavior, and rate limit'
+      - 'step2: Add endpoint tests for register-confirm success and expired/used token failures'
+      - 'step3: Add component tests for /signup and /signup/verify form validation behavior'
+      - 'step4: Run linked registration suite and ensure deterministic pass'
+    dependencies: [task320, task321]
+    tests: [test467, test468, test469, test470, test471, test472, test473, test474]
+    status: not-started
+
+  - id: task323
+    title: "Build forgot-password pages and link wiring"
+    type: task
+    description: |
+      Implement /forgot-password and /forgot-password/reset public pages, wire the login-page link,
+      and add frontend validation for reset form fields.
+    files:
+      - web/app/(public)/login/page.tsx
+      - web/app/(public)/forgot-password/page.tsx
+      - web/app/(public)/forgot-password/reset/page.tsx
+      - web/components/ui/form-field.tsx
+    steps:
+      - 'step1: Wire Forgot your password? link from login to /forgot-password'
+      - 'step2: Build /forgot-password email form card and confirmation-message state'
+      - 'step3: Build /forgot-password/reset password form card with new/confirm fields'
+      - 'step4: Enforce client validation for password match and minimum length before submit'
+    dependencies: [task319]
+    tests: [test475, test478]
+    status: not-started
+
+  - id: task324
+    title: "Implement POST /api/auth/password-reset-request endpoint"
+    type: task
+    description: |
+      Add reset-request endpoint that looks up user by email, generates signed reset token for known
+      accounts, sends reset link via email service abstraction, and always returns generic success.
+    files:
+      - server/routes/api.py
+      - server/auth/services.py
+      - server/auth/tokens.py
+      - server/models/user.py
+    steps:
+      - 'step1: Add /api/auth/password-reset-request endpoint contract'
+      - 'step2: Implement account lookup with non-enumerating generic success response'
+      - 'step3: Generate signed expiring reset token for known user and compose reset link'
+      - 'step4: Dispatch reset message through email service abstraction'
+    dependencies: [task323, task327]
+    tests: [test476, test477]
+    status: not-started
+
+  - id: task325
+    title: "Implement POST /api/auth/password-reset-confirm endpoint"
+    type: task
+    description: |
+      Add reset-confirm endpoint that validates reset token, updates password hash, consumes token,
+      invalidates existing sessions for the user, and returns response used by frontend login redirect.
+    files:
+      - server/routes/api.py
+      - server/auth/services.py
+      - server/auth/tokens.py
+      - server/auth/session_service.py
+    steps:
+      - 'step1: Add /api/auth/password-reset-confirm endpoint contract with token + new_password input'
+      - 'step2: Validate token signature, expiry, and single-use state'
+      - 'step3: Update stored password hash and consume reset token'
+      - 'step4: Invalidate all active user sessions and return success response for login redirect'
+    dependencies: [task324]
+    tests: [test479, test480]
+    status: not-started
+
+  - id: task326
+    title: "Add forgot-password integration and component tests"
+    type: task
+    description: |
+      Add complete test coverage for forgot-password and reset flows, including generic responses,
+      token failure cases, form validation, and end-to-end reset success behavior.
+    files:
+      - tests/test_registry.py
+      - web/__tests__/forgot-password-page.test.tsx
+      - web/__tests__/forgot-password-reset-page.test.tsx
+    steps:
+      - 'step1: Add endpoint tests for reset-request happy, unknown email privacy, and rate limiting'
+      - 'step2: Add endpoint tests for reset-confirm success and expired/invalid token rejection'
+      - 'step3: Add component tests for forgot-password pages and validation states'
+      - 'step4: Run linked forgot-password suite and ensure deterministic pass'
+    dependencies: [task324, task325]
+    tests: [test475, test476, test477, test478, test479, test480, test481]
+    status: not-started
+
+  - id: task327
+    title: "Introduce EmailService abstraction and development console provider"
+    type: task
+    description: |
+      Create a pluggable email service interface for auth notifications with a development provider
+      that logs verification/reset links to console. Keep implementation provider-agnostic for future
+      SES/SendGrid adoption.
+    files:
+      - server/services/email_service.py
+      - server/services/email_console.py
+      - server/config.py
+      - server/routes/api.py
+    steps:
+      - 'step1: Define EmailService interface for registration and reset email use cases'
+      - 'step2: Implement development console provider that logs links only in safe structured form'
+      - 'step3: Wire service through auth endpoints using dependency injection or service locator pattern'
+      - 'step4: Add clear extension point for future production providers without API contract changes'
+    dependencies: [task320]
+    tests: [test482]
+    status: not-started
+
+  - id: task328
+    title: "Add env-based token secrets, FRONTEND_URL config, and single-use token store"
+    type: task
+    description: |
+      Ensure all auth token secrets are environment-driven, links use FRONTEND_URL with localhost
+      fallback, and token lifecycle tracks consumed state to enforce single-use semantics.
+    files:
+      - server/config.py
+      - server/auth/tokens.py
+      - server/auth/services.py
+      - server/models/user.py
+    steps:
+      - 'step1: Add config for FRONTEND_URL defaulting to http://localhost:3000'
+      - 'step2: Read register/reset token signing secrets from environment variables'
+      - 'step3: Add consumed-token state tracking and checks for register-confirm and reset-confirm'
+      - 'step4: Ensure successful confirm flows mark token consumed atomically'
+    dependencies: [task327]
+    tests: [test483]
+    status: not-started
+
+  - id: task329
+    title: "Apply endpoint rate limits for register-request and reset-request"
+    type: task
+    description: |
+      Enforce per-IP rate limits on registration and password reset request endpoints to reduce abuse,
+      using project rate-limiter conventions and deterministic test behavior.
+    files:
+      - server/middleware/rate_limit.py
+      - server/routes/api.py
+      - server/config.py
+    steps:
+      - 'step1: Apply rate-limiter decorator/middleware to register-request endpoint'
+      - 'step2: Apply rate-limiter decorator/middleware to password-reset-request endpoint'
+      - 'step3: Configure default policy target at 5 requests per minute per IP'
+      - 'step4: Add deterministic tests for limit reached responses'
+    dependencies: [task328]
+    tests: [test470, test477]
+    status: not-started
+
+  - id: task330
+    title: "Finalize Sub-phase 5 integration and regression test suite"
+    type: task
+    description: |
+      Consolidate endpoint and component coverage into a regression-safe Sub-phase 5 suite spanning
+      registration, verification, password reset, email abstraction wiring, token controls, and
+      compatibility with existing login/registry behavior.
+    files:
+      - tests/test_registry.py
+      - web/__tests__/signup-page.test.tsx
+      - web/__tests__/signup-verify-page.test.tsx
+      - web/__tests__/forgot-password-page.test.tsx
+      - web/__tests__/forgot-password-reset-page.test.tsx
+    steps:
+      - 'step1: Execute all Sub-phase 5 endpoint tests and confirm AC-level coverage mapping'
+      - 'step2: Execute all Sub-phase 5 component tests for public auth pages'
+      - 'step3: Add integration assertion for no regressions in login-to-registry core flow'
+      - 'step4: Produce deterministic suite entry point for future CI inclusion'
+    dependencies: [task322, task326, task329]
+    tests: [test474, test481, test482, test483, test484]
+    status: not-started

@@ -7711,3 +7711,321 @@ tests:
         ac: AC5
       - feature: feature57
         ac: AC6
+
+  # ------ Sub-phase 5: User Registration & Password Reset (feature58, feature59, feature60) ------
+
+  - id: test467
+    title: "Sign Up CTA is present and routes to /signup"
+    type: integration
+    preconditions: public layout and login page components are implemented
+    steps:
+      - step1: Render MainLayout and login page components
+      - step2: Verify Sign Up CTA appears in top-right nav and login page actions
+      - step3: Click Sign Up and verify navigation target is /signup
+    expected: Sign Up entry points are visible and route correctly
+    pass_criteria: Both Sign Up buttons are rendered and route to /signup
+    automated: true
+    automation_path: web/__tests__/signup-page.test.tsx
+    covers:
+      - feature: feature58
+        ac: AC1
+
+  - id: test468
+    title: "/signup form validates email and shows confirmation state"
+    type: integration
+    preconditions: /signup page exists with form and submit handler
+    steps:
+      - step1: Render /signup page and submit invalid email
+      - step2: Assert validation message and blocked submit behavior
+      - step3: Submit valid email and assert confirmation message is shown
+    expected: Email validation and confirmation UX behave as specified
+    pass_criteria: Invalid emails are rejected client-side; valid submit shows Check your email confirmation
+    automated: true
+    automation_path: web/__tests__/signup-page.test.tsx
+    covers:
+      - feature: feature58
+        ac: AC2
+
+  - id: test469
+    title: "register-request returns generic success while handling duplicate email safely"
+    type: integration
+    preconditions: POST /api/auth/register-request endpoint implemented
+    steps:
+      - step1: Call endpoint with unregistered email and record response
+      - step2: Call endpoint with already registered email and record response
+      - step3: Compare responses and inspect side effects (token generation + email log)
+    expected: Endpoint keeps account privacy while supporting registration token dispatch
+    pass_criteria: Both responses are generic success; duplicate path does not leak account-exists signal
+    automated: true
+    automation_path: tests/test_registry.py::test_feature58_register_request_duplicate_safe_generic_response
+    covers:
+      - feature: feature58
+        ac: AC3
+
+  - id: test470
+    title: "register-request endpoint enforces per-IP rate limit"
+    type: integration
+    preconditions: register-request endpoint has rate limiting configured
+    steps:
+      - step1: Send requests from same IP up to configured threshold
+      - step2: Send one additional request above threshold
+      - step3: Assert throttled response contract
+    expected: Endpoint throttles excessive requests
+    pass_criteria: Limit-exceeded request returns expected rate-limit response while within-limit requests succeed
+    automated: true
+    automation_path: tests/test_registry.py::test_feature58_register_request_rate_limit
+    covers:
+      - feature: feature58
+        ac: AC7
+      - feature: feature60
+        ac: AC5
+
+  - id: test471
+    title: "/signup/verify enforces password match and minimum length"
+    type: integration
+    preconditions: /signup/verify page exists with password form
+    steps:
+      - step1: Render page with token query and submit mismatched passwords
+      - step2: Submit matching passwords shorter than 8 chars
+      - step3: Submit matching password pair with valid length
+    expected: Client validation blocks invalid passwords and allows valid input
+    pass_criteria: Mismatch and short-password states fail client-side; valid password pair passes client checks
+    automated: true
+    automation_path: web/__tests__/signup-verify-page.test.tsx
+    covers:
+      - feature: feature58
+        ac: AC4
+
+  - id: test472
+    title: "register-confirm creates user+tenant, sets session cookie, and supports /registry redirect"
+    type: integration
+    preconditions: POST /api/auth/register-confirm endpoint implemented
+    steps:
+      - step1: Submit valid verification token and password
+      - step2: Verify user is created with hashed password and tenant slug from email prefix
+      - step3: Verify response includes session Set-Cookie contract for authenticated redirect
+    expected: Registration confirmation provisions full account and authenticated session
+    pass_criteria: User+tenant created, token consumed, Set-Cookie returned, and frontend redirect path can continue to /registry
+    automated: true
+    automation_path: tests/test_registry.py::test_feature58_register_confirm_success_creates_user_tenant_session
+    covers:
+      - feature: feature58
+        ac: AC5
+      - feature: feature58
+        ac: AC6
+
+  - id: test473
+    title: "register-confirm rejects expired or previously consumed tokens"
+    type: integration
+    preconditions: register-confirm token validation and consumption implemented
+    steps:
+      - step1: Call register-confirm with expired token
+      - step2: Call register-confirm with already-consumed token
+      - step3: Assert no duplicate account/session is created
+    expected: Invalid token states are rejected safely
+    pass_criteria: Endpoint returns failure for expired/used tokens and does not create user/session side effects
+    automated: true
+    automation_path: tests/test_registry.py::test_feature58_register_confirm_rejects_expired_or_used_token
+    covers:
+      - feature: feature58
+        ac: AC5
+      - feature: feature58
+        ac: AC7
+      - feature: feature60
+        ac: AC4
+
+  - id: test474
+    title: "Registration suite covers UI and endpoint flow end-to-end"
+    type: integration
+    preconditions: feature58 tests implemented
+    steps:
+      - step1: Run registration component and endpoint tests together
+      - step2: Verify signup request, verification form, and confirm endpoint pass
+      - step3: Verify no regressions in login redirect into protected registry route
+    expected: Registration feature is complete and non-regressing
+    pass_criteria: Suite exits zero and validates full feature58 AC coverage
+    automated: true
+    automation_path: tests/test_registry.py::test_feature58_registration_suite
+    covers:
+      - feature: feature58
+        ac: AC7
+      - feature: feature60
+        ac: AC6
+
+  - id: test475
+    title: "Forgot password navigation and page form render correctly"
+    type: integration
+    preconditions: login page and /forgot-password page implemented
+    steps:
+      - step1: Click Forgot your password? from login page and verify route transition
+      - step2: Verify /forgot-password card, email field, and Send Reset Link button render
+      - step3: Submit valid input and verify generic confirmation message appears
+    expected: Forgot-password entry and form UX are functional
+    pass_criteria: Route navigation and generic confirmation message work as specified
+    automated: true
+    automation_path: web/__tests__/forgot-password-page.test.tsx
+    covers:
+      - feature: feature59
+        ac: AC1
+      - feature: feature59
+        ac: AC2
+
+  - id: test476
+    title: "password-reset-request returns generic response for known and unknown emails"
+    type: integration
+    preconditions: POST /api/auth/password-reset-request endpoint implemented
+    steps:
+      - step1: Call endpoint with known email
+      - step2: Call endpoint with unknown email
+      - step3: Verify both responses are generic and safe while known-email path logs reset link
+    expected: Account enumeration is prevented
+    pass_criteria: Known/unknown responses are indistinguishable and endpoint behavior is privacy-preserving
+    automated: true
+    automation_path: tests/test_registry.py::test_feature59_password_reset_request_generic_response
+    covers:
+      - feature: feature59
+        ac: AC3
+
+  - id: test477
+    title: "password-reset-request endpoint enforces per-IP rate limit"
+    type: integration
+    preconditions: password-reset-request endpoint has rate limiting configured
+    steps:
+      - step1: Send reset-request calls from same IP up to allowed threshold
+      - step2: Send one additional call over threshold
+      - step3: Assert rate-limited response
+    expected: Excessive reset requests are throttled
+    pass_criteria: Limit-exceeded response is returned at configured threshold+1
+    automated: true
+    automation_path: tests/test_registry.py::test_feature59_password_reset_request_rate_limit
+    covers:
+      - feature: feature59
+        ac: AC7
+      - feature: feature60
+        ac: AC5
+
+  - id: test478
+    title: "/forgot-password/reset validates password match and minimum length"
+    type: integration
+    preconditions: /forgot-password/reset page implemented
+    steps:
+      - step1: Render reset page with token and submit mismatched passwords
+      - step2: Submit short matching password (<8)
+      - step3: Submit valid password pair and assert submit path proceeds
+    expected: Reset form enforces client validation rules
+    pass_criteria: Invalid inputs are blocked and valid input can be submitted
+    automated: true
+    automation_path: web/__tests__/forgot-password-reset-page.test.tsx
+    covers:
+      - feature: feature59
+        ac: AC4
+
+  - id: test479
+    title: "password-reset-confirm updates password and invalidates all sessions"
+    type: integration
+    preconditions: POST /api/auth/password-reset-confirm endpoint implemented
+    steps:
+      - step1: Submit valid reset token with compliant new password
+      - step2: Verify password hash changes for the user
+      - step3: Verify session_service.invalidate_user_sessions is executed and response supports login redirect success state
+    expected: Reset confirmation secures account by rotating password and sessions
+    pass_criteria: Password hash updated, sessions invalidated, and success response for /login redirect returned
+    automated: true
+    automation_path: tests/test_registry.py::test_feature59_password_reset_confirm_success_invalidates_sessions
+    covers:
+      - feature: feature59
+        ac: AC5
+      - feature: feature59
+        ac: AC6
+
+  - id: test480
+    title: "password-reset-confirm rejects expired or invalid tokens"
+    type: integration
+    preconditions: reset-confirm token validation logic implemented
+    steps:
+      - step1: Call reset-confirm with expired token
+      - step2: Call reset-confirm with malformed or consumed token
+      - step3: Verify password remains unchanged and response is safe
+    expected: Invalid reset token states are rejected without sensitive leakage
+    pass_criteria: Endpoint rejects invalid tokens and produces no password/session side effects
+    automated: true
+    automation_path: tests/test_registry.py::test_feature59_password_reset_confirm_invalid_token
+    covers:
+      - feature: feature59
+        ac: AC5
+      - feature: feature59
+        ac: AC7
+      - feature: feature60
+        ac: AC4
+
+  - id: test481
+    title: "Forgot-password suite validates complete reset workflow"
+    type: integration
+    preconditions: feature59 endpoint and component tests implemented
+    steps:
+      - step1: Run forgot-password page and endpoint test set
+      - step2: Verify request and confirm flows pass with expected privacy guarantees
+      - step3: Verify login path works after successful password reset
+    expected: Forgot-password workflow is complete and stable
+    pass_criteria: Suite exits zero and covers feature59 AC1-AC7 behaviors
+    automated: true
+    automation_path: tests/test_registry.py::test_feature59_forgot_password_suite
+    covers:
+      - feature: feature59
+        ac: AC7
+      - feature: feature60
+        ac: AC6
+
+  - id: test482
+    title: "EmailService abstraction logs verification/reset links through dev provider"
+    type: integration
+    preconditions: EmailService interface and console provider are implemented
+    steps:
+      - step1: Trigger register-request and password-reset-request in development mode
+      - step2: Assert email dispatch path uses EmailService abstraction
+      - step3: Assert console output contains constructed links and no external provider side effects
+    expected: Email logic is abstracted and development-safe
+    pass_criteria: Both workflows use EmailService and dev provider logs links correctly
+    automated: true
+    automation_path: tests/test_registry.py::test_feature60_email_service_abstraction_dev_provider
+    covers:
+      - feature: feature60
+        ac: AC1
+      - feature: feature60
+        ac: AC2
+
+  - id: test483
+    title: "Token secrets are env-based and tokens are consumed single-use"
+    type: integration
+    preconditions: auth token config and consumption state are implemented
+    steps:
+      - step1: Start test with configured env token secrets and FRONTEND_URL
+      - step2: Execute register-confirm and reset-confirm with valid tokens once
+      - step3: Retry same tokens and verify consumed-token rejection
+    expected: Token security controls are environment-driven and single-use enforced
+    pass_criteria: Secrets are read from env config and reused tokens are rejected deterministically
+    automated: true
+    automation_path: tests/test_registry.py::test_feature60_env_secrets_and_single_use_tokens
+    covers:
+      - feature: feature60
+        ac: AC2
+      - feature: feature60
+        ac: AC3
+      - feature: feature60
+        ac: AC4
+
+  - id: test484
+    title: "Sub-phase 5 full suite validates AC coverage without auth regression"
+    type: integration
+    preconditions: all Sub-phase 5 tests are implemented
+    steps:
+      - step1: Run consolidated Sub-phase 5 suite (registration + reset + shared security)
+      - step2: Verify all linked tests pass and AC mapping is complete for features58-60
+      - step3: Verify baseline login and registry flows still pass after Sub-phase 5 changes
+    expected: Sub-phase 5 is complete, accurate, and non-regressing
+    pass_criteria: Suite exits zero and validates coverage of feature58/59/60 acceptance criteria
+    automated: true
+    automation_path: tests/test_registry.py::test_feature60_subphase5_full_suite
+    covers:
+      - feature: feature60
+        ac: AC6
