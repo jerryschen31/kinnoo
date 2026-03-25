@@ -1990,3 +1990,86 @@ features:
     owner: techlead-agent
     dependencies: [feature55, feature56]
     status: not-started
+
+  # ------ Sub-phase 5: User Registration & Password Reset (feature58, feature59, feature60) ------
+
+  - id: feature58
+    title: "Sign-Up Navigation, Registration Request, and Account Creation Confirmation"
+    description: |
+      Implement the complete sign-up user journey from public navigation to account creation,
+      including /signup and /signup/verify pages, client-side form validation, and FastAPI
+      register-request/register-confirm endpoints with generic responses and secure token handling.
+      Successful registration confirmation should create the user and tenant, issue a session cookie,
+      and redirect to /registry.
+    tasks: [task319, task320, task321, task322]
+    acceptance_criteria:
+      - id: AC1
+        description: "MainLayout and login page include a Sign Up CTA that routes users to /signup."
+      - id: AC2
+        description: "/signup renders a login-style centered card with email field, valid-email client checks, and a Send Verification Link submit action."
+      - id: AC3
+        description: "POST /api/auth/register-request validates duplicate registration safely, creates a signed expiring verification token, logs verification link using FRONTEND_URL, and returns a generic 200 response that does not disclose account existence."
+      - id: AC4
+        description: "/signup/verify renders Create Password and Confirm Password fields with client validation for match and minimum length >= 8."
+      - id: AC5
+        description: "POST /api/auth/register-confirm validates token integrity/expiry/single-use, creates the user with hashed password, and creates a default tenant slug derived from email prefix."
+      - id: AC6
+        description: "Successful register-confirm creates a session, returns Set-Cookie headers, and redirects user to /registry."
+      - id: AC7
+        description: "Automated tests cover registration happy path, duplicate email privacy behavior, expired/used tokens, password mismatch validation, and request rate limiting."
+    owner: techlead-agent
+    dependencies: [feature57]
+    status: not-started
+
+  - id: feature59
+    title: "Forgot Password and Password Reset Confirmation Workflow"
+    description: |
+      Implement the full password reset workflow using /forgot-password and /forgot-password/reset
+      pages plus FastAPI password-reset-request/password-reset-confirm endpoints. The flow must
+      keep account privacy with generic responses, support secure reset token validation, and
+      invalidate active sessions after password change.
+    tasks: [task323, task324, task325, task326]
+    acceptance_criteria:
+      - id: AC1
+        description: "Login page Forgot your password? link routes users to /forgot-password."
+      - id: AC2
+        description: "/forgot-password renders an email form card and submit button; frontend calls password-reset-request and always shows the generic confirmation message."
+      - id: AC3
+        description: "POST /api/auth/password-reset-request generates signed expiring reset token for known users, logs reset link built from FRONTEND_URL, and returns non-enumerating generic success for both known and unknown emails."
+      - id: AC4
+        description: "/forgot-password/reset renders New Password and Confirm Password fields and blocks submit when mismatch or minimum password requirements fail."
+      - id: AC5
+        description: "POST /api/auth/password-reset-confirm validates token integrity/expiry/single-use, updates password hash, and invalidates all user sessions via session service."
+      - id: AC6
+        description: "Successful reset-confirm redirects to /login with a success indicator while rejected tokens return safe, non-sensitive error responses."
+      - id: AC7
+        description: "Automated tests cover reset happy path, unknown email privacy behavior, expired/used token failures, password mismatch validation, and request rate limiting."
+    owner: techlead-agent
+    dependencies: [feature58]
+    status: not-started
+
+  - id: feature60
+    title: "Email Service Abstraction, Token Security Controls, and Sub-phase 5 Integration Coverage"
+    description: |
+      Add shared security and operability foundations used by registration and reset workflows,
+      including an EmailService abstraction with development console provider, environment-driven
+      frontend link generation, env-backed token secrets, strict single-use token consumption, and
+      endpoint-level rate limiting for register/reset request routes. Consolidate integration and
+      component test coverage to ensure Sub-phase 5 is complete and regression-safe.
+    tasks: [task327, task328, task329, task330]
+    acceptance_criteria:
+      - id: AC1
+        description: "Email dispatch is behind an EmailService interface with a development implementation that logs verification/reset links to console without real delivery."
+      - id: AC2
+        description: "FRONTEND_URL is read from environment (default http://localhost:3000) and used consistently to build verification/reset links."
+      - id: AC3
+        description: "Register and reset token signing secrets are read from environment variables, not hardcoded constants."
+      - id: AC4
+        description: "Verification and reset tokens are single-use and explicitly marked consumed after successful confirmation."
+      - id: AC5
+        description: "Rate limiting is enforced on register-request and password-reset-request endpoints (target 5 requests/min/IP) with deterministic tests."
+      - id: AC6
+        description: "End-to-end and component tests collectively validate all Sub-phase 5 acceptance criteria without regressions to existing login/registry paths."
+    owner: techlead-agent
+    dependencies: [feature58, feature59]
+    status: not-started
