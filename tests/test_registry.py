@@ -292,3 +292,51 @@ def test_feature55_session_csrf_forwarding() -> None:
 	assert 'form.set("csrf_token", csrfToken)' in auth_client
 	assert 'postWithSessionCsrf("/api/logout")' in auth_client
 	assert "logoutWithSessionCsrf" in registry_page
+
+
+def test_feature55_api_auth_me_contract(tmp_path: Path) -> None:
+	from fastapi.testclient import TestClient
+
+	from server.app import create_app
+	from server.config import ServerConfig
+
+	config = ServerConfig(
+		storage_backend="local",
+		local_storage_root=tmp_path / "storage",
+		s3_bucket="kinnoo-registry-dev",
+		s3_region="us-east-1",
+		s3_endpoint_url=None,
+		s3_access_key_id=None,
+		s3_secret_access_key=None,
+		presign_ttl_seconds=120,
+		max_upload_mb=5,
+	)
+	app = create_app(config=config)
+	client = TestClient(app, base_url="https://testserver")
+
+	user = app.state.user_store.create_user(
+		username="feature55.user@example.com",
+		plaintext_password="feature55-secret",
+		role="user",
+	)
+	session_record, session_cookie = app.state.session_service.create_session(user_id=user.id)
+	client.cookies.set(session_cookie.name, session_cookie.value)
+
+	valid = client.get("/api/auth/me")
+	assert valid.status_code == 200
+	valid_payload = valid.json()
+	assert valid_payload["user_id"] == user.id
+	assert valid_payload["username"] == user.username
+	assert valid_payload["tenant_slug"] == "feature55-user"
+
+	invalid = TestClient(app, base_url="https://testserver")
+	missing = invalid.get("/api/auth/me")
+	assert missing.status_code == 401
+	missing_payload = missing.json()
+	assert missing_payload["error"]["code"] == "unauthorized"
+	assert missing_payload["error"]["message"]
+	assert missing_payload["error"]["request_id"]
+
+	client.cookies.set(session_cookie.name, f"{session_record.session_id}.tampered")
+	tampered = client.get("/api/auth/me")
+	assert tampered.status_code == 401
