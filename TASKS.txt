@@ -6220,3 +6220,233 @@ tasks:
     dependencies: [task287, task293, task297]
     tests: []
     status: needs-review
+
+  # ------ Sub-phase 4: Integration, CSRF & Production Hardening (feature55, feature56, feature57) ------
+
+  - id: task307
+    title: "Configure Next.js API rewrites with BACKEND_URL and forwarded headers"
+    type: task
+    description: |
+      Implement rewrite/proxy behavior in web/next.config.ts for /api/* routes using BACKEND_URL
+      (default http://localhost:8000). Ensure cookie semantics are preserved and forwarding logic
+      supports X-Forwarded-For and X-Request-Id expectations used by backend controls.
+    files:
+      - web/next.config.ts
+      - web/.env.example
+    steps:
+      - 'step1: Define BACKEND_URL-based rewrite mapping for /api/* to backend service'
+      - 'step2: Ensure development default is http://localhost:8000 when env not set'
+      - 'step3: Verify forwarded request metadata includes X-Forwarded-For and X-Request-Id semantics'
+      - 'step4: Document env contract for BACKEND_URL in web/.env.example or project docs'
+    dependencies: [task282]
+    tests: [test453]
+    status: not-started
+
+  - id: task308
+    title: "Implement CSRF pass-through for login and authenticated POST flows"
+    type: task
+    description: |
+      Ensure BFF-proxied login and authenticated POST flows preserve existing FastAPI CSRF handling:
+      login nonce submission and session CSRF token forwarding via form field or X-CSRF-Token.
+    files:
+      - web/app/(public)/login/page.tsx
+      - web/lib/auth-client.ts
+      - web/app/(auth)/registry/page.tsx
+    steps:
+      - 'step1: Ensure login submission forwards complete form payload for backend CSRF validation'
+      - 'step2: Read kinnoo_csrf cookie client-side for authenticated POST requests'
+      - 'step3: Include CSRF token as header or form field in proxied POST actions'
+      - 'step4: Validate behavior against backend validate_post_request expectations'
+    dependencies: [task307, task296]
+    tests: [test454, test455]
+    status: not-started
+
+  - id: task309
+    title: "Add backend /api/auth/me endpoint for session validation"
+    type: task
+    description: |
+      Implement GET /api/auth/me in FastAPI backend to validate session cookie and return
+      normalized user identity payload for authenticated frontend checks.
+    files:
+      - server/routes/api.py
+      - server/auth/middleware.py
+      - server/models/user.py
+    steps:
+      - 'step1: Add /api/auth/me route with session validation using existing auth/session services'
+      - 'step2: Return { user_id, tenant_slug, username } on success and 401 on invalid session'
+      - 'step3: Keep response shape stable for frontend auth guard consumption'
+      - 'step4: Add route-level tests for success and 401 failure paths'
+    dependencies: [task308]
+    tests: [test456]
+    status: not-started
+
+  - id: task310
+    title: "Implement auth guard in app/(auth)/layout.tsx using /api/auth/me"
+    type: task
+    description: |
+      Add server-side auth check in app/(auth)/layout.tsx that calls /api/auth/me, forwards
+      cookies, and redirects to /login when backend returns 401.
+    files:
+      - web/app/(auth)/layout.tsx
+      - web/lib/auth-client.ts
+    steps:
+      - 'step1: Add server-side fetch to /api/auth/me in auth layout'
+      - 'step2: Forward request cookies to backend check call'
+      - 'step3: Redirect to /login on 401 and render children on success'
+      - 'step4: Add tests for redirect and success rendering behavior'
+    dependencies: [task309]
+    tests: [test457, test458]
+    status: not-started
+
+  - id: task311
+    title: "Add session-cookie fallback auth for JSON API routes"
+    type: task
+    description: |
+      Update backend auth middleware to preserve Bearer-token-first behavior while adding
+      fallback authentication using kinnoo_session cookie for JSON API routes used by dashboard.
+    files:
+      - server/auth/middleware.py
+      - server/routes/api.py
+    steps:
+      - 'step1: Update authenticate_request flow to check Authorization Bearer token first'
+      - 'step2: Add fallback path validating kinnoo_session cookie when Bearer token absent'
+      - 'step3: Ensure /api/agents and /api/search routes use updated middleware behavior'
+      - 'step4: Add tests covering Bearer and session-cookie auth paths'
+    dependencies: [task309]
+    tests: [test459]
+    status: not-started
+
+  - id: task312
+    title: "Bootstrap local admin account from environment"
+    type: task
+    description: |
+      Add development-safe admin bootstrap workflow using REGISTRY_ADMIN_EMAIL and
+      REGISTRY_ADMIN_PASSWORD environment variables. Ensure account creation/update is idempotent
+      and never exposes secret values in logs/output.
+    files:
+      - server/bootstrap.py
+      - server/config.py
+      - server/auth/services.py
+    steps:
+      - 'step1: Read admin bootstrap env variables in backend startup/bootstrap path'
+      - 'step2: Create or ensure admin user account exists with appropriate tenant linkage'
+      - 'step3: Keep behavior idempotent across repeated starts'
+      - 'step4: Add tests ensuring no secret values are logged or returned'
+    dependencies: [task311]
+    tests: [test460]
+    status: not-started
+
+  - id: task313
+    title: "Ensure local kinnoo publish writes to tenant path in mocked S3"
+    type: task
+    description: |
+      Verify and adjust local publish path logic so running kinnoo publish stores artifacts in
+      correct tenant-scoped folder paths in mocked S3 storage, enabling realistic local registry
+      tests and future migration to real S3.
+    files:
+      - src/kinnoo/publish_command.py
+      - server/storage/s3_backend.py
+      - server/metadata/manager.py
+    steps:
+      - 'step1: Trace publish path derivation from tenant identity to storage prefix'
+      - 'step2: Align local mocked S3 path layout with tenant-scoped conventions'
+      - 'step3: Verify published agent appears under expected tenant location'
+      - 'step4: Add regression tests for tenant-path correctness in local mode'
+    dependencies: [task312]
+    tests: [test461]
+    status: not-started
+
+  - id: task314
+    title: "Add integration tests for auth fallback, admin bootstrap, and publish paths"
+    type: task
+    description: |
+      Add integration-level test coverage validating session-cookie fallback auth on JSON routes,
+      local admin bootstrap behavior, and mocked S3 tenant-path publish correctness.
+    files:
+      - tests/test_registry.py
+      - tests/test_cli_registry.py
+      - tests/test_cli_registry_modes.py
+    steps:
+      - 'step1: Add tests for Bearer-first then session-cookie fallback behavior'
+      - 'step2: Add admin bootstrap tests using env vars without exposing secret values'
+      - 'step3: Add local publish path tests for tenant-scoped storage placement'
+      - 'step4: Keep tests deterministic across repeated local runs'
+    dependencies: [task311, task312, task313]
+    tests: [test459, test460, test461, test462]
+    status: not-started
+
+  - id: task315
+    title: "Add Next.js security headers middleware for production hardening"
+    type: task
+    description: |
+      Implement web/middleware.ts to set required security headers including X-Frame-Options,
+      X-Content-Type-Options, Referrer-Policy, restrictive CSP, and production-only HSTS.
+    files:
+      - web/middleware.ts
+      - web/next.config.ts
+    steps:
+      - 'step1: Set required baseline headers for all frontend responses'
+      - 'step2: Configure CSP with restrictive default-src self policy'
+      - 'step3: Add HSTS header behavior gated to production mode'
+      - 'step4: Add tests verifying header presence and production gating'
+    dependencies: [task307]
+    tests: [test463]
+    status: not-started
+
+  - id: task316
+    title: "Implement (auth) loading.tsx and error.tsx for graceful failures"
+    type: task
+    description: |
+      Add loading and error boundary route files for authenticated route group to provide
+      user-friendly handling for API downtime and auth/rate-limit related failures.
+    files:
+      - web/app/(auth)/loading.tsx
+      - web/app/(auth)/error.tsx
+      - web/app/(auth)/layout.tsx
+    steps:
+      - 'step1: Create loading UI aligned with dashboard visual system'
+      - 'step2: Create error UI messaging for generic, 401, and 429 contexts'
+      - 'step3: Ensure retry/login guidance is actionable for users'
+      - 'step4: Add tests for error/loading rendering behavior'
+    dependencies: [task310]
+    tests: [test464]
+    status: not-started
+
+  - id: task317
+    title: "Forward X-Forwarded-For for rate limiter compatibility and add migration TODO"
+    type: task
+    description: |
+      Ensure proxy path behavior preserves client IP forwarding for backend rate limiting and add
+      an explicit TODO for Redis/Upstash migration while keeping InMemoryRateLimiter for development.
+    files:
+      - web/next.config.ts
+      - server/middleware/rate_limit.py
+      - server/routes/api.py
+    steps:
+      - 'step1: Verify proxied requests include real-client X-Forwarded-For'
+      - 'step2: Ensure backend limiter consumes forwarded IP correctly in local development'
+      - 'step3: Add clear TODO note for Redis/Upstash migration path'
+      - 'step4: Add tests asserting forwarded IP signal reaches limiter path'
+    dependencies: [task315]
+    tests: [test465]
+    status: not-started
+
+  - id: task318
+    title: "Finalize Sub-phase 4 integration/hardening test suite"
+    type: task
+    description: |
+      Add or update end-to-end integration tests spanning proxy forwarding, CSRF pass-through,
+      auth guard redirects, /api/auth/me, security headers, and hardening/error-state behavior.
+    files:
+      - tests/test_run_preflight.py
+      - tests/test_registry.py
+      - tests/test_cli_registry_modes.py
+      - web/__tests__/auth-layout.test.tsx
+    steps:
+      - 'step1: Add integration tests required by Sub-phase 4 planning assertions'
+      - 'step2: Cover rewrite forwarding, CSRF pass-through, and auth guard redirect paths'
+      - 'step3: Cover /api/auth/me contract and security header expectations'
+      - 'step4: Run full manifest-linked tests and ensure deterministic pass'
+    dependencies: [task314, task316, task317]
+    tests: [test453, test454, test455, test456, test457, test458, test463, test464, test465, test466]
+    status: not-started
