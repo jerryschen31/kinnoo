@@ -8,6 +8,15 @@ export type AgentSummary = {
   description?: string;
 };
 
+export type AgentDetail = {
+  tenant_slug: string;
+  agent_slug: string;
+  versions?: unknown;
+  metadata?: unknown;
+  manifest?: unknown;
+  [key: string]: unknown;
+};
+
 type SearchAgentsParams = {
   query: string;
   showOnlyMine: boolean;
@@ -44,4 +53,11 @@ export async function searchAgents(params: SearchAgentsParams): Promise<AgentSum
   const url = queryString.length > 0 ? `/api/search?${queryString}` : "/api/search";
 
   return getJson<AgentSummary[]>(url);
+}
+
+export async function fetchAgentDetail(
+  tenantSlug: string,
+  agentSlug: string,
+): Promise<AgentDetail> {
+  return getJson<AgentDetail>(`/api/agents/${tenantSlug}/${agentSlug}`);
 }

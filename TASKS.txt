@@ -6157,7 +6157,7 @@ tasks:
       - 'step4: Render safe fallback states for loading/error in modal body'
     dependencies: [task302]
     tests: [test449, test450]
-    status: not-started
+    status: needs-review
 
   - id: task304
     title: "Add install command terminal block and copy action in search modal"
