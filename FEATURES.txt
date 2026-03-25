@@ -1855,3 +1855,59 @@ features:
     owner: techlead-agent
     dependencies: [feature50, feature51]
     status: not-started
+
+  # ------ Sub-phase 3: Registry Dashboard ------
+
+  - id: feature53
+    title: "Authenticated Registry Dashboard Shell, Tabs, and Data Views"
+    description: |
+      Build the authenticated /registry dashboard shell with a secondary navigation bar containing
+      My Agents, Search, and Logout actions, plus state-controlled My Agents and Search views.
+      Implement data loading for both views using existing backend endpoints through the frontend
+      proxy, and add framer-motion transitions when switching between tabs.
+    tasks: [task298, task299, task300, task301]
+    acceptance_criteria:
+      - id: AC1
+        description: "Route /registry renders a logged-in secondary nav bar with My Agents, Search, and Logout controls."
+      - id: AC2
+        description: "My Agents view renders a grid of the current user's published agents and is the default active view on /registry load."
+      - id: AC3
+        description: "Search view renders a search input and a 'Show only my agents' checkbox, and supports querying all public agents plus the user's own agents."
+      - id: AC4
+        description: "Switching between My Agents and Search uses framer-motion transitions and preserves a smooth UI state change."
+      - id: AC5
+        description: "Dashboard data fetching uses existing backend routes via frontend proxy paths (including /api/agents and /api/search) with session-cookie-compatible requests."
+      - id: AC6
+        description: "My Agents and Search views provide clear loading, empty, and error states without layout breakage."
+      - id: AC7
+        description: "Automated tests validate nav/tab rendering, default state, search controls, and tab transition behavior."
+    owner: techlead-agent
+    dependencies: [feature52]
+    status: not-started
+
+  - id: feature54
+    title: "Agent Cards, Manifest Modal, and Install Command Copy Flow"
+    description: |
+      Build reusable AgentCard and manifest modal workflows for dashboard results. Cards must
+      display the required metadata fields, with clickable Name opening a modal that shows full
+      manifest details loaded from the agent detail endpoint. For search results, include a
+      terminal-style install command and copy-to-clipboard action in the modal.
+    tasks: [task302, task303, task304, task305]
+    acceptance_criteria:
+      - id: AC1
+        description: "Agent cards in both My Agents and Search views render Tenant, Name, Version, Author, Framework, Size, and Description fields."
+      - id: AC2
+        description: "Agent Name is clickable and opens a modal/dialog overlay containing manifest details for that agent."
+      - id: AC3
+        description: "Modal includes an explicit close control (X) and supports closing reliably without losing dashboard context."
+      - id: AC4
+        description: "Manifest modal data is fetched from GET /api/agents/{tenant_slug}/{agent_slug} and renders version-history/metadata response safely."
+      - id: AC5
+        description: "Search-result modal includes a terminal-like install command graphic and copy-to-clipboard button for the install command."
+      - id: AC6
+        description: "Copy action provides visible success feedback and keeps install command text deterministic for user verification."
+      - id: AC7
+        description: "Automated component tests validate card field rendering, name click behavior, modal open/close, manifest content rendering, and install-command copy functionality."
+    owner: techlead-agent
+    dependencies: [feature53]
+    status: not-started
