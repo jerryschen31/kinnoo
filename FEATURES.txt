@@ -1797,3 +1797,61 @@ features:
     owner: techlead-agent
     dependencies: [feature49]
     status: not-started
+
+  # ------ Sub-phase 2: Landing Page and Secure Login UI ------
+
+  - id: feature51
+    title: "Landing Page Content, Terminal Preview, and Feature Grid"
+    description: |
+      Build the public landing page at / with the exact Phase 5 marketing copy and structure:
+      hero title, long-form sub-headline, terminal preview module with copy-to-clipboard button,
+      and a six-card Features section with hoverable cards. The implementation should reuse the
+      global theme and layout from Sub-phase 1, remain responsive, and preserve accessibility
+      semantics for headings, buttons, and regions.
+    tasks: [task290, task291, task292, task293]
+    acceptance_criteria:
+      - id: AC1
+        description: "Landing page (/) renders hero title exactly as: 'Package, publish, share your AI agents with the world'."
+      - id: AC2
+        description: "Landing page renders sub-headline exactly as defined in phase5-planning.md for Sub-phase 2."
+      - id: AC3
+        description: "A Terminal Preview component renders command text 'pip install kinnoo' and includes a copy button with success feedback state."
+      - id: AC4
+        description: "A Features section renders six hoverable cards with the exact header and subtext copy defined in Sub-phase 2 planning."
+      - id: AC5
+        description: "The landing page is responsive at 375px, 768px, and 1280px viewport widths without content overlap or clipping."
+      - id: AC6
+        description: "The page preserves accessibility basics: one h1, semantic sectioning, keyboard-focusable copy button, and visible focus styles."
+      - id: AC7
+        description: "Automated tests validate hero content, terminal preview command/copy button, and all six feature cards."
+    owner: techlead-agent
+    dependencies: [feature50]
+    status: not-started
+
+  - id: feature52
+    title: "Secure Login UI, Validation, and Session-Cookie Submission Flow"
+    description: |
+      Build the public login page at /login as a centered minimalist card with username (email)
+      and password fields, client-side validation, forgot-password stub link, and a loading state
+      on submit. Implement submission through the Next.js BFF proxy to FastAPI /login with
+      credentials included and no token persistence in localStorage/sessionStorage. On successful
+      authentication, route users to /registry while preserving server-issued session cookies.
+    tasks: [task294, task295, task296, task297]
+    acceptance_criteria:
+      - id: AC1
+        description: "Login page route /login renders a centered card with Username (E-mail) and Password fields plus a Login submit button."
+      - id: AC2
+        description: "Login page includes a 'Forgot Password' stub link that navigates to /forgot-password."
+      - id: AC3
+        description: "Client-side validation blocks submission on invalid/missing email or password and displays actionable inline errors."
+      - id: AC4
+        description: "Login button enters a loading/disabled state while the authentication request is in flight and recovers on completion."
+      - id: AC5
+        description: "Login submission uses the proxy path (/login) with credentials included and does not store auth tokens in localStorage or sessionStorage."
+      - id: AC6
+        description: "On successful auth response, the frontend navigates to /registry instead of FastAPI's default /agents redirect."
+      - id: AC7
+        description: "Automated tests verify required fields, validation behavior, loading state, and successful redirect handling for the login flow."
+    owner: techlead-agent
+    dependencies: [feature50, feature51]
+    status: not-started

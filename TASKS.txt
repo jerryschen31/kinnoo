@@ -5891,3 +5891,154 @@ tasks:
     dependencies: [task287, task286]
     tests: [test427, test428, test429, test430]
     status: needs-review
+
+  # ------ Sub-phase 2: Landing Page and Secure Login UI (feature51, feature52) ------
+
+  - id: task290
+    title: "Implement landing page hero section and responsive structure"
+    type: task
+    description: |
+      Build the landing page shell in web/app/(public)/page.tsx with an accessible semantic
+      structure and responsive spacing. Include the exact hero title and sub-headline copy from
+      Sub-phase 2 planning. Keep typography and spacing aligned with ThemeConfig tokens.
+    files:
+      - web/app/(public)/page.tsx
+    steps:
+      - 'step1: Add a hero section with exact title text and exact sub-headline text from planning'
+      - 'step2: Use semantic HTML landmarks and ensure only one h1 appears on the page'
+      - 'step3: Add responsive layout classes for mobile/tablet/desktop breakpoints'
+      - 'step4: Verify no clipping/overlap at 375px, 768px, and 1280px widths'
+    dependencies: [task287]
+    tests: [test432]
+    status: not-started
+
+  - id: task291
+    title: "Create Terminal Preview component with copy-to-clipboard"
+    type: task
+    description: |
+      Implement a reusable terminal preview block that displays the install command
+      "pip install kinnoo" with a copy button. Add transient success feedback (for example,
+      "Copied!") and keyboard accessibility for the copy action.
+    files:
+      - web/components/blocks/TerminalPreview.tsx
+      - web/app/(public)/page.tsx
+    steps:
+      - 'step1: Create TerminalPreview component rendering pip install kinnoo in a terminal-style block'
+      - 'step2: Add copy button that writes command text to navigator.clipboard'
+      - 'step3: Add short-lived copied state feedback and reset behavior'
+      - 'step4: Ensure button has accessible name and visible focus ring'
+    dependencies: [task290]
+    tests: [test433]
+    status: not-started
+
+  - id: task292
+    title: "Build six-card Features section with required copy"
+    type: task
+    description: |
+      Build the Features section under the hero and terminal preview using six hoverable cards.
+      Card headers and subtext must match Sub-phase 2 planning copy exactly. Use consistent
+      card styling with subtle hover motion while preserving readability and accessibility.
+    files:
+      - web/components/blocks/FeatureGrid.tsx
+      - web/app/(public)/page.tsx
+    steps:
+      - 'step1: Create FeatureGrid component that maps six cards from a typed data structure'
+      - 'step2: Add exact header and subtext copy for all six feature cards'
+      - 'step3: Apply hover styles/transitions and border treatments consistent with theme'
+      - 'step4: Ensure card content wraps safely on narrow screens without overflow'
+    dependencies: [task290]
+    tests: [test434, test435]
+    status: not-started
+
+  - id: task293
+    title: "Add landing page automated test coverage"
+    type: task
+    description: |
+      Add automated test coverage for the landing page hero, terminal preview, and features grid.
+      Tests should assert exact text content and existence of interactive elements.
+    files:
+      - web/__tests__/landing-page.test.tsx
+      - web/package.json
+    steps:
+      - 'step1: Add/update test setup for rendering app route components'
+      - 'step2: Assert hero title/sub-headline text and terminal preview command text'
+      - 'step3: Assert copy button exists and all six feature cards render with expected text'
+      - 'step4: Run test suite and ensure deterministic pass results'
+    dependencies: [task291, task292]
+    tests: [test432, test433, test434, test435, test436]
+    status: not-started
+
+  - id: task294
+    title: "Implement login page UI card and required fields"
+    type: task
+    description: |
+      Build a centered minimalist login card at /login with email and password fields, submit
+      button, and forgot-password stub link. Ensure layout and spacing work across mobile and
+      desktop breakpoints.
+    files:
+      - web/app/(public)/login/page.tsx
+    steps:
+      - 'step1: Create centered card container with Username (E-mail) and Password fields'
+      - 'step2: Add Login submit button and Forgot Password link to /forgot-password'
+      - 'step3: Add labels, ids, and aria attributes for accessible form controls'
+      - 'step4: Confirm visual alignment with dark theme styles'
+    dependencies: [task287]
+    tests: [test437]
+    status: not-started
+
+  - id: task295
+    title: "Add client-side validation and loading-state behavior"
+    type: task
+    description: |
+      Implement client-side validation for email format and required password before submit.
+      Add loading/disabled state to the Login button during network requests and display
+      non-sensitive inline error messaging for invalid credentials or request failures.
+    files:
+      - web/app/(public)/login/page.tsx
+      - web/lib/auth-validation.ts
+    steps:
+      - 'step1: Validate required email/password and email format before request dispatch'
+      - 'step2: Render inline validation errors near corresponding form fields'
+      - 'step3: Disable submit and show loading label/spinner while request is in flight'
+      - 'step4: Restore button state after success/failure and render safe error feedback'
+    dependencies: [task294]
+    tests: [test438, test439, test442]
+    status: not-started
+
+  - id: task296
+    title: "Implement secure login submission through BFF proxy"
+    type: task
+    description: |
+      Wire login submission to /login through the frontend proxy path with credentials included.
+      Do not persist auth tokens in localStorage or sessionStorage. Handle successful responses by
+      navigating to /registry while preserving browser-managed session cookies.
+    files:
+      - web/app/(public)/login/page.tsx
+      - web/lib/auth-client.ts
+      - web/next.config.ts
+    steps:
+      - 'step1: Submit credentials to /login using fetch with credentials include and safe defaults'
+      - 'step2: Ensure client code never writes auth tokens to localStorage or sessionStorage'
+      - 'step3: Handle success path by routing to /registry instead of /agents redirect target'
+      - 'step4: Ensure proxy/rewrite configuration forwards request and response headers as expected'
+    dependencies: [task294]
+    tests: [test440, test441]
+    status: not-started
+
+  - id: task297
+    title: "Add login page automated tests for validation and auth flow"
+    type: task
+    description: |
+      Add automated tests for login form rendering, validation, loading state, secure submission
+      settings, and success redirect behavior.
+    files:
+      - web/__tests__/login-page.test.tsx
+      - web/package.json
+    steps:
+      - 'step1: Test email/password field rendering and forgot-password link destination'
+      - 'step2: Test invalid input blocks submit and shows validation messages'
+      - 'step3: Test loading state toggles while mocked login request is pending'
+      - 'step4: Test fetch call includes credentials and success path navigates to /registry'
+    dependencies: [task295, task296]
+    tests: [test437, test438, test439, test440, test441, test442]
+    status: not-started

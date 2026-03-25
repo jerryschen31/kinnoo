@@ -7123,3 +7123,189 @@ tests:
     covers:
       - feature: feature50
         ac: AC6
+
+  # ------ Sub-phase 2: Landing Page and Secure Login UI (feature51, feature52) ------
+
+  - id: test432
+    title: "Landing page renders exact hero title and sub-headline"
+    type: integration
+    preconditions: web/app/(public)/page.tsx implemented with Sub-phase 2 copy
+    steps:
+      - step1: Render landing page route component
+      - step2: Assert hero title text matches exact planning copy
+      - step3: Assert sub-headline text matches exact planning copy
+    expected: Hero title and sub-headline are present verbatim
+    pass_criteria: Both exact strings are found in rendered output
+    automated: true
+    automation_path: web/__tests__/landing-page.test.tsx
+    covers:
+      - feature: feature51
+        ac: AC1
+      - feature: feature51
+        ac: AC2
+
+  - id: test433
+    title: "Terminal Preview renders install command and copy button"
+    type: integration
+    preconditions: TerminalPreview component is wired into landing page
+    steps:
+      - step1: Render landing page
+      - step2: Assert command text pip install kinnoo is visible
+      - step3: Assert copy button is present and keyboard-focusable
+      - step4: Simulate copy action and verify success feedback appears
+    expected: Terminal Preview behaves as interactive copy component
+    pass_criteria: Command text, button presence, and copied feedback are all verified
+    automated: true
+    automation_path: web/__tests__/landing-page.test.tsx
+    covers:
+      - feature: feature51
+        ac: AC3
+      - feature: feature51
+        ac: AC6
+
+  - id: test434
+    title: "Features section renders all six required cards with exact copy"
+    type: integration
+    preconditions: Feature grid component is implemented
+    steps:
+      - step1: Render landing page
+      - step2: Assert six feature card headers are present with exact text
+      - step3: Assert six card subtexts are present with exact text
+    expected: Features section includes six complete cards using planning copy
+    pass_criteria: All six headers and subtexts are present exactly once
+    automated: true
+    automation_path: web/__tests__/landing-page.test.tsx
+    covers:
+      - feature: feature51
+        ac: AC4
+
+  - id: test435
+    title: "Landing feature cards expose hover/focus affordances without overflow"
+    type: integration
+    preconditions: Feature cards include hover/focus classes and responsive styles
+    steps:
+      - step1: Render landing page at narrow and wide viewport snapshots
+      - step2: Verify card classnames include hover and focus-visible styling hooks
+      - step3: Verify cards do not overflow horizontally at mobile width
+    expected: Cards are interactive and layout remains stable on mobile
+    pass_criteria: Hover/focus classes exist and no horizontal overflow is observed
+    automated: true
+    automation_path: web/__tests__/landing-page.test.tsx
+    covers:
+      - feature: feature51
+        ac: AC5
+      - feature: feature51
+        ac: AC6
+
+  - id: test436
+    title: "Landing page test suite covers hero, terminal preview, and features"
+    type: integration
+    preconditions: landing-page test file exists
+    steps:
+      - step1: Execute landing-page test file
+      - step2: Verify all landing page assertions pass
+    expected: Landing page automated tests pass consistently
+    pass_criteria: Test run exits zero and validates hero, terminal, and features sections
+    automated: true
+    automation_path: web/__tests__/landing-page.test.tsx
+    covers:
+      - feature: feature51
+        ac: AC7
+
+  - id: test437
+    title: "Login page renders required fields and forgot-password link"
+    type: integration
+    preconditions: /login route implemented
+    steps:
+      - step1: Render login page route component
+      - step2: Assert email field, password field, and login button are present
+      - step3: Assert forgot-password link points to /forgot-password
+    expected: Login card includes all required controls and link target
+    pass_criteria: Required fields/buttons render and link href equals /forgot-password
+    automated: true
+    automation_path: web/__tests__/login-page.test.tsx
+    covers:
+      - feature: feature52
+        ac: AC1
+      - feature: feature52
+        ac: AC2
+
+  - id: test438
+    title: "Client-side validation blocks invalid login submissions"
+    type: integration
+    preconditions: Validation logic wired into login form
+    steps:
+      - step1: Submit form with empty fields
+      - step2: Submit form with invalid email format
+      - step3: Assert inline validation errors appear and request is not dispatched
+    expected: Invalid inputs are blocked with actionable messages
+    pass_criteria: Validation errors are displayed and mocked fetch call count remains zero
+    automated: true
+    automation_path: web/__tests__/login-page.test.tsx
+    covers:
+      - feature: feature52
+        ac: AC3
+
+  - id: test439
+    title: "Login button shows loading/disabled state during auth request"
+    type: integration
+    preconditions: Login submit handler supports pending state
+    steps:
+      - step1: Mock delayed successful auth response
+      - step2: Submit valid login form
+      - step3: Assert submit button is disabled and loading indicator/text is shown
+      - step4: Resolve request and assert button returns to normal state
+    expected: Button loading behavior is visible and recovers after request completion
+    pass_criteria: Pending state appears during request and clears afterward
+    automated: true
+    automation_path: web/__tests__/login-page.test.tsx
+    covers:
+      - feature: feature52
+        ac: AC4
+
+  - id: test440
+    title: "Login request uses credentials include and avoids token storage"
+    type: integration
+    preconditions: Login submit uses fetch-based request
+    steps:
+      - step1: Submit valid login form with mocked fetch
+      - step2: Assert fetch call targets /login and includes credentials option
+      - step3: Spy on localStorage/sessionStorage writes and assert none occur
+    expected: Auth request follows session-cookie model and avoids client token persistence
+    pass_criteria: fetch is called with credentials include and no storage setItem calls are made
+    automated: true
+    automation_path: web/__tests__/login-page.test.tsx
+    covers:
+      - feature: feature52
+        ac: AC5
+
+  - id: test441
+    title: "Successful login redirects to /registry"
+    type: integration
+    preconditions: Router navigation is mockable in login tests
+    steps:
+      - step1: Mock successful login response path
+      - step2: Submit valid credentials
+      - step3: Assert navigation is invoked with /registry
+    expected: Success flow redirects users to /registry
+    pass_criteria: Router push/replace receives /registry on successful auth
+    automated: true
+    automation_path: web/__tests__/login-page.test.tsx
+    covers:
+      - feature: feature52
+        ac: AC6
+
+  - id: test442
+    title: "Login suite verifies field presence, validation, loading, and redirect"
+    type: integration
+    preconditions: login-page test file exists
+    steps:
+      - step1: Run login-page automated tests
+      - step2: Verify all login-related assertions pass
+    expected: Login test suite passes with coverage for key flow requirements
+    pass_criteria: Test run exits zero and validates AC1-AC6 scenarios
+    automated: true
+    automation_path: web/__tests__/login-page.test.tsx
+    covers:
+      - feature: feature52
+        ac: AC7
