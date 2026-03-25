@@ -5984,7 +5984,7 @@ tasks:
       - 'step4: Confirm visual alignment with dark theme styles'
     dependencies: [task287]
     tests: [test437]
-    status: not-started
+    status: needs-review
 
   - id: task295
     title: "Add client-side validation and loading-state behavior"
