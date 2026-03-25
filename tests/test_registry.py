@@ -383,3 +383,105 @@ def test_feature55_auth_integration_suite(tmp_path: Path) -> None:
 	assert "localStorage" not in auth_client
 	assert "sessionStorage" not in auth_client
 	assert "redirect(\"/login\")" in auth_layout
+
+
+def test_feature56_auth_fallback_paths(tmp_path: Path) -> None:
+	from fastapi.testclient import TestClient
+
+	from server.app import create_app
+	from server.config import ServerConfig
+	from server.routes.publish import publish_archive
+
+	config = ServerConfig(
+		storage_backend="local",
+		local_storage_root=tmp_path / "storage",
+		s3_bucket="kinnoo-registry-dev",
+		s3_region="us-east-1",
+		s3_endpoint_url=None,
+		s3_access_key_id=None,
+		s3_secret_access_key=None,
+		presign_ttl_seconds=120,
+		max_upload_mb=5,
+	)
+	app = create_app(config=config)
+	client = TestClient(app, base_url="https://testserver")
+
+	user = app.state.user_store.create_user(
+		username="tenant-alpha@example.com",
+		plaintext_password="feature56-secret",
+		role="user",
+	)
+	session_record, session_cookie = app.state.session_service.create_session(user_id=user.id)
+	client.cookies.set(session_cookie.name, session_cookie.value)
+
+	publisher_token = app.state.token_service.issue_token(
+		subject="publisher-alpha",
+		tenant_slug="tenant-alpha",
+		scopes=["registry:read", "registry:publish"],
+	)
+	reader_token = app.state.token_service.issue_token(
+		subject="reader-alpha",
+		tenant_slug="tenant-alpha",
+		scopes=["registry:read"],
+	)
+
+	manifest = (
+		"name: feature56-agent\n"
+		"version: 1.0.0\n"
+		"visibility: private\n"
+		"entrypoint: run.py\n"
+		"runtime:\n"
+		"  language: python\n"
+		"  version: \">=3.10\"\n"
+		"  type: one-shot\n"
+		"dependencies: []\n"
+		"inputs:\n"
+		"  type: text\n"
+		"outputs:\n"
+		"  type: text\n"
+	)
+	buff = __import__("io").BytesIO()
+	with zipfile.ZipFile(buff, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
+		archive.writestr("kinnoo.yaml", manifest)
+		archive.writestr("run.py", "print('feature56')\n")
+	published = publish_archive(
+		authorization_header=f"Bearer {publisher_token}",
+		filename="feature56-agent.kno",
+		archive_bytes=buff.getvalue(),
+		token_service=app.state.token_service,
+		storage_backend=app.state.storage_backend,
+		metadata_manager=app.state.metadata_manager,
+		max_upload_mb=app.state.config.max_upload_mb,
+	)
+	assert published.status_code == 201
+
+	# Bearer token path works.
+	bearer_list = client.get("/api/agents", headers={"Authorization": f"Bearer {reader_token}"})
+	assert bearer_list.status_code == 200
+	bearer_detail = client.get(
+		"/api/agents/tenant-alpha/feature56-agent",
+		headers={"Authorization": f"Bearer {reader_token}"},
+	)
+	assert bearer_detail.status_code == 200
+	bearer_search = client.get(
+		"/api/search?q=feature56",
+		headers={"Authorization": f"Bearer {reader_token}"},
+	)
+	assert bearer_search.status_code == 200
+
+	# Session-cookie fallback path works without bearer token.
+	session_list = client.get("/api/agents")
+	assert session_list.status_code == 200
+	session_detail = client.get("/api/agents/tenant-alpha/feature56-agent")
+	assert session_detail.status_code == 200
+	session_search = client.get("/api/search?q=feature56")
+	assert session_search.status_code == 200
+
+	# Bearer-first semantics: malformed bearer should fail even with valid session cookie.
+	malformed = client.get("/api/agents", headers={"Authorization": "Bearer"})
+	assert malformed.status_code == 401
+
+	# No bearer and no session should be unauthorized.
+	missing_client = TestClient(app, base_url="https://testserver")
+	missing = missing_client.get("/api/agents")
+	assert missing.status_code == 401

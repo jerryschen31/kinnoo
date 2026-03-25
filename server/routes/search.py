@@ -29,6 +29,9 @@ def search_payload(
             authorization_header=authorization_header,
             token_service=token_service,
             required_scope="registry:read",
+            session_cookie_value=request.cookies.get(request.app.state.session_service.cookie_name),
+            session_service=request.app.state.session_service,
+            user_store=request.app.state.user_store,
         )
     except PermissionError as error:
         status = 403 if "403" in str(error) else 401
