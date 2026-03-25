@@ -7309,3 +7309,170 @@ tests:
     covers:
       - feature: feature52
         ac: AC7
+
+  # ------ Sub-phase 3: Registry Dashboard (feature53, feature54) ------
+
+  - id: test443
+    title: "Registry route renders secondary nav controls"
+    type: integration
+    preconditions: /registry dashboard shell implemented
+    steps:
+      - step1: Render /registry route component for authenticated context
+      - step2: Assert My Agents, Search, and Logout controls are visible
+    expected: Secondary nav is rendered with all required controls
+    pass_criteria: All three nav controls are present and interactive
+    automated: true
+    automation_path: web/__tests__/registry-dashboard.test.tsx
+    covers:
+      - feature: feature53
+        ac: AC1
+
+  - id: test444
+    title: "My Agents is default active dashboard view"
+    type: integration
+    preconditions: /registry route implemented with view state
+    steps:
+      - step1: Render /registry route on initial load
+      - step2: Assert My Agents view content is active by default
+    expected: My Agents is selected initially
+    pass_criteria: Default state indicates My Agents tab/view is active
+    automated: true
+    automation_path: web/__tests__/registry-dashboard.test.tsx
+    covers:
+      - feature: feature53
+        ac: AC2
+
+  - id: test445
+    title: "Search view renders query input and show-only-my-agents checkbox"
+    type: integration
+    preconditions: Search view UI implemented
+    steps:
+      - step1: Switch to Search tab/view
+      - step2: Assert search input is present
+      - step3: Assert Show only my agents checkbox is present
+    expected: Search controls are rendered and usable
+    pass_criteria: Input and checkbox exist and accept interaction
+    automated: true
+    automation_path: web/__tests__/registry-dashboard.test.tsx
+    covers:
+      - feature: feature53
+        ac: AC3
+
+  - id: test446
+    title: "Tab switching applies framer-motion-backed transition flow"
+    type: integration
+    preconditions: framer-motion transitions configured for tab content
+    steps:
+      - step1: Render dashboard and switch between My Agents and Search tabs
+      - step2: Assert view content updates correctly after each switch
+      - step3: Assert transition wrappers/state hooks are exercised in test flow
+    expected: Tab switching is smooth and state-consistent
+    pass_criteria: View transitions complete with correct content and no state corruption
+    automated: true
+    automation_path: web/__tests__/registry-dashboard.test.tsx
+    covers:
+      - feature: feature53
+        ac: AC4
+      - feature: feature53
+        ac: AC7
+
+  - id: test447
+    title: "Dashboard data loading uses proxy routes and handles load states"
+    type: integration
+    preconditions: registry client functions implemented
+    steps:
+      - step1: Mock /api/agents and /api/search responses via client layer
+      - step2: Assert loading and empty/error states render appropriately
+      - step3: Assert fetch targets use /api/agents and /api/search proxy paths
+    expected: Data layer and view states behave correctly for success/empty/error
+    pass_criteria: Proxy paths are used and loading/empty/error states are visible as expected
+    automated: true
+    automation_path: web/__tests__/registry-dashboard.test.tsx
+    covers:
+      - feature: feature53
+        ac: AC5
+      - feature: feature53
+        ac: AC6
+
+  - id: test448
+    title: "AgentCard renders required metadata fields and clickable name"
+    type: integration
+    preconditions: AgentCard component implemented
+    steps:
+      - step1: Render AgentCard with fixture agent metadata
+      - step2: Assert Tenant, Name, Version, Author, Framework, Size, Description are shown
+      - step3: Assert Name element is interactive/clickable
+    expected: Card renders full required metadata and click affordance
+    pass_criteria: All required fields appear and Name can be clicked
+    automated: true
+    automation_path: web/__tests__/agent-card-modal.test.tsx
+    covers:
+      - feature: feature54
+        ac: AC1
+
+  - id: test449
+    title: "Clicking agent name opens manifest modal and X closes it"
+    type: integration
+    preconditions: Modal workflow wired from AgentCard name click
+    steps:
+      - step1: Click Name field in AgentCard
+      - step2: Assert manifest modal/dialog opens
+      - step3: Click X close control and assert modal closes
+    expected: Modal open/close interaction works reliably
+    pass_criteria: Modal visibility toggles correctly and dashboard context remains intact
+    automated: true
+    automation_path: web/__tests__/agent-card-modal.test.tsx
+    covers:
+      - feature: feature54
+        ac: AC2
+      - feature: feature54
+        ac: AC3
+
+  - id: test450
+    title: "Manifest modal fetches and renders agent detail endpoint data"
+    type: integration
+    preconditions: Detail client call to /api/agents/{tenant_slug}/{agent_slug} implemented
+    steps:
+      - step1: Mock detail endpoint response with version-history metadata
+      - step2: Open modal for selected agent
+      - step3: Assert rendered content reflects fetched manifest/metadata
+    expected: Modal displays detail data from the required endpoint
+    pass_criteria: Correct endpoint is called and modal content matches fixture response
+    automated: true
+    automation_path: web/__tests__/agent-card-modal.test.tsx
+    covers:
+      - feature: feature54
+        ac: AC4
+
+  - id: test451
+    title: "Search modal includes install command block and copy behavior"
+    type: integration
+    preconditions: Install command terminal block added to search-result modal
+    steps:
+      - step1: Open modal from a Search result card
+      - step2: Assert terminal-style install command text is visible
+      - step3: Click copy button and assert copied feedback appears
+    expected: Install command copy workflow is available and functional
+    pass_criteria: Command text is deterministic, copy action executes, and feedback is shown
+    automated: true
+    automation_path: web/__tests__/agent-card-modal.test.tsx
+    covers:
+      - feature: feature54
+        ac: AC5
+      - feature: feature54
+        ac: AC6
+
+  - id: test452
+    title: "Agent card and modal suite validates full interaction flow"
+    type: integration
+    preconditions: agent-card-modal test file exists
+    steps:
+      - step1: Run agent-card-modal automated tests
+      - step2: Verify field rendering, modal open/close, manifest view, and copy assertions pass
+    expected: Component suite passes for complete card and modal behavior
+    pass_criteria: Test run exits zero with coverage across AC1-AC6 workflows
+    automated: true
+    automation_path: web/__tests__/agent-card-modal.test.tsx
+    covers:
+      - feature: feature54
+        ac: AC7
