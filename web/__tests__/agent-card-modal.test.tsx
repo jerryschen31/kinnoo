@@ -198,4 +198,99 @@ describe("AgentCard", () => {
       expect(screen.getByRole("button", { name: "Copied!" })).toBeTruthy();
     });
   });
+
+  it("covers full agent card and modal interaction flow", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(globalThis.navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+
+      if (url === "/api/agents") {
+        return Promise.resolve(
+          jsonResponse([
+            {
+              tenant_slug: "acme",
+              agent_slug: "calendar-helper",
+              version: "1.2.3",
+              author: "jerry",
+              framework: "langgraph",
+              size: 4096,
+              description: "calendar",
+            },
+          ]),
+        );
+      }
+
+      if (url.startsWith("/api/search")) {
+        return Promise.resolve(
+          jsonResponse([
+            {
+              tenant_slug: "acme",
+              agent_slug: "public-helper",
+              version: "2.0.0",
+              author: "jerry",
+              framework: "langgraph",
+              size: 2048,
+              description: "public",
+            },
+          ]),
+        );
+      }
+
+      if (url === "/api/agents/acme/calendar-helper") {
+        return Promise.resolve(
+          jsonResponse({
+            tenant_slug: "acme",
+            agent_slug: "calendar-helper",
+            versions: [{ version: "1.2.3" }],
+            manifest: { framework: "langgraph" },
+          }),
+        );
+      }
+
+      if (url === "/api/agents/acme/public-helper") {
+        return Promise.resolve(
+          jsonResponse({
+            tenant_slug: "acme",
+            agent_slug: "public-helper",
+            versions: [{ version: "2.0.0" }],
+            manifest: { framework: "langgraph" },
+          }),
+        );
+      }
+
+      return Promise.resolve(jsonResponse([]));
+    });
+
+    render(<RegistryPage />);
+
+    expect(await screen.findByText("Tenant")).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: "calendar-helper" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/"framework": "langgraph"/)).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Close manifest modal" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("heading", { name: "Agent Manifest" })).toBeNull();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    fireEvent.click(await screen.findByRole("button", { name: "public-helper" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("kinnoo install acme/public-helper@2.0.0")).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith("kinnoo install acme/public-helper@2.0.0");
+      expect(screen.getByRole("button", { name: "Copied!" })).toBeTruthy();
+    });
+  });
 });

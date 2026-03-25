@@ -6194,7 +6194,7 @@ tasks:
       - 'step4: Assert install command copy button copies and shows feedback'
     dependencies: [task303, task304]
     tests: [test448, test449, test450, test451, test452]
-    status: not-started
+    status: needs-review
 
   - id: task306
     title: "Polish landing and header visuals per brand updates"
