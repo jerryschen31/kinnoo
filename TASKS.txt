@@ -6391,7 +6391,7 @@ tasks:
       - 'step4: Add tests verifying header presence and production gating'
     dependencies: [task307]
     tests: [test463]
-    status: not-started
+    status: needs-review
 
   - id: task316
     title: "Implement (auth) loading.tsx and error.tsx for graceful failures"
