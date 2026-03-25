@@ -25,7 +25,7 @@ describe("Registry dashboard", () => {
 
     expect(screen.getByRole("button", { name: "My Agents" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Search" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Logout" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Logout" })).toBeTruthy();
   });
 
   it("defaults to My Agents view on initial render", async () => {

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import mimetypes
+import os
 import uuid
 from pathlib import Path
 from typing import Any, Optional
@@ -132,6 +133,7 @@ class RemoteRegistryClient:
         headers = {
             "Authorization": f"Bearer {self._token}",
             "Accept": "application/json",
+            "User-Agent": _http_user_agent(),
         }
         if extra_headers:
             headers.update(extra_headers)
@@ -147,7 +149,10 @@ class RemoteRegistryClient:
             with urllib_request.urlopen(request, timeout=self._timeout_seconds) as response:
                 raw_body = response.read().decode("utf-8")
         except urllib_error.HTTPError as error:
-            raise RemoteRegistryClientError(_message_for_http_error(error.code)) from None
+            response_body = _read_http_error_body(error)
+            raise RemoteRegistryClientError(
+                _message_for_http_error(error.code, response_body=response_body)
+            ) from None
         except urllib_error.URLError as error:
             reason = getattr(error, "reason", None)
             if isinstance(reason, ConnectionRefusedError):
@@ -173,20 +178,50 @@ class RemoteRegistryClient:
         return decoded
 
 
-def _message_for_http_error(status_code: int) -> str:
+def _message_for_http_error(status_code: int, *, response_body: str = "") -> str:
     if status_code == 401:
-        return "Remote registry unauthorized (401). Check your token and sign in again."
+        message = "Remote registry unauthorized (401). Check your token and sign in again."
+        return _append_response_body(message, response_body)
     if status_code == 403:
-        return "Remote registry forbidden (403). Your account lacks required permissions."
+        message = "Remote registry forbidden (403). Your account lacks required permissions."
+        return _append_response_body(message, response_body)
     if status_code == 404:
-        return "Remote registry resource not found (404). Check agent name/version and tenant."
+        message = "Remote registry resource not found (404). Check agent name/version and tenant."
+        return _append_response_body(message, response_body)
     if status_code == 409:
-        return "Remote registry conflict (409). This version may already be published."
+        message = "Remote registry conflict (409). This version may already be published."
+        return _append_response_body(message, response_body)
     if status_code == 429:
-        return "Remote registry rate limited (429). Retry after a short delay."
+        message = "Remote registry rate limited (429). Retry after a short delay."
+        return _append_response_body(message, response_body)
     if status_code >= 500:
-        return "Remote registry server error. Please try again later."
-    return f"Remote registry request failed with HTTP {status_code}."
+        message = "Remote registry server error. Please try again later."
+        return _append_response_body(message, response_body)
+    return _append_response_body(
+        f"Remote registry request failed with HTTP {status_code}.",
+        response_body,
+    )
+
+
+def _read_http_error_body(error: urllib_error.HTTPError) -> str:
+    try:
+        payload = error.read().decode("utf-8", errors="replace").strip()
+    except Exception:
+        return ""
+    return payload
+
+
+def _append_response_body(message: str, response_body: str) -> str:
+    if not response_body:
+        return message
+    return f"{message} Response: {response_body}"
+
+
+def _http_user_agent() -> str:
+    configured = (os.environ.get("KINNOO_HTTP_USER_AGENT") or "").strip()
+    if configured:
+        return configured
+    return "curl/8.7.1"
 
 
 def _encode_multipart_form_data(

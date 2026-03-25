@@ -240,6 +240,30 @@ Publish behavior:
 	- `Published checksum sidecar: <path>`
 	- `Published checksum sidecar: (none found at source)`
 
+## Project Publish Target Toggle
+
+`kinnoo publish` supports a project-level toggle in `kinnoo-config.txt` at your project root.
+
+Example:
+
+```txt
+publish_to_authenticated_registry=true
+```
+
+Behavior:
+
+- `true`: publish attempts authenticated remote registry publish by requesting a token from
+	`KINNOO_REGISTRY_URL/api/auth/token` using:
+	- `REGISTRY_ADMIN_EMAIL` (as username)
+	- `REGISTRY_ADMIN_PASSWORD`
+	- `KINNOO_TENANT_SLUG` (or `global` if unset)
+- `false`: publish keeps current behavior (local/scratch default unless `--remote` or registry URL config is already forcing remote).
+
+Notes:
+
+- `kinnoo publish --local` and `kinnoo publish --remote` still take precedence when explicitly provided.
+- If the toggle is `true`, ensure `KINNOO_REGISTRY_URL`, `REGISTRY_ADMIN_EMAIL`, and `REGISTRY_ADMIN_PASSWORD` are set.
+
 ## Pack Size Reporting & Warnings (Feature17)
 
 Feature17 adds package-footprint visibility across pack/inspect/list workflows.
