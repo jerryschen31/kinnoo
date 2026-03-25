@@ -6081,7 +6081,7 @@ tasks:
       - 'step4: Preserve search control state while switching views where appropriate'
     dependencies: [task298]
     tests: [test445, test446]
-    status: not-started
+    status: needs-review
 
   - id: task300
     title: "Integrate dashboard data fetching for my agents and search"
