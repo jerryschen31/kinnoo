@@ -6240,7 +6240,7 @@ tasks:
       - 'step4: Document env contract for BACKEND_URL in web/.env.example or project docs'
     dependencies: [task282]
     tests: [test453]
-    status: not-started
+    status: needs-review
 
   - id: task308
     title: "Implement CSRF pass-through for login and authenticated POST flows"
