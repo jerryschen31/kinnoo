@@ -30,7 +30,7 @@ const panelMotion = {
   initial: { opacity: 0, y: 8 },
   animate: { opacity: 1, y: 0 },
   exit: { opacity: 0, y: -6 },
-  transition: { duration: 0.16, ease: "easeOut" },
+  transition: { duration: 0.16, ease: "easeOut" as const },
 };
 
 export default function RegistryTabs({
