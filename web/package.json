@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run --environment jsdom",
+    "test:agent-card-modal": "vitest run --environment jsdom __tests__/agent-card-modal.test.tsx",
     "test:login": "vitest run --environment jsdom login-page.test.tsx",
     "test:landing": "vitest run __tests__/landing-page.test.tsx --environment jsdom",
     "test:registry": "vitest run --environment jsdom registry-dashboard.test.tsx"
