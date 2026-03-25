@@ -26,6 +26,7 @@ export default function RegistryPage() {
     error: null,
     agents: [],
   });
+  const [selectedAgentName, setSelectedAgentName] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -98,7 +99,9 @@ export default function RegistryPage() {
         onShowOnlyMyAgentsChange={setShowOnlyMyAgents}
         myAgentsState={myAgentsState}
         searchState={searchState}
+        onAgentNameClick={(agent) => setSelectedAgentName(agent.agent_slug)}
       />
+      {selectedAgentName ? <p className="sr-only">Selected agent: {selectedAgentName}</p> : null}
     </div>
   );
 }

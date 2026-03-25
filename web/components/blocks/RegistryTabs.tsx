@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 
+import AgentCard from "./AgentCard";
 import type { AgentSummary } from "../../lib/registry-client";
 
 type RegistryView = "my-agents" | "search";
@@ -22,6 +23,7 @@ type RegistryTabsProps = {
     error: string | null;
     agents: AgentSummary[];
   };
+  onAgentNameClick: (agent: AgentSummary) => void;
 };
 
 const panelMotion = {
@@ -39,6 +41,7 @@ export default function RegistryTabs({
   onShowOnlyMyAgentsChange,
   myAgentsState,
   searchState,
+  onAgentNameClick,
 }: RegistryTabsProps) {
   return (
     <AnimatePresence mode="wait" initial={false}>
@@ -60,13 +63,15 @@ export default function RegistryTabs({
           ) : myAgentsState.agents.length === 0 ? (
             <p className="mt-2 text-sm text-white/70">No agents published yet.</p>
           ) : (
-            <ul className="mt-3 space-y-2 text-sm text-white/85">
+            <div className="mt-3 grid grid-cols-1 gap-3">
               {myAgentsState.agents.map((agent) => (
-                <li key={`${agent.tenant_slug}/${agent.agent_slug}/${agent.version}`}>
-                  {agent.tenant_slug}/{agent.agent_slug} v{agent.version}
-                </li>
+                <AgentCard
+                  key={`${agent.tenant_slug}/${agent.agent_slug}/${agent.version}`}
+                  agent={agent}
+                  onNameClick={onAgentNameClick}
+                />
               ))}
-            </ul>
+            </div>
           )}
         </motion.section>
       ) : (
@@ -110,13 +115,15 @@ export default function RegistryTabs({
             ) : searchState.agents.length === 0 ? (
               <p className="text-sm text-white/70">No matching agents found.</p>
             ) : (
-              <ul className="space-y-2 text-sm text-white/85">
+              <div className="grid grid-cols-1 gap-3">
                 {searchState.agents.map((agent) => (
-                  <li key={`${agent.tenant_slug}/${agent.agent_slug}/${agent.version}`}>
-                    {agent.tenant_slug}/{agent.agent_slug} v{agent.version}
-                  </li>
+                  <AgentCard
+                    key={`${agent.tenant_slug}/${agent.agent_slug}/${agent.version}`}
+                    agent={agent}
+                    onNameClick={onAgentNameClick}
+                  />
                 ))}
-              </ul>
+              </div>
             )}
           </div>
         </motion.section>
