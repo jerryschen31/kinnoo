@@ -650,3 +650,51 @@ def test_feature57_forwarded_ip_rate_limit_path() -> None:
 		encoding="utf-8"
 	)
 	assert "Redis/Upstash" in middleware_source
+
+
+def test_feature57_hardening_non_regression_suite(tmp_path: Path) -> None:
+	from fastapi.testclient import TestClient
+
+	from server.app import create_app
+	from server.config import ServerConfig
+
+	web_root = Path(__file__).resolve().parents[1] / "web"
+	next_config = (web_root / "next.config.ts").read_text(encoding="utf-8")
+	web_middleware = (web_root / "middleware.ts").read_text(encoding="utf-8")
+	auth_layout_test = (web_root / "__tests__" / "auth-layout.test.tsx").read_text(encoding="utf-8")
+
+	# Env contract expectations for hardening.
+	assert "process.env.BACKEND_URL" in next_config
+	assert "process.env.NODE_ENV" in web_middleware
+
+	# Header hardening and auth UX coverage should remain present.
+	assert "Content-Security-Policy" in web_middleware
+	assert "Strict-Transport-Security" in web_middleware
+	assert "Loading your registry" in auth_layout_test
+	assert "Too many requests" in auth_layout_test
+
+	# Backend core auth flow should still be operational post-hardening.
+	config = ServerConfig(
+		storage_backend="local",
+		local_storage_root=tmp_path / "storage",
+		s3_bucket="kinnoo-registry-dev",
+		s3_region="us-east-1",
+		s3_endpoint_url=None,
+		s3_access_key_id=None,
+		s3_secret_access_key=None,
+		presign_ttl_seconds=120,
+		max_upload_mb=5,
+	)
+	app = create_app(config=config)
+	client = TestClient(app, base_url="https://testserver")
+
+	health = client.get("/health")
+	assert health.status_code == 200
+	assert health.json()["status"] == "ok"
+
+	login_page = client.get("/login")
+	assert login_page.status_code == 200
+	assert "csrf_token" in login_page.text
+
+	auth_me_missing = client.get("/api/auth/me")
+	assert auth_me_missing.status_code == 401

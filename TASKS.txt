@@ -6449,4 +6449,4 @@ tasks:
       - 'step4: Run full manifest-linked tests and ensure deterministic pass'
     dependencies: [task314, task316, task317]
     tests: [test453, test454, test455, test456, test457, test458, test463, test464, test465, test466]
-    status: not-started
+    status: needs-review
