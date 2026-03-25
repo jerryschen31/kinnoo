@@ -103,4 +103,17 @@ describe("Landing page", () => {
       expect(card.className).toContain("overflow-hidden");
     });
   });
+
+  it("covers hero, terminal preview, and features in one render pass", () => {
+    render(<LandingPage />);
+
+    expect(
+      screen.getByRole("heading", {
+        level: 1,
+        name: "Package, publish, share your AI agents with the world",
+      }),
+    ).toBeTruthy();
+    expect(screen.getByText("pip install kinnoo")).toBeTruthy();
+    expect(screen.getByTestId("feature-grid")).toBeTruthy();
+  });
 });
