@@ -28,7 +28,7 @@ describe("Registry dashboard", () => {
     expect(screen.getByRole("link", { name: "Logout" })).toBeTruthy();
   });
 
-  it("defaults to My Agents view on initial render", () => {
+  it("defaults to My Agents view on initial render", async () => {
     render(<RegistryPage />);
 
     const myAgentsButton = screen.getByRole("button", { name: "My Agents" });
@@ -36,7 +36,9 @@ describe("Registry dashboard", () => {
     expect(screen.getByRole("heading", { name: "My Agents" })).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
-    expect(screen.getByRole("heading", { name: "Search" })).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Search" })).toBeTruthy();
+    });
   });
 
   it("renders search query input and show-only-my-agents checkbox", async () => {

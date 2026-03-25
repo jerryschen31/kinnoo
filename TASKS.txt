@@ -6118,7 +6118,7 @@ tasks:
       - 'step4: Test tab switching updates rendered view content'
     dependencies: [task299, task300]
     tests: [test443, test444, test445, test446, test447]
-    status: not-started
+    status: needs-review
 
   - id: task302
     title: "Build reusable AgentCard with required metadata fields"
