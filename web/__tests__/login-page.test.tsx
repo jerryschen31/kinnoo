@@ -134,4 +134,25 @@ describe("Login page", () => {
       expect(pushMock).toHaveBeenCalledWith("/registry");
     });
   });
+
+  it("shows safe inline submit error when backend rejects credentials", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 401 }));
+
+    render(<LoginPage />);
+
+    fireEvent.change(screen.getByLabelText("Username (E-mail)"), {
+      target: { value: "dev@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText("Password"), {
+      target: { value: "bad-password" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Login" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Unable to sign in. Check your credentials and try again."),
+      ).toBeTruthy();
+    });
+    expect(pushMock).not.toHaveBeenCalled();
+  });
 });

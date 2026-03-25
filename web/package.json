@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:login": "vitest run --environment jsdom login-page.test.tsx"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
