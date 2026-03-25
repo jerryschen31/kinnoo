@@ -23,7 +23,7 @@ type RegistryTabsProps = {
     error: string | null;
     agents: AgentSummary[];
   };
-  onAgentNameClick: (agent: AgentSummary) => void;
+  onAgentNameClick: (agent: AgentSummary, source: "my-agents" | "search") => void;
 };
 
 const panelMotion = {
@@ -68,7 +68,7 @@ export default function RegistryTabs({
                 <AgentCard
                   key={`${agent.tenant_slug}/${agent.agent_slug}/${agent.version}`}
                   agent={agent}
-                  onNameClick={onAgentNameClick}
+                  onNameClick={(selectedAgent) => onAgentNameClick(selectedAgent, "my-agents")}
                 />
               ))}
             </div>
@@ -120,7 +120,7 @@ export default function RegistryTabs({
                   <AgentCard
                     key={`${agent.tenant_slug}/${agent.agent_slug}/${agent.version}`}
                     agent={agent}
-                    onNameClick={onAgentNameClick}
+                    onNameClick={(selectedAgent) => onAgentNameClick(selectedAgent, "search")}
                   />
                 ))}
               </div>

@@ -6176,7 +6176,7 @@ tasks:
       - 'step4: Ensure keyboard-accessible interaction and focus styles'
     dependencies: [task303]
     tests: [test451]
-    status: not-started
+    status: needs-review
 
   - id: task305
     title: "Add automated tests for AgentCard and modal copy workflow"

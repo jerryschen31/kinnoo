@@ -28,6 +28,7 @@ export default function RegistryPage() {
     agents: [],
   });
   const [selectedAgent, setSelectedAgent] = useState<AgentSummary | null>(null);
+  const [selectedSource, setSelectedSource] = useState<"my-agents" | "search" | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,10 +101,20 @@ export default function RegistryPage() {
         onShowOnlyMyAgentsChange={setShowOnlyMyAgents}
         myAgentsState={myAgentsState}
         searchState={searchState}
-        onAgentNameClick={(agent) => setSelectedAgent(agent)}
+        onAgentNameClick={(agent, source) => {
+          setSelectedAgent(agent);
+          setSelectedSource(source);
+        }}
       />
 
-      <AgentManifestModal selectedAgent={selectedAgent} onClose={() => setSelectedAgent(null)} />
+      <AgentManifestModal
+        selectedAgent={selectedAgent}
+        selectedSource={selectedSource}
+        onClose={() => {
+          setSelectedAgent(null);
+          setSelectedSource(null);
+        }}
+      />
     </div>
   );
 }
