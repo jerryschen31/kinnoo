@@ -1,10 +1,13 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
 
+import { loginWithPassword } from "../../../lib/auth-client";
 import { validateLoginFields } from "../../../lib/auth-validation";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
@@ -25,15 +28,11 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch("/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email: email.trim(), password }),
-      });
+      const response = await loginWithPassword({ email, password });
 
-      if (!response.ok) {
+      if (response.ok) {
+        router.push("/registry");
+      } else {
         setSubmitError("Unable to sign in. Check your credentials and try again.");
       }
     } catch {
