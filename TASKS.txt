@@ -5699,3 +5699,195 @@ tasks:
     dependencies: [task66, task67, task68, task69, task148]
     tests: [test414, test415, test416, test417, test418, test419, test420]
     status: needs-review
+
+  # ======================================================================
+  # Phase 5 (V5): Web Frontend and Registry Frontend + Backend
+  # ======================================================================
+
+  # ------ Sub-phase 1: Frontend Setup (feature49, feature50) ------
+
+  - id: task282
+    title: "Initialize Next.js 15+ project in web/ directory"
+    type: task
+    description: |
+      Run `npx create-next-app@latest web --typescript --tailwind --app --eslint --src-dir=false`
+      (or equivalent flags for Next.js 15+) to scaffold the project in the top-level web/ directory.
+      Ensure App Router mode is selected, TypeScript is enabled, and Tailwind CSS v3 is configured.
+      Verify the project uses npm as the package manager. Add an .nvmrc file specifying Node 20.
+      Update the root .gitignore to include web/node_modules/ and web/.next/.
+    files:
+      - web/package.json
+      - web/tsconfig.json
+      - web/tailwind.config.ts
+      - web/next.config.ts
+      - web/.nvmrc
+      - .gitignore
+    steps:
+      - 'step1: Run create-next-app to scaffold web/ with TypeScript, Tailwind, App Router, and ESLint'
+      - 'step2: Verify package.json has next 15+, react 19+, typescript, tailwindcss as dependencies'
+      - 'step3: Create .nvmrc with contents "20" in web/'
+      - 'step4: Update root .gitignore to exclude web/node_modules/ and web/.next/'
+      - 'step5: Run npm run dev and npm run build to confirm zero errors on Node 20+'
+    dependencies: []
+    tests: [test421, test422]
+    status: not-started
+
+  - id: task283
+    title: "Configure Tailwind with dark-mode design tokens"
+    type: task
+    description: |
+      Extend the Tailwind config in web/tailwind.config.ts to include the project's custom color
+      palette, font family, border radius, and spacing tokens. Set darkMode to 'class' or use
+      CSS media. Define custom colors: bg-kinnoo (#000000), text-kinnoo (#F9FAFB),
+      accent-kinnoo (#3B82F6), surface-kinnoo (#111111), card-border (rgba(255,255,255,0.1)).
+      Set font family to ["Avenir Next", "Segoe UI", "sans-serif"]. Define border-radius tokens:
+      card (8px), button (4px). Update globals.css with base dark styles (bg black, text #F9FAFB).
+    files:
+      - web/tailwind.config.ts
+      - web/app/globals.css
+    steps:
+      - 'step1: Extend tailwind.config.ts theme with custom colors, fontFamily, borderRadius'
+      - 'step2: Update globals.css to set body background to #000000 and text to #F9FAFB'
+      - 'step3: Add utility classes for glassmorphism (backdrop-blur) and 1px card borders'
+      - 'step4: Verify Tailwind compiles with the extended theme by running npm run build'
+    dependencies: [task282]
+    tests: [test423]
+    status: not-started
+
+  - id: task284
+    title: "Create directory structure and placeholder route pages"
+    type: task
+    description: |
+      Create the full directory structure inside web/ as specified in the planning doc.
+      Create route group directories: app/(public)/ and app/(auth)/ with placeholder page.tsx
+      files for each route. Create components/ui/, components/blocks/, lib/, and __tests__/
+      directories. Each placeholder page should render a minimal identifying element
+      (e.g., <h1>Landing Page</h1>) so routes are navigable during development.
+      Create app/(auth)/layout.tsx with a placeholder that will later contain the session guard.
+    files:
+      - web/app/(public)/page.tsx
+      - web/app/(public)/login/page.tsx
+      - web/app/(public)/signup/page.tsx
+      - web/app/(auth)/layout.tsx
+      - web/app/(auth)/registry/page.tsx
+      - web/components/ui/.gitkeep
+      - web/components/blocks/.gitkeep
+      - web/lib/.gitkeep
+      - web/__tests__/.gitkeep
+    steps:
+      - 'step1: Create app/(public)/ directory with page.tsx (landing page placeholder)'
+      - 'step2: Create app/(public)/login/page.tsx and app/(public)/signup/page.tsx placeholders'
+      - 'step3: Create app/(auth)/layout.tsx with children pass-through (session guard placeholder comment)'
+      - 'step4: Create app/(auth)/registry/page.tsx placeholder'
+      - 'step5: Create components/ui/, components/blocks/, lib/, __tests__/ directories'
+      - 'step6: Verify all routes are accessible via npm run dev: /, /login, /signup, /registry'
+    dependencies: [task282]
+    tests: [test424, test425]
+    status: not-started
+
+  - id: task285
+    title: "Install Radix UI, Lucide, and framer-motion dependencies"
+    type: task
+    description: |
+      Install the core UI dependencies: @radix-ui/react-dialog, @radix-ui/react-navigation-menu,
+      @radix-ui/react-slot (Radix primitives for sheet/drawer, menus, and composable buttons),
+      lucide-react (icons), and framer-motion (animations). Verify all packages are in
+      package.json and that npm run build still succeeds after installation.
+    files:
+      - web/package.json
+    steps:
+      - 'step1: Run npm install @radix-ui/react-dialog @radix-ui/react-navigation-menu @radix-ui/react-slot lucide-react framer-motion'
+      - 'step2: Verify all five packages appear in package.json dependencies'
+      - 'step3: Run npm run build to confirm no dependency conflicts or type errors'
+    dependencies: [task282]
+    tests: [test426]
+    status: not-started
+
+  - id: task286
+    title: "Create ThemeConfig design token module"
+    type: task
+    description: |
+      Create lib/theme.ts exporting a frozen ThemeConfig object containing all design tokens:
+      colors (bg: '#000000', text: '#F9FAFB', accent: '#3B82F6', surface: '#111111',
+      cardBorder: 'rgba(255,255,255,0.1)'), radii (card: '8px', button: '4px'),
+      typography (h1: '48px', h2: '32px', h3: '24px', body: '16px'),
+      spacing (unit: 4, scale: [8, 12, 16, 24, 32, 48]),
+      fonts (primary: '"Avenir Next", "Segoe UI", sans-serif').
+      Export TypeScript types for the config so components can reference tokens with type safety.
+    files:
+      - web/lib/theme.ts
+    steps:
+      - 'step1: Create lib/theme.ts with ThemeConfig type definition'
+      - 'step2: Export a const themeConfig object matching all design token specifications'
+      - 'step3: Freeze the object (Object.freeze or as const) to prevent mutation'
+      - 'step4: Verify TypeScript compiles the module without errors'
+    dependencies: [task283]
+    tests: [test427, test428]
+    status: not-started
+
+  - id: task287
+    title: "Build MainLayout header with hamburger menu and auth buttons"
+    type: task
+    description: |
+      Create components/blocks/MainLayout.tsx rendered in app/layout.tsx. The header contains:
+      - Top-left: A Lucide Menu icon button that opens a Radix UI Dialog (used as a sheet/drawer)
+        containing three navigation links: GitHub repo, Docs, Report an Issue.
+      - Top-right: Two ghost-style buttons — "Login" (links to /login) and "Sign Up" (links to
+        /signup). Buttons use Radix UI Slot for composability.
+      The header should have a fixed/sticky position, glassmorphism effect (backdrop-blur-md),
+      and 1px bottom border (border-white/10). Use the ThemeConfig tokens for all style values.
+    files:
+      - web/components/blocks/MainLayout.tsx
+      - web/app/layout.tsx
+    steps:
+      - 'step1: Create MainLayout.tsx with a <header> containing the hamburger icon and auth buttons'
+      - 'step2: Implement the hamburger menu using Radix UI Dialog as a slide-out sheet with three links'
+      - 'step3: Add Login and Sign Up ghost buttons with Next.js Link to /login and /signup'
+      - 'step4: Apply glassmorphism (backdrop-blur-md, bg-black/50) and border-b border-white/10'
+      - 'step5: Wire MainLayout into app/layout.tsx wrapping {children}'
+      - 'step6: Verify hamburger opens/closes and buttons navigate correctly in dev server'
+    dependencies: [task284, task286]
+    tests: [test429, test430]
+    status: not-started
+
+  - id: task288
+    title: "Make layout responsive for mobile viewports"
+    type: task
+    description: |
+      Ensure the MainLayout header works on mobile: hamburger icon and Login/Sign Up buttons
+      must not overflow or overlap on viewports < 768px. Use Tailwind responsive utilities.
+      The hamburger sheet should take full width on mobile. Test on sm (640px) and md (768px)
+      breakpoints. On very narrow screens (< 400px), the Sign Up button text can collapse to
+      an icon-only variant or smaller font.
+    files:
+      - web/components/blocks/MainLayout.tsx
+    steps:
+      - 'step1: Add responsive Tailwind classes to header flex layout'
+      - 'step2: Ensure sheet drawer is full-width on mobile (w-full sm:w-80)'
+      - 'step3: Add text-sm or icon fallback for buttons on very narrow viewports'
+      - 'step4: Visually verify at 375px, 640px, 768px, and 1024px widths'
+    dependencies: [task287]
+    tests: [test431]
+    status: not-started
+
+  - id: task289
+    title: "Write smoke tests for layout and design tokens"
+    type: task
+    description: |
+      Write component smoke tests in web/__tests__/ using React Testing Library (or Vitest
+      with @testing-library/react) that verify: (1) the root layout renders the hamburger menu
+      icon, (2) the Login and Sign Up buttons are present, (3) the ThemeConfig exports contain
+      the specified design tokens. Install @testing-library/react, @testing-library/jest-dom,
+      and vitest (or jest) as dev dependencies if not already present.
+    files:
+      - web/__tests__/layout.test.tsx
+      - web/__tests__/theme.test.ts
+      - web/package.json
+    steps:
+      - 'step1: Install testing dev dependencies (@testing-library/react, @testing-library/jest-dom, vitest or jest)'
+      - 'step2: Write layout.test.tsx testing that MainLayout renders hamburger button and Login/Sign Up links'
+      - 'step3: Write theme.test.ts testing that themeConfig exports correct color, radii, and typography values'
+      - 'step4: Run tests and verify all pass'
+    dependencies: [task287, task286]
+    tests: [test427, test428, test429, test430]
+    status: not-started

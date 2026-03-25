@@ -6923,3 +6923,203 @@ tests:
     covers:
       - feature: feature48
         ac: AC4
+
+  # ======================================================================
+  # Phase 5 (V5): Web Frontend and Registry Frontend + Backend
+  # ======================================================================
+
+  # ------ Sub-phase 1: Frontend Setup (feature49, feature50) ------
+
+  - id: test421
+    title: "Next.js project scaffolded in web/ with TypeScript and App Router"
+    type: integration
+    preconditions: Node.js 20+ installed, workspace root accessible
+    steps:
+      - step1: Verify web/package.json exists and contains "next" >= 15 in dependencies
+      - step2: Verify web/tsconfig.json exists
+      - step3: Verify web/tailwind.config.ts exists
+      - step4: Verify web/.nvmrc contains "20"
+    expected: All required scaffold files exist with correct content
+    pass_criteria: web/package.json has next>=15, typescript, react>=19, tailwindcss; tsconfig.json and tailwind.config.ts exist; .nvmrc specifies Node 20
+    automated: false
+    automation_path: null
+    covers:
+      - feature: feature49
+        ac: AC1
+
+  - id: test422
+    title: "npm run dev starts and npm run build succeeds without errors"
+    type: integration
+    preconditions: web/ project initialized, Node.js 20+, npm install completed
+    steps:
+      - step1: Run `cd web && npm install && npm run build` and verify exit code 0
+      - step2: Run `cd web && npm run dev` and verify dev server starts on localhost:3000
+      - step3: Terminate dev server
+    expected: Build completes cleanly and dev server starts without errors
+    pass_criteria: npm run build exits 0 with no TypeScript or compilation errors; dev server binds to port 3000
+    automated: false
+    automation_path: null
+    covers:
+      - feature: feature49
+        ac: AC5
+      - feature: feature49
+        ac: AC6
+
+  - id: test423
+    title: "Tailwind config includes dark-mode design tokens and global styles"
+    type: unit
+    preconditions: web/ project with Tailwind configured
+    steps:
+      - step1: "Read web/tailwind.config.ts and verify custom colors (bg-kinnoo=#000000, text-kinnoo=#F9FAFB, accent-kinnoo=#3B82F6, surface-kinnoo=#111111)"
+      - step2: "Verify fontFamily includes Avenir Next, Segoe UI, sans-serif"
+      - step3: "Read web/app/globals.css and verify body has background #000000 and text #F9FAFB"
+    expected: All design tokens are defined in Tailwind config and global CSS applies dark theme
+    pass_criteria: Custom colors, font family, and border-radius tokens are present in tailwind.config.ts; globals.css sets base dark styles
+    automated: false
+    automation_path: null
+    covers:
+      - feature: feature49
+        ac: AC2
+      - feature: feature49
+        ac: AC7
+
+  - id: test424
+    title: "Directory structure matches specification with route groups"
+    type: integration
+    preconditions: web/ project initialized
+    steps:
+      - step1: Verify app/(public)/page.tsx exists
+      - step2: Verify app/(public)/login/page.tsx exists
+      - step3: Verify app/(public)/signup/page.tsx exists
+      - step4: Verify app/(auth)/layout.tsx exists
+      - step5: Verify app/(auth)/registry/page.tsx exists
+      - step6: Verify components/ui/, components/blocks/, lib/, and __tests__/ directories exist
+    expected: All specified directories and placeholder files exist
+    pass_criteria: Every file and directory listed in AC3 is present
+    automated: false
+    automation_path: null
+    covers:
+      - feature: feature49
+        ac: AC3
+
+  - id: test425
+    title: "All placeholder pages are navigable in dev server"
+    type: integration
+    preconditions: web/ project running with npm run dev
+    steps:
+      - step1: Navigate to http://localhost:3000/ and verify a page renders
+      - step2: Navigate to http://localhost:3000/login and verify a page renders
+      - step3: Navigate to http://localhost:3000/signup and verify a page renders
+      - step4: Navigate to http://localhost:3000/registry and verify a page renders
+    expected: All four routes return 200 and render their placeholder content
+    pass_criteria: No 404 errors; each route returns an HTML page with identifiable content
+    automated: false
+    automation_path: null
+    covers:
+      - feature: feature49
+        ac: AC5
+
+  - id: test426
+    title: "Core UI dependencies installed in package.json"
+    type: unit
+    preconditions: web/ project initialized
+    steps:
+      - step1: Read web/package.json and verify @radix-ui/react-dialog is in dependencies
+      - step2: Verify @radix-ui/react-navigation-menu is in dependencies
+      - step3: Verify @radix-ui/react-slot is in dependencies
+      - step4: Verify lucide-react is in dependencies
+      - step5: Verify framer-motion is in dependencies
+    expected: All five packages are listed in package.json dependencies
+    pass_criteria: All five dependency names are present as keys in the "dependencies" object
+    automated: false
+    automation_path: null
+    covers:
+      - feature: feature49
+        ac: AC4
+
+  - id: test427
+    title: "ThemeConfig exports correct color tokens"
+    type: unit
+    preconditions: web/lib/theme.ts exists
+    steps:
+      - step1: Import themeConfig from lib/theme.ts
+      - step2: "Assert themeConfig.colors.bg equals #000000"
+      - step3: "Assert themeConfig.colors.text equals #F9FAFB"
+      - step4: "Assert themeConfig.colors.accent equals #3B82F6"
+      - step5: "Assert themeConfig.colors.surface equals #111111"
+      - step6: "Assert themeConfig.colors.cardBorder equals rgba(255,255,255,0.1)"
+    expected: All color tokens match the design specification
+    pass_criteria: Every color value matches exactly
+    automated: true
+    automation_path: web/__tests__/theme.test.ts
+    covers:
+      - feature: feature50
+        ac: AC1
+
+  - id: test428
+    title: "ThemeConfig exports correct radii, typography, and spacing tokens"
+    type: unit
+    preconditions: web/lib/theme.ts exists
+    steps:
+      - step1: Import themeConfig from lib/theme.ts
+      - step2: "Assert themeConfig.radii.card equals 8px and themeConfig.radii.button equals 4px"
+      - step3: "Assert themeConfig.typography.h1 equals 48px, h2 equals 32px, h3 equals 24px, body equals 16px"
+      - step4: "Assert themeConfig.spacing.unit equals 4"
+      - step5: "Assert themeConfig.fonts.primary includes Avenir Next"
+    expected: All design tokens match specification
+    pass_criteria: Radii, typography sizes, spacing unit, and font family match exactly
+    automated: true
+    automation_path: web/__tests__/theme.test.ts
+    covers:
+      - feature: feature50
+        ac: AC1
+
+  - id: test429
+    title: "Root layout renders hamburger menu icon and Login + Sign Up buttons"
+    type: integration
+    preconditions: web/ project built, MainLayout component exists
+    steps:
+      - step1: Render the root layout with React Testing Library
+      - step2: Assert a button with accessible name or aria-label for hamburger/menu is present
+      - step3: Assert a link or button with text "Login" is present
+      - step4: Assert a link or button with text "Sign Up" is present
+    expected: Hamburger menu icon and both auth buttons render in the header
+    pass_criteria: All three interactive elements are found in the rendered DOM
+    automated: true
+    automation_path: web/__tests__/layout.test.tsx
+    covers:
+      - feature: feature50
+        ac: AC2
+
+  - id: test430
+    title: "Hamburger menu opens a sheet with GitHub, Docs, and Report links"
+    type: integration
+    preconditions: MainLayout rendered, Radix UI Dialog installed
+    steps:
+      - step1: Render MainLayout with React Testing Library
+      - step2: Click the hamburger menu button
+      - step3: Assert a dialog/sheet opens containing links with text "GitHub", "Docs", "Report an Issue"
+    expected: Sheet drawer opens with all three navigation links
+    pass_criteria: After clicking hamburger, all three link texts are visible in the DOM
+    automated: true
+    automation_path: web/__tests__/layout.test.tsx
+    covers:
+      - feature: feature50
+        ac: AC3
+
+  - id: test431
+    title: "Header layout is responsive and usable on mobile viewports"
+    type: integration
+    preconditions: MainLayout rendered
+    steps:
+      - step1: Set viewport to 375px width
+      - step2: Verify hamburger icon and Login/Sign Up buttons are visible and not overlapping
+      - step3: Set viewport to 768px width
+      - step4: Verify header elements are properly laid out
+    expected: Header remains usable at mobile and tablet breakpoints
+    pass_criteria: No overflow, no overlapping elements at 375px and 768px widths
+    automated: false
+    automation_path: null
+    covers:
+      - feature: feature50
+        ac: AC6
