@@ -6137,7 +6137,7 @@ tasks:
       - 'step4: Reuse component in both My Agents and Search result grids'
     dependencies: [task300]
     tests: [test448]
-    status: not-started
+    status: needs-review
 
   - id: task303
     title: "Implement manifest modal with detail endpoint integration"
