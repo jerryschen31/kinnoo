@@ -6697,3 +6697,30 @@ tasks:
     dependencies: [task322, task326, task329]
     tests: [test474, test481, test482, test483, test484]
     status: not-started
+
+  - id: task331
+    title: "Registry manifest tabs, install terminal block, and blank-search UX fix"
+    type: task
+    description: |
+      Update the registry modal and search UX so clicking an agent name opens a modal with
+      two manifest tabs (Registry Manifest default + Agent Manifest from kinnoo.yaml),
+      includes a terminal-like install command block with copy action, and avoids showing
+      a search failure error when the search query is blank.
+    files:
+      - web/components/blocks/AgentManifestModal.tsx
+      - web/app/(auth)/registry/page.tsx
+      - web/lib/registry-client.ts
+      - server/routes/agents.py
+      - notes/tasks/task331-smoke-tests.md
+      - web/__tests__/agent-card-modal.test.tsx
+      - web/__tests__/registry-dashboard.test.tsx
+      - server/tests/test_agents_routes.py
+    steps:
+      - "step1: Add dual-tab manifest rendering in modal with Registry Manifest as default"
+      - "step2: Add Agent Manifest tab populated from agent detail payload kinnoo.yaml data"
+      - "step3: Add terminal-style install command block with clipboard copy feedback"
+      - "step4: Prevent blank-query search state from showing the Unable to search error"
+      - "step5: Run and document smoke tests in notes/tasks/task331-smoke-tests.md"
+    dependencies: []
+    tests: []
+    status: needs-review

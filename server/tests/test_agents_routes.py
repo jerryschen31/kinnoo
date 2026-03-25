@@ -127,6 +127,8 @@ def test_list_and_detail(tmp_path):
     assert detail_body["tenant_slug"] == "tenant-alpha"
     assert detail_body["agent_slug"] == "agent-alpha-a"
     assert tuple(version["version"] for version in detail_body["versions"]) == ("1.0.0",)
+    assert detail_body["latest_version"] == "1.0.0"
+    assert detail_body["agent_manifest"]["name"] == "agent-alpha-a"
 
     forbidden = client.get(
         "/api/agents/tenant-beta/agent-beta-private",
