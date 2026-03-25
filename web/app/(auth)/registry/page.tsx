@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import RegistryNav from "../../../components/blocks/RegistryNav";
 import AgentManifestModal from "../../../components/blocks/AgentManifestModal";
 import RegistryTabs from "../../../components/blocks/RegistryTabs";
+import { logoutWithSessionCsrf } from "../../../lib/auth-client";
 import { fetchMyAgents, searchAgents, type AgentSummary } from "../../../lib/registry-client";
 
 type RegistryDataState = {
@@ -27,6 +28,7 @@ export default function RegistryPage() {
     error: null,
     agents: [],
   });
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<AgentSummary | null>(null);
   const [selectedSource, setSelectedSource] = useState<"my-agents" | "search" | null>(null);
 
@@ -92,7 +94,23 @@ export default function RegistryPage() {
 
   return (
     <div className="space-y-6">
-      <RegistryNav activeView={activeView} onSelectView={setActiveView} />
+      <RegistryNav
+        activeView={activeView}
+        onSelectView={setActiveView}
+        logoutLabel={isLoggingOut ? "Logging out..." : "Logout"}
+        onLogout={async () => {
+          if (isLoggingOut) {
+            return;
+          }
+
+          setIsLoggingOut(true);
+          try {
+            await logoutWithSessionCsrf();
+          } finally {
+            window.location.assign("/login");
+          }
+        }}
+      />
       <RegistryTabs
         activeView={activeView}
         searchQuery={searchQuery}

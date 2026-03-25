@@ -6259,7 +6259,7 @@ tasks:
       - 'step4: Validate behavior against backend validate_post_request expectations'
     dependencies: [task307, task296]
     tests: [test454, test455]
-    status: not-started
+    status: needs-review
 
   - id: task309
     title: "Add backend /api/auth/me endpoint for session validation"
