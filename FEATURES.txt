@@ -1730,3 +1730,70 @@ features:
     owner: techlead-agent
     dependencies: [feature11, feature24]
     status: completed
+
+  # ======================================================================
+  # Phase 5 (V5): Web Frontend and Registry Frontend + Backend
+  # ======================================================================
+
+  # ------ Sub-phase 1: Frontend Setup ------
+
+  - id: feature49
+    title: "Next.js Project Initialization & Directory Structure"
+    description: |
+      Initialize a Next.js 15+ (App Router) project with TypeScript and Tailwind CSS v3 in a
+      top-level web/ directory, separate from the Python codebase and server/ directory. Set up
+      the foundational directory structure using Next.js route groups: (public)/ for unauthenticated
+      pages (landing, login, signup) and (auth)/ for session-guarded pages (registry). Install core
+      dependencies: Radix UI primitives, Lucide React icons, and framer-motion. Configure Tailwind
+      with the project's dark-mode design tokens. Create placeholder page.tsx files for each route
+      so the routing skeleton is navigable. Use npm as package manager. Require Node.js 20+.
+    tasks: [task282, task283, task284, task285]
+    acceptance_criteria:
+      - id: AC1
+        description: "A web/ directory exists at the project root containing a working Next.js 15+ App Router project initialized with TypeScript."
+      - id: AC2
+        description: "Tailwind CSS v3 is installed and configured with the project's dark-mode color scheme (background #000000, text #F9FAFB, accent #3B82F6, surface #111111)."
+      - id: AC3
+        description: "The directory structure includes: app/(public)/page.tsx, app/(public)/login/page.tsx, app/(public)/signup/page.tsx, app/(auth)/layout.tsx, app/(auth)/registry/page.tsx, app/layout.tsx, components/ui/, components/blocks/, lib/, and __tests__/."
+      - id: AC4
+        description: "Radix UI primitives (@radix-ui/react-dialog, @radix-ui/react-navigation-menu, @radix-ui/react-slot), lucide-react, and framer-motion are listed in package.json dependencies."
+      - id: AC5
+        description: "npm run dev starts the dev server without errors on Node.js 20+ and all placeholder pages are accessible at /, /login, /signup, and /registry."
+      - id: AC6
+        description: "npm run build completes without TypeScript or build errors."
+      - id: AC7
+        description: "Font family is set to 'Avenir Next', 'Segoe UI', sans-serif in the global CSS/Tailwind config."
+    owner: techlead-agent
+    dependencies: []
+    status: not-started
+
+  - id: feature50
+    title: "MainLayout, Design System & Global Theme"
+    description: |
+      Build the root MainLayout component rendered in app/layout.tsx with the project's visual
+      identity. Includes: a top-left hamburger menu (Lucide Menu icon) that opens a Radix UI
+      sheet/drawer with three links (GitHub, Docs, Report an Issue); a top-right area with
+      ghost-style "Login" and "Sign Up" buttons. Define a global ThemeConfig object in lib/theme.ts
+      exporting all design tokens (colors, radii, spacing, typography) so future components
+      reference a single source of truth. Apply OpenClaw-inspired aesthetics: 1px borders
+      (border-white/10), glassmorphism (backdrop-blur), dark background. Ensure the layout is
+      responsive — desktop-first but usable on mobile browsers.
+    tasks: [task286, task287, task288, task289]
+    acceptance_criteria:
+      - id: AC1
+        description: "A ThemeConfig object is exported from lib/theme.ts containing: colors (bg, text, accent, surface, cardBorder), radii (card: 8px, button: 4px), typography (h1: 48px, h2: 32px, h3: 24px, body: 16px), and spacing unit (4px)."
+      - id: AC2
+        description: "The root layout (app/layout.tsx) renders a header with a hamburger menu icon (top-left) and Login + Sign Up buttons (top-right) on every page."
+      - id: AC3
+        description: "Clicking the hamburger icon opens a Radix UI sheet/drawer containing three links: GitHub repo, Docs, and Report an Issue."
+      - id: AC4
+        description: "The Login button navigates to /login. The Sign Up button navigates to /signup."
+      - id: AC5
+        description: "The layout uses the dark theme by default: background #000000, text #F9FAFB, 1px borders with border-white/10, and backdrop-blur glassmorphism on the header."
+      - id: AC6
+        description: "The header layout is responsive: on mobile viewports (< 768px), the hamburger and buttons remain accessible and do not overflow or overlap."
+      - id: AC7
+        description: "Smoke tests pass: root layout renders hamburger menu and Login button, ThemeConfig design tokens match specification."
+    owner: techlead-agent
+    dependencies: [feature49]
+    status: not-started
