@@ -1765,7 +1765,7 @@ features:
         description: "Font family is set to 'Avenir Next', 'Segoe UI', sans-serif in the global CSS/Tailwind config."
     owner: techlead-agent
     dependencies: []
-    status: not-started
+    status: needs-review
 
   - id: feature50
     title: "MainLayout, Design System & Global Theme"
