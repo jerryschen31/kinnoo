@@ -21,7 +21,8 @@ scripts/archive/
 *.pem
 .registry*
 .specstory/*.json
+kinnoo-config.txt
 
 # Next.js web frontend
 web/node_modules/
-web/.next/
+web/.next*
