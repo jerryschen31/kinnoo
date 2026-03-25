@@ -6334,7 +6334,7 @@ tasks:
       - 'step4: Add tests ensuring no secret values are logged or returned'
     dependencies: [task311]
     tests: [test460]
-    status: not-started
+    status: needs-review
 
   - id: task313
     title: "Ensure local kinnoo publish writes to tenant path in mocked S3"

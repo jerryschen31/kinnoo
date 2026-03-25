@@ -8,6 +8,7 @@ from typing import Any
 
 from server.auth.session import SessionService
 from server.auth.token import SigningKey, TokenService
+from server.bootstrap import bootstrap_admin_from_env
 from server.config import ServerConfig
 from server.metadata.manager import MetadataManager
 from server.middleware import InMemoryRateLimiter, PathRateLimitMiddleware, RateLimitRule
@@ -37,6 +38,11 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
     resolved_config = config or ServerConfig.from_env()
     storage_backend = build_storage_backend_from_config(resolved_config)
     user_store = UserStore(resolved_config.local_storage_root / "auth")
+    bootstrap_admin_from_env(
+        store_root=resolved_config.local_storage_root / "auth",
+        admin_email=resolved_config.registry_admin_email,
+        admin_password=resolved_config.registry_admin_password,
+    )
     session_service = SessionService(
         root=resolved_config.local_storage_root / "auth",
         signing_secret=os.getenv("REGISTRY_SESSION_SIGNING_SECRET", "dev-session-secret-change-me"),
