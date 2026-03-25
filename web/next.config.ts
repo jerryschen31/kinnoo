@@ -16,6 +16,7 @@ const backendUrl = normalizeBackendUrl(
 
 // Proxy rewrites preserve inbound forwarding headers.
 // Backend relies on X-Forwarded-For and X-Request-Id when present.
+// X-Forwarded-For is consumed by backend rate limiting for client identity.
 
 const nextConfig: NextConfig = {
   async rewrites() {
