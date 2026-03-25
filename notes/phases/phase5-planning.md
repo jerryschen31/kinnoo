@@ -68,7 +68,7 @@ Role: Senior UI/UX Engineer.
 Task: Build the Landing Page and the Login Page.
 
 Landing Page (/):
-- Create a hero section with a clean, high-contrast title: "Package and share your AI agents"
+- Create a hero section with a clean, high-contrast title: "Package, publish, share your AI agents with the world"
 - Add a sub-headline: "Take any AI agent — a LangGraph chatbot, a PydanticAI workflow, an OpenClaw daemon — and give it a portable, version-controlled, signed package that anyone can install and run"
 - Feature a "Terminal Preview" component showing "pip install kinnoo" as the one-line command to install kinnoo CLI. Terminal Preview should just be a minimal code block with a copy button for copying to clipboard.
 - Below the hero section and Terminal component, add a "Features" section that shows six hoverable boxes with the following header + subtext:
