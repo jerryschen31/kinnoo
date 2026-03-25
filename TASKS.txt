@@ -5910,7 +5910,7 @@ tasks:
       - 'step4: Verify no clipping/overlap at 375px, 768px, and 1280px widths'
     dependencies: [task287]
     tests: [test432]
-    status: not-started
+    status: needs-review
 
   - id: task291
     title: "Create Terminal Preview component with copy-to-clipboard"
@@ -5929,7 +5929,7 @@ tasks:
       - 'step4: Ensure button has accessible name and visible focus ring'
     dependencies: [task290]
     tests: [test433]
-    status: not-started
+    status: needs-review
 
   - id: task292
     title: "Build six-card Features section with required copy"
@@ -5948,7 +5948,7 @@ tasks:
       - 'step4: Ensure card content wraps safely on narrow screens without overflow'
     dependencies: [task290]
     tests: [test434, test435]
-    status: not-started
+    status: needs-review
 
   - id: task293
     title: "Add landing page automated test coverage"
@@ -5966,7 +5966,7 @@ tasks:
       - 'step4: Run test suite and ensure deterministic pass results'
     dependencies: [task291, task292]
     tests: [test432, test433, test434, test435, test436]
-    status: not-started
+    status: needs-review
 
   - id: task294
     title: "Implement login page UI card and required fields"
