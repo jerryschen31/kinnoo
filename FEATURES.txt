@@ -1911,3 +1911,82 @@ features:
     owner: techlead-agent
     dependencies: [feature53]
     status: not-started
+
+  # ------ Sub-phase 4: Integration, CSRF & Production Hardening ------
+
+  - id: feature55
+    title: "BFF Proxy Integration, CSRF Pass-through, and Auth Route Guard"
+    description: |
+      Finalize frontend-to-backend integration between Next.js and FastAPI by configuring
+      environment-driven API rewrites, preserving cookies and forwarded headers, and ensuring
+      both login and session CSRF flows work through the BFF. Add frontend auth guard behavior
+      in app/(auth)/layout.tsx using a backend session-validation endpoint and redirect unauthenticated
+      requests to /login.
+    tasks: [task307, task308, task309, task310]
+    acceptance_criteria:
+      - id: AC1
+        description: "next.config.ts rewrites /api/* to BACKEND_URL (default http://localhost:8000) while preserving cookie flow and forwarding X-Forwarded-For and X-Request-Id headers."
+      - id: AC2
+        description: "Login CSRF form submission is forwarded end-to-end through the BFF to FastAPI without stripping required fields/cookies."
+      - id: AC3
+        description: "Session CSRF for authenticated POST requests is supported by forwarding kinnoo_csrf token as form field or X-CSRF-Token header."
+      - id: AC4
+        description: "Backend exposes GET /api/auth/me that validates session cookie and returns { user_id, tenant_slug, username } on success, 401 on failure."
+      - id: AC5
+        description: "app/(auth)/layout.tsx performs auth check via /api/auth/me and redirects to /login on 401 responses."
+      - id: AC6
+        description: "Integration tests verify rewrite forwarding, CSRF pass-through behavior, auth-guard redirect, and /api/auth/me response contract."
+      - id: AC7
+        description: "All integration behavior remains compatible with existing session-cookie flow and does not require token storage in browser storage."
+    owner: techlead-agent
+    dependencies: [feature54]
+    status: not-started
+
+  - id: feature56
+    title: "API Auth Compatibility, Local Registry Admin Bootstrap, and Mocked S3 Publish Path"
+    description: |
+      Improve backend auth compatibility and local operability by allowing JSON API routes to
+      authenticate via session cookie fallback when Bearer token is absent, creating/ensuring a
+      local admin account via environment variables, and validating local kinnoo publish behavior
+      writes artifacts into the expected tenant folder structure in mocked S3 storage.
+    tasks: [task311, task312, task313, task314]
+    acceptance_criteria:
+      - id: AC1
+        description: "authenticate_request() supports Bearer token first, then session-cookie fallback for /api/agents, /api/agents/{tenant_slug}/{agent_slug}, and /api/search."
+      - id: AC2
+        description: "Local admin bootstrap path reads REGISTRY_ADMIN_EMAIL and REGISTRY_ADMIN_PASSWORD from environment and ensures an admin-capable account exists without exposing secret values."
+      - id: AC3
+        description: "Local kinnoo publish writes to correct tenant-scoped location in mocked S3 storage so local end-to-end publish/discover flows are testable."
+      - id: AC4
+        description: "Storage path conventions remain aligned with existing prefix-scoped access logic in server/storage/ and are easy to re-point to real S3 later."
+      - id: AC5
+        description: "Tests verify session-cookie fallback auth on JSON routes, admin bootstrap behavior (without secret disclosure), and local publish tenant-path correctness."
+      - id: AC6
+        description: "No changes introduce credential/token leakage in logs, responses, or test artifacts."
+    owner: techlead-agent
+    dependencies: [feature55]
+    status: not-started
+
+  - id: feature57
+    title: "Production Hardening: Security Headers, Error States, and Rate-Limiter Proxy Signals"
+    description: |
+      Add production-hardening controls across Next.js and backend integration, including strict
+      security headers via middleware, robust loading/error route states for authenticated pages,
+      rate-limiter proxy header support, and environment-driven defaults for deployment hygiene.
+    tasks: [task315, task316, task317, task318]
+    acceptance_criteria:
+      - id: AC1
+        description: "Next.js middleware sets X-Frame-Options, X-Content-Type-Options, Referrer-Policy, restrictive CSP default-src 'self', and HSTS in production."
+      - id: AC2
+        description: "(auth) route group includes loading.tsx and error.tsx handling API downtime and 401/429 UX with user-friendly messaging."
+      - id: AC3
+        description: "Proxy path forwards X-Forwarded-For so development rate limiting keys on real client IP; includes TODO note for Redis/Upstash migration."
+      - id: AC4
+        description: "Frontend env contract is explicit for BACKEND_URL and NODE_ENV, and no AWS credentials are introduced in Next.js layer."
+      - id: AC5
+        description: "Integration tests validate security headers, auth error-state rendering, and forwarded IP header behavior for proxied requests."
+      - id: AC6
+        description: "Hardening changes preserve existing dashboard/login functionality without behavioral regressions."
+    owner: techlead-agent
+    dependencies: [feature55, feature56]
+    status: not-started

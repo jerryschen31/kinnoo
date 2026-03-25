@@ -7476,3 +7476,238 @@ tests:
     covers:
       - feature: feature54
         ac: AC7
+
+  # ------ Sub-phase 4: Integration, CSRF & Production Hardening (feature55, feature56, feature57) ------
+
+  - id: test453
+    title: "Proxy rewrite forwards /api requests to BACKEND_URL with expected forwarding metadata"
+    type: integration
+    preconditions: next.config.ts rewrite configured with BACKEND_URL default
+    steps:
+      - step1: Issue frontend request to /api endpoint in test environment
+      - step2: Verify backend destination resolution uses BACKEND_URL
+      - step3: Verify forwarding metadata includes request-id/client-ip signal path
+    expected: Rewrite forwards correctly to backend with required metadata
+    pass_criteria: Backend receives request via configured destination and forwarding headers are present
+    automated: true
+    automation_path: tests/test_cli_registry_modes.py::test_feature55_proxy_rewrite_forwarding
+    covers:
+      - feature: feature55
+        ac: AC1
+
+  - id: test454
+    title: "Login CSRF flow passes through BFF without stripped fields or cookies"
+    type: integration
+    preconditions: login form submission path routed through BFF
+    steps:
+      - step1: Submit login payload with CSRF nonce via frontend path
+      - step2: Verify backend receives required CSRF form field
+      - step3: Verify session cookies are preserved on response path
+    expected: Login CSRF validation remains functional through proxy
+    pass_criteria: Backend validation succeeds when nonce is valid and cookie flow is intact
+    automated: true
+    automation_path: tests/test_registry.py::test_feature55_login_csrf_passthrough
+    covers:
+      - feature: feature55
+        ac: AC2
+
+  - id: test455
+    title: "Session CSRF token is forwarded on authenticated POST requests"
+    type: integration
+    preconditions: frontend reads kinnoo_csrf and forwards token
+    steps:
+      - step1: Trigger authenticated POST action via frontend path
+      - step2: Verify request includes CSRF token header or form field
+      - step3: Verify backend validate_post_request accepts forwarded token
+    expected: Session CSRF enforcement works through BFF
+    pass_criteria: Authenticated POST succeeds with valid CSRF forwarding and fails without it
+    automated: true
+    automation_path: tests/test_registry.py::test_feature55_session_csrf_forwarding
+    covers:
+      - feature: feature55
+        ac: AC3
+
+  - id: test456
+    title: "GET /api/auth/me returns identity payload or 401"
+    type: integration
+    preconditions: /api/auth/me endpoint implemented
+    steps:
+      - step1: Call /api/auth/me with valid session cookie
+      - step2: Assert response includes user_id, tenant_slug, username
+      - step3: Call /api/auth/me with invalid/missing session and assert 401
+    expected: Endpoint provides stable auth-check contract
+    pass_criteria: Valid session returns expected payload; invalid session returns 401
+    automated: true
+    automation_path: tests/test_registry.py::test_feature55_api_auth_me_contract
+    covers:
+      - feature: feature55
+        ac: AC4
+
+  - id: test457
+    title: "(auth) layout redirects to /login on /api/auth/me 401"
+    type: integration
+    preconditions: app/(auth)/layout.tsx auth guard implemented
+    steps:
+      - step1: Mock /api/auth/me response as 401 in auth-layout test
+      - step2: Render auth layout
+      - step3: Assert redirect target is /login
+    expected: Unauthenticated users are redirected out of protected routes
+    pass_criteria: Redirect occurs to /login for 401 auth-check responses
+    automated: true
+    automation_path: web/__tests__/auth-layout.test.tsx
+    covers:
+      - feature: feature55
+        ac: AC5
+
+  - id: test458
+    title: "Auth integration suite validates rewrite+csrf+guard without browser token storage"
+    type: integration
+    preconditions: integration tests for auth flows are implemented
+    steps:
+      - step1: Run Sub-phase 4 auth integration suite
+      - step2: Assert rewrite, csrf, auth-me, and guard tests pass
+      - step3: Assert no localStorage/sessionStorage token persistence is used
+    expected: End-to-end auth integration remains session-cookie based
+    pass_criteria: Suite exits zero and confirms no browser storage token requirement
+    automated: true
+    automation_path: tests/test_registry.py::test_feature55_auth_integration_suite
+    covers:
+      - feature: feature55
+        ac: AC6
+      - feature: feature55
+        ac: AC7
+
+  - id: test459
+    title: "JSON API routes support Bearer-first then session-cookie fallback auth"
+    type: integration
+    preconditions: authenticate_request middleware updated
+    steps:
+      - step1: Call JSON API route with valid Bearer token and no session cookie
+      - step2: Call JSON API route with no Bearer token and valid session cookie
+      - step3: Call route with neither and assert unauthorized
+    expected: Middleware accepts Bearer first, then cookie fallback
+    pass_criteria: First two calls authorized; third call rejected with auth failure
+    automated: true
+    automation_path: tests/test_registry.py::test_feature56_auth_fallback_paths
+    covers:
+      - feature: feature56
+        ac: AC1
+
+  - id: test460
+    title: "Admin bootstrap creates/ensures admin user from env without secret disclosure"
+    type: integration
+    preconditions: admin bootstrap path reads REGISTRY_ADMIN_EMAIL and REGISTRY_ADMIN_PASSWORD
+    steps:
+      - step1: Start bootstrap in test mode with admin env vars set
+      - step2: Verify admin account is created/ensured idempotently
+      - step3: Verify logs/output do not include raw secret values
+    expected: Admin bootstrap is functional and secret-safe
+    pass_criteria: Admin exists after bootstrap and no secret disclosure is observed
+    automated: true
+    automation_path: tests/test_registry.py::test_feature56_admin_bootstrap_secret_safe
+    covers:
+      - feature: feature56
+        ac: AC2
+      - feature: feature56
+        ac: AC6
+
+  - id: test461
+    title: "Local kinnoo publish writes to tenant-scoped mocked S3 path"
+    type: integration
+    preconditions: local mocked S3 storage and publish flow available
+    steps:
+      - step1: Publish fixture agent via local kinnoo publish flow
+      - step2: Inspect mocked S3 storage path layout
+      - step3: Verify artifact appears under correct tenant prefix
+    expected: Local publish is routed to correct tenant folder structure
+    pass_criteria: Published archive/metadata exists under expected tenant-scoped path
+    automated: true
+    automation_path: tests/test_cli_registry.py::test_feature56_local_publish_tenant_path
+    covers:
+      - feature: feature56
+        ac: AC3
+      - feature: feature56
+        ac: AC4
+
+  - id: test462
+    title: "Feature56 integration suite validates auth fallback, admin bootstrap, and publish path"
+    type: integration
+    preconditions: feature56 test set implemented
+    steps:
+      - step1: Run feature56 integration tests
+      - step2: Verify fallback auth, admin bootstrap, and tenant publish assertions pass
+    expected: Core local-operability behaviors pass together
+    pass_criteria: Suite exits zero and validates AC1-AC4 behavior comprehensively
+    automated: true
+    automation_path: tests/test_registry.py::test_feature56_integration_suite
+    covers:
+      - feature: feature56
+        ac: AC5
+
+  - id: test463
+    title: "Next.js middleware sets required security headers with production HSTS gating"
+    type: integration
+    preconditions: web/middleware.ts security headers configured
+    steps:
+      - step1: Request frontend page in test mode
+      - step2: Assert X-Frame-Options, X-Content-Type-Options, Referrer-Policy, CSP headers
+      - step3: Assert HSTS behavior is production-gated
+    expected: Security headers are consistently applied
+    pass_criteria: Required headers present and HSTS only active in production scenario
+    automated: true
+    automation_path: web/__tests__/security-headers.test.ts
+    covers:
+      - feature: feature57
+        ac: AC1
+
+  - id: test464
+    title: "(auth) loading and error routes render user-friendly 401/429/downtime states"
+    type: integration
+    preconditions: app/(auth)/loading.tsx and error.tsx implemented
+    steps:
+      - step1: Render loading state for protected route
+      - step2: Trigger representative error states (401, 429, generic downtime)
+      - step3: Assert user-facing messages and actions are present
+    expected: Protected-route failure UX is graceful and actionable
+    pass_criteria: Loading/error UIs render correctly with appropriate guidance
+    automated: true
+    automation_path: web/__tests__/auth-layout.test.tsx
+    covers:
+      - feature: feature57
+        ac: AC2
+
+  - id: test465
+    title: "Forwarded client IP reaches rate limiter path with migration TODO preserved"
+    type: integration
+    preconditions: X-Forwarded-For forwarding and limiter path integration implemented
+    steps:
+      - step1: Send proxied request with client IP forwarding context
+      - step2: Verify backend limiter keys from forwarded client IP signal
+      - step3: Verify Redis/Upstash migration TODO is present in code comments
+    expected: Rate-limiter compatibility works in development proxy setup
+    pass_criteria: Forwarded IP is consumed and migration TODO remains documented
+    automated: true
+    automation_path: tests/test_registry.py::test_feature57_forwarded_ip_rate_limit_path
+    covers:
+      - feature: feature57
+        ac: AC3
+
+  - id: test466
+    title: "Sub-phase 4 hardening suite validates env contract and non-regression behavior"
+    type: integration
+    preconditions: full Sub-phase 4 test set implemented
+    steps:
+      - step1: Run full Sub-phase 4 integration/hardening suite
+      - step2: Verify BACKEND_URL and NODE_ENV expectations are respected
+      - step3: Verify dashboard/login core flows still function after hardening changes
+    expected: Hardening implementation is complete without regressions
+    pass_criteria: Suite exits zero and confirms env contract + functional non-regression
+    automated: true
+    automation_path: tests/test_registry.py::test_feature57_hardening_non_regression_suite
+    covers:
+      - feature: feature57
+        ac: AC4
+      - feature: feature57
+        ac: AC5
+      - feature: feature57
+        ac: AC6
