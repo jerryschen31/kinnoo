@@ -74,6 +74,17 @@ def test_feature49_task284_directory_structure() -> None:
         assert path.exists(), f"Missing required path: {path}"
 
 
+def test_feature49_task285_core_ui_dependencies_installed() -> None:
+    package_json = json.loads((WEB_DIR / "package.json").read_text(encoding="utf-8"))
+    deps = package_json.get("dependencies", {})
+
+    assert "@radix-ui/react-dialog" in deps
+    assert "@radix-ui/react-navigation-menu" in deps
+    assert "@radix-ui/react-slot" in deps
+    assert "lucide-react" in deps
+    assert "framer-motion" in deps
+
+
 @pytest.mark.integration
 def test_feature49_task284_placeholder_routes_are_navigable() -> None:
     dev_process = subprocess.Popen(
