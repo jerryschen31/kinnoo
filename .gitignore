@@ -17,6 +17,8 @@ build/
 *env/
 .agent-repo-cache*
 scripts/archive/
+.registry-storage/
+*.pem
 
 # Next.js web frontend
 web/node_modules/
