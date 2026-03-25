@@ -5823,7 +5823,7 @@ tasks:
       - 'step4: Verify TypeScript compiles the module without errors'
     dependencies: [task283]
     tests: [test427, test428]
-    status: not-started
+    status: needs-review
 
   - id: task287
     title: "Build MainLayout header with hamburger menu and auth buttons"
@@ -5848,7 +5848,7 @@ tasks:
       - 'step6: Verify hamburger opens/closes and buttons navigate correctly in dev server'
     dependencies: [task284, task286]
     tests: [test429, test430]
-    status: not-started
+    status: needs-review
 
   - id: task288
     title: "Make layout responsive for mobile viewports"
@@ -5868,7 +5868,7 @@ tasks:
       - 'step4: Visually verify at 375px, 640px, 768px, and 1024px widths'
     dependencies: [task287]
     tests: [test431]
-    status: not-started
+    status: needs-review
 
   - id: task289
     title: "Write smoke tests for layout and design tokens"
@@ -5890,4 +5890,4 @@ tasks:
       - 'step4: Run tests and verify all pass'
     dependencies: [task287, task286]
     tests: [test427, test428, test429, test430]
-    status: not-started
+    status: needs-review
