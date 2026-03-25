@@ -267,3 +267,119 @@ def test_feature40_registry_publisher_key_association(tmp_path: Path) -> None:
 	spoof_output = f"{spoof_result.stdout}\n{spoof_result.stderr}"
 	assert spoof_result.returncode != 0
 	assert "public key does not match registry publisher key association" in spoof_output
+
+
+def test_feature55_login_csrf_passthrough() -> None:
+	auth_client_path = Path(__file__).resolve().parents[1] / "web" / "lib" / "auth-client.ts"
+	content = auth_client_path.read_text(encoding="utf-8")
+
+	assert 'fetch("/api/login"' in content
+	assert 'method: "GET"' in content
+	assert 'method: "POST"' in content
+	assert 'credentials: "include"' in content
+	assert 'form.set("csrf_token", csrfToken)' in content
+	assert '"Content-Type": "application/x-www-form-urlencoded"' in content
+
+
+def test_feature55_session_csrf_forwarding() -> None:
+	auth_client_path = Path(__file__).resolve().parents[1] / "web" / "lib" / "auth-client.ts"
+	registry_page_path = Path(__file__).resolve().parents[1] / "web" / "app" / "(auth)" / "registry" / "page.tsx"
+	auth_client = auth_client_path.read_text(encoding="utf-8")
+	registry_page = registry_page_path.read_text(encoding="utf-8")
+
+	assert 'readCookie("kinnoo_csrf")' in auth_client
+	assert '"X-CSRF-Token": csrfToken' in auth_client
+	assert 'form.set("csrf_token", csrfToken)' in auth_client
+	assert 'postWithSessionCsrf("/api/logout")' in auth_client
+	assert "logoutWithSessionCsrf" in registry_page
+
+
+def test_feature55_api_auth_me_contract(tmp_path: Path) -> None:
+	from fastapi.testclient import TestClient
+
+	from server.app import create_app
+	from server.config import ServerConfig
+
+	config = ServerConfig(
+		storage_backend="local",
+		local_storage_root=tmp_path / "storage",
+		s3_bucket="kinnoo-registry-dev",
+		s3_region="us-east-1",
+		s3_endpoint_url=None,
+		s3_access_key_id=None,
+		s3_secret_access_key=None,
+		presign_ttl_seconds=120,
+		max_upload_mb=5,
+	)
+	app = create_app(config=config)
+	client = TestClient(app, base_url="https://testserver")
+
+	user = app.state.user_store.create_user(
+		username="feature55.user@example.com",
+		plaintext_password="feature55-secret",
+		role="user",
+	)
+	session_record, session_cookie = app.state.session_service.create_session(user_id=user.id)
+	client.cookies.set(session_cookie.name, session_cookie.value)
+
+	valid = client.get("/api/auth/me")
+	assert valid.status_code == 200
+	valid_payload = valid.json()
+	assert valid_payload["user_id"] == user.id
+	assert valid_payload["username"] == user.username
+	assert valid_payload["tenant_slug"] == "feature55-user"
+
+	invalid = TestClient(app, base_url="https://testserver")
+	missing = invalid.get("/api/auth/me")
+	assert missing.status_code == 401
+	missing_payload = missing.json()
+	assert missing_payload["error"]["code"] == "unauthorized"
+	assert missing_payload["error"]["message"]
+	assert missing_payload["error"]["request_id"]
+
+	client.cookies.set(session_cookie.name, f"{session_record.session_id}.tampered")
+	tampered = client.get("/api/auth/me")
+	assert tampered.status_code == 401
+
+
+def test_feature55_auth_integration_suite(tmp_path: Path) -> None:
+	from fastapi.testclient import TestClient
+
+	from server.app import create_app
+	from server.config import ServerConfig
+
+	config = ServerConfig(
+		storage_backend="local",
+		local_storage_root=tmp_path / "storage",
+		s3_bucket="kinnoo-registry-dev",
+		s3_region="us-east-1",
+		s3_endpoint_url=None,
+		s3_access_key_id=None,
+		s3_secret_access_key=None,
+		presign_ttl_seconds=120,
+		max_upload_mb=5,
+	)
+	app = create_app(config=config)
+	client = TestClient(app, base_url="https://testserver")
+
+	# Verify unauthenticated auth-check contract remains 401.
+	unauth = client.get("/api/auth/me")
+	assert unauth.status_code == 401
+
+	# Validate rewrite/auth-client contracts and no browser token persistence usage.
+	next_config = (Path(__file__).resolve().parents[1] / "web" / "next.config.ts").read_text(
+		encoding="utf-8"
+	)
+	auth_client = (Path(__file__).resolve().parents[1] / "web" / "lib" / "auth-client.ts").read_text(
+		encoding="utf-8"
+	)
+	auth_layout = (
+		Path(__file__).resolve().parents[1] / "web" / "app" / "(auth)" / "layout.tsx"
+	).read_text(encoding="utf-8")
+
+	assert 'source: "/api/:path*"' in next_config
+	assert "fetch(\"/api/login\"" in auth_client
+	assert "fetch(\"/api/auth/me\"" in auth_client
+	assert "localStorage" not in auth_client
+	assert "sessionStorage" not in auth_client
+	assert "redirect(\"/login\")" in auth_layout
