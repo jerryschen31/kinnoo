@@ -12,5 +12,13 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
     redirect("/login");
   }
 
+  if (!auth.ok && auth.status === 429) {
+    throw new Error("AUTH_RATE_LIMITED_429");
+  }
+
+  if (!auth.ok) {
+    throw new Error("AUTH_API_UNAVAILABLE");
+  }
+
   return <>{children}</>;
 }
