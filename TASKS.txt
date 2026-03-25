@@ -6195,3 +6195,28 @@ tasks:
     dependencies: [task303, task304]
     tests: [test448, test449, test450, test451, test452]
     status: not-started
+
+  - id: task306
+    title: "Polish landing and header visuals per brand updates"
+    type: task
+    description: |
+      Apply landing-page and top-nav visual updates: clickable kinnoo brand in header,
+      OpenClaw-inspired hero typography hierarchy, stronger brand-blue hover states, and
+      consistent dark gray surfaces (#222222) for menu/terminal/feature cards.
+      Include size adjustments for header/hero copy, neutral hamburger hover behavior,
+      and menu alignment with the shared page content column.
+    files:
+      - web/components/blocks/MainLayout.tsx
+      - web/app/(public)/page.tsx
+      - web/components/blocks/TerminalPreview.tsx
+      - web/components/blocks/FeatureGrid.tsx
+      - notes/tasks/task306-smoke-tests.md
+    steps:
+      - 'step1: Add clickable header kinnoo brand link next to hamburger and keep hover affordance'
+      - 'step2: Tune hero/header typography sizing (larger header kinnoo, slightly smaller hero kinnoo, larger uppercase slogan)'
+      - 'step3: Increase border weight and enforce blue hover-border behavior for terminal, feature cards, Login, and Sign Up'
+      - 'step4: Use #222222 for relevant dark-gray surfaces, remove blue hover from hamburger, and align menu panel with page column'
+      - 'step5: Update and execute task306 smoke tests until all checks pass'
+    dependencies: [task287, task293, task297]
+    tests: []
+    status: needs-review
