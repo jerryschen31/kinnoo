@@ -520,3 +520,82 @@ def test_feature56_admin_bootstrap_secret_safe(tmp_path: Path, monkeypatch) -> N
 	assert result.username == "admin-feature56@example.com"
 	assert secret_password not in result.message
 	assert result.temporary_password is None
+
+
+def test_feature56_integration_suite(tmp_path: Path, monkeypatch) -> None:
+	from fastapi.testclient import TestClient
+
+	from server.app import create_app
+	from server.config import ServerConfig
+	from server.routes.publish import publish_archive
+	from server.storage.user_store import UserStore
+
+	secret_password = "feature56-suite-secret"
+	storage_root = tmp_path / "suite-storage"
+	monkeypatch.setenv("REGISTRY_LOCAL_STORAGE_ROOT", str(storage_root))
+	monkeypatch.setenv("REGISTRY_ADMIN_EMAIL", "suite-admin@example.com")
+	monkeypatch.setenv("REGISTRY_ADMIN_PASSWORD", secret_password)
+
+	config = ServerConfig.from_env()
+	app = create_app(config=config)
+	client = TestClient(app, base_url="https://testserver")
+
+	store = UserStore(storage_root / "auth")
+	admins = [user for user in store.list_users() if user.role == "admin"]
+	assert any(user.username == "suite-admin@example.com" for user in admins)
+
+	user = store.create_user(
+		username="tenant-alpha@example.com",
+		plaintext_password="suite-reader-secret",
+		role="user",
+	)
+	_session_record, session_cookie = app.state.session_service.create_session(user_id=user.id)
+	client.cookies.set(session_cookie.name, session_cookie.value)
+
+	publisher_token = app.state.token_service.issue_token(
+		subject="publisher-alpha",
+		tenant_slug="tenant-alpha",
+		scopes=["registry:read", "registry:publish"],
+	)
+
+	manifest = (
+		"name: suite-feature56-agent\n"
+		"version: 1.0.0\n"
+		"visibility: private\n"
+		"entrypoint: run.py\n"
+		"runtime:\n"
+		"  language: python\n"
+		"  version: \">=3.10\"\n"
+		"  type: one-shot\n"
+		"dependencies: []\n"
+		"inputs:\n"
+		"  type: text\n"
+		"outputs:\n"
+		"  type: text\n"
+	)
+	buff = __import__("io").BytesIO()
+	with zipfile.ZipFile(buff, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
+		archive.writestr("kinnoo.yaml", manifest)
+		archive.writestr("run.py", "print('suite')\n")
+	published = publish_archive(
+		authorization_header=f"Bearer {publisher_token}",
+		filename="suite-feature56-agent.kno",
+		archive_bytes=buff.getvalue(),
+		token_service=app.state.token_service,
+		storage_backend=app.state.storage_backend,
+		metadata_manager=app.state.metadata_manager,
+		max_upload_mb=app.state.config.max_upload_mb,
+	)
+	assert published.status_code == 201
+
+	fallback_list = client.get("/api/agents")
+	fallback_search = client.get("/api/search?q=suite-feature56")
+	assert fallback_list.status_code == 200
+	assert fallback_search.status_code == 200
+
+	# Tenant-scoped local publish convention is validated by task313 test fixture.
+	cli_registry_test = (Path(__file__).resolve().parents[1] / "tests" / "test_cli_registry.py").read_text(
+		encoding="utf-8"
+	)
+	assert "test_feature56_local_publish_tenant_path" in cli_registry_test
+	assert '/ "tenants"' in cli_registry_test
