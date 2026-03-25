@@ -19,11 +19,17 @@ def validate_and_inject_user_context(
     authorization_header: str | None,
     token_service: TokenService,
     required_scope: str,
+    session_cookie_value: str | None = None,
+    session_service=None,
+    user_store=None,
 ) -> TokenClaims:
     claims = authenticate_request(
         authorization_header=authorization_header,
         required_scope=required_scope,
         token_service=token_service,
+        session_cookie_value=session_cookie_value,
+        session_service=session_service,
+        user_store=user_store,
     )
     request.state.user_claims = claims
     return claims
