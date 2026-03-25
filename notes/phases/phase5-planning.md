@@ -189,6 +189,9 @@ Key Technical Clarifications for the Agent:
 - Node.js: Requires v20+.
 - IAM: The S3 backend uses the existing prefix-scoped access logic in server/storage/. 
   Do not reimplement.
+- continue to use the local mocked S3 storage for now. Make sure it is easy for me to point to actual S3 buckets once I decide to go live.
+- Make me an admin account for the registry. My email and password are saved as REGISTRY_ADMIN_EMAIL and REGISTRY_ADMIN_PASSWORD in .env in the base project directory. Do NOT output my email or password in any of your agent thinking or output response.
+- If possible make it so that executing ```kinnoo publish``` on my local machine actually publishes to an appropriate tenant folder location within the local mocked S3 storage. This way I can actually test publishing test agents from my local machine.
 
 ### Sub-phase 5 - User Registration & Password Reset
 Prompt 5: User Registration & Password Reset Workflows
