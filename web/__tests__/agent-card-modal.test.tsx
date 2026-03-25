@@ -93,7 +93,7 @@ describe("AgentCard", () => {
     });
   });
 
-  it("fetches detail endpoint and renders manifest payload", async () => {
+  it("fetches detail endpoint and renders registry and agent manifest tabs", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
       const url = String(input);
       if (url === "/api/agents") {
@@ -114,7 +114,7 @@ describe("AgentCard", () => {
             tenant_slug: "acme",
             agent_slug: "calendar-helper",
             versions: [{ version: "1.2.3" }],
-            manifest: { framework: "langgraph" },
+            agent_manifest: { framework: "langgraph" },
           }),
         );
       }
@@ -124,6 +124,14 @@ describe("AgentCard", () => {
     render(<RegistryPage />);
 
     fireEvent.click(await screen.findByRole("button", { name: "calendar-helper" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Registry Manifest" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Agent Manifest" })).toBeTruthy();
+      expect(screen.getByText(/"agent_slug": "calendar-helper"/)).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Agent Manifest" }));
 
     await waitFor(() => {
       expect(screen.getByText(/"framework": "langgraph"/)).toBeTruthy();
@@ -185,6 +193,9 @@ describe("AgentCard", () => {
     render(<RegistryPage />);
 
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    fireEvent.change(await screen.findByLabelText("Search public agents"), {
+      target: { value: "public" },
+    });
     fireEvent.click(await screen.findByRole("button", { name: "public-helper" }));
 
     await waitFor(() => {
@@ -247,7 +258,7 @@ describe("AgentCard", () => {
             tenant_slug: "acme",
             agent_slug: "calendar-helper",
             versions: [{ version: "1.2.3" }],
-            manifest: { framework: "langgraph" },
+            agent_manifest: { framework: "langgraph" },
           }),
         );
       }
@@ -258,7 +269,7 @@ describe("AgentCard", () => {
             tenant_slug: "acme",
             agent_slug: "public-helper",
             versions: [{ version: "2.0.0" }],
-            manifest: { framework: "langgraph" },
+            agent_manifest: { framework: "langgraph" },
           }),
         );
       }
@@ -271,6 +282,8 @@ describe("AgentCard", () => {
     expect(await screen.findByText("Tenant")).toBeTruthy();
     fireEvent.click(await screen.findByRole("button", { name: "calendar-helper" }));
 
+    fireEvent.click(await screen.findByRole("button", { name: "Agent Manifest" }));
+
     await waitFor(() => {
       expect(screen.getByText(/"framework": "langgraph"/)).toBeTruthy();
     });
@@ -281,6 +294,9 @@ describe("AgentCard", () => {
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    fireEvent.change(await screen.findByLabelText("Search public agents"), {
+      target: { value: "public" },
+    });
     fireEvent.click(await screen.findByRole("button", { name: "public-helper" }));
 
     await waitFor(() => {

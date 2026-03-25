@@ -14,6 +14,7 @@ export type AgentDetail = {
   versions?: unknown;
   metadata?: unknown;
   manifest?: unknown;
+  agent_manifest?: unknown;
   [key: string]: unknown;
 };
 

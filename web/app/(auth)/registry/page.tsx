@@ -65,6 +65,11 @@ export default function RegistryPage() {
       return;
     }
 
+    if (!searchQuery.trim()) {
+      setSearchState({ isLoading: false, error: null, agents: [] });
+      return;
+    }
+
     let cancelled = false;
 
     const loadSearchResults = async () => {
