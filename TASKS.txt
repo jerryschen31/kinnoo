@@ -6062,7 +6062,7 @@ tasks:
       - 'step4: Ensure keyboard navigation and focus styles for nav controls'
     dependencies: [task287, task297]
     tests: [test443, test444]
-    status: not-started
+    status: needs-review
 
   - id: task299
     title: "Implement My Agents and Search view state with framer-motion transitions"
