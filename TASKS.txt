@@ -6536,8 +6536,8 @@ tasks:
       - 'step3: Add component tests for /signup and /signup/verify form validation behavior (10-128 password policy)'
       - 'step4: Run linked registration suite and ensure deterministic pass'
     dependencies: [task320, task321]
-    tests: [test467, test468, test469, test470, test471, test472, test473, test474, test486, test487]
-    status: not-started
+    tests: [test467, test468, test469, test470, test471, test472, test473, test474, test486]
+    status: needs-review
 
   - id: task323
     title: "Build forgot-password pages and policy-aware reset UX"
