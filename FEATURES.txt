@@ -1994,82 +1994,88 @@ features:
   # ------ Sub-phase 5: User Registration & Password Reset (feature58, feature59, feature60) ------
 
   - id: feature58
-    title: "Sign-Up Navigation, Registration Request, and Account Creation Confirmation"
+    title: "Relational Registration Flow: Signup UI, Verification, and Tenant Provisioning"
     description: |
-      Implement the complete sign-up user journey from public navigation to account creation,
-      including /signup and /signup/verify pages, client-side form validation, and FastAPI
-      register-request/register-confirm endpoints with generic responses and secure token handling.
-      Successful registration confirmation should create the user and tenant, issue a session cookie,
-      and redirect to /registry.
+      Implement a relational-store-backed sign-up journey from public navigation to account creation,
+      including /signup and /signup/verify pages, client-side validation, and backend
+      register-request/register-confirm endpoints. Registration must create user identity records,
+      allocate unique tenant slugs with deterministic suffix collision handling, issue session cookies,
+      and redirect users into /registry without leaking account-existence details.
     tasks: [task319, task320, task321, task322]
     acceptance_criteria:
       - id: AC1
         description: "MainLayout and login page include a Sign Up CTA that routes users to /signup."
       - id: AC2
-        description: "/signup renders a login-style centered card with email field, valid-email client checks, and a Send Verification Link submit action."
+        description: "/signup renders a centered email-entry card with valid-email client validation and passphrase-friendly confirmation UX."
       - id: AC3
-        description: "POST /api/auth/register-request validates duplicate registration safely, creates a signed expiring verification token, logs verification link using FRONTEND_URL, and returns a generic 200 response that does not disclose account existence."
+        description: "POST /api/auth/register-request returns generic 200 responses for both known and unknown emails, creates signed expiring verification tokens for eligible requests, and uses FRONTEND_URL links via EmailService."
       - id: AC4
-        description: "/signup/verify renders Create Password and Confirm Password fields with client validation for match and minimum length >= 8."
+        description: "/signup/verify enforces password rules: length 10-128, password confirmation match, and client-side feedback before submit."
       - id: AC5
-        description: "POST /api/auth/register-confirm validates token integrity/expiry/single-use, creates the user with hashed password, and creates a default tenant slug derived from email prefix."
+        description: "POST /api/auth/register-confirm validates token integrity/expiry/single-use, creates user in relational store with hashed password, and creates a local identity mapping row keyed by provider + provider_user_id."
       - id: AC6
-        description: "Successful register-confirm creates a session, returns Set-Cookie headers, and redirects user to /registry."
+        description: "Tenant slug allocation derives from email prefix with deterministic collision handling (base, base-1, base-2...) and DB-enforced uniqueness on tenant_slug."
       - id: AC7
-        description: "Automated tests cover registration happy path, duplicate email privacy behavior, expired/used tokens, password mismatch validation, and request rate limiting."
+        description: "Successful register-confirm creates DB-backed session state, returns Set-Cookie headers, and redirects to /registry."
+      - id: AC8
+        description: "Automated tests cover registration happy path, duplicate-safe privacy behavior, token expiry/consumption, slug collision handling, password validation failures, and rate limiting."
     owner: techlead-agent
     dependencies: [feature57]
     status: not-started
 
   - id: feature59
-    title: "Forgot Password and Password Reset Confirmation Workflow"
+    title: "Forgot Password Workflow, Policy Enforcement, and Session Revocation"
     description: |
       Implement the full password reset workflow using /forgot-password and /forgot-password/reset
-      pages plus FastAPI password-reset-request/password-reset-confirm endpoints. The flow must
-      keep account privacy with generic responses, support secure reset token validation, and
-      invalidate active sessions after password change.
+      pages plus password-reset-request/password-reset-confirm backend endpoints. The flow must
+      preserve account privacy, enforce Sub-phase 5 password policy checks, and invalidate all
+      active sessions after successful password change in the relational session store.
     tasks: [task323, task324, task325, task326]
     acceptance_criteria:
       - id: AC1
         description: "Login page Forgot your password? link routes users to /forgot-password."
       - id: AC2
-        description: "/forgot-password renders an email form card and submit button; frontend calls password-reset-request and always shows the generic confirmation message."
+        description: "/forgot-password renders an email form card and always shows a generic confirmation message after submit."
       - id: AC3
-        description: "POST /api/auth/password-reset-request generates signed expiring reset token for known users, logs reset link built from FRONTEND_URL, and returns non-enumerating generic success for both known and unknown emails."
+        description: "POST /api/auth/password-reset-request returns generic success for known and unknown emails, generates signed expiring reset tokens for known users, and logs reset link via EmailService."
       - id: AC4
-        description: "/forgot-password/reset renders New Password and Confirm Password fields and blocks submit when mismatch or minimum password requirements fail."
+        description: "/forgot-password/reset enforces password rules (10-128 length, confirmation match) and exposes clear validation errors before submission."
       - id: AC5
-        description: "POST /api/auth/password-reset-confirm validates token integrity/expiry/single-use, updates password hash, and invalidates all user sessions via session service."
+        description: "POST /api/auth/password-reset-confirm validates token integrity/expiry/single-use, rejects compromised/common or email-similar passwords, and writes updated hash using current hashing policy."
       - id: AC6
-        description: "Successful reset-confirm redirects to /login with a success indicator while rejected tokens return safe, non-sensitive error responses."
+        description: "Successful reset-confirm invalidates all active sessions for the user in relational store and redirects to /login with a success indicator."
       - id: AC7
-        description: "Automated tests cover reset happy path, unknown email privacy behavior, expired/used token failures, password mismatch validation, and request rate limiting."
+        description: "Automated tests cover reset happy path, non-enumerating request behavior, token expiry/consumption failures, password-policy rejection paths, and rate limiting."
     owner: techlead-agent
     dependencies: [feature58]
     status: not-started
 
   - id: feature60
-    title: "Email Service Abstraction, Token Security Controls, and Sub-phase 5 Integration Coverage"
+    title: "Relational Auth Foundation, Hash Rotation, and Sub-phase 5 Hardening"
     description: |
-      Add shared security and operability foundations used by registration and reset workflows,
-      including an EmailService abstraction with development console provider, environment-driven
-      frontend link generation, env-backed token secrets, strict single-use token consumption, and
-      endpoint-level rate limiting for register/reset request routes. Consolidate integration and
-      component test coverage to ensure Sub-phase 5 is complete and regression-safe.
+      Establish a DB-backed auth foundation for Sub-phase 5 using SQLite in development with a
+      PostgreSQL-compatible schema. This includes relational persistence for users, tenants,
+      identities, sessions, and one-time token state; env-based secret management; email service
+      abstraction; hash rotation strategy; lockout/backoff hardening; and comprehensive integration
+      coverage. Google/GitHub SSO implementation is deferred while keeping identities schema ready.
     tasks: [task327, task328, task329, task330]
     acceptance_criteria:
       - id: AC1
-        description: "Email dispatch is behind an EmailService interface with a development implementation that logs verification/reset links to console without real delivery."
+        description: "Relational auth schema exists for users, tenants, identities, sessions, and one-time tokens; development runs on SQLite with PostgreSQL-compatible constraints and SQL."
       - id: AC2
-        description: "FRONTEND_URL is read from environment (default http://localhost:3000) and used consistently to build verification/reset links."
+        description: "Unique indexes enforce tenants.tenant_slug and identities(provider, provider_user_id) constraints in DB-backed persistence."
       - id: AC3
-        description: "Register and reset token signing secrets are read from environment variables, not hardcoded constants."
+        description: "Email dispatch is behind EmailService abstraction; FRONTEND_URL and token signing secrets are environment-driven and never hardcoded."
       - id: AC4
-        description: "Verification and reset tokens are single-use and explicitly marked consumed after successful confirmation."
+        description: "Verification/reset tokens are single-use with consumed-state tracking, and session invalidation is persisted in relational store."
       - id: AC5
-        description: "Rate limiting is enforced on register-request and password-reset-request endpoints (target 5 requests/min/IP) with deterministic tests."
+        description: "Password hashing uses Argon2id-preferred strategy with legacy verification support and transparent rehash-on-login when existing hash policy is outdated."
       - id: AC6
-        description: "End-to-end and component tests collectively validate all Sub-phase 5 acceptance criteria without regressions to existing login/registry paths."
+        description: "Auth entrypoints apply deterministic rate limiting plus lockout/backoff protections and are covered by automated tests."
+      - id: AC7
+        description: "Sub-phase 5 includes smoke-test documentation for registration/reset end-user flows and non-regression test coverage for existing login/registry behavior."
+      - id: AC8
+        description: "Google/GitHub SSO implementation is deferred, but identity schema and ownership model are ready so tenant ownership never depends on provider email on each login."
     owner: techlead-agent
     dependencies: [feature58, feature59]
     status: not-started
