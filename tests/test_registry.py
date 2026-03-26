@@ -1,6 +1,7 @@
 from pathlib import Path
 import importlib.util
 import json
+import sqlite3
 import sys
 import os
 import subprocess
@@ -1299,3 +1300,59 @@ def test_feature59_forgot_password_suite(tmp_path: Path) -> None:
 	)
 	assert new_login.status_code == 200
 	assert new_login.json()["token_type"] == "Bearer"
+
+
+def test_feature60_sqlite_auth_schema_and_indexes(tmp_path: Path) -> None:
+	migration_path = (
+		Path(__file__).resolve().parents[1]
+		/ "server"
+		/ "storage"
+		/ "sql"
+		/ "migrations"
+		/ "001_auth_schema.sql"
+	)
+	migration_sql = migration_path.read_text(encoding="utf-8")
+
+	db_path = tmp_path / "auth.db"
+	connection = sqlite3.connect(db_path)
+	try:
+		connection.executescript(migration_sql)
+
+		rows = connection.execute(
+			"SELECT name FROM sqlite_master WHERE type='table'"
+		).fetchall()
+		tables = {row[0] for row in rows}
+		for table_name in {"users", "tenants", "identities", "sessions", "one_time_tokens"}:
+			assert table_name in tables
+
+		# tenant_slug uniqueness
+		connection.execute(
+			"INSERT INTO tenants (tenant_slug, owner_user_id, visibility, created_at_epoch) VALUES (?, ?, ?, ?)",
+			("tenant-alpha", "user-1", "private", 1),
+		)
+		with pytest.raises(sqlite3.IntegrityError):
+			connection.execute(
+				"INSERT INTO tenants (tenant_slug, owner_user_id, visibility, created_at_epoch) VALUES (?, ?, ?, ?)",
+				("tenant-alpha", "user-2", "private", 1),
+			)
+
+		# identities(provider, provider_user_id) uniqueness
+		connection.execute(
+			"""
+			INSERT INTO identities (
+				user_id, provider, provider_user_id, provider_email, created_at_epoch, updated_at_epoch
+			) VALUES (?, ?, ?, ?, ?, ?)
+			""",
+			("user-1", "local", "alice@example.com", "alice@example.com", 1, 1),
+		)
+		with pytest.raises(sqlite3.IntegrityError):
+			connection.execute(
+				"""
+				INSERT INTO identities (
+					user_id, provider, provider_user_id, provider_email, created_at_epoch, updated_at_epoch
+				) VALUES (?, ?, ?, ?, ?, ?)
+				""",
+				("user-2", "local", "alice@example.com", "alice@example.com", 1, 1),
+			)
+	finally:
+		connection.close()
