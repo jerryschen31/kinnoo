@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from kinnoo.config import load_registry_config
+from kinnoo.config import load_publish_behavior_config, load_registry_config
 from kinnoo import run_command
 
 
@@ -492,6 +492,38 @@ def test_registry_config_precedence(tmp_path: Path, monkeypatch) -> None:
     assert env_config.registry_url == "https://from-env.example.test"
     assert env_config.registry_token == "env-token"
     assert env_config.tenant_slug == "env-tenant"
+
+
+def test_publish_behavior_config_from_project_file(tmp_path: Path, monkeypatch) -> None:
+    project_root = tmp_path / "demo-project"
+    nested_dir = project_root / "agents" / "calendar"
+    nested_dir.mkdir(parents=True, exist_ok=True)
+
+    (project_root / "kinnoo-config.txt").write_text(
+        "\n".join(
+            [
+                "# Project publish behavior",
+                "publish_to_authenticated_registry = true",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(nested_dir)
+
+    publish_config = load_publish_behavior_config()
+    assert publish_config.publish_to_authenticated_registry is True
+
+
+def test_publish_behavior_config_defaults_when_missing(tmp_path: Path, monkeypatch) -> None:
+    project_root = tmp_path / "no-config-project"
+    project_root.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.chdir(project_root)
+
+    publish_config = load_publish_behavior_config()
+    assert publish_config.publish_to_authenticated_registry is False
 
 
 @pytest.mark.skip(reason="Placeholder for test88 implementation")

@@ -68,10 +68,13 @@ Role: Senior UI/UX Engineer.
 Task: Build the Landing Page and the Login Page.
 
 Landing Page (/):
-- Create a hero section with a clean, high-contrast title: "Package, publish, share your AI agents with the world"
-- Add a sub-headline: "Take any AI agent — a LangGraph chatbot, a PydanticAI workflow, an OpenClaw daemon — and give it a portable, version-controlled, signed package that anyone can install and run"
+- Create a hero section with a clean, high-contrast title: "kinnoo"
+- Add a main tagline under the title: "Building AI agents together"
+- Add a sub-headline: "The open, secure platform to package, publish and share any AI agent"
 - Feature a "Terminal Preview" component showing "pip install kinnoo" as the one-line command to install kinnoo CLI. Terminal Preview should just be a minimal code block with a copy button for copying to clipboard.
-- Below the hero section and Terminal component, add a "Features" section that shows six hoverable boxes with the following header + subtext:
+- Below the hero section and Terminal component, add a "Features" section with header "Why builders choose Kinnoo".
+- Add a normal-case sub-line directly beneath that header (same size as the header text): "Take any AI agent — a LangGraph chatbot, a PydanticAI workflow, an OpenClaw daemon — and give it a portable, version-controlled, signed package that anyone can install and run".
+- Underneath this sub-line, show six hoverable boxes with the following header + subtext:
 Feature 1 Header: Supports common AI agent frameworks
 Feature 1 Subtext: Initialize, import or install AI agents developed with LangChain, LangGraph, PydanticAI, OpenAI Agents SDK, OpenClaw and more.
 
@@ -129,9 +132,7 @@ Agent Card Component (All Public Agents - shown after a user successfully search
 - Tenant, Name, Version, Author, Framework, Size, Description, 
 - Clicking on Name shows a modal/dialog overlay showing the entire agent manifest (pulled from that agent's kinnoo.yaml). This modal has an 'X' at the top right that allows the user to close the modal. Also at the bottom of this modal is a terminal-like graphic that shows the kinnoo CLI command for installing this agent, with a "copy" button on the right for copy-to-clipboard for that install command text.
 
-Requirement: 
-- Use framer-motion for smooth transitions between the "My Agents" and "Search" tabs.
-- Build upon what has already been built in server/ - don't reinvent the wheel!
+Requirement: Use framer-motion for smooth transitions between the "My Agents" and "Search" tabs.
 
 Tests: Write component tests for the AgentCard component (renders all fields, name is clickable, modal opens/closes). Write a test that verifies the modal displays manifest data and the copy-to-clipboard button works for the install command.
 
@@ -189,15 +190,39 @@ Key Technical Clarifications for the Agent:
 - Node.js: Requires v20+.
 - IAM: The S3 backend uses the existing prefix-scoped access logic in server/storage/. 
   Do not reimplement.
-- continue to use the local mocked S3 storage for now. Make sure it is easy for me to point to actual S3 buckets once I decide to go live.
-- Make me an admin account for the registry. My email and password are saved as REGISTRY_ADMIN_EMAIL and REGISTRY_ADMIN_PASSWORD in .env in the base project directory. Do NOT output my email or password in any of your agent thinking or output response.
-- If possible make it so that executing ```kinnoo publish``` on my local machine actually publishes to an appropriate tenant folder location within the local mocked S3 storage. This way I can actually test publishing test agents from my local machine.
 
 ### Sub-phase 5 - User Registration & Password Reset
-Prompt 5: User Registration & Password Reset Workflows
+Prompt 5: User Registration &- continue to use the local mocked S3 storage for now. Make sure it is easy for me to point to actual S3 buckets once I decide to go live.
+- Make me an admin account for the registry. My email and password are saved as REGISTRY_ADMIN_EMAIL and REGISTRY_ADMIN_PASSWORD in .env in the base project directory. Do NOT output my email or password in any of your agent thinking or output response.
+- If possible make it so that executing ```kinnoo publish``` on my local machine actually publishes to an appropriate tenant folder location within the local mocked S3 storage. This way I can actually test publishing test agents from my local machine. (Note: check if this has been partially implemented already).
+ Password Reset Workflows
 Objective: Implement a complete sign-up flow with email verification and a working password reset flow.
 Role: Full-Stack Engineer.
 Task: Build the registration and password reset pages and backend endpoints.
+
+Implementation directives (approved):
+- Use a relational auth store for Sub-phase 5.
+- Development: SQLite.
+- Production target: PostgreSQL-compatible schema and SQL.
+- Move auth persistence into DB-backed records now (users, tenants, identities, sessions, token state).
+- Keep tenant slug derivation from email prefix, with deterministic collision handling: `base`, `base-1`, `base-2`, ...
+- Enforce unique DB index on `tenants.tenant_slug` and on `identities(provider, provider_user_id)`.
+- Tenant ownership is based on internal `user_id`, never provider email at login time.
+- Password policy baseline:
+   - min length 10, max length 128
+   - no forced symbol/uppercase composition rules
+   - reject known-compromised/common passwords
+   - reject passwords too similar to email/username
+   - apply rate limiting + lockout/backoff behavior on auth entrypoints
+   - encourage passphrases in UX helper text
+- Password hash strategy:
+   - prefer Argon2id for new/updated hashes
+   - keep algorithm metadata in stored hash string
+   - transparently rehash legacy/weaker hashes on successful login
+   - implement password reset using latest hash format
+   - optional short password history to prevent immediate reuse
+- Session persistence in Sub-phase 5 should use the same relational store (SQLite in dev).
+- Google/GitHub SSO implementation is explicitly deferred to a later sub-phase.
 
 Sign-Up Flow:
 1. Add a "Sign Up" button next to the "Login" button in the top-right of the MainLayout and on the login page.
@@ -264,3 +289,77 @@ New Next.js Pages:
 - /forgot-password/reset (app/(public)/forgot-password/reset/page.tsx) — new password form.
 
 Tests: Write tests for each new endpoint (register-request, register-confirm, password-reset-request, password-reset-confirm) covering happy path, expired tokens, duplicate emails, password mismatch, and rate limiting. Write component tests for the signup and forgot-password page forms.
+
+Sub-phase 5 implementation blueprint (for SWE execution order):
+
+1. Data model and migration foundation
+- Create relational auth schema (SQLite for dev, PostgreSQL-compatible):
+   - `users(id, email, password_hash, role, force_password_change, created_at, updated_at, locked_until, failed_login_count)`
+   - `tenants(id, tenant_slug, owner_user_id, visibility, created_at)`
+   - `identities(id, user_id, provider, provider_user_id, provider_email, created_at, updated_at)`
+   - `sessions(id, user_id, csrf_token, created_at_epoch, expires_at_epoch, invalidated_at_epoch)`
+   - `one_time_tokens(id, token_type, subject_user_id, subject_email, token_hash, expires_at_epoch, consumed_at_epoch, created_at_epoch)`
+   - `password_history(id, user_id, password_hash, created_at_epoch)` (optional but included in schema)
+- Required indexes/constraints:
+   - unique `users.email`
+   - unique `tenants.tenant_slug`
+   - unique `identities(provider, provider_user_id)`
+   - index `sessions.user_id`
+   - index `one_time_tokens.token_hash`
+
+2. Services and security controls
+- Add a DB-backed repository layer for users/tenants/identities/sessions/tokens.
+- Add deterministic slug allocator:
+   - derive base from email prefix
+   - reserve first available slug among base/base-1/base-2...
+- Add password policy validator (10-128, compromised list, similarity checks).
+- Add login hash rotation:
+   - verify legacy hash formats
+   - on successful login, rehash to Argon2id when policy says upgrade is needed
+- Add lockout/backoff support with bounded failed-attempt counters.
+
+3. API contract changes (Sub-phase 5)
+- `POST /api/auth/register-request`
+   - input: `{ email }`
+   - output: generic 200 message regardless of account existence
+   - behavior: issue one-time verification token for unknown email, send/log verification link
+- `POST /api/auth/register-confirm`
+   - input: `{ token, password }`
+   - behavior: validate single-use token, enforce password policy, create user + local identity row + tenant slug with collision handling, create session, set cookies, redirect/return login success contract
+- `POST /api/auth/password-reset-request`
+   - input: `{ email }`
+   - output: generic 200 message for both known/unknown email
+   - behavior: issue one-time reset token for known users, send/log reset link
+- `POST /api/auth/password-reset-confirm`
+   - input: `{ token, new_password }`
+   - behavior: validate token + password policy, update hash, append password history, invalidate all active sessions, return success contract for login page redirect
+
+4. Frontend scope (public auth pages)
+- Add Sign Up CTA in shared nav and login page.
+- Implement `/signup` and `/signup/verify` pages with inline validation and passphrase-friendly helper text.
+- Implement `/forgot-password` and `/forgot-password/reset` pages with generic confirmation UX and policy-aligned client validation.
+
+5. Test matrix requirements
+- Schema/repository tests:
+   - migration creates all tables/indexes
+   - uniqueness constraints for tenant slug and provider identities
+- Registration tests:
+   - duplicate-safe generic response
+   - token expiry/consumption handling
+   - slug collision path (`base`, `base-1`, ...)
+   - password policy rejection (too short, compromised, too similar)
+- Reset tests:
+   - generic response for unknown email
+   - single-use token enforcement
+   - session invalidation after reset
+   - password history/no immediate reuse (if enabled)
+- Auth hardening tests:
+   - rate limit and lockout/backoff behavior
+   - legacy hash auto-rehash on successful login
+- Frontend component/integration tests:
+   - signup/verify/forgot/reset forms and validation
+   - baseline login and registry flow non-regression
+
+6. Out-of-scope for Sub-phase 5
+- Google SSO and GitHub SSO implementation are deferred.
+- Keep schema ready with `identities` table for later SSO integration.
