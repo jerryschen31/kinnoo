@@ -8,16 +8,27 @@ from typing import Any
 from starlette.requests import Request
 
 from server.api.endpoints import post_auth_token
+from server.auth.password_policy import validate_registration_email, validate_registration_password
+from server.auth.services import build_registration_verification_link, registration_generic_success_message
 from server.auth.middleware import authenticate_session_identity
 from server.auth.session import SessionService
 from server.auth.token import TokenService
+from server.auth.tokens import RegistrationTokenService
 from server.models.user import username_to_tenant_slug
 from server.routes.errors import build_error_envelope, resolve_request_id
+from server.storage.sqlite_auth_store import SQLiteAuthStore
 from server.storage.user_store import UserStore
 
 
 def create_auth_router(
-    *, token_service: TokenService, user_store: UserStore, session_service: SessionService
+    *,
+    token_service: TokenService,
+    user_store: UserStore,
+    session_service: SessionService,
+    registration_token_service: RegistrationTokenService,
+    sqlite_auth_store: SQLiteAuthStore,
+    frontend_url: str,
+    email_log_sink: list[dict[str, str]] | None = None,
 ) -> Any:
     fastapi_module = importlib.import_module("fastapi")
     APIRouter = getattr(fastapi_module, "APIRouter")
@@ -62,6 +73,169 @@ def create_auth_router(
             )
 
         return response_payload
+
+    @router.post("/api/auth/register-request")
+    async def register_request(request: Request) -> dict[str, object]:
+        request_id = resolve_request_id(request)
+        try:
+            payload = await request.json()
+        except Exception:
+            payload = {}
+
+        if not isinstance(payload, dict):
+            return JSONResponse(
+                status_code=400,
+                content=build_error_envelope(
+                    status_code=400,
+                    message="request body must be a JSON object",
+                    request_id=request_id,
+                ),
+            )
+
+        email = str(payload.get("email", ""))
+        validation_error = validate_registration_email(email)
+        if validation_error is not None:
+            return JSONResponse(
+                status_code=400,
+                content=build_error_envelope(
+                    status_code=400,
+                    message=validation_error,
+                    request_id=request_id,
+                ),
+            )
+
+        normalized_email = email.strip().lower()
+        existing_user = user_store.get_by_username(normalized_email)
+        if existing_user is None:
+            token = registration_token_service.issue_token(email=normalized_email)
+            verification_link = build_registration_verification_link(frontend_url=frontend_url, token=token)
+            if email_log_sink is not None:
+                email_log_sink.append({
+                    "email": normalized_email,
+                    "verification_link": verification_link,
+                })
+
+        return {"message": registration_generic_success_message()}
+
+    @router.post("/api/auth/register-confirm")
+    async def register_confirm(request: Request) -> dict[str, object]:
+        request_id = resolve_request_id(request)
+        try:
+            payload = await request.json()
+        except Exception:
+            payload = {}
+
+        if not isinstance(payload, dict):
+            return JSONResponse(
+                status_code=400,
+                content=build_error_envelope(
+                    status_code=400,
+                    message="request body must be a JSON object",
+                    request_id=request_id,
+                ),
+            )
+
+        token = str(payload.get("token", "")).strip()
+        password = str(payload.get("password", ""))
+
+        password_error = validate_registration_password(password)
+        if password_error is not None:
+            return JSONResponse(
+                status_code=400,
+                content=build_error_envelope(
+                    status_code=400,
+                    message=password_error,
+                    request_id=request_id,
+                ),
+            )
+
+        token_payload = registration_token_service.verify_token(token=token)
+        if token_payload is None:
+            return JSONResponse(
+                status_code=400,
+                content=build_error_envelope(
+                    status_code=400,
+                    message="invalid or expired registration token",
+                    request_id=request_id,
+                ),
+            )
+
+        token_hash = registration_token_service.hash_token(token=token)
+        token_marked = sqlite_auth_store.mark_registration_token_consumed(token_hash=token_hash)
+        if not token_marked:
+            return JSONResponse(
+                status_code=400,
+                content=build_error_envelope(
+                    status_code=400,
+                    message="registration token already consumed",
+                    request_id=request_id,
+                ),
+            )
+
+        email = str(token_payload.get("email", "")).strip().lower()
+        if not email:
+            return JSONResponse(
+                status_code=400,
+                content=build_error_envelope(
+                    status_code=400,
+                    message="registration token missing email",
+                    request_id=request_id,
+                ),
+            )
+
+        existing_user = user_store.get_by_username(email)
+        if existing_user is not None:
+            return JSONResponse(
+                status_code=409,
+                content=build_error_envelope(
+                    status_code=409,
+                    message="user already exists",
+                    request_id=request_id,
+                ),
+            )
+
+        user = user_store.create_user(
+            username=email,
+            plaintext_password=password,
+            role="user",
+        )
+
+        sqlite_auth_store.upsert_local_identity(
+            user_id=user.id,
+            provider_user_id=email,
+            provider_email=email,
+        )
+        base_slug = username_to_tenant_slug(email)
+        reserved_tenant = sqlite_auth_store.reserve_tenant_slug(base_slug=base_slug, owner_user_id=user.id)
+
+        session_record, session_cookie = session_service.create_session(user_id=user.id)
+        response = JSONResponse(
+            status_code=200,
+            content={
+                "message": "Account created successfully",
+                "redirect_to": "/registry",
+                "tenant_slug": reserved_tenant.tenant_slug,
+                "username": user.username,
+            },
+        )
+        response.set_cookie(
+            key=session_cookie.name,
+            value=session_cookie.value,
+            max_age=session_cookie.max_age_seconds,
+            httponly=session_cookie.http_only,
+            secure=session_cookie.secure,
+            samesite=session_cookie.same_site.lower(),
+            path=session_cookie.path,
+        )
+        response.set_cookie(
+            key="kinnoo_csrf",
+            value=session_record.csrf_token,
+            httponly=False,
+            secure=True,
+            samesite="lax",
+            path="/",
+        )
+        return response
 
     @router.get("/api/auth/me")
     async def auth_me(request: Request) -> dict[str, object]:

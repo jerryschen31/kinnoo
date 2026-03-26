@@ -698,3 +698,253 @@ def test_feature57_hardening_non_regression_suite(tmp_path: Path) -> None:
 
 	auth_me_missing = client.get("/api/auth/me")
 	assert auth_me_missing.status_code == 401
+
+
+def test_feature58_register_request_duplicate_safe_generic_response(tmp_path: Path) -> None:
+	from fastapi.testclient import TestClient
+
+	from server.app import create_app
+	from server.config import ServerConfig
+
+	config = ServerConfig(
+		storage_backend="local",
+		local_storage_root=tmp_path / "storage",
+		s3_bucket="kinnoo-registry-dev",
+		s3_region="us-east-1",
+		s3_endpoint_url=None,
+		s3_access_key_id=None,
+		s3_secret_access_key=None,
+		presign_ttl_seconds=120,
+		max_upload_mb=5,
+	)
+	app = create_app(config=config)
+	client = TestClient(app, base_url="https://testserver")
+
+	app.state.user_store.create_user(
+		username="existing@example.com",
+		plaintext_password="existing-password",
+		role="user",
+	)
+
+	new_response = client.post("/api/auth/register-request", json={"email": "new-user@example.com"})
+	existing_response = client.post("/api/auth/register-request", json={"email": "existing@example.com"})
+
+	assert new_response.status_code == 200
+	assert existing_response.status_code == 200
+
+	expected_message = "If this email is valid, you'll receive a verification link"
+	assert new_response.json() == {"message": expected_message}
+	assert existing_response.json() == {"message": expected_message}
+
+	# Only unknown-email requests should dispatch a verification link event.
+	assert len(app.state.email_log_sink) == 1
+	logged_event = app.state.email_log_sink[0]
+	assert logged_event["email"] == "new-user@example.com"
+	assert logged_event["verification_link"].startswith("http://localhost:3000/signup/verify?token=")
+
+
+def test_feature58_register_request_rate_limit(tmp_path: Path) -> None:
+	from fastapi.testclient import TestClient
+
+	from server.app import create_app
+	from server.config import ServerConfig
+
+	config = ServerConfig(
+		storage_backend="local",
+		local_storage_root=tmp_path / "storage",
+		s3_bucket="kinnoo-registry-dev",
+		s3_region="us-east-1",
+		s3_endpoint_url=None,
+		s3_access_key_id=None,
+		s3_secret_access_key=None,
+		presign_ttl_seconds=120,
+		max_upload_mb=5,
+	)
+	app = create_app(config=config)
+	client = TestClient(app, base_url="https://testserver")
+
+	for _ in range(5):
+		response = client.post("/api/auth/register-request", json={"email": "limit@example.com"})
+		assert response.status_code in {200, 429}
+
+	blocked = client.post("/api/auth/register-request", json={"email": "limit@example.com"})
+	assert blocked.status_code == 429
+	blocked_body = blocked.json()
+	assert blocked_body["error"]["code"] == "too_many_requests"
+	assert blocked_body["error"]["message"] == "429 too many requests"
+	assert blocked_body["error"]["request_id"]
+
+
+def test_feature58_register_confirm_success_creates_user_tenant_session(tmp_path: Path) -> None:
+	from fastapi.testclient import TestClient
+
+	from server.app import create_app
+	from server.config import ServerConfig
+
+	config = ServerConfig(
+		storage_backend="local",
+		local_storage_root=tmp_path / "storage",
+		s3_bucket="kinnoo-registry-dev",
+		s3_region="us-east-1",
+		s3_endpoint_url=None,
+		s3_access_key_id=None,
+		s3_secret_access_key=None,
+		presign_ttl_seconds=120,
+		max_upload_mb=5,
+	)
+	app = create_app(config=config)
+	client = TestClient(app, base_url="https://testserver")
+
+	token = app.state.registration_token_service.issue_token(email="new-owner@example.com")
+	response = client.post(
+		"/api/auth/register-confirm",
+		json={"token": token, "password": "valid-passphrase-123"},
+	)
+	assert response.status_code == 200
+	payload = response.json()
+	assert payload["redirect_to"] == "/registry"
+	assert payload["tenant_slug"] == "new-owner"
+	assert payload["username"] == "new-owner@example.com"
+
+	set_cookie_values = response.headers.get_list("set-cookie")
+	joined_cookies = "\n".join(set_cookie_values)
+	assert "kinnoo_session=" in joined_cookies
+	assert "kinnoo_csrf=" in joined_cookies
+
+
+def test_feature58_register_confirm_rejects_expired_or_used_token(tmp_path: Path) -> None:
+	from fastapi.testclient import TestClient
+	import time
+
+	from server.app import create_app
+	from server.config import ServerConfig
+
+	config = ServerConfig(
+		storage_backend="local",
+		local_storage_root=tmp_path / "storage",
+		s3_bucket="kinnoo-registry-dev",
+		s3_region="us-east-1",
+		s3_endpoint_url=None,
+		s3_access_key_id=None,
+		s3_secret_access_key=None,
+		presign_ttl_seconds=120,
+		max_upload_mb=5,
+	)
+	app = create_app(config=config)
+	client = TestClient(app, base_url="https://testserver")
+
+	expired_token = app.state.registration_token_service.issue_token(
+		email="expired@example.com",
+		now_epoch=int(time.time()) - (24 * 60 * 60) - 5,
+	)
+	expired = client.post(
+		"/api/auth/register-confirm",
+		json={"token": expired_token, "password": "valid-passphrase-123"},
+	)
+	assert expired.status_code == 400
+	assert expired.json()["error"]["message"] == "invalid or expired registration token"
+
+	reusable_token = app.state.registration_token_service.issue_token(email="single-use@example.com")
+	first = client.post(
+		"/api/auth/register-confirm",
+		json={"token": reusable_token, "password": "valid-passphrase-123"},
+	)
+	assert first.status_code == 200
+
+	second = client.post(
+		"/api/auth/register-confirm",
+		json={"token": reusable_token, "password": "valid-passphrase-123"},
+	)
+	assert second.status_code == 400
+	assert second.json()["error"]["message"] == "registration token already consumed"
+
+
+def test_feature58_tenant_slug_collision_suffix_allocator(tmp_path: Path) -> None:
+	from fastapi.testclient import TestClient
+
+	from server.app import create_app
+	from server.config import ServerConfig
+
+	config = ServerConfig(
+		storage_backend="local",
+		local_storage_root=tmp_path / "storage",
+		s3_bucket="kinnoo-registry-dev",
+		s3_region="us-east-1",
+		s3_endpoint_url=None,
+		s3_access_key_id=None,
+		s3_secret_access_key=None,
+		presign_ttl_seconds=120,
+		max_upload_mb=5,
+	)
+	app = create_app(config=config)
+	client = TestClient(app, base_url="https://testserver")
+
+	token_one = app.state.registration_token_service.issue_token(email="jerryschen@gmail.com")
+	token_two = app.state.registration_token_service.issue_token(email="jerryschen@yahoo.com")
+	token_three = app.state.registration_token_service.issue_token(email="jerryschen@outlook.com")
+
+	first = client.post(
+		"/api/auth/register-confirm",
+		json={"token": token_one, "password": "valid-passphrase-123"},
+	)
+	second = client.post(
+		"/api/auth/register-confirm",
+		json={"token": token_two, "password": "valid-passphrase-123"},
+	)
+	third = client.post(
+		"/api/auth/register-confirm",
+		json={"token": token_three, "password": "valid-passphrase-123"},
+	)
+
+	assert first.status_code == 200
+	assert second.status_code == 200
+	assert third.status_code == 200
+
+	assert first.json()["tenant_slug"] == "jerryschen"
+	assert second.json()["tenant_slug"] == "jerryschen-1"
+	assert third.json()["tenant_slug"] == "jerryschen-2"
+
+
+def test_feature58_registration_suite(tmp_path: Path) -> None:
+	from fastapi.testclient import TestClient
+
+	from server.app import create_app
+	from server.config import ServerConfig
+
+	config = ServerConfig(
+		storage_backend="local",
+		local_storage_root=tmp_path / "storage",
+		s3_bucket="kinnoo-registry-dev",
+		s3_region="us-east-1",
+		s3_endpoint_url=None,
+		s3_access_key_id=None,
+		s3_secret_access_key=None,
+		presign_ttl_seconds=120,
+		max_upload_mb=5,
+	)
+	app = create_app(config=config)
+	client = TestClient(app, base_url="https://testserver")
+
+	# Request verification link using duplicate-safe endpoint contract.
+	request_response = client.post("/api/auth/register-request", json={"email": "suite-user@example.com"})
+	assert request_response.status_code == 200
+	assert request_response.json()["message"] == "If this email is valid, you'll receive a verification link"
+
+	assert app.state.email_log_sink
+	verification_link = app.state.email_log_sink[-1]["verification_link"]
+	token = verification_link.split("token=", 1)[1]
+
+	# Confirm registration and establish session.
+	confirm_response = client.post(
+		"/api/auth/register-confirm",
+		json={"token": token, "password": "suite-passphrase-123"},
+	)
+	assert confirm_response.status_code == 200
+	assert confirm_response.json()["redirect_to"] == "/registry"
+
+	# Session cookie should permit auth-me access in the same client.
+	auth_me = client.get("/api/auth/me")
+	assert auth_me.status_code == 200
+	auth_payload = auth_me.json()
+	assert auth_payload["username"] == "suite-user@example.com"
+	assert auth_payload["tenant_slug"] == "suite-user"
