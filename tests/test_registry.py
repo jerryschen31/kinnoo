@@ -1540,3 +1540,95 @@ def test_feature60_rehash_on_login_for_legacy_hash(tmp_path: Path) -> None:
 	assert updated_user is not None
 	assert updated_user.password_hash != legacy_hash
 	assert updated_user.password_hash.startswith("$argon2") or updated_user.password_hash.startswith("scrypt$")
+
+
+def test_feature60_subphase5_full_suite(tmp_path: Path) -> None:
+	from fastapi.testclient import TestClient
+
+	from server.app import create_app
+	from server.config import ServerConfig
+
+	config = ServerConfig(
+		storage_backend="local",
+		local_storage_root=tmp_path / "storage",
+		s3_bucket="kinnoo-registry-dev",
+		s3_region="us-east-1",
+		s3_endpoint_url=None,
+		s3_access_key_id=None,
+		s3_secret_access_key=None,
+		presign_ttl_seconds=120,
+		max_upload_mb=5,
+	)
+	app = create_app(config=config)
+	client = TestClient(app, base_url="https://testserver")
+
+	# Baseline auth check should remain secure.
+	auth_missing = client.get("/api/auth/me")
+	assert auth_missing.status_code == 401
+
+	# Registration request + confirm flow should still work end-to-end.
+	register_email = "feature60-suite@example.com"
+	request_response = client.post("/api/auth/register-request", json={"email": register_email})
+	assert request_response.status_code == 200
+
+	verification_event = next(
+		event
+		for event in app.state.email_log_sink
+		if event.get("event_type") == "registration_verification" and event.get("email") == register_email
+	)
+	verification_token = verification_event["verification_link"].split("token=", 1)[1]
+	confirm_response = client.post(
+		"/api/auth/register-confirm",
+		json={"token": verification_token, "password": "strong-passphrase-alpha-123"},
+	)
+	assert confirm_response.status_code == 200
+
+	# Reset request + confirm must rotate credentials and keep login path working.
+	reset_request = client.post("/api/auth/password-reset-request", json={"email": register_email})
+	assert reset_request.status_code == 200
+	reset_event = next(
+		event
+		for event in app.state.email_log_sink
+		if event.get("event_type") == "password_reset" and event.get("email") == register_email
+	)
+	reset_token = reset_event["reset_link"].split("token=", 1)[1]
+	reset_confirm = client.post(
+		"/api/auth/password-reset-confirm",
+		json={"token": reset_token, "new_password": "strong-passphrase-beta-456"},
+	)
+	assert reset_confirm.status_code == 200
+
+	old_login = client.post(
+		"/api/auth/token",
+		json={"username": register_email, "password": "strong-passphrase-alpha-123", "tenant_slug": "feature60-suite"},
+	)
+	assert old_login.status_code == 401
+
+	new_login = client.post(
+		"/api/auth/token",
+		json={
+			"username": register_email,
+			"password": "strong-passphrase-beta-456",
+			"tenant_slug": "feature60-suite",
+		},
+	)
+	assert new_login.status_code == 200
+
+
+def test_feature60_sso_deferred_but_identity_schema_ready() -> None:
+	schema_path = Path(__file__).resolve().parents[1] / "server" / "storage" / "sql" / "schema_auth.sql"
+	planning_path = Path(__file__).resolve().parents[1] / "notes" / "phases" / "phase5-planning.md"
+	tasks_path = Path(__file__).resolve().parents[1] / "TASKS.txt"
+
+	schema_text = schema_path.read_text(encoding="utf-8")
+	planning_text = planning_path.read_text(encoding="utf-8")
+	tasks_text = tasks_path.read_text(encoding="utf-8")
+
+	assert "UNIQUE(provider, provider_user_id)" in schema_text
+	assert "Tenant ownership is based on internal `user_id`" in planning_text
+	assert "Google/GitHub SSO implementation is explicitly deferred" in planning_text
+
+	# Sub-phase 5 task block should not require provider-specific SSO endpoint implementation.
+	subphase5_block = tasks_text[tasks_text.find("- id: task327") : tasks_text.find("- id: task331")]
+	assert "google sso" not in subphase5_block.lower()
+	assert "github sso" not in subphase5_block.lower()
