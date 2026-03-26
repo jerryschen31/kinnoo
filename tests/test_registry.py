@@ -948,3 +948,79 @@ def test_feature58_registration_suite(tmp_path: Path) -> None:
 	auth_payload = auth_me.json()
 	assert auth_payload["username"] == "suite-user@example.com"
 	assert auth_payload["tenant_slug"] == "suite-user"
+
+
+def test_feature59_password_reset_request_generic_response(tmp_path: Path) -> None:
+	from fastapi.testclient import TestClient
+
+	from server.app import create_app
+	from server.config import ServerConfig
+
+	config = ServerConfig(
+		storage_backend="local",
+		local_storage_root=tmp_path / "storage",
+		s3_bucket="kinnoo-registry-dev",
+		s3_region="us-east-1",
+		s3_endpoint_url=None,
+		s3_access_key_id=None,
+		s3_secret_access_key=None,
+		presign_ttl_seconds=120,
+		max_upload_mb=5,
+	)
+	app = create_app(config=config)
+	client = TestClient(app, base_url="https://testserver")
+
+	known_email = "reset-known@example.com"
+	app.state.user_store.create_user(
+		username=known_email,
+		plaintext_password="known-passphrase-123",
+		role="user",
+	)
+
+	known_response = client.post("/api/auth/password-reset-request", json={"email": known_email})
+	unknown_response = client.post("/api/auth/password-reset-request", json={"email": "reset-unknown@example.com"})
+
+	assert known_response.status_code == 200
+	assert unknown_response.status_code == 200
+
+	expected_message = "If an account exists with that email, you'll receive a reset link"
+	assert known_response.json() == {"message": expected_message}
+	assert unknown_response.json() == {"message": expected_message}
+
+	matching_events = [
+		event for event in app.state.email_log_sink if event.get("email") == known_email and "reset_link" in event
+	]
+	assert len(matching_events) == 1
+	assert matching_events[0]["reset_link"].startswith("http://localhost:3000/forgot-password/reset?token=")
+
+
+def test_feature59_password_reset_request_rate_limit(tmp_path: Path) -> None:
+	from fastapi.testclient import TestClient
+
+	from server.app import create_app
+	from server.config import ServerConfig
+
+	config = ServerConfig(
+		storage_backend="local",
+		local_storage_root=tmp_path / "storage",
+		s3_bucket="kinnoo-registry-dev",
+		s3_region="us-east-1",
+		s3_endpoint_url=None,
+		s3_access_key_id=None,
+		s3_secret_access_key=None,
+		presign_ttl_seconds=120,
+		max_upload_mb=5,
+	)
+	app = create_app(config=config)
+	client = TestClient(app, base_url="https://testserver")
+
+	for _ in range(5):
+		response = client.post("/api/auth/password-reset-request", json={"email": "limit@example.com"})
+		assert response.status_code in {200, 429}
+
+	blocked = client.post("/api/auth/password-reset-request", json={"email": "limit@example.com"})
+	assert blocked.status_code == 429
+	blocked_body = blocked.json()
+	assert blocked_body["error"]["code"] == "too_many_requests"
+	assert blocked_body["error"]["message"] == "429 too many requests"
+	assert blocked_body["error"]["request_id"]

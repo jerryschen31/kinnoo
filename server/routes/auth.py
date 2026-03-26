@@ -9,11 +9,16 @@ from starlette.requests import Request
 
 from server.api.endpoints import post_auth_token
 from server.auth.password_policy import validate_registration_email, validate_registration_password
-from server.auth.services import build_registration_verification_link, registration_generic_success_message
+from server.auth.services import (
+    build_password_reset_link,
+    build_registration_verification_link,
+    password_reset_generic_success_message,
+    registration_generic_success_message,
+)
 from server.auth.middleware import authenticate_session_identity
 from server.auth.session import SessionService
 from server.auth.token import TokenService
-from server.auth.tokens import RegistrationTokenService
+from server.auth.tokens import PasswordResetTokenService, RegistrationTokenService
 from server.models.user import username_to_tenant_slug
 from server.routes.errors import build_error_envelope, resolve_request_id
 from server.storage.sqlite_auth_store import SQLiteAuthStore
@@ -26,6 +31,7 @@ def create_auth_router(
     user_store: UserStore,
     session_service: SessionService,
     registration_token_service: RegistrationTokenService,
+    password_reset_token_service: PasswordResetTokenService,
     sqlite_auth_store: SQLiteAuthStore,
     frontend_url: str,
     email_log_sink: list[dict[str, str]] | None = None,
@@ -236,6 +242,52 @@ def create_auth_router(
             path="/",
         )
         return response
+
+    @router.post("/api/auth/password-reset-request")
+    async def password_reset_request(request: Request) -> dict[str, object]:
+        request_id = resolve_request_id(request)
+
+        try:
+            payload = await request.json()
+        except Exception:
+            payload = {}
+
+        if not isinstance(payload, dict):
+            return JSONResponse(
+                status_code=400,
+                content=build_error_envelope(
+                    status_code=400,
+                    message="request body must be a JSON object",
+                    request_id=request_id,
+                ),
+            )
+
+        email = str(payload.get("email", ""))
+        validation_error = validate_registration_email(email)
+        if validation_error is not None:
+            return JSONResponse(
+                status_code=400,
+                content=build_error_envelope(
+                    status_code=400,
+                    message=validation_error,
+                    request_id=request_id,
+                ),
+            )
+
+        normalized_email = email.strip().lower()
+        existing_user = user_store.get_by_username(normalized_email)
+        if existing_user is not None:
+            token = password_reset_token_service.issue_token(email=normalized_email)
+            reset_link = build_password_reset_link(frontend_url=frontend_url, token=token)
+            if email_log_sink is not None:
+                email_log_sink.append(
+                    {
+                        "email": normalized_email,
+                        "reset_link": reset_link,
+                    }
+                )
+
+        return {"message": password_reset_generic_success_message()}
 
     @router.get("/api/auth/me")
     async def auth_me(request: Request) -> dict[str, object]:
