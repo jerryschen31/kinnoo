@@ -6473,7 +6473,7 @@ tasks:
       - 'step4: Enforce password match and 10-128 length validation before submit; include passphrase-friendly helper text'
     dependencies: [task287, task295]
     tests: [test467, test468, test471]
-    status: not-started
+    status: needs-review
 
   - id: task320
     title: "Implement register-request endpoint with privacy + token issuance"
