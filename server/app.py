@@ -8,6 +8,7 @@ from typing import Any
 
 from server.auth.session import SessionService
 from server.auth.token import SigningKey, TokenService
+from server.auth.tokens import RegistrationTokenService
 from server.bootstrap import bootstrap_admin_from_env
 from server.config import ServerConfig
 from server.metadata.manager import MetadataManager
@@ -57,6 +58,11 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
         ttl_minutes=60,
     )
     metadata_manager = MetadataManager(storage=storage_backend)
+    registration_token_service = RegistrationTokenService(
+        signing_secret=os.getenv("REGISTRY_REGISTER_TOKEN_SECRET", "dev-register-token-secret-change-me"),
+    )
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    email_log_sink: list[dict[str, str]] = []
 
     app = FastAPI(title="kinnoo-registry-server")
     templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
@@ -70,6 +76,7 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
         limiter=InMemoryRateLimiter(),
         rules={
             "/api/auth/token": RateLimitRule(requests_per_minute=20),
+            "/api/auth/register-request": RateLimitRule(requests_per_minute=5),
             "/api/publish": RateLimitRule(requests_per_minute=20),
         },
     )
@@ -79,6 +86,9 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
     app.state.metadata_manager = metadata_manager
     app.state.user_store = user_store
     app.state.session_service = session_service
+    app.state.registration_token_service = registration_token_service
+    app.state.frontend_url = frontend_url
+    app.state.email_log_sink = email_log_sink
     app.state.templates = templates
 
     @app.middleware("http")
@@ -106,6 +116,9 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
             token_service=token_service,
             user_store=user_store,
             session_service=session_service,
+            registration_token_service=registration_token_service,
+            frontend_url=frontend_url,
+            email_log_sink=email_log_sink,
         )
     )
     app.include_router(

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import datetime, timezone
+from urllib.parse import urlencode
 
 from server.storage.user_store import UserStore
 
@@ -44,3 +45,15 @@ def ensure_admin_account(*, user_store: UserStore, username: str, plaintext_pass
     )
     user_store.save(promoted)
     return True, "Admin bootstrap promoted existing account to admin role."
+
+
+def build_registration_verification_link(*, frontend_url: str, token: str) -> str:
+    """Build the frontend verification URL for register-request messages."""
+    root = frontend_url.rstrip("/")
+    query = urlencode({"token": token})
+    return f"{root}/signup/verify?{query}"
+
+
+def registration_generic_success_message() -> str:
+    """Generic, non-enumerating registration response contract."""
+    return "If this email is valid, you'll receive a verification link"
