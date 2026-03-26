@@ -133,11 +133,24 @@ def agent_detail_payload(
     if not _can_read_tenant(claims=claims, tenant_slug=tenant_slug, visibility=agent_index.visibility):
         return 403, {"error": "403 forbidden: private tenant access denied"}
 
+    latest_version = _latest_version_from_index(agent_index=agent_index)
+    agent_manifest: dict[str, object] = {}
+    if latest_version:
+        metadata = metadata_manager.get_version_metadata(
+            tenant_slug=tenant_slug,
+            agent_slug=agent_slug,
+            version=latest_version,
+        )
+        if metadata is not None and isinstance(metadata.manifest, dict):
+            agent_manifest = dict(metadata.manifest)
+
     return 200, {
         "tenant_slug": agent_index.tenant_slug,
         "agent_slug": agent_index.agent_slug,
         "visibility": agent_index.visibility,
         "versions": [version.to_document() for version in agent_index.versions],
+        "latest_version": latest_version,
+        "agent_manifest": agent_manifest,
         "schema_version": agent_index.schema_version,
     }
 
@@ -263,6 +276,13 @@ def _author_for_summary(
     if metadata is None:
         return ""
     return str(metadata.manifest.get("author", ""))
+
+
+def _latest_version_from_index(*, agent_index) -> str:
+    if not agent_index.versions:
+        return ""
+    latest = max(agent_index.versions, key=lambda item: item.updated_at)
+    return latest.version
 
 
 def _archive_size_for_summary(

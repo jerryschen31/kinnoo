@@ -47,7 +47,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md rounded-card border border-white/10 bg-kinnoo-surface/70 p-6 shadow-xl sm:p-8">
         <h1 className="mb-6 text-3xl font-semibold tracking-tight text-kinnoo-text">Login</h1>
 
-        <form className="space-y-4" noValidate onSubmit={handleSubmit}>
+        <form className="space-y-4" method="post" action="/login" noValidate onSubmit={handleSubmit}>
           <div className="space-y-2">
             <label htmlFor="email" className="block text-sm font-medium text-white/85">
               Username (E-mail)

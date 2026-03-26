@@ -2,7 +2,6 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 
-import AgentCard from "./AgentCard";
 import type { AgentSummary } from "../../lib/registry-client";
 
 type RegistryView = "my-agents" | "search";
@@ -30,8 +29,77 @@ const panelMotion = {
   initial: { opacity: 0, y: 8 },
   animate: { opacity: 1, y: 0 },
   exit: { opacity: 0, y: -6 },
-  transition: { duration: 0.16, ease: "easeOut" },
+  transition: { duration: 0.16, ease: "easeOut" as const },
 };
+
+function formatSize(size?: number): string {
+  if (typeof size !== "number" || Number.isNaN(size)) {
+    return "Unknown";
+  }
+
+  if (size < 1024) {
+    return `${size} B`;
+  }
+
+  const kb = size / 1024;
+  if (kb < 1024) {
+    return `${kb.toFixed(1)} KB`;
+  }
+
+  return `${(kb / 1024).toFixed(2)} MB`;
+}
+
+function AgentTable({
+  agents,
+  source,
+  onAgentNameClick,
+}: {
+  agents: AgentSummary[];
+  source: "my-agents" | "search";
+  onAgentNameClick: (agent: AgentSummary, source: "my-agents" | "search") => void;
+}) {
+  return (
+    <div className="mt-3 overflow-x-auto rounded-card border border-white/15">
+      <table className="min-w-full border-collapse text-left text-sm text-kinnoo-text">
+        <thead className="bg-black/35 text-xs uppercase tracking-[0.08em] text-white/70">
+          <tr>
+            <th className="px-3 py-2">Tenant</th>
+            <th className="px-3 py-2">Name</th>
+            <th className="px-3 py-2">Version</th>
+            <th className="px-3 py-2">Author</th>
+            <th className="px-3 py-2">Framework</th>
+            <th className="px-3 py-2">Size</th>
+            <th className="px-3 py-2">Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          {agents.map((agent) => (
+            <tr
+              key={`${agent.tenant_slug}/${agent.agent_slug}/${agent.version}`}
+              className="border-t border-white/10 align-top"
+            >
+              <td className="px-3 py-2">{agent.tenant_slug}</td>
+              <td className="px-3 py-2">
+                <button
+                  type="button"
+                  onClick={() => onAgentNameClick(agent, source)}
+                  className="text-left text-kinnoo-accent underline decoration-kinnoo-accent/50 underline-offset-2 transition hover:text-[#60A5FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kinnoo-accent"
+                >
+                  {agent.agent_slug}
+                </button>
+              </td>
+              <td className="px-3 py-2">{agent.version}</td>
+              <td className="px-3 py-2">{agent.author ?? "Unknown"}</td>
+              <td className="px-3 py-2">{agent.framework ?? "Unknown"}</td>
+              <td className="px-3 py-2">{formatSize(agent.size)}</td>
+              <td className="px-3 py-2">{agent.description ?? "No description provided."}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 export default function RegistryTabs({
   activeView,
@@ -63,15 +131,11 @@ export default function RegistryTabs({
           ) : myAgentsState.agents.length === 0 ? (
             <p className="mt-2 text-sm text-white/70">No agents published yet.</p>
           ) : (
-            <div className="mt-3 grid grid-cols-1 gap-3">
-              {myAgentsState.agents.map((agent) => (
-                <AgentCard
-                  key={`${agent.tenant_slug}/${agent.agent_slug}/${agent.version}`}
-                  agent={agent}
-                  onNameClick={(selectedAgent) => onAgentNameClick(selectedAgent, "my-agents")}
-                />
-              ))}
-            </div>
+            <AgentTable
+              agents={myAgentsState.agents}
+              source="my-agents"
+              onAgentNameClick={onAgentNameClick}
+            />
           )}
         </motion.section>
       ) : (
@@ -115,15 +179,11 @@ export default function RegistryTabs({
             ) : searchState.agents.length === 0 ? (
               <p className="text-sm text-white/70">No matching agents found.</p>
             ) : (
-              <div className="grid grid-cols-1 gap-3">
-                {searchState.agents.map((agent) => (
-                  <AgentCard
-                    key={`${agent.tenant_slug}/${agent.agent_slug}/${agent.version}`}
-                    agent={agent}
-                    onNameClick={(selectedAgent) => onAgentNameClick(selectedAgent, "search")}
-                  />
-                ))}
-              </div>
+              <AgentTable
+                agents={searchState.agents}
+                source="search"
+                onAgentNameClick={onAgentNameClick}
+              />
             )}
           </div>
         </motion.section>

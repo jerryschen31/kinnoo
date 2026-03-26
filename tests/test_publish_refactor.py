@@ -5,6 +5,9 @@ import zipfile
 from pathlib import Path
 
 
+CLI_PATH = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+
+
 def _write_archive(
     archive_root: Path,
     *,
@@ -68,7 +71,8 @@ def test_publish_name_resolves_latest_local_archive(tmp_path: Path) -> None:
     )
 
     result = subprocess.run(
-        [sys.executable, "src/kinnoo/cli.py", "publish", "demo-agent"],
+        [sys.executable, str(CLI_PATH), "publish", "demo-agent"],
+        cwd=tmp_path,
         capture_output=True,
         text=True,
         env=env,
@@ -96,7 +100,8 @@ def test_publish_errors_for_missing_or_invalid_archive_source(tmp_path: Path) ->
     )
 
     missing_agent_result = subprocess.run(
-        [sys.executable, "src/kinnoo/cli.py", "publish", "missing-agent"],
+        [sys.executable, str(CLI_PATH), "publish", "missing-agent"],
+        cwd=tmp_path,
         capture_output=True,
         text=True,
         env=env,
@@ -108,7 +113,8 @@ def test_publish_errors_for_missing_or_invalid_archive_source(tmp_path: Path) ->
     empty_agent_dir = archive_root / "empty-agent"
     empty_agent_dir.mkdir(parents=True, exist_ok=True)
     no_versions_result = subprocess.run(
-        [sys.executable, "src/kinnoo/cli.py", "publish", "empty-agent"],
+        [sys.executable, str(CLI_PATH), "publish", "empty-agent"],
+        cwd=tmp_path,
         capture_output=True,
         text=True,
         env=env,
@@ -143,7 +149,8 @@ def test_publish_errors_for_missing_or_invalid_archive_source(tmp_path: Path) ->
     )
 
     invalid_metadata_result = subprocess.run(
-        [sys.executable, "src/kinnoo/cli.py", "publish", "broken-agent"],
+        [sys.executable, str(CLI_PATH), "publish", "broken-agent"],
+        cwd=tmp_path,
         capture_output=True,
         text=True,
         env=env,
@@ -170,7 +177,8 @@ def test_publish_rolls_existing_tagged_to_untagged(tmp_path: Path) -> None:
         run_content="print('payload-v1')\n",
     )
     first_publish = subprocess.run(
-        [sys.executable, "src/kinnoo/cli.py", "publish", "rollover-agent"],
+        [sys.executable, str(CLI_PATH), "publish", "rollover-agent"],
+        cwd=tmp_path,
         capture_output=True,
         text=True,
         env=env,
@@ -189,7 +197,8 @@ def test_publish_rolls_existing_tagged_to_untagged(tmp_path: Path) -> None:
         run_content="print('payload-v2')\n",
     )
     second_publish = subprocess.run(
-        [sys.executable, "src/kinnoo/cli.py", "publish", "rollover-agent"],
+        [sys.executable, str(CLI_PATH), "publish", "rollover-agent"],
+        cwd=tmp_path,
         capture_output=True,
         text=True,
         env=env,

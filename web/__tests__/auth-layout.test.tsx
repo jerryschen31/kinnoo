@@ -48,7 +48,7 @@ describe("Auth layout", () => {
     expect(redirectMock).not.toHaveBeenCalled();
     expect(view).toBeTruthy();
     expect(fetchSpy).toHaveBeenCalledWith(
-      "/api/auth/me",
+      "http://127.0.0.1:8000/api/auth/me",
       expect.objectContaining({
         method: "GET",
         cache: "no-store",

@@ -21,6 +21,13 @@ class RegistryConfig:
     tenant_slug: str | None
 
 
+@dataclass(frozen=True)
+class PublishBehaviorConfig:
+    """Project-level publish behavior flags loaded from kinnoo-config.txt."""
+
+    publish_to_authenticated_registry: bool
+
+
 def load_registry_config(config_path: Path | None = None) -> RegistryConfig:
     """Load registry config from file and apply environment overrides.
 
@@ -52,6 +59,26 @@ def load_registry_config(config_path: Path | None = None) -> RegistryConfig:
     )
 
 
+def load_publish_behavior_config(start_dir: Path | None = None) -> PublishBehaviorConfig:
+    """Load project-level publish behavior flags.
+
+    Expected file location: nearest ``kinnoo-config.txt`` from ``start_dir`` (or CWD)
+    walking up to filesystem root.
+    """
+
+    config_path = _find_project_config_file(start_dir=start_dir)
+    if config_path is None:
+        return PublishBehaviorConfig(publish_to_authenticated_registry=False)
+
+    file_values = _read_publish_values_from_file(config_path)
+    return PublishBehaviorConfig(
+        publish_to_authenticated_registry=_parse_bool_value(
+            file_values.get("publish_to_authenticated_registry"),
+            default=False,
+        )
+    )
+
+
 def _read_registry_values_from_file(config_path: Path) -> dict[str, str]:
     if not config_path.exists() or not config_path.is_file():
         return {}
@@ -72,6 +99,66 @@ def _read_registry_values_from_file(config_path: Path) -> dict[str, str]:
             normalized[key] = value.strip()
 
     return normalized
+
+
+def _read_publish_values_from_file(config_path: Path) -> dict[str, str]:
+    if not config_path.exists() or not config_path.is_file():
+        return {}
+
+    try:
+        raw_text = config_path.read_text(encoding="utf-8")
+    except OSError:
+        return {}
+
+    parsed: dict[str, str] = {}
+    for raw_line in raw_text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+
+        if "=" in line:
+            key_part, value_part = line.split("=", 1)
+        elif ":" in line:
+            key_part, value_part = line.split(":", 1)
+        else:
+            continue
+
+        key = key_part.strip()
+        value = value_part.strip()
+        if not key:
+            continue
+
+        if (value.startswith('"') and value.endswith('"')) or (
+            value.startswith("'") and value.endswith("'")
+        ):
+            value = value[1:-1]
+
+        parsed[key] = value
+
+    return parsed
+
+
+def _find_project_config_file(start_dir: Path | None = None) -> Path | None:
+    current = (start_dir or Path.cwd()).expanduser().resolve()
+
+    for candidate in (current, *current.parents):
+        config_path = candidate / "kinnoo-config.txt"
+        if config_path.exists() and config_path.is_file():
+            return config_path
+
+    return None
+
+
+def _parse_bool_value(value: str | None, *, default: bool) -> bool:
+    if value is None:
+        return default
+
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    return default
 
 
 def _parse_simple_yaml_object(text: str) -> dict[str, Any]:

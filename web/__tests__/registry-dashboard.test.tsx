@@ -25,7 +25,7 @@ describe("Registry dashboard", () => {
 
     expect(screen.getByRole("button", { name: "My Agents" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Search" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Logout" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Logout" })).toBeTruthy();
   });
 
   it("defaults to My Agents view on initial render", async () => {
@@ -86,7 +86,7 @@ describe("Registry dashboard", () => {
     });
   });
 
-  it("uses /api proxy routes and handles loading, empty, and error states", async () => {
+  it("uses /api proxy routes and handles loading, empty, and query-driven error states", async () => {
     let resolveAgentsFetch: ((value: Response) => void) | undefined;
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
       const url = String(input);
@@ -115,6 +115,16 @@ describe("Registry dashboard", () => {
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("registry-search-view")).toBeTruthy();
+    });
+
+    expect(screen.queryByText("Unable to search agents right now.")).toBeNull();
+
+    fireEvent.change(screen.getByLabelText("Search public agents"), {
+      target: { value: "langgraph" },
+    });
 
     await waitFor(() => {
       expect(screen.getByText("Unable to search agents right now.")).toBeTruthy();

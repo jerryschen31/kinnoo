@@ -71,6 +71,7 @@ def test_remote_client_http_calls(monkeypatch, tmp_path: Path) -> None:
     assert publish_request.get_method() == "POST"
     assert publish_request.full_url == "https://registry.example.test/api/publish"
     assert publish_request.get_header("Authorization") == "Bearer secret-token"
+    assert publish_request.get_header("User-agent") == "curl/8.7.1"
     publish_content_type = publish_request.get_header("Content-type") or ""
     assert "multipart/form-data" in publish_content_type
     publish_body = publish_request.data or b""
@@ -136,3 +137,60 @@ def test_error_handling(monkeypatch, tmp_path: Path) -> None:
             client.publish(name="demo", version="1.0.0", archive_path=archive_path)
 
         assert expected_message_part in str(exc_info.value).lower()
+
+
+def test_forbidden_error_includes_response_body(monkeypatch, tmp_path: Path) -> None:
+    archive_path = tmp_path / "demo.kno"
+    archive_path.write_text("archive-bytes", encoding="utf-8")
+
+    client = RemoteRegistryClient(
+        base_url="https://registry.example.test",
+        token="secret-token",
+        tenant_slug="acme",
+    )
+
+    raised_error = urllib_error.HTTPError(
+        url="https://registry.example.test/api/publish",
+        code=403,
+        msg="HTTP 403",
+        hdrs=None,
+        fp=io.BytesIO(b'{"error":{"message":"policy block"}}'),
+    )
+
+    def _raise_error(_request, timeout: float = 0):
+        del timeout
+        raise raised_error
+
+    monkeypatch.setattr(urllib_request, "urlopen", _raise_error)
+
+    with pytest.raises(RemoteRegistryClientError) as exc_info:
+        client.publish(name="demo", version="1.0.0", archive_path=archive_path)
+
+    rendered = str(exc_info.value).lower()
+    assert "forbidden" in rendered
+    assert "policy block" in rendered
+
+
+def test_remote_client_user_agent_honors_env_override(monkeypatch, tmp_path: Path) -> None:
+    captured_requests: list[urllib_request.Request] = []
+
+    def fake_urlopen(request: urllib_request.Request, timeout: float = 0):
+        del timeout
+        captured_requests.append(request)
+        return _FakeHTTPResponse({"ok": True})
+
+    monkeypatch.setenv("KINNOO_HTTP_USER_AGENT", "Mozilla/5.0 TestAgent")
+    monkeypatch.setattr(urllib_request, "urlopen", fake_urlopen)
+
+    archive_path = tmp_path / "demo.kno"
+    archive_path.write_text("archive-bytes", encoding="utf-8")
+
+    client = RemoteRegistryClient(
+        base_url="https://registry.example.test",
+        token="secret-token",
+        tenant_slug="acme",
+    )
+
+    result = client.publish(name="demo", version="1.0.0", archive_path=archive_path)
+    assert result["ok"] is True
+    assert captured_requests[0].get_header("User-agent") == "Mozilla/5.0 TestAgent"

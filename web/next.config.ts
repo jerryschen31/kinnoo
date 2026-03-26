@@ -22,16 +22,16 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
-        source: "/api/:path*",
-        destination: `${backendUrl}/api/:path*`,
-      },
-      {
         source: "/api/login",
         destination: `${backendUrl}/login`,
       },
       {
         source: "/api/logout",
         destination: `${backendUrl}/logout`,
+      },
+      {
+        source: "/api/:path*",
+        destination: `${backendUrl}/api/:path*`,
       },
     ];
   },
