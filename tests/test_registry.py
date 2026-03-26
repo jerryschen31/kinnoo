@@ -1,6 +1,7 @@
 from pathlib import Path
 import importlib.util
 import json
+import sqlite3
 import sys
 import os
 import subprocess
@@ -1299,3 +1300,335 @@ def test_feature59_forgot_password_suite(tmp_path: Path) -> None:
 	)
 	assert new_login.status_code == 200
 	assert new_login.json()["token_type"] == "Bearer"
+
+
+def test_feature60_sqlite_auth_schema_and_indexes(tmp_path: Path) -> None:
+	migration_path = (
+		Path(__file__).resolve().parents[1]
+		/ "server"
+		/ "storage"
+		/ "sql"
+		/ "migrations"
+		/ "001_auth_schema.sql"
+	)
+	migration_sql = migration_path.read_text(encoding="utf-8")
+
+	db_path = tmp_path / "auth.db"
+	connection = sqlite3.connect(db_path)
+	try:
+		connection.executescript(migration_sql)
+
+		rows = connection.execute(
+			"SELECT name FROM sqlite_master WHERE type='table'"
+		).fetchall()
+		tables = {row[0] for row in rows}
+		for table_name in {"users", "tenants", "identities", "sessions", "one_time_tokens"}:
+			assert table_name in tables
+
+		# tenant_slug uniqueness
+		connection.execute(
+			"INSERT INTO tenants (tenant_slug, owner_user_id, visibility, created_at_epoch) VALUES (?, ?, ?, ?)",
+			("tenant-alpha", "user-1", "private", 1),
+		)
+		with pytest.raises(sqlite3.IntegrityError):
+			connection.execute(
+				"INSERT INTO tenants (tenant_slug, owner_user_id, visibility, created_at_epoch) VALUES (?, ?, ?, ?)",
+				("tenant-alpha", "user-2", "private", 1),
+			)
+
+		# identities(provider, provider_user_id) uniqueness
+		connection.execute(
+			"""
+			INSERT INTO identities (
+				user_id, provider, provider_user_id, provider_email, created_at_epoch, updated_at_epoch
+			) VALUES (?, ?, ?, ?, ?, ?)
+			""",
+			("user-1", "local", "alice@example.com", "alice@example.com", 1, 1),
+		)
+		with pytest.raises(sqlite3.IntegrityError):
+			connection.execute(
+				"""
+				INSERT INTO identities (
+					user_id, provider, provider_user_id, provider_email, created_at_epoch, updated_at_epoch
+				) VALUES (?, ?, ?, ?, ?, ?)
+				""",
+				("user-2", "local", "alice@example.com", "alice@example.com", 1, 1),
+			)
+	finally:
+		connection.close()
+
+
+def test_feature60_email_service_abstraction_dev_provider(tmp_path: Path) -> None:
+	from fastapi.testclient import TestClient
+
+	from server.app import create_app
+	from server.config import ServerConfig
+
+	config = ServerConfig(
+		storage_backend="local",
+		local_storage_root=tmp_path / "storage",
+		s3_bucket="kinnoo-registry-dev",
+		s3_region="us-east-1",
+		s3_endpoint_url=None,
+		s3_access_key_id=None,
+		s3_secret_access_key=None,
+		presign_ttl_seconds=120,
+		max_upload_mb=5,
+	)
+	app = create_app(config=config)
+	client = TestClient(app, base_url="https://testserver")
+
+	known_email = "feature60-known@example.com"
+	app.state.user_store.create_user(
+		username=known_email,
+		plaintext_password="known-passphrase-123",
+		role="user",
+	)
+
+	register_response = client.post("/api/auth/register-request", json={"email": "feature60-new@example.com"})
+	reset_response = client.post("/api/auth/password-reset-request", json={"email": known_email})
+
+	assert register_response.status_code == 200
+	assert reset_response.status_code == 200
+
+	register_events = [
+		event for event in app.state.email_log_sink if event.get("event_type") == "registration_verification"
+	]
+	reset_events = [event for event in app.state.email_log_sink if event.get("event_type") == "password_reset"]
+
+	assert len(register_events) == 1
+	assert len(reset_events) == 1
+	assert register_events[0]["verification_link"].startswith("http://localhost:3000/signup/verify?token=")
+	assert reset_events[0]["reset_link"].startswith("http://localhost:3000/forgot-password/reset?token=")
+
+
+def test_feature60_env_secrets_and_single_use_tokens(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+	from fastapi.testclient import TestClient
+
+	from server.app import create_app
+	from server.config import ServerConfig
+
+	register_secret = "feature60-register-secret"
+	reset_secret = "feature60-reset-secret"
+	frontend_url = "http://localhost:3099"
+	monkeypatch.setenv("REGISTRY_REGISTER_TOKEN_SECRET", register_secret)
+	monkeypatch.setenv("REGISTRY_PASSWORD_RESET_TOKEN_SECRET", reset_secret)
+	monkeypatch.setenv("FRONTEND_URL", frontend_url)
+
+	config = ServerConfig(
+		storage_backend="local",
+		local_storage_root=tmp_path / "storage",
+		s3_bucket="kinnoo-registry-dev",
+		s3_region="us-east-1",
+		s3_endpoint_url=None,
+		s3_access_key_id=None,
+		s3_secret_access_key=None,
+		presign_ttl_seconds=120,
+		max_upload_mb=5,
+		frontend_url=frontend_url,
+	)
+	app = create_app(config=config)
+	client = TestClient(app, base_url="https://testserver")
+
+	assert app.state.registration_token_service.signing_secret == register_secret
+	assert app.state.password_reset_token_service.signing_secret == reset_secret
+
+	register_email = "feature60-register@example.com"
+	request_response = client.post("/api/auth/register-request", json={"email": register_email})
+	assert request_response.status_code == 200
+
+	register_event = next(
+		event
+		for event in app.state.email_log_sink
+		if event.get("event_type") == "registration_verification" and event.get("email") == register_email
+	)
+	assert register_event["verification_link"].startswith(f"{frontend_url}/signup/verify?token=")
+	register_token = register_event["verification_link"].split("token=", 1)[1]
+
+	confirm_once = client.post(
+		"/api/auth/register-confirm",
+		json={"token": register_token, "password": "feature60-passphrase-123"},
+	)
+	assert confirm_once.status_code == 200
+
+	confirm_twice = client.post(
+		"/api/auth/register-confirm",
+		json={"token": register_token, "password": "feature60-passphrase-123"},
+	)
+	assert confirm_twice.status_code == 400
+	assert confirm_twice.json()["error"]["message"] == "registration token already consumed"
+
+	reset_request = client.post("/api/auth/password-reset-request", json={"email": register_email})
+	assert reset_request.status_code == 200
+
+	reset_event = next(
+		event for event in app.state.email_log_sink if event.get("event_type") == "password_reset"
+	)
+	assert reset_event["reset_link"].startswith(f"{frontend_url}/forgot-password/reset?token=")
+	reset_token = reset_event["reset_link"].split("token=", 1)[1]
+
+	reset_once = client.post(
+		"/api/auth/password-reset-confirm",
+		json={"token": reset_token, "new_password": "feature60-new-passphrase-123"},
+	)
+	assert reset_once.status_code == 200
+
+	reset_twice = client.post(
+		"/api/auth/password-reset-confirm",
+		json={"token": reset_token, "new_password": "feature60-new-passphrase-123"},
+	)
+	assert reset_twice.status_code == 400
+	assert reset_twice.json()["error"]["message"] == "password reset token already consumed"
+
+
+def test_feature60_rehash_on_login_for_legacy_hash(tmp_path: Path) -> None:
+	from dataclasses import replace
+	import hashlib
+	import re
+	import secrets
+
+	from fastapi.testclient import TestClient
+
+	from server.app import create_app
+	from server.config import ServerConfig
+
+	config = ServerConfig(
+		storage_backend="local",
+		local_storage_root=tmp_path / "storage",
+		s3_bucket="kinnoo-registry-dev",
+		s3_region="us-east-1",
+		s3_endpoint_url=None,
+		s3_access_key_id=None,
+		s3_secret_access_key=None,
+		presign_ttl_seconds=120,
+		max_upload_mb=5,
+	)
+	app = create_app(config=config)
+	client = TestClient(app, base_url="https://testserver")
+
+	plaintext_password = "legacy-passphrase-123"
+	user = app.state.user_store.create_user(
+		username="feature60-legacy@example.com",
+		plaintext_password=plaintext_password,
+		role="user",
+	)
+
+	# Force a legacy scrypt hash so successful login should upgrade to Argon2id when available.
+	legacy_salt = secrets.token_bytes(16)
+	legacy_digest = hashlib.scrypt(plaintext_password.encode("utf-8"), salt=legacy_salt, n=2**14, r=8, p=1)
+	legacy_hash = f"scrypt${legacy_salt.hex()}${legacy_digest.hex()}"
+	app.state.user_store.save(replace(user, password_hash=legacy_hash))
+
+	login_page = client.get("/login")
+	assert login_page.status_code == 200
+	match = re.search(r'name="csrf_token"\s+value="([^"]+)"', login_page.text)
+	assert match is not None
+	csrf_token = match.group(1)
+
+	login_response = client.post(
+		"/login",
+		data={
+			"username": user.username,
+			"password": plaintext_password,
+			"csrf_token": csrf_token,
+		},
+		follow_redirects=False,
+	)
+	assert login_response.status_code == 303
+
+	updated_user = app.state.user_store.get_by_username(user.username)
+	assert updated_user is not None
+	assert updated_user.password_hash != legacy_hash
+	assert updated_user.password_hash.startswith("$argon2") or updated_user.password_hash.startswith("scrypt$")
+
+
+def test_feature60_subphase5_full_suite(tmp_path: Path) -> None:
+	from fastapi.testclient import TestClient
+
+	from server.app import create_app
+	from server.config import ServerConfig
+
+	config = ServerConfig(
+		storage_backend="local",
+		local_storage_root=tmp_path / "storage",
+		s3_bucket="kinnoo-registry-dev",
+		s3_region="us-east-1",
+		s3_endpoint_url=None,
+		s3_access_key_id=None,
+		s3_secret_access_key=None,
+		presign_ttl_seconds=120,
+		max_upload_mb=5,
+	)
+	app = create_app(config=config)
+	client = TestClient(app, base_url="https://testserver")
+
+	# Baseline auth check should remain secure.
+	auth_missing = client.get("/api/auth/me")
+	assert auth_missing.status_code == 401
+
+	# Registration request + confirm flow should still work end-to-end.
+	register_email = "feature60-suite@example.com"
+	request_response = client.post("/api/auth/register-request", json={"email": register_email})
+	assert request_response.status_code == 200
+
+	verification_event = next(
+		event
+		for event in app.state.email_log_sink
+		if event.get("event_type") == "registration_verification" and event.get("email") == register_email
+	)
+	verification_token = verification_event["verification_link"].split("token=", 1)[1]
+	confirm_response = client.post(
+		"/api/auth/register-confirm",
+		json={"token": verification_token, "password": "strong-passphrase-alpha-123"},
+	)
+	assert confirm_response.status_code == 200
+
+	# Reset request + confirm must rotate credentials and keep login path working.
+	reset_request = client.post("/api/auth/password-reset-request", json={"email": register_email})
+	assert reset_request.status_code == 200
+	reset_event = next(
+		event
+		for event in app.state.email_log_sink
+		if event.get("event_type") == "password_reset" and event.get("email") == register_email
+	)
+	reset_token = reset_event["reset_link"].split("token=", 1)[1]
+	reset_confirm = client.post(
+		"/api/auth/password-reset-confirm",
+		json={"token": reset_token, "new_password": "strong-passphrase-beta-456"},
+	)
+	assert reset_confirm.status_code == 200
+
+	old_login = client.post(
+		"/api/auth/token",
+		json={"username": register_email, "password": "strong-passphrase-alpha-123", "tenant_slug": "feature60-suite"},
+	)
+	assert old_login.status_code == 401
+
+	new_login = client.post(
+		"/api/auth/token",
+		json={
+			"username": register_email,
+			"password": "strong-passphrase-beta-456",
+			"tenant_slug": "feature60-suite",
+		},
+	)
+	assert new_login.status_code == 200
+
+
+def test_feature60_sso_deferred_but_identity_schema_ready() -> None:
+	schema_path = Path(__file__).resolve().parents[1] / "server" / "storage" / "sql" / "schema_auth.sql"
+	planning_path = Path(__file__).resolve().parents[1] / "notes" / "phases" / "phase5-planning.md"
+	tasks_path = Path(__file__).resolve().parents[1] / "TASKS.txt"
+
+	schema_text = schema_path.read_text(encoding="utf-8")
+	planning_text = planning_path.read_text(encoding="utf-8")
+	tasks_text = tasks_path.read_text(encoding="utf-8")
+
+	assert "UNIQUE(provider, provider_user_id)" in schema_text
+	assert "Tenant ownership is based on internal `user_id`" in planning_text
+	assert "Google/GitHub SSO implementation is explicitly deferred" in planning_text
+
+	# Sub-phase 5 task block should not require provider-specific SSO endpoint implementation.
+	subphase5_block = tasks_text[tasks_text.find("- id: task327") : tasks_text.find("- id: task331")]
+	assert "google sso" not in subphase5_block.lower()
+	assert "github sso" not in subphase5_block.lower()

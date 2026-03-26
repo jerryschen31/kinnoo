@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import os
 from pathlib import Path
+import secrets
 from typing import Literal
 
 
@@ -39,6 +40,9 @@ class ServerConfig:
     max_upload_mb: int
     registry_admin_email: str | None = None
     registry_admin_password: str | None = None
+    frontend_url: str = "http://localhost:3000"
+    register_token_secret: str = ""
+    password_reset_token_secret: str = ""
 
     @classmethod
     def from_env(cls) -> "ServerConfig":
@@ -62,4 +66,9 @@ class ServerConfig:
             max_upload_mb=_read_int_env("REGISTRY_MAX_UPLOAD_MB", 50),
             registry_admin_email=(os.getenv("REGISTRY_ADMIN_EMAIL") or "").strip() or None,
             registry_admin_password=os.getenv("REGISTRY_ADMIN_PASSWORD") or None,
+            frontend_url=(os.getenv("FRONTEND_URL") or "http://localhost:3000").strip(),
+            register_token_secret=(os.getenv("REGISTRY_REGISTER_TOKEN_SECRET") or "").strip()
+            or secrets.token_urlsafe(32),
+            password_reset_token_secret=(os.getenv("REGISTRY_PASSWORD_RESET_TOKEN_SECRET") or "").strip()
+            or secrets.token_urlsafe(32),
         )
