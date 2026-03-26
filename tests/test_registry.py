@@ -1479,3 +1479,64 @@ def test_feature60_env_secrets_and_single_use_tokens(tmp_path: Path, monkeypatch
 	)
 	assert reset_twice.status_code == 400
 	assert reset_twice.json()["error"]["message"] == "password reset token already consumed"
+
+
+def test_feature60_rehash_on_login_for_legacy_hash(tmp_path: Path) -> None:
+	from dataclasses import replace
+	import hashlib
+	import re
+	import secrets
+
+	from fastapi.testclient import TestClient
+
+	from server.app import create_app
+	from server.config import ServerConfig
+
+	config = ServerConfig(
+		storage_backend="local",
+		local_storage_root=tmp_path / "storage",
+		s3_bucket="kinnoo-registry-dev",
+		s3_region="us-east-1",
+		s3_endpoint_url=None,
+		s3_access_key_id=None,
+		s3_secret_access_key=None,
+		presign_ttl_seconds=120,
+		max_upload_mb=5,
+	)
+	app = create_app(config=config)
+	client = TestClient(app, base_url="https://testserver")
+
+	plaintext_password = "legacy-passphrase-123"
+	user = app.state.user_store.create_user(
+		username="feature60-legacy@example.com",
+		plaintext_password=plaintext_password,
+		role="user",
+	)
+
+	# Force a legacy scrypt hash so successful login should upgrade to Argon2id when available.
+	legacy_salt = secrets.token_bytes(16)
+	legacy_digest = hashlib.scrypt(plaintext_password.encode("utf-8"), salt=legacy_salt, n=2**14, r=8, p=1)
+	legacy_hash = f"scrypt${legacy_salt.hex()}${legacy_digest.hex()}"
+	app.state.user_store.save(replace(user, password_hash=legacy_hash))
+
+	login_page = client.get("/login")
+	assert login_page.status_code == 200
+	match = re.search(r'name="csrf_token"\s+value="([^"]+)"', login_page.text)
+	assert match is not None
+	csrf_token = match.group(1)
+
+	login_response = client.post(
+		"/login",
+		data={
+			"username": user.username,
+			"password": plaintext_password,
+			"csrf_token": csrf_token,
+		},
+		follow_redirects=False,
+	)
+	assert login_response.status_code == 303
+
+	updated_user = app.state.user_store.get_by_username(user.username)
+	assert updated_user is not None
+	assert updated_user.password_hash != legacy_hash
+	assert updated_user.password_hash.startswith("$argon2") or updated_user.password_hash.startswith("scrypt$")
