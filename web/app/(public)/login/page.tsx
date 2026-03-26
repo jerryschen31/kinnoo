@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { loginWithPassword } from "../../../lib/auth-client";
@@ -115,6 +116,16 @@ export default function LoginPage() {
             >
               Forgot your password?
             </a>
+          </p>
+
+          <p className="text-sm text-white/70">
+            Need an account?{" "}
+            <Link
+              href="/signup"
+              className="underline decoration-white/40 underline-offset-4 transition hover:text-kinnoo-accent"
+            >
+              Sign Up
+            </Link>
           </p>
         </form>
       </div>
