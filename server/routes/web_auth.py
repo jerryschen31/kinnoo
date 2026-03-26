@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+from datetime import datetime, timezone
 import hashlib
 import hmac
 import importlib
@@ -11,6 +13,7 @@ from typing import Any
 from starlette.requests import Request
 
 from server.auth.session import SessionService
+from server.models.user import PASSWORD_MANAGER
 from server.storage.user_store import UserStore
 
 
@@ -69,6 +72,15 @@ def create_web_auth_router(
                 status_code=401,
             )
             return response
+
+        if PASSWORD_MANAGER.needs_rehash(user.password_hash):
+            upgraded_user = replace(
+                user,
+                password_hash=PASSWORD_MANAGER.hash_password(password),
+                updated_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            )
+            user_store.save(upgraded_user)
+            user = upgraded_user
 
         session_record, session_cookie = session_service.create_session(user_id=user.id)
         response = RedirectResponse(url="/agents", status_code=303)

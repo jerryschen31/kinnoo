@@ -6642,7 +6642,7 @@ tasks:
       - 'step4: Wire app configuration to use SQLite auth store in development'
     dependencies: [task287]
     tests: [test485]
-    status: not-started
+    status: needs-review
 
   - id: task328
     title: "Add EmailService abstraction, env secrets, and single-use token state"
@@ -6666,7 +6666,7 @@ tasks:
       - 'step5: Ensure successful confirm flows mark token consumed atomically'
     dependencies: [task327]
     tests: [test482, test483]
-    status: not-started
+    status: needs-review
 
   - id: task329
     title: "Apply password hardening, rehash-on-login, and auth abuse controls"
@@ -6688,7 +6688,7 @@ tasks:
       - 'step4: Add deterministic tests for policy rejection, rehash, and abuse controls'
     dependencies: [task328]
     tests: [test470, test477, test487, test488]
-    status: not-started
+    status: needs-review
 
   - id: task330
     title: "Finalize Sub-phase 5 integration, smoke tests, and SSO-ready docs"
@@ -6713,7 +6713,7 @@ tasks:
       - 'step4: Produce deterministic suite entry point and smoke-test checklist docs for future CI and manual verification'
     dependencies: [task322, task326, task329]
     tests: [test474, test481, test482, test483, test484, test489, test490]
-    status: not-started
+    status: needs-review
 
   - id: task331
     title: "Registry manifest tabs, install terminal block, and blank-search UX fix"

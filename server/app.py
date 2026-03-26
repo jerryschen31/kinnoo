@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+import secrets
 from typing import Any
 
 from server.auth.session import SessionService
@@ -20,6 +21,7 @@ from server.routes.publish import create_publish_router
 from server.routes.search import create_search_router
 from server.routes.web_agents import create_web_agents_router
 from server.routes.web_auth import create_web_auth_router
+from server.services.email_console import ConsoleEmailService
 from server.storage import build_storage_backend_from_config
 from server.storage.sqlite_auth_store import SQLiteAuthStore
 from server.storage.user_store import UserStore
@@ -50,6 +52,18 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
         signing_secret=os.getenv("REGISTRY_SESSION_SIGNING_SECRET", "dev-session-secret-change-me"),
         ttl_hours=8,
     )
+    register_token_secret = resolved_config.register_token_secret or (
+        os.getenv("REGISTRY_REGISTER_TOKEN_SECRET") or ""
+    ).strip()
+    if not register_token_secret:
+        register_token_secret = secrets.token_urlsafe(32)
+
+    password_reset_token_secret = resolved_config.password_reset_token_secret or (
+        os.getenv("REGISTRY_PASSWORD_RESET_TOKEN_SECRET") or ""
+    ).strip()
+    if not password_reset_token_secret:
+        password_reset_token_secret = secrets.token_urlsafe(32)
+
     token_service = TokenService(
         issuer=os.getenv("REGISTRY_TOKEN_ISSUER", "kinnoo-registry"),
         current_signing_key=SigningKey(
@@ -60,14 +74,15 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
     )
     metadata_manager = MetadataManager(storage=storage_backend)
     registration_token_service = RegistrationTokenService(
-        signing_secret=os.getenv("REGISTRY_REGISTER_TOKEN_SECRET", "dev-register-token-secret-change-me"),
+        signing_secret=register_token_secret,
     )
     password_reset_token_service = PasswordResetTokenService(
-        signing_secret=os.getenv("REGISTRY_PASSWORD_RESET_TOKEN_SECRET", "dev-password-reset-token-secret-change-me"),
+        signing_secret=password_reset_token_secret,
     )
     sqlite_auth_store = SQLiteAuthStore(db_path=resolved_config.local_storage_root / "auth" / "auth.db")
-    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    frontend_url = resolved_config.frontend_url
     email_log_sink: list[dict[str, str]] = []
+    email_service = ConsoleEmailService(sink=email_log_sink)
 
     app = FastAPI(title="kinnoo-registry-server")
     templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
@@ -97,6 +112,7 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
     app.state.sqlite_auth_store = sqlite_auth_store
     app.state.frontend_url = frontend_url
     app.state.email_log_sink = email_log_sink
+    app.state.email_service = email_service
     app.state.templates = templates
 
     @app.middleware("http")
@@ -128,7 +144,7 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
             password_reset_token_service=password_reset_token_service,
             sqlite_auth_store=sqlite_auth_store,
             frontend_url=frontend_url,
-            email_log_sink=email_log_sink,
+            email_service=email_service,
         )
     )
     app.include_router(
