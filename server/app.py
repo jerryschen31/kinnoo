@@ -8,7 +8,7 @@ from typing import Any
 
 from server.auth.session import SessionService
 from server.auth.token import SigningKey, TokenService
-from server.auth.tokens import RegistrationTokenService
+from server.auth.tokens import PasswordResetTokenService, RegistrationTokenService
 from server.bootstrap import bootstrap_admin_from_env
 from server.config import ServerConfig
 from server.metadata.manager import MetadataManager
@@ -62,6 +62,9 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
     registration_token_service = RegistrationTokenService(
         signing_secret=os.getenv("REGISTRY_REGISTER_TOKEN_SECRET", "dev-register-token-secret-change-me"),
     )
+    password_reset_token_service = PasswordResetTokenService(
+        signing_secret=os.getenv("REGISTRY_PASSWORD_RESET_TOKEN_SECRET", "dev-password-reset-token-secret-change-me"),
+    )
     sqlite_auth_store = SQLiteAuthStore(db_path=resolved_config.local_storage_root / "auth" / "auth.db")
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
     email_log_sink: list[dict[str, str]] = []
@@ -79,6 +82,7 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
         rules={
             "/api/auth/token": RateLimitRule(requests_per_minute=20),
             "/api/auth/register-request": RateLimitRule(requests_per_minute=5),
+            "/api/auth/password-reset-request": RateLimitRule(requests_per_minute=5),
             "/api/publish": RateLimitRule(requests_per_minute=20),
         },
     )
@@ -89,6 +93,7 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
     app.state.user_store = user_store
     app.state.session_service = session_service
     app.state.registration_token_service = registration_token_service
+    app.state.password_reset_token_service = password_reset_token_service
     app.state.sqlite_auth_store = sqlite_auth_store
     app.state.frontend_url = frontend_url
     app.state.email_log_sink = email_log_sink
@@ -120,6 +125,7 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
             user_store=user_store,
             session_service=session_service,
             registration_token_service=registration_token_service,
+            password_reset_token_service=password_reset_token_service,
             sqlite_auth_store=sqlite_auth_store,
             frontend_url=frontend_url,
             email_log_sink=email_log_sink,

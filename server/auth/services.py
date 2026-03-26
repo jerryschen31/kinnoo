@@ -57,3 +57,15 @@ def build_registration_verification_link(*, frontend_url: str, token: str) -> st
 def registration_generic_success_message() -> str:
     """Generic, non-enumerating registration response contract."""
     return "If this email is valid, you'll receive a verification link"
+
+
+def build_password_reset_link(*, frontend_url: str, token: str) -> str:
+    """Build the frontend reset URL for password-reset-request messages."""
+    root = frontend_url.rstrip("/")
+    query = urlencode({"token": token})
+    return f"{root}/forgot-password/reset?{query}"
+
+
+def password_reset_generic_success_message() -> str:
+    """Generic, non-enumerating password-reset response contract."""
+    return "If an account exists with that email, you'll receive a reset link"

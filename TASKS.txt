@@ -6557,7 +6557,7 @@ tasks:
       - 'step4: Enforce client validation for password match and 10-128 length before submit'
     dependencies: [task319]
     tests: [test475, test478]
-    status: not-started
+    status: needs-review
 
   - id: task324
     title: "Implement password-reset-request endpoint with generic response"
@@ -6577,7 +6577,7 @@ tasks:
       - 'step4: Dispatch reset message through email service abstraction'
     dependencies: [task323, task327, task328]
     tests: [test476, test477]
-    status: not-started
+    status: needs-review
 
   - id: task325
     title: "Implement password-reset-confirm with policy checks and session revocation"
@@ -6601,7 +6601,7 @@ tasks:
       - 'step4: Invalidate all active user sessions in relational store and return success response for login redirect'
     dependencies: [task324, task329]
     tests: [test479, test480, test487, test489]
-    status: not-started
+    status: needs-review
 
   - id: task326
     title: "Add forgot-password integration/component tests with policy paths"
@@ -6620,7 +6620,7 @@ tasks:
       - 'step4: Run linked forgot-password suite and ensure deterministic pass'
     dependencies: [task324, task325]
     tests: [test475, test476, test477, test478, test479, test480, test481, test487, test489]
-    status: not-started
+    status: needs-review
 
   - id: task327
     title: "Introduce SQLite auth schema and repository foundation"
