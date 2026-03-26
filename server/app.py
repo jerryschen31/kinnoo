@@ -21,6 +21,7 @@ from server.routes.search import create_search_router
 from server.routes.web_agents import create_web_agents_router
 from server.routes.web_auth import create_web_auth_router
 from server.storage import build_storage_backend_from_config
+from server.storage.sqlite_auth_store import SQLiteAuthStore
 from server.storage.user_store import UserStore
 
 
@@ -61,6 +62,7 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
     registration_token_service = RegistrationTokenService(
         signing_secret=os.getenv("REGISTRY_REGISTER_TOKEN_SECRET", "dev-register-token-secret-change-me"),
     )
+    sqlite_auth_store = SQLiteAuthStore(db_path=resolved_config.local_storage_root / "auth" / "auth.db")
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
     email_log_sink: list[dict[str, str]] = []
 
@@ -87,6 +89,7 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
     app.state.user_store = user_store
     app.state.session_service = session_service
     app.state.registration_token_service = registration_token_service
+    app.state.sqlite_auth_store = sqlite_auth_store
     app.state.frontend_url = frontend_url
     app.state.email_log_sink = email_log_sink
     app.state.templates = templates
@@ -117,6 +120,7 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
             user_store=user_store,
             session_service=session_service,
             registration_token_service=registration_token_service,
+            sqlite_auth_store=sqlite_auth_store,
             frontend_url=frontend_url,
             email_log_sink=email_log_sink,
         )

@@ -6517,8 +6517,8 @@ tasks:
       - 'step3: Create user + local identity row and allocate tenant slug using base, base-1, base-2 collision policy'
       - 'step4: Consume token, create session cookie response from relational session store, and support redirect to /registry'
     dependencies: [task320, task327, task328]
-    tests: [test472, test473, test485, test486]
-    status: not-started
+    tests: [test472, test473, test486]
+    status: needs-review
 
   - id: task322
     title: "Add registration integration/component tests including slug collisions"
