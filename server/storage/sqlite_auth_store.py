@@ -36,6 +36,11 @@ class SQLiteAuthStore:
                     consumed_at_epoch INTEGER NOT NULL
                 );
 
+                CREATE TABLE IF NOT EXISTS consumed_password_reset_tokens (
+                    token_hash TEXT PRIMARY KEY,
+                    consumed_at_epoch INTEGER NOT NULL
+                );
+
                 CREATE TABLE IF NOT EXISTS tenants (
                     tenant_slug TEXT PRIMARY KEY,
                     owner_user_id TEXT NOT NULL,
@@ -59,6 +64,15 @@ class SQLiteAuthStore:
         with self._connect() as connection:
             cursor = connection.execute(
                 "INSERT OR IGNORE INTO consumed_registration_tokens (token_hash, consumed_at_epoch) VALUES (?, ?)",
+                (token_hash, timestamp),
+            )
+            return cursor.rowcount == 1
+
+    def mark_password_reset_token_consumed(self, *, token_hash: str, now_epoch: int | None = None) -> bool:
+        timestamp = int(time.time()) if now_epoch is None else int(now_epoch)
+        with self._connect() as connection:
+            cursor = connection.execute(
+                "INSERT OR IGNORE INTO consumed_password_reset_tokens (token_hash, consumed_at_epoch) VALUES (?, ?)",
                 (token_hash, timestamp),
             )
             return cursor.rowcount == 1
