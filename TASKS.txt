@@ -6557,7 +6557,7 @@ tasks:
       - 'step4: Enforce client validation for password match and 10-128 length before submit'
     dependencies: [task319]
     tests: [test475, test478]
-    status: not-started
+    status: needs-review
 
   - id: task324
     title: "Implement password-reset-request endpoint with generic response"
