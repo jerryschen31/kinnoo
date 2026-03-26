@@ -68,10 +68,13 @@ Role: Senior UI/UX Engineer.
 Task: Build the Landing Page and the Login Page.
 
 Landing Page (/):
-- Create a hero section with a clean, high-contrast title: "Package, publish, share your AI agents with the world"
-- Add a sub-headline: "Take any AI agent — a LangGraph chatbot, a PydanticAI workflow, an OpenClaw daemon — and give it a portable, version-controlled, signed package that anyone can install and run"
+- Create a hero section with a clean, high-contrast title: "kinnoo"
+- Add a main tagline under the title: "Building AI agents together"
+- Add a sub-headline: "The open, secure platform to package, publish and share any AI agent"
 - Feature a "Terminal Preview" component showing "pip install kinnoo" as the one-line command to install kinnoo CLI. Terminal Preview should just be a minimal code block with a copy button for copying to clipboard.
-- Below the hero section and Terminal component, add a "Features" section that shows six hoverable boxes with the following header + subtext:
+- Below the hero section and Terminal component, add a "Features" section with header "Why builders choose Kinnoo".
+- Add a normal-case sub-line directly beneath that header (same size as the header text): "Take any AI agent — a LangGraph chatbot, a PydanticAI workflow, an OpenClaw daemon — and give it a portable, version-controlled, signed package that anyone can install and run".
+- Underneath this sub-line, show six hoverable boxes with the following header + subtext:
 Feature 1 Header: Supports common AI agent frameworks
 Feature 1 Subtext: Initialize, import or install AI agents developed with LangChain, LangGraph, PydanticAI, OpenAI Agents SDK, OpenClaw and more.
 
@@ -129,9 +132,7 @@ Agent Card Component (All Public Agents - shown after a user successfully search
 - Tenant, Name, Version, Author, Framework, Size, Description, 
 - Clicking on Name shows a modal/dialog overlay showing the entire agent manifest (pulled from that agent's kinnoo.yaml). This modal has an 'X' at the top right that allows the user to close the modal. Also at the bottom of this modal is a terminal-like graphic that shows the kinnoo CLI command for installing this agent, with a "copy" button on the right for copy-to-clipboard for that install command text.
 
-Requirement: 
-- Use framer-motion for smooth transitions between the "My Agents" and "Search" tabs.
-- Build upon what has already been built in server/ - don't reinvent the wheel!
+Requirement: Use framer-motion for smooth transitions between the "My Agents" and "Search" tabs.
 
 Tests: Write component tests for the AgentCard component (renders all fields, name is clickable, modal opens/closes). Write a test that verifies the modal displays manifest data and the copy-to-clipboard button works for the install command.
 
@@ -189,12 +190,12 @@ Key Technical Clarifications for the Agent:
 - Node.js: Requires v20+.
 - IAM: The S3 backend uses the existing prefix-scoped access logic in server/storage/. 
   Do not reimplement.
-- continue to use the local mocked S3 storage for now. Make sure it is easy for me to point to actual S3 buckets once I decide to go live.
-- Make me an admin account for the registry. My email and password are saved as REGISTRY_ADMIN_EMAIL and REGISTRY_ADMIN_PASSWORD in .env in the base project directory. Do NOT output my email or password in any of your agent thinking or output response.
-- If possible make it so that executing ```kinnoo publish``` on my local machine actually publishes to an appropriate tenant folder location within the local mocked S3 storage. This way I can actually test publishing test agents from my local machine.
 
 ### Sub-phase 5 - User Registration & Password Reset
-Prompt 5: User Registration & Password Reset Workflows
+Prompt 5: User Registration &- continue to use the local mocked S3 storage for now. Make sure it is easy for me to point to actual S3 buckets once I decide to go live.
+- Make me an admin account for the registry. My email and password are saved as REGISTRY_ADMIN_EMAIL and REGISTRY_ADMIN_PASSWORD in .env in the base project directory. Do NOT output my email or password in any of your agent thinking or output response.
+- If possible make it so that executing ```kinnoo publish``` on my local machine actually publishes to an appropriate tenant folder location within the local mocked S3 storage. This way I can actually test publishing test agents from my local machine.
+ Password Reset Workflows
 Objective: Implement a complete sign-up flow with email verification and a working password reset flow.
 Role: Full-Stack Engineer.
 Task: Build the registration and password reset pages and backend endpoints.

@@ -1811,7 +1811,7 @@ features:
     tasks: [task290, task291, task292, task293]
     acceptance_criteria:
       - id: AC1
-        description: "Landing page (/) renders hero title exactly as: 'Package, publish, share your AI agents with the world'."
+        description: "Landing page (/) renders main tagline (under the 'kinnoo' title) exactly as: 'Building AI agents together'."
       - id: AC2
         description: "Landing page renders sub-headline exactly as defined in phase5-planning.md for Sub-phase 2."
       - id: AC3
@@ -1922,7 +1922,7 @@ features:
       both login and session CSRF flows work through the BFF. Add frontend auth guard behavior
       in app/(auth)/layout.tsx using a backend session-validation endpoint and redirect unauthenticated
       requests to /login.
-    tasks: [task307, task308, task309, task310]
+    tasks: [task307, task308, task309, task310, task331]
     acceptance_criteria:
       - id: AC1
         description: "next.config.ts rewrites /api/* to BACKEND_URL (default http://localhost:8000) while preserving cookie flow and forwarding X-Forwarded-For and X-Request-Id headers."
