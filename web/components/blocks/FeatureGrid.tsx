@@ -44,8 +44,8 @@ export default function FeatureGrid() {
           key={feature.title}
           className="group min-h-40 overflow-hidden rounded-card border-2 border-white/25 bg-[#222222] p-5 transition hover:-translate-y-0.5 hover:border-[#3B82F6] focus-within:border-[#3B82F6] focus-within:ring-1 focus-within:ring-[#3B82F6]"
         >
-          <h3 className="mb-3 text-xl font-semibold leading-snug text-kinnoo-text">{feature.title}</h3>
-          <p className="text-sm leading-relaxed text-white/75 sm:text-base">{feature.description}</p>
+          <h3 className="mb-3 text-xl font-semibold leading-snug text-[#F9FAFB]">{feature.title}</h3>
+          <p className="text-sm leading-relaxed text-[#F9FAFB] sm:text-base">{feature.description}</p>
         </article>
       ))}
     </div>
