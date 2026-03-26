@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+from datetime import datetime, timezone
 import importlib
 from typing import Any
 
 from starlette.requests import Request
 
 from server.api.endpoints import post_auth_token
-from server.auth.password_policy import validate_registration_email, validate_registration_password
+from server.auth.password_policy import (
+    validate_account_password_policy,
+    validate_registration_email,
+    validate_registration_password,
+)
 from server.auth.services import (
     build_password_reset_link,
     build_registration_verification_link,
@@ -19,7 +25,7 @@ from server.auth.middleware import authenticate_session_identity
 from server.auth.session import SessionService
 from server.auth.token import TokenService
 from server.auth.tokens import PasswordResetTokenService, RegistrationTokenService
-from server.models.user import username_to_tenant_slug
+from server.models.user import PASSWORD_MANAGER, username_to_tenant_slug
 from server.routes.errors import build_error_envelope, resolve_request_id
 from server.storage.sqlite_auth_store import SQLiteAuthStore
 from server.storage.user_store import UserStore
@@ -144,17 +150,6 @@ def create_auth_router(
         token = str(payload.get("token", "")).strip()
         password = str(payload.get("password", ""))
 
-        password_error = validate_registration_password(password)
-        if password_error is not None:
-            return JSONResponse(
-                status_code=400,
-                content=build_error_envelope(
-                    status_code=400,
-                    message=password_error,
-                    request_id=request_id,
-                ),
-            )
-
         token_payload = registration_token_service.verify_token(token=token)
         if token_payload is None:
             return JSONResponse(
@@ -185,6 +180,19 @@ def create_auth_router(
                 content=build_error_envelope(
                     status_code=400,
                     message="registration token missing email",
+                    request_id=request_id,
+                ),
+            )
+
+        password_error = validate_registration_password(password)
+        if password_error is None:
+            password_error = validate_account_password_policy(password, account_identifier=email)
+        if password_error is not None:
+            return JSONResponse(
+                status_code=400,
+                content=build_error_envelope(
+                    status_code=400,
+                    message=password_error,
                     request_id=request_id,
                 ),
             )
@@ -288,6 +296,100 @@ def create_auth_router(
                 )
 
         return {"message": password_reset_generic_success_message()}
+
+    @router.post("/api/auth/password-reset-confirm")
+    async def password_reset_confirm(request: Request) -> dict[str, object]:
+        request_id = resolve_request_id(request)
+
+        try:
+            payload = await request.json()
+        except Exception:
+            payload = {}
+
+        if not isinstance(payload, dict):
+            return JSONResponse(
+                status_code=400,
+                content=build_error_envelope(
+                    status_code=400,
+                    message="request body must be a JSON object",
+                    request_id=request_id,
+                ),
+            )
+
+        token = str(payload.get("token", "")).strip()
+        new_password = str(payload.get("new_password", ""))
+
+        token_payload = password_reset_token_service.verify_token(token=token)
+        if token_payload is None:
+            return JSONResponse(
+                status_code=400,
+                content=build_error_envelope(
+                    status_code=400,
+                    message="invalid or expired password reset token",
+                    request_id=request_id,
+                ),
+            )
+
+        email = str(token_payload.get("email", "")).strip().lower()
+        if not email:
+            return JSONResponse(
+                status_code=400,
+                content=build_error_envelope(
+                    status_code=400,
+                    message="password reset token missing email",
+                    request_id=request_id,
+                ),
+            )
+
+        existing_user = user_store.get_by_username(email)
+        if existing_user is None:
+            return JSONResponse(
+                status_code=400,
+                content=build_error_envelope(
+                    status_code=400,
+                    message="invalid or expired password reset token",
+                    request_id=request_id,
+                ),
+            )
+
+        password_error = validate_registration_password(new_password)
+        if password_error is None:
+            password_error = validate_account_password_policy(new_password, account_identifier=email)
+        if password_error is not None:
+            return JSONResponse(
+                status_code=400,
+                content=build_error_envelope(
+                    status_code=400,
+                    message=password_error,
+                    request_id=request_id,
+                ),
+            )
+
+        token_hash = password_reset_token_service.hash_token(token=token)
+        token_marked = sqlite_auth_store.mark_password_reset_token_consumed(token_hash=token_hash)
+        if not token_marked:
+            return JSONResponse(
+                status_code=400,
+                content=build_error_envelope(
+                    status_code=400,
+                    message="password reset token already consumed",
+                    request_id=request_id,
+                ),
+            )
+
+        updated_user = replace(
+            existing_user,
+            password_hash=PASSWORD_MANAGER.hash_password(new_password),
+            updated_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        )
+        user_store.save(updated_user)
+
+        session_service.invalidate_user_sessions(user_id=existing_user.id)
+
+        return {
+            "message": "Password reset successful",
+            "redirect_to": "/login",
+        }
 
     @router.get("/api/auth/me")
     async def auth_me(request: Request) -> dict[str, object]:
