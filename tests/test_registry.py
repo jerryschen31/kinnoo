@@ -698,3 +698,78 @@ def test_feature57_hardening_non_regression_suite(tmp_path: Path) -> None:
 
 	auth_me_missing = client.get("/api/auth/me")
 	assert auth_me_missing.status_code == 401
+
+
+def test_feature58_register_request_duplicate_safe_generic_response(tmp_path: Path) -> None:
+	from fastapi.testclient import TestClient
+
+	from server.app import create_app
+	from server.config import ServerConfig
+
+	config = ServerConfig(
+		storage_backend="local",
+		local_storage_root=tmp_path / "storage",
+		s3_bucket="kinnoo-registry-dev",
+		s3_region="us-east-1",
+		s3_endpoint_url=None,
+		s3_access_key_id=None,
+		s3_secret_access_key=None,
+		presign_ttl_seconds=120,
+		max_upload_mb=5,
+	)
+	app = create_app(config=config)
+	client = TestClient(app, base_url="https://testserver")
+
+	app.state.user_store.create_user(
+		username="existing@example.com",
+		plaintext_password="existing-password",
+		role="user",
+	)
+
+	new_response = client.post("/api/auth/register-request", json={"email": "new-user@example.com"})
+	existing_response = client.post("/api/auth/register-request", json={"email": "existing@example.com"})
+
+	assert new_response.status_code == 200
+	assert existing_response.status_code == 200
+
+	expected_message = "If this email is valid, you'll receive a verification link"
+	assert new_response.json() == {"message": expected_message}
+	assert existing_response.json() == {"message": expected_message}
+
+	# Only unknown-email requests should dispatch a verification link event.
+	assert len(app.state.email_log_sink) == 1
+	logged_event = app.state.email_log_sink[0]
+	assert logged_event["email"] == "new-user@example.com"
+	assert logged_event["verification_link"].startswith("http://localhost:3000/signup/verify?token=")
+
+
+def test_feature58_register_request_rate_limit(tmp_path: Path) -> None:
+	from fastapi.testclient import TestClient
+
+	from server.app import create_app
+	from server.config import ServerConfig
+
+	config = ServerConfig(
+		storage_backend="local",
+		local_storage_root=tmp_path / "storage",
+		s3_bucket="kinnoo-registry-dev",
+		s3_region="us-east-1",
+		s3_endpoint_url=None,
+		s3_access_key_id=None,
+		s3_secret_access_key=None,
+		presign_ttl_seconds=120,
+		max_upload_mb=5,
+	)
+	app = create_app(config=config)
+	client = TestClient(app, base_url="https://testserver")
+
+	for _ in range(5):
+		response = client.post("/api/auth/register-request", json={"email": "limit@example.com"})
+		assert response.status_code in {200, 429}
+
+	blocked = client.post("/api/auth/register-request", json={"email": "limit@example.com"})
+	assert blocked.status_code == 429
+	blocked_body = blocked.json()
+	assert blocked_body["error"]["code"] == "too_many_requests"
+	assert blocked_body["error"]["message"] == "429 too many requests"
+	assert blocked_body["error"]["request_id"]

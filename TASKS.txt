@@ -6494,7 +6494,7 @@ tasks:
       - 'step4: Invoke email service and return generic 200 response in all account-existence cases'
     dependencies: [task319, task327, task328]
     tests: [test469, test470]
-    status: not-started
+    status: needs-review
 
   - id: task321
     title: "Implement register-confirm with DB-backed user, identity, tenant creation"
