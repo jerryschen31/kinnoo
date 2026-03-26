@@ -1,5 +1,6 @@
 from pathlib import Path
 import importlib.util
+import json
 import sys
 import os
 import subprocess
@@ -1024,3 +1025,216 @@ def test_feature59_password_reset_request_rate_limit(tmp_path: Path) -> None:
 	assert blocked_body["error"]["code"] == "too_many_requests"
 	assert blocked_body["error"]["message"] == "429 too many requests"
 	assert blocked_body["error"]["request_id"]
+
+
+def test_feature59_password_reset_confirm_success_invalidates_sessions(tmp_path: Path) -> None:
+	from fastapi.testclient import TestClient
+
+	from server.app import create_app
+	from server.config import ServerConfig
+
+	config = ServerConfig(
+		storage_backend="local",
+		local_storage_root=tmp_path / "storage",
+		s3_bucket="kinnoo-registry-dev",
+		s3_region="us-east-1",
+		s3_endpoint_url=None,
+		s3_access_key_id=None,
+		s3_secret_access_key=None,
+		presign_ttl_seconds=120,
+		max_upload_mb=5,
+	)
+	app = create_app(config=config)
+	client = TestClient(app, base_url="https://testserver")
+
+	user = app.state.user_store.create_user(
+		username="feature59-reset@example.com",
+		plaintext_password="old-passphrase-123",
+		role="user",
+	)
+
+	first_session, first_cookie = app.state.session_service.create_session(user_id=user.id)
+	second_session, second_cookie = app.state.session_service.create_session(user_id=user.id)
+
+	reset_token = app.state.password_reset_token_service.issue_token(email=user.username)
+	response = client.post(
+		"/api/auth/password-reset-confirm",
+		json={"token": reset_token, "new_password": "new-passphrase-123"},
+	)
+
+	assert response.status_code == 200
+	payload = response.json()
+	assert payload["message"] == "Password reset successful"
+	assert payload["redirect_to"] == "/login"
+
+	updated_user = app.state.user_store.get_by_username(user.username)
+	assert updated_user is not None
+	assert updated_user.verify_password("new-passphrase-123")
+	assert not updated_user.verify_password("old-passphrase-123")
+
+	with pytest.raises(PermissionError):
+		app.state.session_service.validate_session_cookie(cookie_value=first_cookie.value)
+	with pytest.raises(PermissionError):
+		app.state.session_service.validate_session_cookie(cookie_value=second_cookie.value)
+
+	assert first_session.session_id != second_session.session_id
+
+
+def test_feature59_password_reset_confirm_invalid_token(tmp_path: Path) -> None:
+	from fastapi.testclient import TestClient
+	import time
+
+	from server.app import create_app
+	from server.config import ServerConfig
+
+	config = ServerConfig(
+		storage_backend="local",
+		local_storage_root=tmp_path / "storage",
+		s3_bucket="kinnoo-registry-dev",
+		s3_region="us-east-1",
+		s3_endpoint_url=None,
+		s3_access_key_id=None,
+		s3_secret_access_key=None,
+		presign_ttl_seconds=120,
+		max_upload_mb=5,
+	)
+	app = create_app(config=config)
+	client = TestClient(app, base_url="https://testserver")
+
+	user = app.state.user_store.create_user(
+		username="feature59-reset-invalid@example.com",
+		plaintext_password="old-passphrase-123",
+		role="user",
+	)
+
+	expired_token = app.state.password_reset_token_service.issue_token(
+		email=user.username,
+		now_epoch=int(time.time()) - (60 * 60) - 5,
+	)
+	expired_response = client.post(
+		"/api/auth/password-reset-confirm",
+		json={"token": expired_token, "new_password": "new-passphrase-123"},
+	)
+	assert expired_response.status_code == 400
+	assert expired_response.json()["error"]["message"] == "invalid or expired password reset token"
+
+	malformed_response = client.post(
+		"/api/auth/password-reset-confirm",
+		json={"token": "malformed-token", "new_password": "new-passphrase-123"},
+	)
+	assert malformed_response.status_code == 400
+	assert malformed_response.json()["error"]["message"] == "invalid or expired password reset token"
+
+	valid_token = app.state.password_reset_token_service.issue_token(email=user.username)
+	first_response = client.post(
+		"/api/auth/password-reset-confirm",
+		json={"token": valid_token, "new_password": "new-passphrase-123"},
+	)
+	assert first_response.status_code == 200
+
+	second_response = client.post(
+		"/api/auth/password-reset-confirm",
+		json={"token": valid_token, "new_password": "new-passphrase-123"},
+	)
+	assert second_response.status_code == 400
+	assert second_response.json()["error"]["message"] == "password reset token already consumed"
+
+	unchanged_user = app.state.user_store.get_by_username(user.username)
+	assert unchanged_user is not None
+	assert unchanged_user.verify_password("new-passphrase-123")
+
+
+def test_feature59_password_policy_rejects_compromised_or_similar(tmp_path: Path) -> None:
+	from fastapi.testclient import TestClient
+
+	from server.app import create_app
+	from server.config import ServerConfig
+
+	config = ServerConfig(
+		storage_backend="local",
+		local_storage_root=tmp_path / "storage",
+		s3_bucket="kinnoo-registry-dev",
+		s3_region="us-east-1",
+		s3_endpoint_url=None,
+		s3_access_key_id=None,
+		s3_secret_access_key=None,
+		presign_ttl_seconds=120,
+		max_upload_mb=5,
+	)
+	app = create_app(config=config)
+	client = TestClient(app, base_url="https://testserver")
+
+	register_token = app.state.registration_token_service.issue_token(email="policy-user@example.com")
+	register_response = client.post(
+		"/api/auth/register-confirm",
+		json={"token": register_token, "password": "password123"},
+	)
+	assert register_response.status_code == 400
+	assert register_response.json()["error"]["message"] == "password is too common"
+	assert app.state.user_store.get_by_username("policy-user@example.com") is None
+
+	user = app.state.user_store.create_user(
+		username="similar-user@example.com",
+		plaintext_password="original-passphrase-123",
+		role="user",
+	)
+	before_hash = user.password_hash
+
+	reset_token = app.state.password_reset_token_service.issue_token(email=user.username)
+	reset_response = client.post(
+		"/api/auth/password-reset-confirm",
+		json={"token": reset_token, "new_password": "similar-user-super-passphrase"},
+	)
+	assert reset_response.status_code == 400
+	assert reset_response.json()["error"]["message"] == "password is too similar to account identifier"
+
+	after_user = app.state.user_store.get_by_username(user.username)
+	assert after_user is not None
+	assert after_user.password_hash == before_hash
+
+
+def test_feature59_password_reset_invalidates_all_relational_sessions(tmp_path: Path) -> None:
+	from fastapi.testclient import TestClient
+
+	from server.app import create_app
+	from server.config import ServerConfig
+
+	config = ServerConfig(
+		storage_backend="local",
+		local_storage_root=tmp_path / "storage",
+		s3_bucket="kinnoo-registry-dev",
+		s3_region="us-east-1",
+		s3_endpoint_url=None,
+		s3_access_key_id=None,
+		s3_secret_access_key=None,
+		presign_ttl_seconds=120,
+		max_upload_mb=5,
+	)
+	app = create_app(config=config)
+	client = TestClient(app, base_url="https://testserver")
+
+	user = app.state.user_store.create_user(
+		username="feature59-relational@example.com",
+		plaintext_password="old-passphrase-123",
+		role="user",
+	)
+
+	app.state.session_service.create_session(user_id=user.id)
+	app.state.session_service.create_session(user_id=user.id)
+	app.state.session_service.create_session(user_id=user.id)
+
+	reset_token = app.state.password_reset_token_service.issue_token(email=user.username)
+	confirm_response = client.post(
+		"/api/auth/password-reset-confirm",
+		json={"token": reset_token, "new_password": "new-passphrase-123"},
+	)
+	assert confirm_response.status_code == 200
+
+	sessions_root = tmp_path / "storage" / "auth" / "sessions"
+	session_docs = []
+	for path in sorted(sessions_root.glob("*.json")):
+		session_docs.append(json.loads(path.read_text(encoding="utf-8")))
+
+	user_sessions = [doc for doc in session_docs if doc.get("user_id") == user.id]
+	assert len(user_sessions) == 3
+	assert all(doc.get("invalidated_at_epoch") is not None for doc in user_sessions)

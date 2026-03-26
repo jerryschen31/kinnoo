@@ -6601,7 +6601,7 @@ tasks:
       - 'step4: Invalidate all active user sessions in relational store and return success response for login redirect'
     dependencies: [task324, task329]
     tests: [test479, test480, test487, test489]
-    status: not-started
+    status: needs-review
 
   - id: task326
     title: "Add forgot-password integration/component tests with policy paths"
