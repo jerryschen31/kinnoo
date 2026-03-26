@@ -6642,7 +6642,7 @@ tasks:
       - 'step4: Wire app configuration to use SQLite auth store in development'
     dependencies: [task287]
     tests: [test485]
-    status: not-started
+    status: needs-review
 
   - id: task328
     title: "Add EmailService abstraction, env secrets, and single-use token state"

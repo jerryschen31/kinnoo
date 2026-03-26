@@ -28,43 +28,27 @@ class SQLiteAuthStore:
         return connection
 
     def _initialize_schema(self) -> None:
+        schema_path = Path(__file__).parent / "sql" / "schema_auth.sql"
+        schema_sql = schema_path.read_text(encoding="utf-8")
         with self._connect() as connection:
-            connection.executescript(
-                """
-                CREATE TABLE IF NOT EXISTS consumed_registration_tokens (
-                    token_hash TEXT PRIMARY KEY,
-                    consumed_at_epoch INTEGER NOT NULL
-                );
-
-                CREATE TABLE IF NOT EXISTS consumed_password_reset_tokens (
-                    token_hash TEXT PRIMARY KEY,
-                    consumed_at_epoch INTEGER NOT NULL
-                );
-
-                CREATE TABLE IF NOT EXISTS tenants (
-                    tenant_slug TEXT PRIMARY KEY,
-                    owner_user_id TEXT NOT NULL,
-                    created_at_epoch INTEGER NOT NULL
-                );
-
-                CREATE TABLE IF NOT EXISTS identities (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    provider TEXT NOT NULL,
-                    provider_user_id TEXT NOT NULL,
-                    user_id TEXT NOT NULL,
-                    provider_email TEXT,
-                    created_at_epoch INTEGER NOT NULL,
-                    UNIQUE(provider, provider_user_id)
-                );
-                """
-            )
+            connection.executescript(schema_sql)
 
     def mark_registration_token_consumed(self, *, token_hash: str, now_epoch: int | None = None) -> bool:
         timestamp = int(time.time()) if now_epoch is None else int(now_epoch)
         with self._connect() as connection:
             cursor = connection.execute(
-                "INSERT OR IGNORE INTO consumed_registration_tokens (token_hash, consumed_at_epoch) VALUES (?, ?)",
-                (token_hash, timestamp),
+                """
+                INSERT OR IGNORE INTO one_time_tokens (
+                    token_type,
+                    subject_user_id,
+                    subject_email,
+                    token_hash,
+                    expires_at_epoch,
+                    consumed_at_epoch,
+                    created_at_epoch
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                ("register", None, None, token_hash, None, timestamp, timestamp),
             )
             return cursor.rowcount == 1
 
@@ -72,8 +56,18 @@ class SQLiteAuthStore:
         timestamp = int(time.time()) if now_epoch is None else int(now_epoch)
         with self._connect() as connection:
             cursor = connection.execute(
-                "INSERT OR IGNORE INTO consumed_password_reset_tokens (token_hash, consumed_at_epoch) VALUES (?, ?)",
-                (token_hash, timestamp),
+                """
+                INSERT OR IGNORE INTO one_time_tokens (
+                    token_type,
+                    subject_user_id,
+                    subject_email,
+                    token_hash,
+                    expires_at_epoch,
+                    consumed_at_epoch,
+                    created_at_epoch
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                ("password_reset", None, None, token_hash, None, timestamp, timestamp),
             )
             return cursor.rowcount == 1
 
