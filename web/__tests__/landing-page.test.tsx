@@ -22,8 +22,16 @@ describe("Landing page", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: "Package, publish, share your AI agents with the world",
+        name: "kinnoo",
       }),
+    ).toBeTruthy();
+
+    expect(screen.getByText("Building AI agents together")).toBeTruthy();
+
+    expect(
+      screen.getByText(
+        "The open, secure platform to package, publish and share any AI agent",
+      ),
     ).toBeTruthy();
 
     expect(
@@ -110,9 +118,10 @@ describe("Landing page", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: "Package, publish, share your AI agents with the world",
+        name: "kinnoo",
       }),
     ).toBeTruthy();
+    expect(screen.getByText("Building AI agents together")).toBeTruthy();
     expect(screen.getByText("pip install kinnoo")).toBeTruthy();
     expect(screen.getByTestId("feature-grid")).toBeTruthy();
   });

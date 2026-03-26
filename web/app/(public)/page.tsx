@@ -13,10 +13,10 @@ export default function LandingPage() {
             kinnoo
           </h1>
           <p className="text-base font-semibold uppercase tracking-[0.24em] text-white/75 sm:text-lg">
-            Package, publish, share your AI agents with the world
+            Building AI agents together
           </p>
           <p className="max-w-3xl text-base leading-relaxed text-white/80 sm:text-lg">
-            Take any AI agent — a LangGraph chatbot, a PydanticAI workflow, an OpenClaw daemon — and give it a portable, version-controlled, signed package that anyone can install and run
+            The open, secure platform to package, publish and share any AI agent
           </p>
         </div>
       </section>
@@ -30,8 +30,11 @@ export default function LandingPage() {
       <section aria-label="Features">
         <div className="space-y-4">
           <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-white/80 sm:text-base">
-            Why builders choose kinnoo
+            Why builders choose Kinnoo
           </h2>
+          <p className="text-sm leading-relaxed normal-case text-white/80 sm:text-base">
+            Take any AI agent — a LangGraph chatbot, a PydanticAI workflow, an OpenClaw daemon — and give it a portable, version-controlled, signed package that anyone can install and run
+          </p>
           <FeatureGrid />
         </div>
       </section>
