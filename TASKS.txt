@@ -6620,7 +6620,7 @@ tasks:
       - 'step4: Run linked forgot-password suite and ensure deterministic pass'
     dependencies: [task324, task325]
     tests: [test475, test476, test477, test478, test479, test480, test481, test487, test489]
-    status: not-started
+    status: needs-review
 
   - id: task327
     title: "Introduce SQLite auth schema and repository foundation"

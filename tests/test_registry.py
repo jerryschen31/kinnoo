@@ -1238,3 +1238,64 @@ def test_feature59_password_reset_invalidates_all_relational_sessions(tmp_path: 
 	user_sessions = [doc for doc in session_docs if doc.get("user_id") == user.id]
 	assert len(user_sessions) == 3
 	assert all(doc.get("invalidated_at_epoch") is not None for doc in user_sessions)
+
+
+def test_feature59_forgot_password_suite(tmp_path: Path) -> None:
+	from fastapi.testclient import TestClient
+
+	from server.app import create_app
+	from server.config import ServerConfig
+
+	config = ServerConfig(
+		storage_backend="local",
+		local_storage_root=tmp_path / "storage",
+		s3_bucket="kinnoo-registry-dev",
+		s3_region="us-east-1",
+		s3_endpoint_url=None,
+		s3_access_key_id=None,
+		s3_secret_access_key=None,
+		presign_ttl_seconds=120,
+		max_upload_mb=5,
+	)
+	app = create_app(config=config)
+	client = TestClient(app, base_url="https://testserver")
+
+	account_email = "feature59-suite@example.com"
+	old_password = "suite-old-passphrase-123"
+	new_password = "suite-new-passphrase-123"
+	app.state.user_store.create_user(
+		username=account_email,
+		plaintext_password=old_password,
+		role="user",
+	)
+
+	known_request = client.post("/api/auth/password-reset-request", json={"email": account_email})
+	unknown_request = client.post("/api/auth/password-reset-request", json={"email": "unknown@example.com"})
+	assert known_request.status_code == 200
+	assert unknown_request.status_code == 200
+	assert known_request.json() == unknown_request.json()
+
+	reset_event = next(
+		event for event in app.state.email_log_sink if event.get("email") == account_email and "reset_link" in event
+	)
+	reset_token = reset_event["reset_link"].split("token=", 1)[1]
+
+	reset_confirm = client.post(
+		"/api/auth/password-reset-confirm",
+		json={"token": reset_token, "new_password": new_password},
+	)
+	assert reset_confirm.status_code == 200
+	assert reset_confirm.json()["redirect_to"] == "/login"
+
+	old_login = client.post(
+		"/api/auth/token",
+		json={"username": account_email, "password": old_password, "tenant_slug": "feature59-suite"},
+	)
+	assert old_login.status_code == 401
+
+	new_login = client.post(
+		"/api/auth/token",
+		json={"username": account_email, "password": new_password, "tenant_slug": "feature59-suite"},
+	)
+	assert new_login.status_code == 200
+	assert new_login.json()["token_type"] == "Bearer"
