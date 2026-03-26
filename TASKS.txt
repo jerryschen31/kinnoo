@@ -6688,7 +6688,7 @@ tasks:
       - 'step4: Add deterministic tests for policy rejection, rehash, and abuse controls'
     dependencies: [task328]
     tests: [test470, test477, test487, test488]
-    status: not-started
+    status: needs-review
 
   - id: task330
     title: "Finalize Sub-phase 5 integration, smoke tests, and SSO-ready docs"

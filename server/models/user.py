@@ -96,6 +96,24 @@ class PasswordManager:
 
         return False
 
+    def needs_rehash(self, password_hash: str) -> bool:
+        """Return True when stored hash should be upgraded to current preferred policy."""
+        if not isinstance(password_hash, str) or not password_hash:
+            return False
+
+        if password_hash.startswith("$argon2"):
+            if self._argon2_hasher is None:
+                return False
+            try:
+                return bool(self._argon2_hasher.check_needs_rehash(password_hash))
+            except Exception:
+                return False
+
+        if password_hash.startswith("scrypt$"):
+            return self._argon2_hasher is not None
+
+        return False
+
     @staticmethod
     def _validate_password(plaintext_password: str) -> str:
         if not isinstance(plaintext_password, str) or not plaintext_password:
