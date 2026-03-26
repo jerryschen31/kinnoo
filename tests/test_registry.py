@@ -1356,3 +1356,126 @@ def test_feature60_sqlite_auth_schema_and_indexes(tmp_path: Path) -> None:
 			)
 	finally:
 		connection.close()
+
+
+def test_feature60_email_service_abstraction_dev_provider(tmp_path: Path) -> None:
+	from fastapi.testclient import TestClient
+
+	from server.app import create_app
+	from server.config import ServerConfig
+
+	config = ServerConfig(
+		storage_backend="local",
+		local_storage_root=tmp_path / "storage",
+		s3_bucket="kinnoo-registry-dev",
+		s3_region="us-east-1",
+		s3_endpoint_url=None,
+		s3_access_key_id=None,
+		s3_secret_access_key=None,
+		presign_ttl_seconds=120,
+		max_upload_mb=5,
+	)
+	app = create_app(config=config)
+	client = TestClient(app, base_url="https://testserver")
+
+	known_email = "feature60-known@example.com"
+	app.state.user_store.create_user(
+		username=known_email,
+		plaintext_password="known-passphrase-123",
+		role="user",
+	)
+
+	register_response = client.post("/api/auth/register-request", json={"email": "feature60-new@example.com"})
+	reset_response = client.post("/api/auth/password-reset-request", json={"email": known_email})
+
+	assert register_response.status_code == 200
+	assert reset_response.status_code == 200
+
+	register_events = [
+		event for event in app.state.email_log_sink if event.get("event_type") == "registration_verification"
+	]
+	reset_events = [event for event in app.state.email_log_sink if event.get("event_type") == "password_reset"]
+
+	assert len(register_events) == 1
+	assert len(reset_events) == 1
+	assert register_events[0]["verification_link"].startswith("http://localhost:3000/signup/verify?token=")
+	assert reset_events[0]["reset_link"].startswith("http://localhost:3000/forgot-password/reset?token=")
+
+
+def test_feature60_env_secrets_and_single_use_tokens(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+	from fastapi.testclient import TestClient
+
+	from server.app import create_app
+	from server.config import ServerConfig
+
+	register_secret = "feature60-register-secret"
+	reset_secret = "feature60-reset-secret"
+	frontend_url = "http://localhost:3099"
+	monkeypatch.setenv("REGISTRY_REGISTER_TOKEN_SECRET", register_secret)
+	monkeypatch.setenv("REGISTRY_PASSWORD_RESET_TOKEN_SECRET", reset_secret)
+	monkeypatch.setenv("FRONTEND_URL", frontend_url)
+
+	config = ServerConfig(
+		storage_backend="local",
+		local_storage_root=tmp_path / "storage",
+		s3_bucket="kinnoo-registry-dev",
+		s3_region="us-east-1",
+		s3_endpoint_url=None,
+		s3_access_key_id=None,
+		s3_secret_access_key=None,
+		presign_ttl_seconds=120,
+		max_upload_mb=5,
+		frontend_url=frontend_url,
+	)
+	app = create_app(config=config)
+	client = TestClient(app, base_url="https://testserver")
+
+	assert app.state.registration_token_service.signing_secret == register_secret
+	assert app.state.password_reset_token_service.signing_secret == reset_secret
+
+	register_email = "feature60-register@example.com"
+	request_response = client.post("/api/auth/register-request", json={"email": register_email})
+	assert request_response.status_code == 200
+
+	register_event = next(
+		event
+		for event in app.state.email_log_sink
+		if event.get("event_type") == "registration_verification" and event.get("email") == register_email
+	)
+	assert register_event["verification_link"].startswith(f"{frontend_url}/signup/verify?token=")
+	register_token = register_event["verification_link"].split("token=", 1)[1]
+
+	confirm_once = client.post(
+		"/api/auth/register-confirm",
+		json={"token": register_token, "password": "feature60-passphrase-123"},
+	)
+	assert confirm_once.status_code == 200
+
+	confirm_twice = client.post(
+		"/api/auth/register-confirm",
+		json={"token": register_token, "password": "feature60-passphrase-123"},
+	)
+	assert confirm_twice.status_code == 400
+	assert confirm_twice.json()["error"]["message"] == "registration token already consumed"
+
+	reset_request = client.post("/api/auth/password-reset-request", json={"email": register_email})
+	assert reset_request.status_code == 200
+
+	reset_event = next(
+		event for event in app.state.email_log_sink if event.get("event_type") == "password_reset"
+	)
+	assert reset_event["reset_link"].startswith(f"{frontend_url}/forgot-password/reset?token=")
+	reset_token = reset_event["reset_link"].split("token=", 1)[1]
+
+	reset_once = client.post(
+		"/api/auth/password-reset-confirm",
+		json={"token": reset_token, "new_password": "feature60-new-passphrase-123"},
+	)
+	assert reset_once.status_code == 200
+
+	reset_twice = client.post(
+		"/api/auth/password-reset-confirm",
+		json={"token": reset_token, "new_password": "feature60-new-passphrase-123"},
+	)
+	assert reset_twice.status_code == 400
+	assert reset_twice.json()["error"]["message"] == "password reset token already consumed"

@@ -27,6 +27,7 @@ from server.auth.token import TokenService
 from server.auth.tokens import PasswordResetTokenService, RegistrationTokenService
 from server.models.user import PASSWORD_MANAGER, username_to_tenant_slug
 from server.routes.errors import build_error_envelope, resolve_request_id
+from server.services.email_service import EmailService
 from server.storage.sqlite_auth_store import SQLiteAuthStore
 from server.storage.user_store import UserStore
 
@@ -40,7 +41,7 @@ def create_auth_router(
     password_reset_token_service: PasswordResetTokenService,
     sqlite_auth_store: SQLiteAuthStore,
     frontend_url: str,
-    email_log_sink: list[dict[str, str]] | None = None,
+    email_service: EmailService,
 ) -> Any:
     fastapi_module = importlib.import_module("fastapi")
     APIRouter = getattr(fastapi_module, "APIRouter")
@@ -121,11 +122,10 @@ def create_auth_router(
         if existing_user is None:
             token = registration_token_service.issue_token(email=normalized_email)
             verification_link = build_registration_verification_link(frontend_url=frontend_url, token=token)
-            if email_log_sink is not None:
-                email_log_sink.append({
-                    "email": normalized_email,
-                    "verification_link": verification_link,
-                })
+            email_service.send_registration_verification(
+                email=normalized_email,
+                verification_link=verification_link,
+            )
 
         return {"message": registration_generic_success_message()}
 
@@ -287,13 +287,10 @@ def create_auth_router(
         if existing_user is not None:
             token = password_reset_token_service.issue_token(email=normalized_email)
             reset_link = build_password_reset_link(frontend_url=frontend_url, token=token)
-            if email_log_sink is not None:
-                email_log_sink.append(
-                    {
-                        "email": normalized_email,
-                        "reset_link": reset_link,
-                    }
-                )
+            email_service.send_password_reset(
+                email=normalized_email,
+                reset_link=reset_link,
+            )
 
         return {"message": password_reset_generic_success_message()}
 

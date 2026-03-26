@@ -6666,7 +6666,7 @@ tasks:
       - 'step5: Ensure successful confirm flows mark token consumed atomically'
     dependencies: [task327]
     tests: [test482, test483]
-    status: not-started
+    status: needs-review
 
   - id: task329
     title: "Apply password hardening, rehash-on-login, and auth abuse controls"
