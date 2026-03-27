@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$ROOT_DIR"
+
+HOST="${WEB_HOST:-localhost}"
+PORT="${WEB_PORT:-3002}"
+
+# Best-effort stop of Next dev launched by start_frontened_phase5.
+PIDS_BY_PATTERN="$(pgrep -f "next dev --hostname $HOST --port $PORT" || true)"
+if [[ -n "$PIDS_BY_PATTERN" ]]; then
+  echo "$PIDS_BY_PATTERN" | xargs kill >/dev/null 2>&1 || true
+fi
+
+# Fallback: anything listening on frontend port.
+PIDS_BY_PORT="$(lsof -tiTCP:"$PORT" -sTCP:LISTEN || true)"
+if [[ -n "$PIDS_BY_PORT" ]]; then
+  echo "$PIDS_BY_PORT" | xargs kill >/dev/null 2>&1 || true
+fi
+
+sleep 0.4
+PIDS_STILL_ON_PORT="$(lsof -tiTCP:"$PORT" -sTCP:LISTEN || true)"
+if [[ -n "$PIDS_STILL_ON_PORT" ]]; then
+  echo "$PIDS_STILL_ON_PORT" | xargs kill -9 >/dev/null 2>&1 || true
+fi
+
+if lsof -iTCP:"$PORT" -sTCP:LISTEN -n -P >/dev/null 2>&1; then
+  echo "Phase 5 frontend may still be running on port $PORT." >&2
+  exit 1
+fi
+
+echo "Phase 5 frontend stopped (port $PORT)."

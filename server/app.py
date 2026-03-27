@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+import secrets
 from typing import Any
 
 from server.auth.session import SessionService
 from server.auth.token import SigningKey, TokenService
+from server.auth.tokens import PasswordResetTokenService, RegistrationTokenService
+from server.bootstrap import bootstrap_admin_from_env
 from server.config import ServerConfig
 from server.metadata.manager import MetadataManager
 from server.middleware import InMemoryRateLimiter, PathRateLimitMiddleware, RateLimitRule
@@ -18,7 +21,9 @@ from server.routes.publish import create_publish_router
 from server.routes.search import create_search_router
 from server.routes.web_agents import create_web_agents_router
 from server.routes.web_auth import create_web_auth_router
+from server.services.email_console import ConsoleEmailService
 from server.storage import build_storage_backend_from_config
+from server.storage.sqlite_auth_store import SQLiteAuthStore
 from server.storage.user_store import UserStore
 
 
@@ -37,11 +42,28 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
     resolved_config = config or ServerConfig.from_env()
     storage_backend = build_storage_backend_from_config(resolved_config)
     user_store = UserStore(resolved_config.local_storage_root / "auth")
+    bootstrap_admin_from_env(
+        store_root=resolved_config.local_storage_root / "auth",
+        admin_email=resolved_config.registry_admin_email,
+        admin_password=resolved_config.registry_admin_password,
+    )
     session_service = SessionService(
         root=resolved_config.local_storage_root / "auth",
         signing_secret=os.getenv("REGISTRY_SESSION_SIGNING_SECRET", "dev-session-secret-change-me"),
         ttl_hours=8,
     )
+    register_token_secret = resolved_config.register_token_secret or (
+        os.getenv("REGISTRY_REGISTER_TOKEN_SECRET") or ""
+    ).strip()
+    if not register_token_secret:
+        register_token_secret = secrets.token_urlsafe(32)
+
+    password_reset_token_secret = resolved_config.password_reset_token_secret or (
+        os.getenv("REGISTRY_PASSWORD_RESET_TOKEN_SECRET") or ""
+    ).strip()
+    if not password_reset_token_secret:
+        password_reset_token_secret = secrets.token_urlsafe(32)
+
     token_service = TokenService(
         issuer=os.getenv("REGISTRY_TOKEN_ISSUER", "kinnoo-registry"),
         current_signing_key=SigningKey(
@@ -51,6 +73,16 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
         ttl_minutes=60,
     )
     metadata_manager = MetadataManager(storage=storage_backend)
+    registration_token_service = RegistrationTokenService(
+        signing_secret=register_token_secret,
+    )
+    password_reset_token_service = PasswordResetTokenService(
+        signing_secret=password_reset_token_secret,
+    )
+    sqlite_auth_store = SQLiteAuthStore(db_path=resolved_config.local_storage_root / "auth" / "auth.db")
+    frontend_url = resolved_config.frontend_url
+    email_log_sink: list[dict[str, str]] = []
+    email_service = ConsoleEmailService(sink=email_log_sink)
 
     app = FastAPI(title="kinnoo-registry-server")
     templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
@@ -64,6 +96,8 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
         limiter=InMemoryRateLimiter(),
         rules={
             "/api/auth/token": RateLimitRule(requests_per_minute=20),
+            "/api/auth/register-request": RateLimitRule(requests_per_minute=5),
+            "/api/auth/password-reset-request": RateLimitRule(requests_per_minute=5),
             "/api/publish": RateLimitRule(requests_per_minute=20),
         },
     )
@@ -73,6 +107,12 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
     app.state.metadata_manager = metadata_manager
     app.state.user_store = user_store
     app.state.session_service = session_service
+    app.state.registration_token_service = registration_token_service
+    app.state.password_reset_token_service = password_reset_token_service
+    app.state.sqlite_auth_store = sqlite_auth_store
+    app.state.frontend_url = frontend_url
+    app.state.email_log_sink = email_log_sink
+    app.state.email_service = email_service
     app.state.templates = templates
 
     @app.middleware("http")
@@ -99,6 +139,12 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
         create_auth_router(
             token_service=token_service,
             user_store=user_store,
+            session_service=session_service,
+            registration_token_service=registration_token_service,
+            password_reset_token_service=password_reset_token_service,
+            sqlite_auth_store=sqlite_auth_store,
+            frontend_url=frontend_url,
+            email_service=email_service,
         )
     )
     app.include_router(
