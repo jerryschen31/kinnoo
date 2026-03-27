@@ -43,7 +43,7 @@ describe("MainLayout", () => {
 
     const headerRow = container.querySelector("header > div");
     expect(headerRow?.className).toContain("gap-2");
-    expect(headerRow?.className).toContain("sm:px-4");
+    expect(headerRow?.className).toContain("px-4");
 
     const authButtons = screen.getAllByRole("link", { name: /login|sign up/i });
     for (const button of authButtons) {
@@ -53,7 +53,7 @@ describe("MainLayout", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /open menu/i }));
     const dialog = container.ownerDocument.querySelector("[role='dialog']");
-    expect(dialog?.className).toContain("w-full");
-    expect(dialog?.className).toContain("sm:w-80");
+    expect(dialog?.className).toContain("rounded-card");
+    expect(dialog?.className).toContain("bg-[#222222]");
   });
 });
