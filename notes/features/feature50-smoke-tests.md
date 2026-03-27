@@ -7,7 +7,9 @@ Manual verification steps to confirm feature50 is complete and correct. Run thes
 ## 1. ThemeConfig Module Exists and Exports Tokens
 
 ```bash
-cd web && node -e "
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+cd "$REPO_ROOT"
+(cd web && node -e "
 const { themeConfig } = require('./lib/theme');
 console.log('bg:', themeConfig.colors.bg);
 console.log('text:', themeConfig.colors.text);
@@ -19,7 +21,7 @@ console.log('radii.button:', themeConfig.radii.button);
 console.log('h1:', themeConfig.typography.h1);
 console.log('spacing.unit:', themeConfig.spacing.unit);
 console.log('fonts:', themeConfig.fonts.primary);
-"
+")
 ```
 **Expected:** All values print and match the design spec. No `undefined`.
 
@@ -42,8 +44,11 @@ grep -E "MainLayout|import.*MainLayout" web/app/layout.tsx
 ## 4. Visual Check — Header Renders
 
 ```bash
-cd web && npm run dev &
+(cd web && npm run dev > /tmp/kinnoo-feature50-dev.log 2>&1) &
+DEV_PID=$!
 sleep 5
+kill "$DEV_PID" || true
+wait "$DEV_PID" 2>/dev/null || true
 ```
 Open `http://localhost:3000/` in a browser.
 
@@ -90,7 +95,7 @@ Scroll down on a page with enough content (add some temporary tall content if ne
 ## 9. Automated Tests Pass
 
 ```bash
-cd web && npm test
+(cd web && npm test)
 ```
 **Expected:** All tests pass:
 - `__tests__/theme.test.ts` — ThemeConfig color, radii, typography, spacing assertions
