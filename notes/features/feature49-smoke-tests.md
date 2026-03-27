@@ -8,6 +8,8 @@ Manual verification steps to confirm feature49 is complete and correct. Run thes
 
 ```bash
 # From repo root:
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+cd "$REPO_ROOT"
 ls web/package.json web/tsconfig.json web/tailwind.config.ts web/next.config.ts web/.nvmrc
 ```
 **Expected:** All five files exist. No "No such file" errors.
@@ -22,7 +24,7 @@ cat web/.nvmrc
 ## 3. Dependencies Correct
 
 ```bash
-cd web && node -e "
+(cd web && node -e "
 const pkg = require('./package.json');
 const deps = pkg.dependencies;
 console.log('next:', deps.next);
@@ -34,7 +36,7 @@ console.log('@radix-ui/react-navigation-menu:', deps['@radix-ui/react-navigation
 console.log('@radix-ui/react-slot:', deps['@radix-ui/react-slot']);
 console.log('lucide-react:', deps['lucide-react']);
 console.log('framer-motion:', deps['framer-motion']);
-"
+")
 ```
 **Expected:** All nine packages print a version (not `undefined`). `next` ≥ 15, `react` ≥ 19.
 
@@ -74,20 +76,22 @@ ls -d web/components/ui web/components/blocks web/lib web/__tests__
 ## 8. Build Succeeds
 
 ```bash
-cd web && npm run build
+(cd web && npm run build)
 ```
 **Expected:** Exit code 0, no TypeScript or compilation errors in output.
 
 ## 9. Dev Server Starts and Routes Work
 
 ```bash
-cd web && npm run dev &
+(cd web && npm run dev > /tmp/kinnoo-feature49-dev.log 2>&1) &
+DEV_PID=$!
 sleep 5
 curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/
 curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/login
 curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/signup
 curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/registry
-kill %1
+kill "$DEV_PID" || true
+wait "$DEV_PID" 2>/dev/null || true
 ```
 **Expected:** All four curl commands return `200`.
 

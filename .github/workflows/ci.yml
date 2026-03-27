@@ -43,5 +43,17 @@ jobs:
           set -e
           for md in notes/features/*-smoke-tests.md; do
             echo "Running smoke tests in $md"
-            awk '/^```bash/{flag=1;next}/^```/{flag=0}flag' "$md" | bash
+            script_file="$(mktemp)"
+            awk '/^```bash/{flag=1;next}/^```/{flag=0}flag' "$md" > "$script_file"
+
+            if [ -s "$script_file" ]; then
+              timeout 15m bash -euo pipefail -c '
+                REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+                cd "$REPO_ROOT"
+                trap "jobs -pr | xargs -r kill 2>/dev/null || true" EXIT
+                source "$1"
+              ' _ "$script_file"
+            fi
+
+            rm -f "$script_file"
           done
