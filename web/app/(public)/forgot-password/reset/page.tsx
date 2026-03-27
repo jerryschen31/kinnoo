@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import FormField from "../../../../components/ui/form-field";
@@ -13,6 +13,23 @@ import {
 } from "../../../../lib/auth-validation";
 
 export default function ResetPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <section className="flex min-h-[calc(100vh-14rem)] items-center justify-center px-4 py-8">
+          <div className="w-full max-w-md rounded-card border border-white/10 bg-kinnoo-surface/70 p-6 shadow-xl sm:p-8">
+            <h1 className="mb-2 text-3xl font-semibold tracking-tight text-kinnoo-text">Reset Password</h1>
+            <p className="text-sm text-white/70">Loading reset form...</p>
+          </div>
+        </section>
+      }
+    >
+      <ResetPasswordForm />
+    </Suspense>
+  );
+}
+
+function ResetPasswordForm() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
 

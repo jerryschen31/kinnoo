@@ -106,7 +106,7 @@ describe("Landing page", () => {
     expect(cards.length).toBe(6);
 
     cards.forEach((card) => {
-      expect(card.className).toContain("hover:border-kinnoo-accent/60");
+      expect(card.className).toContain("hover:border-[#3B82F6]");
       expect(card.className).toContain("focus-within:ring-1");
       expect(card.className).toContain("overflow-hidden");
     });
