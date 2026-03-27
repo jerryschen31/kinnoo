@@ -5434,7 +5434,7 @@ tasks:
       - 'step4: Add test for preflight FAIL with no runtime.path and no venv (existing behavior)'
     dependencies: [task257]
     tests: [test382, test383]
-    status: needs-review
+    status: completed
 
   - id: task269
     title: Auto-wrapper generation for class-only Python agents
@@ -5457,7 +5457,7 @@ tasks:
       - 'step4: Test with langchain-tool-calling-agent and openai-agents-basic-tools'
     dependencies: []
     tests: [test384, test385]
-    status: needs-review
+    status: completed
 
   - id: task270
     title: Jupyter notebook to Python script conversion
@@ -5496,7 +5496,7 @@ tasks:
       - 'step4: Test with openai-agents-sdk-customer-service and vanilla-python-octoagent'
     dependencies: []
     tests: [test388, test389]
-    status: needs-review
+    status: completed
 
   - id: task272
     title: Requirements auto-inference from Python imports
@@ -5515,7 +5515,7 @@ tasks:
       - 'step4: Test with langgraph-multi-agent-router (compare inferred vs actual)'
     dependencies: []
     tests: [test390, test391]
-    status: needs-review
+    status: completed
 
   - id: task273
     title: Node.js/TypeScript agent import and run improvements
@@ -5535,7 +5535,7 @@ tasks:
       - 'step4: Test with vanilla-typescript-easy-agent'
     dependencies: []
     tests: [test392, test393]
-    status: needs-review
+    status: completed
 
   - id: task274
     title: Async entrypoint and hardcoded input detection
@@ -5554,7 +5554,7 @@ tasks:
       - 'step4: Test with openai-agents-hello-world (hardcoded) and an argparse agent'
     dependencies: []
     tests: [test394, test395]
-    status: needs-review
+    status: completed
 
   - id: task275
     title: Service dependency auto-detection
@@ -5573,7 +5573,7 @@ tasks:
       - 'step4: Test with vanilla-python-reze-agent and openclaw-ollama-extension-agent'
     dependencies: []
     tests: [test396, test397]
-    status: needs-review
+    status: completed
 
   - id: task276
     title: PydanticAI dependency injection (deps) support
@@ -5592,7 +5592,7 @@ tasks:
       - 'step4: Validate --json-input with pydanticai-bank-support-agent'
     dependencies: []
     tests: [test398, test399]
-    status: needs-review
+    status: completed
 
   - id: task277
     title: End-to-end validation with representative agents
@@ -5613,7 +5613,7 @@ tasks:
       - 'step6: Document results in test report'
     dependencies: [task269, task271, task272, task273, task274, task275, task276]
     tests: [test400, test401]
-    status: needs-review
+    status: completed
     
   - id: task278
     title: Streamlit/Gradio UI agent support
@@ -5636,7 +5636,7 @@ tasks:
       - 'step5: Test with nirbar1985-ai-travel-agent and aymenfurter-microagents'
     dependencies: []
     tests: [test402, test403, test404, test405]
-    status: needs-review
+    status: completed
 
   - id: task279
     title: "DEPRECATED — Extended framework detection (CrewAI, Swarm, Agno, etc.)"
@@ -5675,7 +5675,7 @@ tasks:
       - 'step5: Validate targeted analyzer regressions with pytest --testmon'
     dependencies: [task275, task276]
     tests: [test410, test411, test412, test413]
-    status: needs-review
+    status: completed
 
   - id: task281
     title: Inspect full/raw rendering and metadata update command
@@ -5698,7 +5698,7 @@ tasks:
       - 'step7: Run focused pytest coverage for inspect command changes'
     dependencies: [task66, task67, task68, task69, task148]
     tests: [test414, test415, test416, test417, test418, test419, test420]
-    status: needs-review
+    status: completed
 
   # ======================================================================
   # Phase 5 (V5): Web Frontend and Registry Frontend + Backend
@@ -5730,7 +5730,7 @@ tasks:
       - 'step5: Run npm run dev and npm run build to confirm zero errors on Node 20+'
     dependencies: []
     tests: [test421, test422]
-    status: needs-review
+    status: completed
 
   - id: task283
     title: "Configure Tailwind with dark-mode design tokens"
@@ -5752,7 +5752,7 @@ tasks:
       - 'step4: Verify Tailwind compiles with the extended theme by running npm run build'
     dependencies: [task282]
     tests: [test423]
-    status: needs-review
+    status: completed
 
   - id: task284
     title: "Create directory structure and placeholder route pages"
@@ -5783,7 +5783,7 @@ tasks:
       - 'step6: Verify all routes are accessible via npm run dev: /, /login, /signup, /registry'
     dependencies: [task282]
     tests: [test424, test425]
-    status: needs-review
+    status: completed
 
   - id: task285
     title: "Install Radix UI, Lucide, and framer-motion dependencies"
@@ -5801,7 +5801,7 @@ tasks:
       - 'step3: Run npm run build to confirm no dependency conflicts or type errors'
     dependencies: [task282]
     tests: [test426]
-    status: needs-review
+    status: completed
 
   - id: task286
     title: "Create ThemeConfig design token module"
@@ -5823,7 +5823,7 @@ tasks:
       - 'step4: Verify TypeScript compiles the module without errors'
     dependencies: [task283]
     tests: [test427, test428]
-    status: needs-review
+    status: completed
 
   - id: task287
     title: "Build MainLayout header with hamburger menu and auth buttons"
@@ -5848,7 +5848,7 @@ tasks:
       - 'step6: Verify hamburger opens/closes and buttons navigate correctly in dev server'
     dependencies: [task284, task286]
     tests: [test429, test430]
-    status: needs-review
+    status: completed
 
   - id: task288
     title: "Make layout responsive for mobile viewports"
@@ -5868,7 +5868,7 @@ tasks:
       - 'step4: Visually verify at 375px, 640px, 768px, and 1024px widths'
     dependencies: [task287]
     tests: [test431]
-    status: needs-review
+    status: completed
 
   - id: task289
     title: "Write smoke tests for layout and design tokens"
@@ -5890,7 +5890,7 @@ tasks:
       - 'step4: Run tests and verify all pass'
     dependencies: [task287, task286]
     tests: [test427, test428, test429, test430]
-    status: needs-review
+    status: completed
 
   # ------ Sub-phase 2: Landing Page and Secure Login UI (feature51, feature52) ------
 
@@ -5910,7 +5910,7 @@ tasks:
       - 'step4: Verify no clipping/overlap at 375px, 768px, and 1280px widths'
     dependencies: [task287]
     tests: [test432]
-    status: needs-review
+    status: completed
 
   - id: task291
     title: "Create Terminal Preview component with copy-to-clipboard"
@@ -5929,7 +5929,7 @@ tasks:
       - 'step4: Ensure button has accessible name and visible focus ring'
     dependencies: [task290]
     tests: [test433]
-    status: needs-review
+    status: completed
 
   - id: task292
     title: "Build six-card Features section with required copy"
@@ -5948,7 +5948,7 @@ tasks:
       - 'step4: Ensure card content wraps safely on narrow screens without overflow'
     dependencies: [task290]
     tests: [test434, test435]
-    status: needs-review
+    status: completed
 
   - id: task293
     title: "Add landing page automated test coverage"
@@ -5966,7 +5966,7 @@ tasks:
       - 'step4: Run test suite and ensure deterministic pass results'
     dependencies: [task291, task292]
     tests: [test432, test433, test434, test435, test436]
-    status: needs-review
+    status: completed
 
   - id: task294
     title: "Implement login page UI card and required fields"
@@ -5984,7 +5984,7 @@ tasks:
       - 'step4: Confirm visual alignment with dark theme styles'
     dependencies: [task287]
     tests: [test437]
-    status: needs-review
+    status: completed
 
   - id: task295
     title: "Add client-side validation and loading-state behavior"
@@ -6003,7 +6003,7 @@ tasks:
       - 'step4: Restore button state after success/failure and render safe error feedback'
     dependencies: [task294]
     tests: [test438, test439, test442]
-    status: needs-review
+    status: completed
 
   - id: task296
     title: "Implement secure login submission through BFF proxy"
@@ -6023,7 +6023,7 @@ tasks:
       - 'step4: Ensure proxy/rewrite configuration forwards request and response headers as expected'
     dependencies: [task294]
     tests: [test440, test441]
-    status: needs-review
+    status: completed
 
   - id: task297
     title: "Add login page automated tests for validation and auth flow"
@@ -6041,7 +6041,7 @@ tasks:
       - 'step4: Test fetch call includes credentials and success path navigates to /registry'
     dependencies: [task295, task296]
     tests: [test437, test438, test439, test440, test441, test442]
-    status: needs-review
+    status: completed
 
   # ------ Sub-phase 3: Registry Dashboard (feature53, feature54) ------
 
@@ -6062,7 +6062,7 @@ tasks:
       - 'step4: Ensure keyboard navigation and focus styles for nav controls'
     dependencies: [task287, task297]
     tests: [test443, test444]
-    status: needs-review
+    status: completed
 
   - id: task299
     title: "Implement My Agents and Search view state with framer-motion transitions"
@@ -6081,7 +6081,7 @@ tasks:
       - 'step4: Preserve search control state while switching views where appropriate'
     dependencies: [task298]
     tests: [test445, test446]
-    status: needs-review
+    status: completed
 
   - id: task300
     title: "Integrate dashboard data fetching for my agents and search"
@@ -6100,7 +6100,7 @@ tasks:
       - 'step4: Render loading, empty, and error states for both views'
     dependencies: [task299]
     tests: [test447]
-    status: needs-review
+    status: completed
 
   - id: task301
     title: "Add automated tests for dashboard shell and tab/view behavior"
@@ -6118,7 +6118,7 @@ tasks:
       - 'step4: Test tab switching updates rendered view content'
     dependencies: [task299, task300]
     tests: [test443, test444, test445, test446, test447]
-    status: needs-review
+    status: completed
 
   - id: task302
     title: "Build reusable AgentCard with required metadata fields"
@@ -6137,7 +6137,7 @@ tasks:
       - 'step4: Reuse component in both My Agents and Search result grids'
     dependencies: [task300]
     tests: [test448]
-    status: needs-review
+    status: completed
 
   - id: task303
     title: "Implement manifest modal with detail endpoint integration"
@@ -6157,7 +6157,7 @@ tasks:
       - 'step4: Render safe fallback states for loading/error in modal body'
     dependencies: [task302]
     tests: [test449, test450]
-    status: needs-review
+    status: completed
 
   - id: task304
     title: "Add install command terminal block and copy action in search modal"
@@ -6176,7 +6176,7 @@ tasks:
       - 'step4: Ensure keyboard-accessible interaction and focus styles'
     dependencies: [task303]
     tests: [test451]
-    status: needs-review
+    status: completed
 
   - id: task305
     title: "Add automated tests for AgentCard and modal copy workflow"
@@ -6194,7 +6194,7 @@ tasks:
       - 'step4: Assert install command copy button copies and shows feedback'
     dependencies: [task303, task304]
     tests: [test448, test449, test450, test451, test452]
-    status: needs-review
+    status: completed
 
   - id: task306
     title: "Polish landing and header visuals per brand updates"
@@ -6219,7 +6219,7 @@ tasks:
       - 'step5: Update and execute task306 smoke tests until all checks pass'
     dependencies: [task287, task293, task297]
     tests: []
-    status: needs-review
+    status: completed
 
   # ------ Sub-phase 4: Integration, CSRF & Production Hardening (feature55, feature56, feature57) ------
 
@@ -6240,7 +6240,7 @@ tasks:
       - 'step4: Document env contract for BACKEND_URL in web/.env.example or project docs'
     dependencies: [task282]
     tests: [test453]
-    status: needs-review
+    status: completed
 
   - id: task308
     title: "Implement CSRF pass-through for login and authenticated POST flows"
@@ -6259,7 +6259,7 @@ tasks:
       - 'step4: Validate behavior against backend validate_post_request expectations'
     dependencies: [task307, task296]
     tests: [test454, test455]
-    status: needs-review
+    status: completed
 
   - id: task309
     title: "Add backend /api/auth/me endpoint for session validation"
@@ -6278,7 +6278,7 @@ tasks:
       - 'step4: Add route-level tests for success and 401 failure paths'
     dependencies: [task308]
     tests: [test456]
-    status: needs-review
+    status: completed
 
   - id: task310
     title: "Implement auth guard in app/(auth)/layout.tsx using /api/auth/me"
@@ -6296,7 +6296,7 @@ tasks:
       - 'step4: Add tests for redirect and success rendering behavior'
     dependencies: [task309]
     tests: [test457, test458]
-    status: needs-review
+    status: completed
 
   - id: task311
     title: "Add session-cookie fallback auth for JSON API routes"
@@ -6314,7 +6314,7 @@ tasks:
       - 'step4: Add tests covering Bearer and session-cookie auth paths'
     dependencies: [task309]
     tests: [test459]
-    status: needs-review
+    status: completed
 
   - id: task312
     title: "Bootstrap local admin account from environment"
@@ -6334,7 +6334,7 @@ tasks:
       - 'step4: Add tests ensuring no secret values are logged or returned'
     dependencies: [task311]
     tests: [test460]
-    status: needs-review
+    status: completed
 
   - id: task313
     title: "Ensure local kinnoo publish writes to tenant path in mocked S3"
@@ -6354,7 +6354,7 @@ tasks:
       - 'step4: Add regression tests for tenant-path correctness in local mode'
     dependencies: [task312]
     tests: [test461]
-    status: needs-review
+    status: completed
 
   - id: task314
     title: "Add integration tests for auth fallback, admin bootstrap, and publish paths"
@@ -6373,7 +6373,7 @@ tasks:
       - 'step4: Keep tests deterministic across repeated local runs'
     dependencies: [task311, task312, task313]
     tests: [test459, test460, test461, test462]
-    status: needs-review
+    status: completed
 
   - id: task315
     title: "Add Next.js security headers middleware for production hardening"
@@ -6391,7 +6391,7 @@ tasks:
       - 'step4: Add tests verifying header presence and production gating'
     dependencies: [task307]
     tests: [test463]
-    status: needs-review
+    status: completed
 
   - id: task316
     title: "Implement (auth) loading.tsx and error.tsx for graceful failures"
@@ -6410,7 +6410,7 @@ tasks:
       - 'step4: Add tests for error/loading rendering behavior'
     dependencies: [task310]
     tests: [test464]
-    status: needs-review
+    status: completed
 
   - id: task317
     title: "Forward X-Forwarded-For for rate limiter compatibility and add migration TODO"
@@ -6429,7 +6429,7 @@ tasks:
       - 'step4: Add tests asserting forwarded IP signal reaches limiter path'
     dependencies: [task315]
     tests: [test465]
-    status: needs-review
+    status: completed
 
   - id: task318
     title: "Finalize Sub-phase 4 integration/hardening test suite"
@@ -6449,7 +6449,7 @@ tasks:
       - 'step4: Run full manifest-linked tests and ensure deterministic pass'
     dependencies: [task314, task316, task317]
     tests: [test453, test454, test455, test456, test457, test458, test463, test464, test465, test466]
-    status: needs-review
+    status: completed
 
   # ------ Sub-phase 5: User Registration & Password Reset (feature58, feature59, feature60) ------
 
@@ -6473,7 +6473,7 @@ tasks:
       - 'step4: Enforce password match and 10-128 length validation before submit; include passphrase-friendly helper text'
     dependencies: [task287, task295]
     tests: [test467, test468, test471]
-    status: needs-review
+    status: completed
 
   - id: task320
     title: "Implement register-request endpoint with privacy + token issuance"
@@ -6494,7 +6494,7 @@ tasks:
       - 'step4: Invoke email service and return generic 200 response in all account-existence cases'
     dependencies: [task319, task327, task328]
     tests: [test469, test470]
-    status: needs-review
+    status: completed
 
   - id: task321
     title: "Implement register-confirm with DB-backed user, identity, tenant creation"
@@ -6518,7 +6518,7 @@ tasks:
       - 'step4: Consume token, create session cookie response from relational session store, and support redirect to /registry'
     dependencies: [task320, task327, task328]
     tests: [test472, test473, test486]
-    status: needs-review
+    status: completed
 
   - id: task322
     title: "Add registration integration/component tests including slug collisions"
@@ -6537,7 +6537,7 @@ tasks:
       - 'step4: Run linked registration suite and ensure deterministic pass'
     dependencies: [task320, task321]
     tests: [test467, test468, test469, test470, test471, test472, test473, test474, test486]
-    status: needs-review
+    status: completed
 
   - id: task323
     title: "Build forgot-password pages and policy-aware reset UX"
@@ -6557,7 +6557,7 @@ tasks:
       - 'step4: Enforce client validation for password match and 10-128 length before submit'
     dependencies: [task319]
     tests: [test475, test478]
-    status: needs-review
+    status: completed
 
   - id: task324
     title: "Implement password-reset-request endpoint with generic response"
@@ -6577,7 +6577,7 @@ tasks:
       - 'step4: Dispatch reset message through email service abstraction'
     dependencies: [task323, task327, task328]
     tests: [test476, test477]
-    status: needs-review
+    status: completed
 
   - id: task325
     title: "Implement password-reset-confirm with policy checks and session revocation"
@@ -6601,7 +6601,7 @@ tasks:
       - 'step4: Invalidate all active user sessions in relational store and return success response for login redirect'
     dependencies: [task324, task329]
     tests: [test479, test480, test487, test489]
-    status: needs-review
+    status: completed
 
   - id: task326
     title: "Add forgot-password integration/component tests with policy paths"
@@ -6620,7 +6620,7 @@ tasks:
       - 'step4: Run linked forgot-password suite and ensure deterministic pass'
     dependencies: [task324, task325]
     tests: [test475, test476, test477, test478, test479, test480, test481, test487, test489]
-    status: needs-review
+    status: completed
 
   - id: task327
     title: "Introduce SQLite auth schema and repository foundation"
@@ -6642,7 +6642,7 @@ tasks:
       - 'step4: Wire app configuration to use SQLite auth store in development'
     dependencies: [task287]
     tests: [test485]
-    status: needs-review
+    status: completed
 
   - id: task328
     title: "Add EmailService abstraction, env secrets, and single-use token state"
@@ -6666,7 +6666,7 @@ tasks:
       - 'step5: Ensure successful confirm flows mark token consumed atomically'
     dependencies: [task327]
     tests: [test482, test483]
-    status: needs-review
+    status: completed
 
   - id: task329
     title: "Apply password hardening, rehash-on-login, and auth abuse controls"
@@ -6688,7 +6688,7 @@ tasks:
       - 'step4: Add deterministic tests for policy rejection, rehash, and abuse controls'
     dependencies: [task328]
     tests: [test470, test477, test487, test488]
-    status: needs-review
+    status: completed
 
   - id: task330
     title: "Finalize Sub-phase 5 integration, smoke tests, and SSO-ready docs"
@@ -6713,7 +6713,7 @@ tasks:
       - 'step4: Produce deterministic suite entry point and smoke-test checklist docs for future CI and manual verification'
     dependencies: [task322, task326, task329]
     tests: [test474, test481, test482, test483, test484, test489, test490]
-    status: needs-review
+    status: completed
 
   - id: task331
     title: "Registry manifest tabs, install terminal block, and blank-search UX fix"
@@ -6740,4 +6740,4 @@ tasks:
       - "step5: Run and document smoke tests in notes/tasks/task331-smoke-tests.md"
     dependencies: []
     tests: []
-    status: needs-review
+    status: completed
