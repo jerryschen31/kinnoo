@@ -249,6 +249,69 @@ def test_backend_selection(monkeypatch, tmp_path):
     assert selected_backends[-1] == "remote"
 
 
+def test_publish_toggle_true_prefers_authenticated_remote(monkeypatch, tmp_path):
+    from kinnoo import publish_command
+
+    (tmp_path / "kinnoo-config.txt").write_text(
+        "publish_to_authenticated_registry=true\n",
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("KINNOO_REGISTRY_URL", "https://registry.example.test")
+    monkeypatch.delenv("KINNOO_REGISTRY_TOKEN", raising=False)
+    monkeypatch.delenv("KINNOO_TENANT_SLUG", raising=False)
+
+    captured_remote_kwargs: dict[str, str] = {}
+
+    class _FakeRemoteBackend:
+        def __init__(self, *, base_url, token, tenant_slug):
+            captured_remote_kwargs["base_url"] = base_url
+            captured_remote_kwargs["token"] = token
+            captured_remote_kwargs["tenant_slug"] = tenant_slug
+
+    monkeypatch.setattr(publish_command, "RemoteRegistryClient", _FakeRemoteBackend)
+    monkeypatch.setattr(
+        publish_command,
+        "_issue_registry_token_with_admin_credentials",
+        lambda *, config: ("issued-admin-token", "global"),
+    )
+
+    backend, backend_label, backend_error = publish_command._resolve_publish_backend(
+        use_local=False,
+        use_remote=False,
+    )
+
+    assert backend_error is None
+    assert backend_label == "remote"
+    assert isinstance(backend, _FakeRemoteBackend)
+    assert captured_remote_kwargs == {
+        "base_url": "https://registry.example.test",
+        "token": "issued-admin-token",
+        "tenant_slug": "global",
+    }
+
+
+def test_publish_toggle_false_keeps_current_local_default(monkeypatch, tmp_path):
+    from kinnoo import publish_command
+
+    (tmp_path / "kinnoo-config.txt").write_text(
+        "publish_to_authenticated_registry=false\n",
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("KINNOO_REGISTRY_URL", raising=False)
+    monkeypatch.delenv("KINNOO_REGISTRY_TOKEN", raising=False)
+    monkeypatch.delenv("KINNOO_TENANT_SLUG", raising=False)
+
+    backend, backend_label, backend_error = publish_command._resolve_publish_backend(
+        use_local=False,
+        use_remote=False,
+    )
+
+    assert backend_error is None
+    assert backend_label == "local"
+
+
 import tempfile
 import shutil
 import os

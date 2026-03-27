@@ -20,6 +20,9 @@ def list_agents_payload(
     token_service: TokenService,
     metadata_manager: MetadataManager,
     storage_backend: StorageBackend,
+    session_cookie_value: str | None,
+    session_service,
+    user_store,
     offset: int,
     limit: int,
     tenant_filter: str | None,
@@ -29,6 +32,9 @@ def list_agents_payload(
             authorization_header=authorization_header,
             required_scope="registry:read",
             token_service=token_service,
+            session_cookie_value=session_cookie_value,
+            session_service=session_service,
+            user_store=user_store,
         )
     except PermissionError as error:
         status = 403 if "403" in str(error) else 401
@@ -101,6 +107,9 @@ def agent_detail_payload(
     authorization_header: str | None,
     token_service: TokenService,
     metadata_manager: MetadataManager,
+    session_cookie_value: str | None,
+    session_service,
+    user_store,
     tenant_slug: str,
     agent_slug: str,
 ) -> tuple[int, dict[str, object]]:
@@ -109,6 +118,9 @@ def agent_detail_payload(
             authorization_header=authorization_header,
             required_scope="registry:read",
             token_service=token_service,
+            session_cookie_value=session_cookie_value,
+            session_service=session_service,
+            user_store=user_store,
         )
     except PermissionError as error:
         status = 403 if "403" in str(error) else 401
@@ -121,11 +133,24 @@ def agent_detail_payload(
     if not _can_read_tenant(claims=claims, tenant_slug=tenant_slug, visibility=agent_index.visibility):
         return 403, {"error": "403 forbidden: private tenant access denied"}
 
+    latest_version = _latest_version_from_index(agent_index=agent_index)
+    agent_manifest: dict[str, object] = {}
+    if latest_version:
+        metadata = metadata_manager.get_version_metadata(
+            tenant_slug=tenant_slug,
+            agent_slug=agent_slug,
+            version=latest_version,
+        )
+        if metadata is not None and isinstance(metadata.manifest, dict):
+            agent_manifest = dict(metadata.manifest)
+
     return 200, {
         "tenant_slug": agent_index.tenant_slug,
         "agent_slug": agent_index.agent_slug,
         "visibility": agent_index.visibility,
         "versions": [version.to_document() for version in agent_index.versions],
+        "latest_version": latest_version,
+        "agent_manifest": agent_manifest,
         "schema_version": agent_index.schema_version,
     }
 
@@ -159,6 +184,9 @@ def create_agents_router(
             token_service=token_service,
             metadata_manager=metadata_manager,
             storage_backend=storage_backend,
+            session_cookie_value=request.cookies.get(request.app.state.session_service.cookie_name),
+            session_service=request.app.state.session_service,
+            user_store=request.app.state.user_store,
             offset=offset,
             limit=limit,
             tenant_filter=tenant,
@@ -185,6 +213,9 @@ def create_agents_router(
             authorization_header=authorization,
             token_service=token_service,
             metadata_manager=metadata_manager,
+            session_cookie_value=request.cookies.get(request.app.state.session_service.cookie_name),
+            session_service=request.app.state.session_service,
+            user_store=request.app.state.user_store,
             tenant_slug=tenant_slug,
             agent_slug=agent_slug,
         )
@@ -245,6 +276,13 @@ def _author_for_summary(
     if metadata is None:
         return ""
     return str(metadata.manifest.get("author", ""))
+
+
+def _latest_version_from_index(*, agent_index) -> str:
+    if not agent_index.versions:
+        return ""
+    latest = max(agent_index.versions, key=lambda item: item.updated_at)
+    return latest.version
 
 
 def _archive_size_for_summary(

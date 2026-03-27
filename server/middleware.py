@@ -19,11 +19,17 @@ def validate_and_inject_user_context(
     authorization_header: str | None,
     token_service: TokenService,
     required_scope: str,
+    session_cookie_value: str | None = None,
+    session_service=None,
+    user_store=None,
 ) -> TokenClaims:
     claims = authenticate_request(
         authorization_header=authorization_header,
         required_scope=required_scope,
         token_service=token_service,
+        session_cookie_value=session_cookie_value,
+        session_service=session_service,
+        user_store=user_store,
     )
     request.state.user_claims = claims
     return claims
@@ -59,6 +65,8 @@ class InMemoryRateLimiter:
 class PathRateLimitMiddleware:
     """ASGI middleware applying per-path request limits."""
 
+    # TODO(feature57): migrate rate limiter state to Redis/Upstash for distributed deployments.
+
     def __init__(
         self,
         app,
@@ -81,8 +89,7 @@ class PathRateLimitMiddleware:
             await self.app(scope, receive, send)
             return
 
-        client = scope.get("client")
-        client_host = client[0] if client else "unknown"
+        client_host = _client_id_from_scope(scope)
         allowed = self._limiter.allow(
             path=path,
             client_id=client_host,
@@ -118,3 +125,19 @@ def _request_id_from_scope(scope) -> str:
             if decoded:
                 return decoded
     return uuid.uuid4().hex
+
+
+def _client_id_from_scope(scope) -> str:
+    headers = scope.get("headers") or []
+    for key, value in headers:
+        if key == b"x-forwarded-for":
+            try:
+                forwarded = value.decode("utf-8")
+            except UnicodeDecodeError:
+                forwarded = ""
+            candidate = forwarded.split(",", 1)[0].strip()
+            if candidate:
+                return candidate
+
+    client = scope.get("client")
+    return client[0] if client else "unknown"

@@ -7,12 +7,24 @@ from datetime import datetime, timezone
 import hashlib
 import hmac
 import importlib
+import re
 import secrets
 from typing import Literal
 from uuid import uuid4
 
 
 Role = Literal["admin", "user"]
+
+
+def username_to_tenant_slug(username: str) -> str:
+    """Derive a stable tenant slug from username/email for auth identity payloads."""
+    raw = username.strip().lower()
+    if "@" in raw:
+        raw = raw.split("@", 1)[0]
+
+    slug = re.sub(r"[^a-z0-9-]+", "-", raw)
+    slug = re.sub(r"-+", "-", slug).strip("-")
+    return slug or "default"
 
 
 def _utc_now_iso() -> str:
@@ -81,6 +93,24 @@ class PasswordManager:
                 return False
             derived = hashlib.scrypt(password.encode("utf-8"), salt=salt, n=2**14, r=8, p=1)
             return hmac.compare_digest(derived, expected)
+
+        return False
+
+    def needs_rehash(self, password_hash: str) -> bool:
+        """Return True when stored hash should be upgraded to current preferred policy."""
+        if not isinstance(password_hash, str) or not password_hash:
+            return False
+
+        if password_hash.startswith("$argon2"):
+            if self._argon2_hasher is None:
+                return False
+            try:
+                return bool(self._argon2_hasher.check_needs_rehash(password_hash))
+            except Exception:
+                return False
+
+        if password_hash.startswith("scrypt$"):
+            return self._argon2_hasher is not None
 
         return False
 
