@@ -10,19 +10,19 @@ const FEATURES: readonly FeatureCard[] = [
       "Initialize, import or install AI agents developed with LangChain, LangGraph, PydanticAI, OpenAI Agents SDK, OpenClaw and more.",
   },
   {
-    title: "One-command packaging",
+    title: "Install and run in two commands",
     description:
-      "Bundle your agent, its dependencies, assets, and state into a single portable .kno archive — ready to share or publish.",
+      "kinnoo install and kinnoo run — no README hunting, no venv setup, no env var guessing. Dependencies, runtime, and configuration are handled by kinnoo.",
   },
   {
-    title: "Discover and install from a registry",
+    title: "Publish to a hosted registry",
     description:
-      "Publish agents to a hosted registry where others can search, inspect, and install them with kinnoo install — like npm, but for agents.",
+      "Publish agents to a hosted registry where others can search, inspect, and install them — like npm, but for agents.",
   },
   {
     title: "Built to run real-world agents",
     description:
-      "kinnoo handles environment setup, dependency isolation, and runtime wiring for Python and Node.js agents, including one-shot and long-running daemon-based agents.",
+      "From one-shot tasks to long-running daemons and MCP integrations, kinnoo supports how agents actually run in production.",
   },
   {
     title: "Security built-in",
