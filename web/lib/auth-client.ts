@@ -125,17 +125,24 @@ export async function fetchAuthMeServer(cookieHeader: string): Promise<AuthMeRes
     process.env.BACKEND_URL ?? process.env.KINNOO_API_BASE_URL ?? "http://127.0.0.1:8000"
   ).replace(/\/+$/, "");
 
-  const response = await fetch(`${backendBaseUrl}/api/auth/me`, {
-    method: "GET",
-    cache: "no-store",
-    headers: {
-      Accept: "application/json",
-      ...(cookieHeader ? { Cookie: cookieHeader } : {}),
-    },
-  });
+  try {
+    const response = await fetch(`${backendBaseUrl}/api/auth/me`, {
+      method: "GET",
+      cache: "no-store",
+      headers: {
+        Accept: "application/json",
+        ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+      },
+    });
 
-  return {
-    ok: response.ok,
-    status: response.status,
-  };
+    return {
+      ok: response.ok,
+      status: response.status,
+    };
+  } catch {
+    return {
+      ok: false,
+      status: 503,
+    };
+  }
 }

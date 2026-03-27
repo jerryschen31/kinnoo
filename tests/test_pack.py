@@ -985,7 +985,8 @@ assets:
 
 def test_feature26_filesystem_mcp_fixture_valid_and_packable(tmp_path: Path) -> None:
     """Feature26 test236: filesystem mcp-server fixture validates and packs."""
-    source_fixture = Path(__file__).resolve().parents[1] / "scratch" / "feature26-filesystem-mcp-server"
+    source_fixture = Path(__file__).resolve().parent / "fixtures" / "feature26-filesystem-mcp-server"
+    assert source_fixture.exists(), f"Missing tracked fixture directory: {source_fixture}"
     fixture_dir = tmp_path / "feature26-filesystem-mcp-server"
     shutil.copytree(source_fixture, fixture_dir)
 
@@ -1016,7 +1017,8 @@ def test_feature26_filesystem_mcp_fixture_valid_and_packable(tmp_path: Path) -> 
 
 def test_feature26_github_mcp_fixture_valid_and_packable(tmp_path: Path) -> None:
     """Feature26 test239: github mcp-server fixture validates and packs."""
-    source_fixture = Path(__file__).resolve().parents[1] / "scratch" / "feature26-github-mcp-server"
+    source_fixture = Path(__file__).resolve().parent / "fixtures" / "feature26-github-mcp-server"
+    assert source_fixture.exists(), f"Missing tracked fixture directory: {source_fixture}"
     fixture_dir = tmp_path / "feature26-github-mcp-server"
     shutil.copytree(source_fixture, fixture_dir)
 
