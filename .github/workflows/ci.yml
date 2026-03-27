@@ -16,6 +16,13 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: 'web/.nvmrc'
+          cache: 'npm'
+          cache-dependency-path: 'web/package-lock.json'
+
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
@@ -23,6 +30,10 @@ jobs:
 
       - name: Install kinnoo package (editable mode)
         run: pip install -e .
+
+      - name: Install web dependencies
+        run: npm ci
+        working-directory: web
       
       - name: Run pytest suite
         run: python3 -m pytest tests
