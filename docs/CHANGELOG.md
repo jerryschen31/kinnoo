@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.29.0] - 2026-03-26
+### Changed
+- Updated stale test assertions to match current frontend and integration behavior:
+  - Sub-phase 4 integration assertions now validate SSR auth-me contract via dynamic backend base URL usage.
+  - Hardening suite now validates security-header implementation in web/proxy.ts.
+  - Web frontend setup route-content assertion now matches current landing-page content.
+  - Frontend unit tests now match current classes/responsive layout and the two-step login CSRF + POST request flow.
+- Added argon2-cffi to root requirements.txt to ensure password rehash paths and auth regression tests run in a fresh root environment.
+- Bumped project version from v0.28.0 to v0.29.0.
+
 ## [v0.28.0] - 2026-03-24
 ### Added
 - Better support for openclaw agents

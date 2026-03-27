@@ -1,13 +1,30 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import FormField from "../../../../components/ui/form-field";
 import { validateSignupPasswords } from "../../../../lib/auth-validation";
 
 export default function SignupVerifyPage() {
+  return (
+    <Suspense
+      fallback={
+        <section className="flex min-h-[calc(100vh-14rem)] items-center justify-center px-4 py-8">
+          <div className="w-full max-w-md rounded-card border border-white/10 bg-kinnoo-surface/70 p-6 shadow-xl sm:p-8">
+            <h1 className="mb-2 text-3xl font-semibold tracking-tight text-kinnoo-text">Create Account</h1>
+            <p className="text-sm text-white/70">Loading verification form...</p>
+          </div>
+        </section>
+      }
+    >
+      <SignupVerifyForm />
+    </Suspense>
+  );
+}
+
+function SignupVerifyForm() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
 
