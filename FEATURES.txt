@@ -1765,7 +1765,7 @@ features:
         description: "Font family is set to 'Avenir Next', 'Segoe UI', sans-serif in the global CSS/Tailwind config."
     owner: techlead-agent
     dependencies: []
-    status: needs-review
+    status: completed
 
   - id: feature50
     title: "MainLayout, Design System & Global Theme"
@@ -1796,7 +1796,7 @@ features:
         description: "Smoke tests pass: root layout renders hamburger menu and Login button, ThemeConfig design tokens match specification."
     owner: techlead-agent
     dependencies: [feature49]
-    status: not-started
+    status: completed
 
   # ------ Sub-phase 2: Landing Page and Secure Login UI ------
 
@@ -1826,7 +1826,7 @@ features:
         description: "Automated tests validate hero content, terminal preview command/copy button, and all six feature cards."
     owner: techlead-agent
     dependencies: [feature50]
-    status: not-started
+    status: completed
 
   - id: feature52
     title: "Secure Login UI, Validation, and Session-Cookie Submission Flow"
@@ -1854,7 +1854,7 @@ features:
         description: "Automated tests verify required fields, validation behavior, loading state, and successful redirect handling for the login flow."
     owner: techlead-agent
     dependencies: [feature50, feature51]
-    status: not-started
+    status: completed
 
   # ------ Sub-phase 3: Registry Dashboard ------
 
@@ -1883,7 +1883,7 @@ features:
         description: "Automated tests validate nav/tab rendering, default state, search controls, and tab transition behavior."
     owner: techlead-agent
     dependencies: [feature52]
-    status: not-started
+    status: completed
 
   - id: feature54
     title: "Agent Cards, Manifest Modal, and Install Command Copy Flow"
@@ -1910,7 +1910,7 @@ features:
         description: "Automated component tests validate card field rendering, name click behavior, modal open/close, manifest content rendering, and install-command copy functionality."
     owner: techlead-agent
     dependencies: [feature53]
-    status: not-started
+    status: completed
 
   # ------ Sub-phase 4: Integration, CSRF & Production Hardening ------
 
@@ -1940,7 +1940,7 @@ features:
         description: "All integration behavior remains compatible with existing session-cookie flow and does not require token storage in browser storage."
     owner: techlead-agent
     dependencies: [feature54]
-    status: not-started
+    status: completed
 
   - id: feature56
     title: "API Auth Compatibility, Local Registry Admin Bootstrap, and Mocked S3 Publish Path"
@@ -1965,7 +1965,7 @@ features:
         description: "No changes introduce credential/token leakage in logs, responses, or test artifacts."
     owner: techlead-agent
     dependencies: [feature55]
-    status: not-started
+    status: completed
 
   - id: feature57
     title: "Production Hardening: Security Headers, Error States, and Rate-Limiter Proxy Signals"
@@ -1989,7 +1989,7 @@ features:
         description: "Hardening changes preserve existing dashboard/login functionality without behavioral regressions."
     owner: techlead-agent
     dependencies: [feature55, feature56]
-    status: not-started
+    status: completed
 
   # ------ Sub-phase 5: User Registration & Password Reset (feature58, feature59, feature60) ------
 
@@ -2021,7 +2021,7 @@ features:
         description: "Automated tests cover registration happy path, duplicate-safe privacy behavior, token expiry/consumption, slug collision handling, password validation failures, and rate limiting."
     owner: techlead-agent
     dependencies: [feature57]
-    status: not-started
+    status: completed
 
   - id: feature59
     title: "Forgot Password Workflow, Policy Enforcement, and Session Revocation"
@@ -2048,7 +2048,7 @@ features:
         description: "Automated tests cover reset happy path, non-enumerating request behavior, token expiry/consumption failures, password-policy rejection paths, and rate limiting."
     owner: techlead-agent
     dependencies: [feature58]
-    status: not-started
+    status: completed
 
   - id: feature60
     title: "Relational Auth Foundation, Hash Rotation, and Sub-phase 5 Hardening"
@@ -2078,4 +2078,4 @@ features:
         description: "Google/GitHub SSO implementation is deferred, but identity schema and ownership model are ready so tenant ownership never depends on provider email on each login."
     owner: techlead-agent
     dependencies: [feature58, feature59]
-    status: not-started
+    status: completed
