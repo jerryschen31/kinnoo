@@ -99,6 +99,7 @@ def test_top_level_help_colored_when_forced():
 
 def test_backend_selection(monkeypatch, tmp_path):
     from kinnoo import install_command, publish_command
+    from kinnoo.config import PublishBehaviorConfig
 
     archive_root = tmp_path / "archive"
     agent_archive_dir = archive_root / "demo-agent" / "1.0.0"
@@ -137,6 +138,11 @@ def test_backend_selection(monkeypatch, tmp_path):
         publish_command,
         "_publish_validated_archive",
         _fake_publish_validated_archive,
+    )
+    monkeypatch.setattr(
+        publish_command,
+        "load_publish_behavior_config",
+        lambda: PublishBehaviorConfig(publish_to_authenticated_registry=False),
     )
 
     monkeypatch.delenv("KINNOO_REGISTRY_URL", raising=False)

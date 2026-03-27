@@ -69,11 +69,12 @@ def test_registry_backend_protocol(tmp_path: Path) -> None:
 def _load_feature26_filesystem_fixture_module():
 	"""Load the feature26 filesystem MCP fixture run module by file path."""
 	fixture_path = (
-		Path(__file__).resolve().parents[1]
-		/ "scratch"
+		Path(__file__).resolve().parent
+		/ "fixtures"
 		/ "feature26-filesystem-mcp-server"
 		/ "run.py"
 	)
+	assert fixture_path.exists(), f"Missing tracked fixture module: {fixture_path}"
 	spec = importlib.util.spec_from_file_location("feature26_filesystem_fixture", fixture_path)
 	assert spec is not None and spec.loader is not None
 	module = importlib.util.module_from_spec(spec)
