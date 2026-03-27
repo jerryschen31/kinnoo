@@ -8,7 +8,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out repository
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -20,6 +21,9 @@ jobs:
           python3 -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Install kinnoo package (editable mode)
+        run: pip install -e .
+      
       - name: Run pytest suite
         run: python3 -m pytest tests
 
