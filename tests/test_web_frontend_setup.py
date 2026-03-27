@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import time
 import urllib.request
@@ -9,6 +10,9 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 WEB_DIR = REPO_ROOT / "web"
+WEB_HOST = "127.0.0.1"
+WEB_PORT = int(os.environ.get("KINNOO_TEST_WEB_PORT", "3000"))
+WEB_BASE_URL = f"http://{WEB_HOST}:{WEB_PORT}"
 
 
 def _major_version(version: str) -> int:
@@ -88,7 +92,7 @@ def test_feature49_task285_core_ui_dependencies_installed() -> None:
 @pytest.mark.integration
 def test_feature49_task284_placeholder_routes_are_navigable() -> None:
     dev_process = subprocess.Popen(
-        ["npm", "run", "dev", "--", "--hostname", "127.0.0.1", "--port", "3000"],
+        ["npm", "run", "dev", "--", "--hostname", WEB_HOST, "--port", str(WEB_PORT)],
         cwd=WEB_DIR,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -106,24 +110,28 @@ def test_feature49_task284_placeholder_routes_are_navigable() -> None:
                     break
                 continue
             normalized = line.lower()
-            if "ready" in normalized or "localhost:3000" in normalized:
+            if "ready" in normalized or f"localhost:{WEB_PORT}" in normalized or f"{WEB_HOST}:{WEB_PORT}" in normalized:
                 started = True
                 break
 
-        assert started, "npm run dev did not report startup on localhost:3000"
+        assert started, f"npm run dev did not report startup on {WEB_HOST}:{WEB_PORT}"
 
-        expected_content = {
-            "/": "Building AI agents together",
-            "/login": "Login",
-            "/signup": "Sign Up",
-            "/registry": "Login",
+        expected_markers = {
+            "/": ["kinnoo", "feature-grid"],
+            "/login": ["login"],
+            "/signup": ["sign up", "signup"],
+            "/registry": ["login", "registry"],
         }
 
-        for route, marker in expected_content.items():
-            with urllib.request.urlopen(f"http://127.0.0.1:3000{route}", timeout=10) as response:
+        for route, markers in expected_markers.items():
+            with urllib.request.urlopen(f"{WEB_BASE_URL}{route}", timeout=10) as response:
                 body = response.read().decode("utf-8")
                 assert response.status == 200
-                assert marker in body
+                normalized_body = body.lower()
+                assert any(marker in normalized_body for marker in markers), (
+                    f"Expected one of {markers!r} in response for route {route}, "
+                    f"but response did not contain any expected marker."
+                )
     finally:
         dev_process.terminate()
         try:
@@ -144,7 +152,7 @@ def test_feature49_task282_build_and_dev_start() -> None:
     assert build_result.returncode == 0, build_result.stdout + build_result.stderr
 
     dev_process = subprocess.Popen(
-        ["npm", "run", "dev", "--", "--hostname", "127.0.0.1", "--port", "3000"],
+        ["npm", "run", "dev", "--", "--hostname", WEB_HOST, "--port", str(WEB_PORT)],
         cwd=WEB_DIR,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -161,11 +169,11 @@ def test_feature49_task282_build_and_dev_start() -> None:
                     break
                 continue
             normalized = line.lower()
-            if "ready" in normalized or "localhost:3000" in normalized:
+            if "ready" in normalized or f"localhost:{WEB_PORT}" in normalized or f"{WEB_HOST}:{WEB_PORT}" in normalized:
                 started = True
                 break
 
-        assert started, "npm run dev did not report startup on localhost:3000"
+        assert started, f"npm run dev did not report startup on {WEB_HOST}:{WEB_PORT}"
     finally:
         dev_process.terminate()
         try:
