@@ -59,13 +59,20 @@ describe("Login page", () => {
   });
 
   it("shows loading and disabled state while login request is in-flight", async () => {
-    let resolveFetch: ((value: Response) => void) | undefined;
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(
-      () =>
-        new Promise<Response>((resolve) => {
-          resolveFetch = resolve;
-        }),
-    );
+    let resolveLoginPost: ((value: Response) => void) | undefined;
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      if (typeof input === "string" && input === "/api/login" && (init?.method ?? "GET") === "GET") {
+        return Promise.resolve(new Response('<input name="csrf_token" value="token-123" />', { status: 200 }));
+      }
+
+      if (typeof input === "string" && input === "/api/login" && init?.method === "POST") {
+        return new Promise<Response>((resolve) => {
+          resolveLoginPost = resolve;
+        });
+      }
+
+      return Promise.resolve(new Response(null, { status: 500 }));
+    });
 
     render(<LoginPage />);
 
@@ -83,7 +90,12 @@ describe("Login page", () => {
     expect(loadingButton.hasAttribute("disabled")).toBe(true);
     expect(fetchSpy).toHaveBeenCalledTimes(1);
 
-    resolveFetch?.(new Response(null, { status: 200 }));
+    // CSRF GET resolves first, then login POST is issued.
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+
+    resolveLoginPost?.(new Response(null, { status: 200 }));
 
     await waitFor(() => {
       const idleButton = screen.getByRole("button", { name: "Login" });
@@ -92,9 +104,17 @@ describe("Login page", () => {
   });
 
   it("submits with credentials include and does not persist tokens to browser storage", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(null, { status: 200 }),
-    );
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      if (typeof input === "string" && input === "/api/login" && (init?.method ?? "GET") === "GET") {
+        return Promise.resolve(new Response('<input name="csrf_token" value="token-123" />', { status: 200 }));
+      }
+
+      if (typeof input === "string" && input === "/api/login" && init?.method === "POST") {
+        return Promise.resolve(new Response(null, { status: 200 }));
+      }
+
+      return Promise.resolve(new Response(null, { status: 500 }));
+    });
     const storageSetItemSpy = vi.spyOn(Storage.prototype, "setItem");
 
     render(<LoginPage />);
@@ -108,11 +128,11 @@ describe("Login page", () => {
     fireEvent.click(screen.getByRole("button", { name: "Login" }));
 
     await waitFor(() => {
-      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
     });
 
-    const [requestUrl, requestInit] = fetchSpy.mock.calls[0] ?? [];
-    expect(requestUrl).toBe("/api/bff/login");
+    const [requestUrl, requestInit] = fetchSpy.mock.calls[1] ?? [];
+    expect(requestUrl).toBe("/api/login");
     expect((requestInit as RequestInit)?.credentials).toBe("include");
     expect(storageSetItemSpy).not.toHaveBeenCalled();
   });

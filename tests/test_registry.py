@@ -381,7 +381,8 @@ def test_feature55_auth_integration_suite(tmp_path: Path) -> None:
 
 	assert 'source: "/api/:path*"' in next_config
 	assert "fetch(\"/api/login\"" in auth_client
-	assert "fetch(\"/api/auth/me\"" in auth_client
+	assert "backendBaseUrl" in auth_client
+	assert "/api/auth/me" in auth_client
 	assert "localStorage" not in auth_client
 	assert "sessionStorage" not in auth_client
 	assert "redirect(\"/login\")" in auth_layout
@@ -662,16 +663,16 @@ def test_feature57_hardening_non_regression_suite(tmp_path: Path) -> None:
 
 	web_root = Path(__file__).resolve().parents[1] / "web"
 	next_config = (web_root / "next.config.ts").read_text(encoding="utf-8")
-	web_middleware = (web_root / "middleware.ts").read_text(encoding="utf-8")
+	web_proxy = (web_root / "proxy.ts").read_text(encoding="utf-8")
 	auth_layout_test = (web_root / "__tests__" / "auth-layout.test.tsx").read_text(encoding="utf-8")
 
 	# Env contract expectations for hardening.
 	assert "process.env.BACKEND_URL" in next_config
-	assert "process.env.NODE_ENV" in web_middleware
+	assert "process.env.NODE_ENV" in web_proxy
 
 	# Header hardening and auth UX coverage should remain present.
-	assert "Content-Security-Policy" in web_middleware
-	assert "Strict-Transport-Security" in web_middleware
+	assert "Content-Security-Policy" in web_proxy
+	assert "Strict-Transport-Security" in web_proxy
 	assert "Loading your registry" in auth_layout_test
 	assert "Too many requests" in auth_layout_test
 

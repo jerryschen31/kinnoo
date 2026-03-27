@@ -113,10 +113,10 @@ def test_feature49_task284_placeholder_routes_are_navigable() -> None:
         assert started, "npm run dev did not report startup on localhost:3000"
 
         expected_content = {
-            "/": "Landing Page",
+            "/": "Building AI agents together",
             "/login": "Login",
             "/signup": "Sign Up",
-            "/registry": "Registry",
+            "/registry": "Login",
         }
 
         for route, marker in expected_content.items():
