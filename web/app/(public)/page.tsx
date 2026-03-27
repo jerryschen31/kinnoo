@@ -13,7 +13,7 @@ export default function LandingPage() {
             kinnoo
           </h1>
           <p className="text-2xl font-bold text-[#F9FAFB] sm:text-3xl">
-            Building AI agents together
+            The package manager for AI agents
           </p>
           <p className="max-w-3xl text-lg leading-relaxed text-white/80 sm:text-xl">
             The open, secure platform to package, publish and share any AI agent
@@ -33,7 +33,7 @@ export default function LandingPage() {
             Why developers choose Kinnoo
           </h2>
           <p className="text-base leading-relaxed normal-case text-white/80 sm:text-lg">
-            Take any AI agent — a LangGraph chatbot, a PydanticAI workflow, an OpenClaw daemon — and give it a portable, version-controlled, signed package that anyone can install and run
+            Take any AI agent — a LangGraph chatbot, a PydanticAI workflow, an OpenClaw assistant — and turn it into a signed, versioned, portable package that anyone can install and run
           </p>
           <FeatureGrid />
         </div>
