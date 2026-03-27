@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run pytest suite
+        run: python3 -m pytest tests
+
+      - name: Run smoke tests from markdown
+        run: |
+          set -e
+          for md in notes/features/*-smoke-tests.md; do
+            echo "Running smoke tests in $md"
+            awk '/^```bash/{flag=1;next}/^```/{flag=0}flag' "$md" | bash
+          done
