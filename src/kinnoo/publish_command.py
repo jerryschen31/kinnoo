@@ -5,19 +5,29 @@ from __future__ import annotations
 import re
 import os
 import shutil
+import json
 from pathlib import Path
 from typing import Any
+from urllib import request as urllib_request
+from urllib import error as urllib_error
 import yaml
 
 from .archive import LocalArchiveBackend
 from .checksum import checksum_sidecar_path_for_archive
-from .config import RegistryConfig, load_registry_config
+from .config import RegistryConfig, load_publish_behavior_config, load_registry_config
 from .inspect_command import read_manifest_from_kno_archive
 from .registry import RegistryRecord, RegistryService
 from .registry_backends import MockFilesystemRegistryBackend
 from .remote_client import RemoteRegistryClient
 from .schema import NAME_PATTERN
 from .validator import validate_manifest_data
+
+
+def _http_user_agent() -> str:
+    configured = (os.environ.get("KINNOO_HTTP_USER_AGENT") or "").strip()
+    if configured:
+        return configured
+    return "curl/8.7.1"
 
 
 def _publish_validated_archive(
@@ -158,27 +168,145 @@ def _resolve_publish_backend(*, use_local: bool, use_remote: bool) -> tuple[Any 
 
     registry_root = os.environ.get("KINNOO_REGISTRY_ROOT")
     backend_root = Path(registry_root).expanduser() if registry_root else None
+    config = load_registry_config()
+    publish_behavior = load_publish_behavior_config()
+
+    tenant_slug = (config.tenant_slug or "").strip()
+    if backend_root is not None and tenant_slug:
+        # Keep local/mock publish layout aligned with tenant-scoped prefix conventions.
+        backend_root = backend_root / "tenants" / tenant_slug
 
     if use_local:
         return MockFilesystemRegistryBackend(root=backend_root), "local", None
 
-    config = load_registry_config()
-    remote_requested = use_remote or bool(config.registry_url)
+    remote_requested = (
+        use_remote
+        or bool(config.registry_url)
+        or publish_behavior.publish_to_authenticated_registry
+    )
     if remote_requested:
-        config_error = _remote_config_error(config)
+        resolved_token = config.registry_token
+        resolved_tenant = config.tenant_slug
+
+        if publish_behavior.publish_to_authenticated_registry and not use_local:
+            token_result = _issue_registry_token_with_admin_credentials(config=config)
+            if isinstance(token_result, str):
+                return None, "", token_result
+            resolved_token, resolved_tenant = token_result
+
+        resolved_config = RegistryConfig(
+            registry_url=config.registry_url,
+            registry_token=resolved_token,
+            tenant_slug=resolved_tenant,
+        )
+
+        config_error = _remote_config_error(resolved_config)
         if config_error is not None:
             return None, "", config_error
         return (
             RemoteRegistryClient(
-                base_url=str(config.registry_url),
-                token=str(config.registry_token),
-                tenant_slug=str(config.tenant_slug),
+                base_url=str(resolved_config.registry_url),
+                token=str(resolved_config.registry_token),
+                tenant_slug=str(resolved_config.tenant_slug),
             ),
             "remote",
             None,
         )
 
     return MockFilesystemRegistryBackend(root=backend_root), "local", None
+
+
+def _issue_registry_token_with_admin_credentials(
+    *,
+    config: RegistryConfig,
+) -> tuple[str, str] | str:
+    """Issue a remote registry token using admin credentials from environment.
+
+    Returns:
+        - ``(token, tenant_slug)`` on success
+        - error message string on failure
+    """
+
+    if not config.registry_url:
+        return (
+            "publish_to_authenticated_registry is enabled, but registry URL is missing. "
+            "Set KINNOO_REGISTRY_URL or registry_url in ~/.kinnoo/config.yaml."
+        )
+
+    username = (os.environ.get("REGISTRY_ADMIN_EMAIL") or "").strip()
+    password = os.environ.get("REGISTRY_ADMIN_PASSWORD") or ""
+    tenant_slug = (config.tenant_slug or "global").strip() or "global"
+
+    if not username:
+        return (
+            "publish_to_authenticated_registry is enabled, but REGISTRY_ADMIN_EMAIL is missing."
+        )
+    if not password:
+        return (
+            "publish_to_authenticated_registry is enabled, but REGISTRY_ADMIN_PASSWORD is missing."
+        )
+
+    request_body = json.dumps(
+        {
+            "username": username,
+            "password": password,
+            "tenant_slug": tenant_slug,
+        }
+    ).encode("utf-8")
+
+    token_url = f"{str(config.registry_url).rstrip('/')}/api/auth/token"
+    request = urllib_request.Request(
+        url=token_url,
+        data=request_body,
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": _http_user_agent(),
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib_request.urlopen(request, timeout=15.0) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except urllib_error.HTTPError as error:
+        response_body = ""
+        try:
+            response_body = error.read().decode("utf-8", errors="replace").strip()
+        except Exception:
+            response_body = ""
+
+        if error.code == 401:
+            return "Admin credential authentication failed (401). Check REGISTRY_ADMIN_EMAIL/REGISTRY_ADMIN_PASSWORD."
+        if response_body:
+            return (
+                f"Failed to obtain admin auth token from registry (HTTP {error.code}). "
+                f"Response: {response_body}"
+            )
+        return f"Failed to obtain admin auth token from registry (HTTP {error.code})."
+    except urllib_error.URLError as error:
+        reason = _format_url_error_reason(error)
+        return (
+            "Failed to reach registry auth endpoint. Verify KINNOO_REGISTRY_URL and server availability. "
+            f"Reason: {reason}"
+        )
+    except json.JSONDecodeError:
+        return "Registry auth endpoint returned invalid JSON while requesting publish token."
+
+    token = payload.get("access_token") if isinstance(payload, dict) else None
+    if not isinstance(token, str) or not token.strip():
+        return "Registry auth response did not include access_token."
+
+    return token.strip(), tenant_slug
+
+
+def _format_url_error_reason(error: urllib_error.URLError) -> str:
+    reason = getattr(error, "reason", None)
+    if isinstance(reason, BaseException):
+        return str(reason) or reason.__class__.__name__
+    if reason is None:
+        return "unknown network error"
+    return str(reason)
 
 
 def _manifest_name_from_agent_dir(agent_dir: Path) -> str | None:

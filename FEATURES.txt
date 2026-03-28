@@ -1730,3 +1730,352 @@ features:
     owner: techlead-agent
     dependencies: [feature11, feature24]
     status: completed
+
+  # ======================================================================
+  # Phase 5 (V5): Web Frontend and Registry Frontend + Backend
+  # ======================================================================
+
+  # ------ Sub-phase 1: Frontend Setup ------
+
+  - id: feature49
+    title: "Next.js Project Initialization & Directory Structure"
+    description: |
+      Initialize a Next.js 15+ (App Router) project with TypeScript and Tailwind CSS v3 in a
+      top-level web/ directory, separate from the Python codebase and server/ directory. Set up
+      the foundational directory structure using Next.js route groups: (public)/ for unauthenticated
+      pages (landing, login, signup) and (auth)/ for session-guarded pages (registry). Install core
+      dependencies: Radix UI primitives, Lucide React icons, and framer-motion. Configure Tailwind
+      with the project's dark-mode design tokens. Create placeholder page.tsx files for each route
+      so the routing skeleton is navigable. Use npm as package manager. Require Node.js 20+.
+    tasks: [task282, task283, task284, task285]
+    acceptance_criteria:
+      - id: AC1
+        description: "A web/ directory exists at the project root containing a working Next.js 15+ App Router project initialized with TypeScript."
+      - id: AC2
+        description: "Tailwind CSS v3 is installed and configured with the project's dark-mode color scheme (background #000000, text #F9FAFB, accent #3B82F6, surface #111111)."
+      - id: AC3
+        description: "The directory structure includes: app/(public)/page.tsx, app/(public)/login/page.tsx, app/(public)/signup/page.tsx, app/(auth)/layout.tsx, app/(auth)/registry/page.tsx, app/layout.tsx, components/ui/, components/blocks/, lib/, and __tests__/."
+      - id: AC4
+        description: "Radix UI primitives (@radix-ui/react-dialog, @radix-ui/react-navigation-menu, @radix-ui/react-slot), lucide-react, and framer-motion are listed in package.json dependencies."
+      - id: AC5
+        description: "npm run dev starts the dev server without errors on Node.js 20+ and all placeholder pages are accessible at /, /login, /signup, and /registry."
+      - id: AC6
+        description: "npm run build completes without TypeScript or build errors."
+      - id: AC7
+        description: "Font family is set to 'Avenir Next', 'Segoe UI', sans-serif in the global CSS/Tailwind config."
+    owner: techlead-agent
+    dependencies: []
+    status: completed
+
+  - id: feature50
+    title: "MainLayout, Design System & Global Theme"
+    description: |
+      Build the root MainLayout component rendered in app/layout.tsx with the project's visual
+      identity. Includes: a top-left hamburger menu (Lucide Menu icon) that opens a Radix UI
+      sheet/drawer with three links (GitHub, Docs, Report an Issue); a top-right area with
+      ghost-style "Login" and "Sign Up" buttons. Define a global ThemeConfig object in lib/theme.ts
+      exporting all design tokens (colors, radii, spacing, typography) so future components
+      reference a single source of truth. Apply OpenClaw-inspired aesthetics: 1px borders
+      (border-white/10), glassmorphism (backdrop-blur), dark background. Ensure the layout is
+      responsive — desktop-first but usable on mobile browsers.
+    tasks: [task286, task287, task288, task289]
+    acceptance_criteria:
+      - id: AC1
+        description: "A ThemeConfig object is exported from lib/theme.ts containing: colors (bg, text, accent, surface, cardBorder), radii (card: 8px, button: 4px), typography (h1: 48px, h2: 32px, h3: 24px, body: 16px), and spacing unit (4px)."
+      - id: AC2
+        description: "The root layout (app/layout.tsx) renders a header with a hamburger menu icon (top-left) and Login + Sign Up buttons (top-right) on every page."
+      - id: AC3
+        description: "Clicking the hamburger icon opens a Radix UI sheet/drawer containing three links: GitHub repo, Docs, and Report an Issue."
+      - id: AC4
+        description: "The Login button navigates to /login. The Sign Up button navigates to /signup."
+      - id: AC5
+        description: "The layout uses the dark theme by default: background #000000, text #F9FAFB, 1px borders with border-white/10, and backdrop-blur glassmorphism on the header."
+      - id: AC6
+        description: "The header layout is responsive: on mobile viewports (< 768px), the hamburger and buttons remain accessible and do not overflow or overlap."
+      - id: AC7
+        description: "Smoke tests pass: root layout renders hamburger menu and Login button, ThemeConfig design tokens match specification."
+    owner: techlead-agent
+    dependencies: [feature49]
+    status: completed
+
+  # ------ Sub-phase 2: Landing Page and Secure Login UI ------
+
+  - id: feature51
+    title: "Landing Page Content, Terminal Preview, and Feature Grid"
+    description: |
+      Build the public landing page at / with the exact Phase 5 marketing copy and structure:
+      hero title, long-form sub-headline, terminal preview module with copy-to-clipboard button,
+      and a six-card Features section with hoverable cards. The implementation should reuse the
+      global theme and layout from Sub-phase 1, remain responsive, and preserve accessibility
+      semantics for headings, buttons, and regions.
+    tasks: [task290, task291, task292, task293]
+    acceptance_criteria:
+      - id: AC1
+        description: "Landing page (/) renders main tagline (under the 'kinnoo' title) exactly as: 'Building AI agents together'."
+      - id: AC2
+        description: "Landing page renders sub-headline exactly as defined in phase5-planning.md for Sub-phase 2."
+      - id: AC3
+        description: "A Terminal Preview component renders command text 'pip install kinnoo' and includes a copy button with success feedback state."
+      - id: AC4
+        description: "A Features section renders six hoverable cards with the exact header and subtext copy defined in Sub-phase 2 planning."
+      - id: AC5
+        description: "The landing page is responsive at 375px, 768px, and 1280px viewport widths without content overlap or clipping."
+      - id: AC6
+        description: "The page preserves accessibility basics: one h1, semantic sectioning, keyboard-focusable copy button, and visible focus styles."
+      - id: AC7
+        description: "Automated tests validate hero content, terminal preview command/copy button, and all six feature cards."
+    owner: techlead-agent
+    dependencies: [feature50]
+    status: completed
+
+  - id: feature52
+    title: "Secure Login UI, Validation, and Session-Cookie Submission Flow"
+    description: |
+      Build the public login page at /login as a centered minimalist card with username (email)
+      and password fields, client-side validation, forgot-password stub link, and a loading state
+      on submit. Implement submission through the Next.js BFF proxy to FastAPI /login with
+      credentials included and no token persistence in localStorage/sessionStorage. On successful
+      authentication, route users to /registry while preserving server-issued session cookies.
+    tasks: [task294, task295, task296, task297]
+    acceptance_criteria:
+      - id: AC1
+        description: "Login page route /login renders a centered card with Username (E-mail) and Password fields plus a Login submit button."
+      - id: AC2
+        description: "Login page includes a 'Forgot Password' stub link that navigates to /forgot-password."
+      - id: AC3
+        description: "Client-side validation blocks submission on invalid/missing email or password and displays actionable inline errors."
+      - id: AC4
+        description: "Login button enters a loading/disabled state while the authentication request is in flight and recovers on completion."
+      - id: AC5
+        description: "Login submission uses the proxy path (/login) with credentials included and does not store auth tokens in localStorage or sessionStorage."
+      - id: AC6
+        description: "On successful auth response, the frontend navigates to /registry instead of FastAPI's default /agents redirect."
+      - id: AC7
+        description: "Automated tests verify required fields, validation behavior, loading state, and successful redirect handling for the login flow."
+    owner: techlead-agent
+    dependencies: [feature50, feature51]
+    status: completed
+
+  # ------ Sub-phase 3: Registry Dashboard ------
+
+  - id: feature53
+    title: "Authenticated Registry Dashboard Shell, Tabs, and Data Views"
+    description: |
+      Build the authenticated /registry dashboard shell with a secondary navigation bar containing
+      My Agents, Search, and Logout actions, plus state-controlled My Agents and Search views.
+      Implement data loading for both views using existing backend endpoints through the frontend
+      proxy, and add framer-motion transitions when switching between tabs.
+    tasks: [task298, task299, task300, task301]
+    acceptance_criteria:
+      - id: AC1
+        description: "Route /registry renders a logged-in secondary nav bar with My Agents, Search, and Logout controls."
+      - id: AC2
+        description: "My Agents view renders a grid of the current user's published agents and is the default active view on /registry load."
+      - id: AC3
+        description: "Search view renders a search input and a 'Show only my agents' checkbox, and supports querying all public agents plus the user's own agents."
+      - id: AC4
+        description: "Switching between My Agents and Search uses framer-motion transitions and preserves a smooth UI state change."
+      - id: AC5
+        description: "Dashboard data fetching uses existing backend routes via frontend proxy paths (including /api/agents and /api/search) with session-cookie-compatible requests."
+      - id: AC6
+        description: "My Agents and Search views provide clear loading, empty, and error states without layout breakage."
+      - id: AC7
+        description: "Automated tests validate nav/tab rendering, default state, search controls, and tab transition behavior."
+    owner: techlead-agent
+    dependencies: [feature52]
+    status: completed
+
+  - id: feature54
+    title: "Agent Cards, Manifest Modal, and Install Command Copy Flow"
+    description: |
+      Build reusable AgentCard and manifest modal workflows for dashboard results. Cards must
+      display the required metadata fields, with clickable Name opening a modal that shows full
+      manifest details loaded from the agent detail endpoint. For search results, include a
+      terminal-style install command and copy-to-clipboard action in the modal.
+    tasks: [task302, task303, task304, task305]
+    acceptance_criteria:
+      - id: AC1
+        description: "Agent cards in both My Agents and Search views render Tenant, Name, Version, Author, Framework, Size, and Description fields."
+      - id: AC2
+        description: "Agent Name is clickable and opens a modal/dialog overlay containing manifest details for that agent."
+      - id: AC3
+        description: "Modal includes an explicit close control (X) and supports closing reliably without losing dashboard context."
+      - id: AC4
+        description: "Manifest modal data is fetched from GET /api/agents/{tenant_slug}/{agent_slug} and renders version-history/metadata response safely."
+      - id: AC5
+        description: "Search-result modal includes a terminal-like install command graphic and copy-to-clipboard button for the install command."
+      - id: AC6
+        description: "Copy action provides visible success feedback and keeps install command text deterministic for user verification."
+      - id: AC7
+        description: "Automated component tests validate card field rendering, name click behavior, modal open/close, manifest content rendering, and install-command copy functionality."
+    owner: techlead-agent
+    dependencies: [feature53]
+    status: completed
+
+  # ------ Sub-phase 4: Integration, CSRF & Production Hardening ------
+
+  - id: feature55
+    title: "BFF Proxy Integration, CSRF Pass-through, and Auth Route Guard"
+    description: |
+      Finalize frontend-to-backend integration between Next.js and FastAPI by configuring
+      environment-driven API rewrites, preserving cookies and forwarded headers, and ensuring
+      both login and session CSRF flows work through the BFF. Add frontend auth guard behavior
+      in app/(auth)/layout.tsx using a backend session-validation endpoint and redirect unauthenticated
+      requests to /login.
+    tasks: [task307, task308, task309, task310, task331]
+    acceptance_criteria:
+      - id: AC1
+        description: "next.config.ts rewrites /api/* to BACKEND_URL (default http://localhost:8000) while preserving cookie flow and forwarding X-Forwarded-For and X-Request-Id headers."
+      - id: AC2
+        description: "Login CSRF form submission is forwarded end-to-end through the BFF to FastAPI without stripping required fields/cookies."
+      - id: AC3
+        description: "Session CSRF for authenticated POST requests is supported by forwarding kinnoo_csrf token as form field or X-CSRF-Token header."
+      - id: AC4
+        description: "Backend exposes GET /api/auth/me that validates session cookie and returns { user_id, tenant_slug, username } on success, 401 on failure."
+      - id: AC5
+        description: "app/(auth)/layout.tsx performs auth check via /api/auth/me and redirects to /login on 401 responses."
+      - id: AC6
+        description: "Integration tests verify rewrite forwarding, CSRF pass-through behavior, auth-guard redirect, and /api/auth/me response contract."
+      - id: AC7
+        description: "All integration behavior remains compatible with existing session-cookie flow and does not require token storage in browser storage."
+    owner: techlead-agent
+    dependencies: [feature54]
+    status: completed
+
+  - id: feature56
+    title: "API Auth Compatibility, Local Registry Admin Bootstrap, and Mocked S3 Publish Path"
+    description: |
+      Improve backend auth compatibility and local operability by allowing JSON API routes to
+      authenticate via session cookie fallback when Bearer token is absent, creating/ensuring a
+      local admin account via environment variables, and validating local kinnoo publish behavior
+      writes artifacts into the expected tenant folder structure in mocked S3 storage.
+    tasks: [task311, task312, task313, task314]
+    acceptance_criteria:
+      - id: AC1
+        description: "authenticate_request() supports Bearer token first, then session-cookie fallback for /api/agents, /api/agents/{tenant_slug}/{agent_slug}, and /api/search."
+      - id: AC2
+        description: "Local admin bootstrap path reads REGISTRY_ADMIN_EMAIL and REGISTRY_ADMIN_PASSWORD from environment and ensures an admin-capable account exists without exposing secret values."
+      - id: AC3
+        description: "Local kinnoo publish writes to correct tenant-scoped location in mocked S3 storage so local end-to-end publish/discover flows are testable."
+      - id: AC4
+        description: "Storage path conventions remain aligned with existing prefix-scoped access logic in server/storage/ and are easy to re-point to real S3 later."
+      - id: AC5
+        description: "Tests verify session-cookie fallback auth on JSON routes, admin bootstrap behavior (without secret disclosure), and local publish tenant-path correctness."
+      - id: AC6
+        description: "No changes introduce credential/token leakage in logs, responses, or test artifacts."
+    owner: techlead-agent
+    dependencies: [feature55]
+    status: completed
+
+  - id: feature57
+    title: "Production Hardening: Security Headers, Error States, and Rate-Limiter Proxy Signals"
+    description: |
+      Add production-hardening controls across Next.js and backend integration, including strict
+      security headers via middleware, robust loading/error route states for authenticated pages,
+      rate-limiter proxy header support, and environment-driven defaults for deployment hygiene.
+    tasks: [task315, task316, task317, task318]
+    acceptance_criteria:
+      - id: AC1
+        description: "Next.js middleware sets X-Frame-Options, X-Content-Type-Options, Referrer-Policy, restrictive CSP default-src 'self', and HSTS in production."
+      - id: AC2
+        description: "(auth) route group includes loading.tsx and error.tsx handling API downtime and 401/429 UX with user-friendly messaging."
+      - id: AC3
+        description: "Proxy path forwards X-Forwarded-For so development rate limiting keys on real client IP; includes TODO note for Redis/Upstash migration."
+      - id: AC4
+        description: "Frontend env contract is explicit for BACKEND_URL and NODE_ENV, and no AWS credentials are introduced in Next.js layer."
+      - id: AC5
+        description: "Integration tests validate security headers, auth error-state rendering, and forwarded IP header behavior for proxied requests."
+      - id: AC6
+        description: "Hardening changes preserve existing dashboard/login functionality without behavioral regressions."
+    owner: techlead-agent
+    dependencies: [feature55, feature56]
+    status: completed
+
+  # ------ Sub-phase 5: User Registration & Password Reset (feature58, feature59, feature60) ------
+
+  - id: feature58
+    title: "Relational Registration Flow: Signup UI, Verification, and Tenant Provisioning"
+    description: |
+      Implement a relational-store-backed sign-up journey from public navigation to account creation,
+      including /signup and /signup/verify pages, client-side validation, and backend
+      register-request/register-confirm endpoints. Registration must create user identity records,
+      allocate unique tenant slugs with deterministic suffix collision handling, issue session cookies,
+      and redirect users into /registry without leaking account-existence details.
+    tasks: [task319, task320, task321, task322]
+    acceptance_criteria:
+      - id: AC1
+        description: "MainLayout and login page include a Sign Up CTA that routes users to /signup."
+      - id: AC2
+        description: "/signup renders a centered email-entry card with valid-email client validation and passphrase-friendly confirmation UX."
+      - id: AC3
+        description: "POST /api/auth/register-request returns generic 200 responses for both known and unknown emails, creates signed expiring verification tokens for eligible requests, and uses FRONTEND_URL links via EmailService."
+      - id: AC4
+        description: "/signup/verify enforces password rules: length 10-128, password confirmation match, and client-side feedback before submit."
+      - id: AC5
+        description: "POST /api/auth/register-confirm validates token integrity/expiry/single-use, creates user in relational store with hashed password, and creates a local identity mapping row keyed by provider + provider_user_id."
+      - id: AC6
+        description: "Tenant slug allocation derives from email prefix with deterministic collision handling (base, base-1, base-2...) and DB-enforced uniqueness on tenant_slug."
+      - id: AC7
+        description: "Successful register-confirm creates DB-backed session state, returns Set-Cookie headers, and redirects to /registry."
+      - id: AC8
+        description: "Automated tests cover registration happy path, duplicate-safe privacy behavior, token expiry/consumption, slug collision handling, password validation failures, and rate limiting."
+    owner: techlead-agent
+    dependencies: [feature57]
+    status: completed
+
+  - id: feature59
+    title: "Forgot Password Workflow, Policy Enforcement, and Session Revocation"
+    description: |
+      Implement the full password reset workflow using /forgot-password and /forgot-password/reset
+      pages plus password-reset-request/password-reset-confirm backend endpoints. The flow must
+      preserve account privacy, enforce Sub-phase 5 password policy checks, and invalidate all
+      active sessions after successful password change in the relational session store.
+    tasks: [task323, task324, task325, task326]
+    acceptance_criteria:
+      - id: AC1
+        description: "Login page Forgot your password? link routes users to /forgot-password."
+      - id: AC2
+        description: "/forgot-password renders an email form card and always shows a generic confirmation message after submit."
+      - id: AC3
+        description: "POST /api/auth/password-reset-request returns generic success for known and unknown emails, generates signed expiring reset tokens for known users, and logs reset link via EmailService."
+      - id: AC4
+        description: "/forgot-password/reset enforces password rules (10-128 length, confirmation match) and exposes clear validation errors before submission."
+      - id: AC5
+        description: "POST /api/auth/password-reset-confirm validates token integrity/expiry/single-use, rejects compromised/common or email-similar passwords, and writes updated hash using current hashing policy."
+      - id: AC6
+        description: "Successful reset-confirm invalidates all active sessions for the user in relational store and redirects to /login with a success indicator."
+      - id: AC7
+        description: "Automated tests cover reset happy path, non-enumerating request behavior, token expiry/consumption failures, password-policy rejection paths, and rate limiting."
+    owner: techlead-agent
+    dependencies: [feature58]
+    status: completed
+
+  - id: feature60
+    title: "Relational Auth Foundation, Hash Rotation, and Sub-phase 5 Hardening"
+    description: |
+      Establish a DB-backed auth foundation for Sub-phase 5 using SQLite in development with a
+      PostgreSQL-compatible schema. This includes relational persistence for users, tenants,
+      identities, sessions, and one-time token state; env-based secret management; email service
+      abstraction; hash rotation strategy; lockout/backoff hardening; and comprehensive integration
+      coverage. Google/GitHub SSO implementation is deferred while keeping identities schema ready.
+    tasks: [task327, task328, task329, task330]
+    acceptance_criteria:
+      - id: AC1
+        description: "Relational auth schema exists for users, tenants, identities, sessions, and one-time tokens; development runs on SQLite with PostgreSQL-compatible constraints and SQL."
+      - id: AC2
+        description: "Unique indexes enforce tenants.tenant_slug and identities(provider, provider_user_id) constraints in DB-backed persistence."
+      - id: AC3
+        description: "Email dispatch is behind EmailService abstraction; FRONTEND_URL and token signing secrets are environment-driven and never hardcoded."
+      - id: AC4
+        description: "Verification/reset tokens are single-use with consumed-state tracking, and session invalidation is persisted in relational store."
+      - id: AC5
+        description: "Password hashing uses Argon2id-preferred strategy with legacy verification support and transparent rehash-on-login when existing hash policy is outdated."
+      - id: AC6
+        description: "Auth entrypoints apply deterministic rate limiting plus lockout/backoff protections and are covered by automated tests."
+      - id: AC7
+        description: "Sub-phase 5 includes smoke-test documentation for registration/reset end-user flows and non-regression test coverage for existing login/registry behavior."
+      - id: AC8
+        description: "Google/GitHub SSO implementation is deferred, but identity schema and ownership model are ready so tenant ownership never depends on provider email on each login."
+    owner: techlead-agent
+    dependencies: [feature58, feature59]
+    status: completed
