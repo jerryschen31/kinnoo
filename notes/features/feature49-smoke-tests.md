@@ -85,15 +85,25 @@ ls -d web/components/ui web/components/blocks web/lib web/__tests__
 ```bash
 (cd web && npm run dev > /tmp/kinnoo-feature49-dev.log 2>&1) &
 DEV_PID=$!
-sleep 5
-curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/
-curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/login
-curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/signup
-curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/registry
+
+# Wait for dev server to become reachable (max ~60s)
+for i in {1..30}; do
+   if curl -fsS --connect-timeout 2 --max-time 5 http://localhost:3000/ >/dev/null; then
+      break
+   fi
+   sleep 2
+done
+
+for route in / /login /signup /registry; do
+   code=$(curl -sS --connect-timeout 5 --max-time 15 -o /dev/null -w "%{http_code}" "http://localhost:3000${route}")
+   echo "${route} -> ${code}"
+done
+
 kill "$DEV_PID" || true
 wait "$DEV_PID" 2>/dev/null || true
 ```
 **Expected:** All four curl commands return `200`.
+For `/registry`, `307` redirect to login is also acceptable when unauthenticated.
 
 ## 10. Root .gitignore Updated
 
