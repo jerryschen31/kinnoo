@@ -20,7 +20,7 @@ scripts/archive/
 .registry-storage/
 *.pem
 .registry*
-.specstory/*.json
+.specstory/
 kinnoo-config.txt
 
 # Next.js web frontend
