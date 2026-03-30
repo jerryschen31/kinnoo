@@ -37,7 +37,7 @@ def _format_top_level_help_text() -> str:
     usage_help = style_text("-h", color="neon_green", stream=sys.stdout)
     usage_version = style_text("--version", color="light_blue", bold=True, stream=sys.stdout)
     usage_commands = style_text(
-        "{init,run,stop,attach,logs,install,pack,keygen,inspect,publish,list,search,import,check}",
+        "{init,run,stop,attach,logs,install,pack,keygen,inspect,publish,list,search,login,logout,import,check}",
         color="neon_green",
         bold=True,
         stream=sys.stdout,
@@ -52,7 +52,7 @@ def _format_top_level_help_text() -> str:
 
     all_agents_set = style_text("{init,run,install,pack,inspect, import,check}", color="neon_green", bold=True, stream=sys.stdout)
     daemon_set = style_text("{stop,attach,logs}", color="neon_green", bold=True, stream=sys.stdout)
-    registry_set = style_text("{publish,install,list,search}", color="neon_green", bold=True, stream=sys.stdout)
+    registry_set = style_text("{publish,install,list,search,login,logout}", color="neon_green", bold=True, stream=sys.stdout)
     other_set = style_text("{keygen}", color="neon_green", bold=True, stream=sys.stdout)
 
     init_cmd = style_text("init", color="neon_green", bold=True, stream=sys.stdout)
@@ -68,6 +68,8 @@ def _format_top_level_help_text() -> str:
     install_cmd = style_text("install", color="neon_green", bold=True, stream=sys.stdout)
     list_cmd = style_text("list", color="neon_green", bold=True, stream=sys.stdout)
     search_cmd = style_text("search", color="neon_green", bold=True, stream=sys.stdout)
+    login_cmd = style_text("login", color="neon_green", bold=True, stream=sys.stdout)
+    logout_cmd = style_text("logout", color="neon_green", bold=True, stream=sys.stdout)
     keygen_cmd = style_text("keygen", color="neon_green", bold=True, stream=sys.stdout)
 
     opt_help = style_text("--help", color="light_blue", bold=True, stream=sys.stdout)
@@ -95,7 +97,9 @@ def _format_top_level_help_text() -> str:
         f"        {publish_cmd}             Publish latest archived agent artifact to the registry\n"
         f"        {install_cmd}             Install a kinnoo agent from archive (.kno) or registry\n"
         f"        {list_cmd}                List agents from local archive (default) or remote registry\n"
-        f"        {search_cmd}              Search agents from local archive (default) or remote registry\n\n"
+        f"        {search_cmd}              Search agents from local archive (default) or remote registry\n"
+        f"        {login_cmd}               Authenticate to a registry and persist auth state locally\n"
+        f"        {logout_cmd}              Clear persisted registry auth state\n\n"
         f"{other_header}\n"
         f"    {other_set}\n"
         f"        {keygen_cmd}              Generate an Ed25519 keypair for archive signing\n\n"
@@ -548,6 +552,30 @@ def main():
         help="Search query to match against agent name and description",
     )
 
+    login_parser = subparsers.add_parser(
+        "login",
+        help="Authenticate to a registry and persist auth state locally",
+        formatter_class=argparse.RawTextHelpFormatter,
+        description="Authenticate to a registry and persist auth state locally",
+    )
+    login_parser.add_argument("--email", help="Registry account email/username")
+    login_parser.add_argument("--password", help="Registry account password")
+    login_parser.add_argument(
+        "--registry",
+        help="Registry base URL (for example: https://registry.kinnoo.dev)",
+    )
+    login_parser.add_argument(
+        "--tenant",
+        help="Tenant slug for token issuance (defaults to configured tenant or global)",
+    )
+
+    logout_parser = subparsers.add_parser(
+        "logout",
+        help="Clear persisted registry auth state",
+        description="Clear persisted registry auth state",
+    )
+    del logout_parser
+
     # Add 'import' subcommand
     import_parser = subparsers.add_parser(
         "import",
@@ -909,6 +937,29 @@ def main():
             from .search_command import search_agents
 
         exit_code = search_agents(query=query, source=source)
+        sys.exit(exit_code)
+
+    elif args.command == "login":
+        try:
+            from kinnoo.auth_command import login_command
+        except ImportError:
+            from .auth_command import login_command
+
+        exit_code = login_command(
+            email=getattr(args, "email", None),
+            password=getattr(args, "password", None),
+            registry=getattr(args, "registry", None),
+            tenant_slug=getattr(args, "tenant", None),
+        )
+        sys.exit(exit_code)
+
+    elif args.command == "logout":
+        try:
+            from kinnoo.auth_command import logout_command
+        except ImportError:
+            from .auth_command import logout_command
+
+        exit_code = logout_command()
         sys.exit(exit_code)
 
     elif args.command == "import":

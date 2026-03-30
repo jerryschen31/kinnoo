@@ -1546,3 +1546,120 @@ def test_feature39_permissions_schema_validation(tmp_path: Path) -> None:
         f"errors: {errors}"
     )
     assert errors == []
+
+
+def test_feature62_openclaw_skill_schema_validation(tmp_path: Path) -> None:
+    """Feature62 test493: openclaw-skill type and provenance object validation."""
+    valid_manifest = dict(_VALID_MANIFEST)
+    valid_manifest["framework"] = "openclaw"
+    valid_manifest["type"] = "openclaw-skill"
+    valid_manifest["runtime"] = {
+        "language": "nodejs",
+        "version": ">=20",
+        "type": "daemon",
+    }
+    valid_manifest["provenance"] = {
+        "source_registry": "clawhub",
+        "source_slug": "weather/weather-skill",
+        "source_version": "1.2.3",
+    }
+
+    valid_path = tmp_path / "feature62_openclaw_skill_valid.yaml"
+    valid_path.write_text(yaml.dump(valid_manifest), encoding="utf-8")
+    is_valid, errors = validate(str(valid_path))
+    assert is_valid is True, f"Expected canonical openclaw-skill manifest to pass; errors: {errors}"
+
+    missing_registry = dict(valid_manifest)
+    missing_registry["provenance"] = {
+        "source_slug": "weather/weather-skill",
+        "source_version": "1.2.3",
+    }
+    missing_registry_path = tmp_path / "feature62_openclaw_skill_missing_registry.yaml"
+    missing_registry_path.write_text(yaml.dump(missing_registry), encoding="utf-8")
+    is_valid, errors = validate(str(missing_registry_path))
+    assert is_valid is False, "Expected missing provenance.source_registry to fail validation"
+    assert any("provenance.source_registry" in message for message in errors), (
+        f"Expected provenance.source_registry guidance; got: {errors}"
+    )
+
+    missing_slug_and_url = dict(valid_manifest)
+    missing_slug_and_url["provenance"] = {
+        "source_registry": "clawhub",
+        "source_version": "1.2.3",
+    }
+    missing_slug_and_url_path = tmp_path / "feature62_openclaw_skill_missing_slug_and_url.yaml"
+    missing_slug_and_url_path.write_text(yaml.dump(missing_slug_and_url), encoding="utf-8")
+    is_valid, errors = validate(str(missing_slug_and_url_path))
+    assert is_valid is False, "Expected missing provenance source_slug/source_url to fail validation"
+    assert any("source_slug" in message and "source_url" in message for message in errors), (
+        f"Expected source_slug/source_url requirement guidance; got: {errors}"
+    )
+
+
+def test_feature62_openclaw_skill_schema_fixture_matrix(tmp_path: Path) -> None:
+    """Feature62 test494: fixture matrix covers migration-safe provenance and metadata rules."""
+    base_manifest = dict(_VALID_MANIFEST)
+    base_manifest["framework"] = "openclaw"
+    base_manifest["type"] = "openclaw-skill"
+    base_manifest["runtime"] = {
+        "language": "nodejs",
+        "version": ">=20",
+        "type": "daemon",
+    }
+
+    valid_slug_only = dict(base_manifest)
+    valid_slug_only["provenance"] = {
+        "source_registry": "clawhub",
+        "source_slug": "weather/weather-skill",
+        "source_version": "1.2.3",
+    }
+    valid_slug_only_path = tmp_path / "feature62_fixture_valid_slug_only.yaml"
+    valid_slug_only_path.write_text(yaml.dump(valid_slug_only), encoding="utf-8")
+    is_valid, errors = validate(str(valid_slug_only_path))
+    assert is_valid is True, f"Expected slug-only provenance fixture to pass; errors: {errors}"
+
+    valid_url_only = dict(base_manifest)
+    valid_url_only["provenance"] = {
+        "source_registry": "github",
+        "source_url": "https://github.com/acme/weather-skill",
+        "source_version": "v1.2.3",
+    }
+    valid_url_only_path = tmp_path / "feature62_fixture_valid_url_only.yaml"
+    valid_url_only_path.write_text(yaml.dump(valid_url_only), encoding="utf-8")
+    is_valid, errors = validate(str(valid_url_only_path))
+    assert is_valid is True, f"Expected URL-only provenance fixture to pass; errors: {errors}"
+
+    invalid_missing_source_version = dict(base_manifest)
+    invalid_missing_source_version["provenance"] = {
+        "source_registry": "clawhub",
+        "source_slug": "weather/weather-skill",
+    }
+    invalid_missing_source_version_path = tmp_path / "feature62_fixture_missing_source_version.yaml"
+    invalid_missing_source_version_path.write_text(
+        yaml.dump(invalid_missing_source_version), encoding="utf-8"
+    )
+    is_valid, errors = validate(str(invalid_missing_source_version_path))
+    assert is_valid is False, "Expected missing provenance.source_version fixture to fail"
+    assert any("provenance.source_version" in message for message in errors), (
+        f"Expected provenance.source_version guidance; got: {errors}"
+    )
+
+    invalid_disallowed_metadata = dict(valid_slug_only)
+    invalid_disallowed_metadata["channels"] = ["stable"]
+    invalid_disallowed_metadata["skills"] = ["skills/default/SKILL.md"]
+    invalid_disallowed_metadata["state_dirs"] = ["memory"]
+    invalid_disallowed_metadata_path = tmp_path / "feature62_fixture_disallowed_metadata.yaml"
+    invalid_disallowed_metadata_path.write_text(
+        yaml.dump(invalid_disallowed_metadata), encoding="utf-8"
+    )
+    is_valid, errors = validate(str(invalid_disallowed_metadata_path))
+    assert is_valid is False, "Expected disallowed metadata fixture to fail"
+    assert any("Field 'channels' is not supported" in message for message in errors), (
+        f"Expected channels removal guidance; got: {errors}"
+    )
+    assert any("Field 'skills' is not supported" in message for message in errors), (
+        f"Expected skills removal guidance; got: {errors}"
+    )
+    assert any("Field 'state_dirs' is not supported" in message for message in errors), (
+        f"Expected state_dirs removal guidance; got: {errors}"
+    )
