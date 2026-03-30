@@ -7341,4 +7341,4 @@ tasks:
       - 'step4: Document adapter best practices and known limitations for developers'
     dependencies: [task360]
     tests: [test520]
-    status: not-started
+    status: needs-review

@@ -2254,3 +2254,33 @@ def analyze_project(project_dir: str | Path) -> AnalysisReport:
             warnings.append(result.warning)
 
     return AnalysisReport(inferred=inferred, confidence=confidence, warnings=warnings)
+
+
+_ADAPTER_MINIMUM_COVERAGE: dict[str, float] = {
+    "langchain": 0.6,
+    "langgraph": 0.6,
+    "openai": 0.6,
+}
+
+
+_ADAPTER_DEFAULT_GUIDANCE: dict[str, list[str]] = {
+    "langchain": [
+        "Confirm provider model configuration and related env vars before first run.",
+    ],
+    "langgraph": [
+        "Validate graph state model and graph entrypoint wiring before packaging.",
+    ],
+    "openai": [
+        "Verify OpenAI credentials and tool contract wiring before first run.",
+    ],
+}
+
+
+def adapter_minimum_coverage(framework: str) -> float:
+    """Return minimum adapter coverage threshold required to override generic analysis."""
+    return float(_ADAPTER_MINIMUM_COVERAGE.get(framework, 0.6))
+
+
+def adapter_default_unresolved_guidance(framework: str) -> list[str]:
+    """Return deterministic default unresolved guidance for framework adapter flows."""
+    return list(_ADAPTER_DEFAULT_GUIDANCE.get(framework, []))
