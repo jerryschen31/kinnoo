@@ -363,6 +363,27 @@ Notes:
 - one-shot and daemon-compatible runtimes use the same assertion contract, so CI summaries stay consistent.
 - prefer deterministic output assertions (`contains`, `equals`, `regex`) over broad semantic checks.
 
+## Feature70 phase6 command matrix and provenance messaging
+
+Phase 6 command matrix (high-signal operational commands):
+
+- `kinnoo login --registry <url> --tenant <slug>`
+- `kinnoo logout`
+- `kinnoo list --remote`
+- `kinnoo search <query> --remote`
+- `kinnoo import --source clawhub <owner>/<slug>`
+- `kinnoo sync clawhub`
+- `kinnoo check <agent-dir>`
+- `kinnoo test <agent-dir>`
+- `kinnoo pack <agent-dir>`
+- `kinnoo publish <agent-name> --remote`
+
+ClawHub mirror attribution model:
+
+- mirrored records are written under tenant slug `clawhub`
+- source provenance stays explicit via source registry metadata and mirror attribution fields
+- operators can verify that mirrored entries and local sync behavior reference the same `clawhub` tenant model
+
 ## Registry Login and Logout
 
 `kinnoo login` and `kinnoo logout` manage local registry auth state for CLI registry workflows.

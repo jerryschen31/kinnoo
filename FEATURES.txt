@@ -2326,7 +2326,7 @@ features:
         description: "Content changes are covered by docs regression tests for key command snippets and references."
     owner: techlead-agent
     dependencies: []
-    status: not-started
+    status: in-progress
 
   - id: feature71
     title: "Strict CI signed-package enforcement"
