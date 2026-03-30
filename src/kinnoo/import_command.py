@@ -17,13 +17,28 @@ try:
         analyze_project,
         infer_openclaw_project_hints,
         build_clawhub_import_report_template,
+        adapter_default_unresolved_guidance,
+        adapter_minimum_coverage,
     )
 except ImportError:
     from .analyzer import (
         analyze_project,
         infer_openclaw_project_hints,
         build_clawhub_import_report_template,
+        adapter_default_unresolved_guidance,
+        adapter_minimum_coverage,
     )
+
+try:
+    from kinnoo.framework_adapters import merge_adapter_into_report
+    from kinnoo.framework_adapters.langchain_adapter import apply as apply_langchain_adapter
+    from kinnoo.framework_adapters.langgraph_adapter import apply as apply_langgraph_adapter
+    from kinnoo.framework_adapters.openai_adapter import apply as apply_openai_adapter
+except ImportError:
+    from .framework_adapters import merge_adapter_into_report
+    from .framework_adapters.langchain_adapter import apply as apply_langchain_adapter
+    from .framework_adapters.langgraph_adapter import apply as apply_langgraph_adapter
+    from .framework_adapters.openai_adapter import apply as apply_openai_adapter
 
 try:
     from kinnoo.validator import validate as validate_manifest
@@ -677,8 +692,63 @@ def _collect_unresolved_todo_guidance(
     if entrypoint_warning:
         guidance.append(entrypoint_warning)
 
+    adapter_meta = report.get("adapter")
+    if isinstance(adapter_meta, dict):
+        unresolved = adapter_meta.get("unresolved_guidance")
+        if isinstance(unresolved, list):
+            for item in unresolved:
+                if isinstance(item, str) and item.strip():
+                    guidance.append(item.strip())
+
     # Preserve deterministic order while removing duplicates.
     return list(dict.fromkeys(guidance))
+
+
+def _apply_framework_adapter(
+    target_path: Path,
+    report: dict[str, Any],
+    framework_from: str,
+) -> tuple[dict[str, Any], list[str], str | None]:
+    adapter_map = {
+        "langchain": apply_langchain_adapter,
+        "langgraph": apply_langgraph_adapter,
+        "openai": apply_openai_adapter,
+    }
+    adapter = adapter_map[framework_from]
+    adapter_result = adapter(target_path, report)
+    minimum_coverage = adapter_minimum_coverage(framework_from)
+    if not adapter_result.detected or adapter_result.coverage_score < minimum_coverage:
+        fallback_message = (
+            f"[kinnoo import] {framework_from} adapter coverage is insufficient "
+            f"(score={adapter_result.coverage_score:.2f}, required>={minimum_coverage:.2f}); "
+            "falling back to generic analyzer output."
+        )
+        return report, [], fallback_message
+
+    combined_guidance = adapter_default_unresolved_guidance(framework_from)
+    for item in adapter_result.unresolved_guidance:
+        if item not in combined_guidance:
+            combined_guidance.append(item)
+
+    adapter_result = type(adapter_result)(
+        framework=adapter_result.framework,
+        detected=adapter_result.detected,
+        coverage_score=adapter_result.coverage_score,
+        inferred_overrides=adapter_result.inferred_overrides,
+        confidence_overrides=adapter_result.confidence_overrides,
+        warnings=adapter_result.warnings,
+        unresolved_guidance=combined_guidance,
+    )
+
+    merged_report = merge_adapter_into_report(
+        base_report=report,
+        adapter_result=adapter_result,
+    )
+    adapter_banner = (
+        f"[kinnoo import] Applied {framework_from} adapter "
+        f"(coverage={adapter_result.coverage_score:.2f})."
+    )
+    return merged_report, list(adapter_result.unresolved_guidance), adapter_banner
 
 
 def _print_manifest_validation_and_guidance(
@@ -947,6 +1017,7 @@ def import_agent(
     force: bool = False,
     source: str | None = None,
     live_fallback: bool = False,
+    framework_from: str | None = None,
 ) -> int:
     """Import a project in-place by writing kinnoo.yaml safely into target root."""
     if source == "clawhub":
@@ -967,6 +1038,10 @@ def import_agent(
     if import_path_arg is not None and not is_github_url(target_arg):
         print(style_text("Error: import-path positional argument is only supported for GitHub URL imports.", color="red"))
         print("Usage: kinnoo import [target] [import-path] [--force]")
+        return 1
+
+    if framework_from is not None and source == "clawhub":
+        print(style_text("Error: --from cannot be combined with --source clawhub imports.", color="red"))
         return 1
 
     target_path: Path
@@ -1018,6 +1093,15 @@ def import_agent(
 
     try:
         report = analyze_project(target_path).as_dict()
+        adapter_guidance: list[str] = []
+        if framework_from is not None:
+            report, adapter_guidance, adapter_message = _apply_framework_adapter(
+                target_path=target_path,
+                report=report,
+                framework_from=framework_from,
+            )
+            if adapter_message:
+                print(adapter_message)
         report_for_manifest = report
         _show_detected_values(report)
 
@@ -1122,6 +1206,11 @@ def import_agent(
             generated_wrapper_path.unlink()
         print(style_text(f"Error: import failed and rolled back partial artifacts: {exc}", color="red"))
         return 1
+
+    if framework_from is not None and adapter_guidance:
+        print(style_text("Adapter guidance:", color="yellow", bold=True))
+        for item in adapter_guidance:
+            print(f"  - {item}")
 
     _print_manifest_validation_and_guidance(
         manifest_path,
