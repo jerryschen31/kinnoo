@@ -7000,7 +7000,7 @@ tasks:
       - 'step4: Preserve source attribution metadata across sync updates'
     dependencies: [task336]
     tests: [test503]
-    status: not-started
+    status: needs-review
 
   - id: task345
     title: "Feature67 sync resilience, rate control, and diagnostics"
@@ -7020,7 +7020,7 @@ tasks:
       - 'step4: Add tests for unavailable upstream and partial-failure sync behavior'
     dependencies: [task344]
     tests: [test504]
-    status: not-started
+    status: needs-review
 
   - id: task346
     title: "Feature68 GitHub Actions reference workflow and env contract"
@@ -7040,7 +7040,7 @@ tasks:
       - 'step4: Add docs links and operator guidance for setup and troubleshooting'
     dependencies: [task332]
     tests: [test505]
-    status: not-started
+    status: needs-review
 
   - id: task347
     title: "Feature68 CI workflow regression checks and docs validation"
@@ -7060,7 +7060,7 @@ tasks:
       - 'step4: Validate CI docs behavior across local and remote registry modes'
     dependencies: [task346]
     tests: [test506]
-    status: not-started
+    status: needs-review
 
   - id: task348
     title: "Feature69 kinnoo tests file format and parser"

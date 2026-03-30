@@ -421,3 +421,86 @@ def test_feature62_openclaw_schema_docs_consistency() -> None:
             "Expected Feature62 docs YAML example to pass validation; "
             f"errors: {errors}; yaml block: {block}"
         )
+
+
+def test_feature68_workflow_contract_and_envs() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    workflow_path = repo_root / ".github" / "workflows" / "kinnoo-publish.yml"
+    readme_path = repo_root / "README.md"
+    schema_path = repo_root / "docs" / "manifest-schema-reference.md"
+
+    assert workflow_path.exists(), "Expected Feature68 workflow file to exist"
+
+    workflow_text = workflow_path.read_text(encoding="utf-8")
+    readme_text = readme_path.read_text(encoding="utf-8")
+    schema_text = schema_path.read_text(encoding="utf-8")
+    combined_docs = f"{readme_text}\n{schema_text}"
+
+    workflow_data = yaml.safe_load(workflow_text)
+    assert isinstance(workflow_data, dict)
+
+    jobs = workflow_data.get("jobs")
+    assert isinstance(jobs, dict)
+    publish_job = jobs.get("publish")
+    assert isinstance(publish_job, dict)
+
+    job_env = publish_job.get("env")
+    assert isinstance(job_env, dict)
+    assert "KINNOO_REGISTRY_URL" in job_env
+    assert "KINNOO_REGISTRY_TOKEN" in job_env
+    assert "KINNOO_TENANT_SLUG" in job_env
+    assert "KINNOO_CI_STRICT_MODE" in job_env
+
+    steps = publish_job.get("steps")
+    assert isinstance(steps, list)
+    step_names = [step.get("name", "") for step in steps if isinstance(step, dict)]
+    assert any("Install" in str(name) for name in step_names)
+    assert any("preflight" in str(name).lower() for name in step_names)
+    assert any("Pack" in str(name) for name in step_names)
+    assert any("Publish" in str(name) for name in step_names)
+
+    assert "python3 src/kinnoo/cli.py check" in workflow_text
+    assert "python3 src/kinnoo/cli.py pack" in workflow_text
+    assert "python3 src/kinnoo/cli.py publish" in workflow_text
+    assert "--remote" in workflow_text
+
+    assert "KINNOO_REGISTRY_URL" in combined_docs
+    assert "KINNOO_REGISTRY_TOKEN" in combined_docs
+    assert "KINNOO_TENANT_SLUG" in combined_docs
+    assert "KINNOO_CI_STRICT_MODE" in combined_docs
+
+
+def test_feature68_ci_failure_and_troubleshooting_docs() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    workflow_path = repo_root / ".github" / "workflows" / "kinnoo-publish.yml"
+    readme_path = repo_root / "README.md"
+    schema_path = repo_root / "docs" / "manifest-schema-reference.md"
+
+    workflow_text = workflow_path.read_text(encoding="utf-8")
+    readme_text = readme_path.read_text(encoding="utf-8")
+    schema_text = schema_path.read_text(encoding="utf-8")
+    combined_docs = f"{readme_text}\n{schema_text}"
+    combined_lower = combined_docs.lower()
+
+    assert "set -euo pipefail" in workflow_text
+    assert "non-zero" in combined_lower
+    assert "troubleshooting common ci failures" in combined_lower
+    assert "signing failures" in combined_lower
+    assert "publish failures" in combined_lower
+
+    for required_secret in (
+        "KINNOO_REGISTRY_URL",
+        "KINNOO_REGISTRY_TOKEN",
+        "KINNOO_TENANT_SLUG",
+    ):
+        assert required_secret in combined_docs
+
+    expected_commands = (
+        "python3 src/kinnoo/cli.py check",
+        "python3 src/kinnoo/cli.py pack",
+        "python3 src/kinnoo/cli.py publish",
+    )
+    for command in expected_commands:
+        assert command in workflow_text
+
+    assert "kinnoo publish --remote" in combined_docs
