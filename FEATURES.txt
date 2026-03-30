@@ -2193,7 +2193,7 @@ features:
         description: "Mirror ingestion is idempotent and supports upsert semantics for repeated sync runs."
     owner: techlead-agent
     dependencies: [feature62]
-    status: in-progress
+    status: needs-review
 
   - id: feature64
     title: "ClawHub import bridge"
