@@ -2307,7 +2307,7 @@ features:
         description: "Docs include minimal-friction examples for Python and JS/TS agents and guidance for CI integration."
     owner: techlead-agent
     dependencies: []
-    status: not-started
+    status: in-progress
 
   - id: feature70
     title: "Landing page and docs messaging refresh"
