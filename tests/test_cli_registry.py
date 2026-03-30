@@ -25,10 +25,13 @@
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 import subprocess
 import sys
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import zipfile
 
 
@@ -105,3 +108,140 @@ def test_feature56_local_publish_tenant_path(tmp_path: Path) -> None:
 
 	assert tenant_archive.exists()
 	assert tenant_metadata.exists()
+
+
+def test_feature61_login_interactive_and_noninteractive(tmp_path: Path) -> None:
+	accepted = {
+		("interactive@example.com", "interactive-pass", "tenant-interactive"): "token-interactive",
+		("cli@example.com", "cli-pass", "tenant-cli"): "token-cli",
+	}
+
+	server = _AuthTokenTestServer(accepted_credentials=accepted)
+	server.start()
+	try:
+		env = {
+			**os.environ,
+			"HOME": str(tmp_path / "home"),
+		}
+
+		interactive = subprocess.run(
+			[
+				sys.executable,
+				str(CLI_PATH),
+				"login",
+				"--registry",
+				server.base_url,
+				"--tenant",
+				"tenant-interactive",
+			],
+			input="interactive@example.com\ninteractive-pass\n",
+			capture_output=True,
+			text=True,
+			env=env,
+		)
+		interactive_output = f"{interactive.stdout}\n{interactive.stderr}"
+		assert interactive.returncode == 0, interactive_output
+		assert "Login successful." in interactive_output
+
+		config_path = Path(env["HOME"]) / ".kinnoo" / "config.yaml"
+		assert config_path.exists()
+		first_config = config_path.read_text(encoding="utf-8")
+		assert "registry_url: '" in first_config
+		assert "registry_token: 'token-interactive'" in first_config
+		assert "tenant_slug: 'tenant-interactive'" in first_config
+
+		noninteractive = subprocess.run(
+			[
+				sys.executable,
+				str(CLI_PATH),
+				"login",
+				"--registry",
+				server.base_url,
+				"--tenant",
+				"tenant-cli",
+				"--email",
+				"cli@example.com",
+				"--password",
+				"cli-pass",
+			],
+			capture_output=True,
+			text=True,
+			env=env,
+		)
+		noninteractive_output = f"{noninteractive.stdout}\n{noninteractive.stderr}"
+		assert noninteractive.returncode == 0, noninteractive_output
+		assert "Login successful." in noninteractive_output
+
+		second_config = config_path.read_text(encoding="utf-8")
+		assert "registry_token: 'token-cli'" in second_config
+		assert "tenant_slug: 'tenant-cli'" in second_config
+	finally:
+		server.stop()
+
+
+class _AuthTokenTestServer:
+	def __init__(self, *, accepted_credentials: dict[tuple[str, str, str], str]) -> None:
+		self._accepted_credentials = accepted_credentials
+		self._server = ThreadingHTTPServer(("127.0.0.1", 0), _make_auth_handler(accepted_credentials))
+		self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
+
+	@property
+	def base_url(self) -> str:
+		host, port = self._server.server_address
+		return f"http://{host}:{port}"
+
+	def start(self) -> None:
+		self._thread.start()
+
+	def stop(self) -> None:
+		self._server.shutdown()
+		self._server.server_close()
+		self._thread.join(timeout=2)
+
+
+def _make_auth_handler(
+	accepted_credentials: dict[tuple[str, str, str], str],
+) -> type[BaseHTTPRequestHandler]:
+	class _AuthHandler(BaseHTTPRequestHandler):
+		def do_POST(self) -> None:  # noqa: N802
+			if self.path != "/api/auth/token":
+				self._write_json(404, {"error": "not found"})
+				return
+
+			content_length = int(self.headers.get("Content-Length", "0"))
+			payload_text = self.rfile.read(content_length).decode("utf-8")
+			try:
+				payload = json.loads(payload_text)
+			except json.JSONDecodeError:
+				self._write_json(400, {"error": "invalid JSON"})
+				return
+
+			username = str(payload.get("username", ""))
+			password = str(payload.get("password", ""))
+			tenant_slug = str(payload.get("tenant_slug", ""))
+			token = accepted_credentials.get((username, password, tenant_slug))
+			if token is None:
+				self._write_json(401, {"error": {"message": "invalid username or password"}})
+				return
+
+			self._write_json(
+				200,
+				{
+					"access_token": token,
+					"token_type": "Bearer",
+					"expires_in": 3600,
+				},
+			)
+
+		def log_message(self, format: str, *args: object) -> None:  # noqa: A003
+			del format, args
+
+		def _write_json(self, status_code: int, payload: dict[str, object]) -> None:
+			encoded = json.dumps(payload).encode("utf-8")
+			self.send_response(status_code)
+			self.send_header("Content-Type", "application/json")
+			self.send_header("Content-Length", str(len(encoded)))
+			self.end_headers()
+			self.wfile.write(encoded)
+
+	return _AuthHandler
