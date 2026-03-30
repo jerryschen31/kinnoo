@@ -25,6 +25,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import os
 from pathlib import Path
@@ -33,6 +35,9 @@ import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import zipfile
+
+from kinnoo.registry import RegistryService
+from kinnoo.registry_backends import MockFilesystemRegistryBackend
 
 
 CLI_PATH = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
@@ -255,6 +260,82 @@ def test_feature61_logout_and_auth_precedence(tmp_path: Path) -> None:
 		assert "Published feature61-agent==1.0.0 (remote)" in override_output
 	finally:
 		server.stop()
+
+
+def test_feature63_mirror_attribution_and_idempotency(tmp_path: Path) -> None:
+	registry_root = tmp_path / "registry"
+	service = RegistryService(backend=MockFilesystemRegistryBackend(root=registry_root))
+
+	service.upsert_clawhub_mirror_record(
+		agent_slug="weather/weather-skill",
+		source_version="1.2.3",
+		source_url="https://clawhub.ai/skills/weather/weather-skill",
+		synced_at="2026-03-29T01:00:00Z",
+		metadata={"description": "Weather skill"},
+	)
+	service.upsert_clawhub_mirror_record(
+		agent_slug="weather/weather-skill",
+		source_version="1.2.3",
+		source_url="https://clawhub.ai/skills/weather/weather-skill",
+		synced_at="2026-03-29T02:00:00Z",
+		metadata={"description": "Weather skill updated sync"},
+	)
+	service.upsert_clawhub_mirror_record(
+		agent_slug="weather/weather-skill",
+		source_version="1.2.4",
+		source_url="https://clawhub.ai/skills/weather/weather-skill",
+		synced_at="2026-03-29T03:00:00Z",
+		metadata={"description": "Weather skill v1.2.4"},
+	)
+
+	records = service.list_clawhub_mirror_records()
+	assert len(records) == 2
+	assert [record.source_version for record in records] == ["1.2.3", "1.2.4"]
+
+	from src.kinnoo import search_command
+	from src.kinnoo.config import RegistryConfig
+	from src.kinnoo.inspect_command import inspect_target
+
+	previous_registry_root = os.environ.get("KINNOO_REGISTRY_ROOT")
+	original_load_registry_config = search_command.load_registry_config
+	search_command.load_registry_config = lambda: RegistryConfig(
+		registry_url=None,
+		registry_token=None,
+		tenant_slug=None,
+	)
+	os.environ["KINNOO_REGISTRY_ROOT"] = str(registry_root)
+	try:
+		search_stdout = io.StringIO()
+		search_stderr = io.StringIO()
+		with contextlib.redirect_stdout(search_stdout), contextlib.redirect_stderr(search_stderr):
+			search_code = search_command.search_agents(query="weather", source="remote")
+		search_output = search_stdout.getvalue() + search_stderr.getvalue()
+		assert search_code == 0, search_output
+		assert "source: clawhub (mirrored)" in search_output
+		assert "synced_at: 2026-03-29T03:00:00Z" in search_output
+
+		namespace_stdout = io.StringIO()
+		namespace_stderr = io.StringIO()
+		with contextlib.redirect_stdout(namespace_stdout), contextlib.redirect_stderr(namespace_stderr):
+			namespace_code = search_command.search_agents(query="clawhub", source="remote")
+		namespace_output = namespace_stdout.getvalue() + namespace_stderr.getvalue()
+		assert namespace_code == 0, namespace_output
+		assert "source: clawhub (mirrored)" in namespace_output
+
+		inspect_stdout = io.StringIO()
+		inspect_stderr = io.StringIO()
+		with contextlib.redirect_stdout(inspect_stdout), contextlib.redirect_stderr(inspect_stderr):
+			inspect_code = inspect_target("clawhub:weather/weather-skill")
+		inspect_output = inspect_stdout.getvalue() + inspect_stderr.getvalue()
+		assert inspect_code == 0, inspect_output
+		assert "Source: ClawHub (mirrored)" in inspect_output
+		assert "Last Synced At: 2026-03-29T03:00:00Z" in inspect_output
+	finally:
+		search_command.load_registry_config = original_load_registry_config
+		if previous_registry_root is None:
+			os.environ.pop("KINNOO_REGISTRY_ROOT", None)
+		else:
+			os.environ["KINNOO_REGISTRY_ROOT"] = previous_registry_root
 
 
 class _AuthTokenTestServer:
