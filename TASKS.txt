@@ -7100,7 +7100,7 @@ tasks:
       - 'step4: Add test fixtures and docs examples for Python and JS/TS agents'
     dependencies: [task348]
     tests: [test508]
-    status: not-started
+    status: needs-review
 
   - id: task350
     title: "Feature70 landing page and README messaging update"

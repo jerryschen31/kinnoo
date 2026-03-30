@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import json
+import re
+import shlex
+import subprocess
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -27,6 +31,21 @@ class DeclarativeTestCase:
     timeout_seconds: float
     expected_exit_code: int
     tags: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class TestCaseExecutionResult:
+    test_id: str
+    name: str
+    passed: bool
+    runtime_type: str
+    actual_exit_code: int
+    expected_exit_code: int
+    assertions_passed: int
+    assertions_total: int
+    timed_out: bool
+    duration_ms: int
+    failure_reason: str
 
 
 def _normalize_assertion(raw_assertion: Any, path_prefix: str) -> tuple[DeclarativeAssertion | None, list[str]]:
@@ -281,5 +300,181 @@ def run_test_command(agent_dir_arg: str, tests_file_arg: str | None = None, vali
             print(f"[kinnoo test] Parsed {len(test_cases)} test case(s).")
         return 0
 
-    print("Error: execution engine is not available yet. Re-run with --validate-only.")
-    return 1
+    try:
+        manifest = _load_manifest(agent_dir_arg)
+    except ValueError as exc:
+        print(f"Error: {exc}", flush=True)
+        return 1
+
+    runtime = manifest.get("runtime")
+    if not isinstance(runtime, dict):
+        print("Error: kinnoo.yaml runtime block is required for test execution.", flush=True)
+        return 1
+
+    execution_results: list[TestCaseExecutionResult] = []
+    for test_case in test_cases:
+        execution_results.append(_execute_test_case(Path(agent_dir_arg), manifest, test_case))
+
+    passed_count = sum(1 for result in execution_results if result.passed)
+    total_count = len(execution_results)
+    failed_count = total_count - passed_count
+
+    if json_output:
+        print(
+            json.dumps(
+                {
+                    "source": tests_source,
+                    "total": total_count,
+                    "passed": passed_count,
+                    "failed": failed_count,
+                    "results": [
+                        {
+                            "id": result.test_id,
+                            "name": result.name,
+                            "status": "passed" if result.passed else "failed",
+                            "runtime_type": result.runtime_type,
+                            "exit_code": result.actual_exit_code,
+                            "expected_exit_code": result.expected_exit_code,
+                            "assertions_passed": result.assertions_passed,
+                            "assertions_total": result.assertions_total,
+                            "timed_out": result.timed_out,
+                            "duration_ms": result.duration_ms,
+                            "failure_reason": result.failure_reason,
+                        }
+                        for result in execution_results
+                    ],
+                },
+                sort_keys=True,
+            )
+        )
+    else:
+        print(f"[kinnoo test] Loaded {total_count} test case(s) from {tests_source}")
+        for result in execution_results:
+            label = "PASS" if result.passed else "FAIL"
+            summary = (
+                f"[{label}] {result.test_id} ({result.runtime_type}) "
+                f"assertions {result.assertions_passed}/{result.assertions_total} "
+                f"exit {result.actual_exit_code}/{result.expected_exit_code}"
+            )
+            if result.failure_reason:
+                summary += f" reason={result.failure_reason}"
+            print(summary)
+        print(f"[kinnoo test] Summary: {passed_count}/{total_count} passed")
+
+    return 0 if failed_count == 0 else 1
+
+
+def _load_manifest(agent_dir_arg: str) -> dict[str, Any]:
+    manifest_path = Path(agent_dir_arg) / "kinnoo.yaml"
+    if not manifest_path.exists():
+        raise ValueError(f"Manifest file not found: {manifest_path}")
+
+    manifest_doc = _read_yaml_file(manifest_path)
+    if not isinstance(manifest_doc, dict):
+        raise ValueError("kinnoo.yaml must be a mapping.")
+    return manifest_doc
+
+
+def _build_runtime_command(agent_dir: Path, manifest: dict[str, Any], input_text: str) -> tuple[list[str], str]:
+    runtime = manifest.get("runtime", {})
+    if not isinstance(runtime, dict):
+        return [], "unknown"
+
+    runtime_type = str(runtime.get("type", "one-shot"))
+    runtime_language = str(runtime.get("language", "python"))
+    entrypoint = str(manifest.get("entrypoint", "run.py"))
+    runtime_path = str(runtime.get("path", "")).strip()
+    run_command = runtime.get("run_command")
+
+    if runtime_type == "daemon" and isinstance(run_command, str) and run_command.strip():
+        command = shlex.split(run_command.strip())
+        command.append(input_text)
+        return command, runtime_type
+
+    if runtime_language == "nodejs":
+        executable = runtime_path or "node"
+    else:
+        executable = runtime_path or "python3"
+
+    command = [executable, entrypoint, input_text]
+    return command, runtime_type
+
+
+def _execute_test_case(agent_dir: Path, manifest: dict[str, Any], test_case: DeclarativeTestCase) -> TestCaseExecutionResult:
+    command, runtime_type = _build_runtime_command(agent_dir, manifest, test_case.input_text)
+    if not command:
+        return TestCaseExecutionResult(
+            test_id=test_case.test_id,
+            name=test_case.name,
+            passed=False,
+            runtime_type="unknown",
+            actual_exit_code=1,
+            expected_exit_code=test_case.expected_exit_code,
+            assertions_passed=0,
+            assertions_total=len(test_case.assertions),
+            timed_out=False,
+            duration_ms=0,
+            failure_reason="runtime_command_unresolved",
+        )
+
+    started_at = time.time()
+    timed_out = False
+    try:
+        result = subprocess.run(
+            command,
+            cwd=str(agent_dir),
+            capture_output=True,
+            text=True,
+            timeout=test_case.timeout_seconds,
+        )
+        actual_exit_code = int(result.returncode)
+        stdout_text = result.stdout
+        stderr_text = result.stderr
+    except subprocess.TimeoutExpired as exc:
+        timed_out = True
+        actual_exit_code = 124
+        stdout_text = exc.stdout or ""
+        stderr_text = exc.stderr or ""
+
+    assertion_passes = 0
+    for assertion in test_case.assertions:
+        target_text = stdout_text if assertion.target_stream == "stdout" else stderr_text
+        if _assertion_matches(assertion, target_text):
+            assertion_passes += 1
+
+    exit_code_match = actual_exit_code == test_case.expected_exit_code
+    assertions_match = assertion_passes == len(test_case.assertions)
+    passed = (not timed_out) and exit_code_match and assertions_match
+
+    failure_reasons: list[str] = []
+    if timed_out:
+        failure_reasons.append("timeout")
+    if not exit_code_match:
+        failure_reasons.append("exit_code_mismatch")
+    if not assertions_match:
+        failure_reasons.append("assertions_failed")
+
+    duration_ms = int((time.time() - started_at) * 1000)
+    return TestCaseExecutionResult(
+        test_id=test_case.test_id,
+        name=test_case.name,
+        passed=passed,
+        runtime_type=runtime_type,
+        actual_exit_code=actual_exit_code,
+        expected_exit_code=test_case.expected_exit_code,
+        assertions_passed=assertion_passes,
+        assertions_total=len(test_case.assertions),
+        timed_out=timed_out,
+        duration_ms=duration_ms,
+        failure_reason=",".join(failure_reasons),
+    )
+
+
+def _assertion_matches(assertion: DeclarativeAssertion, output_text: str) -> bool:
+    if assertion.assertion_type == "contains":
+        return assertion.expected_value in output_text
+    if assertion.assertion_type == "equals":
+        return output_text.strip() == assertion.expected_value.strip()
+    if assertion.assertion_type == "regex":
+        return re.search(assertion.expected_value, output_text, flags=re.MULTILINE) is not None
+    return False

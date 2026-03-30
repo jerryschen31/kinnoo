@@ -8,6 +8,7 @@ import signal
 import json
 import zipfile
 import shutil
+from pathlib import Path
 
 def test_cli_installable_and_runnable():
     # This test checks that the CLI is installable and runnable via pyproject.toml
@@ -399,6 +400,134 @@ def test_feature69_standardized_tests_file_parser(tmp_path):
     assert inline_payload["valid"] is True
     assert inline_payload["total"] == 1
     assert inline_payload["source"].endswith("kinnoo.yaml")
+
+
+def test_feature69_execution_engine_and_docs_examples(tmp_path):
+    one_shot_dir = tmp_path / "feature69-oneshot"
+    one_shot_dir.mkdir()
+    (one_shot_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: feature69-oneshot",
+                "version: 1.0.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.10\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (one_shot_dir / "run.py").write_text(
+        "import sys\n"
+        "print(f'oneshot:{sys.argv[1]}')\n",
+        encoding="utf-8",
+    )
+    (one_shot_dir / "kinnoo.tests.yaml").write_text(
+        "\n".join(
+            [
+                "version: 1",
+                "tests:",
+                "  - id: oneshot-1",
+                "    name: one-shot pass",
+                "    input: ping",
+                "    assertions:",
+                "      - contains: oneshot:ping",
+                "    timeout_seconds: 5",
+                "    expected_exit_code: 0",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    one_shot_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "test", str(one_shot_dir), "--json"],
+        capture_output=True,
+        text=True,
+    )
+    assert one_shot_result.returncode == 0
+    one_shot_payload = json.loads(one_shot_result.stdout)
+    assert one_shot_payload["passed"] == 1
+    assert one_shot_payload["total"] == 1
+    assert one_shot_payload["results"][0]["runtime_type"] == "one-shot"
+    assert one_shot_payload["results"][0]["status"] == "passed"
+
+    daemon_dir = tmp_path / "feature69-daemon"
+    daemon_dir.mkdir()
+    (daemon_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: feature69-daemon",
+                "version: 1.0.0",
+                "entrypoint: daemon.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.10\"",
+                "  type: daemon",
+                "  run_command: \"python3 daemon.py\"",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (daemon_dir / "daemon.py").write_text(
+        "import sys\n"
+        "print(f'daemon:{sys.argv[1]}')\n",
+        encoding="utf-8",
+    )
+    (daemon_dir / "kinnoo.tests.yaml").write_text(
+        "\n".join(
+            [
+                "version: 1",
+                "tests:",
+                "  - id: daemon-1",
+                "    name: daemon pass",
+                "    input: pong",
+                "    assertions:",
+                "      - contains: daemon:pong",
+                "    timeout_seconds: 5",
+                "    expected_exit_code: 0",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    daemon_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "test", str(daemon_dir), "--json"],
+        capture_output=True,
+        text=True,
+    )
+    assert daemon_result.returncode == 0
+    daemon_payload = json.loads(daemon_result.stdout)
+    assert daemon_payload["passed"] == 1
+    assert daemon_payload["total"] == 1
+    assert daemon_payload["results"][0]["runtime_type"] == "daemon"
+    assert daemon_payload["results"][0]["status"] == "passed"
+
+    repo_root = Path(__file__).resolve().parents[1]
+    readme_text = (repo_root / "README.md").read_text(encoding="utf-8")
+    schema_text = (repo_root / "docs" / "manifest-schema-reference.md").read_text(encoding="utf-8")
+    combined_docs = f"{readme_text}\n{schema_text}"
+
+    assert "Feature69 kinnoo test command" in combined_docs
+    assert "kinnoo.tests.yaml" in combined_docs
+    assert "kinnoo test ./my-agent" in combined_docs
+    assert "type: one-shot" in combined_docs
+    assert "type: daemon" in combined_docs
 
 
 def test_publish_toggle_true_prefers_authenticated_remote(monkeypatch, tmp_path):

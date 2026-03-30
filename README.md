@@ -316,6 +316,53 @@ Troubleshooting common CI failures:
 - Signing failures (if your pipeline enables signing): verify the private signing key path is available to the runner and referenced by your signing step.
 - Publish failures: verify token scope and tenant mapping, then retry with explicit remote mode (`kinnoo publish --remote`) for deterministic behavior.
 
+## Feature69 kinnoo test command
+
+Kinnoo includes a standardized declarative test runner for agent projects.
+
+Canonical test file:
+
+- `kinnoo.tests.yaml`
+
+CLI usage:
+
+- `kinnoo test ./my-agent`
+- `kinnoo test ./my-agent --json`
+- `kinnoo test ./my-agent --validate-only`
+
+Minimal Python one-shot example:
+
+```yaml
+version: 1
+tests:
+	- id: smoke-oneshot
+		name: one-shot response smoke test
+		input: hello
+		assertions:
+			- contains: hello
+		timeout_seconds: 5
+		expected_exit_code: 0
+```
+
+JS/TS daemon-compatible example:
+
+```yaml
+version: 1
+tests:
+	- id: smoke-daemon
+		name: daemon-compatible response smoke test
+		input: ping
+		assertions:
+			- contains: pong
+		timeout_seconds: 10
+		expected_exit_code: 0
+```
+
+Notes:
+
+- one-shot and daemon-compatible runtimes use the same assertion contract, so CI summaries stay consistent.
+- prefer deterministic output assertions (`contains`, `equals`, `regex`) over broad semantic checks.
+
 ## Registry Login and Logout
 
 `kinnoo login` and `kinnoo logout` manage local registry auth state for CLI registry workflows.
