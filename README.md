@@ -259,6 +259,34 @@ Behavior:
 	- `KINNOO_TENANT_SLUG` (or `global` if unset)
 - `false`: publish keeps current behavior (local/scratch default unless `--remote` or registry URL config is already forcing remote).
 
+## Registry Login and Logout
+
+`kinnoo login` and `kinnoo logout` manage local registry auth state for CLI registry workflows.
+
+Usage:
+
+- Interactive login:
+	- `kinnoo login --registry https://registry.example.com --tenant acme`
+- Non-interactive login:
+	- `kinnoo login --registry https://registry.example.com --tenant acme --email user@example.com --password '<password>'`
+- Logout:
+	- `kinnoo logout`
+
+Persistence and precedence:
+
+- Successful login persists `registry_url`, `registry_token`, and `tenant_slug` in `~/.kinnoo/config.yaml`.
+- `kinnoo logout` clears persisted auth keys from `~/.kinnoo/config.yaml`.
+- Environment variables remain highest precedence over file config:
+	- `KINNOO_REGISTRY_URL`
+	- `KINNOO_REGISTRY_TOKEN`
+	- `KINNOO_TENANT_SLUG`
+- After logout, registry operations requiring auth fail unless explicit env-var overrides are provided.
+
+Security notes:
+
+- Kinnoo never prints tokens or passwords in CLI output.
+- Prefer environment variables for CI/non-interactive auth flows.
+
 Notes:
 
 - `kinnoo publish --local` and `kinnoo publish --remote` still take precedence when explicitly provided.
