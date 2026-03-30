@@ -6860,7 +6860,7 @@ tasks:
       - 'step4: Add regression tests for provenance labels and repeated ingestion outcomes'
     dependencies: [task336]
     tests: [test496]
-    status: not-started
+    status: needs-review
 
   - id: task338
     title: "Feature64 kinnoo import source clawhub command path"

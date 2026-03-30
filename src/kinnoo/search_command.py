@@ -46,8 +46,13 @@ def search_agents(query: str, source: str = "local") -> int:
             service = RegistryService(backend=backend)
 
         results = service.search_agents(query=query_text)
+        mirror_results = [
+            record
+            for record in service.list_clawhub_mirror_records()
+            if _mirror_record_matches_query(record, query_normalized)
+        ]
 
-        if not results:
+        if not results and not mirror_results:
             print(f"No remote registry matches found for query: {query_text}")
             return 0
 
@@ -57,6 +62,31 @@ def search_agents(query: str, source: str = "local") -> int:
             name = _summary_text(summary=summary, field="name", default="(unknown)")
             latest_version = _summary_text(summary=summary, field="latest_version", default="(unknown)")
             print(f"- {name} | latest: {latest_version} | description: {description}")
+
+        for record in mirror_results:
+            metadata_value = _mirror_value(record=record, field="metadata")
+            description = "(no description)"
+            if isinstance(metadata_value, dict):
+                description = str(metadata_value.get("description") or "(no description)")
+
+            source_slug = str(
+                _mirror_value(record=record, field="source_slug")
+                or _mirror_value(record=record, field="agent_slug")
+                or "(unknown)"
+            )
+            source_version = str(
+                _mirror_value(record=record, field="source_version")
+                or _mirror_value(record=record, field="version")
+                or "(unknown)"
+            )
+            synced_at = str(_mirror_value(record=record, field="synced_at") or "(unknown)")
+            mirror_name = str(_mirror_value(record=record, field="name") or "(unknown)")
+            print(
+                "- "
+                f"{mirror_name} | latest: {source_version} | "
+                f"description: {description} | source: clawhub (mirrored) | "
+                f"slug: {source_slug} | synced_at: {synced_at}"
+            )
 
         return 0
 
@@ -97,3 +127,21 @@ def _summary_value(*, summary: object, field: str) -> object | None:
     if isinstance(summary, dict):
         return summary.get(field)
     return getattr(summary, field, None)
+
+
+def _mirror_record_matches_query(record: object, query_normalized: str) -> bool:
+    haystack = [
+        str(_mirror_value(record=record, field="name") or "").lower(),
+        str(_mirror_value(record=record, field="agent_slug") or "").lower(),
+        str(_mirror_value(record=record, field="source_slug") or "").lower(),
+        str(_mirror_value(record=record, field="source_version") or "").lower(),
+        str(_mirror_value(record=record, field="source_url") or "").lower(),
+        "clawhub",
+    ]
+    return any(query_normalized in value for value in haystack)
+
+
+def _mirror_value(*, record: object, field: str) -> object | None:
+    if isinstance(record, dict):
+        return record.get(field)
+    return getattr(record, field, None)
