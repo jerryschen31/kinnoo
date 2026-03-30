@@ -1,6 +1,7 @@
 import subprocess
 import sys
 import os
+import re
 import signal
 import time
 from pathlib import Path
@@ -903,3 +904,69 @@ def test_feature75_adapter_inference_and_fallback(tmp_path):
     fallback_output = f"{fallback_result.stdout}\n{fallback_result.stderr}"
     assert fallback_result.returncode == 0, fallback_output
     assert "falling back to generic analyzer output" in fallback_output
+
+
+def test_feature75_adapter_confidence_tuning_and_guidance(tmp_path):
+    project_dir = tmp_path / "feature75-confidence"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "run.py").write_text(
+        "from langchain.agents import AgentExecutor\n"
+        "print(AgentExecutor)\n",
+        encoding="utf-8",
+    )
+
+    generic_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(project_dir), "--force"],
+        input="y\n\n\n",
+        capture_output=True,
+        text=True,
+    )
+    generic_output = f"{generic_result.stdout}\n{generic_result.stderr}"
+    assert generic_result.returncode == 0, generic_output
+
+    adapter_result = subprocess.run(
+        [
+            sys.executable,
+            str(CLI_PATH),
+            "import",
+            str(project_dir),
+            "--force",
+            "--from",
+            "langchain",
+        ],
+        input="y\n\n\n",
+        capture_output=True,
+        text=True,
+    )
+    adapter_output = f"{adapter_result.stdout}\n{adapter_result.stderr}"
+    assert adapter_result.returncode == 0, adapter_output
+    assert "Applied langchain adapter" in adapter_output
+    assert "Adapter guidance:" in adapter_output
+
+    generic_score_match = re.search(r"Framework confidence metadata:\n\s*- score: ([0-9.]+)", generic_output)
+    adapter_score_match = re.search(r"Framework confidence metadata:\n\s*- score: ([0-9.]+)", adapter_output)
+    assert generic_score_match is not None
+    assert adapter_score_match is not None
+    assert float(adapter_score_match.group(1)) >= float(generic_score_match.group(1))
+
+    fallback_project = tmp_path / "feature75-threshold-fallback"
+    fallback_project.mkdir(parents=True, exist_ok=True)
+    (fallback_project / "run.py").write_text("print('no markers')\n", encoding="utf-8")
+
+    fallback_result = subprocess.run(
+        [
+            sys.executable,
+            str(CLI_PATH),
+            "import",
+            str(fallback_project),
+            "--from",
+            "openai",
+        ],
+        input="y\n\n\n",
+        capture_output=True,
+        text=True,
+    )
+    fallback_output = f"{fallback_result.stdout}\n{fallback_result.stderr}"
+    assert fallback_result.returncode == 0, fallback_output
+    assert "coverage is insufficient" in fallback_output
+    assert "required>=0.60" in fallback_output

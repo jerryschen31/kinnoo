@@ -17,12 +17,16 @@ try:
         analyze_project,
         infer_openclaw_project_hints,
         build_clawhub_import_report_template,
+        adapter_default_unresolved_guidance,
+        adapter_minimum_coverage,
     )
 except ImportError:
     from .analyzer import (
         analyze_project,
         infer_openclaw_project_hints,
         build_clawhub_import_report_template,
+        adapter_default_unresolved_guidance,
+        adapter_minimum_coverage,
     )
 
 try:
@@ -688,6 +692,14 @@ def _collect_unresolved_todo_guidance(
     if entrypoint_warning:
         guidance.append(entrypoint_warning)
 
+    adapter_meta = report.get("adapter")
+    if isinstance(adapter_meta, dict):
+        unresolved = adapter_meta.get("unresolved_guidance")
+        if isinstance(unresolved, list):
+            for item in unresolved:
+                if isinstance(item, str) and item.strip():
+                    guidance.append(item.strip())
+
     # Preserve deterministic order while removing duplicates.
     return list(dict.fromkeys(guidance))
 
@@ -704,11 +716,29 @@ def _apply_framework_adapter(
     }
     adapter = adapter_map[framework_from]
     adapter_result = adapter(target_path, report)
-    if not adapter_result.detected or adapter_result.coverage_score < 0.6:
+    minimum_coverage = adapter_minimum_coverage(framework_from)
+    if not adapter_result.detected or adapter_result.coverage_score < minimum_coverage:
         fallback_message = (
-            f"[kinnoo import] {framework_from} adapter coverage is insufficient; falling back to generic analyzer output."
+            f"[kinnoo import] {framework_from} adapter coverage is insufficient "
+            f"(score={adapter_result.coverage_score:.2f}, required>={minimum_coverage:.2f}); "
+            "falling back to generic analyzer output."
         )
         return report, [], fallback_message
+
+    combined_guidance = adapter_default_unresolved_guidance(framework_from)
+    for item in adapter_result.unresolved_guidance:
+        if item not in combined_guidance:
+            combined_guidance.append(item)
+
+    adapter_result = type(adapter_result)(
+        framework=adapter_result.framework,
+        detected=adapter_result.detected,
+        coverage_score=adapter_result.coverage_score,
+        inferred_overrides=adapter_result.inferred_overrides,
+        confidence_overrides=adapter_result.confidence_overrides,
+        warnings=adapter_result.warnings,
+        unresolved_guidance=combined_guidance,
+    )
 
     merged_report = merge_adapter_into_report(
         base_report=report,
