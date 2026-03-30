@@ -250,6 +250,11 @@ def main():
         help="Show predicted runtime behavior without executing full entrypoint side effects",
     )
     run_parser.add_argument(
+        "--experimental-openclaw-adapter",
+        action="store_true",
+        help="Enable experimental OpenClaw run adapter for openclaw-skill manifests",
+    )
+    run_parser.add_argument(
         "--max-seconds",
         type=float,
         help=(
@@ -705,6 +710,7 @@ def main():
             pass_through_args=pass_through_args,
             sandbox=bool(getattr(args, "sandbox", False)),
             dry_run=bool(getattr(args, "dry_run", False)),
+            experimental_openclaw_adapter=bool(getattr(args, "experimental_openclaw_adapter", False)),
             max_seconds=getattr(args, "max_seconds", None),
             max_cpu_seconds=getattr(args, "max_cpu_seconds", None),
             max_memory_mb=getattr(args, "max_memory_mb", None),
