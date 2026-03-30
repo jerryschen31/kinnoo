@@ -654,6 +654,7 @@ def install_agent(
     ignore_scripts: bool = False,
     accept_permissions: bool = False,
     allow_unverified_publisher: bool = False,
+    strict_mode: bool = False,
     expected_publisher_public_key: str | None = None,
     use_local: bool = False,
     use_remote: bool = False,
@@ -793,6 +794,7 @@ def install_agent(
                 ignore_scripts=ignore_scripts,
                 accept_permissions=accept_permissions,
                 allow_unverified_publisher=allow_unverified_publisher,
+                strict_mode=strict_mode,
                 expected_publisher_public_key=expected_publisher_key,
                 minimum_openclaw_version=minimum_openclaw_version,
             )
@@ -811,6 +813,7 @@ def install_agent(
         ignore_scripts=ignore_scripts,
         accept_permissions=accept_permissions,
         allow_unverified_publisher=allow_unverified_publisher,
+        strict_mode=strict_mode,
         expected_publisher_public_key=expected_publisher_public_key,
         minimum_openclaw_version=minimum_openclaw_version,
     )
@@ -826,6 +829,7 @@ def _install_from_archive_path(
     ignore_scripts: bool = False,
     accept_permissions: bool = False,
     allow_unverified_publisher: bool = False,
+    strict_mode: bool = False,
     expected_publisher_public_key: str | None = None,
     minimum_openclaw_version: str = DEFAULT_OPENCLAW_MINIMUM_VERSION,
 ) -> int:
@@ -835,6 +839,13 @@ def _install_from_archive_path(
         return 1
     if not str(archive).endswith(".kno"):
         print(f"Error: Archive '{archive}' is not a .kno file.", file=sys.stderr)
+        return 1
+
+    if strict_mode and allow_unverified_publisher:
+        print(
+            "Error: --allow-unverified-publisher cannot be used with --strict.",
+            file=sys.stderr,
+        )
         return 1
 
     checksum_path = checksum_sidecar_path_for_archive(archive)
@@ -864,6 +875,13 @@ def _install_from_archive_path(
         print("[kinnoo install] Archive checksum verified.")
 
     source_is_unverified = not checksum_path.exists()
+    if strict_mode and source_is_unverified:
+        print(
+            "Error: Strict mode requires archive integrity verification; checksum sidecar is missing.",
+            file=sys.stderr,
+        )
+        return 1
+
     if source_is_unverified:
         print("No checksum file found — archive integrity not verified", file=sys.stderr)
         warning_message = "This agent is from an unverified source."
@@ -883,6 +901,18 @@ def _install_from_archive_path(
     signature_path = Path(f"{archive}.sig")
     signature_metadata_path = Path(f"{archive}.sig.json")
     has_signature_artifacts = signature_path.exists() or signature_metadata_path.exists()
+
+    if strict_mode and not (signature_path.exists() and signature_metadata_path.exists()):
+        print(
+            "Error: Strict mode requires valid signature metadata; unsigned artifacts are not allowed.",
+            file=sys.stderr,
+        )
+        print(
+            "Error: Re-pack with --sign and retry install in strict mode.",
+            file=sys.stderr,
+        )
+        return 1
+
     if has_signature_artifacts:
         if not signature_path.exists() or not signature_metadata_path.exists():
             print(
@@ -907,6 +937,11 @@ def _install_from_archive_path(
                 f"Error: Signature verification failed: {error}",
                 file=sys.stderr,
             )
+            if strict_mode:
+                print(
+                    "Error: Strict mode requires valid signature metadata; unsigned artifacts are not allowed.",
+                    file=sys.stderr,
+                )
             print(
                 "Error: Archive authenticity could not be verified. Re-download from a trusted publisher or re-pack with a valid signing key.",
                 file=sys.stderr,
