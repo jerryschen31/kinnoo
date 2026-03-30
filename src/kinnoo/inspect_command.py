@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import json
 import sys
 import zipfile
 from copy import deepcopy
@@ -501,6 +502,22 @@ def _print_inspect_output(
         else:
             print("- Env Vars: (none)")
 
+    provenance = normalized.get("provenance")
+    if isinstance(provenance, dict):
+        print("- Provenance:")
+        source_registry = provenance.get("source_registry")
+        source_version = provenance.get("source_version")
+        source_slug = provenance.get("source_slug")
+        source_url = provenance.get("source_url")
+        if isinstance(source_registry, str) and source_registry.strip():
+            print(f"  - source_registry: {source_registry}")
+        if isinstance(source_version, str) and source_version.strip():
+            print(f"  - source_version: {source_version}")
+        if isinstance(source_slug, str) and source_slug.strip():
+            print(f"  - source_slug: {source_slug}")
+        if isinstance(source_url, str) and source_url.strip():
+            print(f"  - source_url: {source_url}")
+
     _print_services_metadata(normalized)
 
     _print_asset_metadata(normalized, asset_file_sizes or {})
@@ -565,6 +582,10 @@ def _inspect_directory_target(directory_path: Path, *, full: bool, raw: bool) ->
         raw=raw,
     )
 
+    import_report = _load_import_report(directory_path)
+    if import_report is not None:
+        _print_import_report_hints(import_report)
+
     if raw:
         return 0
 
@@ -580,6 +601,41 @@ def _inspect_directory_target(directory_path: Path, *, full: bool, raw: bool) ->
     print("(heuristic scan — may produce false positives; not a substitute for code review)")
 
     return 0
+
+
+def _load_import_report(directory_path: Path) -> dict[str, Any] | None:
+    report_path = directory_path / "kinnoo-import-report.json"
+    if not report_path.exists() or not report_path.is_file():
+        return None
+
+    try:
+        payload = json.loads(report_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    return payload
+
+
+def _print_import_report_hints(import_report: dict[str, Any]) -> None:
+    requirements = import_report.get("requirements")
+    unresolved = import_report.get("unresolved")
+
+    if isinstance(requirements, dict):
+        print("- Imported Requirement Hints:")
+        for section in ("env", "config", "bin"):
+            values = requirements.get(section)
+            if isinstance(values, list) and values:
+                rendered = ", ".join(str(item) for item in values)
+                print(f"  - {section}: {rendered}")
+            else:
+                print(f"  - {section}: (none)")
+
+    if isinstance(unresolved, list) and unresolved:
+        print("- Unresolved Guidance:")
+        for item in unresolved:
+            if isinstance(item, str) and item.strip():
+                print(f"  - {item}")
 
 
 def inspect_target(target_arg: str, *, full: bool = False, raw: bool = False) -> int:

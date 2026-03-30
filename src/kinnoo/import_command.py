@@ -763,11 +763,83 @@ def _write_clawhub_import_report(
     destination: Path,
     slug: str,
     mirror_record: dict[str, Any],
+    requirement_hints: dict[str, list[str]],
+    unresolved_guidance: list[str],
 ) -> None:
     report_path = destination / "kinnoo-import-report.json"
     report = build_clawhub_import_report_template(slug=slug, mirror_record=mirror_record)
     report["resolved_at"] = datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    report["requirements"] = requirement_hints
+    report["unresolved"] = unresolved_guidance
     report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _normalize_hint_values(raw_value: Any) -> list[str]:
+    if raw_value is None:
+        return []
+    if isinstance(raw_value, str):
+        values = [raw_value]
+    elif isinstance(raw_value, list):
+        values = [item for item in raw_value if isinstance(item, str)]
+    else:
+        return []
+
+    normalized: list[str] = []
+    for value in values:
+        text = value.strip()
+        if text and text not in normalized:
+            normalized.append(text)
+    return sorted(normalized)
+
+
+def _collect_clawhub_requirement_hints(metadata: dict[str, Any] | None) -> dict[str, list[str]]:
+    payload = metadata or {}
+    requirements = payload.get("requirements") if isinstance(payload.get("requirements"), dict) else {}
+
+    env_hints = _normalize_hint_values(
+        payload.get("env_hints") or payload.get("env_vars") or requirements.get("env")
+    )
+    config_hints = _normalize_hint_values(
+        payload.get("config_hints") or payload.get("config_files") or requirements.get("config")
+    )
+    bin_hints = _normalize_hint_values(
+        payload.get("bin_hints") or payload.get("binaries") or requirements.get("bin")
+    )
+
+    return {
+        "env": env_hints,
+        "config": config_hints,
+        "bin": bin_hints,
+    }
+
+
+def _collect_clawhub_unresolved_guidance(requirement_hints: dict[str, list[str]]) -> list[str]:
+    guidance: list[str] = []
+    if requirement_hints.get("env"):
+        guidance.append("Set required environment variables before running this imported skill.")
+    if requirement_hints.get("config"):
+        guidance.append("Create/update required config files before running this imported skill.")
+    if requirement_hints.get("bin"):
+        guidance.append("Install required binaries and verify they are available on PATH.")
+    guidance.append("Verify entrypoint path and runtime prerequisites before install/run.")
+    return guidance
+
+
+def _print_clawhub_requirements_and_guidance(
+    requirement_hints: dict[str, list[str]],
+    unresolved_guidance: list[str],
+) -> None:
+    print(style_text("Requirement hints:", color="cyan", bold=True))
+    for section in ("env", "config", "bin"):
+        values = requirement_hints.get(section) or []
+        if values:
+            print(f"  - {section}: {', '.join(values)}")
+        else:
+            print(f"  - {section}: (none)")
+
+    print(style_text("Unresolved guidance:", color="yellow", bold=True))
+    for item in unresolved_guidance:
+        print(f"  - {item}")
 
 
 def _import_from_clawhub_source(
@@ -823,6 +895,8 @@ def _import_from_clawhub_source(
     destination.mkdir(parents=True, exist_ok=True)
     source_version = mirror_record.source_version or mirror_record.version
     source_url = mirror_record.source_url
+    requirement_hints = _collect_clawhub_requirement_hints(mirror_record.metadata)
+    unresolved_guidance = _collect_clawhub_unresolved_guidance(requirement_hints)
 
     manifest_text = _build_clawhub_manifest_text(
         slug=slug,
@@ -847,7 +921,10 @@ def _import_from_clawhub_source(
                 "source_version": mirror_record.source_version,
                 "source_url": mirror_record.source_url,
                 "synced_at": mirror_record.synced_at,
+                "metadata": mirror_record.metadata or {},
             },
+            requirement_hints=requirement_hints,
+            unresolved_guidance=unresolved_guidance,
         )
     except Exception as error:
         if manifest_path.exists():
@@ -855,6 +932,10 @@ def _import_from_clawhub_source(
         print(style_text(f"Error: import failed and rolled back partial artifacts: {error}", color="red"))
         return 1
 
+    _print_clawhub_requirements_and_guidance(
+        requirement_hints=requirement_hints,
+        unresolved_guidance=unresolved_guidance,
+    )
     print(style_text(f"Imported ClawHub skill in-place: {destination}", color="green", bold=True))
     return 0
 

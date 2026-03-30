@@ -56,6 +56,7 @@ class ClawHubMirrorRecord:
     source_version: str
     source_url: str | None = None
     synced_at: str | None = None
+    metadata: dict[str, Any] | None = None
 
 
 class RegistryService:
@@ -180,6 +181,7 @@ class RegistryService:
                     if isinstance(record.get("synced_at"), str) and str(record.get("synced_at")).strip()
                     else None
                 ),
+                metadata=record.get("metadata") if isinstance(record.get("metadata"), dict) else None,
             )
 
         raise RuntimeError("Unsupported ClawHub mirror record payload returned by backend.")
@@ -217,6 +219,11 @@ class RegistryService:
                         and str(raw_record.get("synced_at")).strip()
                         else None
                     ),
+                    metadata=(
+                        raw_record.get("metadata")
+                        if isinstance(raw_record.get("metadata"), dict)
+                        else None
+                    ),
                 )
             )
 
@@ -252,6 +259,7 @@ class RegistryService:
                 if isinstance(payload.get("synced_at"), str) and str(payload.get("synced_at")).strip()
                 else None
             ),
+            metadata=payload.get("metadata") if isinstance(payload.get("metadata"), dict) else None,
         )
 
 

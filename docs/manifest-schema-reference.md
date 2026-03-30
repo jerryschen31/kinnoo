@@ -199,6 +199,34 @@ Migration guidance:
 - Remove `channels`, `skills`, and `state_dirs` from manifests.
 - For local projects without external source lineage, omit `provenance`.
 
+### Feature64 ClawHub import guidance (`kinnoo import --source clawhub`)
+
+When importing mirrored skills from ClawHub:
+
+- command shape:
+  - `kinnoo import --source clawhub <owner>/<slug> [destination]`
+- generated manifests use:
+  - `type: openclaw-skill`
+  - `framework: openclaw`
+  - `provenance.source_registry: clawhub`
+  - `provenance.source_version`
+  - `provenance.source_slug` (and `source_url` when available)
+
+Import report artifact:
+
+- file: `kinnoo-import-report.json`
+- requirement hints are grouped in deterministic sections:
+  - `requirements.env`
+  - `requirements.config`
+  - `requirements.bin`
+- unresolved next steps are listed in deterministic order under:
+  - `unresolved`
+
+Deterministic missing-slug behavior:
+
+- if mirror metadata for `<owner>/<slug>` is missing, import fails with actionable guidance to run:
+  - `kinnoo sync clawhub`
+
 ### Feature35 mutable state snapshots (`state_dirs`)
 
 Feature35 defines `state_dirs` as mutable runtime state snapshot roots. This behavior is intentionally distinct from immutable `assets`.
