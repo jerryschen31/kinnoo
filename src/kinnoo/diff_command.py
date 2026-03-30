@@ -103,7 +103,7 @@ def _file_change_sets(
     return added, removed, modified
 
 
-def diff_archives(archive_a_path: str, archive_b_path: str) -> int:
+def diff_archives(archive_a_path: str, archive_b_path: str, *, json_output: bool = False) -> int:
     archive_a = Path(archive_a_path)
     archive_b = Path(archive_b_path)
 
@@ -133,24 +133,43 @@ def diff_archives(archive_a_path: str, archive_b_path: str) -> int:
     manifest_lines = _manifest_change_lines(manifest_a, manifest_b)
     added_files, removed_files, modified_files = _file_change_sets(files_a, files_b)
 
-    print(f"[kinnoo diff] Comparing '{archive_a.name}' -> '{archive_b.name}'")
-
-    if manifest_lines:
-        print("Manifest changes:")
-        for line in manifest_lines:
-            print(f"- {line}")
-
     has_file_changes = bool(added_files or removed_files or modified_files)
-    if has_file_changes:
-        print("File changes:")
-        added_label = ", ".join(added_files) if added_files else "(none)"
-        removed_label = ", ".join(removed_files) if removed_files else "(none)"
-        modified_label = ", ".join(modified_files) if modified_files else "(none)"
-        print(f"- added: {added_label}")
-        print(f"- removed: {removed_label}")
-        print(f"- modified: {modified_label}")
+    changes_detected = bool(manifest_lines or has_file_changes)
 
-    if not manifest_lines and not has_file_changes:
-        print("[kinnoo diff] No differences detected.")
+    if json_output:
+        payload = {
+            "schema_version": "1.0",
+            "archive_a": str(archive_a),
+            "archive_b": str(archive_b),
+            "changes_detected": changes_detected,
+            "manifest_changes": manifest_lines,
+            "file_changes": {
+                "added": added_files,
+                "removed": removed_files,
+                "modified": modified_files,
+            },
+        }
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        print(f"[kinnoo diff] Comparing '{archive_a.name}' -> '{archive_b.name}'")
 
+        if manifest_lines:
+            print("Manifest changes:")
+            for line in manifest_lines:
+                print(f"- {line}")
+
+        if has_file_changes:
+            print("File changes:")
+            added_label = ", ".join(added_files) if added_files else "(none)"
+            removed_label = ", ".join(removed_files) if removed_files else "(none)"
+            modified_label = ", ".join(modified_files) if modified_files else "(none)"
+            print(f"- added: {added_label}")
+            print(f"- removed: {removed_label}")
+            print(f"- modified: {modified_label}")
+
+        if not changes_detected:
+            print("[kinnoo diff] No differences detected.")
+
+    if changes_detected:
+        return 2
     return 0

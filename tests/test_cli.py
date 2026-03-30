@@ -4388,7 +4388,7 @@ def test_feature73_diff_manifest_and_files(tmp_path):
     )
     output = f"{result.stdout}\n{result.stderr}"
 
-    assert result.returncode == 0, output
+    assert result.returncode == 2, output
     assert "Manifest changes:" in output
     assert "dependencies: added=['httpx'] removed=[]" in output
     assert "env_vars: added=['DEBUG'] removed=[]" in output
@@ -4397,3 +4397,109 @@ def test_feature73_diff_manifest_and_files(tmp_path):
     assert "- added: added.txt" in output
     assert "- removed: removed.txt" in output
     assert "- modified: kinnoo.yaml, run.py" in output
+
+
+def test_feature73_diff_json_and_exit_codes(tmp_path):
+    identical_a = tmp_path / "feature73-identical-a.kno"
+    identical_b = tmp_path / "feature73-identical-b.kno"
+    different_b = tmp_path / "feature73-different-b.kno"
+
+    identical_manifest = (
+        "name: feature73-json-agent\n"
+        "version: 1.0.0\n"
+        "entrypoint: run.py\n"
+        "runtime:\n"
+        "  language: python\n"
+        "  version: \">=3.10\"\n"
+        "  type: one-shot\n"
+        "dependencies: []\n"
+        "inputs:\n"
+        "  type: text\n"
+        "outputs:\n"
+        "  type: text\n"
+    )
+
+    different_manifest = (
+        "name: feature73-json-agent\n"
+        "version: 1.1.0\n"
+        "entrypoint: run.py\n"
+        "runtime:\n"
+        "  language: python\n"
+        "  version: \">=3.10\"\n"
+        "  type: one-shot\n"
+        "dependencies:\n"
+        "  - requests\n"
+        "inputs:\n"
+        "  type: text\n"
+        "outputs:\n"
+        "  type: text\n"
+    )
+
+    with zipfile.ZipFile(identical_a, "w") as archive:
+        archive.writestr("kinnoo.yaml", identical_manifest)
+        archive.writestr("run.py", "print('same')\n")
+
+    with zipfile.ZipFile(identical_b, "w") as archive:
+        archive.writestr("kinnoo.yaml", identical_manifest)
+        archive.writestr("run.py", "print('same')\n")
+
+    with zipfile.ZipFile(different_b, "w") as archive:
+        archive.writestr("kinnoo.yaml", different_manifest)
+        archive.writestr("run.py", "print('different')\n")
+
+    identical_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "diff",
+            str(identical_a),
+            str(identical_b),
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert identical_result.returncode == 0, identical_result.stderr
+    identical_payload = json.loads(identical_result.stdout)
+    assert identical_payload["schema_version"] == "1.0"
+    assert identical_payload["changes_detected"] is False
+    assert identical_payload["manifest_changes"] == []
+    assert identical_payload["file_changes"] == {
+        "added": [],
+        "removed": [],
+        "modified": [],
+    }
+
+    different_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "diff",
+            str(identical_a),
+            str(different_b),
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert different_result.returncode == 2, different_result.stderr
+    different_payload = json.loads(different_result.stdout)
+    assert different_payload["schema_version"] == "1.0"
+    assert different_payload["changes_detected"] is True
+    assert isinstance(different_payload["manifest_changes"], list)
+    assert isinstance(different_payload["file_changes"], dict)
+
+    missing_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "diff",
+            str(identical_a),
+            str(tmp_path / "missing.kno"),
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert missing_result.returncode == 1
+    assert "does not exist or is not a file" in missing_result.stderr

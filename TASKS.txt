@@ -7260,7 +7260,7 @@ tasks:
       - 'step4: Update docs with diff automation examples'
     dependencies: [task356]
     tests: [test516]
-    status: not-started
+    status: needs-review
 
   - id: task358
     title: "Feature74 uninstall command and mandatory confirmation"

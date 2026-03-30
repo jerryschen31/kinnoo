@@ -477,6 +477,11 @@ def main():
     )
     diff_parser.add_argument("archive_a", help="Path to baseline .kno archive")
     diff_parser.add_argument("archive_b", help="Path to candidate .kno archive")
+    diff_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit machine-readable diff payload",
+    )
 
     # Add 'keygen' subcommand
     keygen_parser = subparsers.add_parser(
@@ -961,7 +966,11 @@ def main():
         except ImportError:
             from .diff_command import diff_archives
 
-        exit_code = diff_archives(archive_a, archive_b)
+        exit_code = diff_archives(
+            archive_a,
+            archive_b,
+            json_output=bool(getattr(args, "json", False)),
+        )
         sys.exit(exit_code)
 
     elif args.command == "keygen":
