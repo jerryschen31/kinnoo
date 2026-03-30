@@ -2079,3 +2079,346 @@ features:
     owner: techlead-agent
     dependencies: [feature58, feature59]
     status: completed
+
+  # ======================================================================
+  # Phase 6: OpenClaw Support + Registry Improvements + Competitive Response
+  # ======================================================================
+
+  - id: feature61
+    title: "kinnoo login and logout commands"
+    description: |
+      Add first-class CLI authentication commands for registry workflows so users can
+      login interactively or non-interactively, persist registry credentials locally,
+      and logout safely.
+    tasks: [task332, task333]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo login` supports interactive email/password flow against configured registry endpoint and stores token + tenant slug in local config."
+      - id: AC2
+        description: "`kinnoo login --email --password --registry` supports deterministic non-interactive usage suitable for automation."
+      - id: AC3
+        description: "`kinnoo logout` removes stored registry auth state and subsequent authenticated operations fail with clear guidance until re-login."
+      - id: AC4
+        description: "Publish and registry client paths prefer stored login state while preserving compatibility with explicit env-var overrides."
+    owner: techlead-agent
+    dependencies: []
+    status: not-started
+
+  - id: feature62
+    title: "openclaw-skill manifest schema extension"
+    description: |
+      Extend manifest schema and validation for OpenClaw skill packaging so mirrored and
+      imported ClawHub skills have explicit type and provenance while keeping metadata
+      intentionally minimal.
+    tasks: [task334, task335]
+    acceptance_criteria:
+      - id: AC1
+        description: "Schema supports `type: openclaw-skill` with validation rules for framework/type compatibility."
+      - id: AC2
+        description: "Schema supports a `provenance` object with `source_registry`, `source_version`, and at least one of `source_slug` or `source_url`, with deterministic validation errors on invalid combinations."
+      - id: AC3
+        description: "Manifest metadata remains minimal for now: no `channels`, `skills`, or `state_dirs` fields in schema, and validator rejects these fields with clear guidance."
+      - id: AC4
+        description: "Manifest schema reference docs include OpenClaw examples and migration guidance."
+    notes:
+      - "Schema-minimalism rule: do not add metadata fields unless they provide necessary runtime or trust information."
+      - "`provenance` is required for mirrored/imported artifacts and optional for locally authored projects."
+      - |
+        Canonical manifest example 1: mirrored ClawHub skill
+        ```yaml
+        name: weather-skill
+        version: 1.2.3
+        framework: openclaw
+        type: openclaw-skill
+        runtime:
+          language: nodejs
+          type: daemon
+        entrypoint: index.js
+        provenance:
+          source_registry: clawhub
+          source_slug: weather/weather-skill
+          source_url: https://clawhub.ai/skills/weather/weather-skill
+          source_version: 1.2.3
+        ```
+      - |
+        Canonical manifest example 2: GitHub-origin agent (not skill)
+        ```yaml
+        name: repo-triage-agent
+        version: 0.4.0
+        framework: langgraph
+        type: one-shot
+        runtime:
+          language: python
+          type: one-shot
+        entrypoint: run.py
+        dependencies:
+          - langgraph>=0.2
+          - openai>=1.0
+        provenance:
+          source_registry: github
+          source_url: https://github.com/acme/repo-triage-agent
+          source_version: v0.4.0
+        ```
+      - |
+        Canonical manifest example 3: locally authored OpenClaw project
+        ```yaml
+        name: local-notes-skill
+        version: 0.1.0
+        framework: openclaw
+        type: openclaw-skill
+        runtime:
+          language: nodejs
+          type: daemon
+        entrypoint: src/index.ts
+        # provenance omitted for local authored project
+        ```
+    owner: techlead-agent
+    dependencies: []
+    status: not-started
+
+  - id: feature63
+    title: "ClawHub mirror index with clawhub tenant ownership"
+    description: |
+      Build a ClawHub mirror namespace in registry metadata and store mirrored skills under
+      a centralized admin-controlled tenant slug `clawhub` to make provenance explicit.
+    tasks: [task336, task337]
+    acceptance_criteria:
+      - id: AC1
+        description: "Registry mirror pipeline stores synced skill records under tenant slug `clawhub` with source attribution fields."
+      - id: AC2
+        description: "Tenant slug `clawhub` is admin-controlled/public and does not require an interactive username/password account login path."
+      - id: AC3
+        description: "Search and inspect surfaces clearly label mirrored artifacts as ClawHub-origin and include last-sync metadata."
+      - id: AC4
+        description: "Mirror ingestion is idempotent and supports upsert semantics for repeated sync runs."
+    owner: techlead-agent
+    dependencies: [feature62]
+    status: not-started
+
+  - id: feature64
+    title: "ClawHub import bridge"
+    description: |
+      Add import path for ClawHub skills that resolves mirror metadata, scaffolds local
+      manifests, and preserves source provenance for downstream install/run workflows.
+    tasks: [task338, task339]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo import --source clawhub <slug>` resolves metadata from mirror index with optional live fallback and deterministic errors."
+      - id: AC2
+        description: "Generated manifest uses `type: openclaw-skill` and includes a `provenance` object with `source_registry`, `source_version`, and `source_slug` and/or `source_url` values."
+      - id: AC3
+        description: "Import output includes dependency/config/environment requirement hints extracted from mirrored metadata."
+      - id: AC4
+        description: "Import report is saved locally with actionable unresolved guidance for missing runtime prerequisites."
+    owner: techlead-agent
+    dependencies: [feature62, feature63]
+    status: not-started
+
+  - id: feature65
+    title: "Delegated OpenClaw install bridge"
+    description: |
+      Integrate OpenClaw skill install flow in kinnoo by delegating installation to OpenClaw
+      CLI while preserving kinnoo validation and trust checks around the delegated path.
+    tasks: [task340, task341]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo install` detects `type: openclaw-skill` and delegates install to OpenClaw CLI with version-aware invocation."
+      - id: AC2
+        description: "Install path verifies OpenClaw CLI presence/version and emits deterministic remediation guidance when unavailable."
+      - id: AC3
+        description: "Kinnoo-side checks (manifest validation, security checks, trust diagnostics) still execute around delegated install flow."
+      - id: AC4
+        description: "Delegated install outcomes are captured in install diagnostics and trace outputs."
+    owner: techlead-agent
+    dependencies: [feature62]
+    status: not-started
+
+  - id: feature66
+    title: "OpenClaw run adapter v1"
+    description: |
+      Add first-run OpenClaw execution adapter for kinnoo run flows so installed OpenClaw
+      skills can be executed through detected backend invocation paths with clear diagnostics.
+    tasks: [task342, task343]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo run` supports `openclaw-skill` packages by delegating to detected OpenClaw invocation path."
+      - id: AC2
+        description: "Adapter emits explicit backend-selection diagnostics and command-level execution traces for troubleshooting."
+      - id: AC3
+        description: "Adapter is gated behind explicit experimental compatibility control to minimize accidental behavior changes."
+      - id: AC4
+        description: "Failure modes (missing backend, unsupported version, non-zero exit) are surfaced with deterministic actionable errors."
+    owner: techlead-agent
+    dependencies: [feature65]
+    status: not-started
+
+  - id: feature67
+    title: "ClawHub sync command"
+    description: |
+      Add registry sync command for ClawHub metadata ingestion with incremental/full sync
+      options, source attribution retention, and clawhub tenant upsert semantics.
+    tasks: [task344, task345]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo sync clawhub` supports incremental sync and full resync options with deterministic output summaries."
+      - id: AC2
+        description: "Synced records are upserted under tenant slug `clawhub` with source attribution and sync timestamp metadata."
+      - id: AC3
+        description: "Sync enforces rate-limit/polite-fetch behavior and handles unavailable upstream cases without corrupting local mirror state."
+      - id: AC4
+        description: "Sync diagnostics report created/updated/skipped counts and explicit failure categories."
+    owner: techlead-agent
+    dependencies: [feature63]
+    status: not-started
+
+  - id: feature68
+    title: "GitHub Actions reference CI workflow"
+    description: |
+      Provide an official CI workflow and supporting docs for preflight, packaging, signing,
+      and publishing to registry in automation-friendly GitHub Actions pipelines.
+    tasks: [task346, task347]
+    acceptance_criteria:
+      - id: AC1
+        description: "Repository includes reference GitHub Actions workflow covering install, preflight, pack, and publish stages."
+      - id: AC2
+        description: "Workflow documents required env vars/secrets and non-zero failure behavior for CI correctness."
+      - id: AC3
+        description: "Publish flow supports registry token usage via secure CI secret inputs."
+      - id: AC4
+        description: "Docs include troubleshooting guidance for common CI signing/publish failures."
+    owner: techlead-agent
+    dependencies: [feature61]
+    status: not-started
+
+  - id: feature69
+    title: "kinnoo test foundation with standardized test file format"
+    description: |
+      Introduce `kinnoo test` command and a low-friction standardized declarative test
+      format for prompt/response style agent validation that works across Python and JS/TS agents.
+    tasks: [task348, task349]
+    acceptance_criteria:
+      - id: AC1
+        description: "CLI supports `kinnoo test <agent-dir>` executing declarative test cases and producing deterministic pass/fail summaries."
+      - id: AC2
+        description: "A standardized test format (`kinnoo.tests.yaml`) is defined, documented, and supports prompt/input, expected assertions, timeout, and exit-code checks."
+      - id: AC3
+        description: "Test runner supports both one-shot and daemon-compatible agent runtime contracts with consistent output schema."
+      - id: AC4
+        description: "Docs include minimal-friction examples for Python and JS/TS agents and guidance for CI integration."
+    owner: techlead-agent
+    dependencies: []
+    status: not-started
+
+  - id: feature70
+    title: "Landing page and docs messaging refresh"
+    description: |
+      Refresh public messaging across landing/docs/README to communicate OpenClaw integration,
+      mirror provenance behavior, and updated Phase 6 capabilities.
+    tasks: [task350, task351]
+    acceptance_criteria:
+      - id: AC1
+        description: "Landing page copy and feature cards reflect OpenClaw bridge, trust posture, and registry improvements."
+      - id: AC2
+        description: "README and docs include updated command references for new Phase 6 CLI behaviors."
+      - id: AC3
+        description: "Documentation explicitly explains ClawHub mirror attribution and `clawhub` tenant provenance model."
+      - id: AC4
+        description: "Content changes are covered by docs regression tests for key command snippets and references."
+    owner: techlead-agent
+    dependencies: []
+    status: not-started
+
+  - id: feature71
+    title: "Strict CI signed-package enforcement"
+    description: |
+      Add strict automation controls requiring signed package artifacts and verified publisher
+      metadata on install/publish paths used in CI/CD workflows.
+    tasks: [task352, task353]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo install --strict` fails deterministically when signature artifacts are missing or invalid."
+      - id: AC2
+        description: "`kinnoo publish --strict` fails deterministically when signing/trust requirements are unmet."
+      - id: AC3
+        description: "Strict mode disallows unverified publisher overrides and emits explicit remediation guidance."
+      - id: AC4
+        description: "CI documentation includes strict-mode rollout guidance and failure examples."
+    owner: techlead-agent
+    dependencies: []
+    status: not-started
+
+  - id: feature72
+    title: "Lockfile support for reproducible installs"
+    description: |
+      Add lockfile write/read behavior for agent install flows so CI and teams can reproduce
+      exact resolved installs across environments.
+    tasks: [task354, task355]
+    acceptance_criteria:
+      - id: AC1
+        description: "Install flow writes `kinnoo-lock.yaml` with deterministic schema including source/version/checksum metadata."
+      - id: AC2
+        description: "`kinnoo install --frozen` installs exactly from lockfile and fails clearly on drift/missing entries."
+      - id: AC3
+        description: "Lockfile updates are additive/deterministic for repeated installs and include platform/runtime metadata."
+      - id: AC4
+        description: "Docs describe lockfile lifecycle and team/CI best practices."
+    owner: techlead-agent
+    dependencies: []
+    status: not-started
+
+  - id: feature73
+    title: "kinnoo diff command"
+    description: |
+      Add archive diff command to compare two `.kno` packages and surface meaningful
+      manifest/file/dependency/permission changes for upgrade review.
+    tasks: [task356, task357]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo diff <a.kno> <b.kno>` reports manifest-level differences including dependencies/env vars/permissions."
+      - id: AC2
+        description: "Diff output reports added/removed/modified files with deterministic ordering."
+      - id: AC3
+        description: "Command supports machine-readable `--json` output with stable schema."
+      - id: AC4
+        description: "Exit code semantics are deterministic: success-identical vs success-different vs fatal-error."
+    owner: techlead-agent
+    dependencies: []
+    status: not-started
+
+  - id: feature74
+    title: "kinnoo uninstall command"
+    description: |
+      Add safe uninstall command for removing installed agents with mandatory operator
+      confirmation and cleanup of related local installation metadata.
+    tasks: [task358, task359]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo uninstall <name>` removes installed agent directory and associated runtime artifacts for the target package."
+      - id: AC2
+        description: "Uninstall requires mandatory interactive confirmation before destructive actions in Phase 6."
+      - id: AC3
+        description: "Uninstall updates install traces/lockfile state consistently after successful removal."
+      - id: AC4
+        description: "Missing-agent and partial-cleanup failure paths return deterministic actionable diagnostics."
+    owner: techlead-agent
+    dependencies: [feature72]
+    status: not-started
+
+  - id: feature75
+    title: "Framework import adapters for LangChain, LangGraph, and OpenAI Agents SDK"
+    description: |
+      Add framework-aware import adapters so `kinnoo import --from` can generate higher-fidelity
+      manifests for major Python and JS/TS agent ecosystems.
+    tasks: [task360, task361]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo import --from langchain|langgraph|openai` applies framework-specific analysis/adaptation over generic analyzer defaults."
+      - id: AC2
+        description: "Adapters emit higher-confidence entrypoint/runtime/dependency/env-var inference than generic mode for representative fixtures."
+      - id: AC3
+        description: "Unknown/incomplete framework cases degrade gracefully to generic analyzer with explicit guidance."
+      - id: AC4
+        description: "Automated adapter tests include at least one JS/TS-oriented fixture path where relevant and preserve deterministic CLI behavior."
+    owner: techlead-agent
+    dependencies: []
+    status: not-started

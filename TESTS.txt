@@ -8137,3 +8137,543 @@ tests:
         ac: AC8
       - feature: feature60
         ac: AC7
+
+  - id: test491
+    title: "Login command supports interactive and non-interactive auth flows"
+    type: integration
+    preconditions: Registry auth endpoint available and CLI config path writable
+    steps:
+      - step1: Run interactive login flow and submit valid credentials
+      - step2: Run non-interactive login with --email --password --registry flags
+      - step3: Verify token and tenant slug are persisted in local config
+    expected: Login succeeds in both modes and persists auth state deterministically
+    pass_criteria: Both flows return success and config contains expected token/tenant/registry values
+    automated: true
+    automation_path: tests/test_cli_registry.py::test_feature61_login_interactive_and_noninteractive
+    covers:
+      - feature: feature61
+        ac: AC1
+      - feature: feature61
+        ac: AC2
+
+  - id: test492
+    title: "Logout clears auth state and publish falls back to explicit auth sources"
+    type: integration
+    preconditions: User is logged in and has local auth state
+    steps:
+      - step1: Run kinnoo logout
+      - step2: Attempt authenticated publish without env overrides
+      - step3: Retry publish with explicit env override credentials
+    expected: Logout clears stored auth and publish behavior follows expected auth precedence
+    pass_criteria: Post-logout publish fails without auth and succeeds only with explicit valid credentials
+    automated: true
+    automation_path: tests/test_cli_registry.py::test_feature61_logout_and_auth_precedence
+    covers:
+      - feature: feature61
+        ac: AC3
+      - feature: feature61
+        ac: AC4
+
+  - id: test493
+    title: "openclaw-skill schema accepts canonical type and provenance object"
+    type: integration
+    preconditions: Updated schema and validator are available
+    steps:
+      - step1: Validate canonical openclaw-skill manifest fixture
+      - step2: Assert type/framework fields and a provenance object with source_registry, source_version, and at least one of source_slug or source_url parse successfully
+      - step3: Validate malformed provenance combinations fail with deterministic errors
+    expected: Schema supports canonical openclaw-skill contracts using a provenance object with source_registry, source_version, and at least one of source_slug or source_url, and rejects invalid combinations
+    pass_criteria: Valid fixture passes and invalid fixtures fail with expected provenance validation messages for the source_registry/source_version/source_slug-or-source_url rule
+    automated: true
+    automation_path: tests/test_validator.py::test_feature62_openclaw_skill_schema_validation
+    covers:
+      - feature: feature62
+        ac: AC1
+      - feature: feature62
+        ac: AC2
+
+  - id: test494
+    title: "OpenClaw schema migration docs and validator behavior remain consistent"
+    type: integration
+    preconditions: Manifest schema docs and validation fixtures are updated
+    steps:
+      - step1: Run validator tests for openclaw-skill negative/positive fixtures
+      - step2: Verify docs examples match accepted provenance object and minimal metadata field rules
+      - step3: Confirm deterministic validation guidance for legacy manifests and disallowed metadata fields (`channels`, `skills`, `state_dirs`)
+    expected: Validation and docs are aligned for OpenClaw manifest migration with provenance object and minimal metadata rules
+    pass_criteria: Validator fixtures pass and docs checks report no schema-example drift for provenance and metadata constraints
+    automated: true
+    automation_path: tests/test_docs.py::test_feature62_openclaw_schema_docs_consistency
+    covers:
+      - feature: feature62
+        ac: AC3
+      - feature: feature62
+        ac: AC4
+
+  - id: test495
+    title: "ClawHub mirror records are stored under admin-controlled clawhub tenant"
+    type: integration
+    preconditions: Mirror ingestion pipeline and registry storage are implemented
+    steps:
+      - step1: Run mirror ingest for sample ClawHub skill bundle metadata
+      - step2: Inspect stored registry records and tenant ownership fields
+      - step3: Verify clawhub tenant ownership model does not rely on username/password login path
+    expected: Mirrored records are attributed to clawhub tenant with explicit source metadata
+    pass_criteria: All mirrored records persist with tenant_slug=clawhub and expected source fields
+    automated: true
+    automation_path: tests/test_registry.py::test_feature63_clawhub_tenant_mirror_ownership
+    covers:
+      - feature: feature63
+        ac: AC1
+      - feature: feature63
+        ac: AC2
+
+  - id: test496
+    title: "Mirror attribution appears in search/inspect and sync is idempotent"
+    type: integration
+    preconditions: Mirror records exist in registry storage
+    steps:
+      - step1: Execute repeated mirror upsert runs with overlapping records
+      - step2: Run search and inspect on mirrored entries
+      - step3: Verify attribution labels and stable record counts after repeats
+    expected: Attribution is visible and repeated sync does not duplicate records
+    pass_criteria: Search/inspect include source labels and repeated sync preserves deterministic counts
+    automated: true
+    automation_path: tests/test_cli_registry.py::test_feature63_mirror_attribution_and_idempotency
+    covers:
+      - feature: feature63
+        ac: AC3
+      - feature: feature63
+        ac: AC4
+
+  - id: test497
+    title: "Import from ClawHub source scaffolds openclaw-skill manifests"
+    type: integration
+    preconditions: ClawHub mirror index contains sample skill slug
+    steps:
+      - step1: Run kinnoo import --source clawhub <slug>
+      - step2: Verify generated manifest type and provenance object with source_registry, source_version, and source_slug and/or source_url values
+      - step3: Confirm deterministic error when slug is missing from mirror
+    expected: Import resolves mirror metadata and scaffolds canonical openclaw-skill manifest
+    pass_criteria: Generated manifest includes expected provenance object values (source_registry, source_version, source_slug and/or source_url) and invalid slug errors are deterministic
+    automated: true
+    automation_path: tests/test_cli_import.py::test_feature64_clawhub_import_scaffold
+    covers:
+      - feature: feature64
+        ac: AC1
+      - feature: feature64
+        ac: AC2
+
+  - id: test498
+    title: "ClawHub import emits requirement hints and import report guidance"
+    type: integration
+    preconditions: Imported ClawHub skill metadata includes env/bin/config hints
+    steps:
+      - step1: Run source clawhub import for fixture with requirement metadata
+      - step2: Verify unresolved guidance and requirements sections in output/report
+      - step3: Verify report artifact is written with stable structure
+    expected: Import communicates actionable requirements and persists local import report
+    pass_criteria: Output and report contain expected hint categories and deterministic ordering
+    automated: true
+    automation_path: tests/test_cli_import.py::test_feature64_clawhub_import_requirements_report
+    covers:
+      - feature: feature64
+        ac: AC3
+      - feature: feature64
+        ac: AC4
+
+  - id: test499
+    title: "Install delegates openclaw-skill packages with precheck enforcement"
+    type: integration
+    preconditions: OpenClaw CLI fixture is available for delegated invocation
+    steps:
+      - step1: Install openclaw-skill package via kinnoo install
+      - step2: Verify OpenClaw availability/version prechecks are executed
+      - step3: Verify delegated command invocation path is used
+    expected: Delegated install executes only when prechecks pass
+    pass_criteria: Install succeeds with delegated command and fails deterministically when prechecks fail
+    automated: true
+    automation_path: tests/test_cli_install.py::test_feature65_delegated_install_with_prechecks
+    covers:
+      - feature: feature65
+        ac: AC1
+      - feature: feature65
+        ac: AC2
+
+  - id: test500
+    title: "Delegated install preserves kinnoo checks and install tracing"
+    type: integration
+    preconditions: Delegated install path and install trace writer are implemented
+    steps:
+      - step1: Run delegated install success and failure fixtures
+      - step2: Verify kinnoo-side checks are still executed around delegation
+      - step3: Verify install traces and categorized failures are emitted
+    expected: Delegated path preserves trust checks and deterministic diagnostics
+    pass_criteria: Trace outputs and failures include expected categories and guidance
+    automated: true
+    automation_path: tests/test_install.py::test_feature65_delegated_install_checks_and_traces
+    covers:
+      - feature: feature65
+        ac: AC3
+      - feature: feature65
+        ac: AC4
+
+  - id: test501
+    title: "Run adapter selects OpenClaw backend and respects experimental gate"
+    type: integration
+    preconditions: openclaw-skill package installed and run adapter enabled in CLI
+    steps:
+      - step1: Run kinnoo run for openclaw-skill with experimental gate disabled
+      - step2: Enable compatibility gate and rerun
+      - step3: Verify backend selection logic for supported OpenClaw versions
+    expected: Adapter routing depends on explicit gate and deterministic backend selection
+    pass_criteria: Disabled gate blocks adapter path; enabled gate executes selected backend successfully
+    automated: true
+    automation_path: tests/test_cli.py::test_feature66_run_adapter_backend_selection_and_gate
+    covers:
+      - feature: feature66
+        ac: AC1
+      - feature: feature66
+        ac: AC3
+
+  - id: test502
+    title: "Run adapter emits diagnostics and handles failure categories"
+    type: integration
+    preconditions: Run adapter invocation and diagnostic output are implemented
+    steps:
+      - step1: Run adapter on success fixture and verify diagnostics include selected backend details
+      - step2: Run adapter on missing backend and unsupported version fixtures
+      - step3: Verify actionable categorized error diagnostics
+    expected: Adapter diagnostics and failures are deterministic and operator-actionable
+    pass_criteria: Output includes backend traces on success and categorized remediation errors on failure
+    automated: true
+    automation_path: tests/test_cli.py::test_feature66_run_adapter_diagnostics_and_failures
+    covers:
+      - feature: feature66
+        ac: AC2
+      - feature: feature66
+        ac: AC4
+
+  - id: test503
+    title: "Sync clawhub supports incremental/full modes and clawhub upserts"
+    type: integration
+    preconditions: Sync command and mirror storage are configured
+    steps:
+      - step1: Run kinnoo sync clawhub incremental mode
+      - step2: Run kinnoo sync clawhub --full mode
+      - step3: Verify created/updated/skipped counts and tenant attribution
+    expected: Sync supports both modes and writes under clawhub tenant with source metadata
+    pass_criteria: Incremental/full sync complete successfully and mirror records remain correctly attributed
+    automated: true
+    automation_path: tests/test_cli_registry_modes.py::test_feature67_sync_modes_and_upsert
+    covers:
+      - feature: feature67
+        ac: AC1
+      - feature: feature67
+        ac: AC2
+
+  - id: test504
+    title: "Sync clawhub handles upstream failures with resilient diagnostics"
+    type: integration
+    preconditions: Sync command supports retry/backoff and failure classification
+    steps:
+      - step1: Simulate upstream unavailable and partial-failure scenarios
+      - step2: Execute sync and capture output summary
+      - step3: Verify local mirror state remains consistent
+    expected: Sync degrades safely and reports deterministic failure categories
+    pass_criteria: Output shows categorized failures with counts and local mirror state remains valid
+    automated: true
+    automation_path: tests/test_registry.py::test_feature67_sync_resilience_and_summary
+    covers:
+      - feature: feature67
+        ac: AC3
+      - feature: feature67
+        ac: AC4
+
+  - id: test505
+    title: "Reference GitHub Actions workflow includes required publish pipeline stages"
+    type: integration
+    preconditions: Reference workflow file and docs are present
+    steps:
+      - step1: Parse workflow definition and verify install/preflight/pack/publish stages
+      - step2: Verify required env vars and secrets contract is documented
+      - step3: Verify token-based publish path is represented
+    expected: Official CI workflow is complete and aligns with Phase 6 automation contract
+    pass_criteria: Workflow and docs contain required stages and secure auth inputs
+    automated: true
+    automation_path: tests/test_docs.py::test_feature68_workflow_contract_and_envs
+    covers:
+      - feature: feature68
+        ac: AC1
+      - feature: feature68
+        ac: AC3
+
+  - id: test506
+    title: "CI workflow docs include deterministic failure behavior and troubleshooting"
+    type: integration
+    preconditions: Workflow docs and examples are updated
+    steps:
+      - step1: Validate docs mention non-zero failure behavior for pipeline stages
+      - step2: Validate troubleshooting section references common signing/publish failures
+      - step3: Validate examples remain consistent with workflow file
+    expected: CI docs are actionable and consistent with workflow behavior
+    pass_criteria: Documentation checks pass and failure/troubleshooting guidance is present
+    automated: true
+    automation_path: tests/test_docs.py::test_feature68_ci_failure_and_troubleshooting_docs
+    covers:
+      - feature: feature68
+        ac: AC2
+      - feature: feature68
+        ac: AC4
+
+  - id: test507
+    title: "kinnoo.tests.yaml schema and parser validate standardized test declarations"
+    type: integration
+    preconditions: kinnoo tests schema/parser implementation exists
+    steps:
+      - step1: Validate canonical kinnoo.tests.yaml fixture with prompt/expected/timeout fields
+      - step2: Validate invalid fixtures for deterministic parser errors
+      - step3: Run kinnoo test to ensure file is loaded and interpreted correctly
+    expected: Standardized test file format is accepted and invalid formats fail clearly
+    pass_criteria: Canonical fixtures parse and invalid fixtures produce deterministic diagnostics
+    automated: true
+    automation_path: tests/test_cli.py::test_feature69_standardized_tests_file_parser
+    covers:
+      - feature: feature69
+        ac: AC1
+      - feature: feature69
+        ac: AC2
+
+  - id: test508
+    title: "kinnoo test executes one-shot and daemon-compatible suites with consistent summaries"
+    type: integration
+    preconditions: Test execution engine supports one-shot and daemon-compatible adapters
+    steps:
+      - step1: Run kinnoo test against one-shot fixture and verify summary output
+      - step2: Run kinnoo test against daemon-compatible fixture and verify normalized result schema
+      - step3: Verify docs examples for Python and JS/TS test files are valid
+    expected: Test command behavior is consistent across runtime contracts and documented with low-friction examples
+    pass_criteria: Both fixture suites produce deterministic pass/fail summary and docs checks pass
+    automated: true
+    automation_path: tests/test_cli.py::test_feature69_execution_engine_and_docs_examples
+    covers:
+      - feature: feature69
+        ac: AC3
+      - feature: feature69
+        ac: AC4
+
+  - id: test509
+    title: "Landing and README messaging reflect Phase 6 capability updates"
+    type: integration
+    preconditions: Landing and README content updates are committed
+    steps:
+      - step1: Validate landing page copy includes OpenClaw and trust capability messaging
+      - step2: Validate README command matrix includes Phase 6 commands
+      - step3: Validate no stale Phase 5-only messaging remains
+    expected: Public messaging is updated to Phase 6 capabilities
+    pass_criteria: Docs checks confirm updated command coverage and feature-card messaging
+    automated: true
+    automation_path: tests/test_docs.py::test_feature70_landing_and_readme_phase6_messaging
+    covers:
+      - feature: feature70
+        ac: AC1
+      - feature: feature70
+        ac: AC2
+
+  - id: test510
+    title: "Docs emphasize ClawHub provenance and remain regression-safe"
+    type: integration
+    preconditions: Docs updates for mirror provenance and command references are implemented
+    steps:
+      - step1: Validate docs include clawhub tenant provenance explanation
+      - step2: Validate command snippets for strict mode and import/source behavior remain valid
+      - step3: Run docs regression suite for formatting/reference integrity
+    expected: Documentation captures provenance model with regression-safe command references
+    pass_criteria: Docs integrity checks pass and required provenance guidance is present
+    automated: true
+    automation_path: tests/test_docs.py::test_feature70_provenance_docs_and_regression
+    covers:
+      - feature: feature70
+        ac: AC3
+      - feature: feature70
+        ac: AC4
+
+  - id: test511
+    title: "Strict install blocks unsigned or invalidly signed artifacts"
+    type: integration
+    preconditions: Strict install mode is implemented
+    steps:
+      - step1: Run kinnoo install --strict against unsigned archive
+      - step2: Run kinnoo install --strict against archive with invalid signature artifacts
+      - step3: Verify unverified override flags are rejected in strict mode
+    expected: Strict install enforces signing requirements and blocks unsafe overrides
+    pass_criteria: All unsafe strict-mode installs fail with deterministic remediation diagnostics
+    automated: true
+    automation_path: tests/test_cli_install.py::test_feature71_strict_install_enforcement
+    covers:
+      - feature: feature71
+        ac: AC1
+      - feature: feature71
+        ac: AC3
+
+  - id: test512
+    title: "Strict publish enforces signing gate and CI documentation remains consistent"
+    type: integration
+    preconditions: Strict publish mode and CI docs are updated
+    steps:
+      - step1: Run kinnoo publish --strict on unsigned artifact
+      - step2: Run kinnoo publish --strict on signed artifact
+      - step3: Validate strict rollout guidance in CI docs/workflow examples
+    expected: Strict publish blocks unsafe artifacts and docs explain rollout clearly
+    pass_criteria: Unsigned publish fails, signed publish succeeds, and docs checks pass
+    automated: true
+    automation_path: tests/test_cli_registry.py::test_feature71_strict_publish_and_docs
+    covers:
+      - feature: feature71
+        ac: AC2
+      - feature: feature71
+        ac: AC4
+
+  - id: test513
+    title: "Install writes deterministic lockfile with reproducibility metadata"
+    type: integration
+    preconditions: Lockfile write path is implemented
+    steps:
+      - step1: Install agent package and inspect generated kinnoo-lock.yaml
+      - step2: Reinstall and verify additive/stable lockfile ordering
+      - step3: Verify platform/runtime/source/checksum fields are present
+    expected: Lockfile schema is stable and deterministic across installs
+    pass_criteria: Lockfile fields and ordering remain stable and include required reproducibility metadata
+    automated: true
+    automation_path: tests/test_install.py::test_feature72_lockfile_write_and_stability
+    covers:
+      - feature: feature72
+        ac: AC1
+      - feature: feature72
+        ac: AC3
+
+  - id: test514
+    title: "Frozen install resolves only from lockfile and documents drift remediation"
+    type: integration
+    preconditions: Frozen lockfile mode is implemented
+    steps:
+      - step1: Run kinnoo install --frozen with matching lockfile
+      - step2: Run kinnoo install --frozen with stale/missing lock entry
+      - step3: Validate docs include drift remediation guidance
+    expected: Frozen mode enforces lockfile determinism and communicates drift clearly
+    pass_criteria: Matching lock succeeds, drift fails deterministically, and docs checks pass
+    automated: true
+    automation_path: tests/test_cli_install.py::test_feature72_frozen_install_and_docs
+    covers:
+      - feature: feature72
+        ac: AC2
+      - feature: feature72
+        ac: AC4
+
+  - id: test515
+    title: "Diff command reports manifest and file-tree changes deterministically"
+    type: integration
+    preconditions: Core diff command implementation exists
+    steps:
+      - step1: Run diff on two known archives with manifest changes
+      - step2: Verify dependency/env_var/permission deltas in output
+      - step3: Verify file add/remove/modify output ordering
+    expected: Diff exposes meaningful package deltas with stable ordering
+    pass_criteria: Output includes expected manifest and file changes in deterministic order
+    automated: true
+    automation_path: tests/test_cli.py::test_feature73_diff_manifest_and_files
+    covers:
+      - feature: feature73
+        ac: AC1
+      - feature: feature73
+        ac: AC2
+
+  - id: test516
+    title: "Diff supports JSON schema and deterministic exit codes"
+    type: integration
+    preconditions: Diff JSON and exit-code semantics are implemented
+    steps:
+      - step1: Run kinnoo diff --json on identical archives
+      - step2: Run kinnoo diff --json on different archives
+      - step3: Run kinnoo diff with invalid archive input
+    expected: JSON output schema and exit semantics are stable for automation
+    pass_criteria: JSON schema validates and exit codes match identical/different/fatal contracts
+    automated: true
+    automation_path: tests/test_cli.py::test_feature73_diff_json_and_exit_codes
+    covers:
+      - feature: feature73
+        ac: AC3
+      - feature: feature73
+        ac: AC4
+
+  - id: test517
+    title: "Uninstall requires manual confirmation and removes target install artifacts"
+    type: integration
+    preconditions: Uninstall command implemented and agent installed locally
+    steps:
+      - step1: Run kinnoo uninstall <name> and reject confirmation
+      - step2: Re-run and accept confirmation
+      - step3: Verify agent/runtime artifacts are removed only after explicit confirmation
+    expected: Uninstall is confirmation-gated and performs safe targeted removal
+    pass_criteria: Reject path keeps artifacts intact and accept path removes expected artifacts
+    automated: true
+    automation_path: tests/test_cli_install.py::test_feature74_uninstall_confirmation_and_removal
+    covers:
+      - feature: feature74
+        ac: AC1
+      - feature: feature74
+        ac: AC2
+
+  - id: test518
+    title: "Uninstall updates metadata and handles missing-target failures deterministically"
+    type: integration
+    preconditions: Lockfile and install trace integration is implemented for uninstall
+    steps:
+      - step1: Uninstall installed agent and verify lockfile/install-trace updates
+      - step2: Attempt uninstall of non-existent agent
+      - step3: Verify deterministic diagnostics for missing/partial cleanup paths
+    expected: Metadata cleanup is consistent and error paths are actionable
+    pass_criteria: Metadata updates are correct and failure diagnostics are deterministic
+    automated: true
+    automation_path: tests/test_install.py::test_feature74_uninstall_metadata_and_errors
+    covers:
+      - feature: feature74
+        ac: AC3
+      - feature: feature74
+        ac: AC4
+
+  - id: test519
+    title: "Framework adapters improve import inference and fallback safely"
+    type: integration
+    preconditions: Framework adapter modules for langchain/langgraph/openai are implemented
+    steps:
+      - step1: Run import with --from langchain --from langgraph --from openai fixtures
+      - step2: Verify improved confidence and inferred fields over generic mode
+      - step3: Run unsupported fixture and verify graceful fallback guidance
+    expected: Adapter mode improves inference while preserving deterministic fallback behavior
+    pass_criteria: Adapter fixtures show higher-confidence output and unsupported fixtures fall back cleanly
+    automated: true
+    automation_path: tests/test_cli_import.py::test_feature75_adapter_inference_and_fallback
+    covers:
+      - feature: feature75
+        ac: AC1
+      - feature: feature75
+        ac: AC2
+      - feature: feature75
+        ac: AC3
+
+  - id: test520
+    title: "Vitest JS/TS fixture check validates adapter behavior contracts"
+    type: integration
+    preconditions: JS/TS adapter fixture suite is implemented with Vitest
+    steps:
+      - step1: Run Vitest suite for framework adapter fixture expectations
+      - step2: Verify LangGraph/OpenAI JS/TS fixture metadata maps to expected adapter contract outputs
+      - step3: Verify test function-level automation identifier remains stable
+    expected: JS/TS-oriented adapter behavior is validated through Vitest with deterministic test identifiers
+    pass_criteria: Vitest passes and reported function id matches documented automation_path contract
+    automated: true
+    automation_path: web/__tests__/framework-adapter-fixtures.test.ts::it_langgraph_ts_fixture_maps_adapter_contract
+    covers:
+      - feature: feature75
+        ac: AC4

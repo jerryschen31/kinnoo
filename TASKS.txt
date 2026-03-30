@@ -6741,3 +6741,604 @@ tasks:
     dependencies: []
     tests: []
     status: completed
+
+  - id: task332
+    title: "Feature61 login/logout CLI commands and auth state persistence"
+    type: task
+    description: |
+      Implement `kinnoo login` and `kinnoo logout` command surfaces with interactive and
+      non-interactive auth flows and secure local persistence of registry auth state.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/auth_command.py
+      - src/kinnoo/config.py
+      - src/kinnoo/publish_command.py
+    steps:
+      - 'step1: Add login/logout command wiring and argument parsing for interactive and flag-driven workflows'
+      - 'step2: Add token exchange call and persist auth state (token/tenant/registry) in local kinnoo config'
+      - 'step3: Add logout behavior to clear persisted auth state and emit deterministic user diagnostics'
+      - 'step4: Ensure publish/registry clients prefer persisted auth state while preserving explicit override paths'
+    dependencies: []
+    tests: [test491]
+    status: not-started
+
+  - id: task333
+    title: "Feature61 login/logout tests and operator documentation"
+    type: task
+    description: |
+      Add integration coverage and docs for login/logout command behavior across interactive,
+      non-interactive, and post-logout unauthorized scenarios.
+    files:
+      - tests/test_cli_registry.py
+      - tests/test_cli.py
+      - README.md
+      - docs/CHANGELOG.md
+    steps:
+      - 'step1: Add tests for successful interactive and non-interactive login flows'
+      - 'step2: Add tests for logout state cleanup and downstream unauthorized behavior'
+      - 'step3: Add documentation for login flags env interactions and local auth state model'
+      - 'step4: Verify docs and command help text are consistent with implemented UX'
+    dependencies: [task332]
+    tests: [test492]
+    status: not-started
+
+  - id: task334
+    title: "Feature62 openclaw-skill schema and validator extension"
+    type: task
+    description: |
+      Extend schema and validation to support `openclaw-skill` package type and a
+      `provenance` object with deterministic compatibility rules while keeping metadata
+      intentionally minimal.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+      - src/kinnoo/import_command.py
+      - docs/manifest-schema-reference.md
+    steps:
+      - 'step1: Add schema fields and enums for openclaw-skill type and `provenance` object keys'
+      - 'step2: Implement validator rules enforcing framework/type compatibility and `provenance` requirements (`source_registry`, `source_version`, and at least one of `source_slug` or `source_url`)'
+      - 'step3: Enforce minimal metadata by rejecting `channels`, `skills`, and `state_dirs` fields with deterministic guidance'
+      - 'step4: Update schema reference docs with canonical openclaw-skill examples'
+    dependencies: []
+    tests: [test493]
+    status: not-started
+
+  - id: task335
+    title: "Feature62 schema fixture coverage and migration guidance"
+    type: task
+    description: |
+      Add positive/negative schema fixtures and migration docs so OpenClaw manifests are
+      validated consistently and legacy errors are actionable.
+    files:
+      - tests/test_validator.py
+      - tests/test_cli_import.py
+      - docs/manifest-schema-reference.md
+    steps:
+      - 'step1: Add validator fixtures for valid and invalid openclaw-skill manifests including canonical `provenance` object shapes'
+      - 'step2: Add import-path tests asserting deterministic errors on unsupported `provenance` combinations and disallowed metadata fields'
+      - 'step3: Document migration guidance for existing manifests adopting `provenance` object fields'
+      - 'step4: Verify docs examples pass schema validation'
+    dependencies: [task334]
+    tests: [test494]
+    status: not-started
+
+  - id: task336
+    title: "Feature63 ClawHub mirror storage with clawhub tenant ownership model"
+    type: task
+    description: |
+      Implement registry mirror storage model for ClawHub metadata under admin-controlled
+      tenant slug `clawhub` with source attribution and sync metadata fields.
+    files:
+      - src/kinnoo/registry.py
+      - src/kinnoo/registry_backends.py
+      - src/kinnoo/config.py
+      - src/kinnoo/remote_client.py
+    steps:
+      - 'step1: Add mirror record model fields for source metadata and sync timestamps'
+      - 'step2: Implement upsert semantics storing mirrored records under tenant slug clawhub'
+      - 'step3: Ensure clawhub tenant is admin-controlled/public and not dependent on username/password login'
+      - 'step4: Add deterministic APIs for listing and inspecting mirrored clawhub records'
+    dependencies: [task334]
+    tests: [test495]
+    status: not-started
+
+  - id: task337
+    title: "Feature63 mirror attribution UX and query behavior"
+    type: task
+    description: |
+      Surface mirror provenance in CLI search/inspect outputs and add coverage for idempotent
+      sync behavior across repeated ingestion cycles.
+    files:
+      - src/kinnoo/search_command.py
+      - src/kinnoo/inspect_command.py
+      - tests/test_cli_registry.py
+      - tests/test_registry.py
+    steps:
+      - 'step1: Update search/inspect output formatting to show ClawHub source attribution and sync timestamp'
+      - 'step2: Add idempotency behavior checks for repeated mirror upserts'
+      - 'step3: Ensure query filters can target mirrored clawhub namespace deterministically'
+      - 'step4: Add regression tests for provenance labels and repeated ingestion outcomes'
+    dependencies: [task336]
+    tests: [test496]
+    status: not-started
+
+  - id: task338
+    title: "Feature64 kinnoo import source clawhub command path"
+    type: task
+    description: |
+      Implement `kinnoo import --source clawhub <slug>` path that resolves mirror metadata
+      and scaffolds canonical openclaw-skill manifests in local project directories.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/import_command.py
+      - src/kinnoo/registry.py
+      - src/kinnoo/analyzer.py
+    steps:
+      - 'step1: Add source clawhub argument parsing and slug resolution in import command'
+      - 'step2: Resolve metadata from mirror index with deterministic error handling and live-fallback option'
+      - 'step3: Scaffold openclaw-skill manifest with `provenance` object (`source_registry`, `source_version`, and `source_slug` and/or `source_url`) plus baseline requirements'
+      - 'step4: Persist local import report artifact describing inferred and unresolved fields'
+    dependencies: [task334, task336]
+    tests: [test497]
+    status: not-started
+
+  - id: task339
+    title: "Feature64 import hinting and unresolved guidance"
+    type: task
+    description: |
+      Enhance ClawHub import results with requirement hints and deterministic unresolved
+      guidance so operators understand next steps before install/run.
+    files:
+      - src/kinnoo/import_command.py
+      - src/kinnoo/inspect_command.py
+      - tests/test_cli_import.py
+      - docs/manifest-schema-reference.md
+    steps:
+      - 'step1: Parse mirrored requirement metadata into env/config/bin hint sections'
+      - 'step2: Render unresolved guidance block with deterministic ordering and wording'
+      - 'step3: Ensure inspect output exposes imported `provenance` object fields and hint metadata clearly'
+      - 'step4: Add tests asserting guidance output and saved import report structure'
+    dependencies: [task338]
+    tests: [test498]
+    status: not-started
+
+  - id: task340
+    title: "Feature65 delegated OpenClaw install runtime integration"
+    type: task
+    description: |
+      Implement delegated install path for openclaw-skill packages by invoking OpenClaw CLI
+      after deterministic prechecks in kinnoo install flow.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/health_check.py
+      - src/kinnoo/cli.py
+      - src/kinnoo/install_trace.py
+    steps:
+      - 'step1: Detect openclaw-skill package type during install and route to delegated backend'
+      - 'step2: Validate OpenClaw CLI availability and minimum version prior to delegation'
+      - 'step3: Execute delegated install command with structured diagnostics and trace capture'
+      - 'step4: Keep kinnoo-side validation and trust checks active around delegated flow'
+    dependencies: [task334]
+    tests: [test499]
+    status: not-started
+
+  - id: task341
+    title: "Feature65 delegated install failure-mode handling and tests"
+    type: task
+    description: |
+      Add robust delegated install failure handling for missing OpenClaw runtime, invalid
+      versions, and backend failures with actionable operator guidance.
+    files:
+      - src/kinnoo/install_command.py
+      - tests/test_cli_install.py
+      - tests/test_install.py
+      - README.md
+    steps:
+      - 'step1: Add deterministic remediation errors for missing/unsupported OpenClaw runtime'
+      - 'step2: Add failure wrapping for delegated CLI non-zero exits with categorized diagnostics'
+      - 'step3: Add install tests for success and each failure category'
+      - 'step4: Update README install docs with delegated behavior and prerequisites'
+    dependencies: [task340]
+    tests: [test500]
+    status: not-started
+
+  - id: task342
+    title: "Feature66 OpenClaw run adapter backend selection and flagging"
+    type: task
+    description: |
+      Implement OpenClaw run adapter v1 with backend selection logic and explicit compatibility
+      gate controls for experimental runtime behavior.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/cli.py
+      - src/kinnoo/health_check.py
+      - src/kinnoo/terminal_colors.py
+    steps:
+      - 'step1: Add openclaw-skill run routing in run command with package-type aware execution'
+      - 'step2: Implement version-aware backend selection (native skills run vs fallback path)'
+      - 'step3: Add experimental compatibility flag gating and deterministic guardrail messages'
+      - 'step4: Emit structured adapter diagnostics including selected backend and invocation details'
+    dependencies: [task340]
+    tests: [test501]
+    status: not-started
+
+  - id: task343
+    title: "Feature66 run adapter error handling and regression tests"
+    type: task
+    description: |
+      Add comprehensive run adapter tests and failure handling for unsupported versions,
+      runtime invocation failures, and diagnostic output consistency.
+    files:
+      - src/kinnoo/run_command.py
+      - tests/test_cli.py
+      - tests/test_run_preflight.py
+      - docs/CHANGELOG.md
+    steps:
+      - 'step1: Add deterministic error paths for unsupported adapter versions and missing backend features'
+      - 'step2: Add integration tests for adapter success path and categorized failures'
+      - 'step3: Validate user-facing diagnostics include actionable next steps'
+      - 'step4: Document adapter limitations and compatibility notes in changelog/docs'
+    dependencies: [task342]
+    tests: [test502]
+    status: not-started
+
+  - id: task344
+    title: "Feature67 sync clawhub command with incremental/full modes"
+    type: task
+    description: |
+      Implement `kinnoo sync clawhub` command with incremental and full sync strategies,
+      upsert semantics, and clawhub tenant attribution.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/sync_command.py
+      - src/kinnoo/registry.py
+      - src/kinnoo/remote_client.py
+    steps:
+      - 'step1: Add sync command parser for source selection and full/since options'
+      - 'step2: Implement incremental/full sync orchestration and clawhub-tenant upsert writes'
+      - 'step3: Add deterministic counts for created updated skipped and failed records'
+      - 'step4: Preserve source attribution metadata across sync updates'
+    dependencies: [task336]
+    tests: [test503]
+    status: not-started
+
+  - id: task345
+    title: "Feature67 sync resilience, rate control, and diagnostics"
+    type: task
+    description: |
+      Add sync resilience controls (rate limiting/backoff/error classification) and
+      user-facing diagnostics for operational safety.
+    files:
+      - src/kinnoo/sync_command.py
+      - src/kinnoo/logging_utils.py
+      - tests/test_cli_registry_modes.py
+      - tests/test_registry.py
+    steps:
+      - 'step1: Add polite fetch policy and retry/backoff for transient upstream failures'
+      - 'step2: Add deterministic failure category summaries in sync output'
+      - 'step3: Ensure failed records do not corrupt existing mirror state'
+      - 'step4: Add tests for unavailable upstream and partial-failure sync behavior'
+    dependencies: [task344]
+    tests: [test504]
+    status: not-started
+
+  - id: task346
+    title: "Feature68 GitHub Actions reference workflow and env contract"
+    type: task
+    description: |
+      Add official GitHub Actions workflow for kinnoo publish pipelines and define required
+      environment/secrets contract for registry auth and strict trust behavior.
+    files:
+      - .github/workflows/kinnoo-publish.yml
+      - README.md
+      - docs/CHANGELOG.md
+      - docs/manifest-schema-reference.md
+    steps:
+      - 'step1: Add reference workflow stages for install preflight pack and publish'
+      - 'step2: Document required env vars and secrets for registry auth and strict CI mode'
+      - 'step3: Ensure workflow demonstrates deterministic non-zero failure handling'
+      - 'step4: Add docs links and operator guidance for setup and troubleshooting'
+    dependencies: [task332]
+    tests: [test505]
+    status: not-started
+
+  - id: task347
+    title: "Feature68 CI workflow regression checks and docs validation"
+    type: task
+    description: |
+      Add checks ensuring workflow snippets and docs remain in sync and represent valid
+      automation patterns for Phase 6 publish/install operations.
+    files:
+      - tests/test_docs.py
+      - tests/test_suite_integrity.py
+      - README.md
+      - .github/workflows/kinnoo-publish.yml
+    steps:
+      - 'step1: Add docs tests covering workflow command snippets and strict mode flags'
+      - 'step2: Add integrity checks for required workflow secret/env references'
+      - 'step3: Add regression checks for README workflow section consistency'
+      - 'step4: Validate CI docs behavior across local and remote registry modes'
+    dependencies: [task346]
+    tests: [test506]
+    status: not-started
+
+  - id: task348
+    title: "Feature69 kinnoo tests file format and parser"
+    type: task
+    description: |
+      Define and implement standardized `kinnoo.tests.yaml` format and parser for
+      low-friction prompt/response style agent test declarations.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/test_command.py
+      - src/kinnoo/validator.py
+      - docs/manifest-schema-reference.md
+    steps:
+      - 'step1: Define kinnoo.tests.yaml schema including id input expected assertions timeout and exit-code fields'
+      - 'step2: Implement parser/validator and deterministic diagnostics for invalid test specs'
+      - 'step3: Add compatibility bridge for tests declared inline or via external file reference'
+      - 'step4: Update schema docs with canonical format and anti-pattern guidance'
+    dependencies: []
+    tests: [test507]
+    status: not-started
+
+  - id: task349
+    title: "Feature69 kinnoo test execution engine and CLI summary"
+    type: task
+    description: |
+      Implement test execution engine and CLI reporting for standardized agent tests with
+      deterministic pass/fail accounting and machine-readable output mode.
+    files:
+      - src/kinnoo/test_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+      - tests/test_install.py
+    steps:
+      - 'step1: Execute declared test cases sequentially with timeout and expected assertion evaluation'
+      - 'step2: Support one-shot and daemon-compatible run paths with normalized output capture'
+      - 'step3: Emit deterministic summary `N/M passed` plus JSON mode for automation'
+      - 'step4: Add test fixtures and docs examples for Python and JS/TS agents'
+    dependencies: [task348]
+    tests: [test508]
+    status: not-started
+
+  - id: task350
+    title: "Feature70 landing page and README messaging update"
+    type: task
+    description: |
+      Update landing and README messaging for Phase 6 capabilities including OpenClaw support,
+      ClawHub mirror provenance, and trust posture.
+    files:
+      - README.md
+      - web/app/page.tsx
+      - web/components/blocks/Hero.tsx
+      - web/components/blocks/Features.tsx
+    steps:
+      - 'step1: Refresh landing hero and feature-card copy to reflect Phase 6 scope'
+      - 'step2: Update README command matrix and OpenClaw integration documentation'
+      - 'step3: Add explicit ClawHub mirror attribution language and clawhub tenant model notes'
+      - 'step4: Ensure wording remains aligned with implemented command behavior'
+    dependencies: []
+    tests: [test509]
+    status: not-started
+
+  - id: task351
+    title: "Feature70 docs consistency checks and release-note updates"
+    type: task
+    description: |
+      Add docs consistency updates and tests so landing/docs/README messaging remains
+      synchronized with Phase 6 behavior.
+    files:
+      - docs/CHANGELOG.md
+      - tests/test_docs.py
+      - README.md
+      - notes/phases/phase6-planning-6.md
+    steps:
+      - 'step1: Update release notes and docs references for newly introduced Phase 6 commands'
+      - 'step2: Add docs tests for key command snippets and provenance messaging'
+      - 'step3: Verify docs references to strict mode lockfile and import adapters are consistent'
+      - 'step4: Ensure docs changes pass existing documentation integrity checks'
+    dependencies: [task350]
+    tests: [test510]
+    status: not-started
+
+  - id: task352
+    title: "Feature71 strict install enforcement"
+    type: task
+    description: |
+      Implement strict install controls requiring signed artifacts and verified trust state
+      on automation paths.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/cli.py
+      - src/kinnoo/signing.py
+      - tests/test_cli_install.py
+    steps:
+      - 'step1: Add `--strict` install flag and strict policy evaluation branch'
+      - 'step2: Reject missing/invalid signature artifacts under strict mode with deterministic exit semantics'
+      - 'step3: Disallow unverified override controls in strict mode'
+      - 'step4: Add tests for strict pass/fail behavior and user diagnostics'
+    dependencies: [task222]
+    tests: [test511]
+    status: not-started
+
+  - id: task353
+    title: "Feature71 strict publish enforcement and CI rollout docs"
+    type: task
+    description: |
+      Extend strict policy to publish path and document staged rollout guidance for CI
+      pipelines adopting signed-package enforcement.
+    files:
+      - src/kinnoo/publish_command.py
+      - src/kinnoo/cli.py
+      - README.md
+      - .github/workflows/kinnoo-publish.yml
+    steps:
+      - 'step1: Add `--strict` publish flag and enforce signature/trust requirements before upload'
+      - 'step2: Emit deterministic guidance for unsigned artifacts and required remediation'
+      - 'step3: Add CI examples showing strict mode as required gate in automation'
+      - 'step4: Add publish strict-mode tests and docs alignment checks'
+    dependencies: [task352, task346]
+    tests: [test512]
+    status: not-started
+
+  - id: task354
+    title: "Feature72 lockfile write/update implementation"
+    type: task
+    description: |
+      Implement lockfile persistence in install flows with deterministic schema and stable
+      serialization behavior.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/schema.py
+      - src/kinnoo/config.py
+      - tests/test_install.py
+    steps:
+      - 'step1: Define lockfile schema and serialization helpers for resolved installs'
+      - 'step2: Write/update lockfile after successful installs including version source checksums and platform metadata'
+      - 'step3: Ensure deterministic ordering and additive update semantics'
+      - 'step4: Add tests for lockfile creation and stable update behavior'
+    dependencies: []
+    tests: [test513]
+    status: not-started
+
+  - id: task355
+    title: "Feature72 frozen lockfile install behavior"
+    type: task
+    description: |
+      Add frozen install mode consuming lockfile-only resolution and deterministic failures
+      on lock drift or missing entries.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli_install.py
+      - README.md
+    steps:
+      - 'step1: Add `--frozen` install flag and lockfile-only resolution path'
+      - 'step2: Fail deterministically when lock entries are missing stale or incompatible'
+      - 'step3: Add user guidance for regenerating lockfile when drift is detected'
+      - 'step4: Add tests and docs for frozen-mode expected behavior'
+    dependencies: [task354]
+    tests: [test514]
+    status: not-started
+
+  - id: task356
+    title: "Feature73 diff command core engine"
+    type: task
+    description: |
+      Implement core archive diff engine for manifest and file tree comparisons between
+      two .kno artifacts with deterministic ordering.
+    files:
+      - src/kinnoo/diff_command.py
+      - src/kinnoo/cli.py
+      - src/kinnoo/inspect_command.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add diff command parser and archive extraction helpers'
+      - 'step2: Implement manifest-level comparison for dependencies env_vars and permissions'
+      - 'step3: Implement file tree change detection (added removed modified) with stable ordering'
+      - 'step4: Add tests covering baseline diff output and deterministic ordering'
+    dependencies: []
+    tests: [test515]
+    status: not-started
+
+  - id: task357
+    title: "Feature73 diff json output and exit semantics"
+    type: task
+    description: |
+      Add machine-readable diff output and deterministic exit code contracts for CI and
+      automation use cases.
+    files:
+      - src/kinnoo/diff_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+      - README.md
+    steps:
+      - 'step1: Add `--json` output mode with stable schema fields for all diff categories'
+      - 'step2: Implement deterministic exit-code behavior for identical different and fatal-error outcomes'
+      - 'step3: Add regression tests for JSON schema and exit-code contracts'
+      - 'step4: Update docs with diff automation examples'
+    dependencies: [task356]
+    tests: [test516]
+    status: not-started
+
+  - id: task358
+    title: "Feature74 uninstall command and mandatory confirmation"
+    type: task
+    description: |
+      Implement uninstall command for individual agents with mandatory interactive confirmation
+      and safe deletion sequencing.
+    files:
+      - src/kinnoo/uninstall_command.py
+      - src/kinnoo/cli.py
+      - src/kinnoo/install_trace.py
+      - tests/test_cli_install.py
+    steps:
+      - 'step1: Add uninstall command parser and installed-agent resolution'
+      - 'step2: Enforce mandatory interactive confirmation before destructive operations'
+      - 'step3: Remove agent directory and runtime artifacts with safe failure handling'
+      - 'step4: Add tests for confirmation required and successful uninstall behavior'
+    dependencies: []
+    tests: [test517]
+    status: not-started
+
+  - id: task359
+    title: "Feature74 uninstall metadata cleanup and error-path coverage"
+    type: task
+    description: |
+      Ensure uninstall updates lockfile/install traces and handles missing/partial cleanup
+      paths with deterministic diagnostics.
+    files:
+      - src/kinnoo/uninstall_command.py
+      - src/kinnoo/install_command.py
+      - tests/test_install.py
+      - README.md
+    steps:
+      - 'step1: Update lockfile and install trace entries after successful uninstall'
+      - 'step2: Add deterministic errors for missing target or partial cleanup failures'
+      - 'step3: Ensure uninstall behavior remains single-target only with no bulk-delete path'
+      - 'step4: Add tests/docs for metadata cleanup and error handling'
+    dependencies: [task358, task354]
+    tests: [test518]
+    status: not-started
+
+  - id: task360
+    title: "Feature75 framework adapter architecture for langchain langgraph openai"
+    type: task
+    description: |
+      Implement framework-aware import adapter framework and baseline adapters for
+      langchain, langgraph, and OpenAI Agents SDK.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/import_command.py
+      - src/kinnoo/framework_adapters/langchain_adapter.py
+      - src/kinnoo/framework_adapters/langgraph_adapter.py
+      - src/kinnoo/framework_adapters/openai_adapter.py
+    steps:
+      - 'step1: Add `--from` parser choices for langchain langgraph openai in import command'
+      - 'step2: Implement adapter interface and baseline adapter modules for each framework'
+      - 'step3: Merge adapter outputs into analyzer report and import wizard confidence fields'
+      - 'step4: Add deterministic fallback to generic analyzer when adapter coverage is incomplete'
+    dependencies: []
+    tests: [test519]
+    status: not-started
+
+  - id: task361
+    title: "Feature75 adapter confidence tuning docs and cross-runtime tests"
+    type: task
+    description: |
+      Tune adapter output quality and add cross-runtime fixture coverage including JS/TS
+      oriented checks with Vitest where JS behavior is directly validated.
+    files:
+      - src/kinnoo/analyzer.py
+      - tests/test_cli_import.py
+      - web/__tests__/framework-adapter-fixtures.test.ts
+      - docs/manifest-schema-reference.md
+    steps:
+      - 'step1: Add fixtures and thresholds proving higher-confidence inference for langchain langgraph and openai adapter flows'
+      - 'step2: Add graceful degradation tests for unsupported patterns and fallback messaging'
+      - 'step3: Add Vitest coverage for JS/TS fixture behavior with automation path bound to .ts test function identifiers'
+      - 'step4: Document adapter best practices and known limitations for developers'
+    dependencies: [task360]
+    tests: [test520]
+    status: not-started

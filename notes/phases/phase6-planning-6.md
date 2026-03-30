@@ -93,7 +93,18 @@ Planning-5 implied ~12-16 weeks for Phases 6-9. This revision targets **~8-10 we
 | feature69 | `kinnoo test` foundation | None |
 | feature70 | Landing page + docs update | None |
 
-> Full design details for features 61-70 are in planning-5 and remain unchanged.
+> Full design details for features 61-70 are in planning-5, except the feature62/64 manifest contract updates below.
+
+### Alignment Update: Feature62/64 Manifest Contract (authoritative)
+
+These updates align planning with FEATURES/TASKS/TESTS and are now the source-of-truth contract for Phase 6 implementation.
+
+- `feature62` (`openclaw-skill` schema extension) uses a `provenance` object (not flat source fields).
+- Required provenance rule: `source_registry`, `source_version`, and at least one of `source_slug` or `source_url`.
+- Metadata minimalism rule: do not include `channels`, `skills`, or `state_dirs` as schema metadata fields in Phase 6.
+- Validator behavior: reject disallowed metadata fields with deterministic, actionable guidance.
+- `feature64` (`clawhub` import bridge) generated manifests must include the same provenance object contract above.
+- Canonical examples are recorded in `FEATURES.txt` notes under `feature62` and should be used for implementation and test fixtures.
 
 ### Features (new — competitive response)
 
