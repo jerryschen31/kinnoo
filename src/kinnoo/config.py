@@ -10,6 +10,7 @@ import os
 
 
 DEFAULT_CONFIG_PATH = Path.home() / ".kinnoo" / "config.yaml"
+DEFAULT_LOCKFILE_PATH = Path.home() / ".kinnoo" / "kinnoo-lock.yaml"
 CLAW_HUB_TENANT_SLUG = "clawhub"
 
 
@@ -203,6 +204,20 @@ def _coalesce_env_or_file(
         return env_value.strip()
 
     return file_values.get(file_key)
+
+
+def resolve_lockfile_path(start_dir: Path | None = None) -> Path:
+    """Resolve lockfile path with env override and project/global defaults."""
+
+    env_override = (os.environ.get("KINNOO_LOCKFILE_PATH") or "").strip()
+    if env_override:
+        return Path(env_override).expanduser()
+
+    resolved_start = (start_dir or Path.cwd()).expanduser().resolve()
+    if (resolved_start / "kinnoo.yaml").exists():
+        return resolved_start / "kinnoo-lock.yaml"
+
+    return DEFAULT_LOCKFILE_PATH
 
 
 def save_registry_auth_state(

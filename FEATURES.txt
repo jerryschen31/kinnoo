@@ -2345,7 +2345,7 @@ features:
         description: "CI documentation includes strict-mode rollout guidance and failure examples."
     owner: techlead-agent
     dependencies: []
-    status: not-started
+    status: needs-review
 
   - id: feature72
     title: "Lockfile support for reproducible installs"
@@ -2364,7 +2364,7 @@ features:
         description: "Docs describe lockfile lifecycle and team/CI best practices."
     owner: techlead-agent
     dependencies: []
-    status: not-started
+    status: needs-review
 
   - id: feature73
     title: "kinnoo diff command"
@@ -2383,7 +2383,7 @@ features:
         description: "Exit code semantics are deterministic: success-identical vs success-different vs fatal-error."
     owner: techlead-agent
     dependencies: []
-    status: not-started
+    status: needs-review
 
   - id: feature74
     title: "kinnoo uninstall command"
@@ -2402,7 +2402,7 @@ features:
         description: "Missing-agent and partial-cleanup failure paths return deterministic actionable diagnostics."
     owner: techlead-agent
     dependencies: [feature72]
-    status: not-started
+    status: needs-review
 
   - id: feature75
     title: "Framework import adapters for LangChain, LangGraph, and OpenAI Agents SDK"

@@ -251,3 +251,6 @@ SEMVER_PATTERN: str = (
 # Valid package name: lowercase alphanumeric, starting with a letter or digit,
 # hyphens and underscores allowed between characters.
 NAME_PATTERN: str = r"^[a-z0-9][a-z0-9-_]*$"
+
+# Feature72 lockfile schema version.
+LOCKFILE_SCHEMA_VERSION: int = 1
