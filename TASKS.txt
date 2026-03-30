@@ -7160,7 +7160,7 @@ tasks:
       - 'step4: Add tests for strict pass/fail behavior and user diagnostics'
     dependencies: [task222]
     tests: [test511]
-    status: not-started
+    status: needs-review
 
   - id: task353
     title: "Feature71 strict publish enforcement and CI rollout docs"

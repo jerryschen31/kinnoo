@@ -2345,7 +2345,7 @@ features:
         description: "CI documentation includes strict-mode rollout guidance and failure examples."
     owner: techlead-agent
     dependencies: []
-    status: not-started
+    status: in-progress
 
   - id: feature72
     title: "Lockfile support for reproducible installs"

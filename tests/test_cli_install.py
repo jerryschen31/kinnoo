@@ -4,6 +4,7 @@ import zipfile
 import os
 import json
 import hashlib
+import base64
 from pathlib import Path
 
 # Test51: kinnoo install usage error
@@ -1008,3 +1009,106 @@ def test_feature40_unsigned_archive_warning_and_confirmation(tmp_path):
     assert "UNVERIFIED PUBLISHER" in override_output
     assert "Unverified publisher override acknowledged" in override_output
     assert override_target_dir.exists(), override_output
+
+
+def test_feature71_strict_install_enforcement(tmp_path: Path) -> None:
+    from src.kinnoo.signing import create_detached_signature_artifacts, generate_ed25519_keypair
+
+    manifest = (
+        "name: strict-install-agent\n"
+        "version: 1.0.0\n"
+        "entrypoint: run.py\n"
+        "runtime:\n"
+        "  type: one-shot\n"
+        "  language: python\n"
+        "  version: \"3.10\"\n"
+        "dependencies: []\n"
+        "inputs:\n"
+        "  type: string\n"
+        "outputs:\n"
+        "  type: string\n"
+    )
+
+    unsigned_archive = tmp_path / "strict-unsigned.kno"
+    with zipfile.ZipFile(unsigned_archive, "w") as archive:
+        archive.writestr("kinnoo.yaml", manifest)
+        archive.writestr("run.py", "print('ok')\n")
+
+    unsigned_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            str(unsigned_archive),
+            str(tmp_path / "unsigned-target"),
+            "--yes",
+            "--strict",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    unsigned_output = f"{unsigned_result.stdout}\n{unsigned_result.stderr}"
+    assert unsigned_result.returncode != 0
+    assert "Strict mode requires archive integrity verification" in unsigned_output
+
+    private_key_path = tmp_path / "strict-private.pem"
+    public_key_path = tmp_path / "strict-public.pem"
+    generate_ed25519_keypair(private_key_path=private_key_path, public_key_path=public_key_path)
+
+    invalid_archive = tmp_path / "strict-invalid-signature.kno"
+    with zipfile.ZipFile(invalid_archive, "w") as archive:
+        archive.writestr("kinnoo.yaml", manifest)
+        archive.writestr("run.py", "print('ok')\n")
+
+    digest = hashlib.sha256(invalid_archive.read_bytes()).hexdigest()
+    Path(f"{invalid_archive}.sha256").write_text(
+        f"{digest}  {invalid_archive.name}\n",
+        encoding="utf-8",
+    )
+
+    create_detached_signature_artifacts(
+        archive_path=invalid_archive,
+        private_key_path=private_key_path,
+    )
+    signature_metadata_path = Path(f"{invalid_archive}.sig.json")
+    metadata = json.loads(signature_metadata_path.read_text(encoding="utf-8"))
+    metadata["signature_base64"] = base64.b64encode(b"strict-invalid-signature").decode("ascii")
+    signature_metadata_path.write_text(
+        json.dumps(metadata, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    invalid_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            str(invalid_archive),
+            str(tmp_path / "invalid-target"),
+            "--yes",
+            "--strict",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    invalid_output = f"{invalid_result.stdout}\n{invalid_result.stderr}"
+    assert invalid_result.returncode != 0
+    assert "Strict mode requires valid signature metadata" in invalid_output
+
+    strict_override_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            str(invalid_archive),
+            str(tmp_path / "override-target"),
+            "--yes",
+            "--strict",
+            "--allow-unverified-publisher",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    strict_override_output = f"{strict_override_result.stdout}\n{strict_override_result.stderr}"
+    assert strict_override_result.returncode != 0
+    assert "cannot be used with --strict" in strict_override_output
