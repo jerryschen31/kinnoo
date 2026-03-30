@@ -6900,7 +6900,7 @@ tasks:
       - 'step4: Add tests asserting guidance output and saved import report structure'
     dependencies: [task338]
     tests: [test498]
-    status: not-started
+    status: needs-review
 
   - id: task340
     title: "Feature65 delegated OpenClaw install runtime integration"

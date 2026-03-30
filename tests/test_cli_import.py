@@ -4,6 +4,7 @@ import os
 import signal
 import time
 from pathlib import Path
+import json
 
 import yaml
 
@@ -672,6 +673,75 @@ def test_feature64_clawhub_import_scaffold(tmp_path):
     assert missing_result.returncode != 0
     assert "was not found in mirror index" in missing_output
     assert "kinnoo sync clawhub" in missing_output
+
+
+def test_feature64_clawhub_import_requirements_report(tmp_path):
+    registry_root = tmp_path / "registry"
+    service = RegistryService(backend=MockFilesystemRegistryBackend(root=registry_root))
+    service.upsert_clawhub_mirror_record(
+        agent_slug="github/gh-skill",
+        source_version="3.1.0",
+        source_url="https://clawhub.ai/skills/github/gh-skill",
+        synced_at="2026-03-29T05:00:00Z",
+        metadata={
+            "description": "GitHub helper skill",
+            "env_hints": ["GITHUB_TOKEN", "GH_ORG"],
+            "config_hints": ["~/.config/gh/config.yml"],
+            "bin_hints": ["gh"],
+        },
+    )
+
+    destination = tmp_path / "imported-gh-skill"
+    env = dict(os.environ)
+    env["KINNOO_REGISTRY_ROOT"] = str(registry_root)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(CLI_PATH),
+            "import",
+            "--source",
+            "clawhub",
+            "github/gh-skill",
+            str(destination),
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    output = result.stdout + result.stderr
+    assert result.returncode == 0, output
+    assert "Requirement hints:" in output
+    assert "env: GH_ORG, GITHUB_TOKEN" in output
+    assert "config: ~/.config/gh/config.yml" in output
+    assert "bin: gh" in output
+    assert "Unresolved guidance:" in output
+
+    report_path = destination / "kinnoo-import-report.json"
+    assert report_path.exists()
+    report_payload = json.loads(report_path.read_text(encoding="utf-8"))
+    assert report_payload["source"] == "clawhub"
+    assert report_payload["slug"] == "github/gh-skill"
+    assert report_payload["requirements"]["env"] == ["GH_ORG", "GITHUB_TOKEN"]
+    assert report_payload["requirements"]["config"] == ["~/.config/gh/config.yml"]
+    assert report_payload["requirements"]["bin"] == ["gh"]
+    assert isinstance(report_payload["unresolved"], list) and report_payload["unresolved"]
+
+    inspect_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "inspect", str(destination)],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    inspect_output = inspect_result.stdout + inspect_result.stderr
+    assert inspect_result.returncode == 0, inspect_output
+    assert "- Provenance:" in inspect_output
+    assert "source_registry: clawhub" in inspect_output
+    assert "source_slug: github/gh-skill" in inspect_output
+    assert "- Imported Requirement Hints:" in inspect_output
+    assert "- env: GH_ORG, GITHUB_TOKEN" in inspect_output
+    assert "- config: ~/.config/gh/config.yml" in inspect_output
+    assert "- bin: gh" in inspect_output
 
 
 def test_feature19_import_generates_requirements_via_uv_export(tmp_path):

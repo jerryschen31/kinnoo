@@ -2212,7 +2212,7 @@ features:
         description: "Import report is saved locally with actionable unresolved guidance for missing runtime prerequisites."
     owner: techlead-agent
     dependencies: [feature62, feature63]
-    status: in-progress
+    status: needs-review
 
   - id: feature65
     title: "Delegated OpenClaw install bridge"
