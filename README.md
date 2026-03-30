@@ -316,6 +316,12 @@ Troubleshooting common CI failures:
 - Signing failures (if your pipeline enables signing): verify the private signing key path is available to the runner and referenced by your signing step.
 - Publish failures: verify token scope and tenant mapping, then retry with explicit remote mode (`kinnoo publish --remote`) for deterministic behavior.
 
+Strict rollout guidance:
+
+- Start with `KINNOO_CI_STRICT_MODE=0` while validating signature coverage for all publish paths.
+- Move to required gate mode by setting `KINNOO_CI_STRICT_MODE=1` and enforcing `publish --strict` in protected-branch workflows.
+- In strict mode, unsigned artifacts fail closed and must be re-packed with `kinnoo pack --sign`.
+
 ## Feature69 kinnoo test command
 
 Kinnoo includes a standardized declarative test runner for agent projects.

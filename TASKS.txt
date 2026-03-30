@@ -7180,7 +7180,7 @@ tasks:
       - 'step4: Add publish strict-mode tests and docs alignment checks'
     dependencies: [task352, task346]
     tests: [test512]
-    status: not-started
+    status: needs-review
 
   - id: task354
     title: "Feature72 lockfile write/update implementation"

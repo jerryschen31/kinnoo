@@ -338,6 +338,76 @@ def test_feature63_mirror_attribution_and_idempotency(tmp_path: Path) -> None:
 			os.environ["KINNOO_REGISTRY_ROOT"] = previous_registry_root
 
 
+def test_feature71_strict_publish_and_docs(tmp_path: Path) -> None:
+	from src.kinnoo.signing import create_detached_signature_artifacts, generate_ed25519_keypair
+
+	archive_root = tmp_path / "archive"
+	registry_root = tmp_path / "registry"
+
+	manifest_text = (
+		"name: strict-publish-agent\n"
+		"version: 1.0.0\n"
+		"entrypoint: run.py\n"
+		"runtime:\n"
+		"  language: python\n"
+		"  version: \">=3.10\"\n"
+		"  type: one-shot\n"
+		"dependencies: []\n"
+		"inputs:\n"
+		"  type: text\n"
+		"outputs:\n"
+		"  type: text\n"
+	)
+
+	unsigned_archive = archive_root / "strict-publish-agent" / "1.0.0" / "strict-publish-agent.kno"
+	unsigned_archive.parent.mkdir(parents=True, exist_ok=True)
+	with zipfile.ZipFile(unsigned_archive, "w") as archive_zip:
+		archive_zip.writestr("kinnoo.yaml", manifest_text)
+		archive_zip.writestr("run.py", "print('strict publish')\n")
+
+	env = {
+		**os.environ,
+		"KINNOO_ARCHIVE_ROOT": str(archive_root),
+		"KINNOO_REGISTRY_ROOT": str(registry_root),
+		"KINNOO_TENANT_SLUG": "tenant-strict",
+	}
+
+	unsigned_publish = subprocess.run(
+		[sys.executable, str(CLI_PATH), "publish", "strict-publish-agent", "--local", "--strict"],
+		capture_output=True,
+		text=True,
+		env=env,
+	)
+	unsigned_output = f"{unsigned_publish.stdout}\n{unsigned_publish.stderr}"
+	assert unsigned_publish.returncode != 0
+	assert "Strict publish requires valid signature metadata" in unsigned_output
+
+	private_key_path = tmp_path / "strict-publish-private.pem"
+	public_key_path = tmp_path / "strict-publish-public.pem"
+	generate_ed25519_keypair(private_key_path=private_key_path, public_key_path=public_key_path)
+	create_detached_signature_artifacts(
+		archive_path=unsigned_archive,
+		private_key_path=private_key_path,
+	)
+
+	signed_publish = subprocess.run(
+		[sys.executable, str(CLI_PATH), "publish", "strict-publish-agent", "--local", "--strict"],
+		capture_output=True,
+		text=True,
+		env=env,
+	)
+	signed_output = f"{signed_publish.stdout}\n{signed_publish.stderr}"
+	assert signed_publish.returncode == 0, signed_output
+	assert "Published strict-publish-agent==1.0.0 (local)" in signed_output
+
+	repo_root = Path(__file__).resolve().parents[1]
+	workflow_text = (repo_root / ".github" / "workflows" / "kinnoo-publish.yml").read_text(encoding="utf-8")
+	readme_text = (repo_root / "README.md").read_text(encoding="utf-8")
+	combined_docs = f"{workflow_text}\n{readme_text}"
+	assert "--strict" in combined_docs
+	assert "KINNOO_CI_STRICT_MODE" in combined_docs
+
+
 class _AuthTokenTestServer:
 	def __init__(self, *, accepted_credentials: dict[tuple[str, str, str], str]) -> None:
 		self._accepted_credentials = accepted_credentials
