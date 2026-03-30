@@ -7040,7 +7040,7 @@ tasks:
       - 'step4: Add docs links and operator guidance for setup and troubleshooting'
     dependencies: [task332]
     tests: [test505]
-    status: not-started
+    status: needs-review
 
   - id: task347
     title: "Feature68 CI workflow regression checks and docs validation"

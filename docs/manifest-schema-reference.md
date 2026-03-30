@@ -227,6 +227,33 @@ Deterministic missing-slug behavior:
 - if mirror metadata for `<owner>/<slug>` is missing, import fails with actionable guidance to run:
   - `kinnoo sync clawhub`
 
+### Feature68 CI publish workflow contract
+
+Reference workflow:
+
+- `.github/workflows/kinnoo-publish.yml`
+
+Required CI secrets/environment values:
+
+- `KINNOO_REGISTRY_URL`
+- `KINNOO_REGISTRY_TOKEN`
+- `KINNOO_TENANT_SLUG`
+
+Reference stage ordering:
+
+- install dependencies
+- preflight compatibility (`kinnoo check`)
+- pack (`kinnoo pack`)
+- publish (`kinnoo publish --remote`)
+
+Strict-mode compatibility control:
+
+- `KINNOO_CI_STRICT_MODE=1` enables strict publish flags in the workflow once strict-mode controls are available.
+
+Failure behavior contract:
+
+- workflow steps are fail-fast and must return non-zero on contract violations (missing secrets, check failures, pack failures, publish failures).
+
 ### Feature35 mutable state snapshots (`state_dirs`)
 
 Feature35 defines `state_dirs` as mutable runtime state snapshot roots. This behavior is intentionally distinct from immutable `assets`.
