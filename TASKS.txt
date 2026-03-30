@@ -7000,7 +7000,7 @@ tasks:
       - 'step4: Preserve source attribution metadata across sync updates'
     dependencies: [task336]
     tests: [test503]
-    status: not-started
+    status: needs-review
 
   - id: task345
     title: "Feature67 sync resilience, rate control, and diagnostics"

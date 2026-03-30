@@ -37,7 +37,7 @@ def _format_top_level_help_text() -> str:
     usage_help = style_text("-h", color="neon_green", stream=sys.stdout)
     usage_version = style_text("--version", color="light_blue", bold=True, stream=sys.stdout)
     usage_commands = style_text(
-        "{init,run,stop,attach,logs,install,pack,keygen,inspect,publish,list,search,login,logout,import,check}",
+        "{init,run,stop,attach,logs,install,pack,keygen,inspect,publish,list,search,sync,login,logout,import,check}",
         color="neon_green",
         bold=True,
         stream=sys.stdout,
@@ -52,7 +52,7 @@ def _format_top_level_help_text() -> str:
 
     all_agents_set = style_text("{init,run,install,pack,inspect, import,check}", color="neon_green", bold=True, stream=sys.stdout)
     daemon_set = style_text("{stop,attach,logs}", color="neon_green", bold=True, stream=sys.stdout)
-    registry_set = style_text("{publish,install,list,search,login,logout}", color="neon_green", bold=True, stream=sys.stdout)
+    registry_set = style_text("{publish,install,list,search,sync,login,logout}", color="neon_green", bold=True, stream=sys.stdout)
     other_set = style_text("{keygen}", color="neon_green", bold=True, stream=sys.stdout)
 
     init_cmd = style_text("init", color="neon_green", bold=True, stream=sys.stdout)
@@ -68,6 +68,7 @@ def _format_top_level_help_text() -> str:
     install_cmd = style_text("install", color="neon_green", bold=True, stream=sys.stdout)
     list_cmd = style_text("list", color="neon_green", bold=True, stream=sys.stdout)
     search_cmd = style_text("search", color="neon_green", bold=True, stream=sys.stdout)
+    sync_cmd = style_text("sync", color="neon_green", bold=True, stream=sys.stdout)
     login_cmd = style_text("login", color="neon_green", bold=True, stream=sys.stdout)
     logout_cmd = style_text("logout", color="neon_green", bold=True, stream=sys.stdout)
     keygen_cmd = style_text("keygen", color="neon_green", bold=True, stream=sys.stdout)
@@ -98,6 +99,7 @@ def _format_top_level_help_text() -> str:
         f"        {install_cmd}             Install a kinnoo agent from archive (.kno) or registry\n"
         f"        {list_cmd}                List agents from local archive (default) or remote registry\n"
         f"        {search_cmd}              Search agents from local archive (default) or remote registry\n"
+        f"        {sync_cmd}                Sync source metadata into local registry mirror\n"
         f"        {login_cmd}               Authenticate to a registry and persist auth state locally\n"
         f"        {logout_cmd}              Clear persisted registry auth state\n\n"
         f"{other_header}\n"
@@ -562,6 +564,44 @@ def main():
         help="Search query to match against agent name and description",
     )
 
+    sync_parser = subparsers.add_parser(
+        "sync",
+        help="Sync source metadata into local registry mirror",
+        formatter_class=argparse.RawTextHelpFormatter,
+        description="Sync source metadata into local registry mirror",
+        epilog=(
+            "Examples:\n"
+            "  kinnoo sync clawhub\n"
+            "  kinnoo sync clawhub --full\n"
+            "  kinnoo sync clawhub --since 2026-03-01T00:00:00Z"
+        ),
+    )
+    sync_parser.add_argument(
+        "source",
+        choices=["clawhub"],
+        help="Source namespace to sync",
+    )
+    sync_parser.add_argument(
+        "--full",
+        action="store_true",
+        help="Run full sync mode instead of incremental sync",
+    )
+    sync_parser.add_argument(
+        "--since",
+        help="Incremental sync cursor timestamp (ISO8601), if supported by source",
+    )
+    sync_source_group = sync_parser.add_mutually_exclusive_group()
+    sync_source_group.add_argument(
+        "--local",
+        action="store_true",
+        help="Force local fixture-driven sync mode",
+    )
+    sync_source_group.add_argument(
+        "--remote",
+        action="store_true",
+        help="Force configured remote sync mode",
+    )
+
     login_parser = subparsers.add_parser(
         "login",
         help="Authenticate to a registry and persist auth state locally",
@@ -961,6 +1001,26 @@ def main():
             from .search_command import search_agents
 
         exit_code = search_agents(query=query, source=source)
+        sys.exit(exit_code)
+
+    elif args.command == "sync":
+        source = getattr(args, "source", None)
+        if source is None:
+            print("Usage: kinnoo sync clawhub [--full] [--since <iso8601>]", file=sys.stderr)
+            sys.exit(1)
+
+        try:
+            from kinnoo.sync_command import sync_source
+        except ImportError:
+            from .sync_command import sync_source
+
+        exit_code = sync_source(
+            source=source,
+            full=bool(getattr(args, "full", False)),
+            since=getattr(args, "since", None),
+            use_local=bool(getattr(args, "local", False)),
+            use_remote=bool(getattr(args, "remote", False)),
+        )
         sys.exit(exit_code)
 
     elif args.command == "login":
