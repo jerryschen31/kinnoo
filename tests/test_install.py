@@ -4,8 +4,10 @@ import subprocess
 import tempfile
 import json
 import base64
+import hashlib
 from pathlib import Path
 import pytest
+import yaml
 
 def make_dummy_kno_archive(archive_path, files=None):
     import zipfile
@@ -54,6 +56,107 @@ def test_install_extracts_to_user_specified_directory(tmp_path):
     assert "already exists" in result2.stderr, "Error message missing for existing directory"
 
     # Step3: --force is paused; skip this step
+
+
+def test_feature72_lockfile_write_and_stability(tmp_path, monkeypatch):
+    from kinnoo import install_command
+
+    shared_lockfile_path = tmp_path / "shared-lock.yaml"
+    monkeypatch.setenv("KINNOO_LOCKFILE_PATH", str(shared_lockfile_path))
+
+    def _manifest(name: str, version: str) -> str:
+        return (
+            f"name: {name}\n"
+            f"version: {version}\n"
+            "entrypoint: run.py\n"
+            "runtime:\n"
+            "  type: one-shot\n"
+            "  language: python\n"
+            "  version: \"3.10\"\n"
+            "dependencies: []\n"
+            "inputs:\n"
+            "  type: string\n"
+            "outputs:\n"
+            "  type: string\n"
+        )
+
+    b_archive = tmp_path / "b-agent.kno"
+    make_dummy_kno_archive(
+        b_archive,
+        files={
+            "kinnoo.yaml": _manifest("b-agent", "1.0.0"),
+            "run.py": "print('b')\n",
+            "requirements.txt": "",
+        },
+    )
+    b_target = tmp_path / "installed-b"
+    b_result = subprocess.run(
+        ["python3", "src/kinnoo/cli.py", "install", str(b_archive), str(b_target), "--yes"],
+        capture_output=True,
+        text=True,
+    )
+    assert b_result.returncode == 0, b_result.stderr
+
+    a_archive = tmp_path / "a-agent.kno"
+    make_dummy_kno_archive(
+        a_archive,
+        files={
+            "kinnoo.yaml": _manifest("a-agent", "2.0.0"),
+            "run.py": "print('a')\n",
+            "requirements.txt": "",
+        },
+    )
+    a_target = tmp_path / "installed-a"
+    a_result = subprocess.run(
+        ["python3", "src/kinnoo/cli.py", "install", str(a_archive), str(a_target), "--yes"],
+        capture_output=True,
+        text=True,
+    )
+    assert a_result.returncode == 0, a_result.stderr
+
+    lockfile_doc = yaml.safe_load(shared_lockfile_path.read_text(encoding="utf-8"))
+    assert isinstance(lockfile_doc, dict)
+    assert lockfile_doc.get("lock_version") == 1
+    assert isinstance(lockfile_doc.get("locked_at"), str)
+
+    platform_info = lockfile_doc.get("platform")
+    assert isinstance(platform_info, dict)
+    assert isinstance(platform_info.get("python"), str)
+    assert isinstance(platform_info.get("os"), str)
+
+    agents = lockfile_doc.get("agents")
+    assert isinstance(agents, dict)
+    assert list(agents.keys()) == ["a-agent", "b-agent"]
+
+    a_entry = agents["a-agent"]
+    b_entry = agents["b-agent"]
+    assert a_entry.get("version") == "2.0.0"
+    assert b_entry.get("version") == "1.0.0"
+    assert a_entry.get("source") == "archive-file"
+    assert b_entry.get("source") == "archive-file"
+    assert isinstance(a_entry.get("installed_at"), str)
+    assert isinstance(b_entry.get("installed_at"), str)
+
+    expected_a_checksum = hashlib.sha256(a_archive.read_bytes()).hexdigest()
+    expected_b_checksum = hashlib.sha256(b_archive.read_bytes()).hexdigest()
+    assert a_entry.get("archive_sha256") == expected_a_checksum
+    assert b_entry.get("archive_sha256") == expected_b_checksum
+
+    a_force_result = install_command.install_agent(
+        archive_path=str(a_archive),
+        target_dir_arg=str(a_target),
+        assume_yes=True,
+        force=True,
+    )
+    assert a_force_result == 0
+
+    updated_doc = yaml.safe_load(shared_lockfile_path.read_text(encoding="utf-8"))
+    assert isinstance(updated_doc, dict)
+    updated_agents = updated_doc.get("agents")
+    assert isinstance(updated_agents, dict)
+    assert list(updated_agents.keys()) == ["a-agent", "b-agent"]
+    assert updated_agents["a-agent"].get("archive_sha256") == expected_a_checksum
+    assert updated_agents["a-agent"].get("source") == "archive-file"
 
 
 def _node_manifest_yaml(package_manager: str | None = None) -> str:
