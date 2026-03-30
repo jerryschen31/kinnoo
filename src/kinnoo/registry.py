@@ -222,6 +222,38 @@ class RegistryService:
 
         return sorted(normalized, key=lambda item: (item.agent_slug, item.version))
 
+    def get_clawhub_mirror_record(self, *, agent_slug: str) -> ClawHubMirrorRecord | None:
+        backend_getter = getattr(self._backend, "get_clawhub_mirror_record", None)
+        if not callable(backend_getter):
+            return None
+
+        payload = backend_getter(agent_slug=agent_slug)
+        if payload is None:
+            return None
+        if isinstance(payload, ClawHubMirrorRecord):
+            return payload
+        if not isinstance(payload, dict):
+            return None
+
+        return ClawHubMirrorRecord(
+            tenant_slug=str(payload.get("tenant_slug", "clawhub")),
+            agent_slug=str(payload.get("agent_slug", agent_slug)),
+            name=str(payload.get("name", _mirror_name_from_slug(agent_slug))),
+            version=str(payload.get("version", payload.get("source_version", ""))),
+            source_registry=str(payload.get("source_registry", "clawhub")),
+            source_version=str(payload.get("source_version", payload.get("version", ""))),
+            source_url=(
+                str(payload.get("source_url"))
+                if isinstance(payload.get("source_url"), str) and str(payload.get("source_url")).strip()
+                else None
+            ),
+            synced_at=(
+                str(payload.get("synced_at"))
+                if isinstance(payload.get("synced_at"), str) and str(payload.get("synced_at")).strip()
+                else None
+            ),
+        )
+
 
 def _mirror_name_from_slug(agent_slug: str) -> str:
     cleaned = agent_slug.strip().strip("/")

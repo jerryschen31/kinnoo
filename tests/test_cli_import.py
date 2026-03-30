@@ -7,6 +7,9 @@ from pathlib import Path
 
 import yaml
 
+from src.kinnoo.registry import RegistryService
+from src.kinnoo.registry_backends import MockFilesystemRegistryBackend
+
 
 CLI_PATH = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
 
@@ -605,6 +608,70 @@ def test_feature62_import_openclaw_manifest_migration_guidance(tmp_path):
     assert inspect_result.returncode != 0
     assert "provenance" in combined and "source_slug" in combined and "source_url" in combined
     assert "Field 'state_dirs' is not supported in this schema version" in combined
+
+
+def test_feature64_clawhub_import_scaffold(tmp_path):
+    registry_root = tmp_path / "registry"
+    service = RegistryService(backend=MockFilesystemRegistryBackend(root=registry_root))
+    service.upsert_clawhub_mirror_record(
+        agent_slug="weather/weather-skill",
+        source_version="2.0.0",
+        source_url="https://clawhub.ai/skills/weather/weather-skill",
+        synced_at="2026-03-29T04:00:00Z",
+        metadata={"description": "Weather skill"},
+    )
+
+    destination = tmp_path / "imported-weather-skill"
+    env = dict(os.environ)
+    env["KINNOO_REGISTRY_ROOT"] = str(registry_root)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(CLI_PATH),
+            "import",
+            "--source",
+            "clawhub",
+            "weather/weather-skill",
+            str(destination),
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    output = result.stdout + result.stderr
+    assert result.returncode == 0, output
+
+    manifest_path = destination / "kinnoo.yaml"
+    report_path = destination / "kinnoo-import-report.json"
+    assert manifest_path.exists()
+    assert report_path.exists()
+
+    manifest_text = manifest_path.read_text(encoding="utf-8")
+    assert "type: openclaw-skill" in manifest_text
+    assert "framework: openclaw" in manifest_text
+    assert "source_registry: clawhub" in manifest_text
+    assert "source_version: 2.0.0" in manifest_text
+    assert "source_slug: weather/weather-skill" in manifest_text
+
+    missing_result = subprocess.run(
+        [
+            sys.executable,
+            str(CLI_PATH),
+            "import",
+            "--source",
+            "clawhub",
+            "missing/not-found",
+            str(tmp_path / "missing-destination"),
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    missing_output = missing_result.stdout + missing_result.stderr
+    assert missing_result.returncode != 0
+    assert "was not found in mirror index" in missing_output
+    assert "kinnoo sync clawhub" in missing_output
 
 
 def test_feature19_import_generates_requirements_via_uv_export(tmp_path):

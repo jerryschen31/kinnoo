@@ -6880,7 +6880,7 @@ tasks:
       - 'step4: Persist local import report artifact describing inferred and unresolved fields'
     dependencies: [task334, task336]
     tests: [test497]
-    status: not-started
+    status: needs-review
 
   - id: task339
     title: "Feature64 import hinting and unresolved guidance"
