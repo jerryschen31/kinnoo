@@ -1112,3 +1112,110 @@ def test_feature71_strict_install_enforcement(tmp_path: Path) -> None:
     strict_override_output = f"{strict_override_result.stdout}\n{strict_override_result.stderr}"
     assert strict_override_result.returncode != 0
     assert "cannot be used with --strict" in strict_override_output
+
+
+def test_feature72_frozen_install_and_docs(tmp_path: Path) -> None:
+    archive_path = tmp_path / "frozen-agent.kno"
+    manifest = (
+        "name: frozen-agent\n"
+        "version: 1.2.3\n"
+        "entrypoint: run.py\n"
+        "runtime:\n"
+        "  type: one-shot\n"
+        "  language: python\n"
+        "  version: \"3.10\"\n"
+        "dependencies: []\n"
+        "inputs:\n"
+        "  type: string\n"
+        "outputs:\n"
+        "  type: string\n"
+    )
+
+    with zipfile.ZipFile(archive_path, "w") as archive:
+        archive.writestr("kinnoo.yaml", manifest)
+        archive.writestr("run.py", "print('frozen')\n")
+        archive.writestr("requirements.txt", "")
+
+    lockfile_path = tmp_path / "kinnoo-lock.yaml"
+    archive_checksum = hashlib.sha256(archive_path.read_bytes()).hexdigest()
+    lockfile_path.write_text(
+        (
+            "lock_version: 1\n"
+            "locked_at: 2026-03-30T00:00:00Z\n"
+            "platform:\n"
+            "  python: 3.12.0\n"
+            "  os: darwin-arm64\n"
+            "agents:\n"
+            "  frozen-agent:\n"
+            "    version: 1.2.3\n"
+            "    source: archive-file\n"
+            f"    archive_sha256: {archive_checksum}\n"
+            "    installed_at: 2026-03-30T00:00:00Z\n"
+        ),
+        encoding="utf-8",
+    )
+    original_lockfile_text = lockfile_path.read_text(encoding="utf-8")
+
+    install_env = dict(os.environ)
+    install_env["KINNOO_LOCKFILE_PATH"] = str(lockfile_path)
+
+    frozen_ok_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            str(archive_path),
+            str(tmp_path / "frozen-target-ok"),
+            "--yes",
+            "--frozen",
+        ],
+        capture_output=True,
+        text=True,
+        env=install_env,
+    )
+    frozen_ok_output = f"{frozen_ok_result.stdout}\n{frozen_ok_result.stderr}"
+    assert frozen_ok_result.returncode == 0, frozen_ok_output
+    assert "Frozen lockfile check passed for 'frozen-agent'" in frozen_ok_output
+    assert "Frozen mode active; lockfile left unchanged." in frozen_ok_output
+    assert lockfile_path.read_text(encoding="utf-8") == original_lockfile_text
+
+    lockfile_path.write_text(
+        (
+            "lock_version: 1\n"
+            "locked_at: 2026-03-30T00:00:00Z\n"
+            "platform:\n"
+            "  python: 3.12.0\n"
+            "  os: darwin-arm64\n"
+            "agents:\n"
+            "  frozen-agent:\n"
+            "    version: 9.9.9\n"
+            "    source: archive-file\n"
+            f"    archive_sha256: {archive_checksum}\n"
+            "    installed_at: 2026-03-30T00:00:00Z\n"
+        ),
+        encoding="utf-8",
+    )
+
+    frozen_drift_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            str(archive_path),
+            str(tmp_path / "frozen-target-drift"),
+            "--yes",
+            "--frozen",
+        ],
+        capture_output=True,
+        text=True,
+        env=install_env,
+    )
+    frozen_drift_output = f"{frozen_drift_result.stdout}\n{frozen_drift_result.stderr}"
+    assert frozen_drift_result.returncode != 0
+    assert "Frozen lock mismatch for agent 'frozen-agent'" in frozen_drift_output
+    assert "Re-run install without --frozen to regenerate lockfile" in frozen_drift_output
+
+    repo_root = Path(__file__).resolve().parents[1]
+    readme_text = (repo_root / "README.md").read_text(encoding="utf-8")
+    assert "kinnoo install --frozen" in readme_text
+    assert "Re-run install without --frozen to regenerate lockfile" in readme_text

@@ -7220,7 +7220,7 @@ tasks:
       - 'step4: Add tests and docs for frozen-mode expected behavior'
     dependencies: [task354]
     tests: [test514]
-    status: not-started
+    status: needs-review
 
   - id: task356
     title: "Feature73 diff command core engine"

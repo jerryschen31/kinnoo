@@ -213,6 +213,148 @@ def _update_lockfile_after_install(
     return 0
 
 
+def _finalize_install_success(
+    *,
+    frozen_mode: bool,
+    target_dir: Path,
+    agent_name: str,
+    agent_version: str,
+    archive_path: Path,
+    install_source: str,
+) -> int:
+    if frozen_mode:
+        print("[kinnoo install] Frozen mode active; lockfile left unchanged.")
+        return 0
+
+    return _update_lockfile_after_install(
+        target_dir=target_dir,
+        agent_name=agent_name,
+        agent_version=agent_version,
+        archive_path=archive_path,
+        install_source=install_source,
+    )
+
+
+def _resolve_install_lockfile_path(
+    *,
+    archive_path: Path,
+    target_dir_arg: str | None,
+) -> Path:
+    if target_dir_arg:
+        try:
+            start_dir = Path(target_dir_arg).expanduser().resolve()
+        except OSError:
+            start_dir = Path.cwd()
+    else:
+        start_dir = archive_path.with_suffix("")
+    return resolve_lockfile_path(start_dir=start_dir)
+
+
+def _enforce_frozen_install_lock(
+    *,
+    archive_path: Path,
+    target_dir_arg: str | None,
+    agent_name: str,
+    agent_version: str,
+) -> int:
+    lockfile_path = _resolve_install_lockfile_path(
+        archive_path=archive_path,
+        target_dir_arg=target_dir_arg,
+    )
+
+    if not lockfile_path.exists() or not lockfile_path.is_file():
+        print(
+            f"Error: Frozen install requires lockfile at '{lockfile_path}'.",
+            file=sys.stderr,
+        )
+        print(
+            "Error: Re-run install without --frozen to regenerate lockfile, then retry --frozen.",
+            file=sys.stderr,
+        )
+        return 1
+
+    try:
+        lockfile_doc = yaml.safe_load(lockfile_path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as error:
+        print(f"Error: Failed to read frozen lockfile '{lockfile_path}': {error}", file=sys.stderr)
+        return 1
+
+    if not isinstance(lockfile_doc, dict):
+        print(
+            f"Error: Frozen install lockfile '{lockfile_path}' is not a valid mapping.",
+            file=sys.stderr,
+        )
+        return 1
+
+    agents = lockfile_doc.get("agents")
+    if not isinstance(agents, dict):
+        print(
+            f"Error: Frozen install lockfile '{lockfile_path}' is missing an 'agents' mapping.",
+            file=sys.stderr,
+        )
+        return 1
+
+    agent_entry = agents.get(agent_name)
+    if not isinstance(agent_entry, dict):
+        print(
+            f"Error: Frozen lockfile entry not found for agent '{agent_name}'.",
+            file=sys.stderr,
+        )
+        print(
+            "Error: Re-run install without --frozen to regenerate lockfile, then retry --frozen.",
+            file=sys.stderr,
+        )
+        return 1
+
+    locked_version = agent_entry.get("version")
+    if not isinstance(locked_version, str) or not locked_version.strip():
+        print(
+            f"Error: Frozen lockfile entry for '{agent_name}' is missing a valid version.",
+            file=sys.stderr,
+        )
+        return 1
+
+    normalized_locked_version = locked_version.strip()
+    if normalized_locked_version != agent_version:
+        print(
+            "Error: Frozen lock mismatch for agent "
+            f"'{agent_name}': lockfile version is '{normalized_locked_version}' "
+            f"but archive version is '{agent_version}'.",
+            file=sys.stderr,
+        )
+        print(
+            "Error: Re-run install without --frozen to regenerate lockfile, then retry --frozen.",
+            file=sys.stderr,
+        )
+        return 1
+
+    locked_checksum = agent_entry.get("archive_sha256")
+    if not isinstance(locked_checksum, str) or not locked_checksum.strip():
+        print(
+            f"Error: Frozen lockfile entry for '{agent_name}' is missing archive_sha256.",
+            file=sys.stderr,
+        )
+        return 1
+
+    resolved_locked_checksum = locked_checksum.strip().lower()
+    actual_checksum = _sha256_file(archive_path)
+    if resolved_locked_checksum != actual_checksum:
+        print(
+            "Error: Frozen lock mismatch for agent "
+            f"'{agent_name}': lockfile checksum is '{resolved_locked_checksum}' "
+            f"but archive checksum is '{actual_checksum}'.",
+            file=sys.stderr,
+        )
+        print(
+            "Error: Re-run install without --frozen to regenerate lockfile, then retry --frozen.",
+            file=sys.stderr,
+        )
+        return 1
+
+    print(f"[kinnoo install] Frozen lockfile check passed for '{agent_name}'.")
+    return 0
+
+
 def _wheel_distribution_name(wheel_filename: str) -> str:
     return wheel_filename.split("-", 1)[0].lower().replace("_", "-")
 
@@ -753,6 +895,7 @@ def install_agent(
     accept_permissions: bool = False,
     allow_unverified_publisher: bool = False,
     strict_mode: bool = False,
+    frozen_mode: bool = False,
     expected_publisher_public_key: str | None = None,
     use_local: bool = False,
     use_remote: bool = False,
@@ -898,6 +1041,7 @@ def install_agent(
                 accept_permissions=accept_permissions,
                 allow_unverified_publisher=allow_unverified_publisher,
                 strict_mode=strict_mode,
+                frozen_mode=frozen_mode,
                 expected_publisher_public_key=expected_publisher_key,
                 minimum_openclaw_version=minimum_openclaw_version,
                 install_source=resolved_install_source,
@@ -918,6 +1062,7 @@ def install_agent(
         accept_permissions=accept_permissions,
         allow_unverified_publisher=allow_unverified_publisher,
         strict_mode=strict_mode,
+        frozen_mode=frozen_mode,
         expected_publisher_public_key=expected_publisher_public_key,
         minimum_openclaw_version=minimum_openclaw_version,
         install_source=install_source,
@@ -935,6 +1080,7 @@ def _install_from_archive_path(
     accept_permissions: bool = False,
     allow_unverified_publisher: bool = False,
     strict_mode: bool = False,
+    frozen_mode: bool = False,
     expected_publisher_public_key: str | None = None,
     minimum_openclaw_version: str = DEFAULT_OPENCLAW_MINIMUM_VERSION,
     install_source: str = "archive-file",
@@ -1106,6 +1252,17 @@ def _install_from_archive_path(
 
     agent_name = str(manifest_data.get("name", "unknown"))
     agent_version = str(manifest_data.get("version", "unknown"))
+
+    if frozen_mode:
+        frozen_validation_exit_code = _enforce_frozen_install_lock(
+            archive_path=archive,
+            target_dir_arg=target_dir_arg,
+            agent_name=agent_name,
+            agent_version=agent_version,
+        )
+        if frozen_validation_exit_code != 0:
+            return frozen_validation_exit_code
+
     env_var_names = normalize_env_vars(manifest_data.get("env_vars"))
     requirement_lines = _read_requirements_from_archive(archive)
     dependency_names = [_requirement_display_name(line) for line in requirement_lines]
@@ -1277,7 +1434,8 @@ def _install_from_archive_path(
         )
         if openclaw_exit_code != 0:
             return openclaw_exit_code
-        return _update_lockfile_after_install(
+        return _finalize_install_success(
+            frozen_mode=frozen_mode,
             target_dir=target_dir,
             agent_name=agent_name,
             agent_version=agent_version,
@@ -1300,7 +1458,8 @@ def _install_from_archive_path(
         )
         if node_exit_code != 0:
             return node_exit_code
-        return _update_lockfile_after_install(
+        return _finalize_install_success(
+            frozen_mode=frozen_mode,
             target_dir=target_dir,
             agent_name=agent_name,
             agent_version=agent_version,
@@ -1351,7 +1510,8 @@ def _install_from_archive_path(
             print("[kinnoo install] All wheels installed successfully.")
         else:
             print("[kinnoo install] No dependencies listed in requirements.txt. Skipping dependency install.")
-        return _update_lockfile_after_install(
+        return _finalize_install_success(
+            frozen_mode=frozen_mode,
             target_dir=target_dir,
             agent_name=agent_name,
             agent_version=agent_version,
@@ -1439,7 +1599,8 @@ def _install_from_archive_path(
         print("[kinnoo install] Dependencies installed successfully from bundled wheels.")
         print("[kinnoo install] Offline-ready install path used (no network fallback required).")
 
-    return _update_lockfile_after_install(
+    return _finalize_install_success(
+        frozen_mode=frozen_mode,
         target_dir=target_dir,
         agent_name=agent_name,
         agent_version=agent_version,
