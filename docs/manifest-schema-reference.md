@@ -96,33 +96,108 @@ The CLI's behavior on `kinnoo run` is determined entirely by this field.
 
 ---
 
-### Feature33 manifest extensions (`runtime.package_manager`, `channels`, `skills`, `state_dirs`)
+### Feature62 openclaw-skill schema contract (`type`, `provenance`)
 
-Feature33 adds optional schema fields for OpenClaw-oriented and generic Node.js agent workflows.
+Feature62 adds an explicit OpenClaw package type and provenance object while keeping metadata minimal.
 
-- `runtime.package_manager` (optional): string
-  - supported values: `npm`, `pnpm`
-  - if present with any other value, validation fails with allowed-values guidance
-- `channels` (optional): list[string]
-  - each item must be a non-empty string
-- `skills` (optional): list[string]
-  - each item must be a non-empty relative path
-  - absolute paths and parent traversal (`..`) are rejected
-- `state_dirs` (optional): list[string]
-  - each item must be a non-empty relative path
-  - absolute paths and parent traversal (`..`) are rejected
+- `type` (optional): string
+  - supported values: `agent`, `openclaw-skill`
+  - if `type: openclaw-skill`, validator enforces OpenClaw runtime compatibility
+- `provenance` (optional): object
+  - `source_registry` (required when `provenance` is present): non-empty string
+  - `source_version` (required when `provenance` is present): non-empty string
+  - at least one of:
+    - `source_slug` (non-empty string)
+    - `source_url` (non-empty string)
 
-OpenClaw-targeted validation (`framework: openclaw`):
+OpenClaw compatibility checks:
 
-- `runtime.language` must be `nodejs`
-- `runtime.type` must be `daemon`
-- `runtime.package_manager` is required and must be `npm` or `pnpm`
-- `channels` must include `stdio`
+- `framework: openclaw` requires:
+  - `runtime.language: nodejs`
+  - `runtime.type: daemon`
+- `type: openclaw-skill` requires:
+  - `framework: openclaw`
+  - `runtime.language: nodejs`
+  - `runtime.type: daemon`
 
-Non-openclaw compatibility note:
+Minimal metadata policy for Phase 6:
 
-- manifests that omit these fields remain valid
-- non-openclaw manifests may include these fields in valid shape without triggering OpenClaw-only diagnostics
+- `channels`, `skills`, and `state_dirs` are intentionally not part of this schema version.
+- If present, validation fails with deterministic guidance to remove them.
+
+Canonical examples:
+
+```yaml
+# Example 1: mirrored ClawHub skill
+name: weather-skill
+version: 1.2.3
+framework: openclaw
+type: openclaw-skill
+runtime:
+  language: nodejs
+  version: ">=20"
+  type: daemon
+entrypoint: index.js
+dependencies: []
+inputs:
+  type: string
+outputs:
+  type: string
+provenance:
+  source_registry: clawhub
+  source_slug: weather/weather-skill
+  source_url: https://clawhub.ai/skills/weather/weather-skill
+  source_version: 1.2.3
+```
+
+```yaml
+# Example 2: GitHub-origin agent (not skill)
+name: repo-triage-agent
+version: 0.4.0
+framework: langgraph
+type: agent
+runtime:
+  language: python
+  version: ">=3.11"
+  type: one-shot
+entrypoint: run.py
+dependencies:
+  - langgraph>=0.2
+  - openai>=1.0
+inputs:
+  type: string
+outputs:
+  type: string
+provenance:
+  source_registry: github
+  source_url: https://github.com/acme/repo-triage-agent
+  source_version: v0.4.0
+```
+
+```yaml
+# Example 3: locally authored OpenClaw project
+name: local-notes-skill
+version: 0.1.0
+framework: openclaw
+type: openclaw-skill
+runtime:
+  language: nodejs
+  version: ">=20"
+  type: daemon
+entrypoint: src/index.ts
+dependencies: []
+inputs:
+  type: string
+outputs:
+  type: string
+# provenance intentionally omitted for local authored project
+```
+
+Migration guidance:
+
+- Replace flat source fields with a single `provenance` object.
+- Remove `channels`, `skills`, and `state_dirs` from manifests.
+- For local projects without external source lineage, omit `provenance`.
 
 ### Feature35 mutable state snapshots (`state_dirs`)
 
