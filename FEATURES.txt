@@ -2102,7 +2102,7 @@ features:
         description: "Publish and registry client paths prefer stored login state while preserving compatibility with explicit env-var overrides."
     owner: techlead-agent
     dependencies: []
-    status: not-started
+    status: needs-review
 
   - id: feature62
     title: "openclaw-skill manifest schema extension"
@@ -2174,7 +2174,7 @@ features:
         ```
     owner: techlead-agent
     dependencies: []
-    status: not-started
+    status: needs-review
 
   - id: feature63
     title: "ClawHub mirror index with clawhub tenant ownership"
@@ -2193,7 +2193,7 @@ features:
         description: "Mirror ingestion is idempotent and supports upsert semantics for repeated sync runs."
     owner: techlead-agent
     dependencies: [feature62]
-    status: not-started
+    status: in-progress
 
   - id: feature64
     title: "ClawHub import bridge"

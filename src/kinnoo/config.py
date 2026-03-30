@@ -10,6 +10,7 @@ import os
 
 
 DEFAULT_CONFIG_PATH = Path.home() / ".kinnoo" / "config.yaml"
+CLAW_HUB_TENANT_SLUG = "clawhub"
 
 
 @dataclass(frozen=True)
