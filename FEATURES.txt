@@ -2250,7 +2250,7 @@ features:
         description: "Failure modes (missing backend, unsupported version, non-zero exit) are surfaced with deterministic actionable errors."
     owner: techlead-agent
     dependencies: [feature65]
-    status: in-progress
+    status: needs-review
 
   - id: feature67
     title: "ClawHub sync command"

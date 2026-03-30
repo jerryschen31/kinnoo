@@ -6980,7 +6980,7 @@ tasks:
       - 'step4: Document adapter limitations and compatibility notes in changelog/docs'
     dependencies: [task342]
     tests: [test502]
-    status: not-started
+    status: needs-review
 
   - id: task344
     title: "Feature67 sync clawhub command with incremental/full modes"
