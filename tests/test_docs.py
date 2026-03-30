@@ -1,4 +1,12 @@
 from pathlib import Path
+import re
+import sys
+
+import yaml
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+from kinnoo.validator import validate_manifest_data  # noqa: E402
 
 
 def test_feature9_schema_docs_cover_optional_fields_and_constraints() -> None:
@@ -377,3 +385,39 @@ def test_feature35_docs_cover_mutable_state_semantics_and_assets_compatibility()
     assert "manifests without `state_dirs`" in combined_text or "without state_dirs" in combined_lower
     assert "asset-only behavior" in combined_lower or "assets" in combined_lower
     assert "remain valid" in combined_lower
+
+
+def test_feature62_openclaw_schema_docs_consistency() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    schema_doc = repo_root / "docs" / "manifest-schema-reference.md"
+
+    schema_text = schema_doc.read_text(encoding="utf-8")
+    section_start = "### Feature62 openclaw-skill schema contract (`type`, `provenance`)"
+    assert section_start in schema_text
+
+    section_text = schema_text.split(section_start, 1)[1]
+    next_section_index = section_text.find("\n### ")
+    if next_section_index != -1:
+        section_text = section_text[:next_section_index]
+
+    assert "source_registry" in section_text
+    assert "source_version" in section_text
+    assert "source_slug" in section_text
+    assert "source_url" in section_text
+    assert "at least one" in section_text
+
+    assert "channels`, `skills`, and `state_dirs`" in section_text
+    assert "validation fails" in section_text
+    assert "Remove `channels`, `skills`, and `state_dirs`" in section_text
+
+    yaml_blocks = re.findall(r"```yaml\n(.*?)```", section_text, flags=re.DOTALL)
+    assert len(yaml_blocks) >= 3, "Expected canonical Feature62 YAML examples in docs"
+
+    for block in yaml_blocks:
+        manifest_data = yaml.safe_load(block)
+        assert isinstance(manifest_data, dict)
+        is_valid, errors = validate_manifest_data(manifest_data)
+        assert is_valid is True, (
+            "Expected Feature62 docs YAML example to pass validation; "
+            f"errors: {errors}; yaml block: {block}"
+        )
