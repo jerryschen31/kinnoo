@@ -637,6 +637,7 @@ def test_feature65_delegated_install_with_prechecks(tmp_path):
     assert trace_payload["delegated_install"]["minimum_version"] == "0.2.0"
     assert trace_payload["decision"] == {
         "outcome": "allowed",
+        "category": "openclaw_cli_delegated_success",
         "reason": "openclaw_cli_delegated_install_succeeded",
         "delegated_exit_code": 0,
     }

@@ -420,6 +420,7 @@ def _write_openclaw_install_trace(
     minimum_version: str,
     delegated_command: list[str],
     outcome: str,
+    category: str,
     decision_reason: str,
     delegated_exit_code: int | None,
 ) -> None:
@@ -433,6 +434,7 @@ def _write_openclaw_install_trace(
         },
         "decision": {
             "outcome": outcome,
+            "category": category,
             "reason": decision_reason,
             "delegated_exit_code": delegated_exit_code,
         },
@@ -447,8 +449,10 @@ def _install_openclaw_skill_dependencies(
     *,
     minimum_openclaw_version: str,
 ) -> int:
-    precheck_ok, precheck_message = check_openclaw_cli_constraint(minimum_openclaw_version)
-    print(f"[kinnoo install][openclaw] {precheck_message}")
+    precheck_ok, precheck_category, precheck_message = check_openclaw_cli_constraint(
+        minimum_openclaw_version
+    )
+    print(f"[kinnoo install][openclaw] [{precheck_category}] {precheck_message}")
     delegated_command = ["openclaw", "skills", "install", "."]
     if not precheck_ok:
         _write_openclaw_install_trace(
@@ -456,11 +460,12 @@ def _install_openclaw_skill_dependencies(
             minimum_version=minimum_openclaw_version,
             delegated_command=delegated_command,
             outcome="blocked",
-            decision_reason="openclaw_cli_precheck_failed",
+            category=precheck_category,
+            decision_reason=f"openclaw_cli_precheck_failed:{precheck_category}",
             delegated_exit_code=None,
         )
         print(
-            "Error: OpenClaw delegated install prechecks failed. "
+            f"Error: OpenClaw delegated install prechecks failed (category={precheck_category}). "
             "Install/upgrade OpenClaw CLI and retry.",
             file=sys.stderr,
         )
@@ -478,16 +483,19 @@ def _install_openclaw_skill_dependencies(
     )
 
     if delegated_result.returncode != 0:
+        delegated_category = "openclaw_cli_delegated_nonzero_exit"
         _write_openclaw_install_trace(
             target_dir=target_dir,
             minimum_version=minimum_openclaw_version,
             delegated_command=delegated_command,
             outcome="failed",
-            decision_reason="openclaw_cli_delegated_install_failed",
+            category=delegated_category,
+            decision_reason=f"openclaw_cli_delegated_install_failed:{delegated_category}",
             delegated_exit_code=int(delegated_result.returncode),
         )
         print(
-            "Error: OpenClaw delegated install failed. "
+            "Error: OpenClaw delegated install failed "
+            f"(category={delegated_category}). "
             "Review OpenClaw CLI output and retry.",
             file=sys.stderr,
         )
@@ -500,6 +508,7 @@ def _install_openclaw_skill_dependencies(
         minimum_version=minimum_openclaw_version,
         delegated_command=delegated_command,
         outcome="allowed",
+        category="openclaw_cli_delegated_success",
         decision_reason="openclaw_cli_delegated_install_succeeded",
         delegated_exit_code=0,
     )
