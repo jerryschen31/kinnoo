@@ -358,6 +358,68 @@ def test_preflight_pass_runtime_path_no_venv(tmp_path: Path) -> None:
     assert "venv will be created at run time" in output
 
 
+def test_feature66_preflight_openclaw_skill_does_not_require_adapter_gate(monkeypatch, tmp_path: Path, capsys) -> None:
+    import kinnoo.run_command as run_command
+
+    agent_dir = tmp_path / "feature66-preflight-openclaw-skill"
+    agent_dir.mkdir(parents=True, exist_ok=True)
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    (agent_dir / "index.js").write_text("console.log('ok')\n", encoding="utf-8")
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: feature66-preflight-openclaw-skill",
+                "version: 1.0.0",
+                "type: openclaw-skill",
+                "framework: openclaw",
+                "entrypoint: index.js",
+                "runtime:",
+                "  language: nodejs",
+                "  version: \">=20\"",
+                "  type: daemon",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+                "provenance:",
+                "  source_registry: clawhub",
+                "  source_slug: preflight/sample",
+                "  source_version: 1.0.0",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        run_command,
+        "check_node_runtime_constraint",
+        lambda _constraint: (True, "runtime version check passed: current Node 22.0.0 satisfies runtime.version '>=20'"),
+    )
+    monkeypatch.setattr(
+        run_command,
+        "check_node_package_manager_availability",
+        lambda _manager: (True, "dependency readiness check passed: node package manager 'npm' is available at /mock/npm"),
+    )
+    daemon_state_dir = agent_dir / ".kinnoo"
+    daemon_state_dir.mkdir(parents=True, exist_ok=True)
+    (daemon_state_dir / "daemon-state.json").write_text(
+        json.dumps({"pid": 424242, "runtime_type": "daemon", "state_version": 1}) + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(run_command, "daemon_pid_is_running", lambda _pid: True)
+
+    exit_code = run_command.run_preflight(str(agent_dir))
+    captured = capsys.readouterr()
+    output = f"{captured.out}\n{captured.err}"
+
+    assert exit_code == 0
+    assert "Preflight result: PASS" in output
+    assert "openclaw_adapter_" not in output
+    assert "experimental-openclaw-adapter" not in output
+
+
 def test_preflight_fail_no_runtime_path_no_venv(tmp_path: Path) -> None:
     agent_dir = tmp_path / "preflight-no-runtime-path-fail-agent"
     _create_agent_fixture(agent_dir, with_manifest=True)

@@ -519,6 +519,130 @@ def _make_fake_node_toolchain(bin_dir: Path) -> None:
     npm_script.chmod(0o755)
 
 
+def _create_openclaw_skill_archive(tmp_path: Path, agent_name: str = "feature65-openclaw-skill") -> Path:
+    archive_path = tmp_path / f"{agent_name}.kno"
+    manifest = (
+        f"name: {agent_name}\n"
+        "version: 1.0.0\n"
+        "type: openclaw-skill\n"
+        "framework: openclaw\n"
+        "entrypoint: index.js\n"
+        "runtime:\n"
+        "  type: daemon\n"
+        "  language: nodejs\n"
+        "  version: \">=20.0.0\"\n"
+        "dependencies: []\n"
+        "inputs:\n"
+        "  type: text\n"
+        "outputs:\n"
+        "  type: text\n"
+        "provenance:\n"
+        "  source_registry: clawhub\n"
+        "  source_slug: sample/skill\n"
+        "  source_version: 1.0.0\n"
+    )
+    with zipfile.ZipFile(archive_path, "w") as archive:
+        archive.writestr("kinnoo.yaml", manifest)
+        archive.writestr("index.js", "console.log('openclaw-skill')\n")
+    return archive_path
+
+
+def _make_fake_openclaw_cli(bin_dir: Path, *, version: str = "0.3.0") -> Path:
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    openclaw_script = bin_dir / "openclaw"
+    openclaw_script.write_text(
+        "#!/bin/sh\n"
+        "if [ -n \"$KINNOO_TEST_OPENCLAW_ARGS_LOG\" ]; then\n"
+        "  printf '%s\\n' \"$*\" >> \"$KINNOO_TEST_OPENCLAW_ARGS_LOG\"\n"
+        "fi\n"
+        "case \"$1\" in\n"
+        "  --version)\n"
+        f"    echo v{version}\n"
+        "    exit 0\n"
+        "    ;;\n"
+        "  skills)\n"
+        "    if [ \"$2\" = \"install\" ] && [ \"$3\" = \".\" ]; then\n"
+        "      echo delegated install ok\n"
+        "      exit 0\n"
+        "    fi\n"
+        "    ;;\n"
+        "esac\n"
+        "echo unsupported openclaw invocation >&2\n"
+        "exit 2\n",
+        encoding="utf-8",
+    )
+    openclaw_script.chmod(0o755)
+    return openclaw_script
+
+
+def test_feature65_delegated_install_with_prechecks(tmp_path):
+    archive_path = _create_openclaw_skill_archive(tmp_path)
+
+    missing_cli_target = tmp_path / "feature65-openclaw-missing-cli"
+    missing_cli_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            str(archive_path),
+            str(missing_cli_target),
+            "--yes",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    missing_cli_output = f"{missing_cli_result.stdout}\n{missing_cli_result.stderr}"
+    assert missing_cli_result.returncode != 0, missing_cli_output
+    assert "OpenClaw CLI was not found in PATH" in missing_cli_output
+    assert "OpenClaw delegated install prechecks failed" in missing_cli_output
+
+    fake_bin = tmp_path / "fake-openclaw-bin"
+    _make_fake_openclaw_cli(fake_bin, version="0.3.0")
+    invocation_log = tmp_path / "openclaw-invocations.log"
+
+    delegated_env = dict(os.environ)
+    delegated_env["PATH"] = f"{fake_bin}{os.pathsep}{delegated_env.get('PATH', '')}"
+    delegated_env["KINNOO_TEST_OPENCLAW_ARGS_LOG"] = str(invocation_log)
+
+    delegated_target = tmp_path / "feature65-openclaw-delegated"
+    delegated_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            str(archive_path),
+            str(delegated_target),
+            "--yes",
+            "--openclaw-min-version",
+            "0.2.0",
+        ],
+        capture_output=True,
+        text=True,
+        env=delegated_env,
+    )
+    delegated_output = f"{delegated_result.stdout}\n{delegated_result.stderr}"
+    assert delegated_result.returncode == 0, delegated_output
+    assert "delegated install precheck passed" in delegated_output
+    assert "Delegating dependency install to OpenClaw CLI" in delegated_output
+    assert "Delegated install completed successfully" in delegated_output
+
+    invocations = invocation_log.read_text(encoding="utf-8").splitlines()
+    assert "--version" in invocations
+    assert "skills install ." in invocations
+
+    trace_path = delegated_target / ".kinnoo" / "install-trace.json"
+    assert trace_path.exists(), delegated_output
+    trace_payload = json.loads(trace_path.read_text(encoding="utf-8"))
+    assert trace_payload["delegated_install"]["backend"] == "openclaw-cli"
+    assert trace_payload["delegated_install"]["minimum_version"] == "0.2.0"
+    assert trace_payload["decision"] == {
+        "outcome": "allowed",
+        "category": "openclaw_cli_delegated_success",
+        "reason": "openclaw_cli_delegated_install_succeeded",
+        "delegated_exit_code": 0,
+    }
+
+
 def test_feature37_node_audit_severity_summary(tmp_path):
     node_archive = _create_node_archive(tmp_path)
     node_target_dir = tmp_path / "feature37-node-installed"

@@ -6920,7 +6920,7 @@ tasks:
       - 'step4: Keep kinnoo-side validation and trust checks active around delegated flow'
     dependencies: [task334]
     tests: [test499]
-    status: not-started
+    status: needs-review
 
   - id: task341
     title: "Feature65 delegated install failure-mode handling and tests"
@@ -6940,7 +6940,7 @@ tasks:
       - 'step4: Update README install docs with delegated behavior and prerequisites'
     dependencies: [task340]
     tests: [test500]
-    status: not-started
+    status: needs-review
 
   - id: task342
     title: "Feature66 OpenClaw run adapter backend selection and flagging"
@@ -6960,7 +6960,7 @@ tasks:
       - 'step4: Emit structured adapter diagnostics including selected backend and invocation details'
     dependencies: [task340]
     tests: [test501]
-    status: not-started
+    status: needs-review
 
   - id: task343
     title: "Feature66 run adapter error handling and regression tests"
@@ -6980,7 +6980,7 @@ tasks:
       - 'step4: Document adapter limitations and compatibility notes in changelog/docs'
     dependencies: [task342]
     tests: [test502]
-    status: not-started
+    status: needs-review
 
   - id: task344
     title: "Feature67 sync clawhub command with incremental/full modes"

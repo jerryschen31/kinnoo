@@ -3859,3 +3859,184 @@ def test_streamlit_run_command(tmp_path, monkeypatch):
     assert exit_code == 0
     assert captured_args, "Expected daemon launcher to invoke subprocess.Popen"
     assert captured_args[0][:3] == ["streamlit", "run", "app.py"]
+
+
+def _create_feature66_openclaw_agent_dir(tmp_path, agent_name: str = "feature66-openclaw-agent"):
+    agent_dir = tmp_path / agent_name
+    agent_dir.mkdir(parents=True, exist_ok=True)
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    (agent_dir / "index.js").write_text("console.log('openclaw skill run')\n", encoding="utf-8")
+    (agent_dir / "kinnoo.yaml").write_text(
+        "name: feature66-openclaw-agent\n"
+        "version: 1.0.0\n"
+        "type: openclaw-skill\n"
+        "framework: openclaw\n"
+        "entrypoint: index.js\n"
+        "runtime:\n"
+        "  language: nodejs\n"
+        "  version: \">=20\"\n"
+        "  type: daemon\n"
+        "dependencies: []\n"
+        "inputs:\n"
+        "  type: text\n"
+        "outputs:\n"
+        "  type: text\n"
+        "provenance:\n"
+        "  source_registry: clawhub\n"
+        "  source_slug: feature66/sample\n"
+        "  source_version: 1.0.0\n",
+        encoding="utf-8",
+    )
+    return agent_dir
+
+
+def _make_feature66_fake_openclaw_cli(bin_dir: Path, *, version: str = "0.3.0") -> None:
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    openclaw_script = bin_dir / "openclaw"
+    openclaw_script.write_text(
+        "#!/bin/sh\n"
+        "if [ -n \"$KINNOO_TEST_OPENCLAW_RUN_LOG\" ]; then\n"
+        "  printf '%s\\n' \"$*\" >> \"$KINNOO_TEST_OPENCLAW_RUN_LOG\"\n"
+        "fi\n"
+        "if [ \"$1\" = \"--version\" ]; then\n"
+        f"  echo v{version}\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$KINNOO_TEST_OPENCLAW_FAIL_RUN\" = \"1\" ]; then\n"
+        "  echo simulated adapter backend failure >&2\n"
+        "  exit 7\n"
+        "fi\n"
+        "if [ \"$1\" = \"skills\" ] && [ \"$2\" = \"run\" ] && [ \"$3\" = \".\" ]; then\n"
+        "  echo adapter-native-ok\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"run\" ] && [ \"$2\" = \".\" ]; then\n"
+        "  echo adapter-legacy-ok\n"
+        "  exit 0\n"
+        "fi\n"
+        "echo unsupported openclaw adapter invocation >&2\n"
+        "exit 2\n",
+        encoding="utf-8",
+    )
+    openclaw_script.chmod(0o755)
+
+
+def test_feature66_run_adapter_backend_selection_and_gate(tmp_path):
+    agent_dir = _create_feature66_openclaw_agent_dir(tmp_path)
+
+    gate_disabled = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(agent_dir),
+            "hello",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    gate_disabled_output = f"{gate_disabled.stdout}\n{gate_disabled.stderr}"
+    assert gate_disabled.returncode != 0
+    assert "experimental and disabled by default" in gate_disabled_output
+    assert "--experimental-openclaw-adapter" in gate_disabled_output
+
+    fake_bin = tmp_path / "feature66-openclaw-bin"
+    _make_feature66_fake_openclaw_cli(fake_bin, version="0.3.0")
+    invocation_log = tmp_path / "feature66-openclaw-run.log"
+
+    enabled_env = dict(os.environ)
+    enabled_env["PATH"] = f"{fake_bin}{os.pathsep}{enabled_env.get('PATH', '')}"
+    enabled_env["KINNOO_TEST_OPENCLAW_RUN_LOG"] = str(invocation_log)
+
+    gate_enabled = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(agent_dir),
+            "hello",
+            "--experimental-openclaw-adapter",
+        ],
+        capture_output=True,
+        text=True,
+        env=enabled_env,
+    )
+    gate_enabled_output = f"{gate_enabled.stdout}\n{gate_enabled.stderr}"
+    assert gate_enabled.returncode == 0, gate_enabled_output
+    assert "openclaw_adapter_backend_native_skills_run" in gate_enabled_output
+    assert "backend=native-skills-run" in gate_enabled_output
+    assert "command=openclaw skills run . hello" in gate_enabled_output
+
+    invocations = invocation_log.read_text(encoding="utf-8").splitlines()
+    assert "--version" in invocations
+    assert "skills run . hello" in invocations
+
+
+def test_feature66_run_adapter_diagnostics_and_failures(tmp_path):
+    agent_dir = _create_feature66_openclaw_agent_dir(tmp_path)
+
+    # Missing backend case.
+    missing_backend = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(agent_dir),
+            "hello",
+            "--experimental-openclaw-adapter",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    missing_backend_output = f"{missing_backend.stdout}\n{missing_backend.stderr}"
+    assert missing_backend.returncode != 0
+    assert "category=openclaw_adapter_cli_missing" in missing_backend_output
+
+    # Unsupported version case.
+    unsupported_bin = tmp_path / "feature66-openclaw-unsupported-bin"
+    _make_feature66_fake_openclaw_cli(unsupported_bin, version="0.1.0")
+    unsupported_env = dict(os.environ)
+    unsupported_env["PATH"] = f"{unsupported_bin}{os.pathsep}{unsupported_env.get('PATH', '')}"
+
+    unsupported_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(agent_dir),
+            "hello",
+            "--experimental-openclaw-adapter",
+        ],
+        capture_output=True,
+        text=True,
+        env=unsupported_env,
+    )
+    unsupported_output = f"{unsupported_result.stdout}\n{unsupported_result.stderr}"
+    assert unsupported_result.returncode != 0
+    assert "openclaw_adapter_version_unsupported" in unsupported_output
+    assert "requires >= 0.2.0" in unsupported_output
+
+    # Runtime non-zero delegated backend case.
+    failing_bin = tmp_path / "feature66-openclaw-failing-bin"
+    _make_feature66_fake_openclaw_cli(failing_bin, version="0.3.0")
+    failing_env = dict(os.environ)
+    failing_env["PATH"] = f"{failing_bin}{os.pathsep}{failing_env.get('PATH', '')}"
+    failing_env["KINNOO_TEST_OPENCLAW_FAIL_RUN"] = "1"
+
+    failing_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(agent_dir),
+            "hello",
+            "--experimental-openclaw-adapter",
+        ],
+        capture_output=True,
+        text=True,
+        env=failing_env,
+    )
+    failing_output = f"{failing_result.stdout}\n{failing_result.stderr}"
+    assert failing_result.returncode == 7
+    assert "category=openclaw_adapter_runtime_nonzero_exit" in failing_output
+    assert "simulated adapter backend failure" in failing_output
