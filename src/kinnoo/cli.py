@@ -464,6 +464,20 @@ def main():
         help="Run preflight checks before packaging; on FAIL prompt to continue.",
     )
 
+    # Add 'diff' subcommand
+    diff_parser = subparsers.add_parser(
+        "diff",
+        help="Compare two .kno archives and report manifest/file changes",
+        formatter_class=argparse.RawTextHelpFormatter,
+        description="Compare two .kno archives and report manifest/file changes",
+        epilog=(
+            "Examples:\n"
+            "  kinnoo diff ./dist/agent-1.0.0.kno ./dist/agent-1.1.0.kno"
+        ),
+    )
+    diff_parser.add_argument("archive_a", help="Path to baseline .kno archive")
+    diff_parser.add_argument("archive_b", help="Path to candidate .kno archive")
+
     # Add 'keygen' subcommand
     keygen_parser = subparsers.add_parser(
         "keygen",
@@ -933,6 +947,21 @@ def main():
             signing_key_path=getattr(args, "signing_key", None),
             preflight=bool(getattr(args, "preflight", False)),
         )
+        sys.exit(exit_code)
+
+    elif args.command == "diff":
+        archive_a = getattr(args, "archive_a", None)
+        archive_b = getattr(args, "archive_b", None)
+        if archive_a is None or archive_b is None:
+            print("Usage: kinnoo diff <archive-a.kno> <archive-b.kno>", file=sys.stderr)
+            sys.exit(1)
+
+        try:
+            from kinnoo.diff_command import diff_archives
+        except ImportError:
+            from .diff_command import diff_archives
+
+        exit_code = diff_archives(archive_a, archive_b)
         sys.exit(exit_code)
 
     elif args.command == "keygen":

@@ -7240,7 +7240,7 @@ tasks:
       - 'step4: Add tests covering baseline diff output and deterministic ordering'
     dependencies: []
     tests: [test515]
-    status: not-started
+    status: needs-review
 
   - id: task357
     title: "Feature73 diff json output and exit semantics"
