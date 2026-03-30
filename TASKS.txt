@@ -7321,7 +7321,7 @@ tasks:
       - 'step4: Add deterministic fallback to generic analyzer when adapter coverage is incomplete'
     dependencies: []
     tests: [test519]
-    status: not-started
+    status: needs-review
 
   - id: task361
     title: "Feature75 adapter confidence tuning docs and cross-runtime tests"
