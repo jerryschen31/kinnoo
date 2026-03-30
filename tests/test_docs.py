@@ -504,3 +504,67 @@ def test_feature68_ci_failure_and_troubleshooting_docs() -> None:
         assert command in workflow_text
 
     assert "kinnoo publish --remote" in combined_docs
+
+
+def test_feature70_landing_and_readme_phase6_messaging() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    landing_path = repo_root / "web" / "app" / "(public)" / "page.tsx"
+    feature_grid_path = repo_root / "web" / "components" / "blocks" / "FeatureGrid.tsx"
+    readme_path = repo_root / "README.md"
+
+    landing_text = landing_path.read_text(encoding="utf-8")
+    feature_grid_text = feature_grid_path.read_text(encoding="utf-8")
+    readme_text = readme_path.read_text(encoding="utf-8")
+
+    combined_landing = f"{landing_text}\n{feature_grid_text}".lower()
+    readme_lower = readme_text.lower()
+
+    assert "openclaw" in combined_landing
+    assert "clawhub" in combined_landing
+    assert "trust" in combined_landing
+    assert "provenance" in combined_landing
+
+    required_phase6_commands = (
+        "kinnoo login",
+        "kinnoo logout",
+        "kinnoo import --source clawhub",
+        "kinnoo sync clawhub",
+        "kinnoo test",
+        "kinnoo publish",
+    )
+    for command in required_phase6_commands:
+        assert command in readme_lower
+
+    assert "phase 6 command matrix" in readme_lower
+    assert "clawhub mirror attribution model" in readme_lower
+
+
+def test_feature70_provenance_docs_and_regression() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    readme_path = repo_root / "README.md"
+    schema_path = repo_root / "docs" / "manifest-schema-reference.md"
+    planning_path = repo_root / "notes" / "phases" / "phase6-planning-6.md"
+
+    readme_text = readme_path.read_text(encoding="utf-8")
+    schema_text = schema_path.read_text(encoding="utf-8")
+    planning_text = planning_path.read_text(encoding="utf-8")
+
+    combined = f"{readme_text}\n{schema_text}\n{planning_text}"
+    combined_lower = combined.lower()
+
+    assert "clawhub" in combined_lower
+    assert "tenant" in combined_lower
+    assert "provenance" in combined_lower
+    assert "source_registry" in combined
+    assert "source_version" in combined
+
+    command_references = (
+        "kinnoo install --strict",
+        "kinnoo publish --strict",
+        "kinnoo install --frozen",
+        "kinnoo diff <a.kno> <b.kno>",
+        "kinnoo uninstall <agent-name>",
+        "kinnoo import --from langchain|langgraph|openai",
+    )
+    for command in command_references:
+        assert command in combined

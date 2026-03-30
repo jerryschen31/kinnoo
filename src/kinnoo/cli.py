@@ -37,7 +37,7 @@ def _format_top_level_help_text() -> str:
     usage_help = style_text("-h", color="neon_green", stream=sys.stdout)
     usage_version = style_text("--version", color="light_blue", bold=True, stream=sys.stdout)
     usage_commands = style_text(
-        "{init,run,stop,attach,logs,install,pack,keygen,inspect,publish,list,search,sync,login,logout,import,check}",
+        "{init,run,test,stop,attach,logs,install,pack,keygen,inspect,publish,list,search,sync,login,logout,import,check}",
         color="neon_green",
         bold=True,
         stream=sys.stdout,
@@ -50,13 +50,14 @@ def _format_top_level_help_text() -> str:
     other_header = style_text("other:", color="purple", bold=True, stream=sys.stdout)
     options_header = style_text("options:", color="purple", bold=True, stream=sys.stdout)
 
-    all_agents_set = style_text("{init,run,install,pack,inspect, import,check}", color="neon_green", bold=True, stream=sys.stdout)
+    all_agents_set = style_text("{init,run,test,install,pack,inspect, import,check}", color="neon_green", bold=True, stream=sys.stdout)
     daemon_set = style_text("{stop,attach,logs}", color="neon_green", bold=True, stream=sys.stdout)
     registry_set = style_text("{publish,install,list,search,sync,login,logout}", color="neon_green", bold=True, stream=sys.stdout)
     other_set = style_text("{keygen}", color="neon_green", bold=True, stream=sys.stdout)
 
     init_cmd = style_text("init", color="neon_green", bold=True, stream=sys.stdout)
     run_cmd = style_text("run", color="neon_green", bold=True, stream=sys.stdout)
+    test_cmd = style_text("test", color="neon_green", bold=True, stream=sys.stdout)
     pack_cmd = style_text("pack", color="neon_green", bold=True, stream=sys.stdout)
     inspect_cmd = style_text("inspect", color="neon_green", bold=True, stream=sys.stdout)
     import_cmd = style_text("import", color="neon_green", bold=True, stream=sys.stdout)
@@ -84,6 +85,7 @@ def _format_top_level_help_text() -> str:
         f"    {all_agents_set}\n"
         f"        {init_cmd}                Scaffold a new kinnoo agent\n"
         f"        {run_cmd}                 Run a kinnoo agent\n"
+        f"        {test_cmd}                Execute standardized declarative tests for an agent\n"
         f"        {pack_cmd}                Package an agent directory into a .kno archive\n"
         f"        {inspect_cmd}             Inspect metadata from an agent directory or .kno archive\n"
         f"        {import_cmd}              Import an existing agent project in-place and prepare kinnoo metadata\n"
@@ -279,6 +281,35 @@ def main():
             "Memory budget in MB for supported platforms. "
             "If omitted, no memory budget is enforced by this option."
         ),
+    )
+
+    test_parser = subparsers.add_parser(
+        "test",
+        help="Execute standardized declarative tests for an agent",
+        formatter_class=argparse.RawTextHelpFormatter,
+        description="Execute standardized declarative tests for an agent",
+        epilog=(
+            "Examples:\n"
+            "  kinnoo test ./my-agent --validate-only\n"
+            "  kinnoo test ./my-agent --tests-file ./kinnoo.tests.yaml --validate-only"
+        ),
+    )
+    test_parser.add_argument("agent_dir", nargs="?", help="Path to agent directory")
+    test_parser.add_argument(
+        "--tests-file",
+        dest="tests_file",
+        help="Optional path to a kinnoo.tests.yaml file (relative to agent dir or absolute)",
+    )
+    test_parser.add_argument(
+        "--validate-only",
+        action="store_true",
+        help="Validate and load test declarations without executing the runtime",
+    )
+    test_parser.add_argument(
+        "--json",
+        dest="json_output",
+        action="store_true",
+        help="Emit machine-readable JSON output",
     )
 
     # Add 'stop' subcommand
@@ -754,6 +785,25 @@ def main():
             max_seconds=getattr(args, "max_seconds", None),
             max_cpu_seconds=getattr(args, "max_cpu_seconds", None),
             max_memory_mb=getattr(args, "max_memory_mb", None),
+        )
+        sys.exit(exit_code)
+
+    elif args.command == "test":
+        agent_dir = getattr(args, "agent_dir", None)
+        if agent_dir is None:
+            print("Usage: kinnoo test <agent-dir> [--tests-file path] [--validate-only] [--json]", file=sys.stderr)
+            sys.exit(1)
+
+        try:
+            from kinnoo.test_command import run_test_command
+        except ImportError:
+            from .test_command import run_test_command
+
+        exit_code = run_test_command(
+            agent_dir_arg=agent_dir,
+            tests_file_arg=getattr(args, "tests_file", None),
+            validate_only=bool(getattr(args, "validate_only", False)),
+            json_output=bool(getattr(args, "json_output", False)),
         )
         sys.exit(exit_code)
 

@@ -260,6 +260,109 @@ Troubleshooting guidance:
 - For signing-enabled pipelines, key-loading/signing failures should be triaged by validating secret/key path wiring before re-running publish.
 - Publish failures should be triaged by validating token scope, tenant slug, and explicit remote publish mode.
 
+### Feature69 standardized test spec (`kinnoo.tests.yaml`)
+
+Feature69 introduces a declarative test file for low-friction prompt/response validation.
+
+Canonical file:
+
+- `kinnoo.tests.yaml` at the agent root
+
+Schema (v1):
+
+- `version`: schema version (int or string)
+- `tests`: list of test cases
+- test case required fields:
+  - `id` (string)
+  - `name` (string)
+  - `input` (string)
+  - `assertions` (non-empty list)
+  - `timeout_seconds` (number > 0)
+  - `expected_exit_code` (int)
+
+Assertion forms:
+
+- shorthand string means `contains` assertion
+- object form with exactly one key: `contains`, `equals`, or `regex`
+- expanded object form: `{type, value, target}` where target is `stdout` or `stderr`
+
+Compatibility bridge:
+
+- if `kinnoo.tests.yaml` is not present, `kinnoo test` may load tests from `kinnoo.yaml` via:
+  - `tests_file: <relative-path>`
+  - inline `tests:` list with optional `tests_version`
+
+Anti-pattern guidance:
+
+- avoid non-deterministic assertions (for example, matching timestamps or random IDs)
+- avoid unbounded timeouts; declare explicit `timeout_seconds`
+- keep assertions output-contract focused (`contains`/`equals`/`regex`) instead of broad semantic checks
+
+Runtime-aligned examples:
+
+Python one-shot manifest + tests
+
+```yaml
+# kinnoo.yaml
+name: py-test-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: ">=3.10"
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+```
+
+```yaml
+# kinnoo.tests.yaml
+version: 1
+tests:
+  - id: py-smoke
+    name: python one-shot smoke
+    input: hello
+    assertions:
+      - contains: hello
+    timeout_seconds: 5
+    expected_exit_code: 0
+```
+
+Daemon-compatible manifest + tests (for example JS/TS style runtime contracts)
+
+```yaml
+# kinnoo.yaml
+name: daemon-test-agent
+version: 0.1.0
+entrypoint: index.js
+runtime:
+  language: nodejs
+  version: ">=20"
+  type: daemon
+  run_command: "node index.js"
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+```
+
+```yaml
+# kinnoo.tests.yaml
+version: 1
+tests:
+  - id: daemon-smoke
+    name: daemon-compatible smoke
+    input: ping
+    assertions:
+      - contains: pong
+    timeout_seconds: 10
+    expected_exit_code: 0
+```
+
 ### Feature35 mutable state snapshots (`state_dirs`)
 
 Feature35 defines `state_dirs` as mutable runtime state snapshot roots. This behavior is intentionally distinct from immutable `assets`.
