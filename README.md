@@ -7,6 +7,29 @@
 - `kinnoo pack` creates `.kno` artifacts as ZIP archives.
 - `kinnoo install` expects `.kno` files in this ZIP-based format.
 
+## OpenClaw Delegated Install (Feature65)
+
+`kinnoo install` routes manifests declaring `type: openclaw-skill` through a delegated OpenClaw CLI install path.
+
+Behavior:
+
+- Kinnoo trust checks still run first (integrity/signature checks, manifest validation, install summary diagnostics).
+- After validation, Kinnoo runs OpenClaw prechecks and delegates dependency install using:
+	- `openclaw skills install .`
+- Minimum CLI version gate is configurable:
+	- `kinnoo install <archive.kno> --openclaw-min-version 0.2.0`
+
+Deterministic delegated failure categories:
+
+- `openclaw_cli_missing`: OpenClaw CLI executable is missing from `PATH`.
+- `openclaw_cli_version_unsupported`: detected OpenClaw CLI version is below required minimum.
+- `openclaw_cli_delegated_nonzero_exit`: delegated OpenClaw command exited non-zero.
+
+Install trace behavior:
+
+- Delegated outcomes are written to `.kinnoo/install-trace.json` under the installed target directory.
+- Trace includes delegated backend metadata, minimum version, invoked command, category, and decision outcome.
+
 ## Manifest optional metadata (Feature9)
 
 `kinnoo.yaml` supports these optional fields:

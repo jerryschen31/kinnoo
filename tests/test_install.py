@@ -314,3 +314,171 @@ def test_feature40_install_signature_verification_gate(tmp_path):
     assert invalid_result.returncode != 0
     assert "Signature verification failed" in invalid_output
     assert "Archive authenticity could not be verified" in invalid_output
+
+
+def _create_feature65_openclaw_archive(tmp_path: Path, name: str = "feature65-openclaw-direct") -> Path:
+    archive_path = tmp_path / f"{name}.kno"
+    make_dummy_kno_archive(
+        archive_path,
+        files={
+            "kinnoo.yaml": (
+                f"name: {name}\n"
+                "version: 1.0.0\n"
+                "type: openclaw-skill\n"
+                "framework: openclaw\n"
+                "entrypoint: index.js\n"
+                "runtime:\n"
+                "  type: daemon\n"
+                "  language: nodejs\n"
+                "  version: \">=20.0.0\"\n"
+                "dependencies: []\n"
+                "inputs:\n"
+                "  type: text\n"
+                "outputs:\n"
+                "  type: text\n"
+                "provenance:\n"
+                "  source_registry: clawhub\n"
+                "  source_slug: sample/skill\n"
+                "  source_version: 1.0.0\n"
+            ),
+            "index.js": "console.log('skill run')\n",
+        },
+    )
+    return archive_path
+
+
+def test_feature65_delegated_install_checks_and_traces(monkeypatch, tmp_path, capsys):
+    from kinnoo import install_command
+
+    archive_path = _create_feature65_openclaw_archive(tmp_path)
+
+    # Success path: delegated flow should preserve kinnoo validation and emit success trace category.
+    success_target = tmp_path / "feature65-success"
+    monkeypatch.setattr(
+        install_command,
+        "check_openclaw_cli_constraint",
+        lambda _version: (
+            True,
+            "openclaw_cli_precheck_ok",
+            "delegated install precheck passed: OpenClaw CLI version 0.4.0 satisfies >= 0.2.0",
+        ),
+    )
+
+    class _SuccessCompleted:
+        returncode = 0
+        stderr = ""
+        stdout = "delegated-ok"
+
+    monkeypatch.setattr(install_command.subprocess, "run", lambda *args, **kwargs: _SuccessCompleted())
+
+    success_exit = install_command.install_agent(
+        archive_path=str(archive_path),
+        target_dir_arg=str(success_target),
+        assume_yes=True,
+        minimum_openclaw_version="0.2.0",
+    )
+    success_output = capsys.readouterr()
+    assert success_exit == 0
+    assert "Manifest validated successfully" in success_output.out
+    success_trace_path = success_target / ".kinnoo" / "install-trace.json"
+    assert success_trace_path.exists()
+    success_trace = json.loads(success_trace_path.read_text(encoding="utf-8"))
+    assert success_trace["decision"] == {
+        "outcome": "allowed",
+        "category": "openclaw_cli_delegated_success",
+        "reason": "openclaw_cli_delegated_install_succeeded",
+        "delegated_exit_code": 0,
+    }
+
+    # Missing runtime / unsupported version categories are emitted deterministically.
+    missing_target = tmp_path / "feature65-missing-runtime"
+    monkeypatch.setattr(
+        install_command,
+        "check_openclaw_cli_constraint",
+        lambda _version: (
+            False,
+            "openclaw_cli_missing",
+            "delegated install precheck failed: OpenClaw CLI was not found in PATH. Install OpenClaw CLI and retry.",
+        ),
+    )
+    missing_exit = install_command.install_agent(
+        archive_path=str(archive_path),
+        target_dir_arg=str(missing_target),
+        assume_yes=True,
+        minimum_openclaw_version="0.2.0",
+    )
+    missing_output = capsys.readouterr()
+    assert missing_exit != 0
+    assert "category=openclaw_cli_missing" in missing_output.err
+    missing_trace = json.loads((missing_target / ".kinnoo" / "install-trace.json").read_text(encoding="utf-8"))
+    assert missing_trace["decision"]["outcome"] == "blocked"
+    assert missing_trace["decision"]["category"] == "openclaw_cli_missing"
+
+    unsupported_target = tmp_path / "feature65-unsupported-version"
+    monkeypatch.setattr(
+        install_command,
+        "check_openclaw_cli_constraint",
+        lambda _version: (
+            False,
+            "openclaw_cli_version_unsupported",
+            "delegated install precheck failed: OpenClaw CLI version 0.1.0 is below required >= 0.2.0. Upgrade OpenClaw CLI and retry.",
+        ),
+    )
+    unsupported_exit = install_command.install_agent(
+        archive_path=str(archive_path),
+        target_dir_arg=str(unsupported_target),
+        assume_yes=True,
+        minimum_openclaw_version="0.2.0",
+    )
+    unsupported_output = capsys.readouterr()
+    assert unsupported_exit != 0
+    assert "category=openclaw_cli_version_unsupported" in unsupported_output.err
+    unsupported_trace = json.loads(
+        (unsupported_target / ".kinnoo" / "install-trace.json").read_text(encoding="utf-8")
+    )
+    assert unsupported_trace["decision"]["outcome"] == "blocked"
+    assert unsupported_trace["decision"]["category"] == "openclaw_cli_version_unsupported"
+
+    # Delegated backend non-zero exits are wrapped with deterministic failure category.
+    backend_fail_target = tmp_path / "feature65-backend-failure"
+    monkeypatch.setattr(
+        install_command,
+        "check_openclaw_cli_constraint",
+        lambda _version: (
+            True,
+            "openclaw_cli_precheck_ok",
+            "delegated install precheck passed: OpenClaw CLI version 0.4.0 satisfies >= 0.2.0",
+        ),
+    )
+
+    class _BackendFailureCompleted:
+        returncode = 9
+        stderr = "simulated delegated backend failure"
+        stdout = ""
+
+    monkeypatch.setattr(
+        install_command.subprocess,
+        "run",
+        lambda *args, **kwargs: _BackendFailureCompleted(),
+    )
+
+    backend_fail_exit = install_command.install_agent(
+        archive_path=str(archive_path),
+        target_dir_arg=str(backend_fail_target),
+        assume_yes=True,
+        minimum_openclaw_version="0.2.0",
+    )
+    backend_fail_output = capsys.readouterr()
+    assert backend_fail_exit == 9
+    assert "category=openclaw_cli_delegated_nonzero_exit" in backend_fail_output.err
+    assert "simulated delegated backend failure" in backend_fail_output.err
+
+    backend_fail_trace = json.loads(
+        (backend_fail_target / ".kinnoo" / "install-trace.json").read_text(encoding="utf-8")
+    )
+    assert backend_fail_trace["decision"] == {
+        "outcome": "failed",
+        "category": "openclaw_cli_delegated_nonzero_exit",
+        "reason": "openclaw_cli_delegated_install_failed:openclaw_cli_delegated_nonzero_exit",
+        "delegated_exit_code": 9,
+    }

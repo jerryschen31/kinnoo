@@ -250,6 +250,11 @@ def main():
         help="Show predicted runtime behavior without executing full entrypoint side effects",
     )
     run_parser.add_argument(
+        "--experimental-openclaw-adapter",
+        action="store_true",
+        help="Enable experimental OpenClaw run adapter for openclaw-skill manifests",
+    )
+    run_parser.add_argument(
         "--max-seconds",
         type=float,
         help=(
@@ -357,6 +362,11 @@ def main():
         "--ignore-scripts",
         action="store_true",
         help="(OpenClaw/Node-focused) Disable Node package lifecycle scripts during dependency installation",
+    )
+    openclaw_install_group.add_argument(
+        "--openclaw-min-version",
+        default="0.1.0",
+        help="(OpenClaw-skill) Minimum OpenClaw CLI version required for delegated install (default: 0.1.0)",
     )
     install_parser.add_argument(
         "--accept-permissions",
@@ -700,6 +710,7 @@ def main():
             pass_through_args=pass_through_args,
             sandbox=bool(getattr(args, "sandbox", False)),
             dry_run=bool(getattr(args, "dry_run", False)),
+            experimental_openclaw_adapter=bool(getattr(args, "experimental_openclaw_adapter", False)),
             max_seconds=getattr(args, "max_seconds", None),
             max_cpu_seconds=getattr(args, "max_cpu_seconds", None),
             max_memory_mb=getattr(args, "max_memory_mb", None),
@@ -728,6 +739,7 @@ def main():
         allow_unverified_publisher = bool(getattr(args, "allow_unverified_publisher", False))
         use_local = bool(getattr(args, "local", False))
         use_remote = bool(getattr(args, "remote", False))
+        minimum_openclaw_version = str(getattr(args, "openclaw_min_version", "0.1.0"))
         try:
             from kinnoo.install_command import install_agent
         except ImportError:
@@ -745,6 +757,7 @@ def main():
             allow_unverified_publisher=allow_unverified_publisher,
             use_local=use_local,
             use_remote=use_remote,
+            minimum_openclaw_version=minimum_openclaw_version,
         )
         sys.exit(exit_code)
 

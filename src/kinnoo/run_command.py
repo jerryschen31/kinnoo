@@ -24,6 +24,7 @@ from .health_check import (
     check_node_package_manager_availability,
     check_node_runtime_constraint,
     classify_daemon_lifecycle_state,
+    detect_openclaw_run_backend,
     run_service_health_check,
 )
 from .schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars
@@ -1183,6 +1184,7 @@ def run_agent(
     pass_through_args: list[str] | None = None,
     sandbox: bool = False,
     dry_run: bool = False,
+    experimental_openclaw_adapter: bool = False,
     max_seconds: float | None = None,
     max_cpu_seconds: int | None = None,
     max_memory_mb: int | None = None,
@@ -1253,6 +1255,8 @@ def run_agent(
     runtime_type = runtime_section.get("type") if isinstance(runtime_section.get("type"), str) else "one-shot"
     runtime_language_raw = runtime_section.get("language") if isinstance(runtime_section.get("language"), str) else "python"
     runtime_language = runtime_language_raw.strip().lower() or "python"
+    manifest_type_raw = manifest.get("type") if isinstance(manifest, dict) else None
+    manifest_type = manifest_type_raw.strip().lower() if isinstance(manifest_type_raw, str) else "agent"
 
     runtime_path: Path | None = None
     runtime_path_value = runtime_section.get("path") if isinstance(runtime_section.get("path"), str) else None
@@ -1565,6 +1569,67 @@ def run_agent(
             if existing_pythonpath:
                 pythonpath_parts.append(existing_pythonpath)
             subprocess_env["PYTHONPATH"] = os.pathsep.join(pythonpath_parts)
+
+    if manifest_type == "openclaw-skill":
+        if not experimental_openclaw_adapter:
+            _print_safe_error(
+                "Error: OpenClaw run adapter is experimental and disabled by default. "
+                "Re-run with --experimental-openclaw-adapter."
+            )
+            return finalize(1)
+
+        backend_ok, backend_category, backend_message, backend_name, backend_command = detect_openclaw_run_backend()
+        print(f"[kinnoo run][openclaw] [{backend_category}] {backend_message}", flush=True)
+        if not backend_ok or backend_command is None or backend_name is None:
+            remediation = "Install or upgrade OpenClaw CLI and retry."
+            if backend_category == "openclaw_adapter_cli_missing":
+                remediation = "Install OpenClaw CLI and ensure it is available on PATH, then retry."
+            elif backend_category == "openclaw_adapter_version_unsupported":
+                remediation = "Upgrade OpenClaw CLI to version >= 0.2.0, then retry."
+            _print_safe_error(
+                "Error: OpenClaw run adapter precheck failed "
+                f"(category={backend_category}). "
+                + remediation
+            )
+            return finalize(1)
+
+        adapter_args = list(backend_command)
+        if effective_input_arg is not None:
+            adapter_args.append(effective_input_arg)
+        adapter_args.extend(runtime_pass_through_args)
+
+        print(
+            "[kinnoo run][openclaw] adapter invocation: "
+            f"backend={backend_name} command={' '.join(adapter_args)}",
+            flush=True,
+        )
+        try:
+            adapter_process = subprocess.Popen(
+                adapter_args,
+                cwd=agent_dir,
+                stdout=sys.stdout,
+                stderr=sys.stderr,
+                env=subprocess_env,
+            )
+            adapter_process.communicate()
+        except Exception as error:
+            _print_safe_error(
+                "Error: OpenClaw run adapter invocation failed "
+                f"(category=openclaw_adapter_invocation_failed): {error}",
+                secret_values=resolved_env_vars.values(),
+            )
+            return finalize(1)
+
+        if adapter_process.returncode != 0:
+            _print_safe_error(
+                "Error: OpenClaw run adapter execution failed "
+                "(category=openclaw_adapter_runtime_nonzero_exit). "
+                "Review OpenClaw command output and retry.",
+                secret_values=resolved_env_vars.values(),
+            )
+            return finalize(adapter_process.returncode)
+
+        return finalize(0)
 
     runtime_run_command = runtime_section.get("run_command") if isinstance(runtime_section.get("run_command"), str) else None
     if runtime_run_command and runtime_run_command.strip():

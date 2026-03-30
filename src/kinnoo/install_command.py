@@ -33,7 +33,11 @@ try:
     from kinnoo.registry_backends import MockFilesystemRegistryBackend
     from kinnoo.config import load_registry_config
     from kinnoo.remote_client import RemoteRegistryClient
-    from kinnoo.health_check import check_node_package_manager_availability, check_node_runtime_constraint
+    from kinnoo.health_check import (
+        check_node_package_manager_availability,
+        check_node_runtime_constraint,
+        check_openclaw_cli_constraint,
+    )
     from kinnoo.schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars
     from kinnoo.inspect_command import read_manifest_from_kno_archive
     from kinnoo.validator import validate
@@ -51,7 +55,11 @@ except ImportError:
     from .registry_backends import MockFilesystemRegistryBackend
     from .config import load_registry_config
     from .remote_client import RemoteRegistryClient
-    from .health_check import check_node_package_manager_availability, check_node_runtime_constraint
+    from .health_check import (
+        check_node_package_manager_availability,
+        check_node_runtime_constraint,
+        check_openclaw_cli_constraint,
+    )
     from .schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars
     from .inspect_command import read_manifest_from_kno_archive
     from .validator import validate
@@ -403,6 +411,111 @@ def _install_node_dependencies(
     return 0
 
 
+DEFAULT_OPENCLAW_MINIMUM_VERSION = "0.1.0"
+
+
+def _write_openclaw_install_trace(
+    target_dir: Path,
+    *,
+    minimum_version: str,
+    delegated_command: list[str],
+    outcome: str,
+    category: str,
+    decision_reason: str,
+    delegated_exit_code: int | None,
+) -> None:
+    trace_payload: dict[str, object] = {
+        "schema_version": "1.0",
+        "runtime_language": "nodejs",
+        "delegated_install": {
+            "backend": "openclaw-cli",
+            "minimum_version": minimum_version,
+            "command": delegated_command,
+        },
+        "decision": {
+            "outcome": outcome,
+            "category": category,
+            "reason": decision_reason,
+            "delegated_exit_code": delegated_exit_code,
+        },
+    }
+    trace_path = write_install_trace(target_dir=target_dir, payload=trace_payload)
+    if trace_path is not None:
+        print(f"[kinnoo install] Wrote install trace: '{trace_path}'")
+
+
+def _install_openclaw_skill_dependencies(
+    target_dir: Path,
+    *,
+    minimum_openclaw_version: str,
+) -> int:
+    precheck_ok, precheck_category, precheck_message = check_openclaw_cli_constraint(
+        minimum_openclaw_version
+    )
+    print(f"[kinnoo install][openclaw] [{precheck_category}] {precheck_message}")
+    delegated_command = ["openclaw", "skills", "install", "."]
+    if not precheck_ok:
+        _write_openclaw_install_trace(
+            target_dir=target_dir,
+            minimum_version=minimum_openclaw_version,
+            delegated_command=delegated_command,
+            outcome="blocked",
+            category=precheck_category,
+            decision_reason=f"openclaw_cli_precheck_failed:{precheck_category}",
+            delegated_exit_code=None,
+        )
+        print(
+            f"Error: OpenClaw delegated install prechecks failed (category={precheck_category}). "
+            "Install/upgrade OpenClaw CLI and retry.",
+            file=sys.stderr,
+        )
+        return 1
+
+    print(
+        "[kinnoo install][openclaw] Delegating dependency install to OpenClaw CLI: "
+        f"{' '.join(delegated_command)}"
+    )
+    delegated_result = subprocess.run(
+        delegated_command,
+        capture_output=True,
+        text=True,
+        cwd=target_dir,
+    )
+
+    if delegated_result.returncode != 0:
+        delegated_category = "openclaw_cli_delegated_nonzero_exit"
+        _write_openclaw_install_trace(
+            target_dir=target_dir,
+            minimum_version=minimum_openclaw_version,
+            delegated_command=delegated_command,
+            outcome="failed",
+            category=delegated_category,
+            decision_reason=f"openclaw_cli_delegated_install_failed:{delegated_category}",
+            delegated_exit_code=int(delegated_result.returncode),
+        )
+        print(
+            "Error: OpenClaw delegated install failed "
+            f"(category={delegated_category}). "
+            "Review OpenClaw CLI output and retry.",
+            file=sys.stderr,
+        )
+        if delegated_result.stderr:
+            print(delegated_result.stderr, file=sys.stderr)
+        return delegated_result.returncode
+
+    _write_openclaw_install_trace(
+        target_dir=target_dir,
+        minimum_version=minimum_openclaw_version,
+        delegated_command=delegated_command,
+        outcome="allowed",
+        category="openclaw_cli_delegated_success",
+        decision_reason="openclaw_cli_delegated_install_succeeded",
+        delegated_exit_code=0,
+    )
+    print("[kinnoo install][openclaw] Delegated install completed successfully.")
+    return 0
+
+
 def _iter_state_dir_paths(manifest_data: dict[str, object]) -> list[str]:
     """Return normalized state directory roots from manifest state_dirs entries."""
     declared_state_dirs = manifest_data.get("state_dirs")
@@ -544,6 +657,7 @@ def install_agent(
     expected_publisher_public_key: str | None = None,
     use_local: bool = False,
     use_remote: bool = False,
+    minimum_openclaw_version: str = DEFAULT_OPENCLAW_MINIMUM_VERSION,
 ) -> int:
     target_spec = parse_install_target_spec(archive_path)
     if target_spec.kind == "invalid":
@@ -680,6 +794,7 @@ def install_agent(
                 accept_permissions=accept_permissions,
                 allow_unverified_publisher=allow_unverified_publisher,
                 expected_publisher_public_key=expected_publisher_key,
+                minimum_openclaw_version=minimum_openclaw_version,
             )
         finally:
             if backend_label == "remote" and resolved_archive_path.exists():
@@ -697,6 +812,7 @@ def install_agent(
         accept_permissions=accept_permissions,
         allow_unverified_publisher=allow_unverified_publisher,
         expected_publisher_public_key=expected_publisher_public_key,
+        minimum_openclaw_version=minimum_openclaw_version,
     )
 
 
@@ -711,6 +827,7 @@ def _install_from_archive_path(
     accept_permissions: bool = False,
     allow_unverified_publisher: bool = False,
     expected_publisher_public_key: str | None = None,
+    minimum_openclaw_version: str = DEFAULT_OPENCLAW_MINIMUM_VERSION,
 ) -> int:
     archive = Path(archive_path)
     if not archive.exists() or not archive.is_file():
@@ -1006,6 +1123,17 @@ def _install_from_archive_path(
     if restore_exit_code != 0:
         shutil.rmtree(target_dir, ignore_errors=True)
         return restore_exit_code
+
+    manifest_type = "agent"
+    manifest_type_value = manifest_data.get("type")
+    if isinstance(manifest_type_value, str) and manifest_type_value.strip():
+        manifest_type = manifest_type_value.strip().lower()
+
+    if manifest_type == "openclaw-skill":
+        return _install_openclaw_skill_dependencies(
+            target_dir=target_dir,
+            minimum_openclaw_version=minimum_openclaw_version,
+        )
 
     runtime_language = "python"
     if isinstance(runtime, dict):
