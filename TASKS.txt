@@ -7060,7 +7060,7 @@ tasks:
       - 'step4: Validate CI docs behavior across local and remote registry modes'
     dependencies: [task346]
     tests: [test506]
-    status: not-started
+    status: needs-review
 
   - id: task348
     title: "Feature69 kinnoo tests file format and parser"

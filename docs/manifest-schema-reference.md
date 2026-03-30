@@ -254,6 +254,12 @@ Failure behavior contract:
 
 - workflow steps are fail-fast and must return non-zero on contract violations (missing secrets, check failures, pack failures, publish failures).
 
+Troubleshooting guidance:
+
+- Missing secret failures should be treated as configuration errors in CI, not runtime defects.
+- For signing-enabled pipelines, key-loading/signing failures should be triaged by validating secret/key path wiring before re-running publish.
+- Publish failures should be triaged by validating token scope, tenant slug, and explicit remote publish mode.
+
 ### Feature35 mutable state snapshots (`state_dirs`)
 
 Feature35 defines `state_dirs` as mutable runtime state snapshot roots. This behavior is intentionally distinct from immutable `assets`.

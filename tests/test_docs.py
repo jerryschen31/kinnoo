@@ -468,3 +468,39 @@ def test_feature68_workflow_contract_and_envs() -> None:
     assert "KINNOO_REGISTRY_TOKEN" in combined_docs
     assert "KINNOO_TENANT_SLUG" in combined_docs
     assert "KINNOO_CI_STRICT_MODE" in combined_docs
+
+
+def test_feature68_ci_failure_and_troubleshooting_docs() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    workflow_path = repo_root / ".github" / "workflows" / "kinnoo-publish.yml"
+    readme_path = repo_root / "README.md"
+    schema_path = repo_root / "docs" / "manifest-schema-reference.md"
+
+    workflow_text = workflow_path.read_text(encoding="utf-8")
+    readme_text = readme_path.read_text(encoding="utf-8")
+    schema_text = schema_path.read_text(encoding="utf-8")
+    combined_docs = f"{readme_text}\n{schema_text}"
+    combined_lower = combined_docs.lower()
+
+    assert "set -euo pipefail" in workflow_text
+    assert "non-zero" in combined_lower
+    assert "troubleshooting common ci failures" in combined_lower
+    assert "signing failures" in combined_lower
+    assert "publish failures" in combined_lower
+
+    for required_secret in (
+        "KINNOO_REGISTRY_URL",
+        "KINNOO_REGISTRY_TOKEN",
+        "KINNOO_TENANT_SLUG",
+    ):
+        assert required_secret in combined_docs
+
+    expected_commands = (
+        "python3 src/kinnoo/cli.py check",
+        "python3 src/kinnoo/cli.py pack",
+        "python3 src/kinnoo/cli.py publish",
+    )
+    for command in expected_commands:
+        assert command in workflow_text
+
+    assert "kinnoo publish --remote" in combined_docs
