@@ -5,6 +5,8 @@ import signal
 import time
 from pathlib import Path
 
+import yaml
+
 
 CLI_PATH = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
 
@@ -544,6 +546,65 @@ def test_feature36_manifest_valid_or_todo_guidance(tmp_path):
     assert "TODO guidance:" in unresolved_output
     assert "Verify 'entrypoint' points to an existing executable script in the project root." in unresolved_output
     assert "does not exist in target project" in unresolved_output
+
+
+def test_feature62_import_openclaw_manifest_migration_guidance(tmp_path):
+    project_dir = tmp_path / "feature62-openclaw-import-migration"
+    project_dir.mkdir(parents=True, exist_ok=True)
+
+    (project_dir / "run.py").write_text(
+        "import sys\n"
+        "if __name__ == '__main__':\n"
+        "    print(sys.argv[1] if len(sys.argv) > 1 else 'ok')\n",
+        encoding="utf-8",
+    )
+    (project_dir / "openclaw.json").write_text("{}\n", encoding="utf-8")
+    (project_dir / "package.json").write_text(
+        "{\n"
+        "  \"name\": \"feature62-openclaw-import-migration\",\n"
+        "  \"version\": \"1.0.0\",\n"
+        "  \"dependencies\": {\n"
+        "    \"@openclaw/core\": \"^0.1.0\"\n"
+        "  }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    (project_dir / "requirements.txt").write_text("\n", encoding="utf-8")
+
+    import_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(project_dir)],
+        input="y\n",
+        capture_output=True,
+        text=True,
+    )
+
+    assert import_result.returncode == 0, import_result.stdout + import_result.stderr
+    manifest_path = project_dir / "kinnoo.yaml"
+    manifest_text = manifest_path.read_text(encoding="utf-8")
+    assert "framework: openclaw" in manifest_text
+    assert "type: openclaw-skill" in manifest_text
+    assert "channels:" not in manifest_text
+    assert "skills:" not in manifest_text
+    assert "state_dirs:" not in manifest_text
+
+    manifest_data = yaml.safe_load(manifest_text)
+    manifest_data["provenance"] = {
+        "source_registry": "clawhub",
+        "source_version": "1.0.0",
+    }
+    manifest_data["state_dirs"] = ["memory"]
+    manifest_path.write_text(yaml.dump(manifest_data), encoding="utf-8")
+
+    inspect_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "inspect", str(project_dir)],
+        capture_output=True,
+        text=True,
+    )
+
+    combined = inspect_result.stdout + inspect_result.stderr
+    assert inspect_result.returncode != 0
+    assert "provenance" in combined and "source_slug" in combined and "source_url" in combined
+    assert "Field 'state_dirs' is not supported in this schema version" in combined
 
 
 def test_feature19_import_generates_requirements_via_uv_export(tmp_path):
