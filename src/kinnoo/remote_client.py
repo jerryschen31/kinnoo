@@ -125,6 +125,27 @@ class RemoteRegistryClient:
             return response
         return None
 
+    def fetch_clawhub_mirror_index(
+        self,
+        *,
+        full: bool = False,
+        since: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Fetch mirrored ClawHub index records for sync workflows."""
+        query_params = {"mode": "full" if full else "incremental"}
+        if since is not None and since.strip():
+            query_params["since"] = since.strip()
+
+        encoded_query = urllib_parse.urlencode(query_params)
+        response = self._request_json(method="GET", path=f"/api/mirror/clawhub?{encoded_query}")
+        if isinstance(response, list):
+            return [item for item in response if isinstance(item, dict)]
+        if isinstance(response, dict):
+            items = response.get("items")
+            if isinstance(items, list):
+                return [item for item in items if isinstance(item, dict)]
+        return []
+
     # Compatibility methods to satisfy the broader registry protocol shape used
     # by existing service code until remote CLI selection is introduced in task232.
     def list_entries(self) -> list[dict[str, Any]]:

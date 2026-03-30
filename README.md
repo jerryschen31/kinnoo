@@ -282,6 +282,40 @@ Behavior:
 	- `KINNOO_TENANT_SLUG` (or `global` if unset)
 - `false`: publish keeps current behavior (local/scratch default unless `--remote` or registry URL config is already forcing remote).
 
+## Feature68 CI Publish Reference Workflow
+
+Kinnoo includes a reference workflow at `.github/workflows/kinnoo-publish.yml` for automation pipelines.
+
+Pipeline stages:
+
+- install dependencies
+- preflight compatibility check (`kinnoo check`)
+- pack archive (`kinnoo pack`)
+- publish to remote registry (`kinnoo publish --remote`)
+
+Required secrets/environment contract:
+
+- `KINNOO_REGISTRY_URL`
+- `KINNOO_REGISTRY_TOKEN`
+- `KINNOO_TENANT_SLUG`
+
+Strict-mode compatibility control:
+
+- `KINNOO_CI_STRICT_MODE=1` enables strict publish flags in the reference workflow when strict mode is available.
+
+Security notes:
+
+- Never commit credentials into repository files or workflow YAML.
+- Keep registry auth values in GitHub Actions Secrets only.
+- The workflow uses fail-fast shell settings (`set -euo pipefail`) so errors terminate with deterministic non-zero exits.
+
+Troubleshooting common CI failures:
+
+- Missing secrets: ensure `KINNOO_REGISTRY_URL`, `KINNOO_REGISTRY_TOKEN`, and `KINNOO_TENANT_SLUG` are configured in repo Actions Secrets.
+- Preflight failures: run `python3 src/kinnoo/cli.py check <agent-dir>` locally to reproduce manifest/runtime contract issues.
+- Signing failures (if your pipeline enables signing): verify the private signing key path is available to the runner and referenced by your signing step.
+- Publish failures: verify token scope and tenant mapping, then retry with explicit remote mode (`kinnoo publish --remote`) for deterministic behavior.
+
 ## Registry Login and Logout
 
 `kinnoo login` and `kinnoo logout` manage local registry auth state for CLI registry workflows.

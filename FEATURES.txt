@@ -2269,7 +2269,7 @@ features:
         description: "Sync diagnostics report created/updated/skipped counts and explicit failure categories."
     owner: techlead-agent
     dependencies: [feature63]
-    status: not-started
+    status: needs-review
 
   - id: feature68
     title: "GitHub Actions reference CI workflow"
@@ -2288,7 +2288,7 @@ features:
         description: "Docs include troubleshooting guidance for common CI signing/publish failures."
     owner: techlead-agent
     dependencies: [feature61]
-    status: not-started
+    status: needs-review
 
   - id: feature69
     title: "kinnoo test foundation with standardized test file format"

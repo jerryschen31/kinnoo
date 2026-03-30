@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+### Added
+- Added Feature68 reference GitHub Actions workflow at `.github/workflows/kinnoo-publish.yml` covering install, preflight, pack, and remote publish stages.
+
+### Changed
+- Added CI environment/secrets contract documentation for `KINNOO_REGISTRY_URL`, `KINNOO_REGISTRY_TOKEN`, `KINNOO_TENANT_SLUG`, and strict-mode compatibility control.
+
 ## [v0.30.0] - 2026-03-30
 ### Added
 - Implemented Feature66 OpenClaw run adapter v1 for `type: openclaw-skill` manifests behind explicit compatibility gating.
