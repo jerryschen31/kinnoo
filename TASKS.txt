@@ -7200,7 +7200,7 @@ tasks:
       - 'step4: Add tests for lockfile creation and stable update behavior'
     dependencies: []
     tests: [test513]
-    status: not-started
+    status: needs-review
 
   - id: task355
     title: "Feature72 frozen lockfile install behavior"

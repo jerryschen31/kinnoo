@@ -9,8 +9,12 @@ import re
 import os
 import json
 import tempfile
+import hashlib
+import platform
+from datetime import datetime, timezone
 from urllib import request as urllib_request
 from pathlib import Path
+import yaml
 
 NODE_LIFECYCLE_SCRIPT_NAMES = {
     "preinstall",
@@ -31,14 +35,14 @@ try:
     )
     from kinnoo.registry import RegistryService, parse_install_target_spec
     from kinnoo.registry_backends import MockFilesystemRegistryBackend
-    from kinnoo.config import load_registry_config
+    from kinnoo.config import load_registry_config, resolve_lockfile_path
     from kinnoo.remote_client import RemoteRegistryClient
     from kinnoo.health_check import (
         check_node_package_manager_availability,
         check_node_runtime_constraint,
         check_openclaw_cli_constraint,
     )
-    from kinnoo.schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars
+    from kinnoo.schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars, LOCKFILE_SCHEMA_VERSION
     from kinnoo.inspect_command import read_manifest_from_kno_archive
     from kinnoo.validator import validate
     from kinnoo.install_trace import write_install_trace
@@ -53,14 +57,14 @@ except ImportError:
     )
     from .registry import RegistryService, parse_install_target_spec
     from .registry_backends import MockFilesystemRegistryBackend
-    from .config import load_registry_config
+    from .config import load_registry_config, resolve_lockfile_path
     from .remote_client import RemoteRegistryClient
     from .health_check import (
         check_node_package_manager_availability,
         check_node_runtime_constraint,
         check_openclaw_cli_constraint,
     )
-    from .schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars
+    from .schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars, LOCKFILE_SCHEMA_VERSION
     from .inspect_command import read_manifest_from_kno_archive
     from .validator import validate
     from .install_trace import write_install_trace
@@ -113,6 +117,100 @@ def _requirement_name(requirement_line: str) -> str:
 def _requirement_display_name(requirement_line: str) -> str:
     base = re.split(r"[<>=!~\[\s]", requirement_line, maxsplit=1)[0]
     return base.strip()
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        while True:
+            chunk = handle.read(65536)
+            if not chunk:
+                break
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _load_signature_fingerprint(archive_path: Path) -> str | None:
+    metadata_path = Path(f"{archive_path}.sig.json")
+    if not metadata_path.exists() or not metadata_path.is_file():
+        return None
+    try:
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, json.JSONDecodeError):
+        return None
+    if not isinstance(metadata, dict):
+        return None
+    fingerprint = metadata.get("public_key_fingerprint_sha256")
+    if isinstance(fingerprint, str) and fingerprint.strip():
+        return fingerprint.strip()
+    return None
+
+
+def _update_lockfile_after_install(
+    *,
+    target_dir: Path,
+    agent_name: str,
+    agent_version: str,
+    archive_path: Path,
+    install_source: str,
+) -> int:
+    lockfile_path = resolve_lockfile_path(start_dir=target_dir)
+    lockfile_path.parent.mkdir(parents=True, exist_ok=True)
+
+    existing_doc: dict[str, object] = {}
+    if lockfile_path.exists() and lockfile_path.is_file():
+        try:
+            loaded = yaml.safe_load(lockfile_path.read_text(encoding="utf-8"))
+            if isinstance(loaded, dict):
+                existing_doc = dict(loaded)
+        except (OSError, yaml.YAMLError):
+            existing_doc = {}
+
+    agents = existing_doc.get("agents")
+    if not isinstance(agents, dict):
+        agents = {}
+
+    fingerprint = _load_signature_fingerprint(archive_path)
+    agent_entry: dict[str, object] = {
+        "version": agent_version,
+        "source": install_source,
+        "archive_sha256": _sha256_file(archive_path),
+        "installed_at": _utc_now_iso(),
+    }
+    if fingerprint is not None:
+        agent_entry["signature_fingerprint"] = fingerprint
+
+    agents[agent_name] = agent_entry
+
+    ordered_agents: dict[str, object] = {}
+    for key in sorted(agents.keys()):
+        ordered_agents[str(key)] = agents[key]
+
+    lockfile_doc: dict[str, object] = {
+        "lock_version": LOCKFILE_SCHEMA_VERSION,
+        "locked_at": _utc_now_iso(),
+        "platform": {
+            "python": platform.python_version(),
+            "os": f"{platform.system().lower()}-{platform.machine().lower()}",
+        },
+        "agents": ordered_agents,
+    }
+
+    try:
+        lockfile_path.write_text(
+            yaml.safe_dump(lockfile_doc, sort_keys=False),
+            encoding="utf-8",
+        )
+    except OSError as error:
+        print(f"Error: Failed to write lockfile '{lockfile_path}': {error}", file=sys.stderr)
+        return 1
+
+    print(f"[kinnoo install] Updated lockfile: {lockfile_path}")
+    return 0
 
 
 def _wheel_distribution_name(wheel_filename: str) -> str:
@@ -659,6 +757,7 @@ def install_agent(
     use_local: bool = False,
     use_remote: bool = False,
     minimum_openclaw_version: str = DEFAULT_OPENCLAW_MINIMUM_VERSION,
+    install_source: str = "archive-file",
 ) -> int:
     target_spec = parse_install_target_spec(archive_path)
     if target_spec.kind == "invalid":
@@ -681,6 +780,7 @@ def install_agent(
 
         backend = None
         backend_label = "local"
+        resolved_install_source = "registry-local"
         if use_local:
             backend = MockFilesystemRegistryBackend(root=backend_root)
         elif use_remote:
@@ -699,6 +799,7 @@ def install_agent(
                 tenant_slug=config.tenant_slug,
             )
             backend_label = "remote"
+            resolved_install_source = "registry-remote"
         else:
             config = load_registry_config()
             if config.registry_url:
@@ -715,8 +816,10 @@ def install_agent(
                     tenant_slug=config.tenant_slug,
                 )
                 backend_label = "remote"
+                resolved_install_source = "registry-remote"
             else:
                 backend = MockFilesystemRegistryBackend(root=backend_root)
+                resolved_install_source = "registry-local"
 
         service = RegistryService(backend=backend)
 
@@ -797,6 +900,7 @@ def install_agent(
                 strict_mode=strict_mode,
                 expected_publisher_public_key=expected_publisher_key,
                 minimum_openclaw_version=minimum_openclaw_version,
+                install_source=resolved_install_source,
             )
         finally:
             if backend_label == "remote" and resolved_archive_path.exists():
@@ -816,6 +920,7 @@ def install_agent(
         strict_mode=strict_mode,
         expected_publisher_public_key=expected_publisher_public_key,
         minimum_openclaw_version=minimum_openclaw_version,
+        install_source=install_source,
     )
 
 
@@ -832,6 +937,7 @@ def _install_from_archive_path(
     strict_mode: bool = False,
     expected_publisher_public_key: str | None = None,
     minimum_openclaw_version: str = DEFAULT_OPENCLAW_MINIMUM_VERSION,
+    install_source: str = "archive-file",
 ) -> int:
     archive = Path(archive_path)
     if not archive.exists() or not archive.is_file():
@@ -1165,9 +1271,18 @@ def _install_from_archive_path(
         manifest_type = manifest_type_value.strip().lower()
 
     if manifest_type == "openclaw-skill":
-        return _install_openclaw_skill_dependencies(
+        openclaw_exit_code = _install_openclaw_skill_dependencies(
             target_dir=target_dir,
             minimum_openclaw_version=minimum_openclaw_version,
+        )
+        if openclaw_exit_code != 0:
+            return openclaw_exit_code
+        return _update_lockfile_after_install(
+            target_dir=target_dir,
+            agent_name=agent_name,
+            agent_version=agent_version,
+            archive_path=archive,
+            install_source=install_source,
         )
 
     runtime_language = "python"
@@ -1177,11 +1292,20 @@ def _install_from_archive_path(
             runtime_language = runtime_language_value.strip().lower()
 
     if runtime_language == "nodejs":
-        return _install_node_dependencies(
+        node_exit_code = _install_node_dependencies(
             target_dir=target_dir,
             runtime=runtime if isinstance(runtime, dict) else {},
             allow_vulnerable=allow_vulnerable,
             ignore_scripts=ignore_scripts,
+        )
+        if node_exit_code != 0:
+            return node_exit_code
+        return _update_lockfile_after_install(
+            target_dir=target_dir,
+            agent_name=agent_name,
+            agent_version=agent_version,
+            archive_path=archive,
+            install_source=install_source,
         )
 
     wheels_dir = target_dir / "wheels"
@@ -1227,7 +1351,13 @@ def _install_from_archive_path(
             print("[kinnoo install] All wheels installed successfully.")
         else:
             print("[kinnoo install] No dependencies listed in requirements.txt. Skipping dependency install.")
-        return 0
+        return _update_lockfile_after_install(
+            target_dir=target_dir,
+            agent_name=agent_name,
+            agent_version=agent_version,
+            archive_path=archive,
+            install_source=install_source,
+        )
 
     offline_mode_enabled = _is_offline_mode_enabled()
 
@@ -1309,4 +1439,10 @@ def _install_from_archive_path(
         print("[kinnoo install] Dependencies installed successfully from bundled wheels.")
         print("[kinnoo install] Offline-ready install path used (no network fallback required).")
 
-    return 0
+    return _update_lockfile_after_install(
+        target_dir=target_dir,
+        agent_name=agent_name,
+        agent_version=agent_version,
+        archive_path=archive,
+        install_source=install_source,
+    )
