@@ -1581,10 +1581,15 @@ def run_agent(
         backend_ok, backend_category, backend_message, backend_name, backend_command = detect_openclaw_run_backend()
         print(f"[kinnoo run][openclaw] [{backend_category}] {backend_message}", flush=True)
         if not backend_ok or backend_command is None or backend_name is None:
+            remediation = "Install or upgrade OpenClaw CLI and retry."
+            if backend_category == "openclaw_adapter_cli_missing":
+                remediation = "Install OpenClaw CLI and ensure it is available on PATH, then retry."
+            elif backend_category == "openclaw_adapter_version_unsupported":
+                remediation = "Upgrade OpenClaw CLI to version >= 0.2.0, then retry."
             _print_safe_error(
                 "Error: OpenClaw run adapter precheck failed "
                 f"(category={backend_category}). "
-                "Install or upgrade OpenClaw CLI and retry."
+                + remediation
             )
             return finalize(1)
 

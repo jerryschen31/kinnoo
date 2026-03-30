@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.30.0] - 2026-03-30
+### Added
+- Implemented Feature66 OpenClaw run adapter v1 for `type: openclaw-skill` manifests behind explicit compatibility gating.
+- Added backend selection diagnostics for OpenClaw adapter routing:
+  - `openclaw_adapter_backend_native_skills_run` for OpenClaw CLI >= 0.3.0 (`openclaw skills run .`)
+  - `openclaw_adapter_backend_legacy_run` for OpenClaw CLI >= 0.2.0 and < 0.3.0 (`openclaw run .`)
+
+### Changed
+- Added deterministic adapter failure categories with actionable remediation:
+  - `openclaw_adapter_cli_missing`
+  - `openclaw_adapter_version_unsupported`
+  - `openclaw_adapter_runtime_nonzero_exit`
+- Added explicit experimental compatibility gate for adapter behavior:
+  - `kinnoo run <agent-dir> <input> --experimental-openclaw-adapter`
+
+### Notes
+- Adapter compatibility is intentionally explicit: kinnoo does not silently switch incompatible execution strategies.
+- `kinnoo run --preflight` remains a readiness path and does not require adapter enablement.
+
 ## [v0.29.0] - 2026-03-26
 ### Added
 - Added CLI auth commands:
