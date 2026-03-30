@@ -7300,7 +7300,7 @@ tasks:
       - 'step4: Add tests/docs for metadata cleanup and error handling'
     dependencies: [task358, task354]
     tests: [test518]
-    status: not-started
+    status: needs-review
 
   - id: task360
     title: "Feature75 framework adapter architecture for langchain langgraph openai"

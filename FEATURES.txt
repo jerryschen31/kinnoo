@@ -2402,7 +2402,7 @@ features:
         description: "Missing-agent and partial-cleanup failure paths return deterministic actionable diagnostics."
     owner: techlead-agent
     dependencies: [feature72]
-    status: in-progress
+    status: needs-review
 
   - id: feature75
     title: "Framework import adapters for LangChain, LangGraph, and OpenAI Agents SDK"
