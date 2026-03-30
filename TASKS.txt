@@ -7280,7 +7280,7 @@ tasks:
       - 'step4: Add tests for confirmation required and successful uninstall behavior'
     dependencies: []
     tests: [test517]
-    status: not-started
+    status: needs-review
 
   - id: task359
     title: "Feature74 uninstall metadata cleanup and error-path coverage"
