@@ -7020,7 +7020,7 @@ tasks:
       - 'step4: Add tests for unavailable upstream and partial-failure sync behavior'
     dependencies: [task344]
     tests: [test504]
-    status: not-started
+    status: needs-review
 
   - id: task346
     title: "Feature68 GitHub Actions reference workflow and env contract"

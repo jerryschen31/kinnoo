@@ -4,13 +4,19 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from pathlib import Path
 from typing import Any
 
 from .config import load_registry_config
+from .logging_utils import emit_sync_event_diagnostic
 from .registry import RegistryService
 from .registry_backends import MockFilesystemRegistryBackend
 from .remote_client import RemoteRegistryClient
+
+
+DEFAULT_SYNC_FETCH_ATTEMPTS = 3
+DEFAULT_SYNC_BACKOFF_SECONDS = 0.05
 
 
 def sync_source(
@@ -34,26 +40,40 @@ def sync_source(
     backend_root = Path(registry_root).expanduser() if registry_root else None
     service = RegistryService(backend=MockFilesystemRegistryBackend(root=backend_root))
 
-    records, fetch_error = _fetch_clawhub_sync_records(
+    records, fetch_error, fetch_error_category = _fetch_clawhub_sync_records(
         full=full,
         since=since,
         use_local=use_local,
         use_remote=use_remote,
     )
-    if fetch_error is not None:
-        print(f"Error: {fetch_error}")
-        return 1
-
+    mode_label = "full" if full else "incremental"
+    failure_categories: dict[str, int] = {}
     created_count = 0
     updated_count = 0
     skipped_count = 0
     failed_count = 0
+
+    if fetch_error is not None:
+        print(f"Error: {fetch_error}")
+        failed_count = 1
+        failure_categories[fetch_error_category or "upstream_unavailable"] = 1
+        print(
+            "[kinnoo sync] source=clawhub "
+            f"mode={mode_label} "
+            f"created={created_count} "
+            f"updated={updated_count} "
+            f"skipped={skipped_count} "
+            f"failed={failed_count} "
+            f"failure_categories={_format_failure_categories(failure_categories)}"
+        )
+        return 1
 
     for raw_record in records:
         normalized_record, normalize_error = _normalize_sync_record(raw_record)
         if normalized_record is None:
             failed_count += 1
             reason = normalize_error or "invalid_sync_record"
+            _increment_failure_category(failure_categories, "invalid_record")
             print(f"[kinnoo sync] warning: skipped invalid record ({reason})")
             continue
 
@@ -83,6 +103,7 @@ def sync_source(
             )
         except Exception as error:  # pragma: no cover - defensive guard
             failed_count += 1
+            _increment_failure_category(failure_categories, "upsert_failed")
             print(
                 "[kinnoo sync] warning: failed to upsert record "
                 f"'{agent_slug}' ({type(error).__name__})"
@@ -94,8 +115,7 @@ def sync_source(
         else:
             updated_count += 1
 
-    mode_label = "full" if full else "incremental"
-    print(
+    summary = (
         "[kinnoo sync] source=clawhub "
         f"mode={mode_label} "
         f"created={created_count} "
@@ -103,10 +123,61 @@ def sync_source(
         f"skipped={skipped_count} "
         f"failed={failed_count}"
     )
+    if failed_count > 0:
+        summary = f"{summary} failure_categories={_format_failure_categories(failure_categories)}"
+    print(summary)
     return 0 if failed_count == 0 else 1
 
 
 def _fetch_clawhub_sync_records(
+    *,
+    full: bool,
+    since: str | None,
+    use_local: bool,
+    use_remote: bool,
+) -> tuple[list[dict[str, Any]], str | None, str | None]:
+    attempts = _sync_fetch_attempts()
+    backoff_seconds = _sync_backoff_seconds()
+    last_error_message: str | None = None
+    last_error_category: str | None = None
+
+    for attempt in range(1, attempts + 1):
+        records, fetch_error = _fetch_clawhub_sync_records_once(
+            full=full,
+            since=since,
+            use_local=use_local,
+            use_remote=use_remote,
+        )
+        if fetch_error is None:
+            return records, None, None
+
+        last_error_message = fetch_error
+        last_error_category = _categorize_fetch_error(fetch_error)
+        is_transient = _is_transient_fetch_error(fetch_error)
+        if is_transient and attempt < attempts:
+            emit_sync_event_diagnostic(
+                {
+                    "event_type": "sync_retry",
+                    "source": "clawhub",
+                    "attempt": attempt,
+                    "max_attempts": attempts,
+                    "category": last_error_category,
+                    "message": fetch_error,
+                }
+            )
+            print(
+                "[kinnoo sync] warning: retrying after transient fetch failure "
+                f"(attempt {attempt}/{attempts})"
+            )
+            time.sleep(backoff_seconds * attempt)
+            continue
+
+        break
+
+    return [], last_error_message or "unknown sync fetch error", last_error_category or "upstream_unavailable"
+
+
+def _fetch_clawhub_sync_records_once(
     *,
     full: bool,
     since: str | None,
@@ -243,4 +314,52 @@ def _mirror_record_matches(
         and isinstance(existing_metadata, dict)
         and isinstance(metadata, dict)
         and existing_metadata == metadata
+    )
+
+
+def _sync_fetch_attempts() -> int:
+    raw_value = (os.environ.get("KINNOO_SYNC_FETCH_ATTEMPTS") or "").strip()
+    if raw_value.isdigit():
+        parsed = int(raw_value)
+        if parsed >= 1:
+            return parsed
+    return DEFAULT_SYNC_FETCH_ATTEMPTS
+
+
+def _sync_backoff_seconds() -> float:
+    raw_value = (os.environ.get("KINNOO_SYNC_BACKOFF_SECONDS") or "").strip()
+    try:
+        parsed = float(raw_value)
+    except ValueError:
+        return DEFAULT_SYNC_BACKOFF_SECONDS
+    if parsed < 0:
+        return DEFAULT_SYNC_BACKOFF_SECONDS
+    return parsed
+
+
+def _is_transient_fetch_error(error_message: str) -> bool:
+    normalized = error_message.strip().lower()
+    return any(marker in normalized for marker in ("timeout", "temporar", "unavailable", "rate limited", "429", "network"))
+
+
+def _categorize_fetch_error(error_message: str) -> str:
+    normalized = error_message.strip().lower()
+    if "rate limited" in normalized or "429" in normalized:
+        return "upstream_rate_limited"
+    if "timeout" in normalized:
+        return "upstream_timeout"
+    if "unavailable" in normalized or "network" in normalized or "temporar" in normalized:
+        return "upstream_unavailable"
+    return "upstream_fetch_failed"
+
+
+def _increment_failure_category(failure_categories: dict[str, int], category: str) -> None:
+    failure_categories[category] = failure_categories.get(category, 0) + 1
+
+
+def _format_failure_categories(failure_categories: dict[str, int]) -> str:
+    if not failure_categories:
+        return "none"
+    return ",".join(
+        f"{category}:{failure_categories[category]}" for category in sorted(failure_categories)
     )
