@@ -6960,7 +6960,7 @@ tasks:
       - 'step4: Emit structured adapter diagnostics including selected backend and invocation details'
     dependencies: [task340]
     tests: [test501]
-    status: not-started
+    status: needs-review
 
   - id: task343
     title: "Feature66 run adapter error handling and regression tests"

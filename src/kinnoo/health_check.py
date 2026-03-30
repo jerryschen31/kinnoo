@@ -541,3 +541,82 @@ def check_openclaw_cli_constraint(minimum_version: str) -> tuple[bool, str, str]
 		"delegated install precheck passed: "
 		f"OpenClaw CLI version {current_label} satisfies >= {normalized_minimum}"
 	)
+
+
+def detect_openclaw_run_backend() -> tuple[bool, str, str, str | None, list[str] | None]:
+	"""Detect supported OpenClaw run adapter backend from CLI availability/version."""
+	openclaw_executable = shutil.which("openclaw")
+	if openclaw_executable is None:
+		return (
+			False,
+			"openclaw_adapter_cli_missing",
+			"OpenClaw adapter precheck failed: OpenClaw CLI not found in PATH.",
+			None,
+			None,
+		)
+
+	try:
+		version_result = _RUN_SUBPROCESS(
+			[openclaw_executable, "--version"],
+			capture_output=True,
+			text=True,
+		)
+	except OSError as error:
+		return (
+			False,
+			"openclaw_adapter_version_probe_failed",
+			f"OpenClaw adapter precheck failed: unable to execute openclaw --version: {error}",
+			None,
+			None,
+		)
+
+	if version_result.returncode != 0:
+		stderr = version_result.stderr.strip()
+		stderr_suffix = f" ({stderr})" if stderr else ""
+		return (
+			False,
+			"openclaw_adapter_version_probe_failed",
+			"OpenClaw adapter precheck failed: openclaw --version returned non-zero "
+			f"exit code{stderr_suffix}",
+			None,
+			None,
+		)
+
+	current_version = _parse_node_version_output(version_result.stdout or "")
+	if current_version is None:
+		return (
+			False,
+			"openclaw_adapter_version_parse_failed",
+			"OpenClaw adapter precheck failed: unable to parse OpenClaw CLI version from "
+			f"output '{(version_result.stdout or '').strip()}'",
+			None,
+			None,
+		)
+
+	version_label = ".".join(str(part) for part in current_version)
+	if _compare_versions(current_version, (0, 3, 0)) >= 0:
+		return (
+			True,
+			"openclaw_adapter_backend_native_skills_run",
+			f"OpenClaw adapter selected backend native-skills-run for CLI version {version_label}.",
+			"native-skills-run",
+			["openclaw", "skills", "run", "."],
+		)
+
+	if _compare_versions(current_version, (0, 2, 0)) >= 0:
+		return (
+			True,
+			"openclaw_adapter_backend_legacy_run",
+			f"OpenClaw adapter selected backend legacy-run for CLI version {version_label}.",
+			"legacy-run",
+			["openclaw", "run", "."],
+		)
+
+	return (
+		False,
+		"openclaw_adapter_version_unsupported",
+		"OpenClaw adapter precheck failed: "
+		f"CLI version {version_label} is unsupported (requires >= 0.2.0).",
+		None,
+		None,
+	)
