@@ -2,18 +2,28 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
 import subprocess
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
 try:
-    from kinnoo.analyzer import analyze_project, infer_openclaw_project_hints
+    from kinnoo.analyzer import (
+        analyze_project,
+        infer_openclaw_project_hints,
+        build_clawhub_import_report_template,
+    )
 except ImportError:
-    from .analyzer import analyze_project, infer_openclaw_project_hints
+    from .analyzer import (
+        analyze_project,
+        infer_openclaw_project_hints,
+        build_clawhub_import_report_template,
+    )
 
 try:
     from kinnoo.validator import validate as validate_manifest
@@ -24,6 +34,13 @@ try:
     from kinnoo.terminal_colors import style_text
 except ImportError:
     from .terminal_colors import style_text
+
+try:
+    from kinnoo.registry import RegistryService
+    from kinnoo.registry_backends import MockFilesystemRegistryBackend
+except ImportError:
+    from .registry import RegistryService
+    from .registry_backends import MockFilesystemRegistryBackend
 
 
 DEFAULT_IMPORTED_MANIFEST = """name: imported-agent
@@ -689,13 +706,260 @@ def _print_manifest_validation_and_guidance(
         print("  - Update kinnoo.yaml to resolve validation warnings before packaging or distribution.")
 
 
+def _normalize_clawhub_slug(raw_slug: str) -> str:
+    normalized = raw_slug.strip().strip("/")
+    parts = [part.strip() for part in normalized.split("/") if part.strip()]
+    if len(parts) < 2:
+        raise ValueError("ClawHub slug must use '<owner>/<slug>' format.")
+    return "/".join(parts)
+
+
+def _resolve_clawhub_destination(slug: str, import_path_arg: str | None) -> Path:
+    if import_path_arg:
+        return Path(import_path_arg).expanduser().resolve()
+
+    destination_name = slug.replace("/", "-")
+    return (Path.cwd() / destination_name).resolve()
+
+
+def _build_clawhub_manifest_text(
+    *,
+    slug: str,
+    source_version: str,
+    source_url: str | None,
+) -> str:
+    name = slug.split("/")[-1]
+    version = source_version if source_version else "0.1.0"
+    source_url_line = f"  source_url: {source_url}" if source_url else ""
+
+    lines = [
+        f"name: {name}",
+        f"version: {version}",
+        "entrypoint: index.js",
+        "runtime:",
+        "  type: daemon",
+        "  language: nodejs",
+        "  version: \">=20\"",
+        "dependencies: []",
+        "inputs:",
+        "  type: string",
+        "outputs:",
+        "  type: string",
+        "framework: openclaw",
+        "type: openclaw-skill",
+        "provenance:",
+        "  source_registry: clawhub",
+        f"  source_slug: {slug}",
+        f"  source_version: {source_version}",
+    ]
+    if source_url_line:
+        lines.append(source_url_line)
+
+    return "\n".join(lines) + "\n"
+
+
+def _write_clawhub_import_report(
+    *,
+    destination: Path,
+    slug: str,
+    mirror_record: dict[str, Any],
+    requirement_hints: dict[str, list[str]],
+    unresolved_guidance: list[str],
+) -> None:
+    report_path = destination / "kinnoo-import-report.json"
+    report = build_clawhub_import_report_template(slug=slug, mirror_record=mirror_record)
+    report["resolved_at"] = datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    report["requirements"] = requirement_hints
+    report["unresolved"] = unresolved_guidance
+    report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _normalize_hint_values(raw_value: Any) -> list[str]:
+    if raw_value is None:
+        return []
+    if isinstance(raw_value, str):
+        values = [raw_value]
+    elif isinstance(raw_value, list):
+        values = [item for item in raw_value if isinstance(item, str)]
+    else:
+        return []
+
+    normalized: list[str] = []
+    for value in values:
+        text = value.strip()
+        if text and text not in normalized:
+            normalized.append(text)
+    return sorted(normalized)
+
+
+def _collect_clawhub_requirement_hints(metadata: dict[str, Any] | None) -> dict[str, list[str]]:
+    payload = metadata or {}
+    requirements = payload.get("requirements") if isinstance(payload.get("requirements"), dict) else {}
+
+    env_hints = _normalize_hint_values(
+        payload.get("env_hints") or payload.get("env_vars") or requirements.get("env")
+    )
+    config_hints = _normalize_hint_values(
+        payload.get("config_hints") or payload.get("config_files") or requirements.get("config")
+    )
+    bin_hints = _normalize_hint_values(
+        payload.get("bin_hints") or payload.get("binaries") or requirements.get("bin")
+    )
+
+    return {
+        "env": env_hints,
+        "config": config_hints,
+        "bin": bin_hints,
+    }
+
+
+def _collect_clawhub_unresolved_guidance(requirement_hints: dict[str, list[str]]) -> list[str]:
+    guidance: list[str] = []
+    if requirement_hints.get("env"):
+        guidance.append("Set required environment variables before running this imported skill.")
+    if requirement_hints.get("config"):
+        guidance.append("Create/update required config files before running this imported skill.")
+    if requirement_hints.get("bin"):
+        guidance.append("Install required binaries and verify they are available on PATH.")
+    guidance.append("Verify entrypoint path and runtime prerequisites before install/run.")
+    return guidance
+
+
+def _print_clawhub_requirements_and_guidance(
+    requirement_hints: dict[str, list[str]],
+    unresolved_guidance: list[str],
+) -> None:
+    print(style_text("Requirement hints:", color="cyan", bold=True))
+    for section in ("env", "config", "bin"):
+        values = requirement_hints.get(section) or []
+        if values:
+            print(f"  - {section}: {', '.join(values)}")
+        else:
+            print(f"  - {section}: (none)")
+
+    print(style_text("Unresolved guidance:", color="yellow", bold=True))
+    for item in unresolved_guidance:
+        print(f"  - {item}")
+
+
+def _import_from_clawhub_source(
+    *,
+    slug_arg: str,
+    import_path_arg: str | None,
+    force: bool,
+    live_fallback: bool,
+) -> int:
+    try:
+        slug = _normalize_clawhub_slug(slug_arg)
+    except ValueError as error:
+        print(style_text(f"Error: {error}", color="red"))
+        return 1
+
+    destination = _resolve_clawhub_destination(slug, import_path_arg)
+    manifest_path = destination / "kinnoo.yaml"
+
+    if destination.exists() and not destination.is_dir():
+        print(style_text(f"Error: import target must be a directory: {destination}", color="red"))
+        return 1
+    if manifest_path.exists() and not force:
+        print(style_text(
+            "Error: Import aborted: kinnoo.yaml already exists. "
+            "Use --force to explicitly override and overwrite.",
+            color="red",
+        ))
+        return 1
+
+    registry_root = os.environ.get("KINNOO_REGISTRY_ROOT")
+    backend_root = Path(registry_root).expanduser() if registry_root else None
+    service = RegistryService(backend=MockFilesystemRegistryBackend(root=backend_root))
+    mirror_record = service.get_clawhub_mirror_record(agent_slug=slug)
+
+    if mirror_record is None:
+        if live_fallback:
+            print(
+                style_text(
+                    "Warning: --live-fallback is enabled, but live ClawHub fetch is not available in this build. "
+                    "Using mirror-only resolution.",
+                    color="yellow",
+                )
+            )
+        print(
+            style_text(
+                f"Error: ClawHub slug '{slug}' was not found in mirror index. "
+                "Run 'kinnoo sync clawhub' and retry.",
+                color="red",
+            )
+        )
+        return 1
+
+    destination.mkdir(parents=True, exist_ok=True)
+    source_version = mirror_record.source_version or mirror_record.version
+    source_url = mirror_record.source_url
+    requirement_hints = _collect_clawhub_requirement_hints(mirror_record.metadata)
+    unresolved_guidance = _collect_clawhub_unresolved_guidance(requirement_hints)
+
+    manifest_text = _build_clawhub_manifest_text(
+        slug=slug,
+        source_version=source_version,
+        source_url=source_url,
+    )
+
+    try:
+        _write_manifest_in_place(destination, manifest_text, force=force)
+        requirements_path = destination / "requirements.txt"
+        if not requirements_path.exists():
+            requirements_path.write_text("\n", encoding="utf-8")
+        _write_clawhub_import_report(
+            destination=destination,
+            slug=slug,
+            mirror_record={
+                "tenant_slug": mirror_record.tenant_slug,
+                "agent_slug": mirror_record.agent_slug,
+                "name": mirror_record.name,
+                "version": mirror_record.version,
+                "source_registry": mirror_record.source_registry,
+                "source_version": mirror_record.source_version,
+                "source_url": mirror_record.source_url,
+                "synced_at": mirror_record.synced_at,
+                "metadata": mirror_record.metadata or {},
+            },
+            requirement_hints=requirement_hints,
+            unresolved_guidance=unresolved_guidance,
+        )
+    except Exception as error:
+        if manifest_path.exists():
+            manifest_path.unlink()
+        print(style_text(f"Error: import failed and rolled back partial artifacts: {error}", color="red"))
+        return 1
+
+    _print_clawhub_requirements_and_guidance(
+        requirement_hints=requirement_hints,
+        unresolved_guidance=unresolved_guidance,
+    )
+    print(style_text(f"Imported ClawHub skill in-place: {destination}", color="green", bold=True))
+    return 0
+
+
 def import_agent(
     target_path_arg: str | None,
     import_path_arg: str | None = None,
     *,
     force: bool = False,
+    source: str | None = None,
+    live_fallback: bool = False,
 ) -> int:
     """Import a project in-place by writing kinnoo.yaml safely into target root."""
+    if source == "clawhub":
+        if target_path_arg is None or not target_path_arg.strip():
+            print(style_text("Error: Missing ClawHub slug. Usage: kinnoo import --source clawhub <owner>/<slug>", color="red"))
+            return 1
+        return _import_from_clawhub_source(
+            slug_arg=target_path_arg,
+            import_path_arg=import_path_arg,
+            force=force,
+            live_fallback=live_fallback,
+        )
+
     target_arg = target_path_arg
     if target_arg is None:
         target_arg = str(Path.cwd())

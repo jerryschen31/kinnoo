@@ -15,6 +15,7 @@ from kinnoo.registry_backends import (
 	LocalRegistryBackend,
 	MockFilesystemRegistryBackend,
 )
+from kinnoo.config import CLAW_HUB_TENANT_SLUG
 
 
 # [agent] test deprecated: Feature12 registry tests are superseded by feature13 tests.
@@ -603,6 +604,58 @@ def test_feature56_integration_suite(tmp_path: Path, monkeypatch) -> None:
 	)
 	assert "test_feature56_local_publish_tenant_path" in cli_registry_test
 	assert '/ "tenants"' in cli_registry_test
+
+
+def test_feature63_clawhub_tenant_mirror_ownership(tmp_path: Path) -> None:
+	"""Feature63 test495: mirrored records are stored under admin-controlled clawhub tenant."""
+	registry_root = tmp_path / "registry"
+	service = RegistryService(backend=LocalRegistryBackend(root=registry_root))
+
+	first_record = service.upsert_clawhub_mirror_record(
+		agent_slug="weather/weather-skill",
+		source_version="1.2.3",
+		source_url="https://clawhub.ai/skills/weather/weather-skill",
+		metadata={"description": "Weather utility skill"},
+	)
+
+	assert first_record.tenant_slug == CLAW_HUB_TENANT_SLUG
+	assert first_record.source_registry == "clawhub"
+	assert first_record.agent_slug == "weather/weather-skill"
+	assert first_record.source_version == "1.2.3"
+
+	mirror_record_path = (
+		registry_root
+		/ "tenants"
+		/ CLAW_HUB_TENANT_SLUG
+		/ "mirror"
+		/ "weather"
+		/ "weather-skill"
+		/ "1.2.3"
+		/ "mirror-record.json"
+	)
+	assert mirror_record_path.exists()
+
+	stored_payload = json.loads(mirror_record_path.read_text(encoding="utf-8"))
+	assert stored_payload["tenant_slug"] == CLAW_HUB_TENANT_SLUG
+	assert stored_payload["source_registry"] == "clawhub"
+	assert stored_payload["source_slug"] == "weather/weather-skill"
+	assert stored_payload["source_version"] == "1.2.3"
+
+	second_record = service.upsert_clawhub_mirror_record(
+		agent_slug="weather/weather-skill",
+		source_version="1.2.4",
+		source_url="https://clawhub.ai/skills/weather/weather-skill",
+		metadata={"description": "Weather utility skill v2"},
+	)
+	assert second_record.tenant_slug == CLAW_HUB_TENANT_SLUG
+	assert second_record.source_version == "1.2.4"
+
+	records = service.list_clawhub_mirror_records()
+	assert [record.tenant_slug for record in records] == [
+		CLAW_HUB_TENANT_SLUG,
+		CLAW_HUB_TENANT_SLUG,
+	]
+	assert [record.source_version for record in records] == ["1.2.3", "1.2.4"]
 
 
 def test_feature57_forwarded_ip_rate_limit_path() -> None:
