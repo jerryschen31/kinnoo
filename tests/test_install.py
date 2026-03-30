@@ -159,6 +159,76 @@ def test_feature72_lockfile_write_and_stability(tmp_path, monkeypatch):
     assert updated_agents["a-agent"].get("source") == "archive-file"
 
 
+def test_feature74_uninstall_metadata_and_errors(tmp_path, monkeypatch, capsys):
+    from kinnoo import uninstall_command
+
+    install_root = tmp_path / "feature74-install-root"
+    target_agent_dir = install_root / "feature74-agent"
+    other_agent_dir = install_root / "other-agent"
+    target_agent_dir.mkdir(parents=True, exist_ok=True)
+    other_agent_dir.mkdir(parents=True, exist_ok=True)
+    (target_agent_dir / "run.py").write_text("print('target')\n", encoding="utf-8")
+    (other_agent_dir / "run.py").write_text("print('other')\n", encoding="utf-8")
+
+    lockfile_path = tmp_path / "feature74-lock.yaml"
+    monkeypatch.setenv("KINNOO_LOCKFILE_PATH", str(lockfile_path))
+    lockfile_path.write_text(
+        (
+            "lock_version: 1\n"
+            "locked_at: 2026-03-30T00:00:00Z\n"
+            "platform:\n"
+            "  python: 3.12.0\n"
+            "  os: darwin-arm64\n"
+            "agents:\n"
+            "  feature74-agent:\n"
+            "    version: 1.0.0\n"
+            "    source: archive-file\n"
+            "    archive_sha256: aaa\n"
+            "    installed_at: 2026-03-30T00:00:00Z\n"
+            "  other-agent:\n"
+            "    version: 1.0.0\n"
+            "    source: archive-file\n"
+            "    archive_sha256: bbb\n"
+            "    installed_at: 2026-03-30T00:00:00Z\n"
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr("builtins.input", lambda _prompt: "y")
+    uninstall_exit_code = uninstall_command.uninstall_agent(
+        agent_name="feature74-agent",
+        install_root_arg=str(install_root),
+    )
+    assert uninstall_exit_code == 0
+    assert not target_agent_dir.exists()
+    assert other_agent_dir.exists()
+
+    updated_lockfile = yaml.safe_load(lockfile_path.read_text(encoding="utf-8"))
+    assert isinstance(updated_lockfile, dict)
+    updated_agents = updated_lockfile.get("agents")
+    assert isinstance(updated_agents, dict)
+    assert "feature74-agent" not in updated_agents
+    assert "other-agent" in updated_agents
+
+    uninstall_trace_path = install_root / ".kinnoo" / "uninstall-trace.jsonl"
+    assert uninstall_trace_path.exists()
+    uninstall_trace_lines = uninstall_trace_path.read_text(encoding="utf-8").strip().splitlines()
+    assert uninstall_trace_lines
+    latest_trace = json.loads(uninstall_trace_lines[-1])
+    assert latest_trace.get("event") == "uninstall"
+    assert latest_trace.get("agent") == "feature74-agent"
+    assert latest_trace.get("removed_from_lockfile") is True
+
+    missing_exit_code = uninstall_command.uninstall_agent(
+        agent_name="feature74-agent",
+        install_root_arg=str(install_root),
+    )
+    captured = capsys.readouterr()
+    combined_output = f"{captured.out}\n{captured.err}"
+    assert missing_exit_code == 1
+    assert "Installed agent 'feature74-agent' was not found" in combined_output
+
+
 def _node_manifest_yaml(package_manager: str | None = None) -> str:
     package_manager_line = ""
     if package_manager is not None:

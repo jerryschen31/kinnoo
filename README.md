@@ -170,6 +170,15 @@ Feature72 lockfile frozen mode:
 	- `Re-run install without --frozen to regenerate lockfile, then retry --frozen.`
 - Successful frozen installs leave lockfile content unchanged.
 
+Feature74 uninstall behavior:
+
+- `kinnoo uninstall <agent-name>` always requires interactive confirmation before deleting files.
+- Successful uninstall removes the target install directory and writes an uninstall trace event.
+- If lockfile metadata exists, uninstall removes the matching agent entry and rewrites lockfile state.
+- Missing target uninstall failures are deterministic and actionable:
+	- `Installed agent '<name>' was not found ...`
+	- verify install root configuration (`KINNOO_AGENT_INSTALL_ROOT`) before retrying.
+
 Unverified source warning:
 
 - If `<archive>.sha256` is missing, install prints:
