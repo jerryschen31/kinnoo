@@ -1546,3 +1546,51 @@ def test_feature39_permissions_schema_validation(tmp_path: Path) -> None:
         f"errors: {errors}"
     )
     assert errors == []
+
+
+def test_feature62_openclaw_skill_schema_validation(tmp_path: Path) -> None:
+    """Feature62 test493: openclaw-skill type and provenance object validation."""
+    valid_manifest = dict(_VALID_MANIFEST)
+    valid_manifest["framework"] = "openclaw"
+    valid_manifest["type"] = "openclaw-skill"
+    valid_manifest["runtime"] = {
+        "language": "nodejs",
+        "version": ">=20",
+        "type": "daemon",
+    }
+    valid_manifest["provenance"] = {
+        "source_registry": "clawhub",
+        "source_slug": "weather/weather-skill",
+        "source_version": "1.2.3",
+    }
+
+    valid_path = tmp_path / "feature62_openclaw_skill_valid.yaml"
+    valid_path.write_text(yaml.dump(valid_manifest), encoding="utf-8")
+    is_valid, errors = validate(str(valid_path))
+    assert is_valid is True, f"Expected canonical openclaw-skill manifest to pass; errors: {errors}"
+
+    missing_registry = dict(valid_manifest)
+    missing_registry["provenance"] = {
+        "source_slug": "weather/weather-skill",
+        "source_version": "1.2.3",
+    }
+    missing_registry_path = tmp_path / "feature62_openclaw_skill_missing_registry.yaml"
+    missing_registry_path.write_text(yaml.dump(missing_registry), encoding="utf-8")
+    is_valid, errors = validate(str(missing_registry_path))
+    assert is_valid is False, "Expected missing provenance.source_registry to fail validation"
+    assert any("provenance.source_registry" in message for message in errors), (
+        f"Expected provenance.source_registry guidance; got: {errors}"
+    )
+
+    missing_slug_and_url = dict(valid_manifest)
+    missing_slug_and_url["provenance"] = {
+        "source_registry": "clawhub",
+        "source_version": "1.2.3",
+    }
+    missing_slug_and_url_path = tmp_path / "feature62_openclaw_skill_missing_slug_and_url.yaml"
+    missing_slug_and_url_path.write_text(yaml.dump(missing_slug_and_url), encoding="utf-8")
+    is_valid, errors = validate(str(missing_slug_and_url_path))
+    assert is_valid is False, "Expected missing provenance source_slug/source_url to fail validation"
+    assert any("source_slug" in message and "source_url" in message for message in errors), (
+        f"Expected source_slug/source_url requirement guidance; got: {errors}"
+    )

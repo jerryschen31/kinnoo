@@ -41,6 +41,7 @@ from .schema import (
     SUPPORTED_HEALTH_CHECK_METHODS,
     SUPPORTED_INPUT_TYPES,
     SUPPORTED_NODE_PACKAGE_MANAGERS,
+    SUPPORTED_MANIFEST_TYPES,
     SUPPORTED_OUTPUT_TYPES,
     SUPPORTED_RUNTIME_LANGUAGES,
     SUPPORTED_RUNTIME_TYPES,
@@ -388,77 +389,82 @@ def _is_safe_relative_pattern(pattern_value: str) -> bool:
     return ".." not in candidate.parts
 
 
-def _collect_state_dirs_contract_errors(data: dict[str, Any]) -> list[str]:
-    """Validate feature35 state_dirs contract shape and safety constraints."""
+def _collect_disallowed_metadata_field_errors(data: dict[str, Any]) -> list[str]:
+    """Reject metadata fields intentionally deferred from Phase 6 schema."""
     errors: list[str] = []
 
-    found, state_dirs_value = _get_nested(data, "state_dirs")
-    if not found or not isinstance(state_dirs_value, list):
+    for field_name in ("channels", "skills", "state_dirs"):
+        found, _ = _get_nested(data, field_name)
+        if found:
+            errors.append(
+                f"Field '{field_name}' is not supported in this schema version. Remove it from kinnoo.yaml."
+            )
+
+    return errors
+
+
+def _collect_openclaw_skill_contract_errors(data: dict[str, Any]) -> list[str]:
+    """Validate openclaw-skill type semantics and provenance contract."""
+    errors: list[str] = []
+
+    type_found, manifest_type = _get_nested(data, "type")
+    if type_found and isinstance(manifest_type, str):
+        if manifest_type not in SUPPORTED_MANIFEST_TYPES:
+            supported = ", ".join(f"'{value}'" for value in SUPPORTED_MANIFEST_TYPES)
+            errors.append(
+                f"Field 'type' has unsupported value: '{manifest_type}'. Supported values: {supported}."
+            )
+
+    if not (type_found and manifest_type == "openclaw-skill"):
+        # provenance object is still validated if present, even for non-openclaw-skill manifests.
+        pass
+    else:
+        framework_found, framework_value = _get_nested(data, "framework")
+        if framework_found and isinstance(framework_value, str) and framework_value != "openclaw":
+            errors.append(
+                "Field 'framework' must be 'openclaw' when type is 'openclaw-skill'."
+            )
+
+        runtime_language_found, runtime_language_value = _get_nested(data, "runtime.language")
+        if runtime_language_found and runtime_language_value != "nodejs":
+            errors.append(
+                "Field 'runtime.language' must be 'nodejs' when type is 'openclaw-skill'."
+            )
+
+        runtime_type_found, runtime_type_value = _get_nested(data, "runtime.type")
+        if runtime_type_found and runtime_type_value != "daemon":
+            errors.append(
+                "Field 'runtime.type' must be 'daemon' when type is 'openclaw-skill'."
+            )
+
+    provenance_found, provenance_value = _get_nested(data, "provenance")
+    if not provenance_found:
         return errors
 
-    for index, declared_state_dir in enumerate(state_dirs_value):
-        if isinstance(declared_state_dir, str):
-            normalized_path = declared_state_dir.strip()
-            if normalized_path == "":
-                errors.append(
-                    f"Field 'state_dirs[{index}]' must be a non-empty string."
-                )
-                continue
-            if not _is_safe_relative_manifest_path(normalized_path):
-                errors.append(
-                    f"Field 'state_dirs[{index}]' must be a relative path without parent traversal segments."
-                )
-            continue
+    if not isinstance(provenance_value, dict):
+        return errors
 
-        if not isinstance(declared_state_dir, dict):
-            actual = type(declared_state_dir).__name__
-            errors.append(
-                f"Field 'state_dirs[{index}]' must be of type str or dict, got {actual}."
-            )
-            continue
+    source_registry = provenance_value.get("source_registry")
+    source_version = provenance_value.get("source_version")
+    source_slug = provenance_value.get("source_slug")
+    source_url = provenance_value.get("source_url")
 
-        if "path" not in declared_state_dir:
-            errors.append(
-                f"Missing required field: 'state_dirs[{index}].path'"
-            )
-            continue
+    if not isinstance(source_registry, str) or not source_registry.strip():
+        errors.append(
+            "Field 'provenance.source_registry' is required when provenance is declared and must be a non-empty string."
+        )
 
-        path_value = declared_state_dir.get("path")
-        if not isinstance(path_value, str):
-            actual = type(path_value).__name__
-            errors.append(
-                f"Field 'state_dirs[{index}].path' must be of type str, got {actual}."
-            )
-        else:
-            normalized_path = path_value.strip()
-            if normalized_path == "":
-                errors.append(
-                    f"Field 'state_dirs[{index}].path' must be a non-empty string."
-                )
-            elif not _is_safe_relative_manifest_path(normalized_path):
-                errors.append(
-                    f"Field 'state_dirs[{index}].path' must be a relative path without parent traversal segments."
-                )
+    if not isinstance(source_version, str) or not source_version.strip():
+        errors.append(
+            "Field 'provenance.source_version' is required when provenance is declared and must be a non-empty string."
+        )
 
-        if "exclude" in declared_state_dir:
-            exclude_value = declared_state_dir["exclude"]
-            if not isinstance(exclude_value, list):
-                actual = type(exclude_value).__name__
-                errors.append(
-                    f"Field 'state_dirs[{index}].exclude' must be of type list, got {actual}."
-                )
-            else:
-                for exclude_index, exclude_pattern in enumerate(exclude_value):
-                    if not isinstance(exclude_pattern, str):
-                        actual = type(exclude_pattern).__name__
-                        errors.append(
-                            f"Field 'state_dirs[{index}].exclude[{exclude_index}]' must be of type str, got {actual}."
-                        )
-                        continue
-                    if not _is_safe_relative_pattern(exclude_pattern):
-                        errors.append(
-                            f"Field 'state_dirs[{index}].exclude[{exclude_index}]' must be a relative pattern without parent traversal segments."
-                        )
+    has_source_slug = isinstance(source_slug, str) and source_slug.strip() != ""
+    has_source_url = isinstance(source_url, str) and source_url.strip() != ""
+    if not has_source_slug and not has_source_url:
+        errors.append(
+            "Field 'provenance' must include at least one of 'source_slug' or 'source_url'."
+        )
 
     return errors
 
@@ -483,26 +489,6 @@ def _collect_openclaw_framework_errors(data: dict[str, Any]) -> list[str]:
     if runtime_type_found and runtime_type_value != "daemon":
         errors.append(
             "Field 'runtime.type' must be 'daemon' when framework is 'openclaw'."
-        )
-
-    package_manager_found, package_manager_value = _get_nested(
-        data, "runtime.package_manager"
-    )
-    if not package_manager_found:
-        errors.append(
-            "Field 'runtime.package_manager' is required when framework is 'openclaw'. "
-            "Supported values: 'npm', 'pnpm'."
-        )
-    elif isinstance(package_manager_value, str) and package_manager_value not in SUPPORTED_NODE_PACKAGE_MANAGERS:
-        # Keep framework-targeted guidance even when generic runtime validation also reports unsupported values.
-        errors.append(
-            "Field 'runtime.package_manager' must be one of 'npm', 'pnpm' when framework is 'openclaw'."
-        )
-
-    channels_found, channels_value = _get_nested(data, "channels")
-    if channels_found and isinstance(channels_value, list) and "stdio" not in channels_value:
-        errors.append(
-            "Field 'channels' must include 'stdio' when framework is 'openclaw'."
         )
 
     return errors
@@ -661,44 +647,11 @@ def _collect_validation_errors(data: dict[str, Any]) -> list[str]:
                         f"Field 'assets.paths[{index}]' must be a non-empty string."
                     )
 
-        if optional_field == "channels":
-            for index, channel_name in enumerate(value):
-                if not isinstance(channel_name, str):
-                    actual = type(channel_name).__name__
-                    errors.append(
-                        f"Field 'channels[{index}]' must be of type str, got {actual}."
-                    )
-                    continue
-                if channel_name.strip() == "":
-                    errors.append(
-                        f"Field 'channels[{index}]' must be a non-empty string."
-                    )
-
-        if optional_field == "skills":
-            for index, declared_path in enumerate(value):
-                if not isinstance(declared_path, str):
-                    actual = type(declared_path).__name__
-                    errors.append(
-                        f"Field '{optional_field}[{index}]' must be of type str, got {actual}."
-                    )
-                    continue
-
-                normalized_path = declared_path.strip()
-                if normalized_path == "":
-                    errors.append(
-                        f"Field '{optional_field}[{index}]' must be a non-empty string."
-                    )
-                    continue
-
-                if not _is_safe_relative_manifest_path(normalized_path):
-                    errors.append(
-                        f"Field '{optional_field}[{index}]' must be a relative path without parent traversal segments."
-                    )
-
     errors.extend(_collect_services_shape_errors(data))
     errors.extend(_collect_mcp_server_permissions_errors(data))
     errors.extend(_collect_io_type_errors(data))
-    errors.extend(_collect_state_dirs_contract_errors(data))
+    errors.extend(_collect_disallowed_metadata_field_errors(data))
+    errors.extend(_collect_openclaw_skill_contract_errors(data))
     errors.extend(_collect_openclaw_framework_errors(data))
 
     return errors

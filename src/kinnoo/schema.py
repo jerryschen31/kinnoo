@@ -101,6 +101,9 @@ SUPPORTED_RUNTIME_TYPES: list[str] = ["one-shot", "mcp-server", "daemon"]
 # Supported runtime languages in this version of kinnoo.
 SUPPORTED_RUNTIME_LANGUAGES: list[str] = ["python", "nodejs"]
 
+# Supported top-level manifest `type` values.
+SUPPORTED_MANIFEST_TYPES: list[str] = ["agent", "openclaw-skill"]
+
 # Supported manifest I/O contract type values.
 # Keep both 'text' and 'string' for backward compatibility with existing
 # manifests and default normalization behavior.
@@ -181,16 +184,19 @@ DEFAULT_TCP_HEALTH_CHECK_TIMEOUT_SECONDS: float = 3.0
 # Optional V2 manifest metadata fields (feature9).
 # These are intentionally optional and should not be included in REQUIRED_FIELDS.
 OPTIONAL_FIELDS: list[str] = [
+    "type",
     "description",
     "author",
     "license",
     "env_vars",
+    "provenance",
+    "provenance.source_registry",
+    "provenance.source_slug",
+    "provenance.source_url",
+    "provenance.source_version",
     "runtime.path",
     "runtime.run_command",
     "runtime.package_manager",
-    "channels",
-    "skills",
-    "state_dirs",
     "inputs.required",
     "model",
     "assets",
@@ -204,16 +210,19 @@ OPTIONAL_FIELDS: list[str] = [
 # Expected types for optional V2 fields when present.
 # Enforced in a later validation phase to keep feature rollout scoped by task.
 OPTIONAL_FIELD_TYPES: dict[str, object] = {
+    "type": str,
     "description": str,
     "author": str,
     "license": str,
     "env_vars": list,
+    "provenance": dict,
+    "provenance.source_registry": str,
+    "provenance.source_slug": str,
+    "provenance.source_url": str,
+    "provenance.source_version": str,
     "runtime.path": str,
     "runtime.run_command": str,
     "runtime.package_manager": str,
-    "channels": list,
-    "skills": list,
-    "state_dirs": list,
     "inputs.required": bool,
     "model": str,
     "assets": dict,
