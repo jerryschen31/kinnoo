@@ -358,6 +358,11 @@ def main():
         action="store_true",
         help="(OpenClaw/Node-focused) Disable Node package lifecycle scripts during dependency installation",
     )
+    openclaw_install_group.add_argument(
+        "--openclaw-min-version",
+        default="0.1.0",
+        help="(OpenClaw-skill) Minimum OpenClaw CLI version required for delegated install (default: 0.1.0)",
+    )
     install_parser.add_argument(
         "--accept-permissions",
         action="store_true",
@@ -728,6 +733,7 @@ def main():
         allow_unverified_publisher = bool(getattr(args, "allow_unverified_publisher", False))
         use_local = bool(getattr(args, "local", False))
         use_remote = bool(getattr(args, "remote", False))
+        minimum_openclaw_version = str(getattr(args, "openclaw_min_version", "0.1.0"))
         try:
             from kinnoo.install_command import install_agent
         except ImportError:
@@ -745,6 +751,7 @@ def main():
             allow_unverified_publisher=allow_unverified_publisher,
             use_local=use_local,
             use_remote=use_remote,
+            minimum_openclaw_version=minimum_openclaw_version,
         )
         sys.exit(exit_code)
 
