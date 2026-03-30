@@ -476,22 +476,26 @@ def check_node_package_manager_availability(package_manager: str) -> tuple[bool,
 	)
 
 
-def check_openclaw_cli_constraint(minimum_version: str) -> tuple[bool, str]:
+def check_openclaw_cli_constraint(minimum_version: str) -> tuple[bool, str, str]:
 	"""Validate OpenClaw CLI availability and minimum version constraint."""
 	normalized_minimum = minimum_version.strip()
 	if not normalized_minimum:
-		return False, "delegated install precheck failed: minimum OpenClaw version constraint is empty"
+		return (
+			False,
+			"openclaw_cli_minimum_constraint_invalid",
+			"delegated install precheck failed: minimum OpenClaw version constraint is empty",
+		)
 
 	openclaw_executable = shutil.which("openclaw")
 	if openclaw_executable is None:
-		return False, (
+		return False, "openclaw_cli_missing", (
 			"delegated install precheck failed: OpenClaw CLI was not found in PATH. "
 			"Install OpenClaw CLI and retry."
 		)
 
 	required_version = _parse_numeric_version(normalized_minimum)
 	if required_version is None:
-		return False, (
+		return False, "openclaw_cli_minimum_constraint_invalid", (
 			"delegated install precheck failed: minimum OpenClaw version has invalid format "
 			f"'{normalized_minimum}'."
 		)
@@ -503,33 +507,37 @@ def check_openclaw_cli_constraint(minimum_version: str) -> tuple[bool, str]:
 			text=True,
 		)
 	except OSError as error:
-		return False, f"delegated install precheck failed: unable to execute openclaw --version: {error}"
+		return (
+			False,
+			"openclaw_cli_version_probe_failed",
+			f"delegated install precheck failed: unable to execute openclaw --version: {error}",
+		)
 
 	if version_result.returncode != 0:
 		stderr = version_result.stderr.strip()
 		stderr_suffix = f" ({stderr})" if stderr else ""
-		return False, (
+		return False, "openclaw_cli_version_probe_failed", (
 			"delegated install precheck failed: openclaw --version returned non-zero "
 			f"exit code{stderr_suffix}"
 		)
 
 	current_version = _parse_node_version_output(version_result.stdout or "")
 	if current_version is None:
-		return False, (
+		return False, "openclaw_cli_version_parse_failed", (
 			"delegated install precheck failed: unable to parse OpenClaw CLI version from "
 			f"output '{(version_result.stdout or '').strip()}'"
 		)
 
 	if _compare_versions(current_version, required_version) < 0:
 		current_label = ".".join(str(part) for part in current_version)
-		return False, (
+		return False, "openclaw_cli_version_unsupported", (
 			"delegated install precheck failed: "
 			f"OpenClaw CLI version {current_label} is below required >= {normalized_minimum}. "
 			"Upgrade OpenClaw CLI and retry."
 		)
 
 	current_label = ".".join(str(part) for part in current_version)
-	return True, (
+	return True, "openclaw_cli_precheck_ok", (
 		"delegated install precheck passed: "
 		f"OpenClaw CLI version {current_label} satisfies >= {normalized_minimum}"
 	)

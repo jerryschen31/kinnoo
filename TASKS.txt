@@ -6940,7 +6940,7 @@ tasks:
       - 'step4: Update README install docs with delegated behavior and prerequisites'
     dependencies: [task340]
     tests: [test500]
-    status: not-started
+    status: needs-review
 
   - id: task342
     title: "Feature66 OpenClaw run adapter backend selection and flagging"

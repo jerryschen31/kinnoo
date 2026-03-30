@@ -2231,7 +2231,7 @@ features:
         description: "Delegated install outcomes are captured in install diagnostics and trace outputs."
     owner: techlead-agent
     dependencies: [feature62]
-    status: in-progress
+    status: needs-review
 
   - id: feature66
     title: "OpenClaw run adapter v1"
