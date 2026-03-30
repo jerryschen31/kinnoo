@@ -746,6 +746,12 @@ def main():
         action="store_true",
         help="Allow remote source fallback when a mirror record is missing",
     )
+    import_parser.add_argument(
+        "--from",
+        dest="framework_from",
+        choices=["langchain", "langgraph", "openai"],
+        help="Use framework-aware adapter hints for import inference",
+    )
 
     check_parser = subparsers.add_parser(
         "check",
@@ -1187,6 +1193,7 @@ def main():
         force = bool(getattr(args, "force", False))
         source = getattr(args, "source", None)
         live_fallback = bool(getattr(args, "live_fallback", False))
+        framework_from = getattr(args, "framework_from", None)
 
         try:
             from kinnoo.import_command import import_agent
@@ -1199,6 +1206,7 @@ def main():
             force=force,
             source=source,
             live_fallback=live_fallback,
+            framework_from=framework_from,
         )
         sys.exit(exit_code)
 

@@ -258,6 +258,32 @@ Troubleshooting guidance:
 
 - Missing secret failures should be treated as configuration errors in CI, not runtime defects.
 - For signing-enabled pipelines, key-loading/signing failures should be triaged by validating secret/key path wiring before re-running publish.
+
+### Feature75 framework import adapters (`kinnoo import --from`)
+
+`kinnoo import` supports framework-aware adapter mode:
+
+- `kinnoo import <path> --from langchain`
+- `kinnoo import <path> --from langgraph`
+- `kinnoo import <path> --from openai`
+
+Adapter behavior contract:
+
+- Adapters enrich generic analyzer output with framework-specific overrides and confidence metadata.
+- If adapter coverage is below threshold, Kinnoo falls back to generic analyzer output with deterministic messaging.
+- Adapter guidance is printed separately to highlight unresolved framework-specific follow-up checks.
+
+Best practices:
+
+- Prefer `--from` when the project already targets one of the supported frameworks.
+- Keep framework marker imports explicit (for example `from langgraph...`, `from agents import...`) to maximize adapter confidence.
+- Verify framework-specific env vars and runtime prerequisites before first `kinnoo run`.
+
+Known limitations:
+
+- Adapter mode is heuristic, not full semantic understanding of arbitrary framework code.
+- Mixed-framework repositories may still require manual manifest review.
+- Unsupported frameworks should use generic import mode and manual manifest refinement.
 - Publish failures should be triaged by validating token scope, tenant slug, and explicit remote publish mode.
 
 ### Feature69 standardized test spec (`kinnoo.tests.yaml`)
