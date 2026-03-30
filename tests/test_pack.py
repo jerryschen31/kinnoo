@@ -656,8 +656,8 @@ assets:
         assert "assets/missing.txt" not in names
 
 
-def test_feature35_pack_state_snapshot_layout(tmp_path):
-    """Feature35 test293: pack captures state_dirs snapshots with deterministic layout."""
+def test_feature35_pack_rejects_state_dirs_field(tmp_path):
+    """Feature35 test293 (deprecated): pack fails when manifest includes unsupported state_dirs."""
     agent = tmp_path / "feature35-state-pack"
     agent.mkdir()
 
@@ -706,22 +706,16 @@ state_dirs:
         text=True,
         env=env,
     )
-    assert result.returncode == 0, f"pack failed: {result.stderr}"
+    combined_output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode != 0, "Expected pack to fail when state_dirs is declared"
+    assert "Field 'state_dirs' is not supported" in combined_output
 
     archive = _canonical_archive_path(tmp_path, "feature35-state-pack", "1.0.0")
-    assert archive.exists(), "Expected .kno archive to be created"
-
-    with zipfile.ZipFile(archive, "r") as zf:
-        names = sorted(zf.namelist())
-        assert "assets/guide.txt" in names
-        assert "state_snapshots/memory/session/journal.md" in names
-        assert "state_snapshots/state/cache/index.json" in names
-        assert all(not name.startswith("memory/") for name in names)
-        assert all(not name.startswith("state/cache/") for name in names)
+    assert not archive.exists(), "Archive should not be created for invalid manifest"
 
 
-def test_feature35_state_dirs_exclude_patterns(tmp_path):
-    """Feature35 test295: state_dirs exclude omits targeted files while preserving core snapshot state."""
+def test_feature35_pack_rejects_state_dirs_exclude_shape(tmp_path):
+    """Feature35 test295 (deprecated): pack rejects structured state_dirs entries."""
     agent = tmp_path / "feature35-state-exclude"
     agent.mkdir()
 
@@ -766,35 +760,12 @@ state_dirs:
         text=True,
         env=env,
     )
-    assert pack_result.returncode == 0, f"pack failed: {pack_result.stderr}"
+    combined_output = f"{pack_result.stdout}\n{pack_result.stderr}"
+    assert pack_result.returncode != 0, "Expected pack to fail when state_dirs is declared"
+    assert "Field 'state_dirs' is not supported" in combined_output
 
     archive = _canonical_archive_path(tmp_path, "feature35-state-exclude", "1.0.0")
-    assert archive.exists(), "Expected .kno archive to be created"
-
-    with zipfile.ZipFile(archive, "r") as zf:
-        names = set(zf.namelist())
-        assert "state_snapshots/memory/core/profile.json" in names
-        assert "state_snapshots/memory/daily/2026-03-19.md" not in names
-        assert "state_snapshots/memory/secrets/tokens.json" not in names
-
-    install_target = tmp_path / "installed-state-exclude"
-    install_result = subprocess.run(
-      KINNOO_CLI + [
-        "install",
-        str(archive),
-        str(install_target),
-        "--yes",
-        "--allow-unverified-publisher",
-      ],
-      cwd=tmp_path,
-      capture_output=True,
-      text=True,
-      env=env,
-    )
-    assert install_result.returncode == 0, install_result.stderr
-    assert (install_target / "memory" / "core" / "profile.json").exists()
-    assert not (install_target / "memory" / "daily" / "2026-03-19.md").exists()
-    assert not (install_target / "memory" / "secrets" / "tokens.json").exists()
+    assert not archive.exists(), "Archive should not be created for invalid manifest"
 
 
 def test_feature22_pack_size_warning_uses_assets_threshold(tmp_path):

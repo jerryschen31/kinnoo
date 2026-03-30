@@ -40,6 +40,9 @@ class _RegistryServiceSearchStub:
             }
         ]
 
+    def list_clawhub_mirror_records(self) -> list[dict[str, object]]:
+        return []
+
 
 def test_list_remote_accepts_dict_summaries(monkeypatch, capsys) -> None:
     monkeypatch.setattr(

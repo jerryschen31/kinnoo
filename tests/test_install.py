@@ -358,7 +358,7 @@ def test_feature31_node_dependency_install_npm_and_pnpm(monkeypatch, tmp_path, c
 
 
 def test_feature35_install_state_overwrite_warning_and_force(tmp_path):
-    """Feature35 test294: install warns/preserves existing state by default and overwrites with explicit control."""
+    """Feature35 test294 (deprecated): install rejects manifests that declare unsupported state_dirs."""
     archive_path = tmp_path / "feature35-state-restore.kno"
     make_dummy_kno_archive(
         archive_path,
@@ -399,28 +399,9 @@ def test_feature35_install_state_overwrite_warning_and_force(tmp_path):
         capture_output=True,
         text=True,
     )
-    assert result_no_overwrite.returncode == 0, result_no_overwrite.stderr
-    assert "Existing state directory detected" in result_no_overwrite.stderr
-    assert (target_no_overwrite / "memory" / "existing.txt").exists()
-    assert not (target_no_overwrite / "memory" / "from_snapshot.txt").exists()
-
-    target_with_overwrite = tmp_path / "installed-with-overwrite"
-    result_with_overwrite = subprocess.run(
-        [
-            "python3",
-            "src/kinnoo/cli.py",
-            "install",
-            str(archive_path),
-            str(target_with_overwrite),
-            "--yes",
-            "--state-overwrite",
-        ],
-        capture_output=True,
-        text=True,
-    )
-    assert result_with_overwrite.returncode == 0, result_with_overwrite.stderr
-    assert (target_with_overwrite / "memory" / "from_snapshot.txt").exists()
-    assert not (target_with_overwrite / "memory" / "existing.txt").exists()
+    combined_output = f"{result_no_overwrite.stdout}\n{result_no_overwrite.stderr}"
+    assert result_no_overwrite.returncode != 0, "Expected install to fail for deprecated state_dirs"
+    assert "Field 'state_dirs' is not supported" in combined_output
 
 
 def test_feature40_install_signature_verification_gate(tmp_path):

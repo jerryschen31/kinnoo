@@ -490,13 +490,13 @@ def test_feature36_infers_runtime_skills_state_dirs(tmp_path):
 
     manifest_text = (project_dir / "kinnoo.yaml").read_text(encoding="utf-8")
     assert "framework: openclaw" in manifest_text
+    assert "type: openclaw-skill" in manifest_text
     assert "language: nodejs" in manifest_text
     assert "type: daemon" in manifest_text
     assert "package_manager: pnpm" in manifest_text
-    assert "skills:" in manifest_text
-    assert "skills/default/SKILL.md" in manifest_text
-    assert "state_dirs:" in manifest_text
-    assert "- memory" in manifest_text
+    assert "skills:" not in manifest_text
+    assert "state_dirs:" not in manifest_text
+    assert "channels:" not in manifest_text
 
 
 def test_feature36_manifest_valid_or_todo_guidance(tmp_path):
