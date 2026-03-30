@@ -2383,7 +2383,7 @@ features:
         description: "Exit code semantics are deterministic: success-identical vs success-different vs fatal-error."
     owner: techlead-agent
     dependencies: []
-    status: in-progress
+    status: needs-review
 
   - id: feature74
     title: "kinnoo uninstall command"
