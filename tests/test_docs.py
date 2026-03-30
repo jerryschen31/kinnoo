@@ -537,3 +537,34 @@ def test_feature70_landing_and_readme_phase6_messaging() -> None:
 
     assert "phase 6 command matrix" in readme_lower
     assert "clawhub mirror attribution model" in readme_lower
+
+
+def test_feature70_provenance_docs_and_regression() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    readme_path = repo_root / "README.md"
+    schema_path = repo_root / "docs" / "manifest-schema-reference.md"
+    planning_path = repo_root / "notes" / "phases" / "phase6-planning-6.md"
+
+    readme_text = readme_path.read_text(encoding="utf-8")
+    schema_text = schema_path.read_text(encoding="utf-8")
+    planning_text = planning_path.read_text(encoding="utf-8")
+
+    combined = f"{readme_text}\n{schema_text}\n{planning_text}"
+    combined_lower = combined.lower()
+
+    assert "clawhub" in combined_lower
+    assert "tenant" in combined_lower
+    assert "provenance" in combined_lower
+    assert "source_registry" in combined
+    assert "source_version" in combined
+
+    command_references = (
+        "kinnoo install --strict",
+        "kinnoo publish --strict",
+        "kinnoo install --frozen",
+        "kinnoo diff <a.kno> <b.kno>",
+        "kinnoo uninstall <agent-name>",
+        "kinnoo import --from langchain|langgraph|openai",
+    )
+    for command in command_references:
+        assert command in combined

@@ -384,6 +384,14 @@ ClawHub mirror attribution model:
 - source provenance stays explicit via source registry metadata and mirror attribution fields
 - operators can verify that mirrored entries and local sync behavior reference the same `clawhub` tenant model
 
+Phase 6 forward command references (consistency contract):
+
+- strict trust mode: `kinnoo install --strict` and `kinnoo publish --strict`
+- lockfile reproducibility: `kinnoo install --frozen`
+- archive compare: `kinnoo diff <a.kno> <b.kno>`
+- uninstall flow: `kinnoo uninstall <agent-name>`
+- framework adapters: `kinnoo import --from langchain|langgraph|openai`
+
 ## Registry Login and Logout
 
 `kinnoo login` and `kinnoo logout` manage local registry auth state for CLI registry workflows.

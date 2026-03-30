@@ -7140,7 +7140,7 @@ tasks:
       - 'step4: Ensure docs changes pass existing documentation integrity checks'
     dependencies: [task350]
     tests: [test510]
-    status: not-started
+    status: needs-review
 
   - id: task352
     title: "Feature71 strict install enforcement"

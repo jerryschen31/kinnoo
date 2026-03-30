@@ -491,6 +491,18 @@ Phase 6:
     feature74 (uninstall)       — standalone
     feature75 (fw adapters)     — standalone
 
+  ### Documentation Sync Checklist (Phase 6)
+
+  To keep implementation docs and planning references aligned, Phase 6 command snippets should stay synchronized across README, schema docs, and planning notes:
+
+  - `kinnoo install --strict`
+  - `kinnoo publish --strict`
+  - `kinnoo install --frozen`
+  - `kinnoo diff <a.kno> <b.kno>`
+  - `kinnoo uninstall <agent-name>`
+  - `kinnoo import --from langchain|langgraph|openai`
+  - `kinnoo sync clawhub`
+
 Phase 7:
   feature76 (pressure test) ← Phase 6
   feature77 (bug fixes) ← feature76
