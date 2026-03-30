@@ -2288,7 +2288,7 @@ features:
         description: "Docs include troubleshooting guidance for common CI signing/publish failures."
     owner: techlead-agent
     dependencies: [feature61]
-    status: not-started
+    status: in-progress
 
   - id: feature69
     title: "kinnoo test foundation with standardized test file format"
