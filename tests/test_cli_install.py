@@ -1219,3 +1219,52 @@ def test_feature72_frozen_install_and_docs(tmp_path: Path) -> None:
     readme_text = (repo_root / "README.md").read_text(encoding="utf-8")
     assert "kinnoo install --frozen" in readme_text
     assert "Re-run install without --frozen to regenerate lockfile" in readme_text
+
+
+def test_feature74_uninstall_confirmation_and_removal(tmp_path: Path) -> None:
+    install_root = tmp_path / "agents-root"
+    agent_dir = install_root / "feature74-agent"
+    venv_marker = agent_dir / ".venv" / "pyvenv.cfg"
+    run_file = agent_dir / "run.py"
+
+    run_file.parent.mkdir(parents=True, exist_ok=True)
+    venv_marker.parent.mkdir(parents=True, exist_ok=True)
+    run_file.write_text("print('installed')\n", encoding="utf-8")
+    venv_marker.write_text("home = /mock/python\n", encoding="utf-8")
+
+    uninstall_env = dict(os.environ)
+    uninstall_env["KINNOO_AGENT_INSTALL_ROOT"] = str(install_root)
+
+    denied = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "uninstall",
+            "feature74-agent",
+        ],
+        input="n\n",
+        capture_output=True,
+        text=True,
+        env=uninstall_env,
+    )
+    denied_output = f"{denied.stdout}\n{denied.stderr}"
+    assert denied.returncode != 0, denied_output
+    assert "Uninstall aborted by user." in denied_output
+    assert agent_dir.exists(), "Reject path must preserve installed artifacts"
+
+    accepted = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "uninstall",
+            "feature74-agent",
+        ],
+        input="y\n",
+        capture_output=True,
+        text=True,
+        env=uninstall_env,
+    )
+    accepted_output = f"{accepted.stdout}\n{accepted.stderr}"
+    assert accepted.returncode == 0, accepted_output
+    assert "Removed installed agent 'feature74-agent'" in accepted_output
+    assert not agent_dir.exists(), "Accepted uninstall must remove agent artifacts"

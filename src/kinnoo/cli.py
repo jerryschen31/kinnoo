@@ -483,6 +483,18 @@ def main():
         help="Emit machine-readable diff payload",
     )
 
+    uninstall_parser = subparsers.add_parser(
+        "uninstall",
+        help="Remove an installed agent by name with confirmation",
+        formatter_class=argparse.RawTextHelpFormatter,
+        description="Remove an installed agent by name with confirmation",
+        epilog=(
+            "Examples:\n"
+            "  kinnoo uninstall my-agent"
+        ),
+    )
+    uninstall_parser.add_argument("agent_name", nargs="?", help="Installed agent name to remove")
+
     # Add 'keygen' subcommand
     keygen_parser = subparsers.add_parser(
         "keygen",
@@ -971,6 +983,20 @@ def main():
             archive_b,
             json_output=bool(getattr(args, "json", False)),
         )
+        sys.exit(exit_code)
+
+    elif args.command == "uninstall":
+        agent_name = getattr(args, "agent_name", None)
+        if agent_name is None:
+            print("Usage: kinnoo uninstall <agent-name>", file=sys.stderr)
+            sys.exit(1)
+
+        try:
+            from kinnoo.uninstall_command import uninstall_agent
+        except ImportError:
+            from .uninstall_command import uninstall_agent
+
+        exit_code = uninstall_agent(agent_name=agent_name)
         sys.exit(exit_code)
 
     elif args.command == "keygen":
