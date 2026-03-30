@@ -205,6 +205,9 @@ OPTIONAL_FIELDS: list[str] = [
     "assets.max_bundle_size_mb",
     "services",
     "permissions",
+    "tests_file",
+    "tests_version",
+    "tests",
 ]
 
 # Expected types for optional V2 fields when present.
@@ -231,6 +234,9 @@ OPTIONAL_FIELD_TYPES: dict[str, object] = {
     "assets.max_bundle_size_mb": (int, float),
     "services": list,
     "permissions": dict,
+    "tests_file": str,
+    "tests_version": (int, str),
+    "tests": list,
 }
 
 # Regex for a valid semver string: MAJOR.MINOR.PATCH with optional pre-release
