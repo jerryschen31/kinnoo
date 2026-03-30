@@ -7120,7 +7120,7 @@ tasks:
       - 'step4: Ensure wording remains aligned with implemented command behavior'
     dependencies: []
     tests: [test509]
-    status: not-started
+    status: needs-review
 
   - id: task351
     title: "Feature70 docs consistency checks and release-note updates"
