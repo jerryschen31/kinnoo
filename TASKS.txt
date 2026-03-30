@@ -7080,7 +7080,7 @@ tasks:
       - 'step4: Update schema docs with canonical format and anti-pattern guidance'
     dependencies: []
     tests: [test507]
-    status: not-started
+    status: needs-review
 
   - id: task349
     title: "Feature69 kinnoo test execution engine and CLI summary"

@@ -257,6 +257,150 @@ def test_backend_selection(monkeypatch, tmp_path):
     assert selected_backends[-1] == "remote"
 
 
+def test_feature69_standardized_tests_file_parser(tmp_path):
+    agent_dir = tmp_path / "feature69-parser-agent"
+    agent_dir.mkdir()
+
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: feature69-parser-agent",
+                "version: 1.0.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.10\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "run.py").write_text("print('ok')\n", encoding="utf-8")
+
+    # Canonical external test file path.
+    (agent_dir / "kinnoo.tests.yaml").write_text(
+        "\n".join(
+            [
+                "version: 1",
+                "tests:",
+                "  - id: smoke-1",
+                "    name: basic parse",
+                "    input: hello",
+                "    assertions:",
+                "      - contains: ok",
+                "    timeout_seconds: 5",
+                "    expected_exit_code: 0",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    valid_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "test",
+            str(agent_dir),
+            "--validate-only",
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert valid_result.returncode == 0
+    valid_payload = json.loads(valid_result.stdout)
+    assert valid_payload["valid"] is True
+    assert valid_payload["total"] == 1
+    assert valid_payload["source"].endswith("kinnoo.tests.yaml")
+
+    (agent_dir / "kinnoo.tests.yaml").write_text(
+        "\n".join(
+            [
+                "version: 1",
+                "tests:",
+                "  - id: bad-1",
+                "    name: invalid fixture",
+                "    input: hello",
+                "    timeout_seconds: 3",
+                "    expected_exit_code: 0",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    invalid_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "test",
+            str(agent_dir),
+            "--validate-only",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert invalid_result.returncode == 1
+    assert "Missing required field: tests[0].assertions" in invalid_result.stdout
+
+    # Remove canonical file to validate inline compatibility bridge from kinnoo.yaml.
+    (agent_dir / "kinnoo.tests.yaml").unlink()
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: feature69-parser-agent",
+                "version: 1.0.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.10\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+                "tests_version: 1",
+                "tests:",
+                "  - id: inline-1",
+                "    name: inline declaration",
+                "    input: ping",
+                "    assertions:",
+                "      - contains: pong",
+                "    timeout_seconds: 4",
+                "    expected_exit_code: 0",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    inline_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "test",
+            str(agent_dir),
+            "--validate-only",
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert inline_result.returncode == 0
+    inline_payload = json.loads(inline_result.stdout)
+    assert inline_payload["valid"] is True
+    assert inline_payload["total"] == 1
+    assert inline_payload["source"].endswith("kinnoo.yaml")
+
+
 def test_publish_toggle_true_prefers_authenticated_remote(monkeypatch, tmp_path):
     from kinnoo import publish_command
 

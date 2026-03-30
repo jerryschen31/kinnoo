@@ -49,6 +49,7 @@ from .schema import (
 )
 
 from .schema import normalize_manifest_defaults, normalize_type_field
+from .test_command import validate_kinnoo_tests_document
 
 # ---------------------------------------------------------------------------
 # Internal helpers
@@ -653,6 +654,19 @@ def _collect_validation_errors(data: dict[str, Any]) -> list[str]:
     errors.extend(_collect_disallowed_metadata_field_errors(data))
     errors.extend(_collect_openclaw_skill_contract_errors(data))
     errors.extend(_collect_openclaw_framework_errors(data))
+
+    tests_file_found, tests_file_value = _get_nested(data, "tests_file")
+    if tests_file_found and isinstance(tests_file_value, str):
+        if tests_file_value.strip() == "":
+            errors.append("Field 'tests_file' must be a non-empty string.")
+
+    tests_found, tests_value = _get_nested(data, "tests")
+    if tests_found:
+        tests_doc = {
+            "version": data.get("tests_version", 1),
+            "tests": tests_value,
+        }
+        errors.extend(validate_kinnoo_tests_document(tests_doc, prefix="kinnoo.yaml"))
 
     return errors
 
