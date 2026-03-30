@@ -317,3 +317,113 @@ def test_feature55_proxy_rewrite_forwarding() -> None:
     # Forwarding semantics are contractually preserved by proxy rewrites with pass-through headers.
     assert "X-Forwarded-For" in text or "forwarded" in text.lower()
     assert "X-Request-Id" in text or "request-id" in text.lower()
+
+
+def test_feature67_sync_modes_and_upsert(tmp_path: Path) -> None:
+    registry_root = tmp_path / "registry-sandbox"
+    fixture_path = tmp_path / "clawhub-sync-fixture.json"
+
+    first_payload = {
+        "items": [
+            {
+                "slug": "owner-alpha/agent-alpha",
+                "version": "1.0.0",
+                "source_url": "https://clawhub.dev/owner-alpha/agent-alpha",
+                "metadata": {"title": "Agent Alpha"},
+            },
+            {
+                "slug": "owner-beta/agent-beta",
+                "version": "2.1.0",
+                "source_url": "https://clawhub.dev/owner-beta/agent-beta",
+                "metadata": {"title": "Agent Beta"},
+            },
+        ]
+    }
+    fixture_path.write_text(json.dumps(first_payload, indent=2) + "\n", encoding="utf-8")
+
+    env = {
+        **os.environ,
+        "KINNOO_REGISTRY_ROOT": str(registry_root),
+        "KINNOO_CLAWHUB_SYNC_FIXTURE": str(fixture_path),
+    }
+
+    incremental_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "sync", "clawhub"],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    incremental_output = f"{incremental_result.stdout}\n{incremental_result.stderr}"
+    assert incremental_result.returncode == 0, incremental_output
+    assert "source=clawhub mode=incremental created=2 updated=0 skipped=0 failed=0" in incremental_output
+
+    alpha_record_path = (
+        registry_root
+        / "tenants"
+        / "clawhub"
+        / "mirror"
+        / "owner-alpha"
+        / "agent-alpha"
+        / "1.0.0"
+        / "mirror-record.json"
+    )
+    beta_record_path = (
+        registry_root
+        / "tenants"
+        / "clawhub"
+        / "mirror"
+        / "owner-beta"
+        / "agent-beta"
+        / "2.1.0"
+        / "mirror-record.json"
+    )
+    assert alpha_record_path.exists(), incremental_output
+    assert beta_record_path.exists(), incremental_output
+
+    alpha_record = json.loads(alpha_record_path.read_text(encoding="utf-8"))
+    assert alpha_record["tenant_slug"] == "clawhub"
+    assert alpha_record["source_registry"] == "clawhub"
+    assert alpha_record["source_slug"] == "owner-alpha/agent-alpha"
+
+    second_payload = {
+        "items": [
+            {
+                "slug": "owner-alpha/agent-alpha",
+                "version": "1.1.0",
+                "source_url": "https://clawhub.dev/owner-alpha/agent-alpha",
+                "metadata": {"title": "Agent Alpha"},
+            },
+            {
+                "slug": "owner-beta/agent-beta",
+                "version": "2.1.0",
+                "source_url": "https://clawhub.dev/owner-beta/agent-beta",
+                "metadata": {"title": "Agent Beta"},
+            },
+        ]
+    }
+    fixture_path.write_text(json.dumps(second_payload, indent=2) + "\n", encoding="utf-8")
+
+    full_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "sync", "clawhub", "--full"],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    full_output = f"{full_result.stdout}\n{full_result.stderr}"
+    assert full_result.returncode == 0, full_output
+    assert "source=clawhub mode=full created=0 updated=1 skipped=1 failed=0" in full_output
+
+    alpha_updated_path = (
+        registry_root
+        / "tenants"
+        / "clawhub"
+        / "mirror"
+        / "owner-alpha"
+        / "agent-alpha"
+        / "1.1.0"
+        / "mirror-record.json"
+    )
+    assert alpha_updated_path.exists(), full_output
+    alpha_updated = json.loads(alpha_updated_path.read_text(encoding="utf-8"))
+    assert alpha_updated["source_registry"] == "clawhub"
+    assert alpha_updated["source_slug"] == "owner-alpha/agent-alpha"
