@@ -21,6 +21,7 @@ from .registry_backends import MockFilesystemRegistryBackend
 from .remote_client import RemoteRegistryClient
 from .schema import NAME_PATTERN
 from .validator import validate_manifest_data
+from .signing import verify_detached_signature_artifacts
 
 
 def _http_user_agent() -> str:
@@ -37,6 +38,7 @@ def _publish_validated_archive(
     expected_version: str | None,
     backend: Any,
     backend_label: str,
+    strict_mode: bool = False,
 ) -> int:
     source_sidecar_path = checksum_sidecar_path_for_archive(archive)
     manifest_data = read_manifest_from_kno_archive(archive)
@@ -53,6 +55,27 @@ def _publish_validated_archive(
 
     name = str(manifest_data.get("name", "")).strip()
     version = str(manifest_data.get("version", "")).strip()
+
+    signature_path = Path(f"{archive}.sig")
+    signature_metadata_path = Path(f"{archive}.sig.json")
+
+    if strict_mode:
+        if not signature_path.exists() or not signature_metadata_path.exists():
+            print(
+                "Error: Strict publish requires valid signature metadata; unsigned artifacts are not allowed."
+            )
+            print("Error: Re-pack with --sign before using publish --strict.")
+            return 1
+        try:
+            verify_detached_signature_artifacts(
+                archive_path=archive,
+                signature_path=signature_path,
+                metadata_path=signature_metadata_path,
+            )
+        except ValueError as error:
+            print(f"Error: Strict publish signature verification failed: {error}")
+            print("Error: Re-sign archive with a valid Ed25519 key and retry publish --strict.")
+            return 1
 
     if expected_name is not None and name != expected_name:
         print(
@@ -335,6 +358,7 @@ def publish_agent(
     use_remote: bool = False,
     pack: bool = False,
     bump: str | None = None,
+    strict_mode: bool = False,
 ) -> int:
     """Publish latest archived artifact for agent name to selected registry backend.
 
@@ -406,6 +430,7 @@ def publish_agent(
             expected_version=None,
             backend=backend,
             backend_label=backend_label,
+            strict_mode=strict_mode,
         )
 
     if not normalized_name:
@@ -446,4 +471,5 @@ def publish_agent(
         expected_version=source_record.version,
         backend=backend,
         backend_label=backend_label,
+        strict_mode=strict_mode,
     )

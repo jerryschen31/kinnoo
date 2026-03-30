@@ -411,6 +411,16 @@ def main():
         action="store_true",
         help="Allow non-interactive install when archive has no publisher signature metadata",
     )
+    install_parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Require strict signature and integrity verification gates for install",
+    )
+    install_parser.add_argument(
+        "--frozen",
+        action="store_true",
+        help="Require lockfile-only reproducible install; fail on lock drift or missing entries",
+    )
     install_source_group = install_parser.add_mutually_exclusive_group()
     install_source_group.add_argument(
         "--local",
@@ -453,6 +463,37 @@ def main():
         action="store_true",
         help="Run preflight checks before packaging; on FAIL prompt to continue.",
     )
+
+    # Add 'diff' subcommand
+    diff_parser = subparsers.add_parser(
+        "diff",
+        help="Compare two .kno archives and report manifest/file changes",
+        formatter_class=argparse.RawTextHelpFormatter,
+        description="Compare two .kno archives and report manifest/file changes",
+        epilog=(
+            "Examples:\n"
+            "  kinnoo diff ./dist/agent-1.0.0.kno ./dist/agent-1.1.0.kno"
+        ),
+    )
+    diff_parser.add_argument("archive_a", help="Path to baseline .kno archive")
+    diff_parser.add_argument("archive_b", help="Path to candidate .kno archive")
+    diff_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit machine-readable diff payload",
+    )
+
+    uninstall_parser = subparsers.add_parser(
+        "uninstall",
+        help="Remove an installed agent by name with confirmation",
+        formatter_class=argparse.RawTextHelpFormatter,
+        description="Remove an installed agent by name with confirmation",
+        epilog=(
+            "Examples:\n"
+            "  kinnoo uninstall my-agent"
+        ),
+    )
+    uninstall_parser.add_argument("agent_name", nargs="?", help="Installed agent name to remove")
 
     # Add 'keygen' subcommand
     keygen_parser = subparsers.add_parser(
@@ -545,6 +586,11 @@ def main():
         "--bump",
         choices=["major", "minor", "patch"],
         help="Optional version bump applied during --pack flow before publish.",
+    )
+    publish_parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Require strict signature/trust gates before publish upload.",
     )
 
     # Add 'list' subcommand
@@ -827,6 +873,8 @@ def main():
         ignore_scripts = bool(getattr(args, "ignore_scripts", False))
         accept_permissions = bool(getattr(args, "accept_permissions", False))
         allow_unverified_publisher = bool(getattr(args, "allow_unverified_publisher", False))
+        strict_mode = bool(getattr(args, "strict", False))
+        frozen_mode = bool(getattr(args, "frozen", False))
         use_local = bool(getattr(args, "local", False))
         use_remote = bool(getattr(args, "remote", False))
         minimum_openclaw_version = str(getattr(args, "openclaw_min_version", "0.1.0"))
@@ -845,6 +893,8 @@ def main():
             ignore_scripts=ignore_scripts,
             accept_permissions=accept_permissions,
             allow_unverified_publisher=allow_unverified_publisher,
+            strict_mode=strict_mode,
+            frozen_mode=frozen_mode,
             use_local=use_local,
             use_remote=use_remote,
             minimum_openclaw_version=minimum_openclaw_version,
@@ -914,6 +964,39 @@ def main():
             signing_key_path=getattr(args, "signing_key", None),
             preflight=bool(getattr(args, "preflight", False)),
         )
+        sys.exit(exit_code)
+
+    elif args.command == "diff":
+        archive_a = getattr(args, "archive_a", None)
+        archive_b = getattr(args, "archive_b", None)
+        if archive_a is None or archive_b is None:
+            print("Usage: kinnoo diff <archive-a.kno> <archive-b.kno>", file=sys.stderr)
+            sys.exit(1)
+
+        try:
+            from kinnoo.diff_command import diff_archives
+        except ImportError:
+            from .diff_command import diff_archives
+
+        exit_code = diff_archives(
+            archive_a,
+            archive_b,
+            json_output=bool(getattr(args, "json", False)),
+        )
+        sys.exit(exit_code)
+
+    elif args.command == "uninstall":
+        agent_name = getattr(args, "agent_name", None)
+        if agent_name is None:
+            print("Usage: kinnoo uninstall <agent-name>", file=sys.stderr)
+            sys.exit(1)
+
+        try:
+            from kinnoo.uninstall_command import uninstall_agent
+        except ImportError:
+            from .uninstall_command import uninstall_agent
+
+        exit_code = uninstall_agent(agent_name=agent_name)
         sys.exit(exit_code)
 
     elif args.command == "keygen":
@@ -993,6 +1076,7 @@ def main():
         use_remote = bool(getattr(args, "remote", False))
         use_pack = bool(getattr(args, "pack", False))
         bump = getattr(args, "bump", None)
+        strict_mode = bool(getattr(args, "strict", False))
 
         if use_local and use_remote:
             print("Error: --local and --remote cannot be used together.", file=sys.stderr)
@@ -1013,6 +1097,7 @@ def main():
             use_remote=use_remote,
             pack=use_pack,
             bump=bump,
+            strict_mode=strict_mode,
         )
         sys.exit(exit_code)
 

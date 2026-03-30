@@ -162,6 +162,23 @@ Feature40 unsigned publisher warning and confirmation:
 	- `kinnoo install ... --yes --allow-unverified-publisher`
 	- using `--yes` without `--allow-unverified-publisher` aborts safely with guidance
 
+Feature72 lockfile frozen mode:
+
+- `kinnoo install --frozen` enforces lockfile-only reproducibility checks before extraction.
+- Frozen mode validates lockfile entry presence, pinned version, and archive checksum.
+- When lockfile drift is detected, install fails with deterministic remediation guidance:
+	- `Re-run install without --frozen to regenerate lockfile, then retry --frozen.`
+- Successful frozen installs leave lockfile content unchanged.
+
+Feature74 uninstall behavior:
+
+- `kinnoo uninstall <agent-name>` always requires interactive confirmation before deleting files.
+- Successful uninstall removes the target install directory and writes an uninstall trace event.
+- If lockfile metadata exists, uninstall removes the matching agent entry and rewrites lockfile state.
+- Missing target uninstall failures are deterministic and actionable:
+	- `Installed agent '<name>' was not found ...`
+	- verify install root configuration (`KINNOO_AGENT_INSTALL_ROOT`) before retrying.
+
 Unverified source warning:
 
 - If `<archive>.sha256` is missing, install prints:
@@ -315,6 +332,12 @@ Troubleshooting common CI failures:
 - Preflight failures: run `python3 src/kinnoo/cli.py check <agent-dir>` locally to reproduce manifest/runtime contract issues.
 - Signing failures (if your pipeline enables signing): verify the private signing key path is available to the runner and referenced by your signing step.
 - Publish failures: verify token scope and tenant mapping, then retry with explicit remote mode (`kinnoo publish --remote`) for deterministic behavior.
+
+Strict rollout guidance:
+
+- Start with `KINNOO_CI_STRICT_MODE=0` while validating signature coverage for all publish paths.
+- Move to required gate mode by setting `KINNOO_CI_STRICT_MODE=1` and enforcing `publish --strict` in protected-branch workflows.
+- In strict mode, unsigned artifacts fail closed and must be re-packed with `kinnoo pack --sign`.
 
 ## Feature69 kinnoo test command
 

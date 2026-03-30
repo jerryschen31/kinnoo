@@ -7160,7 +7160,7 @@ tasks:
       - 'step4: Add tests for strict pass/fail behavior and user diagnostics'
     dependencies: [task222]
     tests: [test511]
-    status: not-started
+    status: needs-review
 
   - id: task353
     title: "Feature71 strict publish enforcement and CI rollout docs"
@@ -7180,7 +7180,7 @@ tasks:
       - 'step4: Add publish strict-mode tests and docs alignment checks'
     dependencies: [task352, task346]
     tests: [test512]
-    status: not-started
+    status: needs-review
 
   - id: task354
     title: "Feature72 lockfile write/update implementation"
@@ -7200,7 +7200,7 @@ tasks:
       - 'step4: Add tests for lockfile creation and stable update behavior'
     dependencies: []
     tests: [test513]
-    status: not-started
+    status: needs-review
 
   - id: task355
     title: "Feature72 frozen lockfile install behavior"
@@ -7220,7 +7220,7 @@ tasks:
       - 'step4: Add tests and docs for frozen-mode expected behavior'
     dependencies: [task354]
     tests: [test514]
-    status: not-started
+    status: needs-review
 
   - id: task356
     title: "Feature73 diff command core engine"
@@ -7240,7 +7240,7 @@ tasks:
       - 'step4: Add tests covering baseline diff output and deterministic ordering'
     dependencies: []
     tests: [test515]
-    status: not-started
+    status: needs-review
 
   - id: task357
     title: "Feature73 diff json output and exit semantics"
@@ -7260,7 +7260,7 @@ tasks:
       - 'step4: Update docs with diff automation examples'
     dependencies: [task356]
     tests: [test516]
-    status: not-started
+    status: needs-review
 
   - id: task358
     title: "Feature74 uninstall command and mandatory confirmation"
@@ -7280,7 +7280,7 @@ tasks:
       - 'step4: Add tests for confirmation required and successful uninstall behavior'
     dependencies: []
     tests: [test517]
-    status: not-started
+    status: needs-review
 
   - id: task359
     title: "Feature74 uninstall metadata cleanup and error-path coverage"
@@ -7300,7 +7300,7 @@ tasks:
       - 'step4: Add tests/docs for metadata cleanup and error handling'
     dependencies: [task358, task354]
     tests: [test518]
-    status: not-started
+    status: needs-review
 
   - id: task360
     title: "Feature75 framework adapter architecture for langchain langgraph openai"
