@@ -6920,7 +6920,7 @@ tasks:
       - 'step4: Keep kinnoo-side validation and trust checks active around delegated flow'
     dependencies: [task334]
     tests: [test499]
-    status: not-started
+    status: needs-review
 
   - id: task341
     title: "Feature65 delegated install failure-mode handling and tests"
