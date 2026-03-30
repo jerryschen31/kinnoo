@@ -1032,6 +1032,31 @@ def infer_openclaw_project_hints(project_dir: str | Path) -> dict[str, Any]:
     }
 
 
+def build_clawhub_import_report_template(
+    *,
+    slug: str,
+    mirror_record: dict[str, Any],
+) -> dict[str, Any]:
+    """Return a deterministic base report for `kinnoo import --source clawhub` flows."""
+    return {
+        "source": "clawhub",
+        "slug": slug,
+        "resolved_from": "mirror",
+        "mirror_record": mirror_record,
+        "inferred": {
+            "framework": "openclaw",
+            "type": "openclaw-skill",
+            "runtime": {
+                "language": "nodejs",
+                "type": "daemon",
+            },
+        },
+        "unresolved": [
+            "Verify entrypoint path and runtime prerequisites before install/run.",
+        ],
+    }
+
+
 def _normalize_package_name(name: str) -> str:
     return re.sub(r"[-_.]+", "-", name.strip().lower())
 

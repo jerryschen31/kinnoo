@@ -587,7 +587,8 @@ def main():
             "  kinnoo import\n"
             "  kinnoo import ./existing-project --force\n"
             "  kinnoo import https://github.com/org/repo\n"
-            "  kinnoo import https://github.com/org/repo ./imported-agent"
+            "  kinnoo import https://github.com/org/repo ./imported-agent\n"
+            "  kinnoo import --source clawhub weather/weather-skill"
         ),
     )
     import_parser.add_argument(
@@ -607,6 +608,16 @@ def main():
         "--force",
         action="store_true",
         help="Overwrite existing kinnoo.yaml in target directory",
+    )
+    import_parser.add_argument(
+        "--source",
+        choices=["clawhub"],
+        help="Import from an explicit source namespace (currently: clawhub)",
+    )
+    import_parser.add_argument(
+        "--live-fallback",
+        action="store_true",
+        help="Allow remote source fallback when a mirror record is missing",
     )
 
     check_parser = subparsers.add_parser(
@@ -966,6 +977,8 @@ def main():
         target_path_arg = getattr(args, "target", None)
         import_path_arg = getattr(args, "import_path", None)
         force = bool(getattr(args, "force", False))
+        source = getattr(args, "source", None)
+        live_fallback = bool(getattr(args, "live_fallback", False))
 
         try:
             from kinnoo.import_command import import_agent
@@ -976,6 +989,8 @@ def main():
             target_path_arg=target_path_arg,
             import_path_arg=import_path_arg,
             force=force,
+            source=source,
+            live_fallback=live_fallback,
         )
         sys.exit(exit_code)
 
