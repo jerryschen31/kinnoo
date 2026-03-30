@@ -439,9 +439,9 @@ def _build_manifest_from_analysis(
     if framework == "streamlit":
         runtime_run_command = f"streamlit run {entrypoint}"
 
-    inferred_skills: list[str] = []
-    inferred_state_dirs: list[str] = []
+    manifest_type: str | None = None
     if framework == "openclaw":
+        manifest_type = "openclaw-skill"
         openclaw_hints = infer_openclaw_project_hints(target_path)
         hinted_runtime = openclaw_hints.get("runtime")
         if isinstance(hinted_runtime, dict):
@@ -451,14 +451,6 @@ def _build_manifest_from_analysis(
             package_manager_hint = hinted_runtime.get("package_manager")
             if isinstance(package_manager_hint, str) and package_manager_hint:
                 runtime_package_manager = package_manager_hint
-
-        raw_skills = openclaw_hints.get("skills")
-        if isinstance(raw_skills, list):
-            inferred_skills = [value for value in raw_skills if isinstance(value, str) and value.strip()]
-
-        raw_state_dirs = openclaw_hints.get("state_dirs")
-        if isinstance(raw_state_dirs, list):
-            inferred_state_dirs = [value for value in raw_state_dirs if isinstance(value, str) and value.strip()]
 
     if _should_prompt_field(report, "services", services):
         services = _prompt_services(services, session=session)
@@ -499,18 +491,11 @@ def _build_manifest_from_analysis(
     if framework:
         manifest_lines.append(f"framework: {framework}")
 
+    if manifest_type:
+        manifest_lines.append(f"type: {manifest_type}")
+
     if model and model.strip():
         manifest_lines.append(f"model: {model.strip()}")
-
-    if inferred_skills:
-        manifest_lines.append("skills:")
-        for skill_path in inferred_skills:
-            manifest_lines.append(f"  - {skill_path}")
-
-    if inferred_state_dirs:
-        manifest_lines.append("state_dirs:")
-        for state_dir in inferred_state_dirs:
-            manifest_lines.append(f"  - {state_dir}")
 
     if env_lines:
         manifest_lines.append("env_vars:")
