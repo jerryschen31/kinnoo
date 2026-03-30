@@ -202,3 +202,81 @@ def _coalesce_env_or_file(
         return env_value.strip()
 
     return file_values.get(file_key)
+
+
+def save_registry_auth_state(
+    *,
+    registry_url: str,
+    registry_token: str,
+    tenant_slug: str,
+    config_path: Path | None = None,
+) -> None:
+    """Persist registry auth state in config file with secure file permissions."""
+
+    resolved_path = (config_path or DEFAULT_CONFIG_PATH).expanduser()
+    resolved_path.parent.mkdir(parents=True, exist_ok=True)
+
+    existing_values: dict[str, Any] = {}
+    if resolved_path.exists() and resolved_path.is_file():
+        try:
+            existing_values = _parse_simple_yaml_object(resolved_path.read_text(encoding="utf-8"))
+        except OSError:
+            existing_values = {}
+
+    existing_values["registry_url"] = registry_url.strip()
+    existing_values["registry_token"] = registry_token.strip()
+    existing_values["tenant_slug"] = tenant_slug.strip()
+
+    payload = _dump_simple_yaml_object(existing_values)
+    resolved_path.write_text(payload, encoding="utf-8")
+
+    try:
+        resolved_path.chmod(0o600)
+    except OSError:
+        # Best-effort hardening; keep behavior cross-platform safe.
+        pass
+
+
+def clear_registry_auth_state(config_path: Path | None = None) -> bool:
+    """Clear persisted registry auth keys and return True if any key was removed."""
+
+    resolved_path = (config_path or DEFAULT_CONFIG_PATH).expanduser()
+    if not resolved_path.exists() or not resolved_path.is_file():
+        return False
+
+    try:
+        existing_values = _parse_simple_yaml_object(resolved_path.read_text(encoding="utf-8"))
+    except OSError:
+        return False
+
+    removed = False
+    for key in ("registry_url", "registry_token", "tenant_slug"):
+        if key in existing_values:
+            existing_values.pop(key, None)
+            removed = True
+
+    if not removed:
+        return False
+
+    if existing_values:
+        resolved_path.write_text(_dump_simple_yaml_object(existing_values), encoding="utf-8")
+    else:
+        resolved_path.unlink(missing_ok=True)
+
+    return True
+
+
+def _dump_simple_yaml_object(values: dict[str, Any]) -> str:
+    ordered_keys = ["registry_url", "registry_token", "tenant_slug"]
+    trailing_keys = sorted(k for k in values if k not in ordered_keys)
+    final_order = [k for k in ordered_keys if k in values] + trailing_keys
+
+    lines: list[str] = []
+    for key in final_order:
+        value = values.get(key)
+        if value is None:
+            continue
+        text = str(value)
+        escaped = text.replace("'", "''")
+        lines.append(f"{key}: '{escaped}'")
+    return "\n".join(lines) + ("\n" if lines else "")
