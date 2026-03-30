@@ -107,6 +107,24 @@ class RemoteRegistryClient:
             return response
         return response.get("items", []) if isinstance(response, dict) else []
 
+    def fetch_clawhub_mirror_record(self, *, slug: str) -> dict[str, Any] | None:
+        """Fetch a mirrored ClawHub record by slug when backend supports this endpoint."""
+        normalized_slug = slug.strip().strip("/")
+        if not normalized_slug:
+            return None
+
+        encoded_slug = urllib_parse.quote(normalized_slug, safe="")
+        try:
+            response = self._request_json(method="GET", path=f"/api/mirror/clawhub/{encoded_slug}")
+        except RemoteRegistryClientError as error:
+            if "not found (404)" in str(error).lower():
+                return None
+            raise
+
+        if isinstance(response, dict):
+            return response
+        return None
+
     # Compatibility methods to satisfy the broader registry protocol shape used
     # by existing service code until remote CLI selection is introduced in task232.
     def list_entries(self) -> list[dict[str, Any]]:
