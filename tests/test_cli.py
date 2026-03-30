@@ -36,7 +36,7 @@ def test_top_level_help_grouped_menu_exact_text():
 
     expected = """Kinnoo CLI
 
-usage: kinnoo [-h] [--version] {init,run,stop,attach,logs,install,pack,keygen,inspect,publish,list,search,import,check} ...
+usage: kinnoo [-h] [--version] {init,run,stop,attach,logs,install,pack,keygen,inspect,publish,list,search,login,logout,import,check} ...
 
 positional arguments:
 all agents:
@@ -55,11 +55,13 @@ daemon agents:
         logs                Show daemon logs (tail or follow)
 
 registry:
-    {publish,install,list,search}
+    {publish,install,list,search,login,logout}
         publish             Publish latest archived agent artifact to the registry
         install             Install a kinnoo agent from archive (.kno) or registry
         list                List agents from local archive (default) or remote registry
         search              Search agents from local archive (default) or remote registry
+        login               Authenticate to a registry and persist auth state locally
+        logout              Clear persisted registry auth state
 
 other:
     {keygen}

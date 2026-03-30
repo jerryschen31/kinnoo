@@ -179,10 +179,110 @@ def test_feature61_login_interactive_and_noninteractive(tmp_path: Path) -> None:
 		server.stop()
 
 
+def test_feature61_logout_and_auth_precedence(tmp_path: Path) -> None:
+	archive_root = tmp_path / "archive"
+	_write_archive(archive_root, name="feature61-agent", version="1.0.0")
+
+	home_dir = tmp_path / "home"
+	config_path = home_dir / ".kinnoo" / "config.yaml"
+	config_path.parent.mkdir(parents=True, exist_ok=True)
+
+	server = _AuthPublishTestServer(accepted_publish_token="env-token")
+	server.start()
+	try:
+		config_path.write_text(
+			"\n".join(
+				[
+					f"registry_url: '{server.base_url}'",
+					"registry_token: 'config-token'",
+					"tenant_slug: 'config-tenant'",
+				]
+			)
+			+ "\n",
+			encoding="utf-8",
+		)
+
+		base_env = {
+			**os.environ,
+			"HOME": str(home_dir),
+			"KINNOO_ARCHIVE_ROOT": str(archive_root),
+		}
+
+		logout = subprocess.run(
+			[sys.executable, str(CLI_PATH), "logout"],
+			capture_output=True,
+			text=True,
+			env=base_env,
+			cwd=tmp_path,
+		)
+		logout_output = f"{logout.stdout}\n{logout.stderr}"
+		assert logout.returncode == 0, logout_output
+		assert "Logout successful." in logout_output
+
+		post_logout = config_path.read_text(encoding="utf-8") if config_path.exists() else ""
+		assert "registry_token" not in post_logout
+		assert "tenant_slug" not in post_logout
+
+		env_without_auth = {
+			**base_env,
+			"KINNOO_REGISTRY_URL": server.base_url,
+		}
+		publish_without_auth = subprocess.run(
+			[sys.executable, str(CLI_PATH), "publish", "feature61-agent", "--remote"],
+			capture_output=True,
+			text=True,
+			env=env_without_auth,
+			cwd=tmp_path,
+		)
+		missing_auth_output = f"{publish_without_auth.stdout}\n{publish_without_auth.stderr}"
+		assert publish_without_auth.returncode != 0
+		assert "Remote registry configuration incomplete" in missing_auth_output
+
+		env_with_overrides = {
+			**env_without_auth,
+			"KINNOO_REGISTRY_TOKEN": "env-token",
+			"KINNOO_TENANT_SLUG": "env-tenant",
+		}
+		publish_with_overrides = subprocess.run(
+			[sys.executable, str(CLI_PATH), "publish", "feature61-agent", "--remote"],
+			capture_output=True,
+			text=True,
+			env=env_with_overrides,
+			cwd=tmp_path,
+		)
+		override_output = f"{publish_with_overrides.stdout}\n{publish_with_overrides.stderr}"
+		assert publish_with_overrides.returncode == 0, override_output
+		assert "Published feature61-agent==1.0.0 (remote)" in override_output
+	finally:
+		server.stop()
+
+
 class _AuthTokenTestServer:
 	def __init__(self, *, accepted_credentials: dict[tuple[str, str, str], str]) -> None:
 		self._accepted_credentials = accepted_credentials
 		self._server = ThreadingHTTPServer(("127.0.0.1", 0), _make_auth_handler(accepted_credentials))
+		self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
+
+	@property
+	def base_url(self) -> str:
+		host, port = self._server.server_address
+		return f"http://{host}:{port}"
+
+	def start(self) -> None:
+		self._thread.start()
+
+	def stop(self) -> None:
+		self._server.shutdown()
+		self._server.server_close()
+		self._thread.join(timeout=2)
+
+
+class _AuthPublishTestServer:
+	def __init__(self, *, accepted_publish_token: str) -> None:
+		self._server = ThreadingHTTPServer(
+			("127.0.0.1", 0),
+			_make_auth_publish_handler(accepted_publish_token=accepted_publish_token),
+		)
 		self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
 
 	@property
@@ -245,3 +345,34 @@ def _make_auth_handler(
 			self.wfile.write(encoded)
 
 	return _AuthHandler
+
+
+def _make_auth_publish_handler(*, accepted_publish_token: str) -> type[BaseHTTPRequestHandler]:
+	class _AuthPublishHandler(BaseHTTPRequestHandler):
+		def do_POST(self) -> None:  # noqa: N802
+			if self.path != "/api/publish":
+				self._write_json(404, {"error": "not found"})
+				return
+
+			authorization = self.headers.get("Authorization", "")
+			expected = f"Bearer {accepted_publish_token}"
+			if authorization != expected:
+				self._write_json(401, {"error": "unauthorized"})
+				return
+
+			content_length = int(self.headers.get("Content-Length", "0"))
+			_ = self.rfile.read(content_length)
+			self._write_json(200, {"archive_path": "remote://feature61-agent/1.0.0"})
+
+		def log_message(self, format: str, *args: object) -> None:  # noqa: A003
+			del format, args
+
+		def _write_json(self, status_code: int, payload: dict[str, object]) -> None:
+			encoded = json.dumps(payload).encode("utf-8")
+			self.send_response(status_code)
+			self.send_header("Content-Type", "application/json")
+			self.send_header("Content-Length", str(len(encoded)))
+			self.end_headers()
+			self.wfile.write(encoded)
+
+	return _AuthPublishHandler

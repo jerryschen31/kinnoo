@@ -97,7 +97,7 @@ def _format_top_level_help_text() -> str:
         f"        {publish_cmd}             Publish latest archived agent artifact to the registry\n"
         f"        {install_cmd}             Install a kinnoo agent from archive (.kno) or registry\n"
         f"        {list_cmd}                List agents from local archive (default) or remote registry\n"
-        f"        {search_cmd}              Search agents from local archive (default) or remote registry\n\n"
+        f"        {search_cmd}              Search agents from local archive (default) or remote registry\n"
         f"        {login_cmd}               Authenticate to a registry and persist auth state locally\n"
         f"        {logout_cmd}              Clear persisted registry auth state\n\n"
         f"{other_header}\n"
