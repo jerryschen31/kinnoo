@@ -416,6 +416,11 @@ def main():
         action="store_true",
         help="Require strict signature and integrity verification gates for install",
     )
+    install_parser.add_argument(
+        "--frozen",
+        action="store_true",
+        help="Require lockfile-only reproducible install; fail on lock drift or missing entries",
+    )
     install_source_group = install_parser.add_mutually_exclusive_group()
     install_source_group.add_argument(
         "--local",
@@ -838,6 +843,7 @@ def main():
         accept_permissions = bool(getattr(args, "accept_permissions", False))
         allow_unverified_publisher = bool(getattr(args, "allow_unverified_publisher", False))
         strict_mode = bool(getattr(args, "strict", False))
+        frozen_mode = bool(getattr(args, "frozen", False))
         use_local = bool(getattr(args, "local", False))
         use_remote = bool(getattr(args, "remote", False))
         minimum_openclaw_version = str(getattr(args, "openclaw_min_version", "0.1.0"))
@@ -857,6 +863,7 @@ def main():
             accept_permissions=accept_permissions,
             allow_unverified_publisher=allow_unverified_publisher,
             strict_mode=strict_mode,
+            frozen_mode=frozen_mode,
             use_local=use_local,
             use_remote=use_remote,
             minimum_openclaw_version=minimum_openclaw_version,

@@ -162,6 +162,14 @@ Feature40 unsigned publisher warning and confirmation:
 	- `kinnoo install ... --yes --allow-unverified-publisher`
 	- using `--yes` without `--allow-unverified-publisher` aborts safely with guidance
 
+Feature72 lockfile frozen mode:
+
+- `kinnoo install --frozen` enforces lockfile-only reproducibility checks before extraction.
+- Frozen mode validates lockfile entry presence, pinned version, and archive checksum.
+- When lockfile drift is detected, install fails with deterministic remediation guidance:
+	- `Re-run install without --frozen to regenerate lockfile, then retry --frozen.`
+- Successful frozen installs leave lockfile content unchanged.
+
 Unverified source warning:
 
 - If `<archive>.sha256` is missing, install prints:

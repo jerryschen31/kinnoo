@@ -2364,7 +2364,7 @@ features:
         description: "Docs describe lockfile lifecycle and team/CI best practices."
     owner: techlead-agent
     dependencies: []
-    status: in-progress
+    status: needs-review
 
   - id: feature73
     title: "kinnoo diff command"
