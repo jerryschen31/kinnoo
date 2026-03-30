@@ -826,3 +826,80 @@ def test_feature19_import_generates_requirements_from_import_inference(tmp_path)
     assert "Generated requirements.txt from analyzer-detected dependencies." in output
     requirements_text = (project_dir / "requirements.txt").read_text(encoding="utf-8")
     assert "langchain-core" in requirements_text
+
+
+def test_feature75_adapter_inference_and_fallback(tmp_path):
+    langchain_project = tmp_path / "feature75-langchain"
+    langchain_project.mkdir(parents=True, exist_ok=True)
+    (langchain_project / "run.py").write_text(
+        "from langchain.agents import AgentExecutor\n"
+        "print(AgentExecutor)\n",
+        encoding="utf-8",
+    )
+
+    langchain_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(langchain_project), "--from", "langchain"],
+        input="y\n\n\n",
+        capture_output=True,
+        text=True,
+    )
+    langchain_output = f"{langchain_result.stdout}\n{langchain_result.stderr}"
+    assert langchain_result.returncode == 0, langchain_output
+    assert "Applied langchain adapter" in langchain_output
+    langchain_manifest = (langchain_project / "kinnoo.yaml").read_text(encoding="utf-8")
+    assert "framework: langchain" in langchain_manifest
+    assert "language: python" in langchain_manifest
+
+    langgraph_project = tmp_path / "feature75-langgraph"
+    langgraph_project.mkdir(parents=True, exist_ok=True)
+    (langgraph_project / "graph.py").write_text(
+        "from langgraph.graph import StateGraph\n"
+        "print(StateGraph)\n",
+        encoding="utf-8",
+    )
+
+    langgraph_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(langgraph_project), "--from", "langgraph"],
+        input="y\ngraph.py\none-shot\n\n",
+        capture_output=True,
+        text=True,
+    )
+    langgraph_output = f"{langgraph_result.stdout}\n{langgraph_result.stderr}"
+    assert langgraph_result.returncode == 0, langgraph_output
+    assert "Applied langgraph adapter" in langgraph_output
+    langgraph_manifest = (langgraph_project / "kinnoo.yaml").read_text(encoding="utf-8")
+    assert "framework: langgraph" in langgraph_manifest
+
+    openai_project = tmp_path / "feature75-openai"
+    openai_project.mkdir(parents=True, exist_ok=True)
+    (openai_project / "agent.py").write_text(
+        "from agents import Agent\n"
+        "print(Agent)\n",
+        encoding="utf-8",
+    )
+
+    openai_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(openai_project), "--from", "openai"],
+        input="y\nagent.py\none-shot\n\n",
+        capture_output=True,
+        text=True,
+    )
+    openai_output = f"{openai_result.stdout}\n{openai_result.stderr}"
+    assert openai_result.returncode == 0, openai_output
+    assert "Applied openai adapter" in openai_output
+    openai_manifest = (openai_project / "kinnoo.yaml").read_text(encoding="utf-8")
+    assert "framework: openai-agents" in openai_manifest
+
+    unsupported_project = tmp_path / "feature75-fallback"
+    unsupported_project.mkdir(parents=True, exist_ok=True)
+    (unsupported_project / "run.py").write_text("print('hello')\n", encoding="utf-8")
+
+    fallback_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(unsupported_project), "--from", "langgraph"],
+        input="y\n\n\n",
+        capture_output=True,
+        text=True,
+    )
+    fallback_output = f"{fallback_result.stdout}\n{fallback_result.stderr}"
+    assert fallback_result.returncode == 0, fallback_output
+    assert "falling back to generic analyzer output" in fallback_output

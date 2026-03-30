@@ -2421,4 +2421,4 @@ features:
         description: "Automated adapter tests include at least one JS/TS-oriented fixture path where relevant and preserve deterministic CLI behavior."
     owner: techlead-agent
     dependencies: []
-    status: not-started
+    status: in-progress
