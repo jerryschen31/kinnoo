@@ -551,6 +551,11 @@ def main():
         choices=["major", "minor", "patch"],
         help="Optional version bump applied during --pack flow before publish.",
     )
+    publish_parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Require strict signature/trust gates before publish upload.",
+    )
 
     # Add 'list' subcommand
     list_parser = subparsers.add_parser(
@@ -1000,6 +1005,7 @@ def main():
         use_remote = bool(getattr(args, "remote", False))
         use_pack = bool(getattr(args, "pack", False))
         bump = getattr(args, "bump", None)
+        strict_mode = bool(getattr(args, "strict", False))
 
         if use_local and use_remote:
             print("Error: --local and --remote cannot be used together.", file=sys.stderr)
@@ -1020,6 +1026,7 @@ def main():
             use_remote=use_remote,
             pack=use_pack,
             bump=bump,
+            strict_mode=strict_mode,
         )
         sys.exit(exit_code)
 
