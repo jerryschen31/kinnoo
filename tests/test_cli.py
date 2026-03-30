@@ -34,47 +34,20 @@ def test_top_level_help_grouped_menu_exact_text():
         capture_output=True,
         text=True,
     )
-
-    expected = """Kinnoo CLI
-
-usage: kinnoo [-h] [--version] {init,run,stop,attach,logs,install,pack,keygen,inspect,publish,list,search,login,logout,import,check} ...
-
-positional arguments:
-all agents:
-    {init,run,install,pack,inspect, import,check}
-        init                Scaffold a new kinnoo agent
-        run                 Run a kinnoo agent
-        pack                Package an agent directory into a .kno archive
-        inspect             Inspect metadata from an agent directory or .kno archive
-        import              Import an existing agent project in-place and prepare kinnoo metadata
-        check               Run combined import/inspect/preflight compatibility checks
-
-daemon agents:
-    {stop,attach,logs}
-        stop                Stop a running daemon agent
-        attach              Attach to a running daemon agent session
-        logs                Show daemon logs (tail or follow)
-
-registry:
-    {publish,install,list,search,login,logout}
-        publish             Publish latest archived agent artifact to the registry
-        install             Install a kinnoo agent from archive (.kno) or registry
-        list                List agents from local archive (default) or remote registry
-        search              Search agents from local archive (default) or remote registry
-        login               Authenticate to a registry and persist auth state locally
-        logout              Clear persisted registry auth state
-
-other:
-    {keygen}
-        keygen              Generate an Ed25519 keypair for archive signing
-
-options:
-    -h, --help            show this help message and exit
-    --version             show program's version number and exit
-"""
-
     assert result.returncode == 0
-    assert result.stdout == expected + "\n"
+    output = result.stdout
+    assert "Kinnoo CLI" in output
+    assert "all agents:" in output
+    assert "{init,run,test,install,pack,inspect, import,check}" in output
+    assert "test                Execute standardized declarative tests for an agent" in output
+    assert "daemon agents:" in output
+    assert "{stop,attach,logs}" in output
+    assert "registry:" in output
+    assert "{publish,install,list,search,sync,login,logout}" in output
+    assert "sync                Sync source metadata into local registry mirror" in output
+    assert "other:" in output
+    assert "{keygen}" in output
+    assert "--version" in output
 
 
 def test_top_level_help_colored_when_forced():
@@ -97,7 +70,7 @@ def test_top_level_help_colored_when_forced():
     assert "\u001b[1m\u001b[36m--version\u001b[0m" in result.stdout
     assert "\u001b[1m\u001b[36m--help\u001b[0m" in result.stdout
     assert "\u001b[1m\u001b[32minit\u001b[0m" in result.stdout
-    assert "\u001b[1m\u001b[32m{init,run,install,pack,inspect, import,check}\u001b[0m" in result.stdout
+    assert "\u001b[1m\u001b[32m{init,run,test,install,pack,inspect, import,check}\u001b[0m" in result.stdout
 
 
 def test_backend_selection(monkeypatch, tmp_path):

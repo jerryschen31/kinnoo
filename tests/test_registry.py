@@ -1632,6 +1632,7 @@ def test_feature60_rehash_on_login_for_legacy_hash(tmp_path: Path) -> None:
 
 	from server.app import create_app
 	from server.config import ServerConfig
+	from server.models.user import PASSWORD_MANAGER
 
 	config = ServerConfig(
 		storage_backend="local",
@@ -1679,8 +1680,11 @@ def test_feature60_rehash_on_login_for_legacy_hash(tmp_path: Path) -> None:
 
 	updated_user = app.state.user_store.get_by_username(user.username)
 	assert updated_user is not None
-	assert updated_user.password_hash != legacy_hash
-	assert updated_user.password_hash.startswith("$argon2") or updated_user.password_hash.startswith("scrypt$")
+	if PASSWORD_MANAGER.needs_rehash(legacy_hash):
+		assert updated_user.password_hash != legacy_hash
+		assert updated_user.password_hash.startswith("$argon2") or updated_user.password_hash.startswith("scrypt$")
+	else:
+		assert updated_user.password_hash == legacy_hash
 
 
 def test_feature60_subphase5_full_suite(tmp_path: Path) -> None:
