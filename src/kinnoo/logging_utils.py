@@ -30,3 +30,8 @@ def emit_violation_event_diagnostic(
 ) -> None:
     rendered = format_violation_event_line(payload, secret_values=secret_values)
     print(f"[kinnoo security] violation event: {rendered}", file=sys.stderr)
+
+
+def emit_sync_event_diagnostic(payload: dict[str, object]) -> None:
+    rendered = json.dumps(payload, sort_keys=True)
+    print(f"[kinnoo sync] diagnostic: {rendered}", file=sys.stderr)

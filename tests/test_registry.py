@@ -658,6 +658,92 @@ def test_feature63_clawhub_tenant_mirror_ownership(tmp_path: Path) -> None:
 	assert [record.source_version for record in records] == ["1.2.3", "1.2.4"]
 
 
+def test_feature67_sync_resilience_and_summary(tmp_path: Path, monkeypatch, capsys) -> None:
+	from kinnoo import sync_command
+
+	registry_root = tmp_path / "registry"
+	monkeypatch.setenv("KINNOO_REGISTRY_ROOT", str(registry_root))
+	monkeypatch.delenv("KINNOO_CLAWHUB_SYNC_FIXTURE", raising=False)
+	monkeypatch.setenv("KINNOO_SYNC_FETCH_ATTEMPTS", "3")
+	monkeypatch.setenv("KINNOO_SYNC_BACKOFF_SECONDS", "0")
+	monkeypatch.setattr(sync_command.time, "sleep", lambda _seconds: None)
+
+	# Scenario 1: upstream unavailable should retry and return categorized failure summary.
+	monkeypatch.setattr(
+		sync_command,
+		"_fetch_clawhub_sync_records_once",
+		lambda **kwargs: ([], "upstream unavailable: 503 service unavailable"),
+	)
+
+	unavailable_exit = sync_command.sync_source(
+		source="clawhub",
+		full=False,
+		since=None,
+		use_local=False,
+		use_remote=True,
+	)
+	unavailable_output = capsys.readouterr()
+	unavailable_combined = f"{unavailable_output.out}\n{unavailable_output.err}"
+
+	assert unavailable_exit == 1
+	assert "retrying after transient fetch failure" in unavailable_combined
+	assert "failure_categories=upstream_unavailable:1" in unavailable_combined
+
+	# Seed existing mirror state before partial-failure scenario.
+	service = RegistryService(backend=LocalRegistryBackend(root=registry_root))
+	service.upsert_clawhub_mirror_record(
+		agent_slug="weather/weather-skill",
+		source_version="1.0.0",
+		source_url="https://clawhub.ai/skills/weather/weather-skill",
+		metadata={"description": "stable weather skill"},
+	)
+
+	# Scenario 2: mixed payload with invalid + valid records should not corrupt existing state.
+	partial_records = [
+		{"slug": "weather/weather-skill"},  # invalid (missing version)
+		{
+			"slug": "weather/weather-skill",
+			"version": "1.0.0",
+			"source_url": "https://clawhub.ai/skills/weather/weather-skill",
+			"metadata": {"description": "stable weather skill"},
+		},
+		{
+			"slug": "stocks/stocks-skill",
+			"version": "2.0.0",
+			"source_url": "https://clawhub.ai/skills/stocks/stocks-skill",
+			"metadata": {"description": "stocks utility"},
+		},
+	]
+	monkeypatch.setattr(
+		sync_command,
+		"_fetch_clawhub_sync_records_once",
+		lambda **kwargs: (partial_records, None),
+	)
+
+	partial_exit = sync_command.sync_source(
+		source="clawhub",
+		full=False,
+		since=None,
+		use_local=True,
+		use_remote=False,
+	)
+	partial_output = capsys.readouterr()
+	partial_combined = f"{partial_output.out}\n{partial_output.err}"
+
+	assert partial_exit == 1
+	assert "created=1 updated=0 skipped=1 failed=1" in partial_combined
+	assert "failure_categories=invalid_record:1" in partial_combined
+
+	weather_latest = service.get_clawhub_mirror_record(agent_slug="weather/weather-skill")
+	assert weather_latest is not None
+	assert weather_latest.source_version == "1.0.0"
+	assert weather_latest.metadata == {"description": "stable weather skill"}
+
+	stocks_latest = service.get_clawhub_mirror_record(agent_slug="stocks/stocks-skill")
+	assert stocks_latest is not None
+	assert stocks_latest.source_version == "2.0.0"
+
+
 def test_feature57_forwarded_ip_rate_limit_path() -> None:
 	from server.middleware import InMemoryRateLimiter, PathRateLimitMiddleware, RateLimitRule
 
