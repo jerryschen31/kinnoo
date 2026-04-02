@@ -2467,7 +2467,7 @@ features:
       - "Consider caching preflight result within a single CLI invocation to avoid redundant subprocess calls."
     owner: techlead-agent
     dependencies: []
-    status: not-started
+    status: needs-review
 
   - id: feature77
     title: "OpenClaw init via CLI wrapper"
@@ -2496,7 +2496,7 @@ features:
       - OpenClaw version must be 2026.3.28+
     owner: techlead-agent
     dependencies: [feature76]
-    status: not-started
+    status: needs-review
 
   - id: feature78
     title: "OpenClaw import via CLI wrapper"
@@ -2525,7 +2525,7 @@ features:
       - OpenClaw version must be 2026.3.28+
     owner: techlead-agent
     dependencies: [feature76]
-    status: not-started
+    status: needs-review
 
   - id: feature79
     title: "OpenClaw workspace pack"
@@ -2552,7 +2552,7 @@ features:
       - "Consider whether openclaw.json should be included (it may contain local-only config)."
     owner: techlead-agent
     dependencies: []
-    status: not-started
+    status: needs-review
 
   - id: feature80
     title: "OpenClaw install via CLI wrapper"
@@ -2581,7 +2581,7 @@ features:
       - OpenClaw version must be 2026.3.28+
     owner: techlead-agent
     dependencies: [feature76, feature79]
-    status: not-started
+    status: needs-review
 
   - id: feature81
     title: "OpenClaw run via CLI wrapper"
