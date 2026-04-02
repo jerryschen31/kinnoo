@@ -51,6 +51,14 @@ _OPENCLAW_IDENTITY_FILES = [
 
 _OPENCLAW_WORKSPACE_DIRS = ["memory", "skills"]
 
+_PACK_EXCLUDED_DIR_PARTS = {
+    ".git",
+    ".openclaw",
+    "node_modules",
+    ".pytest_cache",
+    "__pycache__",
+}
+
 _STATE_SNAPSHOT_PREFIX = "state_snapshots"
 
 
@@ -154,6 +162,22 @@ def _collect_openclaw_workspace_files(agent_root: Path) -> list[tuple[str, Path]
             collected.append((child.relative_to(agent_root).as_posix(), child))
 
     return collected
+
+
+def _is_runtime_artifact_path(relative_path: str) -> bool:
+    parts = Path(relative_path).parts
+    return any(part in _PACK_EXCLUDED_DIR_PARTS for part in parts)
+
+
+def _filter_excluded_pack_entries(
+    entries: list[tuple[str, Path | str]],
+) -> list[tuple[str, Path | str]]:
+    filtered: list[tuple[str, Path | str]] = []
+    for relative_path, absolute_path in entries:
+        if _is_runtime_artifact_path(relative_path):
+            continue
+        filtered.append((relative_path, absolute_path))
+    return filtered
 
 
 def _collect_asset_files(manifest: dict, agent_root: Path) -> tuple[list[tuple[str, Path]], bool]:
@@ -529,6 +553,8 @@ def pack_agent(
     additional_files = _collect_additional_files(manifest)
     safe_additional_paths: list[tuple[str, str]] = []
     for relative_path in additional_files:
+        if _is_runtime_artifact_path(relative_path):
+            continue
         if runtime_language == "nodejs" and _contains_node_modules(relative_path):
             print(
                 f"Warning: Skipping '{relative_path}' because node_modules must not be bundled for nodejs agents.",
@@ -552,6 +578,7 @@ def pack_agent(
     except ValueError as error:
         print(f"Error: {error}", file=sys.stderr)
         return 1
+    asset_files = _filter_excluded_pack_entries(asset_files)
 
     try:
         state_snapshot_files = _collect_state_snapshot_files(
@@ -561,6 +588,7 @@ def pack_agent(
     except ValueError as error:
         print(f"Error: {error}", file=sys.stderr)
         return 1
+    state_snapshot_files = _filter_excluded_pack_entries(state_snapshot_files)
 
     if not assets_bundle_enabled:
         print("[kinnoo pack] Asset bundling disabled by assets.bundle=false")
@@ -591,6 +619,10 @@ def pack_agent(
     openclaw_workspace_files: list[tuple[str, Path]] = []
     if manifest_framework == "openclaw":
         openclaw_workspace_files = _collect_openclaw_workspace_files(Path(abs_agent_dir))
+        openclaw_workspace_files = [
+            (relative_path, Path(absolute_path))
+            for relative_path, absolute_path in _filter_excluded_pack_entries(openclaw_workspace_files)
+        ]
 
     asset_scan_warnings = sweep_asset_credential_risks(
         agent_dir=Path(abs_agent_dir),

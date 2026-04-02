@@ -297,3 +297,61 @@ state_dirs:
 
     kno_path = _canonical_archive_path(tmp_path, "feature38-memory-snapshot-agent", "1.0.0")
     assert not kno_path.exists(), "Archive should not be created when manifest is invalid"
+
+
+def test_feature79_openclaw_pack_excludes_runtime_artifacts(tmp_path):
+        agent_dir = tmp_path / "feature79-openclaw-excludes"
+        agent_dir.mkdir(parents=True, exist_ok=True)
+
+        (agent_dir / "kinnoo.yaml").write_text(
+                """
+name: feature79-openclaw-excludes
+version: 1.0.0
+type: openclaw-skill
+framework: openclaw
+entrypoint: index.js
+runtime:
+    language: nodejs
+    version: '>=20'
+    type: daemon
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+""".strip()
+                + "\n",
+                encoding="utf-8",
+        )
+        (agent_dir / "index.js").write_text("console.log('openclaw')\n", encoding="utf-8")
+        (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+        (agent_dir / "package.json").write_text('{"name":"feature79-openclaw-excludes"}\n', encoding="utf-8")
+        (agent_dir / "AGENTS.md").write_text("# Agents\n", encoding="utf-8")
+
+        (agent_dir / "skills" / "planner").mkdir(parents=True, exist_ok=True)
+        (agent_dir / "skills" / "planner" / "SKILL.md").write_text("planner\n", encoding="utf-8")
+        (agent_dir / "skills" / "node_modules" / "dep").mkdir(parents=True, exist_ok=True)
+        (agent_dir / "skills" / "node_modules" / "dep" / "index.js").write_text("module.exports = {}\n", encoding="utf-8")
+        (agent_dir / "skills" / ".git").mkdir(parents=True, exist_ok=True)
+        (agent_dir / "skills" / ".git" / "config").write_text("gitdata\n", encoding="utf-8")
+        (agent_dir / "memory" / ".openclaw").mkdir(parents=True, exist_ok=True)
+        (agent_dir / "memory" / ".openclaw" / "cache.json").write_text("{}\n", encoding="utf-8")
+
+        result = subprocess.run(
+                [sys.executable, "src/kinnoo/cli.py", "pack", str(agent_dir)],
+                capture_output=True,
+                text=True,
+                env=_pack_env(tmp_path),
+        )
+        output = f"{result.stdout}\n{result.stderr}"
+        assert result.returncode == 0, output
+
+        kno_path = _canonical_archive_path(tmp_path, "feature79-openclaw-excludes", "1.0.0")
+        assert kno_path.exists(), "Expected .kno archive to be created"
+
+        with zipfile.ZipFile(kno_path, "r") as archive:
+                names = set(archive.namelist())
+                assert "skills/planner/SKILL.md" in names
+                assert "skills/node_modules/dep/index.js" not in names
+                assert "skills/.git/config" not in names
+                assert "memory/.openclaw/cache.json" not in names
