@@ -258,7 +258,7 @@ def main():
     run_parser.add_argument(
         "--experimental-openclaw-adapter",
         action="store_true",
-        help="Enable experimental OpenClaw run adapter for openclaw-skill manifests",
+        help=argparse.SUPPRESS,
     )
     run_parser.add_argument(
         "--thinking",

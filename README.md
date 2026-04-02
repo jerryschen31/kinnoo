@@ -7,7 +7,28 @@
 - `kinnoo pack` creates `.kno` artifacts as ZIP archives.
 - `kinnoo install` expects `.kno` files in this ZIP-based format.
 
-## OpenClaw Delegated Install (Feature65)
+## OpenClaw Bridge Deprecation and Migration (Feature85)
+
+Bridge-era OpenClaw features (feature62-feature67) are deprecated in favor of the Phase 7 CLI-wrapper model (feature76-feature84).
+
+Migration command map:
+
+- init wrapper: `kinnoo init --framework openclaw <name>`
+- import wrapper: `kinnoo import <workspace-dir>`
+- install wrapper: `kinnoo install <archive.kno>`
+- run wrapper: `kinnoo run <agent-dir> '<prompt>' [--thinking <level>] [--json]`
+- logs wrapper: `kinnoo logs --daemon openclaw [--follow] [--json]`
+- skill install wrapper: `kinnoo install <agent-name> --openclaw-skill <owner/skill-or-url>`
+- skill search wrapper: `kinnoo search --openclaw-skill <query> [--json]`
+
+Deprecated bridge path notes:
+
+- `--experimental-openclaw-adapter` remains compatibility-only and should not be used for new workflows.
+- ClawHub mirror-first bridge flows are superseded by direct OpenClaw CLI delegation wrappers.
+
+## OpenClaw Delegated Install (Feature65, Deprecated Bridge Context)
+
+Bridge-era delegated install behavior is retained for compatibility only.
 
 `kinnoo install` routes manifests declaring `type: openclaw-skill` through a delegated OpenClaw CLI install path.
 
