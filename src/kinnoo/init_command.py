@@ -5,6 +5,7 @@ Agent scaffolding logic for kinnoo init.
 import argparse
 import sys
 import os
+import subprocess
 from pathlib import Path
 from typing import Optional
 from kinnoo.templates import (
@@ -25,6 +26,11 @@ from kinnoo.templates import (
     OPENCLAW_SOUL_MD_TEMPLATE,
     OPENCLAW_README_TEMPLATE,
 )
+
+try:
+    from kinnoo.openclaw_preflight import run_openclaw_preflight_for_command
+except ImportError:
+    from .openclaw_preflight import run_openclaw_preflight_for_command
 
 SUPPORTED_FRAMEWORKS = [
     "gemini",
@@ -131,9 +137,38 @@ def init_agent(
     framework: Optional[str] = None,
     language: Optional[str] = None,
 ):
-    agent_dir = target_dir / name
-    if agent_dir.exists():
-        raise FileExistsError(f"Directory {agent_dir} already exists.")
+    if framework == "openclaw":
+        # Feature77: OpenClaw init delegates lifecycle registration to OpenClaw CLI.
+        # Workspace convention is explicit for deterministic install/import/run flows.
+        workspace_dir = Path.home() / ".openclaw" / f"workspace-{name}"
+        if workspace_dir.exists():
+            raise FileExistsError(f"Directory {workspace_dir} already exists.")
+
+        preflight_result = run_openclaw_preflight_for_command("init")
+        if not preflight_result.ok:
+            raise ValueError(preflight_result.message)
+
+        result = subprocess.run(
+            ["openclaw", "agents", "add", name, "--workspace", str(workspace_dir)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            detail = (result.stderr or result.stdout or "").strip()
+            suffix = f" ({detail})" if detail else ""
+            raise ValueError(
+                "OpenClaw agent registration failed: "
+                "`openclaw agents add` returned non-zero exit code"
+                f"{suffix}"
+            )
+
+        workspace_dir.mkdir(parents=True, exist_ok=True)
+        return
+    else:
+        agent_dir = target_dir / name
+        if agent_dir.exists():
+            raise FileExistsError(f"Directory {agent_dir} already exists.")
 
     normalized_language = _normalize_language(language)
     if language is not None and normalized_language is None:

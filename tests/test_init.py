@@ -848,3 +848,39 @@ def test_init_help_includes_mcp_server_example(tmp_path):
     code, out, err = run_cli(["init", "-h"], cwd=tmp_path)
     assert code == 0
     assert "kinnoo init my-mcp-server --framework mcp-server" in out
+
+
+def test_feature77_init_delegation_and_existing_workspace_guard(tmp_path, monkeypatch):
+    from kinnoo import init_command
+
+    order: list[str] = []
+    workspace = tmp_path / ".openclaw" / "workspace-foo"
+
+    monkeypatch.setattr(init_command.Path, "home", staticmethod(lambda: tmp_path))
+
+    def fake_preflight(command_name: str, minimum_version: str = "2026.3.28"):
+        order.append(f"preflight:{command_name}:{minimum_version}")
+        from kinnoo.openclaw_preflight import OpenClawPreflightResult
+
+        return OpenClawPreflightResult(
+            ok=True,
+            category="openclaw_cli_precheck_ok",
+            message="ok",
+            version="2026.3.31",
+        )
+
+    def fake_run(args, capture_output, text, check):
+        order.append("subprocess:agents-add")
+        return subprocess.CompletedProcess(args=args, returncode=0, stdout="ok", stderr="")
+
+    monkeypatch.setattr(init_command, "run_openclaw_preflight_for_command", fake_preflight)
+    monkeypatch.setattr(init_command.subprocess, "run", fake_run)
+
+    init_command.init_agent("foo", tmp_path, framework="openclaw")
+
+    assert workspace.exists()
+    assert order[0].startswith("preflight:init")
+    assert order[1] == "subprocess:agents-add"
+
+    with pytest.raises(FileExistsError):
+        init_command.init_agent("foo", tmp_path, framework="openclaw")
