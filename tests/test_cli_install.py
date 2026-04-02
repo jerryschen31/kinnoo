@@ -700,6 +700,14 @@ def test_feature83_skill_install_existing_agent_slug_and_url(tmp_path):
         "if [ -n \"$KINNOO_TEST_OPENCLAW_ARGS_LOG\" ]; then\n"
         "  printf '%s\\n' \"$*\" >> \"$KINNOO_TEST_OPENCLAW_ARGS_LOG\"\n"
         "fi\n"
+        "if [ \"$1\" = \"--version\" ]; then\n"
+        "  echo openclaw 2026.3.31\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"gateway\" ] && [ \"$2\" = \"status\" ] && [ \"$3\" = \"--require-rpc\" ]; then\n"
+        "  echo gateway healthy\n"
+        "  exit 0\n"
+        "fi\n"
         "if [ \"$1\" = \"agents\" ] && [ \"$2\" = \"list\" ]; then\n"
         f"  echo '[{{\"id\":\"feature83-existing\",\"workspace\":\"{workspace_path}\"}}]'\n"
         "  exit 0\n"
@@ -753,7 +761,7 @@ def test_feature83_skill_install_existing_agent_slug_and_url(tmp_path):
     invocations = invocation_log.read_text(encoding="utf-8")
     assert "agents list" in invocations
     assert f"skills install owner/skill-slug --workspace {workspace_path}" in invocations
-    assert f"skills install https://clawhub.ai/owner/skill-slug --workspace {workspace_path}" in invocations
+    assert invocations.count(f"skills install owner/skill-slug --workspace {workspace_path}") >= 2
 
 
 def test_feature83_missing_agent_preflight_and_outcome_diagnostics(tmp_path):

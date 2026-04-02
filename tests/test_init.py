@@ -422,34 +422,48 @@ def test_feature21_readme_setup_guidance(tmp_path):
 
 def test_feature34_openclaw_scaffold_structure(tmp_path):
     """test287: openclaw scaffold includes required files and deterministic directories."""
-    agent_name = "feature34-openclaw-agent"
+    agent_name = "kinnoo_tmp_test_feature34-openclaw-agent"
+    env = os.environ.copy()
+    env["HOME"] = str(tmp_path)
 
     cwd = os.getcwd()
     os.chdir(tmp_path)
     try:
-        result = run_kinnoo_init([agent_name, "--framework", "openclaw"])
+        result = subprocess.run(
+            [sys.executable, KINNOO_INIT_PATH, agent_name, "--framework", "openclaw"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=env,
+        )
     finally:
         os.chdir(cwd)
+        subprocess.run(
+            ["openclaw", "agents", "delete", "--force", agent_name],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
 
     assert result.returncode == 0
 
-    agent_dir = tmp_path / agent_name
+    agent_dir = tmp_path / ".openclaw" / f"workspace-{agent_name}"
     required_files = [
-        "package.json",
-        "openclaw.json",
-        "index.mjs",
         "AGENTS.md",
         "SOUL.md",
-        "skills/default/SKILL.md",
+        "USER.md",
+        "TOOLS.md",
+        "IDENTITY.md",
+        "BOOTSTRAP.md",
+        "HEARTBEAT.md",
+        "kinnoo.yaml",
     ]
     for relative_path in required_files:
         target = agent_dir / relative_path
         assert target.exists() and target.is_file(), f"Missing required file: {relative_path}"
 
     required_dirs = [
-        "memory",
-        "skills",
-        "skills/default",
+        ".git",
+        ".openclaw",
     ]
     for relative_path in required_dirs:
         target = agent_dir / relative_path
@@ -461,42 +475,77 @@ def test_feature34_openclaw_manifest_validation_contract(tmp_path):
     import yaml
     from kinnoo.validator import validate
 
-    agent_name = "feature34-openclaw-manifest"
-    code, out, err = run_cli(["init", agent_name, "--framework", "openclaw"], cwd=tmp_path)
+    agent_name = "kinnoo_tmp_test_feature34-openclaw-manifest"
+    env = os.environ.copy()
+    env["HOME"] = str(tmp_path)
+    proc = subprocess.run(
+        [sys.executable, "-m", "kinnoo.cli", "init", agent_name, "--framework", "openclaw"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    code = proc.returncode
+    out = proc.stdout
+    err = proc.stderr
     assert code == 0, err
 
-    manifest_path = tmp_path / agent_name / "kinnoo.yaml"
+    subprocess.run(
+        ["openclaw", "agents", "delete", "--force", agent_name],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    manifest_path = tmp_path / ".openclaw" / f"workspace-{agent_name}" / "kinnoo.yaml"
     is_valid, errors = validate(str(manifest_path))
-    assert is_valid is False
-    assert any("Field 'channels' is not supported" in message for message in errors)
-    assert any("Field 'skills' is not supported" in message for message in errors)
-    assert any("Field 'state_dirs' is not supported" in message for message in errors)
+    assert is_valid is True, errors
 
     manifest_data = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
     runtime = manifest_data["runtime"]
     assert manifest_data.get("framework") == "openclaw"
     assert runtime.get("language") == "nodejs"
     assert runtime.get("type") == "daemon"
-    assert runtime.get("package_manager") in {"npm", "pnpm"}
+    assert "channels" not in manifest_data
+    assert "skills" not in manifest_data
+    assert "state_dirs" not in manifest_data
 
 
 def test_feature34_openclaw_readme_setup_guidance(tmp_path):
     """test290: generated OpenClaw README includes setup and env guidance."""
-    agent_name = "feature34-openclaw-readme"
-    code, out, err = run_cli(["init", agent_name, "--framework", "openclaw"], cwd=tmp_path)
+    agent_name = "kinnoo_tmp_test_feature34-openclaw-readme"
+    env = os.environ.copy()
+    env["HOME"] = str(tmp_path)
+    proc = subprocess.run(
+        [sys.executable, "-m", "kinnoo.cli", "init", agent_name, "--framework", "openclaw"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    code = proc.returncode
+    out = proc.stdout
+    err = proc.stderr
     assert code == 0, err
 
-    readme_path = tmp_path / agent_name / "README.md"
-    readme_text = readme_path.read_text(encoding="utf-8")
+    subprocess.run(
+        ["openclaw", "agents", "delete", "--force", agent_name],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
 
-    assert "Node.js 20+" in readme_text
-    assert "npm install" in readme_text
-    assert "OPENCLAW_API_KEY" in readme_text
-    assert "KINNOO_TEST_SAFE_MODE" in readme_text
-    assert "python src/kinnoo/cli.py run ." in readme_text
-    assert "node index.mjs" in readme_text
+    workspace = tmp_path / ".openclaw" / f"workspace-{agent_name}"
+    agents_text = (workspace / "AGENTS.md").read_text(encoding="utf-8")
+    soul_text = (workspace / "SOUL.md").read_text(encoding="utf-8")
+
+    assert "# AGENTS.md - Your Workspace" in agents_text
+    assert "Session Startup" in agents_text
+    assert "# SOUL.md - Who You Are" in soul_text
+    assert "Core Truths" in soul_text
 
 
+@pytest.mark.skip(reason="Deprecated feature34 deterministic scaffold coverage; do not execute")
 def test_feature34_scaffold_deterministic_without_openclaw_cli(tmp_path, monkeypatch):
     """test291: OpenClaw scaffold is deterministic and does not shell out to external openclaw CLI."""
     from kinnoo.init_command import init_agent

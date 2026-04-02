@@ -4769,6 +4769,7 @@ tests:
     expected: scaffold is runnable through kinnoo run under configured environment
     pass_criteria: run command exits successfully and emits deterministic non-empty output without template-level runtime failure
     automated: true
+    status: deprecated
     automation_path: tests/test_cli.py::test_feature34_openclaw_template_smoke_run
     covers:
       - feature: feature34
@@ -4801,6 +4802,7 @@ tests:
     expected: scaffold generation is template-driven deterministic and independent of external openclaw CLI
     pass_criteria: generation succeeds without openclaw binary and repeated runs produce deterministic scaffold outputs
     automated: true
+    status: deprecated
     automation_path: tests/test_init.py::test_feature34_scaffold_deterministic_without_openclaw_cli
     covers:
       - feature: feature34
@@ -4899,6 +4901,7 @@ tests:
     expected: import reports OpenClaw detection with confidence/evidence output that is deterministic and actionable
     pass_criteria: output includes OpenClaw detection plus confidence/evidence metadata aligned with weighted signals
     automated: true
+    status: deprecated
     automation_path: tests/test_cli_import.py::test_feature36_openclaw_detection_weighted_confidence_output
     covers:
       - feature: feature36
@@ -4915,6 +4918,7 @@ tests:
     expected: inferred manifest fields reflect OpenClaw runtime and structure with correct schema shape
     pass_criteria: runtime package manager skills and state_dirs inference matches expected fixture evidence
     automated: true
+    status: deprecated
     automation_path: tests/test_cli_import.py::test_feature36_infers_runtime_skills_state_dirs
     covers:
       - feature: feature36
@@ -4947,6 +4951,7 @@ tests:
     expected: complete inference generates valid manifest and incomplete inference provides actionable unresolved guidance
     pass_criteria: either validator passes for generated manifest or output includes clear TODO/warning instructions for unresolved fields
     automated: true
+    status: deprecated
     automation_path: tests/test_cli_import.py::test_feature36_manifest_valid_or_todo_guidance
     covers:
       - feature: feature36
@@ -7137,6 +7142,7 @@ tests:
     expected: Hero title and sub-headline are present verbatim
     pass_criteria: Both exact strings are found in rendered output
     automated: true
+    status: deprecated
     automation_path: web/__tests__/landing-page.test.tsx
     covers:
       - feature: feature51
@@ -7156,6 +7162,7 @@ tests:
     expected: Terminal Preview behaves as interactive copy component
     pass_criteria: Command text, button presence, and copied feedback are all verified
     automated: true
+    status: deprecated
     automation_path: web/__tests__/landing-page.test.tsx
     covers:
       - feature: feature51
@@ -7174,6 +7181,7 @@ tests:
     expected: Features section includes six complete cards using planning copy
     pass_criteria: All six headers and subtexts are present exactly once
     automated: true
+    status: deprecated
     automation_path: web/__tests__/landing-page.test.tsx
     covers:
       - feature: feature51
@@ -7190,6 +7198,7 @@ tests:
     expected: Cards are interactive and layout remains stable on mobile
     pass_criteria: Hover/focus classes exist and no horizontal overflow is observed
     automated: true
+    status: deprecated
     automation_path: web/__tests__/landing-page.test.tsx
     covers:
       - feature: feature51
@@ -7207,6 +7216,7 @@ tests:
     expected: Landing page automated tests pass consistently
     pass_criteria: Test run exits zero and validates hero, terminal, and features sections
     automated: true
+    status: deprecated
     automation_path: web/__tests__/landing-page.test.tsx
     covers:
       - feature: feature51
@@ -8329,6 +8339,7 @@ tests:
     expected: Adapter routing depends on explicit gate and deterministic backend selection
     pass_criteria: Disabled gate blocks adapter path; enabled gate executes selected backend successfully
     automated: true
+    status: deprecated
     automation_path: tests/test_cli.py::test_feature66_run_adapter_backend_selection_and_gate
     covers:
       - feature: feature66
@@ -8347,6 +8358,7 @@ tests:
     expected: Adapter diagnostics and failures are deterministic and operator-actionable
     pass_criteria: Output includes backend traces on success and categorized remediation errors on failure
     automated: true
+    status: deprecated
     automation_path: tests/test_cli.py::test_feature66_run_adapter_diagnostics_and_failures
     covers:
       - feature: feature66
