@@ -4378,6 +4378,72 @@ def test_feature82_logs_passthrough_follow_and_json(tmp_path):
     assert "logs --follow --json" in invocations
 
 
+def test_feature82_logs_preflight_and_error_guidance(tmp_path):
+    missing_cli_env = dict(os.environ)
+    missing_cli_env["PATH"] = ""
+
+    missing_cli_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "logs",
+            "--daemon",
+            "openclaw",
+        ],
+        capture_output=True,
+        text=True,
+        env=missing_cli_env,
+    )
+    missing_cli_output = f"{missing_cli_result.stdout}\n{missing_cli_result.stderr}"
+    assert missing_cli_result.returncode != 0
+    assert "category=openclaw_cli_missing" in missing_cli_output
+    assert "OpenClaw CLI not found in PATH" in missing_cli_output
+
+    fake_bin = tmp_path / "feature82-openclaw-logs-preflight-bin"
+    fake_bin.mkdir(parents=True, exist_ok=True)
+    openclaw_script = fake_bin / "openclaw"
+    openclaw_script.write_text(
+        "#!/bin/sh\n"
+        "if [ \"$1\" = \"--version\" ]; then\n"
+        "  echo openclaw 2026.3.31\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"gateway\" ] && [ \"$2\" = \"status\" ] && [ \"$3\" = \"--require-rpc\" ]; then\n"
+        "  echo rpc unavailable >&2\n"
+        "  exit 6\n"
+        "fi\n"
+        "if [ \"$1\" = \"logs\" ]; then\n"
+        "  echo logs body\n"
+        "  exit 0\n"
+        "fi\n"
+        "echo unsupported openclaw logs invocation >&2\n"
+        "exit 2\n",
+        encoding="utf-8",
+    )
+    openclaw_script.chmod(0o755)
+
+    gateway_down_env = dict(os.environ)
+    gateway_down_env["PATH"] = f"{fake_bin}{os.pathsep}{gateway_down_env.get('PATH', '')}"
+
+    gateway_down_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "logs",
+            "--daemon",
+            "openclaw",
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+        env=gateway_down_env,
+    )
+    gateway_down_output = f"{gateway_down_result.stdout}\n{gateway_down_result.stderr}"
+    assert gateway_down_result.returncode != 0
+    assert "category=openclaw_gateway_unhealthy" in gateway_down_output
+    assert "gateway RPC probe did not pass" in gateway_down_output
+
+
 def _make_feature66_fake_openclaw_cli(bin_dir: Path, *, version: str = "0.3.0") -> None:
     bin_dir.mkdir(parents=True, exist_ok=True)
     openclaw_script = bin_dir / "openclaw"
