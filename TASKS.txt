@@ -7398,7 +7398,7 @@ tasks:
       - 'step4: Add tests for delegation command shape and preflight-before-subprocess ordering'
     dependencies: [task363]
     tests: [test523]
-    status: not-started
+    status: needs-review
 
   - id: task365
     title: "Feature77 init manifest generation and operator summary"
