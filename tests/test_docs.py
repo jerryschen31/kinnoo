@@ -1,5 +1,6 @@
 from pathlib import Path
 import re
+import subprocess
 import sys
 
 import yaml
@@ -421,6 +422,32 @@ def test_feature62_openclaw_schema_docs_consistency() -> None:
             "Expected Feature62 docs YAML example to pass validation; "
             f"errors: {errors}; yaml block: {block}"
         )
+
+def test_feature85_deprecation_metadata_and_help_cleanup() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    features_text = (repo_root / "FEATURES.txt").read_text(encoding="utf-8")
+    readme_text = (repo_root / "README.md").read_text(encoding="utf-8")
+
+    for feature_id in ("feature62", "feature63", "feature64", "feature65", "feature66", "feature67"):
+        anchor = f"- id: {feature_id}"
+        assert anchor in features_text
+    assert "status: deprecated" in features_text
+    assert "replacements: feature76" in features_text
+
+    run_help = subprocess.run(
+        [sys.executable, str(repo_root / "src" / "kinnoo" / "cli.py"), "run", "--help"],
+        capture_output=True,
+        text=True,
+    )
+    run_help_output = f"{run_help.stdout}\n{run_help.stderr}"
+    assert run_help.returncode == 0, run_help_output
+    assert "--experimental-openclaw-adapter" not in run_help_output
+
+    assert "OpenClaw Bridge Deprecation and Migration (Feature85)" in readme_text
+    assert "kinnoo run <agent-dir> '<prompt>' [--thinking <level>] [--json]" in readme_text
+    assert "kinnoo logs --daemon openclaw [--follow] [--json]" in readme_text
+    assert "kinnoo install <agent-name> --openclaw-skill <owner/skill-or-url>" in readme_text
+    assert "kinnoo search --openclaw-skill <query> [--json]" in readme_text
 
 
 def test_feature68_workflow_contract_and_envs() -> None:

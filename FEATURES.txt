@@ -2121,6 +2121,7 @@ features:
       - id: AC4
         description: "Manifest schema reference docs include OpenClaw examples and migration guidance."
     notes:
+      - "Deprecated in favor of Phase 7 wrapper model; replacements: feature76, feature77, feature78, feature79, feature80, feature81, feature82, feature83, feature84."
       - "Schema-minimalism rule: do not add metadata fields unless they provide necessary runtime or trust information."
       - "`provenance` is required for mirrored/imported artifacts and optional for locally authored projects."
       - |
@@ -2174,7 +2175,7 @@ features:
         ```
     owner: techlead-agent
     dependencies: []
-    status: needs-review
+    status: deprecated
 
   - id: feature63
     title: "ClawHub mirror index with clawhub tenant ownership"
@@ -2191,9 +2192,11 @@ features:
         description: "Search and inspect surfaces clearly label mirrored artifacts as ClawHub-origin and include last-sync metadata."
       - id: AC4
         description: "Mirror ingestion is idempotent and supports upsert semantics for repeated sync runs."
+    notes:
+      - "Deprecated in favor of direct OpenClaw CLI wrapper flows in feature76-feature84 (no bridge mirror-first UX)."
     owner: techlead-agent
     dependencies: [feature62]
-    status: needs-review
+    status: deprecated
 
   - id: feature64
     title: "ClawHub import bridge"
@@ -2210,9 +2213,11 @@ features:
         description: "Import output includes dependency/config/environment requirement hints extracted from mirrored metadata."
       - id: AC4
         description: "Import report is saved locally with actionable unresolved guidance for missing runtime prerequisites."
+    notes:
+      - "Deprecated in favor of feature78 OpenClaw workspace import via CLI wrapper and registration reconciliation."
     owner: techlead-agent
     dependencies: [feature62, feature63]
-    status: needs-review
+    status: deprecated
 
   - id: feature65
     title: "Delegated OpenClaw install bridge"
@@ -2229,9 +2234,11 @@ features:
         description: "Kinnoo-side checks (manifest validation, security checks, trust diagnostics) still execute around delegated install flow."
       - id: AC4
         description: "Delegated install outcomes are captured in install diagnostics and trace outputs."
+    notes:
+      - "Deprecated in favor of feature80 extract + `openclaw agents add` registration wrapper flow."
     owner: techlead-agent
     dependencies: [feature62]
-    status: needs-review
+    status: deprecated
 
   - id: feature66
     title: "OpenClaw run adapter v1"
@@ -2248,9 +2255,11 @@ features:
         description: "Adapter is gated behind explicit experimental compatibility control to minimize accidental behavior changes."
       - id: AC4
         description: "Failure modes (missing backend, unsupported version, non-zero exit) are surfaced with deterministic actionable errors."
+    notes:
+      - "Deprecated in favor of feature81 OpenClaw run wrapper (`openclaw agent --agent ... --message ...`)."
     owner: techlead-agent
     dependencies: [feature65]
-    status: needs-review
+    status: deprecated
 
   - id: feature67
     title: "ClawHub sync command"
@@ -2267,9 +2276,11 @@ features:
         description: "Sync enforces rate-limit/polite-fetch behavior and handles unavailable upstream cases without corrupting local mirror state."
       - id: AC4
         description: "Sync diagnostics report created/updated/skipped counts and explicit failure categories."
+    notes:
+      - "Deprecated in favor of feature84 OpenClaw skill search wrapper and feature83 skill install wrapper pathways."
     owner: techlead-agent
     dependencies: [feature63]
-    status: needs-review
+    status: deprecated
 
   - id: feature68
     title: "GitHub Actions reference CI workflow"
@@ -2719,4 +2730,4 @@ features:
       - "Full removal of deprecated code is deferred to a future cleanup phase."
     owner: techlead-agent
     dependencies: [feature76, feature77, feature78, feature80, feature81]
-    status: not-started
+    status: in-progress

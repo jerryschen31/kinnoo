@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - Added CI environment/secrets contract documentation for `KINNOO_REGISTRY_URL`, `KINNOO_REGISTRY_TOKEN`, `KINNOO_TENANT_SLUG`, and strict-mode compatibility control.
 - Added docs consistency references for strict mode (`--strict`), lockfile freeze mode (`--frozen`), `kinnoo diff`, `kinnoo uninstall`, and framework import adapters (`kinnoo import --from ...`).
+- Deprecated OpenClaw bridge-era feature metadata (feature62-feature67) in favor of Phase 7 wrapper features (feature76-feature84) and added migration command guidance in README/help surfaces.
 
 ## [v0.30.0] - 2026-03-30
 ### Added

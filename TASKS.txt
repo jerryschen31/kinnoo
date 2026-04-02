@@ -7706,7 +7706,7 @@ tasks:
       - 'step4: Add tests validating help output no longer exposes deprecated usage strings'
     dependencies: [task363, task364, task366, task370, task372]
     tests: [test539]
-    status: not-started
+    status: needs-review
 
   - id: task381
     title: "Feature85 runtime deprecation warnings and non-breaking compatibility"
