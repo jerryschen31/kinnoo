@@ -7495,7 +7495,7 @@ tasks:
       - 'step4: Add Vitest fixture contract check for JS/TS-oriented workspace file expectations'
     dependencies: [task368]
     tests: [test528]
-    status: not-started
+    status: needs-review
 
   - id: task370
     title: "Feature80 OpenClaw install extract and register flow"
