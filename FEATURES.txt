@@ -2448,7 +2448,7 @@ features:
       meets version requirements (>= 2026.3.28), and optionally checks that the
       Gateway daemon is running and healthy. All OpenClaw-related kinnoo commands
       must call this preflight before proceeding.
-    tasks: []
+    tasks: [task362, task363]
     acceptance_criteria:
       - id: AC1
         description: "Preflight detects `openclaw` CLI on PATH and extracts its version with deterministic error when missing."
@@ -2476,7 +2476,7 @@ features:
       to `openclaw agents add <name> --workspace ~/.openclaw/workspace-<name>` and
       then generate a kinnoo.yaml manifest for the new workspace. Replaces the
       standalone scaffold approach from feature34 with proper CLI integration.
-    tasks: []
+    tasks: [task364, task365]
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo init --framework openclaw <name>` runs preflight, then delegates to `openclaw agents add <name> --workspace ~/.openclaw/workspace-<name>`."
@@ -2505,7 +2505,7 @@ features:
       from an existing OpenClaw workspace directory. If the workspace is not already
       under ~/.openclaw/, optionally copy it there and register it via
       `openclaw agents add`. Replaces the bridge import approach from feature36/64.
-    tasks: []
+    tasks: [task366, task367]
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo import <workspace-dir>` detects OpenClaw workspace structure (AGENTS.md, SOUL.md, .openclaw/ or openclaw.json signals) and generates kinnoo.yaml."
@@ -2534,7 +2534,7 @@ features:
       including OpenClaw-specific files (AGENTS.md, SOUL.md, TOOLS.md, USER.md,
       MEMORY.md, IDENTITY.md, BOOTSTRAP.md, HEARTBEAT.md, memory/, skills/) while
       excluding runtime artifacts (.git, .openclaw/, node_modules/).
-    tasks: []
+    tasks: [task368, task369]
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo pack` on an OpenClaw workspace includes identity files (AGENTS.md, SOUL.md, TOOLS.md, USER.md, MEMORY.md, IDENTITY.md, BOOTSTRAP.md, HEARTBEAT.md)."
@@ -2561,7 +2561,7 @@ features:
       extract to ~/.openclaw/workspace-<name>/, and register the agent via
       `openclaw agents add <name> --workspace <path>`. Replaces the delegated
       install bridge from feature65.
-    tasks: []
+    tasks: [task370, task371]
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo install` for framework: openclaw packages extracts to ~/.openclaw/workspace-<name>/ and runs `openclaw agents add <name> --workspace <path>`."
@@ -2589,7 +2589,7 @@ features:
       Rework `kinnoo run <name> '<prompt>'` for OpenClaw agents to delegate execution
       to `openclaw agent --agent <name> --message '<prompt>'` via the running Gateway.
       Replaces the experimental run adapter from feature66.
-    tasks: []
+    tasks: [task372, task373]
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo run <name> '<prompt>'` maps to `openclaw agent --agent <name> --message '<prompt>'` with stdout/stderr passthrough."
@@ -2617,7 +2617,7 @@ features:
       Add `kinnoo logs --daemon openclaw` (or `kinnoo logs --openclaw`) that delegates
       to `openclaw logs` to tail Gateway logs. Provides a unified kinnoo surface for
       viewing OpenClaw runtime logs without requiring users to know openclaw CLI commands.
-    tasks: []
+    tasks: [task374, task375]
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo logs --daemon openclaw` delegates to `openclaw logs` with stdout/stderr passthrough."
@@ -2642,7 +2642,7 @@ features:
       a ClawHub skill into an existing OpenClaw agent's workspace. If the agent is not
       registered with openclaw, prompt to install the agent first. The skill must exist
       on ClawHub.
-    tasks: []
+    tasks: [task376, task377]
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo install --openclaw-skill <slug> <agent>` delegates to `openclaw skills install <slug>` targeting the agent's workspace."
@@ -2670,7 +2670,7 @@ features:
       Add `kinnoo search --openclaw-skill <query>` to search for skills on ClawHub
       by delegating to `openclaw skills search <query>`. Provides discovery of
       available OpenClaw skills through the kinnoo CLI surface.
-    tasks: []
+    tasks: [task378, task379]
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo search --openclaw-skill <query>` delegates to `openclaw skills search <query>` with stdout passthrough."
@@ -2697,7 +2697,7 @@ features:
       command) as deprecated in favor of the Phase 7 CLI wrapper approach (features
       76-84). Remove or gate the --experimental-openclaw-adapter flag. Existing code
       paths should emit deprecation warnings pointing users to the new commands.
-    tasks: []
+    tasks: [task380, task381]
     acceptance_criteria:
       - id: AC1
         description: "Features 62-67 are marked deprecated in FEATURES.txt with pointers to their Phase 7 replacements."
