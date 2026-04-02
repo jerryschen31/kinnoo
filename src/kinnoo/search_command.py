@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import subprocess
+import sys
 from pathlib import Path
 
 from .config import load_registry_config
@@ -10,6 +12,39 @@ from .archive import LocalArchiveBackend
 from .registry import RegistryService
 from .registry_backends import MockFilesystemRegistryBackend
 from .remote_client import RemoteRegistryClient
+
+
+def search_openclaw_skills(*, query: str, json_output: bool = False) -> int:
+    query_text = query.strip()
+    if not query_text:
+        print("Error: Search query cannot be empty.")
+        return 1
+
+    command = ["openclaw", "skills", "search", query_text]
+    if json_output:
+        command.append("--json")
+
+    try:
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError as error:
+        print(
+            "Error: OpenClaw skill search invocation failed "
+            f"(category=openclaw_skill_search_invocation_failed): {error}",
+            file=sys.stderr,
+        )
+        return 1
+
+    if result.stdout:
+        print(result.stdout, end="")
+    if result.stderr:
+        print(result.stderr, end="", file=sys.stderr)
+
+    return int(result.returncode)
 
 
 def search_agents(query: str, source: str = "local") -> int:
