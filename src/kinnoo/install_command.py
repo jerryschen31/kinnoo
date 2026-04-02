@@ -48,6 +48,7 @@ try:
     from kinnoo.install_trace import write_install_trace
     from kinnoo.logging_utils import emit_violation_event_diagnostic
     from kinnoo.signing import verify_detached_signature_artifacts
+    from kinnoo.openclaw_preflight import run_openclaw_preflight_for_command
 except ImportError:
     from .checksum import (
         ChecksumParseError,
@@ -70,6 +71,7 @@ except ImportError:
     from .install_trace import write_install_trace
     from .logging_utils import emit_violation_event_diagnostic
     from .signing import verify_detached_signature_artifacts
+    from .openclaw_preflight import run_openclaw_preflight_for_command
 
 
 def _read_requirements(requirements_path: Path) -> list[str]:
@@ -687,13 +689,21 @@ def _write_openclaw_install_trace(
 def _install_openclaw_skill_dependencies(
     target_dir: Path,
     *,
+    agent_name: str,
     minimum_openclaw_version: str,
 ) -> int:
     precheck_ok, precheck_category, precheck_message = check_openclaw_cli_constraint(
         minimum_openclaw_version
     )
     print(f"[kinnoo install][openclaw] [{precheck_category}] {precheck_message}")
-    delegated_command = ["openclaw", "skills", "install", "."]
+    delegated_command = [
+        "openclaw",
+        "agents",
+        "add",
+        agent_name,
+        "--workspace",
+        str(target_dir),
+    ]
     if not precheck_ok:
         _write_openclaw_install_trace(
             target_dir=target_dir,
@@ -712,7 +722,7 @@ def _install_openclaw_skill_dependencies(
         return 1
 
     print(
-        "[kinnoo install][openclaw] Delegating dependency install to OpenClaw CLI: "
+        "[kinnoo install][openclaw] Delegating workspace registration to OpenClaw CLI: "
         f"{' '.join(delegated_command)}"
     )
     delegated_result = subprocess.run(
@@ -752,7 +762,7 @@ def _install_openclaw_skill_dependencies(
         decision_reason="openclaw_cli_delegated_install_succeeded",
         delegated_exit_code=0,
     )
-    print("[kinnoo install][openclaw] Delegated install completed successfully.")
+    print("[kinnoo install][openclaw] Workspace registration completed successfully.")
     return 0
 
 
@@ -1252,6 +1262,10 @@ def _install_from_archive_path(
 
     agent_name = str(manifest_data.get("name", "unknown"))
     agent_version = str(manifest_data.get("version", "unknown"))
+    manifest_type = "agent"
+    manifest_type_value = manifest_data.get("type")
+    if isinstance(manifest_type_value, str) and manifest_type_value.strip():
+        manifest_type = manifest_type_value.strip().lower()
 
     if frozen_mode:
         frozen_validation_exit_code = _enforce_frozen_install_lock(
@@ -1360,7 +1374,15 @@ def _install_from_archive_path(
             print("Install aborted by user.", file=sys.stderr)
             return 1
 
-    if target_dir_arg:
+    if manifest_type == "openclaw-skill":
+        preflight_result = run_openclaw_preflight_for_command("install")
+        if not preflight_result.ok:
+            print(f"Error: {preflight_result.message}", file=sys.stderr)
+            return 1
+
+    if manifest_type == "openclaw-skill":
+        target_dir = Path.home() / ".openclaw" / f"workspace-{agent_name}"
+    elif target_dir_arg:
         target_dir = Path(target_dir_arg).resolve()
     else:
         target_dir = archive.with_suffix("")
@@ -1422,14 +1444,10 @@ def _install_from_archive_path(
         shutil.rmtree(target_dir, ignore_errors=True)
         return restore_exit_code
 
-    manifest_type = "agent"
-    manifest_type_value = manifest_data.get("type")
-    if isinstance(manifest_type_value, str) and manifest_type_value.strip():
-        manifest_type = manifest_type_value.strip().lower()
-
     if manifest_type == "openclaw-skill":
         openclaw_exit_code = _install_openclaw_skill_dependencies(
             target_dir=target_dir,
+            agent_name=agent_name,
             minimum_openclaw_version=minimum_openclaw_version,
         )
         if openclaw_exit_code != 0:
