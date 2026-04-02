@@ -57,6 +57,11 @@ except ImportError:
     from .registry import RegistryService
     from .registry_backends import MockFilesystemRegistryBackend
 
+try:
+    from kinnoo.openclaw_preflight import run_openclaw_preflight_for_command
+except ImportError:
+    from .openclaw_preflight import run_openclaw_preflight_for_command
+
 
 DEFAULT_IMPORTED_MANIFEST = """name: imported-agent
 version: 1.0.0
@@ -135,6 +140,19 @@ def _resolve_import_target(target_path_arg: str | None) -> Path:
     if target_path_arg is None:
         return Path.cwd().resolve()
     return Path(target_path_arg).expanduser().resolve()
+
+
+def _is_openclaw_workspace_candidate(target_path: Path) -> bool:
+    if not target_path.exists() or not target_path.is_dir():
+        return False
+    strong_signals = [
+        target_path / "openclaw.json",
+        target_path / "AGENTS.md",
+        target_path / "SOUL.md",
+    ]
+    if any(path.exists() for path in strong_signals):
+        return True
+    return (target_path / "skills").is_dir() and (target_path / "memory").is_dir()
 
 
 def _build_manifest_text(target_path: Path) -> str:
@@ -1086,6 +1104,12 @@ def import_agent(
             "Use --force to explicitly override and overwrite."
         , color="red"))
         return 1
+
+    if _is_openclaw_workspace_candidate(target_path):
+        preflight_result = run_openclaw_preflight_for_command("import")
+        if not preflight_result.ok:
+            print(style_text(f"Error: {preflight_result.message}", color="red"))
+            return 1
 
     session = PromptSession()
     entrypoint_warning: str | None = None

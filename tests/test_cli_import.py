@@ -745,6 +745,88 @@ def test_feature64_clawhub_import_requirements_report(tmp_path):
     assert "- bin: gh" in inspect_output
 
 
+def _make_feature78_fake_openclaw_cli(bin_dir: Path, *, agent_list_json: str = "[]") -> Path:
+    script = bin_dir / "openclaw"
+    script.write_text(
+        "#!/bin/sh\n"
+        "if [ \"$1\" = \"--version\" ]; then\n"
+        "  echo 'openclaw 2026.3.31'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"agents\" ] && [ \"$2\" = \"list\" ]; then\n"
+        f"  echo '{agent_list_json}'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"agents\" ] && [ \"$2\" = \"add\" ]; then\n"
+        "  if [ -n \"$KINNOO_OPENCLAW_INVOCATION_LOG\" ]; then\n"
+        "    echo \"$*\" >> \"$KINNOO_OPENCLAW_INVOCATION_LOG\"\n"
+        "  fi\n"
+        "  exit 0\n"
+        "fi\n"
+        "echo unsupported command >&2\n"
+        "exit 2\n",
+        encoding="utf-8",
+    )
+    script.chmod(0o755)
+    return script
+
+
+def test_feature78_import_detection_manifest_and_error_paths(tmp_path):
+    fake_bin = tmp_path / "feature78-openclaw-bin"
+    fake_bin.mkdir(parents=True, exist_ok=True)
+    _make_feature78_fake_openclaw_cli(fake_bin, agent_list_json='[{"id":"feature78-openclaw"}]')
+
+    env = dict(os.environ)
+    env["PATH"] = f"{fake_bin}{os.pathsep}{env.get('PATH', '')}"
+    env["HOME"] = str(tmp_path)
+
+    workspace = tmp_path / ".openclaw" / "workspace-feature78-openclaw"
+    workspace.mkdir(parents=True, exist_ok=True)
+    (workspace / "openclaw.json").write_text("{}\n", encoding="utf-8")
+    (workspace / "package.json").write_text(
+        "{\n"
+        "  \"name\": \"feature78-openclaw\",\n"
+        "  \"version\": \"1.0.0\"\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    (workspace / "index.mjs").write_text("console.log('ok')\n", encoding="utf-8")
+
+    good_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(workspace)],
+        input="y\n",
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert good_result.returncode == 0, good_result.stdout + good_result.stderr
+    manifest_path = workspace / "kinnoo.yaml"
+    assert manifest_path.exists()
+    manifest_text = manifest_path.read_text(encoding="utf-8")
+    assert "framework: openclaw" in manifest_text
+    assert "language: nodejs" in manifest_text
+
+    missing_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(tmp_path / "does-not-exist")],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert missing_result.returncode != 0
+    assert "import target does not exist" in (missing_result.stdout + missing_result.stderr).lower()
+
+    file_target = tmp_path / "not-a-dir.txt"
+    file_target.write_text("x\n", encoding="utf-8")
+    file_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(file_target)],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert file_result.returncode != 0
+    assert "import target must be a directory" in (file_result.stdout + file_result.stderr).lower()
+
+
 def test_feature19_import_generates_requirements_via_uv_export(tmp_path):
     project_dir = tmp_path / "feature19-uv-export-requirements"
     project_dir.mkdir(parents=True, exist_ok=True)
