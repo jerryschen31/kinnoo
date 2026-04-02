@@ -1715,3 +1715,29 @@ User installed OpenClaw v2026.3.28, tested the CLI directly, and determined that
 - Feature34 scaffold approach superseded by feature77 (init via CLI)
 - Feature36 analysis logic is reusable — only scaffold output is deprecated
 - Full removal deferred to future cleanup phase
+
+### Phase 7 Manifest Planning Execution (2026-04-01)
+
+- Added task decomposition for feature76-feature85:
+  - `task362`-`task381` appended to `TASKS.txt`
+- Added test decomposition for feature76-feature85 with AC coverage:
+  - `test521`-`test540` appended to `TESTS.txt`
+- Updated feature task links in `FEATURES.txt`:
+  - feature76 -> `[task362, task363]`
+  - feature77 -> `[task364, task365]`
+  - feature78 -> `[task366, task367]`
+  - feature79 -> `[task368, task369]`
+  - feature80 -> `[task370, task371]`
+  - feature81 -> `[task372, task373]`
+  - feature82 -> `[task374, task375]`
+  - feature83 -> `[task376, task377]`
+  - feature84 -> `[task378, task379]`
+  - feature85 -> `[task380, task381]`
+- Created SWE handoff briefs:
+  - `notes/features/feature76-swe-handoff.md` through `notes/features/feature85-swe-handoff.md`
+- JS/TS testing note:
+  - Added Vitest automation path for JS/TS-specific workspace fixture contract in `test528`:
+    - `web/__tests__/openclaw-pack-fixtures.test.ts::it_preserves_openclaw_workspace_pack_contract`
+- Validation:
+  - `python src/validate_project_manifests.py` -> pass
+- Full `python -m pytest` run from repo root currently fails due unrelated workspace test-collection conflicts (example-scratch and server/mock-server module collisions); no failures tied to the manifest edits above.
