@@ -7667,7 +7667,7 @@ tasks:
       - 'step4: Add tests for delegation behavior and json passthrough contracts'
     dependencies: [task363]
     tests: [test537]
-    status: not-started
+    status: needs-review
 
   - id: task379
     title: "Feature84 search preflight and empty/error guidance"

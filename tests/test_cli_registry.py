@@ -408,6 +408,75 @@ def test_feature71_strict_publish_and_docs(tmp_path: Path) -> None:
 	assert "KINNOO_CI_STRICT_MODE" in combined_docs
 
 
+def test_feature84_skill_search_delegation_and_json_passthrough(tmp_path: Path) -> None:
+	fake_bin = tmp_path / "feature84-openclaw-search-bin"
+	fake_bin.mkdir(parents=True, exist_ok=True)
+	invocation_log = tmp_path / "feature84-openclaw-search.log"
+
+	openclaw_script = fake_bin / "openclaw"
+	openclaw_script.write_text(
+		"#!/bin/sh\n"
+		"if [ -n \"$KINNOO_TEST_OPENCLAW_SEARCH_LOG\" ]; then\n"
+		"  printf '%s\\n' \"$*\" >> \"$KINNOO_TEST_OPENCLAW_SEARCH_LOG\"\n"
+		"fi\n"
+		"if [ \"$1\" = \"skills\" ] && [ \"$2\" = \"search\" ]; then\n"
+		"  if [ \"$4\" = \"--json\" ]; then\n"
+		"    echo '[{\"slug\":\"owner/skill\"}]'\n"
+		"    exit 0\n"
+		"  fi\n"
+		"  echo owner/skill\n"
+		"  exit 0\n"
+		"fi\n"
+		"echo unsupported invocation >&2\n"
+		"exit 2\n",
+		encoding="utf-8",
+	)
+	openclaw_script.chmod(0o755)
+
+	env = {
+		**os.environ,
+		"PATH": f"{fake_bin}{os.pathsep}{os.environ.get('PATH', '')}",
+		"KINNOO_TEST_OPENCLAW_SEARCH_LOG": str(invocation_log),
+	}
+
+	default_result = subprocess.run(
+		[
+			sys.executable,
+			str(CLI_PATH),
+			"search",
+			"--openclaw-skill",
+			"weather",
+		],
+		capture_output=True,
+		text=True,
+		env=env,
+	)
+	default_output = f"{default_result.stdout}\n{default_result.stderr}"
+	assert default_result.returncode == 0, default_output
+	assert "owner/skill" in default_output
+
+	json_result = subprocess.run(
+		[
+			sys.executable,
+			str(CLI_PATH),
+			"search",
+			"--openclaw-skill",
+			"--json",
+			"weather",
+		],
+		capture_output=True,
+		text=True,
+		env=env,
+	)
+	json_output = f"{json_result.stdout}\n{json_result.stderr}"
+	assert json_result.returncode == 0, json_output
+	assert '[{"slug":"owner/skill"}]' in json_result.stdout
+
+	invocations = invocation_log.read_text(encoding="utf-8")
+	assert "skills search weather" in invocations
+	assert "skills search weather --json" in invocations
+
+
 class _AuthTokenTestServer:
 	def __init__(self, *, accepted_credentials: dict[tuple[str, str, str], str]) -> None:
 		self._accepted_credentials = accepted_credentials
