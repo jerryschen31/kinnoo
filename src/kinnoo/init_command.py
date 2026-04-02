@@ -5,6 +5,7 @@ Agent scaffolding logic for kinnoo init.
 import argparse
 import sys
 import os
+import subprocess
 from pathlib import Path
 from typing import Optional
 from kinnoo.templates import (
@@ -25,6 +26,11 @@ from kinnoo.templates import (
     OPENCLAW_SOUL_MD_TEMPLATE,
     OPENCLAW_README_TEMPLATE,
 )
+
+try:
+    from kinnoo.openclaw_preflight import run_openclaw_preflight_for_command
+except ImportError:
+    from .openclaw_preflight import run_openclaw_preflight_for_command
 
 SUPPORTED_FRAMEWORKS = [
     "gemini",
@@ -93,6 +99,28 @@ This is a Kinnoo agent scaffolded with `kinnoo init --language {language_flag}`.
 - See `kinnoo.yaml` for manifest fields.
 """
 
+
+def _build_openclaw_wrapper_manifest(name: str) -> str:
+    """Build schema-compatible OpenClaw wrapper manifest for delegated workspaces."""
+    return (
+        f"name: {name}\n"
+        "version: 0.1.0\n"
+        "description: \"OpenClaw workspace managed via kinnoo wrapper\"\n"
+        "author: \"TODO: Add author name\"\n"
+        "entrypoint: index.mjs\n"
+        "framework: openclaw\n"
+        "runtime:\n"
+        "  language: nodejs\n"
+        "  version: \">=20\"\n"
+        "  type: daemon\n"
+        "  package_manager: npm\n"
+        "dependencies: []\n"
+        "inputs:\n"
+        "  type: text\n"
+        "outputs:\n"
+        "  type: text\n"
+    )
+
 KNOWN_FRAMEWORK_DEFAULT_MODELS = {
     "gemini": "gemini-2.5-flash-lite",
     "chatgpt": "gpt-5-nano",
@@ -131,9 +159,47 @@ def init_agent(
     framework: Optional[str] = None,
     language: Optional[str] = None,
 ):
-    agent_dir = target_dir / name
-    if agent_dir.exists():
-        raise FileExistsError(f"Directory {agent_dir} already exists.")
+    if framework == "openclaw":
+        # Feature77: OpenClaw init delegates lifecycle registration to OpenClaw CLI.
+        # Workspace convention is explicit for deterministic install/import/run flows.
+        workspace_dir = Path.home() / ".openclaw" / f"workspace-{name}"
+        if workspace_dir.exists():
+            raise FileExistsError(f"Directory {workspace_dir} already exists.")
+
+        preflight_result = run_openclaw_preflight_for_command("init")
+        if not preflight_result.ok:
+            raise ValueError(preflight_result.message)
+
+        result = subprocess.run(
+            ["openclaw", "agents", "add", name, "--workspace", str(workspace_dir)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            detail = (result.stderr or result.stdout or "").strip()
+            suffix = f" ({detail})" if detail else ""
+            raise ValueError(
+                "OpenClaw agent registration failed: "
+                "`openclaw agents add` returned non-zero exit code"
+                f"{suffix}"
+            )
+
+        workspace_dir.mkdir(parents=True, exist_ok=True)
+        (workspace_dir / "kinnoo.yaml").write_text(
+            _build_openclaw_wrapper_manifest(name),
+            encoding="utf-8",
+        )
+
+        print("[kinnoo init][openclaw] registration complete")
+        print(f"[kinnoo init][openclaw] agent={name}")
+        print(f"[kinnoo init][openclaw] workspace={workspace_dir}")
+        print("[kinnoo init][openclaw] next: edit SOUL.md and configure your OpenClaw model/auth")
+        return
+    else:
+        agent_dir = target_dir / name
+        if agent_dir.exists():
+            raise FileExistsError(f"Directory {agent_dir} already exists.")
 
     normalized_language = _normalize_language(language)
     if language is not None and normalized_language is None:

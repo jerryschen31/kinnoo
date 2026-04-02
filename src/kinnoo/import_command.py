@@ -57,6 +57,11 @@ except ImportError:
     from .registry import RegistryService
     from .registry_backends import MockFilesystemRegistryBackend
 
+try:
+    from kinnoo.openclaw_preflight import run_openclaw_preflight_for_command
+except ImportError:
+    from .openclaw_preflight import run_openclaw_preflight_for_command
+
 
 DEFAULT_IMPORTED_MANIFEST = """name: imported-agent
 version: 1.0.0
@@ -135,6 +140,66 @@ def _resolve_import_target(target_path_arg: str | None) -> Path:
     if target_path_arg is None:
         return Path.cwd().resolve()
     return Path(target_path_arg).expanduser().resolve()
+
+
+def _is_openclaw_workspace_candidate(target_path: Path) -> bool:
+    if not target_path.exists() or not target_path.is_dir():
+        return False
+    strong_signals = [
+        target_path / "openclaw.json",
+        target_path / "AGENTS.md",
+        target_path / "SOUL.md",
+    ]
+    if any(path.exists() for path in strong_signals):
+        return True
+    return (target_path / "skills").is_dir() and (target_path / "memory").is_dir()
+
+
+def _openclaw_agent_id_from_workspace(workspace_path: Path) -> str:
+    name = workspace_path.name
+    if name.startswith("workspace-"):
+        name = name[len("workspace-") :]
+    return name or workspace_path.name
+
+
+def _register_openclaw_workspace(agent_id: str, workspace_path: Path) -> tuple[bool, str]:
+    result = subprocess.run(
+        ["openclaw", "agents", "add", agent_id, "--workspace", str(workspace_path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode == 0:
+        return True, ""
+    detail = (result.stderr or result.stdout or "").strip()
+    return False, detail or "openclaw agents add failed"
+
+
+def _openclaw_agent_registered(agent_id: str) -> tuple[bool, str | None]:
+    result = subprocess.run(
+        ["openclaw", "agents", "list"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "").strip()
+        return False, detail or "openclaw agents list failed"
+
+    try:
+        payload = json.loads(result.stdout.strip() or "[]")
+    except json.JSONDecodeError:
+        return False, "openclaw agents list produced non-JSON output"
+
+    if not isinstance(payload, list):
+        return False, "openclaw agents list JSON payload was not a list"
+
+    for item in payload:
+        if isinstance(item, dict) and str(item.get("id", "")) == agent_id:
+            return True, None
+        if isinstance(item, str) and item == agent_id:
+            return True, None
+    return False, None
 
 
 def _build_manifest_text(target_path: Path) -> str:
@@ -1086,6 +1151,58 @@ def import_agent(
             "Use --force to explicitly override and overwrite."
         , color="red"))
         return 1
+
+    if _is_openclaw_workspace_candidate(target_path):
+        preflight_result = run_openclaw_preflight_for_command("import")
+        if not preflight_result.ok:
+            print(style_text(f"Error: {preflight_result.message}", color="red"))
+            return 1
+
+        openclaw_home = Path.home() / ".openclaw"
+        openclaw_workspace_root = openclaw_home.resolve()
+        target_resolved = target_path.resolve()
+        in_openclaw_workspace = (
+            target_resolved.parent == openclaw_workspace_root
+            and target_resolved.name.startswith("workspace-")
+        )
+
+        if not in_openclaw_workspace:
+            session = PromptSession()
+            should_copy = _prompt_yes_no(
+                f"Copy OpenClaw workspace into {openclaw_workspace_root}? [Y/n]: ",
+                True,
+                session=session,
+            )
+            if not should_copy:
+                print(style_text("Error: import cancelled: external OpenClaw workspace was not copied", color="red"))
+                return 1
+
+            destination = openclaw_workspace_root / f"workspace-{target_path.name}"
+            if destination.exists():
+                print(style_text(f"Error: import target directory already exists: {destination}", color="red"))
+                return 1
+
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copytree(target_path, destination)
+            target_path = destination
+            manifest_path = target_path / "kinnoo.yaml"
+
+            copied_agent_id = _openclaw_agent_id_from_workspace(target_path)
+            registered, register_error = _register_openclaw_workspace(copied_agent_id, target_path)
+            if not registered:
+                print(style_text(f"Error: failed to register OpenClaw workspace: {register_error}", color="red"))
+                return 1
+        else:
+            agent_id = _openclaw_agent_id_from_workspace(target_path)
+            already_registered, registration_error = _openclaw_agent_registered(agent_id)
+            if registration_error is not None:
+                print(style_text(f"Error: failed to query OpenClaw registrations: {registration_error}", color="red"))
+                return 1
+            if not already_registered:
+                registered, register_error = _register_openclaw_workspace(agent_id, target_path)
+                if not registered:
+                    print(style_text(f"Error: failed to register OpenClaw workspace: {register_error}", color="red"))
+                    return 1
 
     session = PromptSession()
     entrypoint_warning: str | None = None

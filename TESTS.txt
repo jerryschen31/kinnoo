@@ -4769,6 +4769,7 @@ tests:
     expected: scaffold is runnable through kinnoo run under configured environment
     pass_criteria: run command exits successfully and emits deterministic non-empty output without template-level runtime failure
     automated: true
+    status: deprecated
     automation_path: tests/test_cli.py::test_feature34_openclaw_template_smoke_run
     covers:
       - feature: feature34
@@ -4801,6 +4802,7 @@ tests:
     expected: scaffold generation is template-driven deterministic and independent of external openclaw CLI
     pass_criteria: generation succeeds without openclaw binary and repeated runs produce deterministic scaffold outputs
     automated: true
+    status: deprecated
     automation_path: tests/test_init.py::test_feature34_scaffold_deterministic_without_openclaw_cli
     covers:
       - feature: feature34
@@ -4899,6 +4901,7 @@ tests:
     expected: import reports OpenClaw detection with confidence/evidence output that is deterministic and actionable
     pass_criteria: output includes OpenClaw detection plus confidence/evidence metadata aligned with weighted signals
     automated: true
+    status: deprecated
     automation_path: tests/test_cli_import.py::test_feature36_openclaw_detection_weighted_confidence_output
     covers:
       - feature: feature36
@@ -4915,6 +4918,7 @@ tests:
     expected: inferred manifest fields reflect OpenClaw runtime and structure with correct schema shape
     pass_criteria: runtime package manager skills and state_dirs inference matches expected fixture evidence
     automated: true
+    status: deprecated
     automation_path: tests/test_cli_import.py::test_feature36_infers_runtime_skills_state_dirs
     covers:
       - feature: feature36
@@ -4947,6 +4951,7 @@ tests:
     expected: complete inference generates valid manifest and incomplete inference provides actionable unresolved guidance
     pass_criteria: either validator passes for generated manifest or output includes clear TODO/warning instructions for unresolved fields
     automated: true
+    status: deprecated
     automation_path: tests/test_cli_import.py::test_feature36_manifest_valid_or_todo_guidance
     covers:
       - feature: feature36
@@ -7137,6 +7142,7 @@ tests:
     expected: Hero title and sub-headline are present verbatim
     pass_criteria: Both exact strings are found in rendered output
     automated: true
+    status: deprecated
     automation_path: web/__tests__/landing-page.test.tsx
     covers:
       - feature: feature51
@@ -7156,6 +7162,7 @@ tests:
     expected: Terminal Preview behaves as interactive copy component
     pass_criteria: Command text, button presence, and copied feedback are all verified
     automated: true
+    status: deprecated
     automation_path: web/__tests__/landing-page.test.tsx
     covers:
       - feature: feature51
@@ -7174,6 +7181,7 @@ tests:
     expected: Features section includes six complete cards using planning copy
     pass_criteria: All six headers and subtexts are present exactly once
     automated: true
+    status: deprecated
     automation_path: web/__tests__/landing-page.test.tsx
     covers:
       - feature: feature51
@@ -7190,6 +7198,7 @@ tests:
     expected: Cards are interactive and layout remains stable on mobile
     pass_criteria: Hover/focus classes exist and no horizontal overflow is observed
     automated: true
+    status: deprecated
     automation_path: web/__tests__/landing-page.test.tsx
     covers:
       - feature: feature51
@@ -7207,6 +7216,7 @@ tests:
     expected: Landing page automated tests pass consistently
     pass_criteria: Test run exits zero and validates hero, terminal, and features sections
     automated: true
+    status: deprecated
     automation_path: web/__tests__/landing-page.test.tsx
     covers:
       - feature: feature51
@@ -8329,6 +8339,7 @@ tests:
     expected: Adapter routing depends on explicit gate and deterministic backend selection
     pass_criteria: Disabled gate blocks adapter path; enabled gate executes selected backend successfully
     automated: true
+    status: deprecated
     automation_path: tests/test_cli.py::test_feature66_run_adapter_backend_selection_and_gate
     covers:
       - feature: feature66
@@ -8347,6 +8358,7 @@ tests:
     expected: Adapter diagnostics and failures are deterministic and operator-actionable
     pass_criteria: Output includes backend traces on success and categorized remediation errors on failure
     automated: true
+    status: deprecated
     automation_path: tests/test_cli.py::test_feature66_run_adapter_diagnostics_and_failures
     covers:
       - feature: feature66
@@ -8677,3 +8689,381 @@ tests:
     covers:
       - feature: feature75
         ac: AC4
+
+  - id: test521
+    title: "OpenClaw preflight detects CLI presence and enforces minimum version"
+    type: integration
+    preconditions: OpenClaw preflight module implemented with subprocess probing
+    steps:
+      - step1: Run OpenClaw preflight when `openclaw` is absent from PATH
+      - step2: Run preflight with mocked version below 2026.3.28
+      - step3: Run preflight with valid 2026.3.28+ version strings including suffix variants
+    expected: Missing/old versions fail deterministically and supported versions pass
+    pass_criteria: Errors include actionable guidance and valid versions are accepted across supported date-version formats
+    automated: true
+    automation_path: tests/test_cli_openclaw_preflight.py::test_feature76_cli_detection_version_gate
+    covers:
+      - feature: feature76
+        ac: AC1
+      - feature: feature76
+        ac: AC2
+      - feature: feature76
+        ac: AC5
+
+  - id: test522
+    title: "OpenClaw preflight reuses shared module and applies gateway checks conditionally"
+    type: integration
+    preconditions: Command handlers are wired to shared OpenClaw preflight helper
+    steps:
+      - step1: Run init/import/install OpenClaw flows with gateway down and confirm command proceeds past preflight
+      - step2: Run run/logs/skill OpenClaw flows with gateway down and confirm gateway health failure
+      - step3: Verify commands call a single shared preflight code path
+    expected: Gateway probe is enforced only for runtime commands and shared preflight is reused
+    pass_criteria: Command-specific preflight mode behavior matches design and no duplicate preflight implementations are invoked
+    automated: true
+    automation_path: tests/test_cli_openclaw_preflight.py::test_feature76_preflight_reuse_and_gateway_modes
+    covers:
+      - feature: feature76
+        ac: AC3
+      - feature: feature76
+        ac: AC4
+
+  - id: test523
+    title: "OpenClaw init delegates to agents add and rejects existing workspace"
+    type: integration
+    preconditions: OpenClaw init wrapper implemented in kinnoo init
+    steps:
+      - step1: Run `kinnoo init --framework openclaw foo` and capture delegated subprocess args
+      - step2: Verify preflight executes before subprocess invocation
+      - step3: Re-run with pre-existing ~/.openclaw/workspace-foo and verify deterministic conflict error
+    expected: Init delegates correctly and existing workspace is never overwritten
+    pass_criteria: Delegation command shape and preflight ordering are correct and conflict path emits actionable remediation
+    automated: true
+    automation_path: tests/test_init.py::test_feature77_init_delegation_and_existing_workspace_guard
+    covers:
+      - feature: feature77
+        ac: AC1
+      - feature: feature77
+        ac: AC3
+      - feature: feature77
+        ac: AC4
+
+  - id: test524
+    title: "OpenClaw init writes valid kinnoo manifest and summary"
+    type: integration
+    preconditions: OpenClaw init manifest writer is implemented
+    steps:
+      - step1: Initialize a new OpenClaw agent workspace through kinnoo init
+      - step2: Validate generated kinnoo.yaml fields for framework/runtime/workspace metadata
+      - step3: Verify output summary includes agent name workspace path and next-step guidance
+    expected: Newly initialized OpenClaw workspace has valid manifest and clear operator guidance
+    pass_criteria: Manifest validates successfully and summary output contains deterministic expected sections
+    automated: true
+    automation_path: tests/test_init.py::test_feature77_init_manifest_and_summary
+    covers:
+      - feature: feature77
+        ac: AC2
+      - feature: feature77
+        ac: AC5
+
+  - id: test525
+    title: "OpenClaw import detects workspace and generates manifest with deterministic errors"
+    type: integration
+    preconditions: OpenClaw import detection and manifest generation path implemented
+    steps:
+      - step1: Run `kinnoo import <workspace-dir>` against valid OpenClaw fixture and inspect inferred manifest
+      - step2: Run import for missing directory and non-OpenClaw directory cases
+      - step3: Validate inferred runtime/framework/workspace fields in generated kinnoo.yaml
+    expected: Import detects valid OpenClaw workspaces and fails deterministically on invalid sources
+    pass_criteria: Valid fixture imports succeed with correct manifest fields and invalid fixtures return actionable diagnostics
+    automated: true
+    automation_path: tests/test_cli_import.py::test_feature78_import_detection_manifest_and_error_paths
+    covers:
+      - feature: feature78
+        ac: AC1
+      - feature: feature78
+        ac: AC4
+      - feature: feature78
+        ac: AC5
+
+  - id: test526
+    title: "OpenClaw import handles external copy flow and in-place registration"
+    type: integration
+    preconditions: Import copy/register workflow implemented
+    steps:
+      - step1: Import OpenClaw workspace outside ~/.openclaw and accept copy/register prompt
+      - step2: Verify registration uses `openclaw agents add` after copy
+      - step3: Import workspace inside ~/.openclaw with missing agent registration and verify add-on-missing behavior
+    expected: External workspaces can be copied+registered and in-place workspaces can self-heal missing registration
+    pass_criteria: Copy/register and in-place registration flows run deterministically with expected operator prompts
+    automated: true
+    automation_path: tests/test_cli_import.py::test_feature78_copy_and_registration_flows
+    covers:
+      - feature: feature78
+        ac: AC2
+      - feature: feature78
+        ac: AC3
+
+  - id: test527
+    title: "OpenClaw pack includes identity files memory and skills"
+    type: integration
+    preconditions: OpenClaw-specific include rules implemented in pack command
+    steps:
+      - step1: Pack OpenClaw workspace fixture containing identity files memory/ and skills/
+      - step2: Inspect resulting archive members
+      - step3: Verify optional identity file omissions do not fail pack
+    expected: Required OpenClaw identity/workspace content is present in archive deterministically
+    pass_criteria: Archive contains all required include paths in deterministic order and pack succeeds with optional-file omissions
+    automated: true
+    automation_path: tests/test_pack.py::test_feature79_openclaw_pack_include_contract
+    covers:
+      - feature: feature79
+        ac: AC1
+      - feature: feature79
+        ac: AC2
+
+  - id: test528
+    title: "OpenClaw pack excludes runtime artifacts and preserves installable contract"
+    type: integration
+    preconditions: OpenClaw pack exclude rules and roundtrip fixture checks implemented
+    steps:
+      - step1: Pack workspace fixture containing .git/.openclaw/node_modules artifacts
+      - step2: Verify excluded artifacts are absent and size reporting remains deterministic
+      - step3: Validate fixture contract via Vitest for JS/TS-oriented workspace expectations
+    expected: Runtime artifacts are excluded while archive remains stable and installable
+    pass_criteria: Exclude set is enforced size output is deterministic and Vitest fixture contract passes
+    automated: true
+    automation_path: web/__tests__/openclaw-pack-fixtures.test.ts::it_preserves_openclaw_workspace_pack_contract
+    covers:
+      - feature: feature79
+        ac: AC3
+      - feature: feature79
+        ac: AC4
+      - feature: feature79
+        ac: AC5
+
+  - id: test529
+    title: "OpenClaw install extracts to workspace-name path and registers agent"
+    type: integration
+    preconditions: OpenClaw install wrapper path implemented
+    steps:
+      - step1: Install an OpenClaw package with valid manifest name
+      - step2: Verify extraction target is ~/.openclaw/workspace-<name>
+      - step3: Verify `openclaw agents add <name> --workspace <path>` delegation and preflight execution
+    expected: Install performs deterministic extract+register flow with required preflight
+    pass_criteria: Extraction path and delegated command shape match contract and preflight gates execution
+    automated: true
+    automation_path: tests/test_install.py::test_feature80_install_extract_and_register
+    covers:
+      - feature: feature80
+        ac: AC1
+      - feature: feature80
+        ac: AC3
+
+  - id: test530
+    title: "OpenClaw install reports conflicts and keeps validation+trace coverage"
+    type: integration
+    preconditions: OpenClaw install diagnostics and validation ordering implemented
+    steps:
+      - step1: Attempt install when target workspace already exists
+      - step2: Verify manifest/security validation occurs before openclaw delegation on install attempts
+      - step3: Inspect install diagnostics/trace outputs for delegated outcome details
+    expected: Conflict handling is deterministic and kinnoo trust checks remain in front of delegation
+    pass_criteria: Existing-workspace path yields actionable diagnostics and traces capture delegated outcomes with validation order preserved
+    automated: true
+    automation_path: tests/test_install.py::test_feature80_conflict_validation_and_trace_contract
+    covers:
+      - feature: feature80
+        ac: AC2
+      - feature: feature80
+        ac: AC4
+      - feature: feature80
+        ac: AC5
+
+  - id: test531
+    title: "OpenClaw run maps prompt and thinking flags and propagates exit codes"
+    type: integration
+    preconditions: OpenClaw run wrapper command implemented
+    steps:
+      - step1: Run `kinnoo run foo "prompt"` and verify delegated openclaw agent command
+      - step2: Run with `--thinking high` and verify passthrough
+      - step3: Force non-zero openclaw exit and verify deterministic kinnoo diagnostics
+    expected: Run wrapper preserves invocation and exit semantics end-to-end
+    pass_criteria: Delegation args are correct and non-zero exits propagate with actionable guidance
+    automated: true
+    automation_path: tests/test_cli.py::test_feature81_run_mapping_thinking_and_exit_propagation
+    covers:
+      - feature: feature81
+        ac: AC1
+      - feature: feature81
+        ac: AC4
+      - feature: feature81
+        ac: AC5
+
+  - id: test532
+    title: "OpenClaw run enforces gateway preflight and supports json output mode"
+    type: integration
+    preconditions: Gateway-aware run preflight and json output passthrough implemented
+    steps:
+      - step1: Run OpenClaw run with gateway unavailable and verify preflight rejection
+      - step2: Run default text prompt flow and verify text input remains default UX
+      - step3: Run with `--json` and verify machine-readable output passthrough without JSON input mode
+    expected: Run requires healthy gateway and supports json output while preserving text-default input behavior
+    pass_criteria: Gateway-down path fails preflight deterministically and json mode output matches delegated OpenClaw responses
+    automated: true
+    automation_path: tests/test_cli.py::test_feature81_gateway_preflight_and_json_output_passthrough
+    covers:
+      - feature: feature81
+        ac: AC2
+      - feature: feature81
+        ac: AC3
+
+  - id: test533
+    title: "OpenClaw logs wrapper delegates with follow/json passthrough"
+    type: integration
+    preconditions: "`kinnoo logs --daemon openclaw` command path implemented"
+    steps:
+      - step1: Run `kinnoo logs --daemon openclaw` and capture delegated command
+      - step2: Run with `--follow` and verify passthrough
+      - step3: Run with `--json` and verify passthrough
+    expected: Logs wrapper is a thin deterministic passthrough for OpenClaw logs command
+    pass_criteria: Delegated command shape and flags match expected mapping with unchanged stream output behavior
+    automated: true
+    automation_path: tests/test_cli.py::test_feature82_logs_passthrough_follow_and_json
+    covers:
+      - feature: feature82
+        ac: AC1
+      - feature: feature82
+        ac: AC2
+      - feature: feature82
+        ac: AC4
+
+  - id: test534
+    title: "OpenClaw logs wrapper enforces preflight and returns actionable errors"
+    type: integration
+    preconditions: Logs preflight and deterministic error messaging implemented
+    steps:
+      - step1: Run logs wrapper with missing openclaw CLI
+      - step2: Run logs wrapper with gateway RPC unavailable
+      - step3: Validate remediation guidance formatting in default and json modes
+    expected: Logs command fails early with deterministic actionable diagnostics when prerequisites are missing
+    pass_criteria: Error classes/messages are stable and include remediation paths for CLI and gateway failures
+    automated: true
+    automation_path: tests/test_cli.py::test_feature82_logs_preflight_and_error_guidance
+    covers:
+      - feature: feature82
+        ac: AC3
+
+  - id: test535
+    title: "OpenClaw skill install delegates for existing agent and accepts slug/url"
+    type: integration
+    preconditions: "`kinnoo install --openclaw-skill` path implemented with agent resolution"
+    steps:
+      - step1: Run skill install for existing agent with slug input
+      - step2: Run skill install for existing agent with URL input
+      - step3: Verify delegated OpenClaw skill command and target workspace resolution
+    expected: Skill install works for slug and URL identifiers when agent exists
+    pass_criteria: Delegation command is correct and both identifier forms normalize to valid install requests
+    automated: true
+    automation_path: tests/test_cli_install.py::test_feature83_skill_install_existing_agent_slug_and_url
+    covers:
+      - feature: feature83
+        ac: AC1
+      - feature: feature83
+        ac: AC4
+
+  - id: test536
+    title: "OpenClaw skill install reports missing-agent and deterministic outcome states"
+    type: integration
+    preconditions: Skill install preflight and diagnostics implemented
+    steps:
+      - step1: Run skill install for non-registered agent and verify install-agent-first guidance
+      - step2: Verify gateway-aware preflight behavior for skill install flow
+      - step3: Validate success/already-installed/not-found outcome messages
+    expected: Missing-agent and outcome diagnostics are explicit deterministic and actionable
+    pass_criteria: Skill install surfaces correct remediation and stable outcome classification across result variants
+    automated: true
+    automation_path: tests/test_cli_install.py::test_feature83_missing_agent_preflight_and_outcome_diagnostics
+    covers:
+      - feature: feature83
+        ac: AC2
+      - feature: feature83
+        ac: AC3
+      - feature: feature83
+        ac: AC5
+
+  - id: test537
+    title: "OpenClaw skill search delegates and supports json passthrough"
+    type: integration
+    preconditions: "`kinnoo search --openclaw-skill` wrapper implemented"
+    steps:
+      - step1: Run skill search query through kinnoo and capture delegated command
+      - step2: Run with `--json` and verify machine-readable passthrough behavior
+      - step3: Confirm stable output contract for successful search responses
+    expected: Search command remains a deterministic wrapper over OpenClaw skill search
+    pass_criteria: Delegation arguments and json passthrough behavior match command contract
+    automated: true
+    automation_path: tests/test_cli_registry.py::test_feature84_skill_search_delegation_and_json_passthrough
+    covers:
+      - feature: feature84
+        ac: AC1
+      - feature: feature84
+        ac: AC4
+
+  - id: test538
+    title: "OpenClaw skill search preflight and no-result/error guidance"
+    type: integration
+    preconditions: Search preflight and deterministic guidance paths implemented
+    steps:
+      - step1: Run search with missing openclaw CLI and verify preflight failure messaging
+      - step2: Run search returning zero results and validate operator guidance
+      - step3: Run upstream failure scenario and validate actionable diagnostics
+    expected: Search command emits deterministic guidance for missing prerequisites and empty/error responses
+    pass_criteria: Preflight failures and empty/error outputs are stable and actionable in default and json modes
+    automated: true
+    automation_path: tests/test_cli_registry.py::test_feature84_skill_search_preflight_empty_and_error_guidance
+    covers:
+      - feature: feature84
+        ac: AC2
+      - feature: feature84
+        ac: AC3
+
+  - id: test539
+    title: "Bridge feature metadata is deprecated and help text migrates users"
+    type: integration
+    preconditions: Deprecation metadata/help text updates implemented
+    steps:
+      - step1: Validate feature62-feature67 entries are marked deprecated with replacement pointers
+      - step2: Run CLI help outputs touching bridge flows and verify stale usage text is removed
+      - step3: Verify migration guidance points to feature76-feature84 commands
+    expected: Deprecation metadata and help surfaces are consistent and migration-oriented
+    pass_criteria: Manifest and help output checks confirm deprecation metadata replacement mapping and stale-help removal
+    automated: true
+    automation_path: tests/test_docs.py::test_feature85_deprecation_metadata_and_help_cleanup
+    covers:
+      - feature: feature85
+        ac: AC1
+      - feature: feature85
+        ac: AC3
+      - feature: feature85
+        ac: AC6
+
+  - id: test540
+    title: "Deprecated bridge paths warn but remain non-breaking"
+    type: integration
+    preconditions: Runtime deprecation warnings implemented for legacy OpenClaw bridge paths
+    steps:
+      - step1: Execute legacy bridge-era command paths and capture warning output
+      - step2: Verify legacy behavior still executes successfully where previously supported
+      - step3: Verify legacy tests are annotated as deprecated-path coverage
+    expected: Legacy paths remain operational while clearly warning and guiding migration
+    pass_criteria: Warning strings are deterministic old behavior remains functional and deprecated coverage annotations are present
+    automated: true
+    automation_path: tests/test_cli_registry_modes.py::test_feature85_deprecated_paths_warn_and_remain_compatible
+    covers:
+      - feature: feature85
+        ac: AC2
+      - feature: feature85
+        ac: AC4
+      - feature: feature85
+        ac: AC5

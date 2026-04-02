@@ -11,6 +11,13 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - Added CI environment/secrets contract documentation for `KINNOO_REGISTRY_URL`, `KINNOO_REGISTRY_TOKEN`, `KINNOO_TENANT_SLUG`, and strict-mode compatibility control.
 - Added docs consistency references for strict mode (`--strict`), lockfile freeze mode (`--frozen`), `kinnoo diff`, `kinnoo uninstall`, and framework import adapters (`kinnoo import --from ...`).
+- Deprecated OpenClaw bridge-era feature metadata (feature62-feature67) in favor of Phase 7 wrapper features (feature76-feature84) and added migration command guidance in README/help surfaces.
+- Deprecated legacy CLI import regression tests that no longer match wrapper-era OpenClaw import behavior:
+  - `tests/test_cli_import.py::test_feature36_openclaw_detection_weighted_confidence_output`
+  - `tests/test_cli_import.py::test_feature36_infers_runtime_skills_state_dirs`
+  - `tests/test_cli_import.py::test_feature36_manifest_valid_or_todo_guidance`
+  - `tests/test_cli_import.py::test_feature62_import_openclaw_manifest_migration_guidance`
+- Bumped project version from `0.29.0` to `0.30.0` after Phase 7 final review closure.
 
 ## [v0.30.0] - 2026-03-30
 ### Added

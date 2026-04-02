@@ -408,6 +408,189 @@ def test_feature71_strict_publish_and_docs(tmp_path: Path) -> None:
 	assert "KINNOO_CI_STRICT_MODE" in combined_docs
 
 
+def test_feature84_skill_search_delegation_and_json_passthrough(tmp_path: Path) -> None:
+	fake_bin = tmp_path / "feature84-openclaw-search-bin"
+	fake_bin.mkdir(parents=True, exist_ok=True)
+	invocation_log = tmp_path / "feature84-openclaw-search.log"
+
+	openclaw_script = fake_bin / "openclaw"
+	openclaw_script.write_text(
+		"#!/bin/sh\n"
+		"if [ -n \"$KINNOO_TEST_OPENCLAW_SEARCH_LOG\" ]; then\n"
+		"  printf '%s\\n' \"$*\" >> \"$KINNOO_TEST_OPENCLAW_SEARCH_LOG\"\n"
+		"fi\n"
+		"if [ \"$1\" = \"--version\" ]; then\n"
+		"  echo openclaw 2026.3.31\n"
+		"  exit 0\n"
+		"fi\n"
+		"if [ \"$1\" = \"gateway\" ] && [ \"$2\" = \"status\" ] && [ \"$3\" = \"--require-rpc\" ]; then\n"
+		"  echo gateway healthy\n"
+		"  exit 0\n"
+		"fi\n"
+		"if [ \"$1\" = \"skills\" ] && [ \"$2\" = \"search\" ]; then\n"
+		"  if [ \"$4\" = \"--json\" ]; then\n"
+		"    echo '[{\"slug\":\"owner/skill\"}]'\n"
+		"    exit 0\n"
+		"  fi\n"
+		"  echo owner/skill\n"
+		"  exit 0\n"
+		"fi\n"
+		"echo unsupported invocation >&2\n"
+		"exit 2\n",
+		encoding="utf-8",
+	)
+	openclaw_script.chmod(0o755)
+
+	env = {
+		**os.environ,
+		"PATH": f"{fake_bin}{os.pathsep}{os.environ.get('PATH', '')}",
+		"KINNOO_TEST_OPENCLAW_SEARCH_LOG": str(invocation_log),
+	}
+
+	default_result = subprocess.run(
+		[
+			sys.executable,
+			str(CLI_PATH),
+			"search",
+			"--openclaw-skill",
+			"weather",
+		],
+		capture_output=True,
+		text=True,
+		env=env,
+	)
+	default_output = f"{default_result.stdout}\n{default_result.stderr}"
+	assert default_result.returncode == 0, default_output
+	assert "owner/skill" in default_output
+
+	json_result = subprocess.run(
+		[
+			sys.executable,
+			str(CLI_PATH),
+			"search",
+			"--openclaw-skill",
+			"--json",
+			"weather",
+		],
+		capture_output=True,
+		text=True,
+		env=env,
+	)
+	json_output = f"{json_result.stdout}\n{json_result.stderr}"
+	assert json_result.returncode == 0, json_output
+	assert '[{"slug":"owner/skill"}]' in json_result.stdout
+
+	invocations = invocation_log.read_text(encoding="utf-8")
+	assert "skills search weather" in invocations
+	assert "skills search weather --json" in invocations
+
+
+def test_feature84_skill_search_preflight_empty_and_error_guidance(tmp_path: Path) -> None:
+	missing_cli_env = {**os.environ, "PATH": ""}
+	missing_cli_result = subprocess.run(
+		[
+			sys.executable,
+			str(CLI_PATH),
+			"search",
+			"--openclaw-skill",
+			"weather",
+		],
+		capture_output=True,
+		text=True,
+		env=missing_cli_env,
+	)
+	missing_cli_output = f"{missing_cli_result.stdout}\n{missing_cli_result.stderr}"
+	assert missing_cli_result.returncode != 0
+	assert "category=openclaw_cli_missing" in missing_cli_output
+
+	fake_bin = tmp_path / "feature84-openclaw-guidance-bin"
+	fake_bin.mkdir(parents=True, exist_ok=True)
+	openclaw_script = fake_bin / "openclaw"
+	openclaw_script.write_text(
+		"#!/bin/sh\n"
+		"if [ \"$1\" = \"--version\" ]; then\n"
+		"  echo openclaw 2026.3.31\n"
+		"  exit 0\n"
+		"fi\n"
+		"if [ \"$1\" = \"gateway\" ] && [ \"$2\" = \"status\" ] && [ \"$3\" = \"--require-rpc\" ]; then\n"
+		"  echo gateway healthy\n"
+		"  exit 0\n"
+		"fi\n"
+		"if [ \"$1\" = \"skills\" ] && [ \"$2\" = \"search\" ]; then\n"
+		"  if [ \"$KINNOO_TEST_OPENCLAW_SEARCH_MODE\" = \"empty\" ]; then\n"
+		"    echo '[]'\n"
+		"    exit 0\n"
+		"  fi\n"
+		"  if [ \"$KINNOO_TEST_OPENCLAW_SEARCH_MODE\" = \"error\" ]; then\n"
+		"    echo upstream search failed >&2\n"
+		"    exit 4\n"
+		"  fi\n"
+		"  echo '[{\"slug\":\"owner/skill\"}]'\n"
+		"  exit 0\n"
+		"fi\n"
+		"echo unsupported invocation >&2\n"
+		"exit 2\n",
+		encoding="utf-8",
+	)
+	openclaw_script.chmod(0o755)
+
+	empty_env = {
+		**os.environ,
+		"PATH": f"{fake_bin}{os.pathsep}{os.environ.get('PATH', '')}",
+		"KINNOO_TEST_OPENCLAW_SEARCH_MODE": "empty",
+	}
+	empty_result = subprocess.run(
+		[
+			sys.executable,
+			str(CLI_PATH),
+			"search",
+			"--openclaw-skill",
+			"weather",
+		],
+		capture_output=True,
+		text=True,
+		env=empty_env,
+	)
+	empty_output = f"{empty_result.stdout}\n{empty_result.stderr}"
+	assert empty_result.returncode == 0, empty_output
+	assert "No OpenClaw skill results found for query: weather" in empty_output
+
+	empty_json_result = subprocess.run(
+		[
+			sys.executable,
+			str(CLI_PATH),
+			"search",
+			"--openclaw-skill",
+			"--json",
+			"weather",
+		],
+		capture_output=True,
+		text=True,
+		env=empty_env,
+	)
+	empty_json_output = f"{empty_json_result.stdout}\n{empty_json_result.stderr}"
+	assert empty_json_result.returncode == 0, empty_json_output
+	assert "[]" in empty_json_result.stdout
+
+	error_env = dict(empty_env)
+	error_env["KINNOO_TEST_OPENCLAW_SEARCH_MODE"] = "error"
+	error_result = subprocess.run(
+		[
+			sys.executable,
+			str(CLI_PATH),
+			"search",
+			"--openclaw-skill",
+			"weather",
+		],
+		capture_output=True,
+		text=True,
+		env=error_env,
+	)
+	error_output = f"{error_result.stdout}\n{error_result.stderr}"
+	assert error_result.returncode != 0
+	assert "category=openclaw_skill_search_nonzero_exit" in error_output
+
+
 class _AuthTokenTestServer:
 	def __init__(self, *, accepted_credentials: dict[tuple[str, str, str], str]) -> None:
 		self._accepted_credentials = accepted_credentials

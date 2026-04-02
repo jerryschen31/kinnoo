@@ -22,12 +22,23 @@ except ImportError:
 RUN_USAGE_TEXT = (
     "Usage: kinnoo run <agent-dir> '<input>'\n"
     "       kinnoo run <agent-dir>\n"
+    "       kinnoo run <agent-dir> '<input>' --thinking <low|medium|high>\n"
+    "       kinnoo run <agent-dir> '<input>' --json\n"
     "       kinnoo run <agent-dir> --json-input '<json>'\n"
     "       kinnoo run <agent-dir> --json-file <json-file>\n"
     "       kinnoo run <agent-dir> -- <args...>"
 )
 
 IMPORT_USAGE_TEXT = "Usage: kinnoo import [path]"
+
+
+def _emit_bridge_path_deprecation_warning(*, path: str, replacement: str) -> None:
+    print(
+        "[kinnoo deprecation] category=openclaw_bridge_path_deprecated "
+        f"path={path} replacement={replacement} "
+        "message=legacy bridge path remains supported for compatibility but is deprecated",
+        file=sys.stderr,
+    )
 
 
 def _format_top_level_help_text() -> str:
@@ -256,7 +267,17 @@ def main():
     run_parser.add_argument(
         "--experimental-openclaw-adapter",
         action="store_true",
-        help="Enable experimental OpenClaw run adapter for openclaw-skill manifests",
+        help=argparse.SUPPRESS,
+    )
+    run_parser.add_argument(
+        "--thinking",
+        choices=["low", "medium", "high"],
+        help="(OpenClaw run) Optional thinking level passthrough",
+    )
+    run_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="(OpenClaw run) Request machine-readable output passthrough",
     )
     run_parser.add_argument(
         "--max-seconds",
@@ -336,9 +357,19 @@ def main():
     )
     logs_parser.add_argument("agent_dir", nargs="?", help="Path to daemon agent directory")
     logs_parser.add_argument(
+        "--daemon",
+        choices=["openclaw"],
+        help="Use delegated daemon logs backend (currently: openclaw)",
+    )
+    logs_parser.add_argument(
         "--follow",
         action="store_true",
         help="Stream new log lines until daemon exits or operator interrupts",
+    )
+    logs_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="(OpenClaw daemon logs) request machine-readable passthrough output",
     )
     logs_parser.add_argument(
         "--tail",
@@ -400,6 +431,11 @@ def main():
         "--openclaw-min-version",
         default="0.1.0",
         help="(OpenClaw-skill) Minimum OpenClaw CLI version required for delegated install (default: 0.1.0)",
+    )
+    openclaw_install_group.add_argument(
+        "--openclaw-skill",
+        dest="openclaw_skill",
+        help="Install an OpenClaw skill into an existing OpenClaw agent workspace",
     )
     install_parser.add_argument(
         "--accept-permissions",
@@ -640,6 +676,16 @@ def main():
         nargs="?",
         help="Search query to match against agent name and description",
     )
+    search_parser.add_argument(
+        "--openclaw-skill",
+        action="store_true",
+        help="Delegate search to OpenClaw skills search wrapper mode",
+    )
+    search_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="(OpenClaw skill search) request machine-readable passthrough output",
+    )
 
     sync_parser = subparsers.add_parser(
         "sync",
@@ -811,6 +857,11 @@ def main():
         preflight_mode = bool(getattr(args, "preflight", False))
         input_arg = args.input
         pass_through_args = run_pass_through_args
+        if bool(getattr(args, "experimental_openclaw_adapter", False)):
+            _emit_bridge_path_deprecation_warning(
+                path="run_experimental_openclaw_adapter",
+                replacement="kinnoo run <agent-dir> '<prompt>' [--thinking <level>] [--json]",
+            )
         if not hasattr(args, "agent_dir") or args.agent_dir is None:
             if preflight_mode:
                 print("Usage: kinnoo run <agent-dir> --preflight", file=sys.stderr)
@@ -834,6 +885,8 @@ def main():
             sandbox=bool(getattr(args, "sandbox", False)),
             dry_run=bool(getattr(args, "dry_run", False)),
             experimental_openclaw_adapter=bool(getattr(args, "experimental_openclaw_adapter", False)),
+            openclaw_thinking=getattr(args, "thinking", None),
+            openclaw_json_output=bool(getattr(args, "json", False)),
             max_seconds=getattr(args, "max_seconds", None),
             max_cpu_seconds=getattr(args, "max_cpu_seconds", None),
             max_memory_mb=getattr(args, "max_memory_mb", None),
@@ -884,10 +937,15 @@ def main():
         use_local = bool(getattr(args, "local", False))
         use_remote = bool(getattr(args, "remote", False))
         minimum_openclaw_version = str(getattr(args, "openclaw_min_version", "0.1.0"))
+        openclaw_skill = getattr(args, "openclaw_skill", None)
         try:
             from kinnoo.install_command import install_agent
         except ImportError:
             from .install_command import install_agent
+
+        if openclaw_skill and archive_path is None:
+            print("Usage: kinnoo install <agent-name> --openclaw-skill <skill-slug-or-url>", file=sys.stderr)
+            sys.exit(1)
 
         exit_code = install_agent(
             archive_path=archive_path,
@@ -904,6 +962,7 @@ def main():
             use_local=use_local,
             use_remote=use_remote,
             minimum_openclaw_version=minimum_openclaw_version,
+            openclaw_skill_identifier=openclaw_skill,
         )
         sys.exit(exit_code)
 
@@ -936,6 +995,19 @@ def main():
         sys.exit(exit_code)
 
     elif args.command == "logs":
+        daemon = getattr(args, "daemon", None)
+        if daemon == "openclaw":
+            try:
+                from kinnoo.logs_command import logs_openclaw
+            except ImportError:
+                from .logs_command import logs_openclaw
+
+            exit_code = logs_openclaw(
+                follow=bool(getattr(args, "follow", False)),
+                json_output=bool(getattr(args, "json", False)),
+            )
+            sys.exit(exit_code)
+
         agent_dir = getattr(args, "agent_dir", None)
         if agent_dir is None:
             print("Usage: kinnoo logs <agent-dir> [--tail N] [--follow]", file=sys.stderr)
@@ -1129,6 +1201,18 @@ def main():
             print("Usage: kinnoo search [--local | --remote] <query>", file=sys.stderr)
             sys.exit(1)
 
+        if bool(getattr(args, "openclaw_skill", False)):
+            try:
+                from kinnoo.search_command import search_openclaw_skills
+            except ImportError:
+                from .search_command import search_openclaw_skills
+
+            exit_code = search_openclaw_skills(
+                query=query,
+                json_output=bool(getattr(args, "json", False)),
+            )
+            sys.exit(exit_code)
+
         if bool(getattr(args, "local", False)):
             source = "local"
         elif bool(getattr(args, "remote", False)):
@@ -1149,6 +1233,15 @@ def main():
         if source is None:
             print("Usage: kinnoo sync clawhub [--full] [--since <iso8601>]", file=sys.stderr)
             sys.exit(1)
+
+        if str(source).strip().lower() == "clawhub":
+            _emit_bridge_path_deprecation_warning(
+                path="sync_clawhub",
+                replacement=(
+                    "kinnoo search --openclaw-skill <query> [--json]; "
+                    "kinnoo install <agent-name> --openclaw-skill <owner/skill-or-url>"
+                ),
+            )
 
         try:
             from kinnoo.sync_command import sync_source

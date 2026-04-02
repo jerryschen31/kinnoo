@@ -548,7 +548,7 @@ def _create_openclaw_skill_archive(tmp_path: Path, agent_name: str = "feature65-
     return archive_path
 
 
-def _make_fake_openclaw_cli(bin_dir: Path, *, version: str = "0.3.0") -> Path:
+def _make_fake_openclaw_cli(bin_dir: Path, *, version: str = "2026.3.31") -> Path:
     bin_dir.mkdir(parents=True, exist_ok=True)
     openclaw_script = bin_dir / "openclaw"
     openclaw_script.write_text(
@@ -558,12 +558,16 @@ def _make_fake_openclaw_cli(bin_dir: Path, *, version: str = "0.3.0") -> Path:
         "fi\n"
         "case \"$1\" in\n"
         "  --version)\n"
-        f"    echo v{version}\n"
+        f"    echo openclaw {version}\n"
         "    exit 0\n"
         "    ;;\n"
-        "  skills)\n"
-        "    if [ \"$2\" = \"install\" ] && [ \"$3\" = \".\" ]; then\n"
-        "      echo delegated install ok\n"
+        "  agents)\n"
+        "    if [ \"$2\" = \"list\" ]; then\n"
+        "      echo '[]'\n"
+        "      exit 0\n"
+        "    fi\n"
+        "    if [ \"$2\" = \"add\" ]; then\n"
+        "      echo delegated register ok\n"
         "      exit 0\n"
         "    fi\n"
         "    ;;\n"
@@ -578,6 +582,9 @@ def _make_fake_openclaw_cli(bin_dir: Path, *, version: str = "0.3.0") -> Path:
 
 def test_feature65_delegated_install_with_prechecks(tmp_path):
     archive_path = _create_openclaw_skill_archive(tmp_path)
+    isolated_env = dict(os.environ)
+    isolated_env["PATH"] = ""
+    isolated_env["HOME"] = str(tmp_path)
 
     missing_cli_target = tmp_path / "feature65-openclaw-missing-cli"
     missing_cli_result = subprocess.run(
@@ -591,18 +598,20 @@ def test_feature65_delegated_install_with_prechecks(tmp_path):
         ],
         capture_output=True,
         text=True,
+        env=isolated_env,
     )
     missing_cli_output = f"{missing_cli_result.stdout}\n{missing_cli_result.stderr}"
     assert missing_cli_result.returncode != 0, missing_cli_output
-    assert "OpenClaw CLI was not found in PATH" in missing_cli_output
-    assert "OpenClaw delegated install prechecks failed" in missing_cli_output
+    assert "OpenClaw CLI not found in PATH" in missing_cli_output
+    assert "openclaw preflight failed" in missing_cli_output
 
     fake_bin = tmp_path / "fake-openclaw-bin"
-    _make_fake_openclaw_cli(fake_bin, version="0.3.0")
+    _make_fake_openclaw_cli(fake_bin, version="2026.3.31")
     invocation_log = tmp_path / "openclaw-invocations.log"
 
     delegated_env = dict(os.environ)
     delegated_env["PATH"] = f"{fake_bin}{os.pathsep}{delegated_env.get('PATH', '')}"
+    delegated_env["HOME"] = str(tmp_path)
     delegated_env["KINNOO_TEST_OPENCLAW_ARGS_LOG"] = str(invocation_log)
 
     delegated_target = tmp_path / "feature65-openclaw-delegated"
@@ -623,25 +632,298 @@ def test_feature65_delegated_install_with_prechecks(tmp_path):
     )
     delegated_output = f"{delegated_result.stdout}\n{delegated_result.stderr}"
     assert delegated_result.returncode == 0, delegated_output
-    assert "delegated install precheck passed" in delegated_output
-    assert "Delegating dependency install to OpenClaw CLI" in delegated_output
-    assert "Delegated install completed successfully" in delegated_output
+    assert "Delegating workspace registration to OpenClaw CLI" in delegated_output
+    assert "Workspace registration completed successfully" in delegated_output
 
     invocations = invocation_log.read_text(encoding="utf-8").splitlines()
     assert "--version" in invocations
-    assert "skills install ." in invocations
+    assert "agents add feature65-openclaw-skill --workspace" in "\n".join(invocations)
 
-    trace_path = delegated_target / ".kinnoo" / "install-trace.json"
+    delegated_workspace = tmp_path / ".openclaw" / "workspace-feature65-openclaw-skill"
+    trace_path = delegated_workspace / ".kinnoo" / "install-trace.json"
     assert trace_path.exists(), delegated_output
     trace_payload = json.loads(trace_path.read_text(encoding="utf-8"))
     assert trace_payload["delegated_install"]["backend"] == "openclaw-cli"
     assert trace_payload["delegated_install"]["minimum_version"] == "0.2.0"
+    assert trace_payload["delegated_install"]["agent"] == "feature65-openclaw-skill"
+    assert trace_payload["delegated_install"]["workspace"] == str(delegated_workspace)
     assert trace_payload["decision"] == {
         "outcome": "allowed",
         "category": "openclaw_cli_delegated_success",
         "reason": "openclaw_cli_delegated_install_succeeded",
         "delegated_exit_code": 0,
     }
+
+
+def test_feature80_openclaw_workspace_conflict_diagnostics(tmp_path):
+    archive_path = _create_openclaw_skill_archive(tmp_path, agent_name="feature80-conflict")
+    fake_bin = tmp_path / "fake-openclaw-bin-conflict"
+    _make_fake_openclaw_cli(fake_bin, version="2026.3.31")
+
+    existing_workspace = tmp_path / ".openclaw" / "workspace-feature80-conflict"
+    existing_workspace.mkdir(parents=True, exist_ok=True)
+
+    env = dict(os.environ)
+    env["PATH"] = f"{fake_bin}{os.pathsep}{env.get('PATH', '')}"
+    env["HOME"] = str(tmp_path)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            str(archive_path),
+            "--yes",
+            "--openclaw-min-version",
+            "0.2.0",
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode != 0, output
+    assert "OpenClaw workspace already exists" in output
+    assert "Re-run with --force" in output
+
+
+def test_feature83_skill_install_existing_agent_slug_and_url(tmp_path):
+    fake_bin = tmp_path / "feature83-openclaw-bin"
+    fake_bin.mkdir(parents=True, exist_ok=True)
+    invocation_log = tmp_path / "feature83-openclaw-invocations.log"
+    workspace_path = tmp_path / ".openclaw" / "workspace-feature83-existing"
+    workspace_path.mkdir(parents=True, exist_ok=True)
+
+    openclaw_script = fake_bin / "openclaw"
+    openclaw_script.write_text(
+        "#!/bin/sh\n"
+        "if [ -n \"$KINNOO_TEST_OPENCLAW_ARGS_LOG\" ]; then\n"
+        "  printf '%s\\n' \"$*\" >> \"$KINNOO_TEST_OPENCLAW_ARGS_LOG\"\n"
+        "fi\n"
+        "if [ \"$1\" = \"--version\" ]; then\n"
+        "  echo openclaw 2026.3.31\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"gateway\" ] && [ \"$2\" = \"status\" ] && [ \"$3\" = \"--require-rpc\" ]; then\n"
+        "  echo gateway healthy\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"agents\" ] && [ \"$2\" = \"list\" ]; then\n"
+        f"  echo '[{{\"id\":\"feature83-existing\",\"workspace\":\"{workspace_path}\"}}]'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"skills\" ] && [ \"$2\" = \"install\" ]; then\n"
+        "  echo delegated skill install ok\n"
+        "  exit 0\n"
+        "fi\n"
+        "echo unsupported invocation >&2\n"
+        "exit 2\n",
+        encoding="utf-8",
+    )
+    openclaw_script.chmod(0o755)
+
+    env = dict(os.environ)
+    env["PATH"] = f"{fake_bin}{os.pathsep}{env.get('PATH', '')}"
+    env["KINNOO_TEST_OPENCLAW_ARGS_LOG"] = str(invocation_log)
+
+    slug_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            "feature83-existing",
+            "--openclaw-skill",
+            "owner/skill-slug",
+            "--yes",
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert slug_result.returncode == 0, slug_result.stdout + slug_result.stderr
+
+    url_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            "feature83-existing",
+            "--openclaw-skill",
+            "https://clawhub.ai/owner/skill-slug",
+            "--yes",
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert url_result.returncode == 0, url_result.stdout + url_result.stderr
+
+    invocations = invocation_log.read_text(encoding="utf-8")
+    assert "agents list" in invocations
+    assert f"skills install owner/skill-slug --workspace {workspace_path}" in invocations
+    assert invocations.count(f"skills install owner/skill-slug --workspace {workspace_path}") >= 2
+
+
+def test_feature83_missing_agent_preflight_and_outcome_diagnostics(tmp_path):
+    fake_bin = tmp_path / "feature83-openclaw-diagnostics-bin"
+    fake_bin.mkdir(parents=True, exist_ok=True)
+    invocation_log = tmp_path / "feature83-openclaw-diagnostics.log"
+    workspace_path = tmp_path / ".openclaw" / "workspace-feature83-diagnostics"
+    workspace_path.mkdir(parents=True, exist_ok=True)
+
+    openclaw_script = fake_bin / "openclaw"
+    openclaw_script.write_text(
+        "#!/bin/sh\n"
+        "if [ -n \"$KINNOO_TEST_OPENCLAW_ARGS_LOG\" ]; then\n"
+        "  printf '%s\\n' \"$*\" >> \"$KINNOO_TEST_OPENCLAW_ARGS_LOG\"\n"
+        "fi\n"
+        "if [ \"$1\" = \"--version\" ]; then\n"
+        "  echo openclaw 2026.3.31\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"gateway\" ] && [ \"$2\" = \"status\" ] && [ \"$3\" = \"--require-rpc\" ]; then\n"
+        "  if [ \"$KINNOO_TEST_OPENCLAW_GATEWAY_DOWN\" = \"1\" ]; then\n"
+        "    echo gateway unavailable >&2\n"
+        "    exit 6\n"
+        "  fi\n"
+        "  echo gateway healthy\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"agents\" ] && [ \"$2\" = \"list\" ]; then\n"
+        "  if [ -n \"$KINNOO_TEST_OPENCLAW_AGENTS_JSON\" ]; then\n"
+        "    echo \"$KINNOO_TEST_OPENCLAW_AGENTS_JSON\"\n"
+        "  else\n"
+        "    echo '[]'\n"
+        "  fi\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"skills\" ] && [ \"$2\" = \"install\" ]; then\n"
+        "  if [ \"$KINNOO_TEST_OPENCLAW_SKILL_OUTCOME\" = \"already\" ]; then\n"
+        "    echo already installed\n"
+        "    exit 0\n"
+        "  fi\n"
+        "  if [ \"$KINNOO_TEST_OPENCLAW_SKILL_OUTCOME\" = \"not-found\" ]; then\n"
+        "    echo skill not found >&2\n"
+        "    exit 3\n"
+        "  fi\n"
+        "  echo skill install success\n"
+        "  exit 0\n"
+        "fi\n"
+        "echo unsupported invocation >&2\n"
+        "exit 2\n",
+        encoding="utf-8",
+    )
+    openclaw_script.chmod(0o755)
+
+    env = dict(os.environ)
+    env["PATH"] = f"{fake_bin}{os.pathsep}{env.get('PATH', '')}"
+    env["KINNOO_TEST_OPENCLAW_ARGS_LOG"] = str(invocation_log)
+
+    missing_agent_env = dict(env)
+    missing_agent_env["KINNOO_TEST_OPENCLAW_AGENTS_JSON"] = "[]"
+    missing_agent_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            "feature83-missing",
+            "--openclaw-skill",
+            "owner/missing-skill",
+            "--yes",
+        ],
+        capture_output=True,
+        text=True,
+        env=missing_agent_env,
+    )
+    missing_agent_output = f"{missing_agent_result.stdout}\n{missing_agent_result.stderr}"
+    assert missing_agent_result.returncode != 0
+    assert "Create/register the agent first and retry" in missing_agent_output
+
+    preflight_fail_env = dict(env)
+    preflight_fail_env["KINNOO_TEST_OPENCLAW_GATEWAY_DOWN"] = "1"
+    preflight_fail_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            "feature83-diagnostics",
+            "--openclaw-skill",
+            "owner/skill-a",
+            "--yes",
+        ],
+        capture_output=True,
+        text=True,
+        env=preflight_fail_env,
+    )
+    preflight_fail_output = f"{preflight_fail_result.stdout}\n{preflight_fail_result.stderr}"
+    assert preflight_fail_result.returncode != 0
+    assert "category=openclaw_gateway_unhealthy" in preflight_fail_output
+
+    success_env = dict(env)
+    success_env["KINNOO_TEST_OPENCLAW_AGENTS_JSON"] = (
+        f"[{{\"id\":\"feature83-diagnostics\",\"workspace\":\"{workspace_path}\"}}]"
+    )
+    success_env["KINNOO_TEST_OPENCLAW_SKILL_OUTCOME"] = "success"
+    success_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            "feature83-diagnostics",
+            "--openclaw-skill",
+            "https://clawhub.ai/owner/skill-a",
+            "--yes",
+        ],
+        capture_output=True,
+        text=True,
+        env=success_env,
+    )
+    success_output = f"{success_result.stdout}\n{success_result.stderr}"
+    assert success_result.returncode == 0, success_output
+    assert "outcome=success" in success_output
+
+    already_env = dict(success_env)
+    already_env["KINNOO_TEST_OPENCLAW_SKILL_OUTCOME"] = "already"
+    already_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            "feature83-diagnostics",
+            "--openclaw-skill",
+            "owner/skill-a",
+            "--yes",
+        ],
+        capture_output=True,
+        text=True,
+        env=already_env,
+    )
+    already_output = f"{already_result.stdout}\n{already_result.stderr}"
+    assert already_result.returncode == 0, already_output
+    assert "outcome=already-installed" in already_output
+
+    not_found_env = dict(success_env)
+    not_found_env["KINNOO_TEST_OPENCLAW_SKILL_OUTCOME"] = "not-found"
+    not_found_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            "feature83-diagnostics",
+            "--openclaw-skill",
+            "owner/skill-a",
+            "--yes",
+        ],
+        capture_output=True,
+        text=True,
+        env=not_found_env,
+    )
+    not_found_output = f"{not_found_result.stdout}\n{not_found_result.stderr}"
+    assert not_found_result.returncode != 0
+    assert "category=openclaw_skill_not_found" in not_found_output
+
+    invocations = invocation_log.read_text(encoding="utf-8")
+    assert f"skills install owner/skill-a --workspace {workspace_path}" in invocations
 
 
 def test_feature37_node_audit_severity_summary(tmp_path):
