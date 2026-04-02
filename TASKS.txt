@@ -7379,7 +7379,7 @@ tasks:
       - 'step4: Add command-level tests proving the right preflight mode is invoked per command'
     dependencies: [task362]
     tests: [test522]
-    status: not-started
+    status: needs-review
 
   - id: task364
     title: "Feature77 init delegation to openclaw agents add"

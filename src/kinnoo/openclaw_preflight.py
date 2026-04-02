@@ -13,6 +13,12 @@ import subprocess
 
 
 _VERSION_PATTERN = re.compile(r"(\d+)\.(\d+)\.(\d+)")
+_RUNTIME_COMMANDS_REQUIRING_GATEWAY = {
+    "run",
+    "logs",
+    "openclaw-skill-install",
+    "openclaw-skill-search",
+}
 
 
 @dataclass(frozen=True)
@@ -129,3 +135,71 @@ def ensure_openclaw_cli(minimum_version: str = "2026.3.28") -> OpenClawPreflight
         ),
         version=_version_to_label(parsed),
     )
+
+
+def command_requires_gateway_health(command_name: str) -> bool:
+    """Return whether this OpenClaw-integrated command requires a live gateway."""
+    return command_name.strip().lower() in _RUNTIME_COMMANDS_REQUIRING_GATEWAY
+
+
+def ensure_openclaw_gateway() -> OpenClawPreflightResult:
+    """Check OpenClaw gateway RPC health using CLI status probe."""
+    openclaw_path = shutil.which("openclaw")
+    if openclaw_path is None:
+        return OpenClawPreflightResult(
+            ok=False,
+            category="openclaw_cli_missing",
+            message=(
+                "openclaw preflight failed: OpenClaw CLI not found in PATH. "
+                "Install OpenClaw CLI and retry."
+            ),
+        )
+
+    try:
+        result = subprocess.run(
+            [openclaw_path, "gateway", "status", "--require-rpc"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError as error:
+        return OpenClawPreflightResult(
+            ok=False,
+            category="openclaw_gateway_probe_failed",
+            message=f"openclaw preflight failed: unable to probe gateway status: {error}",
+        )
+
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "").strip()
+        suffix = f" ({detail})" if detail else ""
+        return OpenClawPreflightResult(
+            ok=False,
+            category="openclaw_gateway_unhealthy",
+            message=(
+                "openclaw preflight failed: gateway RPC probe did not pass. "
+                "Start the gateway and retry (for example: openclaw gateway start)."
+                f"{suffix}"
+            ),
+        )
+
+    return OpenClawPreflightResult(
+        ok=True,
+        category="openclaw_gateway_ok",
+        message="openclaw preflight passed: gateway RPC probe is healthy.",
+    )
+
+
+def run_openclaw_preflight_for_command(
+    command_name: str,
+    *,
+    minimum_version: str = "2026.3.28",
+) -> OpenClawPreflightResult:
+    """Run shared preflight and include gateway probe when command requires it."""
+    cli_result = ensure_openclaw_cli(minimum_version=minimum_version)
+    if not cli_result.ok:
+        return cli_result
+
+    if command_requires_gateway_health(command_name):
+        return ensure_openclaw_gateway()
+
+    return cli_result
