@@ -1664,3 +1664,54 @@ For your next feature, try this workflow:
 The key insight: **the bottleneck in your current workflow isn't the AI agent's capability - it's the context-reload and handoff overhead between sessions.** A well-written spec eliminates that overhead by giving the agent everything it needs in one shot.
 
 Your manifest system (FEATURES.txt / TASKS.txt / TESTS.txt) is still valuable as a planning and tracking tool. You'd still define the feature and tests up front. You'd just collapse the execution from N serial sessions into 1 session with a comprehensive spec.
+
+---
+
+## Phase 7 — OpenClaw CLI Wrapper Architecture (2026-03-31)
+
+### Context
+User installed OpenClaw v2026.3.28, tested the CLI directly, and determined that the existing bridge/scaffold approach (features 62-67) is inadequate. OpenClaw now has a full CLI surface for agent management, and kinnoo should wrap it rather than reimplementing internals.
+
+### OpenClaw CLI Surface (confirmed via docs at github.com/openclaw/openclaw)
+- **Agent management**: `openclaw agents add/list/delete/bind/unbind/set-identity`
+- **Agent execution**: `openclaw agent --agent <name> --message "..." [--thinking <level>]`
+- **Skills**: `openclaw skills search/install/update/list/info/check` (ClawHub-backed)
+- **Gateway lifecycle**: `openclaw gateway run/status/health/probe/install/start/stop/restart`
+- **Logs**: `openclaw logs [--follow] [--json] [--local-time]`
+- **Daemon**: `openclaw daemon ...` (legacy alias for gateway service commands)
+- **Doctor**: `openclaw doctor` — surface misconfigurations
+- **Config**: `~/.openclaw/openclaw.json`, Gateway port default 18789
+- **Workspace**: `~/.openclaw/workspace` (default), per-agent via `~/.openclaw/workspace-<name>/`
+- **Latest version**: 2026.4.1 (bumped from 2026.3.31)
+
+### Key Design Decisions
+
+1. **kinnoo wraps openclaw CLI** — no reimplementation of agent registration, skill install, or Gateway interaction.
+2. **Preflight is mandatory** — every OpenClaw command checks CLI presence + version >= 2026.3.28.
+3. **Gateway check is conditional** — only required for run/logs, not init/import/install.
+4. **`kinnoo attach` deferred** — OpenClaw agents run via persistent Gateway daemon, not standalone processes. No "process" to attach to.
+5. **`kinnoo stop` deferred** — stopping individual agents isn't supported by OpenClaw. `openclaw gateway stop` stops everything. Too blunt for a wrapper.
+6. **Version format is date-based** — YYYY.M.D, not semver. Parser must handle this.
+
+### Feature Map (76-85)
+| Feature | Title | Replaces | Gateway Required? |
+|---------|-------|----------|-------------------|
+| 76 | CLI preflight & version gate | (new) | Optional probe |
+| 77 | Init via CLI wrapper | feature34 | No |
+| 78 | Import via CLI wrapper | feature36, feature64 | No |
+| 79 | Workspace pack | (extends existing) | No |
+| 80 | Install via CLI wrapper | feature65 | No |
+| 81 | Run via CLI wrapper | feature66 | Yes |
+| 82 | Logs passthrough | (new) | Yes |
+| 83 | Skill install for agents | (new, user req) | Yes |
+| 84 | Skill search via ClawHub | (new, user req) | Yes |
+| 85 | Deprecate features 62-67 | (cleanup) | N/A |
+
+### Deprecation Plan
+- Features 62-67 are marked deprecated, NOT removed
+- Deprecated code paths emit warnings pointing to Phase 7 replacements
+- `--experimental-openclaw-adapter` flag removed or warns
+- Tests preserved but annotated as deprecated coverage
+- Feature34 scaffold approach superseded by feature77 (init via CLI)
+- Feature36 analysis logic is reusable — only scaffold output is deprecated
+- Full removal deferred to future cleanup phase

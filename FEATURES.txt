@@ -2422,3 +2422,301 @@ features:
     owner: techlead-agent
     dependencies: []
     status: needs-review
+
+  # ──────────────────────────────────────────────────────────────────────
+  # Phase 7 — OpenClaw CLI Wrapper (proper integration via openclaw CLI)
+  #
+  # These features replace the scaffold/bridge approach of features 62-67
+  # with a proper CLI wrapper strategy that delegates to `openclaw` CLI
+  # commands for agent lifecycle management.
+  #
+  # Key design decisions:
+  #   - kinnoo wraps openclaw CLI rather than reimplementing its internals
+  #   - openclaw CLI presence + version >= 2026.3.28 is a hard prerequisite
+  #   - Gateway must be running for run/logs commands
+  #   - Workspace convention: ~/.openclaw/workspace-<agent-name>/
+  #   - `kinnoo attach` and `kinnoo stop` are deferred — OpenClaw agents
+  #     run via the persistent Gateway daemon, not as standalone processes,
+  #     so there is no "running agent process" to attach to or stop
+  #     individually. Gateway lifecycle is managed by `openclaw gateway`.
+  # ──────────────────────────────────────────────────────────────────────
+
+  - id: feature76
+    title: "OpenClaw CLI preflight and version gate"
+    description: |
+      Add a reusable preflight check that verifies the openclaw CLI is installed,
+      meets version requirements (>= 2026.3.28), and optionally checks that the
+      Gateway daemon is running and healthy. All OpenClaw-related kinnoo commands
+      must call this preflight before proceeding.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "Preflight detects `openclaw` CLI on PATH and extracts its version with deterministic error when missing."
+      - id: AC2
+        description: "Preflight rejects openclaw versions below 2026.3.28 with actionable upgrade guidance."
+      - id: AC3
+        description: "Preflight optionally probes Gateway health via `openclaw gateway status` and reports actionable remediation when the Gateway is not running."
+      - id: AC4
+        description: "Preflight result is a reusable function/module consumed by init, import, install, run, logs, and skill commands."
+      - id: AC5
+        description: "Version parsing handles semver-like OpenClaw date versions (YYYY.M.D) correctly including patch suffixes."
+    notes:
+      - "Gateway health check is optional — only required for commands that talk to the Gateway (run, logs)."
+      - "Init and import only need CLI presence + version, not a running Gateway."
+      - "Uses `openclaw --version` for version extraction."
+      - "Consider caching preflight result within a single CLI invocation to avoid redundant subprocess calls."
+    owner: techlead-agent
+    dependencies: []
+    status: not-started
+
+  - id: feature77
+    title: "OpenClaw init via CLI wrapper"
+    description: |
+      Rework `kinnoo init --framework openclaw <name>` to delegate agent creation
+      to `openclaw agents add <name> --workspace ~/.openclaw/workspace-<name>` and
+      then generate a kinnoo.yaml manifest for the new workspace. Replaces the
+      standalone scaffold approach from feature34 with proper CLI integration.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo init --framework openclaw <name>` runs preflight, then delegates to `openclaw agents add <name> --workspace ~/.openclaw/workspace-<name>`."
+      - id: AC2
+        description: "After successful `agents add`, generates a valid kinnoo.yaml in the workspace directory with framework: openclaw and correct runtime fields."
+      - id: AC3
+        description: "If the workspace directory already exists, emits a deterministic error with remediation guidance instead of overwriting."
+      - id: AC4
+        description: "Preflight (feature76) is called before any file or subprocess operations."
+      - id: AC5
+        description: "Output summary confirms agent name, workspace path, and next steps (e.g., edit SOUL.md, configure model)."
+    notes:
+      - "Replaces the standalone scaffold approach from feature34 — feature34 generated files without openclaw CLI."
+      - "This delegates to openclaw CLI so the agent is actually registered with the Gateway."
+      - "Workspace convention: ~/.openclaw/workspace-<name>/ (user-configurable override deferred)."
+      - "Does NOT require Gateway to be running — only openclaw CLI presence + version."
+      - OpenClaw version must be 2026.3.28+
+    owner: techlead-agent
+    dependencies: [feature76]
+    status: not-started
+
+  - id: feature78
+    title: "OpenClaw import via CLI wrapper"
+    description: |
+      Rework `kinnoo import` for OpenClaw workspaces to create a kinnoo.yaml manifest
+      from an existing OpenClaw workspace directory. If the workspace is not already
+      under ~/.openclaw/, optionally copy it there and register it via
+      `openclaw agents add`. Replaces the bridge import approach from feature36/64.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo import <workspace-dir>` detects OpenClaw workspace structure (AGENTS.md, SOUL.md, .openclaw/ or openclaw.json signals) and generates kinnoo.yaml."
+      - id: AC2
+        description: "If the workspace is not already under ~/.openclaw/, prompts the user to copy it and register via `openclaw agents add`."
+      - id: AC3
+        description: "If the workspace IS under ~/.openclaw/, checks if the agent is registered with `openclaw agents list` and registers if missing."
+      - id: AC4
+        description: "Generated kinnoo.yaml includes correct framework, runtime, and workspace path fields derived from the existing project."
+      - id: AC5
+        description: "Error handling covers: directory not found, not an OpenClaw workspace, target directory already exists during copy."
+    notes:
+      - "Replaces the ClawHub-bridge import from feature64 with direct workspace import."
+      - "Detection uses weighted signals from analyzer (SOUL.md, AGENTS.md, openclaw.json, skills/, memory/)."
+      - "Copy operation must handle .git exclusion (user may not want to copy .git from source)."
+      - "Preflight (feature76) is called before subprocess operations."
+      - OpenClaw version must be 2026.3.28+
+    owner: techlead-agent
+    dependencies: [feature76]
+    status: not-started
+
+  - id: feature79
+    title: "OpenClaw workspace pack"
+    description: |
+      Ensure `kinnoo pack` correctly packages OpenClaw workspaces into .kno archives,
+      including OpenClaw-specific files (AGENTS.md, SOUL.md, TOOLS.md, USER.md,
+      MEMORY.md, IDENTITY.md, BOOTSTRAP.md, HEARTBEAT.md, memory/, skills/) while
+      excluding runtime artifacts (.git, .openclaw/, node_modules/).
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo pack` on an OpenClaw workspace includes identity files (AGENTS.md, SOUL.md, TOOLS.md, USER.md, MEMORY.md, IDENTITY.md, BOOTSTRAP.md, HEARTBEAT.md)."
+      - id: AC2
+        description: "Pack includes memory/ and skills/ directories with their contents."
+      - id: AC3
+        description: "Pack excludes .git/, .openclaw/, node_modules/, and other runtime artifacts via deterministic exclude rules."
+      - id: AC4
+        description: "Archive size reporting works correctly for OpenClaw workspace contents."
+      - id: AC5
+        description: "Packed archive can be installed via feature80 install flow to reconstitute a working OpenClaw workspace."
+    notes:
+      - "This builds on existing pack infrastructure — may only need exclude/include rule adjustments."
+      - "OpenClaw workspaces don't have the same entrypoint structure as Python agents, so pack must handle missing entrypoint gracefully."
+      - "Consider whether openclaw.json should be included (it may contain local-only config)."
+    owner: techlead-agent
+    dependencies: []
+    status: not-started
+
+  - id: feature80
+    title: "OpenClaw install via CLI wrapper"
+    description: |
+      Rework `kinnoo install` for OpenClaw agents to download the .kno archive,
+      extract to ~/.openclaw/workspace-<name>/, and register the agent via
+      `openclaw agents add <name> --workspace <path>`. Replaces the delegated
+      install bridge from feature65.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo install` for framework: openclaw packages extracts to ~/.openclaw/workspace-<name>/ and runs `openclaw agents add <name> --workspace <path>`."
+      - id: AC2
+        description: "If ~/.openclaw/workspace-<name>/ already exists, emits a deterministic error with remediation guidance (rename, remove, or force overwrite flag)."
+      - id: AC3
+        description: "Preflight (feature76) verifies openclaw CLI presence and version before extraction or registration."
+      - id: AC4
+        description: "Install diagnostics and trace outputs capture both kinnoo-side and openclaw-side outcomes."
+      - id: AC5
+        description: "kinnoo-side validation (manifest checks, security sweep) still executes before delegating to openclaw CLI."
+    notes:
+      - "Replaces feature65 delegated install bridge with a proper extract + register flow."
+      - "Download + unzip is kinnoo's responsibility; only the `agents add` registration is delegated."
+      - "Gateway does NOT need to be running for install — agents add works without it."
+      - "Agent name is derived from the manifest name field in kinnoo.yaml."
+      - OpenClaw version must be 2026.3.28+
+    owner: techlead-agent
+    dependencies: [feature76, feature79]
+    status: not-started
+
+  - id: feature81
+    title: "OpenClaw run via CLI wrapper"
+    description: |
+      Rework `kinnoo run <name> '<prompt>'` for OpenClaw agents to delegate execution
+      to `openclaw agent --agent <name> --message '<prompt>'` via the running Gateway.
+      Replaces the experimental run adapter from feature66.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo run <name> '<prompt>'` maps to `openclaw agent --agent <name> --message '<prompt>'` with stdout/stderr passthrough."
+      - id: AC2
+        description: "Preflight (feature76) verifies openclaw CLI, version, AND Gateway health before attempting run."
+      - id: AC3
+        description: "Run supports text input by default; JSON output supported using --json flag. JSON input support deferred to a future feature"
+      - id: AC4
+        description: "Non-zero exit codes from openclaw are propagated with actionable diagnostics (Gateway not running, agent not found, etc.)."
+      - id: AC5
+        description: "Optional `--thinking <level>` passthrough to openclaw agent command."
+    notes:
+      - "Replaces feature66 experimental run adapter — no more --experimental-openclaw-adapter flag."
+      - "Gateway MUST be running for this command — preflight should verify via `openclaw gateway status`."
+      - "Future: support --deliver, --reply-channel for routing output to channels."
+      - "Future: JSON structured input for programmatic use."
+      - OpenClaw version must be 2026.3.28+
+    owner: techlead-agent
+    dependencies: [feature76]
+    status: not-started
+
+  - id: feature82
+    title: "OpenClaw logs passthrough"
+    description: |
+      Add `kinnoo logs --daemon openclaw` (or `kinnoo logs --openclaw`) that delegates
+      to `openclaw logs` to tail Gateway logs. Provides a unified kinnoo surface for
+      viewing OpenClaw runtime logs without requiring users to know openclaw CLI commands.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo logs --daemon openclaw` delegates to `openclaw logs` with stdout/stderr passthrough."
+      - id: AC2
+        description: "Supports `--follow` flag passthrough for live tailing."
+      - id: AC3
+        description: "Preflight (feature76) verifies openclaw CLI presence before delegation."
+      - id: AC4
+        description: "Supports `--json` flag passthrough for machine-readable output."
+    notes:
+      - "Thin wrapper — kinnoo adds no processing, just delegates to openclaw logs."
+      - "Gateway must be running for logs to work (openclaw logs uses RPC)."
+      - "Consider also supporting `--local-time` passthrough."
+    owner: techlead-agent
+    dependencies: [feature76]
+    status: not-started
+
+  - id: feature83
+    title: "OpenClaw skill install for agents"
+    description: |
+      Add `kinnoo install --openclaw-skill <skill-slug-or-url> <agent-name>` to install
+      a ClawHub skill into an existing OpenClaw agent's workspace. If the agent is not
+      registered with openclaw, prompt to install the agent first. The skill must exist
+      on ClawHub.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo install --openclaw-skill <slug> <agent>` delegates to `openclaw skills install <slug>` targeting the agent's workspace."
+      - id: AC2
+        description: "If the agent is not registered in `openclaw agents list`, emits actionable guidance to install the agent first (via kinnoo install or openclaw agents add)."
+      - id: AC3
+        description: "Preflight (feature76) verifies openclaw CLI, version, and Gateway health before skill install."
+      - id: AC4
+        description: "Supports ClawHub slug and URL forms for skill identification."
+      - id: AC5
+        description: "Skill install outcome (success, already-installed, not-found) is reported with deterministic diagnostics."
+    notes:
+      - "This maps to `openclaw skills install <slug>` which installs into the active workspace's skills/ directory."
+      - "Need to determine how to target a specific agent's workspace — may need `--workspace` flag or agent context switching."
+      - "The skill must exist on ClawHub — local-only skills are not supported through this path."
+      - "Consider supporting `--version <version>` passthrough for pinned installs."
+      - OpenClaw version must be 2026.3.28+
+    owner: techlead-agent
+    dependencies: [feature76]
+    status: not-started
+
+  - id: feature84
+    title: "OpenClaw skill search via ClawHub"
+    description: |
+      Add `kinnoo search --openclaw-skill <query>` to search for skills on ClawHub
+      by delegating to `openclaw skills search <query>`. Provides discovery of
+      available OpenClaw skills through the kinnoo CLI surface.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo search --openclaw-skill <query>` delegates to `openclaw skills search <query>` with stdout passthrough."
+      - id: AC2
+        description: "Preflight (feature76) verifies openclaw CLI presence before delegation."
+      - id: AC3
+        description: "Empty results and search errors are surfaced with actionable guidance."
+      - id: AC4
+        description: "Output is human-readable by default; supports `--json` passthrough for machine-readable results."
+    notes:
+      - "Thin wrapper — kinnoo adds no processing, just delegates to openclaw skills search."
+      - "Gateway must be running for ClawHub search to work (skills search uses Gateway RPC)."
+      - "Future: integrate search results with kinnoo install --openclaw-skill for seamless discover-then-install flow."
+      - OpenClaw version must be 2026.3.28+
+    owner: techlead-agent
+    dependencies: [feature76]
+    status: not-started
+  
+  - id: feature85
+    title: "Deprecate OpenClaw bridge features 62-67"
+    description: |
+      Mark features 62-67 (openclaw-skill schema extension, ClawHub mirror index,
+      ClawHub import bridge, delegated install bridge, run adapter v1, ClawHub sync
+      command) as deprecated in favor of the Phase 7 CLI wrapper approach (features
+      76-84). Remove or gate the --experimental-openclaw-adapter flag. Existing code
+      paths should emit deprecation warnings pointing users to the new commands.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "Features 62-67 are marked deprecated in FEATURES.txt with pointers to their Phase 7 replacements."
+      - id: AC2
+        description: "Code paths from features 62-67 that remain active emit deprecation warnings with migration guidance."
+      - id: AC3
+        description: "The --experimental-openclaw-adapter flag is removed or emits a deprecation notice."
+      - id: AC4
+        description: "Tests for features 62-67 are preserved but annotated as covering deprecated code paths."
+      - id: AC5
+        description: "No breaking changes for users who have not yet adopted Phase 7 commands — deprecated paths still function."
+      - id: AC6
+        description: "Help usage text related to features 62-67 should be removed."
+    notes:
+      - "Features 62-67 used a bridge/mirror/scaffold approach that is superseded by proper CLI wrapping."
+      - "Feature34 (OpenClaw Scaffold Template) is superseded by feature77 (init via CLI wrapper)."
+      - "Feature36 (OpenClaw Import Detection) analysis logic is reusable in feature78 — deprecate the scaffold output, keep the detector."
+      - "Deprecation is non-breaking — old code paths remain functional but warn."
+      - "Full removal of deprecated code is deferred to a future cleanup phase."
+    owner: techlead-agent
+    dependencies: [feature76, feature77, feature78, feature80, feature81]
+    status: not-started
