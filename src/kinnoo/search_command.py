@@ -12,12 +12,22 @@ from .archive import LocalArchiveBackend
 from .registry import RegistryService
 from .registry_backends import MockFilesystemRegistryBackend
 from .remote_client import RemoteRegistryClient
+from .openclaw_preflight import run_openclaw_preflight_for_command
 
 
 def search_openclaw_skills(*, query: str, json_output: bool = False) -> int:
     query_text = query.strip()
     if not query_text:
         print("Error: Search query cannot be empty.")
+        return 1
+
+    preflight_result = run_openclaw_preflight_for_command("openclaw-skill-search")
+    if not preflight_result.ok:
+        print(
+            "Error: OpenClaw skill search preflight failed "
+            f"(category={preflight_result.category}). {preflight_result.message}",
+            file=sys.stderr,
+        )
         return 1
 
     command = ["openclaw", "skills", "search", query_text]
@@ -43,6 +53,26 @@ def search_openclaw_skills(*, query: str, json_output: bool = False) -> int:
         print(result.stdout, end="")
     if result.stderr:
         print(result.stderr, end="", file=sys.stderr)
+
+    stdout_text = (result.stdout or "").strip()
+    if result.returncode == 0:
+        if stdout_text in {"", "[]"}:
+            if json_output:
+                if stdout_text == "":
+                    print("[]")
+            else:
+                print(
+                    f"No OpenClaw skill results found for query: {query_text}. "
+                    "Try a broader query or verify skill naming.",
+                )
+        return 0
+
+    print(
+        "Error: OpenClaw skill search delegation failed "
+        "(category=openclaw_skill_search_nonzero_exit). "
+        "Review OpenClaw search output and retry.",
+        file=sys.stderr,
+    )
 
     return int(result.returncode)
 

@@ -7686,7 +7686,7 @@ tasks:
       - 'step4: Add tests for preflight failures and empty/error guidance paths'
     dependencies: [task378]
     tests: [test538]
-    status: not-started
+    status: needs-review
 
   - id: task380
     title: "Feature85 deprecation metadata and cli/help migration messaging"
