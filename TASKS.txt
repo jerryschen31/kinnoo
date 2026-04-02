@@ -7360,7 +7360,7 @@ tasks:
       - 'step4: Add unit/integration tests for missing CLI, invalid version text, and compatible version checks'
     dependencies: []
     tests: [test521]
-    status: not-started
+    status: needs-review
 
   - id: task363
     title: "Feature76 preflight reuse and optional gateway health gating"
