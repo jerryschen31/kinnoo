@@ -22,6 +22,7 @@ except ImportError:
 RUN_USAGE_TEXT = (
     "Usage: kinnoo run <agent-dir> '<input>'\n"
     "       kinnoo run <agent-dir>\n"
+    "       kinnoo run <agent-dir> '<input>' --thinking <low|medium|high>\n"
     "       kinnoo run <agent-dir> --json-input '<json>'\n"
     "       kinnoo run <agent-dir> --json-file <json-file>\n"
     "       kinnoo run <agent-dir> -- <args...>"
@@ -257,6 +258,11 @@ def main():
         "--experimental-openclaw-adapter",
         action="store_true",
         help="Enable experimental OpenClaw run adapter for openclaw-skill manifests",
+    )
+    run_parser.add_argument(
+        "--thinking",
+        choices=["low", "medium", "high"],
+        help="(OpenClaw run) Optional thinking level passthrough",
     )
     run_parser.add_argument(
         "--max-seconds",
@@ -834,6 +840,7 @@ def main():
             sandbox=bool(getattr(args, "sandbox", False)),
             dry_run=bool(getattr(args, "dry_run", False)),
             experimental_openclaw_adapter=bool(getattr(args, "experimental_openclaw_adapter", False)),
+            openclaw_thinking=getattr(args, "thinking", None),
             max_seconds=getattr(args, "max_seconds", None),
             max_cpu_seconds=getattr(args, "max_cpu_seconds", None),
             max_memory_mb=getattr(args, "max_memory_mb", None),

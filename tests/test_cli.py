@@ -4136,6 +4136,104 @@ def _create_feature66_openclaw_agent_dir(tmp_path, agent_name: str = "feature66-
     return agent_dir
 
 
+def _create_feature81_openclaw_agent_dir(tmp_path, agent_name: str = "feature81-openclaw-agent"):
+    agent_dir = tmp_path / agent_name
+    agent_dir.mkdir(parents=True, exist_ok=True)
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    (agent_dir / "index.js").write_text("console.log('openclaw feature81 run')\n", encoding="utf-8")
+    (agent_dir / "kinnoo.yaml").write_text(
+        f"name: {agent_name}\n"
+        "version: 1.0.0\n"
+        "type: openclaw-skill\n"
+        "framework: openclaw\n"
+        "entrypoint: index.js\n"
+        "runtime:\n"
+        "  language: nodejs\n"
+        "  version: \">=20\"\n"
+        "  type: daemon\n"
+        "dependencies: []\n"
+        "inputs:\n"
+        "  type: text\n"
+        "outputs:\n"
+        "  type: text\n",
+        encoding="utf-8",
+    )
+    return agent_dir
+
+
+def _make_feature81_fake_openclaw_cli(bin_dir: Path) -> None:
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    openclaw_script = bin_dir / "openclaw"
+    openclaw_script.write_text(
+        "#!/bin/sh\n"
+        "if [ -n \"$KINNOO_TEST_OPENCLAW_RUN_LOG\" ]; then\n"
+        "  printf '%s\\n' \"$*\" >> \"$KINNOO_TEST_OPENCLAW_RUN_LOG\"\n"
+        "fi\n"
+        "if [ \"$KINNOO_TEST_OPENCLAW_FAIL_RUN\" = \"1\" ]; then\n"
+        "  echo simulated openclaw runtime failure >&2\n"
+        "  exit 9\n"
+        "fi\n"
+        "if [ \"$1\" = \"agent\" ]; then\n"
+        "  echo delegated-agent-ok\n"
+        "  exit 0\n"
+        "fi\n"
+        "echo unsupported openclaw invocation >&2\n"
+        "exit 2\n",
+        encoding="utf-8",
+    )
+    openclaw_script.chmod(0o755)
+
+
+def test_feature81_run_mapping_thinking_and_exit_propagation(tmp_path):
+    agent_dir = _create_feature81_openclaw_agent_dir(tmp_path)
+    fake_bin = tmp_path / "feature81-openclaw-bin"
+    _make_feature81_fake_openclaw_cli(fake_bin)
+    invocation_log = tmp_path / "feature81-openclaw-run.log"
+
+    env = dict(os.environ)
+    env["PATH"] = f"{fake_bin}{os.pathsep}{env.get('PATH', '')}"
+    env["KINNOO_TEST_OPENCLAW_RUN_LOG"] = str(invocation_log)
+
+    success_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(agent_dir),
+            "hello-openclaw",
+            "--thinking",
+            "high",
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    success_output = f"{success_result.stdout}\n{success_result.stderr}"
+    assert success_result.returncode == 0, success_output
+    assert "delegated invocation" in success_output
+
+    logged_invocations = invocation_log.read_text(encoding="utf-8")
+    assert "agent --agent feature81-openclaw-agent --message hello-openclaw --thinking high" in logged_invocations
+
+    failing_env = dict(env)
+    failing_env["KINNOO_TEST_OPENCLAW_FAIL_RUN"] = "1"
+    failing_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(agent_dir),
+            "hello-openclaw",
+        ],
+        capture_output=True,
+        text=True,
+        env=failing_env,
+    )
+    failing_output = f"{failing_result.stdout}\n{failing_result.stderr}"
+    assert failing_result.returncode == 9
+    assert "openclaw_agent_runtime_nonzero_exit" in failing_output
+
+
 def _make_feature66_fake_openclaw_cli(bin_dir: Path, *, version: str = "0.3.0") -> None:
     bin_dir.mkdir(parents=True, exist_ok=True)
     openclaw_script = bin_dir / "openclaw"

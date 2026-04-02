@@ -7553,7 +7553,7 @@ tasks:
       - 'step4: Add tests for command mapping thinking passthrough and exit propagation'
     dependencies: [task363]
     tests: [test531]
-    status: not-started
+    status: needs-review
 
   - id: task373
     title: "Feature81 gateway preflight gating and json output passthrough"
