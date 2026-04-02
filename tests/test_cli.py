@@ -4476,6 +4476,7 @@ def _make_feature66_fake_openclaw_cli(bin_dir: Path, *, version: str = "0.3.0") 
 
 
 def test_feature66_run_adapter_backend_selection_and_gate(tmp_path):
+    """Feature66 deprecated-path coverage: legacy adapter gate behavior remains non-breaking."""
     agent_dir = _create_feature66_openclaw_agent_dir(tmp_path)
 
     gate_disabled = subprocess.run(
@@ -4527,6 +4528,7 @@ def test_feature66_run_adapter_backend_selection_and_gate(tmp_path):
 
 
 def test_feature66_run_adapter_diagnostics_and_failures(tmp_path):
+    """Feature66 deprecated-path coverage: legacy adapter diagnostics remain available during migration."""
     agent_dir = _create_feature66_openclaw_agent_dir(tmp_path)
 
     # Missing backend case.

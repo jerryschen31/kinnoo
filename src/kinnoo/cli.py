@@ -32,6 +32,15 @@ RUN_USAGE_TEXT = (
 IMPORT_USAGE_TEXT = "Usage: kinnoo import [path]"
 
 
+def _emit_bridge_path_deprecation_warning(*, path: str, replacement: str) -> None:
+    print(
+        "[kinnoo deprecation] category=openclaw_bridge_path_deprecated "
+        f"path={path} replacement={replacement} "
+        "message=legacy bridge path remains supported for compatibility but is deprecated",
+        file=sys.stderr,
+    )
+
+
 def _format_top_level_help_text() -> str:
     title = style_text("Kinnoo CLI", color="cyan", bold=True, stream=sys.stdout)
     usage_label = style_text("usage:", color="purple", bold=True, stream=sys.stdout)
@@ -848,6 +857,11 @@ def main():
         preflight_mode = bool(getattr(args, "preflight", False))
         input_arg = args.input
         pass_through_args = run_pass_through_args
+        if bool(getattr(args, "experimental_openclaw_adapter", False)):
+            _emit_bridge_path_deprecation_warning(
+                path="run_experimental_openclaw_adapter",
+                replacement="kinnoo run <agent-dir> '<prompt>' [--thinking <level>] [--json]",
+            )
         if not hasattr(args, "agent_dir") or args.agent_dir is None:
             if preflight_mode:
                 print("Usage: kinnoo run <agent-dir> --preflight", file=sys.stderr)
@@ -1219,6 +1233,15 @@ def main():
         if source is None:
             print("Usage: kinnoo sync clawhub [--full] [--since <iso8601>]", file=sys.stderr)
             sys.exit(1)
+
+        if str(source).strip().lower() == "clawhub":
+            _emit_bridge_path_deprecation_warning(
+                path="sync_clawhub",
+                replacement=(
+                    "kinnoo search --openclaw-skill <query> [--json]; "
+                    "kinnoo install <agent-name> --openclaw-skill <owner/skill-or-url>"
+                ),
+            )
 
         try:
             from kinnoo.sync_command import sync_source

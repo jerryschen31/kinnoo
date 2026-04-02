@@ -7726,4 +7726,4 @@ tasks:
       - 'step4: Add compatibility tests ensuring deprecated paths still work while warning'
     dependencies: [task380]
     tests: [test540]
-    status: not-started
+    status: needs-review
