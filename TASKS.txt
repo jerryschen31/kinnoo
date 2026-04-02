@@ -7437,7 +7437,7 @@ tasks:
       - 'step4: Add import tests covering detection confidence and manifest generation'
     dependencies: [task363]
     tests: [test525]
-    status: not-started
+    status: needs-review
 
   - id: task367
     title: "Feature78 import copy/register workflow and conflict handling"
