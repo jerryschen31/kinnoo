@@ -7418,7 +7418,7 @@ tasks:
       - 'step4: Add tests/docs for manifest shape and summary output'
     dependencies: [task364]
     tests: [test524]
-    status: not-started
+    status: needs-review
 
   - id: task366
     title: "Feature78 OpenClaw workspace detection and manifest inference"

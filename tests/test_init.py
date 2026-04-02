@@ -884,3 +884,47 @@ def test_feature77_init_delegation_and_existing_workspace_guard(tmp_path, monkey
 
     with pytest.raises(FileExistsError):
         init_command.init_agent("foo", tmp_path, framework="openclaw")
+
+
+def test_feature77_init_manifest_and_summary(tmp_path, monkeypatch, capsys):
+    from kinnoo import init_command
+    from kinnoo.validator import validate
+
+    workspace = tmp_path / ".openclaw" / "workspace-bar"
+    monkeypatch.setattr(init_command.Path, "home", staticmethod(lambda: tmp_path))
+
+    def fake_preflight(command_name: str, minimum_version: str = "2026.3.28"):
+        from kinnoo.openclaw_preflight import OpenClawPreflightResult
+
+        return OpenClawPreflightResult(
+            ok=True,
+            category="openclaw_cli_precheck_ok",
+            message="ok",
+            version="2026.3.31",
+        )
+
+    def fake_run(args, capture_output, text, check):
+        return subprocess.CompletedProcess(args=args, returncode=0, stdout="ok", stderr="")
+
+    monkeypatch.setattr(init_command, "run_openclaw_preflight_for_command", fake_preflight)
+    monkeypatch.setattr(init_command.subprocess, "run", fake_run)
+
+    init_command.init_agent("bar", tmp_path, framework="openclaw")
+    output = capsys.readouterr().out
+
+    manifest_path = workspace / "kinnoo.yaml"
+    assert manifest_path.exists()
+    is_valid, errors = validate(str(manifest_path))
+    assert is_valid is True, errors
+
+    manifest_text = manifest_path.read_text(encoding="utf-8")
+    assert "framework: openclaw" in manifest_text
+    assert "language: nodejs" in manifest_text
+    assert "type: daemon" in manifest_text
+    assert "channels:" not in manifest_text
+    assert "skills:" not in manifest_text
+    assert "state_dirs:" not in manifest_text
+
+    assert "[kinnoo init][openclaw] agent=bar" in output
+    assert f"workspace={workspace}" in output
+    assert "next: edit SOUL.md" in output
