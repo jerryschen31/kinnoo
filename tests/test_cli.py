@@ -4316,6 +4316,68 @@ def test_feature81_gateway_preflight_and_json_output_passthrough(tmp_path):
     assert "agent --agent feature81-openclaw-json --message hello-json --json" in logged_invocations
 
 
+def test_feature82_logs_passthrough_follow_and_json(tmp_path):
+    fake_bin = tmp_path / "feature82-openclaw-logs-bin"
+    fake_bin.mkdir(parents=True, exist_ok=True)
+    invocation_log = tmp_path / "feature82-openclaw-logs.log"
+    openclaw_script = fake_bin / "openclaw"
+    openclaw_script.write_text(
+        "#!/bin/sh\n"
+        "if [ -n \"$KINNOO_TEST_OPENCLAW_LOGS_INVOCATION_LOG\" ]; then\n"
+        "  printf '%s\\n' \"$*\" >> \"$KINNOO_TEST_OPENCLAW_LOGS_INVOCATION_LOG\"\n"
+        "fi\n"
+        "if [ \"$1\" = \"logs\" ]; then\n"
+        "  echo openclaw-logs-ok\n"
+        "  exit 0\n"
+        "fi\n"
+        "echo unsupported openclaw logs invocation >&2\n"
+        "exit 2\n",
+        encoding="utf-8",
+    )
+    openclaw_script.chmod(0o755)
+
+    env = dict(os.environ)
+    env["PATH"] = f"{fake_bin}{os.pathsep}{env.get('PATH', '')}"
+    env["KINNOO_TEST_OPENCLAW_LOGS_INVOCATION_LOG"] = str(invocation_log)
+
+    default_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "logs",
+            "--daemon",
+            "openclaw",
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    default_output = f"{default_result.stdout}\n{default_result.stderr}"
+    assert default_result.returncode == 0, default_output
+    assert "openclaw-logs-ok" in default_output
+
+    follow_json_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "logs",
+            "--daemon",
+            "openclaw",
+            "--follow",
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    follow_json_output = f"{follow_json_result.stdout}\n{follow_json_result.stderr}"
+    assert follow_json_result.returncode == 0, follow_json_output
+
+    invocations = invocation_log.read_text(encoding="utf-8")
+    assert "logs" in invocations
+    assert "logs --follow --json" in invocations
+
+
 def _make_feature66_fake_openclaw_cli(bin_dir: Path, *, version: str = "0.3.0") -> None:
     bin_dir.mkdir(parents=True, exist_ok=True)
     openclaw_script = bin_dir / "openclaw"
