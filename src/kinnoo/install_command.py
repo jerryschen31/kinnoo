@@ -13,6 +13,7 @@ import hashlib
 import platform
 from datetime import datetime, timezone
 from urllib import request as urllib_request
+from urllib.parse import urlparse
 from pathlib import Path
 import yaml
 
@@ -923,6 +924,7 @@ def install_agent(
         return _install_openclaw_skill_for_existing_agent(
             agent_name=archive_path,
             skill_identifier=openclaw_skill_identifier,
+            minimum_openclaw_version=minimum_openclaw_version,
         )
 
     target_spec = parse_install_target_spec(archive_path)
@@ -1130,15 +1132,84 @@ def _resolve_openclaw_agent_workspace(agent_name: str) -> tuple[str | None, str 
     return None, "agent not found"
 
 
-def _install_openclaw_skill_for_existing_agent(*, agent_name: str, skill_identifier: str) -> int:
+def _normalize_openclaw_skill_identifier(raw_identifier: str) -> tuple[str | None, str | None]:
+    candidate = raw_identifier.strip()
+    if not candidate:
+        return None, "skill identifier is empty"
+
+    parsed = urlparse(candidate)
+    if parsed.scheme in {"http", "https"} and parsed.netloc:
+        host = parsed.netloc.lower()
+        if host.startswith("www."):
+            host = host[4:]
+        if host not in {"clawhub.ai", "app.clawhub.ai"}:
+            return None, "unsupported skill URL host"
+
+        segments = [segment for segment in parsed.path.split("/") if segment]
+        if len(segments) >= 3 and segments[0] in {"skills", "skill"}:
+            owner, slug = segments[1], segments[2]
+        elif len(segments) >= 2:
+            owner, slug = segments[0], segments[1]
+        else:
+            return None, "skill URL must contain owner/slug path"
+
+        normalized = f"{owner.strip()}/{slug.strip()}"
+        if "/" not in normalized or normalized.startswith("/") or normalized.endswith("/"):
+            return None, "skill URL did not resolve to a valid owner/slug"
+        return normalized, None
+
+    if "/" not in candidate:
+        return None, "skill identifier must be owner/slug or a supported URL"
+
+    owner, slug = candidate.split("/", 1)
+    owner = owner.strip()
+    slug = slug.strip()
+    if not owner or not slug:
+        return None, "skill identifier must include non-empty owner and slug"
+    return f"{owner}/{slug}", None
+
+
+def _classify_openclaw_skill_install_outcome(*, returncode: int, stdout: str, stderr: str) -> tuple[str, bool]:
+    combined = f"{stdout}\n{stderr}".lower()
+    if "already installed" in combined or "already-installed" in combined:
+        return "already-installed", True
+    if "not found" in combined or "not-found" in combined:
+        return "not-found", False
+    if returncode == 0:
+        return "success", True
+    return "failed", False
+
+
+def _install_openclaw_skill_for_existing_agent(
+    *,
+    agent_name: str,
+    skill_identifier: str,
+    minimum_openclaw_version: str,
+) -> int:
     normalized_agent = agent_name.strip()
     if not normalized_agent:
         print("Error: agent name is required for --openclaw-skill installs.", file=sys.stderr)
         return 1
 
-    normalized_skill = skill_identifier.strip()
-    if not normalized_skill:
-        print("Error: --openclaw-skill requires a non-empty skill identifier.", file=sys.stderr)
+    normalized_skill, normalize_error = _normalize_openclaw_skill_identifier(skill_identifier)
+    if normalized_skill is None:
+        print(
+            "Error: invalid --openclaw-skill identifier. "
+            f"{normalize_error}. Use owner/slug or a supported ClawHub URL.",
+            file=sys.stderr,
+        )
+        return 1
+
+    preflight_result = run_openclaw_preflight_for_command(
+        "openclaw-skill-install",
+        minimum_version=minimum_openclaw_version,
+    )
+    if not preflight_result.ok:
+        print(
+            "Error: OpenClaw skill install preflight failed "
+            f"(category={preflight_result.category}). {preflight_result.message}",
+            file=sys.stderr,
+        )
         return 1
 
     workspace_path, resolve_error = _resolve_openclaw_agent_workspace(normalized_agent)
@@ -1172,6 +1243,29 @@ def _install_openclaw_skill_for_existing_agent(*, agent_name: str, skill_identif
     if result.stderr:
         print(result.stderr, end="", file=sys.stderr)
 
+    outcome, success = _classify_openclaw_skill_install_outcome(
+        returncode=int(result.returncode),
+        stdout=result.stdout or "",
+        stderr=result.stderr or "",
+    )
+    if outcome == "success":
+        print(
+            f"[kinnoo install][openclaw-skill] outcome=success agent={normalized_agent} skill={normalized_skill}"
+        )
+        return 0
+    if outcome == "already-installed":
+        print(
+            f"[kinnoo install][openclaw-skill] outcome=already-installed agent={normalized_agent} skill={normalized_skill}"
+        )
+        return 0
+    if outcome == "not-found":
+        print(
+            f"Error: OpenClaw skill install outcome=not-found (category=openclaw_skill_not_found) "
+            f"agent={normalized_agent} skill={normalized_skill}",
+            file=sys.stderr,
+        )
+        return 1
+
     if result.returncode != 0:
         print(
             "Error: OpenClaw skill install delegation failed "
@@ -1179,7 +1273,7 @@ def _install_openclaw_skill_for_existing_agent(*, agent_name: str, skill_identif
             file=sys.stderr,
         )
 
-    return int(result.returncode)
+    return 0 if success else int(result.returncode)
 
 
 def _install_from_archive_path(

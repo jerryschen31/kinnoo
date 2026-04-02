@@ -7648,7 +7648,7 @@ tasks:
       - 'step4: Add tests for missing-agent remediation and outcome diagnostic contracts'
     dependencies: [task376]
     tests: [test536]
-    status: not-started
+    status: needs-review
 
   - id: task378
     title: "Feature84 openclaw skill search command wrapper"
