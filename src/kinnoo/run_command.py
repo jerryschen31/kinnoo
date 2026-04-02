@@ -37,6 +37,7 @@ from .runtime_monitor import posix_resource_limits_supported
 from .runtime_monitor import resolve_monitor_policy_summary
 from .runtime_monitor import resolve_violation_enforcement
 from .terminal_colors import style_text
+from .openclaw_preflight import run_openclaw_preflight_for_command
 from .supervisor import (
     build_daemon_state_payload,
     clear_daemon_state,
@@ -1185,6 +1186,7 @@ def run_agent(
     dry_run: bool = False,
     experimental_openclaw_adapter: bool = False,
     openclaw_thinking: str | None = None,
+    openclaw_json_output: bool = False,
     max_seconds: float | None = None,
     max_cpu_seconds: int | None = None,
     max_memory_mb: int | None = None,
@@ -1571,6 +1573,11 @@ def run_agent(
             subprocess_env["PYTHONPATH"] = os.pathsep.join(pythonpath_parts)
 
     if manifest_type == "openclaw-skill":
+        preflight_result = run_openclaw_preflight_for_command("run")
+        if not preflight_result.ok:
+            _print_safe_error(f"Error: {preflight_result.message}")
+            return finalize(1)
+
         agent_name_value = manifest.get("name")
         agent_name = str(agent_name_value).strip() if isinstance(agent_name_value, str) else ""
         if not agent_name:
@@ -1587,6 +1594,8 @@ def run_agent(
         ]
         if openclaw_thinking is not None:
             delegated_command.extend(["--thinking", openclaw_thinking])
+        if openclaw_json_output:
+            delegated_command.append("--json")
 
         print(
             "[kinnoo run][openclaw] delegated invocation: "
