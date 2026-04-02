@@ -6960,7 +6960,7 @@ tasks:
       - 'step4: Emit structured adapter diagnostics including selected backend and invocation details'
     dependencies: [task340]
     tests: [test501]
-    status: needs-review
+    status: deprecated
 
   - id: task343
     title: "Feature66 run adapter error handling and regression tests"
@@ -6980,7 +6980,7 @@ tasks:
       - 'step4: Document adapter limitations and compatibility notes in changelog/docs'
     dependencies: [task342]
     tests: [test502]
-    status: needs-review
+    status: deprecated
 
   - id: task344
     title: "Feature67 sync clawhub command with incremental/full modes"
@@ -7341,4 +7341,389 @@ tasks:
       - 'step4: Document adapter best practices and known limitations for developers'
     dependencies: [task360]
     tests: [test520]
+    status: needs-review
+
+  - id: task362
+    title: "Feature76 preflight CLI detection and version parsing"
+    type: task
+    description: |
+      Add a reusable OpenClaw preflight module that validates CLI availability and
+      enforces minimum supported OpenClaw version.
+    files:
+      - src/kinnoo/openclaw_preflight.py
+      - src/kinnoo/errors.py
+      - tests/test_cli_openclaw_preflight.py
+    steps:
+      - 'step1: Implement OpenClaw CLI presence check using deterministic subprocess probes'
+      - 'step2: Parse OpenClaw date-based versions (YYYY.M.D[-suffix]) and enforce >= 2026.3.28'
+      - 'step3: Return deterministic remediation guidance when CLI is missing or version is too old'
+      - 'step4: Add unit/integration tests for missing CLI, invalid version text, and compatible version checks'
+    dependencies: []
+    tests: [test521]
+    status: needs-review
+
+  - id: task363
+    title: "Feature76 preflight reuse and optional gateway health gating"
+    type: task
+    description: |
+      Wire the preflight module into OpenClaw command entry points with optional
+      gateway health probing for runtime commands.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/openclaw_preflight.py
+      - tests/test_cli_openclaw_preflight.py
+    steps:
+      - 'step1: Add optional gateway health probe mode via `openclaw gateway status`'
+      - 'step2: Ensure init/import/install use CLI+version checks only while run/logs/skill commands require gateway health'
+      - 'step3: Reuse one preflight code path across command handlers to avoid duplicated subprocess logic'
+      - 'step4: Add command-level tests proving the right preflight mode is invoked per command'
+    dependencies: [task362]
+    tests: [test522]
+    status: needs-review
+
+  - id: task364
+    title: "Feature77 init delegation to openclaw agents add"
+    type: task
+    description: |
+      Rework OpenClaw init so kinnoo delegates agent creation to the OpenClaw CLI
+      using the workspace-<name> convention.
+    files:
+      - src/kinnoo/init_command.py
+      - src/kinnoo/cli.py
+      - tests/test_init.py
+    steps:
+      - 'step1: Add OpenClaw init flow that runs preflight before any mutation'
+      - 'step2: Delegate creation to `openclaw agents add <name> --workspace ~/.openclaw/workspace-<name>`'
+      - 'step3: Add deterministic existing-workspace error handling with non-destructive behavior'
+      - 'step4: Add tests for delegation command shape and preflight-before-subprocess ordering'
+    dependencies: [task363]
+    tests: [test523]
+    status: needs-review
+
+  - id: task365
+    title: "Feature77 init manifest generation and operator summary"
+    type: task
+    description: |
+      Generate kinnoo.yaml for newly added OpenClaw agents and provide clear
+      post-init operator guidance.
+    files:
+      - src/kinnoo/init_command.py
+      - src/kinnoo/manifest.py
+      - tests/test_init.py
+      - README.md
+    steps:
+      - 'step1: Generate valid kinnoo.yaml in the OpenClaw workspace after successful `agents add`'
+      - 'step2: Populate framework/runtime fields consistent with OpenClaw requirements'
+      - 'step3: Print deterministic summary with agent name workspace path and next-step guidance'
+      - 'step4: Add tests/docs for manifest shape and summary output'
+    dependencies: [task364]
+    tests: [test524]
+    status: needs-review
+
+  - id: task366
+    title: "Feature78 OpenClaw workspace detection and manifest inference"
+    type: task
+    description: |
+      Extend import flow to detect OpenClaw workspace signatures and infer a valid
+      kinnoo.yaml from local workspace structure.
+    files:
+      - src/kinnoo/import_command.py
+      - src/kinnoo/analyzer.py
+      - tests/test_cli_import.py
+    steps:
+      - 'step1: Detect OpenClaw workspace signals (AGENTS.md, SOUL.md, openclaw.json, skills/, memory/)'
+      - 'step2: Generate kinnoo.yaml with OpenClaw framework/runtime/workspace metadata'
+      - 'step3: Add deterministic error handling for missing directories and non-OpenClaw sources'
+      - 'step4: Add import tests covering detection confidence and manifest generation'
+    dependencies: [task363]
+    tests: [test525]
+    status: needs-review
+
+  - id: task367
+    title: "Feature78 import copy/register workflow and conflict handling"
+    type: task
+    description: |
+      Implement import-time copy/register paths for workspaces outside ~/.openclaw
+      and ensure registration consistency for in-place workspaces.
+    files:
+      - src/kinnoo/import_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli_import.py
+    steps:
+      - 'step1: Prompt to copy external workspaces into ~/.openclaw and register via `openclaw agents add`'
+      - 'step2: For in-place workspaces, verify registration using `openclaw agents list` and add missing registrations'
+      - 'step3: Add deterministic conflict handling when destination workspace already exists'
+      - 'step4: Add tests for copy prompt flow in-place registration flow and conflict diagnostics'
+    dependencies: [task366]
+    tests: [test526]
+    status: needs-review
+
+  - id: task368
+    title: "Feature79 OpenClaw pack include rules"
+    type: task
+    description: |
+      Update packaging logic so OpenClaw identity and workspace content files are
+      included deterministically in .kno archives.
+    files:
+      - src/kinnoo/pack_command.py
+      - src/kinnoo/archive.py
+      - tests/test_pack.py
+    steps:
+      - 'step1: Include OpenClaw identity files (AGENTS.md SOUL.md TOOLS.md USER.md MEMORY.md IDENTITY.md BOOTSTRAP.md HEARTBEAT.md)'
+      - 'step2: Include memory/ and skills/ directories with deterministic ordering'
+      - 'step3: Ensure missing optional identity files do not fail pack'
+      - 'step4: Add tests for include contract using OpenClaw workspace fixtures'
+    dependencies: []
+    tests: [test527]
+    status: needs-review
+
+  - id: task369
+    title: "Feature79 OpenClaw pack exclude rules and roundtrip viability"
+    type: task
+    description: |
+      Add deterministic excludes for runtime artifacts and verify resulting archives
+      remain installable through OpenClaw install wrapper flow.
+    files:
+      - src/kinnoo/pack_command.py
+      - tests/test_pack_robustness.py
+      - tests/test_pack_size_reporting.py
+      - web/__tests__/openclaw-pack-fixtures.test.ts
+    steps:
+      - 'step1: Exclude .git/ .openclaw/ node_modules/ and related runtime-only artifacts'
+      - 'step2: Preserve archive size reporting behavior for OpenClaw archives'
+      - 'step3: Add roundtrip fixture coverage proving packed archive remains installable by feature80 flow'
+      - 'step4: Add Vitest fixture contract check for JS/TS-oriented workspace file expectations'
+    dependencies: [task368]
+    tests: [test528]
+    status: needs-review
+
+  - id: task370
+    title: "Feature80 OpenClaw install extract and register flow"
+    type: task
+    description: |
+      Implement OpenClaw install path that extracts to ~/.openclaw/workspace-<name>
+      and registers the agent with `openclaw agents add`.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/cli.py
+      - tests/test_install.py
+    steps:
+      - 'step1: Add OpenClaw install branch selecting workspace-<name> extraction target'
+      - 'step2: Run preflight before extraction and registration'
+      - 'step3: Delegate registration to `openclaw agents add <name> --workspace <path>`'
+      - 'step4: Add tests for extract+register happy path and command invocation shape'
+    dependencies: [task363, task369]
+    tests: [test529]
+    status: needs-review
+
+  - id: task371
+    title: "Feature80 install diagnostics conflicts and trust checks"
+    type: task
+    description: |
+      Add deterministic conflict diagnostics and preserve kinnoo-side validation,
+      security, and install trace reporting around delegated OpenClaw registration.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/install_trace.py
+      - tests/test_install.py
+      - tests/test_cli_install.py
+    steps:
+      - 'step1: Add existing-workspace conflict handling with actionable remediation guidance'
+      - 'step2: Ensure manifest validation and security checks execute before openclaw subprocess delegation'
+      - 'step3: Record delegated command outcomes in install diagnostics and traces'
+      - 'step4: Add tests covering conflicts validation-ordering and trace content'
+    dependencies: [task370]
+    tests: [test530]
+    status: needs-review
+
+  - id: task372
+    title: "Feature81 run delegation thinking passthrough and exit semantics"
+    type: task
+    description: |
+      Implement OpenClaw run wrapper that maps kinnoo run arguments to
+      `openclaw agent` invocation and propagates exit behavior deterministically.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Map `kinnoo run <name> <prompt>` to `openclaw agent --agent <name> --message <prompt>`'
+      - 'step2: Add optional `--thinking <level>` passthrough support'
+      - 'step3: Propagate non-zero openclaw exit codes with actionable diagnostics'
+      - 'step4: Add tests for command mapping thinking passthrough and exit propagation'
+    dependencies: [task363]
+    tests: [test531]
+    status: needs-review
+
+  - id: task373
+    title: "Feature81 gateway preflight gating and json output passthrough"
+    type: task
+    description: |
+      Enforce gateway-health preflight for OpenClaw run and support JSON output
+      passthrough while keeping text input as default UX.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/openclaw_preflight.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Require gateway health preflight before run execution'
+      - 'step2: Keep text prompt as default run input path'
+      - 'step3: Support `--json` output passthrough without introducing JSON input in this phase'
+      - 'step4: Add tests for gateway-down behavior text-default behavior and json output passthrough'
+    dependencies: [task372]
+    tests: [test532]
+    status: needs-review
+
+  - id: task374
+    title: "Feature82 logs command wrapper and flag passthrough"
+    type: task
+    description: |
+      Add OpenClaw logs wrapper command mode in kinnoo with direct passthrough of
+      follow/json options to `openclaw logs`.
+    files:
+      - src/kinnoo/logs_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add `kinnoo logs --daemon openclaw` command routing'
+      - 'step2: Delegate to `openclaw logs` preserving stdout/stderr passthrough'
+      - 'step3: Pass through `--follow` and `--json` flags deterministically'
+      - 'step4: Add tests for command routing and passthrough behavior'
+    dependencies: [task363]
+    tests: [test533]
+    status: needs-review
+
+  - id: task375
+    title: "Feature82 logs preflight validation and failure diagnostics"
+    type: task
+    description: |
+      Ensure OpenClaw logs wrapper enforces CLI preflight and emits actionable
+      diagnostics for missing CLI or gateway/RPC failures.
+    files:
+      - src/kinnoo/logs_command.py
+      - src/kinnoo/openclaw_preflight.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add preflight checks before log delegation'
+      - 'step2: Emit deterministic remediation guidance for missing CLI and failed RPC probes'
+      - 'step3: Keep diagnostics stable for both human-readable and json flag modes'
+      - 'step4: Add tests for error-path behavior and deterministic messaging'
+    dependencies: [task374]
+    tests: [test534]
+    status: needs-review
+
+  - id: task376
+    title: "Feature83 openclaw skill install command and agent resolution"
+    type: task
+    description: |
+      Add `kinnoo install --openclaw-skill` command path that validates the target
+      agent exists and delegates skill install to OpenClaw.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli_install.py
+    steps:
+      - 'step1: Add parser support for `kinnoo install --openclaw-skill <slug-or-url> <agent>`'
+      - 'step2: Resolve agent existence via `openclaw agents list` before installation'
+      - 'step3: Delegate install to OpenClaw skills command targeting the resolved agent workspace'
+      - 'step4: Add tests for existing-agent delegation behavior and command shape'
+    dependencies: [task363]
+    tests: [test535]
+    status: needs-review
+
+  - id: task377
+    title: "Feature83 skill identifier normalization and outcome diagnostics"
+    type: task
+    description: |
+      Normalize skill slug/URL input forms and provide deterministic operator
+      diagnostics for missing agent and skill outcome states.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/openclaw_preflight.py
+      - tests/test_cli_install.py
+    steps:
+      - 'step1: Normalize and validate ClawHub skill identifiers from slug and URL forms'
+      - 'step2: Enforce gateway-aware preflight before delegated skill installation'
+      - 'step3: Add deterministic messages for success already-installed and not-found outcomes'
+      - 'step4: Add tests for missing-agent remediation and outcome diagnostic contracts'
+    dependencies: [task376]
+    tests: [test536]
+    status: needs-review
+
+  - id: task378
+    title: "Feature84 openclaw skill search command wrapper"
+    type: task
+    description: |
+      Add `kinnoo search --openclaw-skill <query>` as a thin wrapper around
+      `openclaw skills search` including JSON passthrough support.
+    files:
+      - src/kinnoo/search_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli_registry.py
+    steps:
+      - 'step1: Add parser support for `kinnoo search --openclaw-skill <query>`'
+      - 'step2: Delegate to `openclaw skills search <query>` with stdout passthrough'
+      - 'step3: Support optional `--json` passthrough mode for machine-readable output'
+      - 'step4: Add tests for delegation behavior and json passthrough contracts'
+    dependencies: [task363]
+    tests: [test537]
+    status: needs-review
+
+  - id: task379
+    title: "Feature84 search preflight and empty/error guidance"
+    type: task
+    description: |
+      Add deterministic preflight and operator guidance paths for OpenClaw skill
+      search when CLI/Gateway are unavailable or no results are returned.
+    files:
+      - src/kinnoo/search_command.py
+      - src/kinnoo/openclaw_preflight.py
+      - tests/test_cli_registry.py
+    steps:
+      - 'step1: Enforce preflight before search delegation'
+      - 'step2: Provide deterministic human guidance for empty-result and upstream failure cases'
+      - 'step3: Preserve stable behavior in `--json` mode for no-result responses'
+      - 'step4: Add tests for preflight failures and empty/error guidance paths'
+    dependencies: [task378]
+    tests: [test538]
+    status: needs-review
+
+  - id: task380
+    title: "Feature85 deprecation metadata and cli/help migration messaging"
+    type: task
+    description: |
+      Mark bridge-era OpenClaw features as deprecated in manifests and remove stale
+      help text while adding migration pointers to new CLI-wrapper flows.
+    files:
+      - FEATURES.txt
+      - src/kinnoo/cli.py
+      - README.md
+      - docs/CHANGELOG.md
+    steps:
+      - 'step1: Mark feature62-feature67 as deprecated in FEATURES.txt with references to feature76-feature84 replacements'
+      - 'step2: Remove or update help text advertising deprecated bridge-only flows'
+      - 'step3: Add migration guidance notes in docs/readme surfaces'
+      - 'step4: Add tests validating help output no longer exposes deprecated usage strings'
+    dependencies: [task363, task364, task366, task370, task372]
+    tests: [test539]
+    status: needs-review
+
+  - id: task381
+    title: "Feature85 runtime deprecation warnings and non-breaking compatibility"
+    type: task
+    description: |
+      Keep bridge-era command paths functional but clearly deprecated, with test
+      annotations and warning output that direct users to replacement commands.
+    files:
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+      - tests/test_cli_registry_modes.py
+      - tests/test_registry.py
+    steps:
+      - 'step1: Emit deterministic deprecation warnings when bridge-era paths are used'
+      - 'step2: Preserve existing behavior to avoid breaking users during transition window'
+      - 'step3: Annotate legacy tests as deprecated-path coverage where applicable'
+      - 'step4: Add compatibility tests ensuring deprecated paths still work while warning'
+    dependencies: [task380]
+    tests: [test540]
     status: needs-review

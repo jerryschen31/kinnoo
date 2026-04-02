@@ -24,7 +24,6 @@ from .health_check import (
     check_node_package_manager_availability,
     check_node_runtime_constraint,
     classify_daemon_lifecycle_state,
-    detect_openclaw_run_backend,
     run_service_health_check,
 )
 from .schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars
@@ -38,6 +37,7 @@ from .runtime_monitor import posix_resource_limits_supported
 from .runtime_monitor import resolve_monitor_policy_summary
 from .runtime_monitor import resolve_violation_enforcement
 from .terminal_colors import style_text
+from .openclaw_preflight import run_openclaw_preflight_for_command
 from .supervisor import (
     build_daemon_state_payload,
     clear_daemon_state,
@@ -1185,6 +1185,8 @@ def run_agent(
     sandbox: bool = False,
     dry_run: bool = False,
     experimental_openclaw_adapter: bool = False,
+    openclaw_thinking: str | None = None,
+    openclaw_json_output: bool = False,
     max_seconds: float | None = None,
     max_cpu_seconds: int | None = None,
     max_memory_mb: int | None = None,
@@ -1571,63 +1573,60 @@ def run_agent(
             subprocess_env["PYTHONPATH"] = os.pathsep.join(pythonpath_parts)
 
     if manifest_type == "openclaw-skill":
-        if not experimental_openclaw_adapter:
-            _print_safe_error(
-                "Error: OpenClaw run adapter is experimental and disabled by default. "
-                "Re-run with --experimental-openclaw-adapter."
-            )
+        preflight_result = run_openclaw_preflight_for_command("run")
+        if not preflight_result.ok:
+            _print_safe_error(f"Error: {preflight_result.message}")
             return finalize(1)
 
-        backend_ok, backend_category, backend_message, backend_name, backend_command = detect_openclaw_run_backend()
-        print(f"[kinnoo run][openclaw] [{backend_category}] {backend_message}", flush=True)
-        if not backend_ok or backend_command is None or backend_name is None:
-            remediation = "Install or upgrade OpenClaw CLI and retry."
-            if backend_category == "openclaw_adapter_cli_missing":
-                remediation = "Install OpenClaw CLI and ensure it is available on PATH, then retry."
-            elif backend_category == "openclaw_adapter_version_unsupported":
-                remediation = "Upgrade OpenClaw CLI to version >= 0.2.0, then retry."
-            _print_safe_error(
-                "Error: OpenClaw run adapter precheck failed "
-                f"(category={backend_category}). "
-                + remediation
-            )
+        agent_name_value = manifest.get("name")
+        agent_name = str(agent_name_value).strip() if isinstance(agent_name_value, str) else ""
+        if not agent_name:
+            _print_safe_error("Error: OpenClaw run requires a non-empty manifest name field.")
             return finalize(1)
 
-        adapter_args = list(backend_command)
-        if effective_input_arg is not None:
-            adapter_args.append(effective_input_arg)
-        adapter_args.extend(runtime_pass_through_args)
+        delegated_command = [
+            "openclaw",
+            "agent",
+            "--agent",
+            agent_name,
+            "--message",
+            effective_input_arg or "",
+        ]
+        if openclaw_thinking is not None:
+            delegated_command.extend(["--thinking", openclaw_thinking])
+        if openclaw_json_output:
+            delegated_command.append("--json")
 
         print(
-            "[kinnoo run][openclaw] adapter invocation: "
-            f"backend={backend_name} command={' '.join(adapter_args)}",
+            "[kinnoo run][openclaw] delegated invocation: "
+            f"command={' '.join(delegated_command)}",
             flush=True,
         )
         try:
-            adapter_process = subprocess.Popen(
-                adapter_args,
+            delegated_process = subprocess.Popen(
+                delegated_command,
                 cwd=agent_dir,
                 stdout=sys.stdout,
                 stderr=sys.stderr,
                 env=subprocess_env,
             )
-            adapter_process.communicate()
+            delegated_process.communicate()
         except Exception as error:
             _print_safe_error(
-                "Error: OpenClaw run adapter invocation failed "
-                f"(category=openclaw_adapter_invocation_failed): {error}",
+                "Error: OpenClaw run delegation invocation failed "
+                f"(category=openclaw_agent_invocation_failed): {error}",
                 secret_values=resolved_env_vars.values(),
             )
             return finalize(1)
 
-        if adapter_process.returncode != 0:
+        if delegated_process.returncode != 0:
             _print_safe_error(
-                "Error: OpenClaw run adapter execution failed "
-                "(category=openclaw_adapter_runtime_nonzero_exit). "
+                "Error: OpenClaw run delegation failed "
+                "(category=openclaw_agent_runtime_nonzero_exit). "
                 "Review OpenClaw command output and retry.",
                 secret_values=resolved_env_vars.values(),
             )
-            return finalize(adapter_process.returncode)
+            return finalize(delegated_process.returncode)
 
         return finalize(0)
 

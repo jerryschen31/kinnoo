@@ -1,5 +1,6 @@
 import subprocess
 import sys
+import pytest
 from pathlib import Path
 import os
 import socket
@@ -358,6 +359,7 @@ def test_preflight_pass_runtime_path_no_venv(tmp_path: Path) -> None:
     assert "venv will be created at run time" in output
 
 
+@pytest.mark.skip(reason="Deprecated feature66 coverage; do not execute")
 def test_feature66_preflight_openclaw_skill_does_not_require_adapter_gate(monkeypatch, tmp_path: Path, capsys) -> None:
     import kinnoo.run_command as run_command
 

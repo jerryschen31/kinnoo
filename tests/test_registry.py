@@ -607,7 +607,7 @@ def test_feature56_integration_suite(tmp_path: Path, monkeypatch) -> None:
 
 
 def test_feature63_clawhub_tenant_mirror_ownership(tmp_path: Path) -> None:
-	"""Feature63 test495: mirrored records are stored under admin-controlled clawhub tenant."""
+	"""Feature63 deprecated-path coverage: mirrored records remain under clawhub tenant."""
 	registry_root = tmp_path / "registry"
 	service = RegistryService(backend=LocalRegistryBackend(root=registry_root))
 
@@ -659,6 +659,7 @@ def test_feature63_clawhub_tenant_mirror_ownership(tmp_path: Path) -> None:
 
 
 def test_feature67_sync_resilience_and_summary(tmp_path: Path, monkeypatch, capsys) -> None:
+	"""Feature67 deprecated-path coverage: legacy sync resilience remains non-breaking."""
 	from kinnoo import sync_command
 
 	registry_root = tmp_path / "registry"

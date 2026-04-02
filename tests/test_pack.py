@@ -1219,3 +1219,59 @@ outputs:
     signature_payload = signature_path.read_bytes()
     signing_public_key = load_ed25519_public_key(public_key_path)
     assert verify_signature(signing_public_key, archive_payload, signature_payload) is True
+
+
+def test_feature79_openclaw_pack_includes_identity_and_workspace_dirs(tmp_path: Path) -> None:
+    agent = tmp_path / "feature79-openclaw-pack"
+    agent.mkdir(parents=True, exist_ok=True)
+
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: feature79-openclaw-pack
+version: 1.0.0
+type: openclaw-skill
+framework: openclaw
+entrypoint: index.js
+runtime:
+  language: nodejs
+  version: '>=20'
+  type: daemon
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "index.js").write_text("console.log('openclaw')\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+    (agent / "package.json").write_text('{"name":"feature79-openclaw-pack"}\n', encoding="utf-8")
+
+    (agent / "AGENTS.md").write_text("# Agents\n", encoding="utf-8")
+    (agent / "SOUL.md").write_text("# Soul\n", encoding="utf-8")
+    (agent / "skills" / "planner").mkdir(parents=True, exist_ok=True)
+    (agent / "skills" / "planner" / "SKILL.md").write_text("planner\n", encoding="utf-8")
+    (agent / "memory" / "session").mkdir(parents=True, exist_ok=True)
+    (agent / "memory" / "session" / "journal.md").write_text("notes\n", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    result = subprocess.run(
+        KINNOO_CLI + ["pack", str(agent)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+    archive = _canonical_archive_path(tmp_path, "feature79-openclaw-pack", "1.0.0")
+    assert archive.exists()
+    with zipfile.ZipFile(archive, "r") as zf:
+        names = set(zf.namelist())
+        assert "AGENTS.md" in names
+        assert "SOUL.md" in names
+        assert "skills/planner/SKILL.md" in names
+        assert "memory/session/journal.md" in names
+        assert "TOOLS.md" not in names

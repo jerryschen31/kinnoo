@@ -13,6 +13,7 @@ import hashlib
 import platform
 from datetime import datetime, timezone
 from urllib import request as urllib_request
+from urllib.parse import urlparse
 from pathlib import Path
 import yaml
 
@@ -48,6 +49,7 @@ try:
     from kinnoo.install_trace import write_install_trace
     from kinnoo.logging_utils import emit_violation_event_diagnostic
     from kinnoo.signing import verify_detached_signature_artifacts
+    from kinnoo.openclaw_preflight import run_openclaw_preflight_for_command
 except ImportError:
     from .checksum import (
         ChecksumParseError,
@@ -70,6 +72,7 @@ except ImportError:
     from .install_trace import write_install_trace
     from .logging_utils import emit_violation_event_diagnostic
     from .signing import verify_detached_signature_artifacts
+    from .openclaw_preflight import run_openclaw_preflight_for_command
 
 
 def _read_requirements(requirements_path: Path) -> list[str]:
@@ -657,6 +660,7 @@ DEFAULT_OPENCLAW_MINIMUM_VERSION = "0.1.0"
 def _write_openclaw_install_trace(
     target_dir: Path,
     *,
+    agent_name: str,
     minimum_version: str,
     delegated_command: list[str],
     outcome: str,
@@ -669,6 +673,8 @@ def _write_openclaw_install_trace(
         "runtime_language": "nodejs",
         "delegated_install": {
             "backend": "openclaw-cli",
+            "agent": agent_name,
+            "workspace": str(target_dir),
             "minimum_version": minimum_version,
             "command": delegated_command,
         },
@@ -687,16 +693,25 @@ def _write_openclaw_install_trace(
 def _install_openclaw_skill_dependencies(
     target_dir: Path,
     *,
+    agent_name: str,
     minimum_openclaw_version: str,
 ) -> int:
     precheck_ok, precheck_category, precheck_message = check_openclaw_cli_constraint(
         minimum_openclaw_version
     )
     print(f"[kinnoo install][openclaw] [{precheck_category}] {precheck_message}")
-    delegated_command = ["openclaw", "skills", "install", "."]
+    delegated_command = [
+        "openclaw",
+        "agents",
+        "add",
+        agent_name,
+        "--workspace",
+        str(target_dir),
+    ]
     if not precheck_ok:
         _write_openclaw_install_trace(
             target_dir=target_dir,
+            agent_name=agent_name,
             minimum_version=minimum_openclaw_version,
             delegated_command=delegated_command,
             outcome="blocked",
@@ -712,7 +727,7 @@ def _install_openclaw_skill_dependencies(
         return 1
 
     print(
-        "[kinnoo install][openclaw] Delegating dependency install to OpenClaw CLI: "
+        "[kinnoo install][openclaw] Delegating workspace registration to OpenClaw CLI: "
         f"{' '.join(delegated_command)}"
     )
     delegated_result = subprocess.run(
@@ -726,6 +741,7 @@ def _install_openclaw_skill_dependencies(
         delegated_category = "openclaw_cli_delegated_nonzero_exit"
         _write_openclaw_install_trace(
             target_dir=target_dir,
+            agent_name=agent_name,
             minimum_version=minimum_openclaw_version,
             delegated_command=delegated_command,
             outcome="failed",
@@ -745,6 +761,7 @@ def _install_openclaw_skill_dependencies(
 
     _write_openclaw_install_trace(
         target_dir=target_dir,
+        agent_name=agent_name,
         minimum_version=minimum_openclaw_version,
         delegated_command=delegated_command,
         outcome="allowed",
@@ -752,7 +769,7 @@ def _install_openclaw_skill_dependencies(
         decision_reason="openclaw_cli_delegated_install_succeeded",
         delegated_exit_code=0,
     )
-    print("[kinnoo install][openclaw] Delegated install completed successfully.")
+    print("[kinnoo install][openclaw] Workspace registration completed successfully.")
     return 0
 
 
@@ -900,8 +917,16 @@ def install_agent(
     use_local: bool = False,
     use_remote: bool = False,
     minimum_openclaw_version: str = DEFAULT_OPENCLAW_MINIMUM_VERSION,
+    openclaw_skill_identifier: str | None = None,
     install_source: str = "archive-file",
 ) -> int:
+    if openclaw_skill_identifier is not None:
+        return _install_openclaw_skill_for_existing_agent(
+            agent_name=archive_path,
+            skill_identifier=openclaw_skill_identifier,
+            minimum_openclaw_version=minimum_openclaw_version,
+        )
+
     target_spec = parse_install_target_spec(archive_path)
     if target_spec.kind == "invalid":
         print(f"Error: {target_spec.error}", file=sys.stderr)
@@ -1067,6 +1092,188 @@ def install_agent(
         minimum_openclaw_version=minimum_openclaw_version,
         install_source=install_source,
     )
+
+
+def _resolve_openclaw_agent_workspace(agent_name: str) -> tuple[str | None, str | None]:
+    try:
+        result = subprocess.run(
+            ["openclaw", "agents", "list"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError as error:
+        return None, f"failed to execute openclaw agents list: {error}"
+
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "").strip()
+        return None, detail or "openclaw agents list returned non-zero exit code"
+
+    try:
+        payload = json.loads(result.stdout.strip() or "[]")
+    except json.JSONDecodeError:
+        return None, "openclaw agents list output was not valid JSON"
+
+    if not isinstance(payload, list):
+        return None, "openclaw agents list output was not a JSON list"
+
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        item_id = item.get("id")
+        if not isinstance(item_id, str) or item_id != agent_name:
+            continue
+        workspace_value = item.get("workspace")
+        if isinstance(workspace_value, str) and workspace_value.strip():
+            return workspace_value.strip(), None
+        fallback_workspace = str(Path.home() / ".openclaw" / f"workspace-{agent_name}")
+        return fallback_workspace, None
+
+    return None, "agent not found"
+
+
+def _normalize_openclaw_skill_identifier(raw_identifier: str) -> tuple[str | None, str | None]:
+    candidate = raw_identifier.strip()
+    if not candidate:
+        return None, "skill identifier is empty"
+
+    parsed = urlparse(candidate)
+    if parsed.scheme in {"http", "https"} and parsed.netloc:
+        host = parsed.netloc.lower()
+        if host.startswith("www."):
+            host = host[4:]
+        if host not in {"clawhub.ai", "app.clawhub.ai"}:
+            return None, "unsupported skill URL host"
+
+        segments = [segment for segment in parsed.path.split("/") if segment]
+        if len(segments) >= 3 and segments[0] in {"skills", "skill"}:
+            owner, slug = segments[1], segments[2]
+        elif len(segments) >= 2:
+            owner, slug = segments[0], segments[1]
+        else:
+            return None, "skill URL must contain owner/slug path"
+
+        normalized = f"{owner.strip()}/{slug.strip()}"
+        if "/" not in normalized or normalized.startswith("/") or normalized.endswith("/"):
+            return None, "skill URL did not resolve to a valid owner/slug"
+        return normalized, None
+
+    if "/" not in candidate:
+        return None, "skill identifier must be owner/slug or a supported URL"
+
+    owner, slug = candidate.split("/", 1)
+    owner = owner.strip()
+    slug = slug.strip()
+    if not owner or not slug:
+        return None, "skill identifier must include non-empty owner and slug"
+    return f"{owner}/{slug}", None
+
+
+def _classify_openclaw_skill_install_outcome(*, returncode: int, stdout: str, stderr: str) -> tuple[str, bool]:
+    combined = f"{stdout}\n{stderr}".lower()
+    if "already installed" in combined or "already-installed" in combined:
+        return "already-installed", True
+    if "not found" in combined or "not-found" in combined:
+        return "not-found", False
+    if returncode == 0:
+        return "success", True
+    return "failed", False
+
+
+def _install_openclaw_skill_for_existing_agent(
+    *,
+    agent_name: str,
+    skill_identifier: str,
+    minimum_openclaw_version: str,
+) -> int:
+    normalized_agent = agent_name.strip()
+    if not normalized_agent:
+        print("Error: agent name is required for --openclaw-skill installs.", file=sys.stderr)
+        return 1
+
+    normalized_skill, normalize_error = _normalize_openclaw_skill_identifier(skill_identifier)
+    if normalized_skill is None:
+        print(
+            "Error: invalid --openclaw-skill identifier. "
+            f"{normalize_error}. Use owner/slug or a supported ClawHub URL.",
+            file=sys.stderr,
+        )
+        return 1
+
+    preflight_result = run_openclaw_preflight_for_command(
+        "openclaw-skill-install",
+        minimum_version=minimum_openclaw_version,
+    )
+    if not preflight_result.ok:
+        print(
+            "Error: OpenClaw skill install preflight failed "
+            f"(category={preflight_result.category}). {preflight_result.message}",
+            file=sys.stderr,
+        )
+        return 1
+
+    workspace_path, resolve_error = _resolve_openclaw_agent_workspace(normalized_agent)
+    if workspace_path is None:
+        print(
+            f"Error: OpenClaw agent '{normalized_agent}' was not found. "
+            "Create/register the agent first and retry.",
+            file=sys.stderr,
+        )
+        if resolve_error and resolve_error != "agent not found":
+            print(f"Error: OpenClaw agent resolution failed: {resolve_error}", file=sys.stderr)
+        return 1
+
+    command = [
+        "openclaw",
+        "skills",
+        "install",
+        normalized_skill,
+        "--workspace",
+        workspace_path,
+    ]
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    if result.stdout:
+        print(result.stdout, end="")
+    if result.stderr:
+        print(result.stderr, end="", file=sys.stderr)
+
+    outcome, success = _classify_openclaw_skill_install_outcome(
+        returncode=int(result.returncode),
+        stdout=result.stdout or "",
+        stderr=result.stderr or "",
+    )
+    if outcome == "success":
+        print(
+            f"[kinnoo install][openclaw-skill] outcome=success agent={normalized_agent} skill={normalized_skill}"
+        )
+        return 0
+    if outcome == "already-installed":
+        print(
+            f"[kinnoo install][openclaw-skill] outcome=already-installed agent={normalized_agent} skill={normalized_skill}"
+        )
+        return 0
+    if outcome == "not-found":
+        print(
+            f"Error: OpenClaw skill install outcome=not-found (category=openclaw_skill_not_found) "
+            f"agent={normalized_agent} skill={normalized_skill}",
+            file=sys.stderr,
+        )
+        return 1
+
+    if result.returncode != 0:
+        print(
+            "Error: OpenClaw skill install delegation failed "
+            "(category=openclaw_skill_install_nonzero_exit).",
+            file=sys.stderr,
+        )
+
+    return 0 if success else int(result.returncode)
 
 
 def _install_from_archive_path(
@@ -1252,6 +1459,10 @@ def _install_from_archive_path(
 
     agent_name = str(manifest_data.get("name", "unknown"))
     agent_version = str(manifest_data.get("version", "unknown"))
+    manifest_type = "agent"
+    manifest_type_value = manifest_data.get("type")
+    if isinstance(manifest_type_value, str) and manifest_type_value.strip():
+        manifest_type = manifest_type_value.strip().lower()
 
     if frozen_mode:
         frozen_validation_exit_code = _enforce_frozen_install_lock(
@@ -1360,7 +1571,15 @@ def _install_from_archive_path(
             print("Install aborted by user.", file=sys.stderr)
             return 1
 
-    if target_dir_arg:
+    if manifest_type == "openclaw-skill":
+        preflight_result = run_openclaw_preflight_for_command("install")
+        if not preflight_result.ok:
+            print(f"Error: {preflight_result.message}", file=sys.stderr)
+            return 1
+
+    if manifest_type == "openclaw-skill":
+        target_dir = Path.home() / ".openclaw" / f"workspace-{agent_name}"
+    elif target_dir_arg:
         target_dir = Path(target_dir_arg).resolve()
     else:
         target_dir = archive.with_suffix("")
@@ -1370,6 +1589,16 @@ def _install_from_archive_path(
         return 1
 
     if target_dir.exists() and not force:
+        if manifest_type == "openclaw-skill":
+            print(
+                f"Error: OpenClaw workspace already exists at '{target_dir}'.",
+                file=sys.stderr,
+            )
+            print(
+                "Error: Re-run with --force to replace the workspace or remove it manually before retrying.",
+                file=sys.stderr,
+            )
+            return 1
         print(f"Error: Target directory '{target_dir}' already exists. Aborting to prevent overwrite.", file=sys.stderr)
         return 1
     if target_dir.exists() and force:
@@ -1422,14 +1651,10 @@ def _install_from_archive_path(
         shutil.rmtree(target_dir, ignore_errors=True)
         return restore_exit_code
 
-    manifest_type = "agent"
-    manifest_type_value = manifest_data.get("type")
-    if isinstance(manifest_type_value, str) and manifest_type_value.strip():
-        manifest_type = manifest_type_value.strip().lower()
-
     if manifest_type == "openclaw-skill":
         openclaw_exit_code = _install_openclaw_skill_dependencies(
             target_dir=target_dir,
+            agent_name=agent_name,
             minimum_openclaw_version=minimum_openclaw_version,
         )
         if openclaw_exit_code != 0:
