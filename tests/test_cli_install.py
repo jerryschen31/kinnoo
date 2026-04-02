@@ -756,6 +756,168 @@ def test_feature83_skill_install_existing_agent_slug_and_url(tmp_path):
     assert f"skills install https://clawhub.ai/owner/skill-slug --workspace {workspace_path}" in invocations
 
 
+def test_feature83_missing_agent_preflight_and_outcome_diagnostics(tmp_path):
+    fake_bin = tmp_path / "feature83-openclaw-diagnostics-bin"
+    fake_bin.mkdir(parents=True, exist_ok=True)
+    invocation_log = tmp_path / "feature83-openclaw-diagnostics.log"
+    workspace_path = tmp_path / ".openclaw" / "workspace-feature83-diagnostics"
+    workspace_path.mkdir(parents=True, exist_ok=True)
+
+    openclaw_script = fake_bin / "openclaw"
+    openclaw_script.write_text(
+        "#!/bin/sh\n"
+        "if [ -n \"$KINNOO_TEST_OPENCLAW_ARGS_LOG\" ]; then\n"
+        "  printf '%s\\n' \"$*\" >> \"$KINNOO_TEST_OPENCLAW_ARGS_LOG\"\n"
+        "fi\n"
+        "if [ \"$1\" = \"--version\" ]; then\n"
+        "  echo openclaw 2026.3.31\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"gateway\" ] && [ \"$2\" = \"status\" ] && [ \"$3\" = \"--require-rpc\" ]; then\n"
+        "  if [ \"$KINNOO_TEST_OPENCLAW_GATEWAY_DOWN\" = \"1\" ]; then\n"
+        "    echo gateway unavailable >&2\n"
+        "    exit 6\n"
+        "  fi\n"
+        "  echo gateway healthy\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"agents\" ] && [ \"$2\" = \"list\" ]; then\n"
+        "  if [ -n \"$KINNOO_TEST_OPENCLAW_AGENTS_JSON\" ]; then\n"
+        "    echo \"$KINNOO_TEST_OPENCLAW_AGENTS_JSON\"\n"
+        "  else\n"
+        "    echo '[]'\n"
+        "  fi\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"skills\" ] && [ \"$2\" = \"install\" ]; then\n"
+        "  if [ \"$KINNOO_TEST_OPENCLAW_SKILL_OUTCOME\" = \"already\" ]; then\n"
+        "    echo already installed\n"
+        "    exit 0\n"
+        "  fi\n"
+        "  if [ \"$KINNOO_TEST_OPENCLAW_SKILL_OUTCOME\" = \"not-found\" ]; then\n"
+        "    echo skill not found >&2\n"
+        "    exit 3\n"
+        "  fi\n"
+        "  echo skill install success\n"
+        "  exit 0\n"
+        "fi\n"
+        "echo unsupported invocation >&2\n"
+        "exit 2\n",
+        encoding="utf-8",
+    )
+    openclaw_script.chmod(0o755)
+
+    env = dict(os.environ)
+    env["PATH"] = f"{fake_bin}{os.pathsep}{env.get('PATH', '')}"
+    env["KINNOO_TEST_OPENCLAW_ARGS_LOG"] = str(invocation_log)
+
+    missing_agent_env = dict(env)
+    missing_agent_env["KINNOO_TEST_OPENCLAW_AGENTS_JSON"] = "[]"
+    missing_agent_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            "feature83-missing",
+            "--openclaw-skill",
+            "owner/missing-skill",
+            "--yes",
+        ],
+        capture_output=True,
+        text=True,
+        env=missing_agent_env,
+    )
+    missing_agent_output = f"{missing_agent_result.stdout}\n{missing_agent_result.stderr}"
+    assert missing_agent_result.returncode != 0
+    assert "Create/register the agent first and retry" in missing_agent_output
+
+    preflight_fail_env = dict(env)
+    preflight_fail_env["KINNOO_TEST_OPENCLAW_GATEWAY_DOWN"] = "1"
+    preflight_fail_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            "feature83-diagnostics",
+            "--openclaw-skill",
+            "owner/skill-a",
+            "--yes",
+        ],
+        capture_output=True,
+        text=True,
+        env=preflight_fail_env,
+    )
+    preflight_fail_output = f"{preflight_fail_result.stdout}\n{preflight_fail_result.stderr}"
+    assert preflight_fail_result.returncode != 0
+    assert "category=openclaw_gateway_unhealthy" in preflight_fail_output
+
+    success_env = dict(env)
+    success_env["KINNOO_TEST_OPENCLAW_AGENTS_JSON"] = (
+        f"[{{\"id\":\"feature83-diagnostics\",\"workspace\":\"{workspace_path}\"}}]"
+    )
+    success_env["KINNOO_TEST_OPENCLAW_SKILL_OUTCOME"] = "success"
+    success_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            "feature83-diagnostics",
+            "--openclaw-skill",
+            "https://clawhub.ai/owner/skill-a",
+            "--yes",
+        ],
+        capture_output=True,
+        text=True,
+        env=success_env,
+    )
+    success_output = f"{success_result.stdout}\n{success_result.stderr}"
+    assert success_result.returncode == 0, success_output
+    assert "outcome=success" in success_output
+
+    already_env = dict(success_env)
+    already_env["KINNOO_TEST_OPENCLAW_SKILL_OUTCOME"] = "already"
+    already_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            "feature83-diagnostics",
+            "--openclaw-skill",
+            "owner/skill-a",
+            "--yes",
+        ],
+        capture_output=True,
+        text=True,
+        env=already_env,
+    )
+    already_output = f"{already_result.stdout}\n{already_result.stderr}"
+    assert already_result.returncode == 0, already_output
+    assert "outcome=already-installed" in already_output
+
+    not_found_env = dict(success_env)
+    not_found_env["KINNOO_TEST_OPENCLAW_SKILL_OUTCOME"] = "not-found"
+    not_found_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            "feature83-diagnostics",
+            "--openclaw-skill",
+            "owner/skill-a",
+            "--yes",
+        ],
+        capture_output=True,
+        text=True,
+        env=not_found_env,
+    )
+    not_found_output = f"{not_found_result.stdout}\n{not_found_result.stderr}"
+    assert not_found_result.returncode != 0
+    assert "category=openclaw_skill_not_found" in not_found_output
+
+    invocations = invocation_log.read_text(encoding="utf-8")
+    assert f"skills install owner/skill-a --workspace {workspace_path}" in invocations
+
+
 def test_feature37_node_audit_severity_summary(tmp_path):
     node_archive = _create_node_archive(tmp_path)
     node_target_dir = tmp_path / "feature37-node-installed"
