@@ -7534,7 +7534,7 @@ tasks:
       - 'step4: Add tests covering conflicts validation-ordering and trace content'
     dependencies: [task370]
     tests: [test530]
-    status: not-started
+    status: needs-review
 
   - id: task372
     title: "Feature81 run delegation thinking passthrough and exit semantics"

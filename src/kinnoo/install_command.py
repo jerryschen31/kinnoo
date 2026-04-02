@@ -659,6 +659,7 @@ DEFAULT_OPENCLAW_MINIMUM_VERSION = "0.1.0"
 def _write_openclaw_install_trace(
     target_dir: Path,
     *,
+    agent_name: str,
     minimum_version: str,
     delegated_command: list[str],
     outcome: str,
@@ -671,6 +672,8 @@ def _write_openclaw_install_trace(
         "runtime_language": "nodejs",
         "delegated_install": {
             "backend": "openclaw-cli",
+            "agent": agent_name,
+            "workspace": str(target_dir),
             "minimum_version": minimum_version,
             "command": delegated_command,
         },
@@ -707,6 +710,7 @@ def _install_openclaw_skill_dependencies(
     if not precheck_ok:
         _write_openclaw_install_trace(
             target_dir=target_dir,
+            agent_name=agent_name,
             minimum_version=minimum_openclaw_version,
             delegated_command=delegated_command,
             outcome="blocked",
@@ -736,6 +740,7 @@ def _install_openclaw_skill_dependencies(
         delegated_category = "openclaw_cli_delegated_nonzero_exit"
         _write_openclaw_install_trace(
             target_dir=target_dir,
+            agent_name=agent_name,
             minimum_version=minimum_openclaw_version,
             delegated_command=delegated_command,
             outcome="failed",
@@ -755,6 +760,7 @@ def _install_openclaw_skill_dependencies(
 
     _write_openclaw_install_trace(
         target_dir=target_dir,
+        agent_name=agent_name,
         minimum_version=minimum_openclaw_version,
         delegated_command=delegated_command,
         outcome="allowed",
@@ -1392,6 +1398,16 @@ def _install_from_archive_path(
         return 1
 
     if target_dir.exists() and not force:
+        if manifest_type == "openclaw-skill":
+            print(
+                f"Error: OpenClaw workspace already exists at '{target_dir}'.",
+                file=sys.stderr,
+            )
+            print(
+                "Error: Re-run with --force to replace the workspace or remove it manually before retrying.",
+                file=sys.stderr,
+            )
+            return 1
         print(f"Error: Target directory '{target_dir}' already exists. Aborting to prevent overwrite.", file=sys.stderr)
         return 1
     if target_dir.exists() and force:
