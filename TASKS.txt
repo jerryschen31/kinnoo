@@ -7514,7 +7514,7 @@ tasks:
       - 'step4: Add tests for extract+register happy path and command invocation shape'
     dependencies: [task363, task369]
     tests: [test529]
-    status: not-started
+    status: needs-review
 
   - id: task371
     title: "Feature80 install diagnostics conflicts and trust checks"

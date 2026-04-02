@@ -501,6 +501,63 @@ def _create_feature65_openclaw_archive(tmp_path: Path, name: str = "feature65-op
     return archive_path
 
 
+def test_feature80_openclaw_install_extracts_to_workspace_and_registers(monkeypatch, tmp_path):
+    from kinnoo import install_command
+
+    archive_path = _create_feature65_openclaw_archive(tmp_path, name="feature80-openclaw")
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    class _PreflightOK:
+        ok = True
+        message = "ok"
+
+    monkeypatch.setattr(
+        install_command,
+        "run_openclaw_preflight_for_command",
+        lambda _command: _PreflightOK(),
+    )
+    monkeypatch.setattr(
+        install_command,
+        "check_openclaw_cli_constraint",
+        lambda _version: (True, "openclaw_cli_precheck_ok", "ok"),
+    )
+
+    captured_commands: list[list[str]] = []
+
+    class _SuccessCompleted:
+        returncode = 0
+        stderr = ""
+        stdout = "registered"
+
+    def _capture_subprocess_run(command, *args, **kwargs):
+        captured_commands.append([str(part) for part in command])
+        return _SuccessCompleted()
+
+    monkeypatch.setattr(install_command.subprocess, "run", _capture_subprocess_run)
+
+    install_exit = install_command.install_agent(
+        archive_path=str(archive_path),
+        assume_yes=True,
+        allow_unverified_publisher=True,
+    )
+
+    assert install_exit == 0
+    expected_workspace = tmp_path / ".openclaw" / "workspace-feature80-openclaw"
+    assert expected_workspace.exists()
+    assert (expected_workspace / "kinnoo.yaml").exists()
+
+    assert captured_commands == [
+        [
+            "openclaw",
+            "agents",
+            "add",
+            "feature80-openclaw",
+            "--workspace",
+            str(expected_workspace),
+        ]
+    ]
+
+
 def test_feature65_delegated_install_checks_and_traces(monkeypatch, tmp_path, capsys):
     from kinnoo import install_command
 
