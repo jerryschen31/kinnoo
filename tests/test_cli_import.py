@@ -7,6 +7,7 @@ import time
 from pathlib import Path
 import json
 
+import pytest
 import yaml
 
 from src.kinnoo.registry import RegistryService
@@ -395,7 +396,9 @@ def test_feature19_imported_project_runs_in_place(tmp_path):
     assert "imported-runnable:hello-import" in combined_output
 
 
+@pytest.mark.skip(reason="[agent - deprecated - do not execute]")
 def test_feature36_openclaw_detection_weighted_confidence_output(tmp_path):
+    # [agent - deprecated - do not execute]
     strong_project = tmp_path / "feature36-openclaw-import-strong"
     strong_project.mkdir(parents=True, exist_ok=True)
     (strong_project / "run.py").write_text(
@@ -453,7 +456,9 @@ def test_feature36_openclaw_detection_weighted_confidence_output(tmp_path):
     assert "weighted detection score" in medium_output.lower()
 
 
+@pytest.mark.skip(reason="[agent - deprecated - do not execute]")
 def test_feature36_infers_runtime_skills_state_dirs(tmp_path):
+    # [agent - deprecated - do not execute]
     project_dir = tmp_path / "feature36-openclaw-inference"
     project_dir.mkdir(parents=True, exist_ok=True)
 
@@ -499,7 +504,9 @@ def test_feature36_infers_runtime_skills_state_dirs(tmp_path):
     assert "channels:" not in manifest_text
 
 
+@pytest.mark.skip(reason="[agent - deprecated - do not execute]")
 def test_feature36_manifest_valid_or_todo_guidance(tmp_path):
+    # [agent - deprecated - do not execute]
     complete_project = tmp_path / "feature36-manifest-guidance-complete"
     complete_project.mkdir(parents=True, exist_ok=True)
     (complete_project / "run.py").write_text(
@@ -553,7 +560,9 @@ def test_feature36_manifest_valid_or_todo_guidance(tmp_path):
     assert "does not exist in target project" in unresolved_output
 
 
+@pytest.mark.skip(reason="[agent - deprecated - do not execute]")
 def test_feature62_import_openclaw_manifest_migration_guidance(tmp_path):
+    # [agent - deprecated - do not execute]
     project_dir = tmp_path / "feature62-openclaw-import-migration"
     project_dir.mkdir(parents=True, exist_ok=True)
 

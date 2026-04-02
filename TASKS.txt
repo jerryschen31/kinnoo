@@ -6960,7 +6960,7 @@ tasks:
       - 'step4: Emit structured adapter diagnostics including selected backend and invocation details'
     dependencies: [task340]
     tests: [test501]
-    status: needs-review
+    status: deprecated
 
   - id: task343
     title: "Feature66 run adapter error handling and regression tests"
@@ -6980,7 +6980,7 @@ tasks:
       - 'step4: Document adapter limitations and compatibility notes in changelog/docs'
     dependencies: [task342]
     tests: [test502]
-    status: needs-review
+    status: deprecated
 
   - id: task344
     title: "Feature67 sync clawhub command with incremental/full modes"

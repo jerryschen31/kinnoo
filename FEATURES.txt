@@ -2257,6 +2257,7 @@ features:
         description: "Failure modes (missing backend, unsupported version, non-zero exit) are surfaced with deterministic actionable errors."
     notes:
       - "Deprecated in favor of feature81 OpenClaw run wrapper (`openclaw agent --agent ... --message ...`)."
+      - "Feature66 tasks and tests are deprecated and excluded from active regression execution."
     owner: techlead-agent
     dependencies: [feature65]
     status: deprecated
@@ -2504,7 +2505,7 @@ features:
       - "This delegates to openclaw CLI so the agent is actually registered with the Gateway."
       - "Workspace convention: ~/.openclaw/workspace-<name>/ (user-configurable override deferred)."
       - "Does NOT require Gateway to be running — only openclaw CLI presence + version."
-      - OpenClaw version must be 2026.3.28+
+      - "OpenClaw version must be 2026.3.28+"
     owner: techlead-agent
     dependencies: [feature76]
     status: needs-review
@@ -2533,7 +2534,7 @@ features:
       - "Detection uses weighted signals from analyzer (SOUL.md, AGENTS.md, openclaw.json, skills/, memory/)."
       - "Copy operation must handle .git exclusion (user may not want to copy .git from source)."
       - "Preflight (feature76) is called before subprocess operations."
-      - OpenClaw version must be 2026.3.28+
+      - "OpenClaw version must be 2026.3.28+"
     owner: techlead-agent
     dependencies: [feature76]
     status: needs-review
@@ -2589,7 +2590,7 @@ features:
       - "Download + unzip is kinnoo's responsibility; only the `agents add` registration is delegated."
       - "Gateway does NOT need to be running for install — agents add works without it."
       - "Agent name is derived from the manifest name field in kinnoo.yaml."
-      - OpenClaw version must be 2026.3.28+
+      - "OpenClaw version must be 2026.3.28+"
     owner: techlead-agent
     dependencies: [feature76, feature79]
     status: needs-review
@@ -2617,7 +2618,7 @@ features:
       - "Gateway MUST be running for this command — preflight should verify via `openclaw gateway status`."
       - "Future: support --deliver, --reply-channel for routing output to channels."
       - "Future: JSON structured input for programmatic use."
-      - OpenClaw version must be 2026.3.28+
+      - "OpenClaw version must be 2026.3.28+"
     owner: techlead-agent
     dependencies: [feature76]
     status: needs-review
@@ -2670,7 +2671,7 @@ features:
       - "Need to determine how to target a specific agent's workspace — may need `--workspace` flag or agent context switching."
       - "The skill must exist on ClawHub — local-only skills are not supported through this path."
       - "Consider supporting `--version <version>` passthrough for pinned installs."
-      - OpenClaw version must be 2026.3.28+
+      - "OpenClaw version must be 2026.3.28+"
     owner: techlead-agent
     dependencies: [feature76]
     status: needs-review
@@ -2695,7 +2696,7 @@ features:
       - "Thin wrapper — kinnoo adds no processing, just delegates to openclaw skills search."
       - "Gateway must be running for ClawHub search to work (skills search uses Gateway RPC)."
       - "Future: integrate search results with kinnoo install --openclaw-skill for seamless discover-then-install flow."
-      - OpenClaw version must be 2026.3.28+
+      - "OpenClaw version must be 2026.3.28+"
     owner: techlead-agent
     dependencies: [feature76]
     status: needs-review
