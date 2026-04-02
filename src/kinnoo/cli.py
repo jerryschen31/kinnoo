@@ -348,9 +348,19 @@ def main():
     )
     logs_parser.add_argument("agent_dir", nargs="?", help="Path to daemon agent directory")
     logs_parser.add_argument(
+        "--daemon",
+        choices=["openclaw"],
+        help="Use delegated daemon logs backend (currently: openclaw)",
+    )
+    logs_parser.add_argument(
         "--follow",
         action="store_true",
         help="Stream new log lines until daemon exits or operator interrupts",
+    )
+    logs_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="(OpenClaw daemon logs) request machine-readable passthrough output",
     )
     logs_parser.add_argument(
         "--tail",
@@ -950,6 +960,19 @@ def main():
         sys.exit(exit_code)
 
     elif args.command == "logs":
+        daemon = getattr(args, "daemon", None)
+        if daemon == "openclaw":
+            try:
+                from kinnoo.logs_command import logs_openclaw
+            except ImportError:
+                from .logs_command import logs_openclaw
+
+            exit_code = logs_openclaw(
+                follow=bool(getattr(args, "follow", False)),
+                json_output=bool(getattr(args, "json", False)),
+            )
+            sys.exit(exit_code)
+
         agent_dir = getattr(args, "agent_dir", None)
         if agent_dir is None:
             print("Usage: kinnoo logs <agent-dir> [--tail N] [--follow]", file=sys.stderr)

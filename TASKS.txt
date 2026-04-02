@@ -7591,7 +7591,7 @@ tasks:
       - 'step4: Add tests for command routing and passthrough behavior'
     dependencies: [task363]
     tests: [test533]
-    status: not-started
+    status: needs-review
 
   - id: task375
     title: "Feature82 logs preflight validation and failure diagnostics"
