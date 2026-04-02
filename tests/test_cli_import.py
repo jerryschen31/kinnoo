@@ -827,6 +827,56 @@ def test_feature78_import_detection_manifest_and_error_paths(tmp_path):
     assert "import target must be a directory" in (file_result.stdout + file_result.stderr).lower()
 
 
+def test_feature78_copy_and_registration_flows(tmp_path):
+    fake_bin = tmp_path / "feature78-openclaw-bin-copy"
+    fake_bin.mkdir(parents=True, exist_ok=True)
+    invocation_log = tmp_path / "feature78-openclaw-invocations.log"
+    _make_feature78_fake_openclaw_cli(fake_bin, agent_list_json="[]")
+
+    env = dict(os.environ)
+    env["PATH"] = f"{fake_bin}{os.pathsep}{env.get('PATH', '')}"
+    env["HOME"] = str(tmp_path)
+    env["KINNOO_OPENCLAW_INVOCATION_LOG"] = str(invocation_log)
+
+    external_workspace = tmp_path / "external-openclaw-workspace"
+    external_workspace.mkdir(parents=True, exist_ok=True)
+    (external_workspace / "openclaw.json").write_text("{}\n", encoding="utf-8")
+    (external_workspace / "AGENTS.md").write_text("# agents\n", encoding="utf-8")
+    (external_workspace / "SOUL.md").write_text("# soul\n", encoding="utf-8")
+    (external_workspace / "index.mjs").write_text("console.log('ok')\n", encoding="utf-8")
+
+    copy_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(external_workspace)],
+        input="y\ny\n",
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert copy_result.returncode == 0, copy_result.stdout + copy_result.stderr
+
+    copied_workspace = tmp_path / ".openclaw" / "workspace-external-openclaw-workspace"
+    assert copied_workspace.exists()
+    assert (copied_workspace / "kinnoo.yaml").exists()
+
+    in_place_workspace = tmp_path / ".openclaw" / "workspace-inplace-openclaw"
+    in_place_workspace.mkdir(parents=True, exist_ok=True)
+    (in_place_workspace / "openclaw.json").write_text("{}\n", encoding="utf-8")
+    (in_place_workspace / "index.mjs").write_text("console.log('ok')\n", encoding="utf-8")
+
+    in_place_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(in_place_workspace)],
+        input="y\n",
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert in_place_result.returncode == 0, in_place_result.stdout + in_place_result.stderr
+
+    invocation_text = invocation_log.read_text(encoding="utf-8")
+    assert "agents add external-openclaw-workspace" in invocation_text
+    assert "agents add inplace-openclaw" in invocation_text
+
+
 def test_feature19_import_generates_requirements_via_uv_export(tmp_path):
     project_dir = tmp_path / "feature19-uv-export-requirements"
     project_dir.mkdir(parents=True, exist_ok=True)

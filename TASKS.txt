@@ -7456,7 +7456,7 @@ tasks:
       - 'step4: Add tests for copy prompt flow in-place registration flow and conflict diagnostics'
     dependencies: [task366]
     tests: [test526]
-    status: not-started
+    status: needs-review
 
   - id: task368
     title: "Feature79 OpenClaw pack include rules"
