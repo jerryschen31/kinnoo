@@ -2687,7 +2687,7 @@ features:
       - OpenClaw version must be 2026.3.28+
     owner: techlead-agent
     dependencies: [feature76]
-    status: not-started
+    status: needs-review
   
   - id: feature85
     title: "Deprecate OpenClaw bridge features 62-67"
