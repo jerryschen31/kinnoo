@@ -916,8 +916,15 @@ def install_agent(
     use_local: bool = False,
     use_remote: bool = False,
     minimum_openclaw_version: str = DEFAULT_OPENCLAW_MINIMUM_VERSION,
+    openclaw_skill_identifier: str | None = None,
     install_source: str = "archive-file",
 ) -> int:
+    if openclaw_skill_identifier is not None:
+        return _install_openclaw_skill_for_existing_agent(
+            agent_name=archive_path,
+            skill_identifier=openclaw_skill_identifier,
+        )
+
     target_spec = parse_install_target_spec(archive_path)
     if target_spec.kind == "invalid":
         print(f"Error: {target_spec.error}", file=sys.stderr)
@@ -1083,6 +1090,96 @@ def install_agent(
         minimum_openclaw_version=minimum_openclaw_version,
         install_source=install_source,
     )
+
+
+def _resolve_openclaw_agent_workspace(agent_name: str) -> tuple[str | None, str | None]:
+    try:
+        result = subprocess.run(
+            ["openclaw", "agents", "list"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError as error:
+        return None, f"failed to execute openclaw agents list: {error}"
+
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "").strip()
+        return None, detail or "openclaw agents list returned non-zero exit code"
+
+    try:
+        payload = json.loads(result.stdout.strip() or "[]")
+    except json.JSONDecodeError:
+        return None, "openclaw agents list output was not valid JSON"
+
+    if not isinstance(payload, list):
+        return None, "openclaw agents list output was not a JSON list"
+
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        item_id = item.get("id")
+        if not isinstance(item_id, str) or item_id != agent_name:
+            continue
+        workspace_value = item.get("workspace")
+        if isinstance(workspace_value, str) and workspace_value.strip():
+            return workspace_value.strip(), None
+        fallback_workspace = str(Path.home() / ".openclaw" / f"workspace-{agent_name}")
+        return fallback_workspace, None
+
+    return None, "agent not found"
+
+
+def _install_openclaw_skill_for_existing_agent(*, agent_name: str, skill_identifier: str) -> int:
+    normalized_agent = agent_name.strip()
+    if not normalized_agent:
+        print("Error: agent name is required for --openclaw-skill installs.", file=sys.stderr)
+        return 1
+
+    normalized_skill = skill_identifier.strip()
+    if not normalized_skill:
+        print("Error: --openclaw-skill requires a non-empty skill identifier.", file=sys.stderr)
+        return 1
+
+    workspace_path, resolve_error = _resolve_openclaw_agent_workspace(normalized_agent)
+    if workspace_path is None:
+        print(
+            f"Error: OpenClaw agent '{normalized_agent}' was not found. "
+            "Create/register the agent first and retry.",
+            file=sys.stderr,
+        )
+        if resolve_error and resolve_error != "agent not found":
+            print(f"Error: OpenClaw agent resolution failed: {resolve_error}", file=sys.stderr)
+        return 1
+
+    command = [
+        "openclaw",
+        "skills",
+        "install",
+        normalized_skill,
+        "--workspace",
+        workspace_path,
+    ]
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    if result.stdout:
+        print(result.stdout, end="")
+    if result.stderr:
+        print(result.stderr, end="", file=sys.stderr)
+
+    if result.returncode != 0:
+        print(
+            "Error: OpenClaw skill install delegation failed "
+            "(category=openclaw_skill_install_nonzero_exit).",
+            file=sys.stderr,
+        )
+
+    return int(result.returncode)
 
 
 def _install_from_archive_path(

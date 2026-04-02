@@ -423,6 +423,11 @@ def main():
         default="0.1.0",
         help="(OpenClaw-skill) Minimum OpenClaw CLI version required for delegated install (default: 0.1.0)",
     )
+    openclaw_install_group.add_argument(
+        "--openclaw-skill",
+        dest="openclaw_skill",
+        help="Install an OpenClaw skill into an existing OpenClaw agent workspace",
+    )
     install_parser.add_argument(
         "--accept-permissions",
         action="store_true",
@@ -908,10 +913,15 @@ def main():
         use_local = bool(getattr(args, "local", False))
         use_remote = bool(getattr(args, "remote", False))
         minimum_openclaw_version = str(getattr(args, "openclaw_min_version", "0.1.0"))
+        openclaw_skill = getattr(args, "openclaw_skill", None)
         try:
             from kinnoo.install_command import install_agent
         except ImportError:
             from .install_command import install_agent
+
+        if openclaw_skill and archive_path is None:
+            print("Usage: kinnoo install <agent-name> --openclaw-skill <skill-slug-or-url>", file=sys.stderr)
+            sys.exit(1)
 
         exit_code = install_agent(
             archive_path=archive_path,
@@ -928,6 +938,7 @@ def main():
             use_local=use_local,
             use_remote=use_remote,
             minimum_openclaw_version=minimum_openclaw_version,
+            openclaw_skill_identifier=openclaw_skill,
         )
         sys.exit(exit_code)
 

@@ -7629,7 +7629,7 @@ tasks:
       - 'step4: Add tests for existing-agent delegation behavior and command shape'
     dependencies: [task363]
     tests: [test535]
-    status: not-started
+    status: needs-review
 
   - id: task377
     title: "Feature83 skill identifier normalization and outcome diagnostics"

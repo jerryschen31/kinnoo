@@ -687,6 +687,75 @@ def test_feature80_openclaw_workspace_conflict_diagnostics(tmp_path):
     assert "Re-run with --force" in output
 
 
+def test_feature83_skill_install_existing_agent_slug_and_url(tmp_path):
+    fake_bin = tmp_path / "feature83-openclaw-bin"
+    fake_bin.mkdir(parents=True, exist_ok=True)
+    invocation_log = tmp_path / "feature83-openclaw-invocations.log"
+    workspace_path = tmp_path / ".openclaw" / "workspace-feature83-existing"
+    workspace_path.mkdir(parents=True, exist_ok=True)
+
+    openclaw_script = fake_bin / "openclaw"
+    openclaw_script.write_text(
+        "#!/bin/sh\n"
+        "if [ -n \"$KINNOO_TEST_OPENCLAW_ARGS_LOG\" ]; then\n"
+        "  printf '%s\\n' \"$*\" >> \"$KINNOO_TEST_OPENCLAW_ARGS_LOG\"\n"
+        "fi\n"
+        "if [ \"$1\" = \"agents\" ] && [ \"$2\" = \"list\" ]; then\n"
+        f"  echo '[{{\"id\":\"feature83-existing\",\"workspace\":\"{workspace_path}\"}}]'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"skills\" ] && [ \"$2\" = \"install\" ]; then\n"
+        "  echo delegated skill install ok\n"
+        "  exit 0\n"
+        "fi\n"
+        "echo unsupported invocation >&2\n"
+        "exit 2\n",
+        encoding="utf-8",
+    )
+    openclaw_script.chmod(0o755)
+
+    env = dict(os.environ)
+    env["PATH"] = f"{fake_bin}{os.pathsep}{env.get('PATH', '')}"
+    env["KINNOO_TEST_OPENCLAW_ARGS_LOG"] = str(invocation_log)
+
+    slug_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            "feature83-existing",
+            "--openclaw-skill",
+            "owner/skill-slug",
+            "--yes",
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert slug_result.returncode == 0, slug_result.stdout + slug_result.stderr
+
+    url_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            "feature83-existing",
+            "--openclaw-skill",
+            "https://clawhub.ai/owner/skill-slug",
+            "--yes",
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert url_result.returncode == 0, url_result.stdout + url_result.stderr
+
+    invocations = invocation_log.read_text(encoding="utf-8")
+    assert "agents list" in invocations
+    assert f"skills install owner/skill-slug --workspace {workspace_path}" in invocations
+    assert f"skills install https://clawhub.ai/owner/skill-slug --workspace {workspace_path}" in invocations
+
+
 def test_feature37_node_audit_severity_summary(tmp_path):
     node_archive = _create_node_archive(tmp_path)
     node_target_dir = tmp_path / "feature37-node-installed"
