@@ -4169,11 +4169,27 @@ def _make_feature81_fake_openclaw_cli(bin_dir: Path) -> None:
         "if [ -n \"$KINNOO_TEST_OPENCLAW_RUN_LOG\" ]; then\n"
         "  printf '%s\\n' \"$*\" >> \"$KINNOO_TEST_OPENCLAW_RUN_LOG\"\n"
         "fi\n"
+        "if [ \"$1\" = \"--version\" ]; then\n"
+        "  echo openclaw 2026.3.31\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"gateway\" ] && [ \"$2\" = \"status\" ] && [ \"$3\" = \"--require-rpc\" ]; then\n"
+        "  if [ \"$KINNOO_TEST_OPENCLAW_GATEWAY_DOWN\" = \"1\" ]; then\n"
+        "    echo gateway down >&2\n"
+        "    exit 5\n"
+        "  fi\n"
+        "  echo gateway healthy\n"
+        "  exit 0\n"
+        "fi\n"
         "if [ \"$KINNOO_TEST_OPENCLAW_FAIL_RUN\" = \"1\" ]; then\n"
         "  echo simulated openclaw runtime failure >&2\n"
         "  exit 9\n"
         "fi\n"
         "if [ \"$1\" = \"agent\" ]; then\n"
+        "  if [ \"$6\" = \"--json\" ] || [ \"$8\" = \"--json\" ]; then\n"
+        "    echo '{\"result\":\"ok\",\"mode\":\"json\"}'\n"
+        "    exit 0\n"
+        "  fi\n"
         "  echo delegated-agent-ok\n"
         "  exit 0\n"
         "fi\n"
@@ -4232,6 +4248,72 @@ def test_feature81_run_mapping_thinking_and_exit_propagation(tmp_path):
     failing_output = f"{failing_result.stdout}\n{failing_result.stderr}"
     assert failing_result.returncode == 9
     assert "openclaw_agent_runtime_nonzero_exit" in failing_output
+
+
+def test_feature81_gateway_preflight_and_json_output_passthrough(tmp_path):
+    agent_dir = _create_feature81_openclaw_agent_dir(tmp_path, agent_name="feature81-openclaw-json")
+    fake_bin = tmp_path / "feature81-openclaw-preflight-bin"
+    _make_feature81_fake_openclaw_cli(fake_bin)
+    invocation_log = tmp_path / "feature81-openclaw-preflight.log"
+
+    env = dict(os.environ)
+    env["PATH"] = f"{fake_bin}{os.pathsep}{env.get('PATH', '')}"
+    env["KINNOO_TEST_OPENCLAW_RUN_LOG"] = str(invocation_log)
+
+    gateway_down_env = dict(env)
+    gateway_down_env["KINNOO_TEST_OPENCLAW_GATEWAY_DOWN"] = "1"
+    gateway_down_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(agent_dir),
+            "hello-preflight",
+        ],
+        capture_output=True,
+        text=True,
+        env=gateway_down_env,
+    )
+    gateway_down_output = f"{gateway_down_result.stdout}\n{gateway_down_result.stderr}"
+    assert gateway_down_result.returncode != 0
+    assert "gateway RPC probe did not pass" in gateway_down_output
+
+    text_default_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(agent_dir),
+            "hello-text-default",
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    text_default_output = f"{text_default_result.stdout}\n{text_default_result.stderr}"
+    assert text_default_result.returncode == 0, text_default_output
+    assert "delegated-agent-ok" in text_default_output
+
+    json_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(agent_dir),
+            "hello-json",
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    json_output = f"{json_result.stdout}\n{json_result.stderr}"
+    assert json_result.returncode == 0, json_output
+    assert '{"result":"ok","mode":"json"}' in json_result.stdout
+
+    logged_invocations = invocation_log.read_text(encoding="utf-8")
+    assert "agent --agent feature81-openclaw-json --message hello-text-default" in logged_invocations
+    assert "agent --agent feature81-openclaw-json --message hello-json --json" in logged_invocations
 
 
 def _make_feature66_fake_openclaw_cli(bin_dir: Path, *, version: str = "0.3.0") -> None:

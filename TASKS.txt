@@ -7572,7 +7572,7 @@ tasks:
       - 'step4: Add tests for gateway-down behavior text-default behavior and json output passthrough'
     dependencies: [task372]
     tests: [test532]
-    status: not-started
+    status: needs-review
 
   - id: task374
     title: "Feature82 logs command wrapper and flag passthrough"
