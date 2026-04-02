@@ -7610,7 +7610,7 @@ tasks:
       - 'step4: Add tests for error-path behavior and deterministic messaging'
     dependencies: [task374]
     tests: [test534]
-    status: not-started
+    status: needs-review
 
   - id: task376
     title: "Feature83 openclaw skill install command and agent resolution"
