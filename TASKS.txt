@@ -7475,7 +7475,7 @@ tasks:
       - 'step4: Add tests for include contract using OpenClaw workspace fixtures'
     dependencies: []
     tests: [test527]
-    status: not-started
+    status: needs-review
 
   - id: task369
     title: "Feature79 OpenClaw pack exclude rules and roundtrip viability"

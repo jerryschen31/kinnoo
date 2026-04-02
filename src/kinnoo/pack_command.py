@@ -38,6 +38,19 @@ _NODE_METADATA_FILES = [
     "yarn.lock",
 ]
 
+_OPENCLAW_IDENTITY_FILES = [
+    "AGENTS.md",
+    "SOUL.md",
+    "TOOLS.md",
+    "USER.md",
+    "MEMORY.md",
+    "IDENTITY.md",
+    "BOOTSTRAP.md",
+    "HEARTBEAT.md",
+]
+
+_OPENCLAW_WORKSPACE_DIRS = ["memory", "skills"]
+
 _STATE_SNAPSHOT_PREFIX = "state_snapshots"
 
 
@@ -121,6 +134,26 @@ def _collect_node_metadata_files(agent_root: Path) -> list[tuple[str, Path]]:
         if candidate.exists() and candidate.is_file():
             metadata_files.append((filename, candidate))
     return metadata_files
+
+
+def _collect_openclaw_workspace_files(agent_root: Path) -> list[tuple[str, Path]]:
+    collected: list[tuple[str, Path]] = []
+
+    for filename in _OPENCLAW_IDENTITY_FILES:
+        candidate = agent_root / filename
+        if candidate.exists() and candidate.is_file():
+            collected.append((filename, candidate))
+
+    for directory_name in _OPENCLAW_WORKSPACE_DIRS:
+        directory = agent_root / directory_name
+        if not directory.exists() or not directory.is_dir():
+            continue
+        for child in sorted(directory.rglob("*")):
+            if not child.is_file():
+                continue
+            collected.append((child.relative_to(agent_root).as_posix(), child))
+
+    return collected
 
 
 def _collect_asset_files(manifest: dict, agent_root: Path) -> tuple[list[tuple[str, Path]], bool]:
@@ -414,6 +447,11 @@ def pack_agent(
         if isinstance(runtime_language_value, str) and runtime_language_value.strip():
             runtime_language = runtime_language_value.strip().lower()
 
+    manifest_framework = ""
+    framework_value = manifest.get("framework") if isinstance(manifest, dict) else None
+    if isinstance(framework_value, str) and framework_value.strip():
+        manifest_framework = framework_value.strip().lower()
+
     declared_env_vars = normalize_env_vars(manifest.get("env_vars") if isinstance(manifest, dict) else None)
     sweep_warnings = sweep_env_var_exposure(Path(abs_agent_dir), declared_env_vars)
     if sweep_warnings:
@@ -550,6 +588,10 @@ def pack_agent(
             )
             return 1
 
+    openclaw_workspace_files: list[tuple[str, Path]] = []
+    if manifest_framework == "openclaw":
+        openclaw_workspace_files = _collect_openclaw_workspace_files(Path(abs_agent_dir))
+
     asset_scan_warnings = sweep_asset_credential_risks(
         agent_dir=Path(abs_agent_dir),
         asset_file_paths=[absolute_path for _, absolute_path in asset_files],
@@ -650,6 +692,11 @@ def pack_agent(
             archive_file.write(absolute_path, arcname=arcname)
             archived_entries.add(arcname)
         for relative_path, absolute_path in node_metadata_files:
+            if relative_path in archived_entries:
+                continue
+            archive_file.write(absolute_path, arcname=relative_path)
+            archived_entries.add(relative_path)
+        for relative_path, absolute_path in openclaw_workspace_files:
             if relative_path in archived_entries:
                 continue
             archive_file.write(absolute_path, arcname=relative_path)
