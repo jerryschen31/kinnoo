@@ -839,14 +839,18 @@ def test_feature26_mcp_client_template_generation(tmp_path):
     assert "stdio_client" in run_text
     assert "BaseMCPAgent" in run_text
     assert "connect_to_server" in run_text
-    assert "KINNOO_MCP_SERVER_CMD" in run_text
-    assert "KINNOO_MCP_SERVER_ENV" in run_text
+    assert "load_dotenv" in run_text
+    assert "MCP_SERVER_CMD" in run_text
+    assert "MCP_SERVER_ENV" in run_text
+    assert "get_tools" in run_text
+    assert "execute_tool" in run_text
     assert "mcp" in requirements_text
+    assert "python-dotenv" in requirements_text
     assert "Suggested End-to-End Workflow" in readme_text
     assert "kinnoo/cli.py pack" in readme_text
     assert "kinnoo/cli.py install" in readme_text
-    assert "KINNOO_MCP_SERVER_CMD" in readme_text
-    assert "KINNOO_MCP_SERVER_ENV" in readme_text
+    assert "MCP_SERVER_CMD" in readme_text
+    assert "MCP_SERVER_ENV" in readme_text
 
 
 def test_feature26_mcp_client_template_contract_and_validation(tmp_path):
@@ -868,10 +872,11 @@ def test_feature26_mcp_client_template_contract_and_validation(tmp_path):
     assert "sys.argv[1]" in run_text
     assert "print(" in run_text
     assert "BaseMCPAgent" in run_text
+    assert "load_dotenv" in run_text
 
     result = subprocess.run([sys.executable, str(run_path), "contract-input"], capture_output=True, text=True)
     assert result.returncode == 0
-    assert "input=contract-input" in result.stdout
+    assert "Set MCP_SERVER_CMD" in result.stdout
 
 
 def test_framework_mcp_server_scaffold_generation(tmp_path):
