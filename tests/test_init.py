@@ -819,7 +819,7 @@ def test_feature9_init_manifest_includes_description_and_author(tmp_path):
 
 
 def test_feature26_mcp_client_template_generation(tmp_path):
-    """Feature26 test240: init generates mcp-client template and workflow README."""
+    """Feature26 test240: init generates SDK-based mcp-client template and workflow README."""
     agent_name = "feature26-mcp-client-template"
     code, out, err = run_cli(["init", agent_name, "--framework", "mcp-client"], cwd=tmp_path)
     assert code == 0, err
@@ -831,16 +831,22 @@ def test_feature26_mcp_client_template_generation(tmp_path):
     assert (agent_dir / "README.md").exists()
 
     run_text = (agent_dir / "run.py").read_text(encoding="utf-8")
+    requirements_text = (agent_dir / "requirements.txt").read_text(encoding="utf-8")
     readme_text = (agent_dir / "README.md").read_text(encoding="utf-8")
 
+    assert "ClientSession" in run_text
+    assert "StdioServerParameters" in run_text
+    assert "stdio_client" in run_text
+    assert "BaseMCPAgent" in run_text
+    assert "connect_to_server" in run_text
     assert "KINNOO_MCP_SERVER_CMD" in run_text
-    assert "initialize" in run_text
-    assert "tools/list" in run_text
-    assert "_request_over_stdio" in run_text
+    assert "KINNOO_MCP_SERVER_ENV" in run_text
+    assert "mcp" in requirements_text
     assert "Suggested End-to-End Workflow" in readme_text
     assert "kinnoo/cli.py pack" in readme_text
     assert "kinnoo/cli.py install" in readme_text
     assert "KINNOO_MCP_SERVER_CMD" in readme_text
+    assert "KINNOO_MCP_SERVER_ENV" in readme_text
 
 
 def test_feature26_mcp_client_template_contract_and_validation(tmp_path):
@@ -861,10 +867,11 @@ def test_feature26_mcp_client_template_contract_and_validation(tmp_path):
     run_text = run_path.read_text(encoding="utf-8")
     assert "sys.argv[1]" in run_text
     assert "print(" in run_text
+    assert "BaseMCPAgent" in run_text
 
     result = subprocess.run([sys.executable, str(run_path), "contract-input"], capture_output=True, text=True)
     assert result.returncode == 0
-    assert "contract-input" in result.stdout
+    assert "input=contract-input" in result.stdout
 
 
 def test_framework_mcp_server_scaffold_generation(tmp_path):
