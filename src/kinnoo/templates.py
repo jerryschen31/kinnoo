@@ -346,11 +346,12 @@ KINNOO_TEST_SAFE_MODE=1 python run.py "Hello OpenAI Agents!"
 '''
 
 MCP_CLIENT_RUN_PY = '''import asyncio
-import json
 import os
 import shlex
 import sys
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
+
+from dotenv import load_dotenv
 
 try:
   from mcp import ClientSession, StdioServerParameters
@@ -364,7 +365,7 @@ except ImportError:
 def _parse_server_command(raw_command: str) -> tuple[str, list[str]]:
   parts = shlex.split(raw_command)
   if not parts:
-    raise ValueError("KINNOO_MCP_SERVER_CMD is empty after parsing")
+    raise ValueError("[kinnoo] MCP_SERVER_CMD is empty after parsing")
   return parts[0], parts[1:]
 
 
@@ -372,18 +373,17 @@ def _parse_server_env(raw_env: str) -> Optional[Dict[str, str]]:
   if not raw_env:
     return None
 
+  import json
+
   try:
     decoded = json.loads(raw_env)
   except json.JSONDecodeError as exc:
-    raise ValueError(f"KINNOO_MCP_SERVER_ENV must be valid JSON: {exc}") from exc
+    raise ValueError(f"[kinnoo] MCP_SERVER_ENV must be valid JSON: {exc}") from exc
 
   if not isinstance(decoded, dict):
-    raise ValueError("KINNOO_MCP_SERVER_ENV must decode to a JSON object")
+    raise ValueError("[kinnoo] MCP_SERVER_ENV must decode to a JSON object")
 
-  normalized: Dict[str, str] = {}
-  for key, value in decoded.items():
-    normalized[str(key)] = str(value)
-  return normalized
+  return {str(key): str(value) for key, value in decoded.items()}
 
 
 class BaseMCPAgent:
@@ -397,10 +397,8 @@ class BaseMCPAgent:
     args: List[str],
     env: Optional[Dict[str, str]] = None,
   ) -> None:
-    if ClientSession is None or StdioServerParameters is None or stdio_client is None:
-      raise RuntimeError(
-        "Missing mcp package. Install dependencies with: pip install -r requirements.txt"
-      )
+    if ClientSession is None:
+      raise RuntimeError("[kinnoo] Missing mcp package. pip install mcp")
 
     server_params = StdioServerParameters(
       command=command,
@@ -423,25 +421,39 @@ class BaseMCPAgent:
       await self._client_context.__aexit__(None, None, None)
       self._client_context = None
 
-  async def agent_logic_loop(self, input_text: str) -> None:
-    print(f"[mcp-client template] connected=True input={input_text}")
+  async def get_tools(self):
+    """Retrieve available tools from the connected server."""
+    if not self.session:
+      raise RuntimeError("Agent not connected to a server.")
+    return await self.session.list_tools()
+
+  async def execute_tool(self, name: str, params: Dict[str, Any]):
+    """Call a specific tool provided by the connected server."""
+    if not self.session:
+      raise RuntimeError("[kinnoo] Agent not connected to an MCP server.")
+    return await self.session.call_tool(name, params)
+
+  async def agent_logic_loop(self, input_text: str):
+    """Placeholder for agent logic (LLM integration, tool execution, etc.)"""
+    print(f"[kinnoo] Agent logic started with input: {input_text}")
+    # Example: tools = await self.get_tools()
+    pass
 
 
 async def main(input_text: str) -> None:
-  server_cmd_raw = os.getenv("KINNOO_MCP_SERVER_CMD", "").strip()
+  load_dotenv()
+
+  server_cmd_raw = os.getenv("MCP_SERVER_CMD", "").strip()
   if not server_cmd_raw:
-    print(
-      f"[mcp-client template] input={input_text} | "
-      "Set KINNOO_MCP_SERVER_CMD to connect to a live MCP stdio server"
-    )
+    print("[kinnoo] Set MCP_SERVER_CMD in your .env or your shell environment to connect to an MCP server.")
     return
 
-  server_env_raw = os.getenv("KINNOO_MCP_SERVER_ENV", "").strip()
+  server_env_raw = os.getenv("MCP_SERVER_ENV", "").strip()
   try:
     command, args = _parse_server_command(server_cmd_raw)
     env = _parse_server_env(server_env_raw)
   except ValueError as exc:
-    print(f"[mcp-client template] input={input_text} | {exc}")
+    print(f"[kinnoo] Configuration Error: {exc}")
     return
 
   agent = BaseMCPAgent()
@@ -449,7 +461,7 @@ async def main(input_text: str) -> None:
     await agent.connect_to_server(command, args, env)
     await agent.agent_logic_loop(input_text)
   except Exception as exc:
-    print(f"[mcp-client template] input={input_text} | error={exc}")
+    print(f"[kinnoo] Runtime Error: {exc}")
   finally:
     await agent.disconnect()
 
@@ -459,7 +471,7 @@ if __name__ == '__main__':
   asyncio.run(main(input_text))
 '''
 
-MCP_CLIENT_REQUIREMENTS = "mcp\n"
+MCP_CLIENT_REQUIREMENTS = "mcp\npython-dotenv\n"
 
 MCP_CLIENT_README = '''# {name}
 
@@ -475,15 +487,15 @@ This scaffold demonstrates a Kinnoo-compatible MCP client template.
 2. Install MCP server package:
    - `python src/kinnoo/cli.py install <mcp-server>.kno`
 3. Start your MCP server in stdio mode and export its launch command:
-  - `export KINNOO_MCP_SERVER_CMD="python path/to/mcp_server.py"`
+  - `export MCP_SERVER_CMD="python path/to/mcp_server.py"`
 4. (Optional) Provide extra server env vars as JSON:
-  - `export KINNOO_MCP_SERVER_ENV='{{"API_KEY":"demo"}}'`
+  - `export MCP_SERVER_ENV='{{"API_KEY":"demo"}}'`
 5. Run this client template:
   - `python run.py "list available files"`
 
 ## Optional Environment Variables
-- `KINNOO_MCP_SERVER_CMD` command to launch an MCP stdio server process
-- `KINNOO_MCP_SERVER_ENV` JSON object merged into the MCP server process environment
+- `MCP_SERVER_CMD` command to launch an MCP stdio server process
+- `MCP_SERVER_ENV` JSON object merged into the MCP server process environment
 
 ## Contract Notes
 - Input is read from `sys.argv[1]`
