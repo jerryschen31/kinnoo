@@ -2734,3 +2734,891 @@ features:
     owner: techlead-agent
     dependencies: [feature76, feature77, feature78, feature80, feature81]
     status: completed
+
+  # ──────────────────────────────────────────────────────────────
+  # Phase 8: Client-Side Security Hardening (features 86-88)
+  # ──────────────────────────────────────────────────────────────
+
+  - id: feature86
+    title: "Embedded integrity manifest (META-INF/integrity.json)"
+    description: |
+      During `kinnoo pack`, generate a JSON manifest listing every file in the
+      archive with its SHA-256 hash and file size. Store the manifest inside the
+      .kno archive at META-INF/integrity.json. Create a new module
+      src/kinnoo/integrity.py with functions to compute and verify file hashes.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo pack` produces a .kno containing META-INF/integrity.json."
+      - id: AC2
+        description: "META-INF/integrity.json contains SHA-256 hash and size for every file in the archive (excluding META-INF/ itself)."
+      - id: AC3
+        description: "Integrity module provides `compute_integrity_manifest(directory) -> dict` and `verify_integrity_manifest(directory, manifest) -> list[str]`."
+      - id: AC4
+        description: "Manifest format is documented with a JSON schema or example in the module docstring."
+      - id: AC5
+        description: "Existing tests for pack continue to pass; new tests cover manifest generation."
+    notes:
+      - "New module: src/kinnoo/integrity.py"
+      - "Modify: src/kinnoo/pack_command.py to call integrity module after archiving"
+      - "META-INF/integrity.json must be the last file added to the archive (so it covers all other files)"
+      - "See phase8-planning-3.md for full context"
+    owner: swe-agent
+    dependencies: []
+    status: not-started
+
+  - id: feature87
+    title: "Embedded signature (META-INF/signature.json)"
+    description: |
+      When `kinnoo pack --sign` is used, sign the integrity manifest
+      (META-INF/integrity.json) using the existing Ed25519 signing infrastructure
+      in signing.py and embed the signature in META-INF/signature.json. The
+      signature JSON includes the base64 signature, the public key fingerprint,
+      and a timestamp.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo pack --sign` produces META-INF/signature.json alongside META-INF/integrity.json."
+      - id: AC2
+        description: "Signature covers the raw bytes of META-INF/integrity.json."
+      - id: AC3
+        description: "signature.json contains: signature (base64), public_key_fingerprint (hex), signed_at (ISO 8601)."
+      - id: AC4
+        description: "`kinnoo pack` without `--sign` does NOT produce signature.json (integrity.json is still generated)."
+      - id: AC5
+        description: "Existing signing.py functions are reused; no new crypto dependencies."
+      - id: AC6
+        description: "Tests verify signed archives have valid signatures."
+    notes:
+      - "Reuses: src/kinnoo/signing.py (Ed25519 keygen + sign functions)"
+      - "Modify: src/kinnoo/pack_command.py to add signing step after integrity manifest"
+      - "Key pair must exist or be generated via `kinnoo keygen`"
+    owner: swe-agent
+    dependencies: [feature86]
+    status: not-started
+
+  - id: feature88
+    title: "Install-time integrity verification"
+    description: |
+      During `kinnoo install`, verify the integrity manifest before extracting
+      files. If `--strict` flag is passed, also verify the signature. Report
+      clear error messages for any mismatches. Add a `--skip-verify` flag to
+      bypass verification for development workflows.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo install` verifies META-INF/integrity.json hashes against actual file contents."
+      - id: AC2
+        description: "Installation aborts with clear error message if any file hash mismatches."
+      - id: AC3
+        description: "`kinnoo install --strict` additionally verifies META-INF/signature.json and fails if missing or invalid."
+      - id: AC4
+        description: "`kinnoo install --skip-verify` bypasses all verification."
+      - id: AC5
+        description: "Archives without META-INF/integrity.json install with a warning (backward compatibility with pre-feature86 archives)."
+      - id: AC6
+        description: "Verification results are logged: number of files checked, pass/fail status."
+      - id: AC7
+        description: "Tests cover: valid archive, tampered file, missing integrity manifest, unsigned + strict mode, skip-verify."
+    notes:
+      - "Modify: src/kinnoo/install_command.py"
+      - "Reuse: src/kinnoo/integrity.py verification functions from feature86"
+      - "Backward compatibility is critical — old archives must still install"
+    owner: swe-agent
+    dependencies: [feature86, feature87]
+    status: not-started
+
+  # ──────────────────────────────────────────────────────────────
+  # Phase 9: Server Hardening & Containerization (features 89-91, 100-102)
+  # ──────────────────────────────────────────────────────────────
+
+  - id: feature89
+    title: "Production server configuration and deployment hardening"
+    description: |
+      Harden the registry server for production deployment. Add structured JSON
+      logging. Configure CORS for dev.kinnoo.ai and dev-api.kinnoo.ai origins.
+      Add HTTPS redirect middleware. Add health check and readiness endpoints.
+      Configure Uvicorn for production (workers, timeouts, graceful shutdown).
+      Ensure all secrets come from environment variables with no dev defaults in
+      production mode.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "Server logs in structured JSON format when KINNOO_ENV=production."
+      - id: AC2
+        description: "CORS is configured to allow only dev.kinnoo.ai and dev-api.kinnoo.ai origins."
+      - id: AC3
+        description: "GET /health returns 200 with {status: ok, version: X.Y.Z}."
+      - id: AC4
+        description: "GET /ready returns 200 only when S3 and auth store are accessible."
+      - id: AC5
+        description: "Server refuses to start in production mode if required secrets are missing."
+      - id: AC6
+        description: "Uvicorn config: 2 workers, 30s timeout, graceful shutdown on SIGTERM."
+      - id: AC7
+        description: "Tests validate health/ready endpoints and CORS headers."
+    notes:
+      - "Modify: server/config.py, server/app.py"
+      - "Create: server/logging_config.py or add to config.py"
+      - "server/config.py (~77 lines) already has ServerConfig class with env var loading"
+      - "server/app.py (194 lines) has create_app() factory function"
+    owner: swe-agent
+    dependencies: []
+    status: not-started
+
+  - id: feature90
+    title: "Server-side upload validation and integrity enforcement"
+    description: |
+      Validate uploaded .kno archives on the server before storing in S3.
+      Check: file size limits (configurable, default 100MB), valid zip format,
+      required manifest files (kinnoo.yaml), manifest field validation,
+      integrity.json presence and validity. Reject uploads that fail validation
+      with descriptive error messages.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "Server rejects uploads exceeding configured max size with 413 status."
+      - id: AC2
+        description: "Server rejects non-zip files with 400 status."
+      - id: AC3
+        description: "Server rejects archives missing kinnoo.yaml with 400 status."
+      - id: AC4
+        description: "Server validates kinnoo.yaml has required fields (name, version, framework)."
+      - id: AC5
+        description: "Server validates META-INF/integrity.json if present."
+      - id: AC6
+        description: "All validation errors return JSON with error details."
+      - id: AC7
+        description: "Tests cover: oversized upload, invalid zip, missing manifest, invalid manifest, tampered integrity."
+    notes:
+      - "Modify: server/routes/publish.py (~250 lines)"
+      - "publish_archive() currently has minimal validation"
+      - "Max upload size should come from ServerConfig"
+    owner: swe-agent
+    dependencies: [feature86]
+    status: not-started
+
+  - id: feature91
+    title: "Production-grade rate limiting and abuse protections"
+    description: |
+      Enhance the existing in-memory rate limiter in server/middleware.py with
+      production-appropriate limits. Add per-tenant rate limiting (in addition
+      to per-IP). Add configurable limits for different endpoint groups.
+      Add rate limit headers (X-RateLimit-Limit, X-RateLimit-Remaining,
+      X-RateLimit-Reset). Add retry-after header on 429 responses.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "Rate limits are configurable per endpoint group via server config."
+      - id: AC2
+        description: "Auth endpoints: 5 requests/minute per IP."
+      - id: AC3
+        description: "Publish endpoint: 10 requests/hour per tenant."
+      - id: AC4
+        description: "Search/download: 60 requests/minute per IP."
+      - id: AC5
+        description: "All 429 responses include Retry-After header."
+      - id: AC6
+        description: "All responses include X-RateLimit-* headers."
+      - id: AC7
+        description: "Tests verify rate limit enforcement and header presence."
+    notes:
+      - "Modify: server/middleware.py (~165 lines) — RateLimitRule, InMemoryRateLimiter already exist"
+      - "In-memory rate limiting is acceptable for single-instance beta"
+      - "Redis-backed rate limiting deferred to post-beta"
+    owner: swe-agent
+    dependencies: []
+    status: not-started
+
+  - id: feature92
+    title: "kinnoo.yaml specification document"
+    description: |
+      Create a comprehensive specification document for the kinnoo.yaml manifest
+      format. Document every field, its type, whether required/optional, default
+      values, and validation rules. Include examples for each supported framework.
+      Document the framework-specific fields and constraints.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "docs/kinnoo-yaml-spec.md exists and documents every manifest field."
+      - id: AC2
+        description: "Each field has: name, type, required/optional, default, description, validation rules."
+      - id: AC3
+        description: "Examples provided for chatgpt, gemini, openai, claude, and generic frameworks."
+      - id: AC4
+        description: "Document specifies the manifest version and any backward compatibility notes."
+      - id: AC5
+        description: "Cross-referenced from README.md and CLI help text."
+    notes:
+      - "Create: docs/kinnoo-yaml-spec.md"
+      - "Reference: src/kinnoo/validator.py for field validation logic"
+      - "Reference: existing test fixtures for valid manifest examples"
+    owner: swe-agent
+    dependencies: []
+    status: not-started
+
+  - id: feature93
+    title: "CLI command reference document"
+    description: |
+      Create a comprehensive CLI reference documenting every kinnoo command and
+      sub-command. Include usage, arguments, options with defaults, environment
+      variables, exit codes, and examples. Cover both client-side (kinnoo) and
+      server-side (kinnoo-server) commands.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "docs/cli-reference.md exists and documents every CLI command."
+      - id: AC2
+        description: "Each command entry has: usage, description, arguments, options, env vars, exit codes, examples."
+      - id: AC3
+        description: "Covers: init, pack, install, run, publish, search, login, logout, keygen, trust, inspect, uninstall."
+      - id: AC4
+        description: "Covers server commands: kinnoo-server bootstrap, user create, user list, user reset-password, invite create."
+      - id: AC5
+        description: "Cross-referenced from README.md."
+    notes:
+      - "Create: docs/cli-reference.md"
+      - "Reference: src/kinnoo/cli.py for client commands"
+      - "Reference: server/cli.py for server commands"
+      - "Some server commands (feature102) may not exist yet — document planned commands with [planned] tag"
+    owner: swe-agent
+    dependencies: []
+    status: not-started
+
+  - id: feature94
+    title: "Security model document"
+    description: |
+      Create a security model document describing kinnoo's trust and security
+      architecture. Cover: threat model, signing model (Ed25519), integrity
+      verification, trust store, permission model, auth flow (JWT), password
+      hashing (Argon2id), rate limiting, and upload validation.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "docs/security-model.md exists and covers the complete security architecture."
+      - id: AC2
+        description: "Threat model identifies key threats and mitigations."
+      - id: AC3
+        description: "Signing model explains Ed25519 key generation, signing, and verification."
+      - id: AC4
+        description: "Auth flow documented: registration, login, JWT issuance, token refresh, logout."
+      - id: AC5
+        description: "Cross-referenced from README.md."
+    notes:
+      - "Create: docs/security-model.md"
+      - "Reference: src/kinnoo/signing.py, server/auth/token.py, server/auth/session.py"
+    owner: swe-agent
+    dependencies: [feature86, feature87, feature88]
+    status: not-started
+
+  - id: feature95
+    title: "Getting started guide and registry guide"
+    description: |
+      Create two user-facing guides: (1) a getting-started guide walking through
+      creating, packing, and running an agent from scratch, and (2) a registry
+      guide covering account creation, publishing, searching, and installing from
+      the remote registry.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "docs/getting-started.md exists with a complete walkthrough from install to running an agent."
+      - id: AC2
+        description: "docs/registry-guide.md exists with publish, search, and install workflows."
+      - id: AC3
+        description: "Both guides include copy-paste terminal commands."
+      - id: AC4
+        description: "Both guides include expected output snippets."
+      - id: AC5
+        description: "Cross-referenced from README.md."
+    notes:
+      - "Create: docs/getting-started.md, docs/registry-guide.md"
+      - "Focus on the invite-only beta workflow"
+    owner: swe-agent
+    dependencies: []
+    status: not-started
+
+  - id: feature96
+    title: "README rewrite and supported agents document"
+    description: |
+      Rewrite README.md for the beta release. Include: project overview, install
+      instructions, quick-start example, link to docs, feature highlights,
+      supported frameworks. Create docs/supported-agents.md with a framework
+      compatibility matrix.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "README.md is rewritten for beta: concise, professional, with badges."
+      - id: AC2
+        description: "README includes: overview, pip install, quick-start (5-command workflow), links to docs."
+      - id: AC3
+        description: "docs/supported-agents.md lists all supported frameworks with feature matrix."
+      - id: AC4
+        description: "Framework matrix covers: init scaffold, pack, run, publish, install for each framework."
+      - id: AC5
+        description: "README does not reference internal development details."
+    notes:
+      - "Modify: README.md"
+      - "Create: docs/supported-agents.md"
+    owner: swe-agent
+    dependencies: [feature92, feature93]
+    status: not-started
+
+  - id: feature97
+    title: "Public GitHub repository preparation"
+    description: |
+      Prepare the repository for public visibility. Audit for secrets, sensitive
+      data, and internal references. Create CONTRIBUTING.md, CODE_OF_CONDUCT.md.
+      Update LICENSE if needed. Create issue and PR templates. Ensure .gitignore
+      covers all generated files. Remove or redact any internal-only content.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "No secrets, API keys, or passwords present in any tracked file."
+      - id: AC2
+        description: "CONTRIBUTING.md exists with development setup, testing, and PR guidelines."
+      - id: AC3
+        description: "CODE_OF_CONDUCT.md exists."
+      - id: AC4
+        description: ".github/ISSUE_TEMPLATE/ contains bug report and feature request templates."
+      - id: AC5
+        description: ".github/PULL_REQUEST_TEMPLATE.md exists."
+      - id: AC6
+        description: ".gitignore covers: __pycache__, .egg-info, .kno, env/, scratch/, outputs/."
+      - id: AC7
+        description: "No internal meeting notes, personal notes, or WIP content in tracked files."
+    notes:
+      - "Create: CONTRIBUTING.md, CODE_OF_CONDUCT.md, .github/ISSUE_TEMPLATE/, .github/PULL_REQUEST_TEMPLATE.md"
+      - "Review: all files for secrets, internal references"
+      - "notes/ and scratch/ should be gitignored for public release"
+    owner: swe-agent
+    dependencies: []
+    status: not-started
+
+  - id: feature98
+    title: "GitHub Actions CI/CD pipeline"
+    description: |
+      Create comprehensive GitHub Actions workflows for: (1) CI — run tests and
+      linting on every PR, (2) backend deployment — build Docker image, push to
+      ECR, update ECS service on main branch push, (3) frontend deployment —
+      build Next.js static export, deploy to Cloudflare Pages on main push,
+      (4) Terraform plan on PR, apply on merge. Use OIDC for AWS credentials.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: ".github/workflows/ci.yml runs pytest and linting on every PR."
+      - id: AC2
+        description: ".github/workflows/deploy-backend.yml builds Docker image, pushes to ECR, updates ECS on main push."
+      - id: AC3
+        description: ".github/workflows/deploy-frontend.yml builds and deploys Next.js to Cloudflare Pages on main push."
+      - id: AC4
+        description: ".github/workflows/terraform.yml runs terraform plan on PR and terraform apply on merge to main."
+      - id: AC5
+        description: "All workflows use OIDC for AWS credentials (no static access keys)."
+      - id: AC6
+        description: "Deployment workflows include rollback steps on failure."
+    notes:
+      - "Existing: .github/workflows/ci.yml and kinnoo-publish.yml"
+      - "Modify ci.yml, create new deploy workflows"
+      - "OIDC provider must be set up in AWS (covered by IaC feature106)"
+      - "ECR repository created by IaC feature105"
+    owner: swe-agent
+    dependencies: [feature103, feature105]
+    status: not-started
+
+  - id: feature99
+    title: "PyPI package publishing configuration"
+    description: |
+      Configure the project for PyPI publishing. Validate pyproject.toml has
+      correct metadata (name, version, description, author, license, classifiers,
+      URLs). Set up trusted publisher in PyPI for GitHub Actions. Create
+      .github/workflows/pypi-publish.yml triggered on release tags.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "pyproject.toml has complete PyPI metadata (name, version, description, author, license, classifiers, project-urls)."
+      - id: AC2
+        description: "`pip install kinnoo` works from a built wheel."
+      - id: AC3
+        description: ".github/workflows/pypi-publish.yml publishes to PyPI on release tag."
+      - id: AC4
+        description: "Workflow uses trusted publisher (OIDC) — no API tokens."
+      - id: AC5
+        description: "Version is sourced from a single location (pyproject.toml or __version__)."
+    notes:
+      - "Modify: pyproject.toml"
+      - "Create: .github/workflows/pypi-publish.yml"
+      - "Trusted publisher setup requires manual PyPI configuration by operator"
+    owner: swe-agent
+    dependencies: []
+    status: not-started
+
+  - id: feature100
+    title: "Auth hardening — lockout, password policy, token blacklist"
+    description: |
+      Harden the existing authentication system. Add: (1) account lockout after 5
+      consecutive failed login attempts with 15-minute cooldown, (2) password
+      policy enforcement (minimum 12 characters, at least 1 uppercase, 1 lowercase,
+      1 digit, 1 special character), (3) token blacklist on logout so revoked
+      tokens cannot be reused.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "Account is locked after 5 failed login attempts."
+      - id: AC2
+        description: "Locked account returns 423 status with retry-after time."
+      - id: AC3
+        description: "Lockout automatically clears after 15 minutes."
+      - id: AC4
+        description: "Registration and password change enforce password policy."
+      - id: AC5
+        description: "Weak passwords are rejected with specific guidance (e.g., 'Password must contain at least 1 digit')."
+      - id: AC6
+        description: "POST /logout blacklists the JWT token."
+      - id: AC7
+        description: "Blacklisted tokens are rejected by the auth middleware."
+      - id: AC8
+        description: "Token blacklist is periodically pruned of expired tokens."
+      - id: AC9
+        description: "Tests cover: lockout trigger, lockout expiry, password policy, token blacklist."
+    notes:
+      - "Modify: server/auth/token.py (~350 lines), server/routes/auth.py (~300 lines)"
+      - "Modify: server/storage/user_store.py (~95 lines) — add failed_attempts, locked_until fields"
+      - "Token blacklist can be in-memory set for single-instance beta"
+      - "Argon2id password hashing already exists"
+    owner: swe-agent
+    dependencies: []
+    status: not-started
+
+  - id: feature101
+    title: "Production Dockerfile and docker-compose"
+    description: |
+      Create a production Dockerfile for the registry server. Multi-stage build
+      with Python 3.11 slim. Non-root user. Health check. Create docker-compose.yml
+      for local development with the server, including volume mounts for the auth
+      store and registry data.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "Dockerfile exists at project root (or server/ — TBD by SWE)."
+      - id: AC2
+        description: "Multi-stage build: builder stage installs deps, final stage copies only needed files."
+      - id: AC3
+        description: "Final image runs as non-root user."
+      - id: AC4
+        description: "HEALTHCHECK instruction points to /health endpoint."
+      - id: AC5
+        description: "Image size is under 200MB."
+      - id: AC6
+        description: "docker-compose.yml starts the server with env vars, mounts local storage."
+      - id: AC7
+        description: "`docker compose up` starts server accessible at localhost:8000."
+      - id: AC8
+        description: "Tests: build succeeds, container starts, health check passes."
+    notes:
+      - "Create: Dockerfile (or server/Dockerfile), docker-compose.yml"
+      - "Server entry point: uvicorn server.app:create_app --factory"
+      - "Use python:3.11-slim as base"
+      - "Requirements: server/requirements.txt or separate from client requirements.txt"
+    owner: swe-agent
+    dependencies: [feature89]
+    status: not-started
+
+  - id: feature102
+    title: "Admin CLI for user management"
+    description: |
+      Extend the server CLI (server/cli.py) with admin commands for managing
+      users and invite tokens. Commands: `kinnoo-server user create`, `user list`,
+      `user reset-password`, `user unlock`, `user delete`, `invite create`,
+      `invite list`. All commands operate directly on the auth store.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo-server user create --email <email>` creates a user and prints a temporary password."
+      - id: AC2
+        description: "`kinnoo-server user list` prints all registered users with status."
+      - id: AC3
+        description: "`kinnoo-server user reset-password --email <email>` generates a new temporary password."
+      - id: AC4
+        description: "`kinnoo-server user unlock --email <email>` clears lockout state."
+      - id: AC5
+        description: "`kinnoo-server user delete --email <email>` removes a user (with confirmation)."
+      - id: AC6
+        description: "`kinnoo-server invite create --email <email> --days-valid <N>` generates an invite token."
+      - id: AC7
+        description: "`kinnoo-server invite list` shows all pending invites with expiry."
+      - id: AC8
+        description: "All commands validate inputs and print clear error messages."
+      - id: AC9
+        description: "Tests cover all commands with valid and invalid inputs."
+    notes:
+      - "Modify: server/cli.py (~60 lines) — currently minimal with bootstrap only"
+      - "Modify: server/storage/user_store.py — add invite token storage"
+      - "Temporary passwords should be random 16-char strings with mixed case + digits + special"
+      - "Operates directly on the auth store file (no HTTP API needed)"
+    owner: swe-agent
+    dependencies: [feature100]
+    status: not-started
+
+  # ──────────────────────────────────────────────────────────────
+  # Phase 12: Infrastructure as Code (features 103-107)
+  # ──────────────────────────────────────────────────────────────
+
+  - id: feature103
+    title: "Terraform project setup, state bootstrap, and VPC networking"
+    description: |
+      Create the iac/ directory structure with Terraform project files. Create a
+      state bootstrap module (S3 bucket + DynamoDB table for state locking).
+      Create the VPC module with public subnets (2 AZs), security groups, and
+      VPC endpoints for S3 (gateway) and ECR (interface). No NAT Gateway.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "iac/ directory exists with: versions.tf, providers.tf, variables.tf, outputs.tf, locals.tf, main.tf."
+      - id: AC2
+        description: "iac/state/main.tf creates S3 bucket and DynamoDB table for Terraform state."
+      - id: AC3
+        description: "iac/modules/vpc/ creates VPC with 2 public subnets in us-west-2a and us-west-2b."
+      - id: AC4
+        description: "Security groups: ALB SG (Cloudflare IPs only on 443), ECS SG (ALB SG on 8000), S3 endpoint."
+      - id: AC5
+        description: "VPC endpoint for S3 (gateway type) is configured."
+      - id: AC6
+        description: "No NAT Gateway resources."
+      - id: AC7
+        description: "iac/environments/dev/terraform.tfvars contains dev-specific values."
+      - id: AC8
+        description: "`terraform validate` passes for all modules."
+    notes:
+      - "Create: entire iac/ directory structure"
+      - "AWS account: 386775099533, region: us-west-2"
+      - "Cloudflare IP ranges: https://www.cloudflare.com/ips/ — use data source"
+      - "State bootstrap is applied manually before other modules"
+      - "VPC endpoints avoid needing NAT for ECS → S3/ECR"
+    owner: swe-agent
+    dependencies: []
+    status: not-started
+
+  - id: feature104
+    title: "Terraform storage and security (S3, IAM, Secrets Manager)"
+    description: |
+      Create Terraform modules for: (1) S3 registry bucket with AES-256
+      encryption, GOVERNANCE mode Object Lock, versioning, lifecycle rules.
+      (2) IAM roles: ECS task role (S3 access), ECS execution role (ECR pull,
+      logs, secrets), GitHub Actions OIDC role. (3) Secrets Manager secrets
+      for JWT key, session key, admin password.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "iac/modules/s3-registry/ creates S3 bucket with AES-256 server-side encryption."
+      - id: AC2
+        description: "S3 bucket has GOVERNANCE mode Object Lock enabled."
+      - id: AC3
+        description: "S3 bucket has versioning enabled."
+      - id: AC4
+        description: "S3 bucket has public access blocked."
+      - id: AC5
+        description: "iac/modules/iam/ creates ECS task role with S3 read/write policy."
+      - id: AC6
+        description: "ECS execution role has ECR pull, CloudWatch logs, and Secrets Manager read policies."
+      - id: AC7
+        description: "GitHub Actions OIDC provider and role are created."
+      - id: AC8
+        description: "iac/modules/secrets/ creates Secrets Manager secrets for JWT_SECRET, SESSION_SECRET, ADMIN_PASSWORD."
+      - id: AC9
+        description: "`terraform validate` passes."
+    notes:
+      - "Create: iac/modules/s3-registry/, iac/modules/iam/, iac/modules/secrets/"
+      - "S3 bucket naming: kinnoo-registry-dev-{account_id}"
+      - "GOVERNANCE mode allows Jerry to delete objects if needed"
+      - "OIDC provider setup for GitHub Actions: repo kinnoo/kinnoo"
+    owner: swe-agent
+    dependencies: [feature103]
+    status: not-started
+
+  - id: feature105
+    title: "Terraform compute stack (ECR, ALB, ACM, ECS/Fargate, EFS)"
+    description: |
+      Create Terraform modules for the compute/deployment stack: (1) ECR
+      repository for Docker images. (2) ALB with HTTPS listener, ACM certificate
+      for dev-api.kinnoo.ai, target group for ECS. (3) ECS Fargate cluster,
+      task definition (0.5 vCPU, 1GB memory), service with desired count 1.
+      (4) EFS file system for persistent auth data.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "iac/modules/ecr/ creates ECR repository with image scanning and lifecycle policy."
+      - id: AC2
+        description: "iac/modules/alb/ creates ALB with HTTPS listener on port 443."
+      - id: AC3
+        description: "ACM certificate for dev-api.kinnoo.ai with DNS validation."
+      - id: AC4
+        description: "Target group health check points to /health endpoint."
+      - id: AC5
+        description: "iac/modules/ecs-fargate/ creates ECS cluster, task definition, and service."
+      - id: AC6
+        description: "Task definition: 0.5 vCPU, 1GB memory, EFS mount, secrets from Secrets Manager."
+      - id: AC7
+        description: "EFS file system with mount targets in both subnets."
+      - id: AC8
+        description: "Service desired count is 1 (single task for beta)."
+      - id: AC9
+        description: "`terraform validate` passes."
+    notes:
+      - "Create: iac/modules/ecr/, iac/modules/alb/, iac/modules/ecs-fargate/"
+      - "EFS mount path: /data (contains auth store, metadata)"
+      - "Container port: 8000"
+      - "Task definition references Dockerfile from feature101"
+      - "ACM certificate validation requires Cloudflare DNS records (feature106)"
+    owner: swe-agent
+    dependencies: [feature103, feature104]
+    status: not-started
+
+  - id: feature106
+    title: "Terraform Cloudflare DNS and Pages"
+    description: |
+      Create Terraform module for Cloudflare configuration: (1) DNS records —
+      dev.kinnoo.ai CNAME to Cloudflare Pages, dev-api.kinnoo.ai CNAME to ALB.
+      (2) Cloudflare Pages project for Next.js static export. (3) ACM validation
+      CNAME records in Cloudflare.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "iac/modules/cloudflare/ creates DNS records for dev.kinnoo.ai and dev-api.kinnoo.ai."
+      - id: AC2
+        description: "dev.kinnoo.ai points to Cloudflare Pages deployment."
+      - id: AC3
+        description: "dev-api.kinnoo.ai proxied CNAME points to ALB DNS name."
+      - id: AC4
+        description: "ACM validation CNAME records are created."
+      - id: AC5
+        description: "Cloudflare API token sourced from environment variable."
+      - id: AC6
+        description: "`terraform validate` passes."
+    notes:
+      - "Create: iac/modules/cloudflare/"
+      - "Uses cloudflare Terraform provider"
+      - "Cloudflare zone must already exist for kinnoo.ai"
+      - "Pages project may be created manually — Terraform manages DNS only if Pages API is limited"
+    owner: swe-agent
+    dependencies: [feature103, feature105]
+    status: not-started
+
+  - id: feature107
+    title: "Terraform monitoring (CloudWatch, alarms, SNS)"
+    description: |
+      Create Terraform module for monitoring: (1) CloudWatch log group for ECS
+      container logs. (2) CloudWatch alarms for 5xx errors, unhealthy targets,
+      high CPU. (3) SNS topic for alerts with Jerry's email subscription.
+      (4) SNS topic for password reset notifications.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "iac/modules/monitoring/ creates CloudWatch log group with 30-day retention."
+      - id: AC2
+        description: "Alarm: ALB 5xx count > 10 in 5 minutes triggers SNS notification."
+      - id: AC3
+        description: "Alarm: unhealthy target count > 0 for 2 consecutive checks triggers SNS."
+      - id: AC4
+        description: "Alarm: ECS CPU utilization > 80% for 5 minutes triggers SNS."
+      - id: AC5
+        description: "SNS topic for alerts with email subscription (Jerry's email)."
+      - id: AC6
+        description: "Separate SNS topic for password reset notifications."
+      - id: AC7
+        description: "`terraform validate` passes."
+    notes:
+      - "Create: iac/modules/monitoring/"
+      - "Jerry's alert email comes from terraform.tfvars"
+      - "Password reset SNS topic used by feature109"
+      - "30-day log retention is sufficient for beta"
+    owner: swe-agent
+    dependencies: [feature103, feature105]
+    status: not-started
+
+  # ──────────────────────────────────────────────────────────────
+  # Phase 14: Beta Operations Setup (features 108-110)
+  # ──────────────────────────────────────────────────────────────
+
+  - id: feature108
+    title: "Invite-only registration enforcement"
+    description: |
+      Modify the registration endpoint to require a valid invite token. Tokens
+      are generated via the admin CLI (feature102). Registration without a token
+      returns 403. Tokens are single-use and expire after a configurable duration.
+      The web registration page includes a token field.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "POST /register requires `invite_token` parameter."
+      - id: AC2
+        description: "Registration without invite token returns 403 with message."
+      - id: AC3
+        description: "Invalid or expired invite token returns 403."
+      - id: AC4
+        description: "Valid invite token is consumed (single-use)."
+      - id: AC5
+        description: "Web registration page has invite token field (pre-filled from URL query param)."
+      - id: AC6
+        description: "Invite token validation is atomic (no race conditions)."
+      - id: AC7
+        description: "Tests cover: valid token, expired token, reused token, missing token."
+    notes:
+      - "Modify: server/routes/auth.py — registration endpoint"
+      - "Modify: server/routes/web_auth.py — registration page"
+      - "Modify: server/storage/user_store.py — invite token storage"
+      - "Depends on feature102 for invite token generation"
+    owner: swe-agent
+    dependencies: [feature102]
+    status: not-started
+
+  - id: feature109
+    title: "Forgot password flow with operator alert"
+    description: |
+      Add a forgot-password endpoint and web page. When a user submits a valid
+      email, log the request and fire an SNS notification to Jerry. Jerry then
+      uses the admin CLI to reset the password manually. No automated email
+      sending — this is a manual workflow for the invite-only beta.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "POST /forgot-password accepts email parameter."
+      - id: AC2
+        description: "Always returns 200 with generic message (no email enumeration)."
+      - id: AC3
+        description: "If email exists, fires SNS notification with user email and timestamp."
+      - id: AC4
+        description: "If email does not exist, logs but does not fire SNS (prevents abuse)."
+      - id: AC5
+        description: "Web page at /forgot-password with email form."
+      - id: AC6
+        description: "Rate limited: max 3 requests per IP per hour."
+      - id: AC7
+        description: "Tests cover: valid email, invalid email, rate limiting."
+    notes:
+      - "Modify: server/routes/auth.py or create server/routes/password.py"
+      - "Modify: server/routes/web_auth.py — add forgot password page"
+      - "SNS topic ARN comes from server config (environment variable)"
+      - "SNS topic created by Terraform feature107"
+      - "Jerry sees alert, runs: kinnoo-server user reset-password --email user@example.com"
+    owner: swe-agent
+    dependencies: [feature102, feature107]
+    status: not-started
+
+  - id: feature110
+    title: "Landing page update for invite-only beta"
+    description: |
+      Update the Next.js web frontend for the invite-only beta. Remove or hide
+      open registration. Add messaging about invite-only access. Add "Email us"
+      link (JavaScript-rendered to prevent bot scraping). Update any marketing
+      copy to reflect beta status. Ensure static export works for Cloudflare
+      Pages deployment.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "Landing page shows 'Invite-Only Beta' messaging."
+      - id: AC2
+        description: "No open registration form on the landing page."
+      - id: AC3
+        description: "'Email us' link is rendered via JavaScript (not plain HTML) to prevent scraping."
+      - id: AC4
+        description: "Registration page (/register) shows invite token field and instructions."
+      - id: AC5
+        description: "`next build && next export` succeeds (static export)."
+      - id: AC6
+        description: "Updated pages render correctly at dev.kinnoo.ai."
+    notes:
+      - "Modify: web/ directory (Next.js frontend)"
+      - "web/next.config.ts (~40 lines) already has rewrite config"
+      - "Static export: output: 'export' in next.config.ts"
+      - "Email obfuscation: simple JS that builds the mailto: link on page load"
+    owner: swe-agent
+    dependencies: []
+    status: not-started
+
+  # ──────────────────────────────────────────────────────────────
+  # Phase 15: Deployment, Testing & Launch (features 111-113)
+  # ──────────────────────────────────────────────────────────────
+
+  - id: feature111
+    title: "End-to-end smoke test script"
+    description: |
+      Create an automated smoke test script that exercises the full user workflow
+      against a deployed registry. The script tests: login, init, pack, publish,
+      search, install, run, logout. It should be runnable as a CLI command and
+      in CI after deployment.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "scripts/e2e-smoke-test.sh (or .py) exists and is executable."
+      - id: AC2
+        description: "Script accepts REGISTRY_URL and TEST_CREDENTIALS as parameters."
+      - id: AC3
+        description: "Tests: login → init agent → pack → publish → search → install → run → logout."
+      - id: AC4
+        description: "Each step prints PASS/FAIL with timing."
+      - id: AC5
+        description: "Script exits 0 on full pass, non-zero on any failure."
+      - id: AC6
+        description: "Cleans up test artifacts (published test agent is unpublished or uses test tenant)."
+      - id: AC7
+        description: "Can be integrated into CI deploy workflow as a post-deployment check."
+    notes:
+      - "Create: scripts/e2e-smoke-test.sh or scripts/e2e_smoke_test.py"
+      - "Needs a dedicated test user account on the registry"
+      - "Should be idempotent — safe to run multiple times"
+    owner: swe-agent
+    dependencies: [feature89, feature101]
+    status: not-started
+
+  - id: feature112
+    title: "Registry seeding and validation"
+    description: |
+      Publish 3-5 real agents to the registry to validate the end-to-end workflow
+      and provide content for beta users. Validate that each agent can be found
+      via search, installed, and run successfully. Document the seeding process
+      for future use.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "At least 3 agents published to the registry covering different frameworks."
+      - id: AC2
+        description: "Each published agent is searchable via `kinnoo search`."
+      - id: AC3
+        description: "Each published agent can be installed and run successfully."
+      - id: AC4
+        description: "At least one agent is signed."
+      - id: AC5
+        description: "docs/registry-seeding.md documents the seeding process."
+    notes:
+      - "This is primarily operator work — Jerry publishes real agents"
+      - "SWE agent creates the documentation and any helper scripts"
+      - "Frameworks to cover: chatgpt, openai, gemini at minimum"
+    owner: swe-agent
+    dependencies: [feature86, feature87, feature88, feature89, feature90]
+    status: not-started
+
+  - id: feature113
+    title: "Launch readiness checklist"
+    description: |
+      Create a launch readiness checklist document that validates all systems
+      are operational before opening the beta. Covers: infrastructure health,
+      security review, documentation completeness, CI/CD validation, monitoring
+      alerts, and sample user onboarding walkthrough.
+    tasks: []
+    acceptance_criteria:
+      - id: AC1
+        description: "docs/launch-checklist.md exists with categorized checklist items."
+      - id: AC2
+        description: "Categories: Infrastructure, Security, Documentation, CI/CD, Monitoring, User Onboarding."
+      - id: AC3
+        description: "Each item has: description, how to verify, pass/fail status field."
+      - id: AC4
+        description: "Includes a sample user onboarding walkthrough (create user → user logs in → publishes agent)."
+      - id: AC5
+        description: "Checklist is actionable — Jerry can follow it step by step on launch day."
+    notes:
+      - "Create: docs/launch-checklist.md"
+      - "This is the final go/no-go document before opening beta"
+    owner: swe-agent
+    dependencies: []
+    status: not-started
