@@ -76,13 +76,17 @@ def create_auth_router(
             user_store=user_store,
         )
         if status >= 400:
+            envelope = build_error_envelope(
+                status_code=status,
+                message=str(response_payload.get("error", "request failed")),
+                request_id=request_id,
+            )
+            retry_after = response_payload.get("retry_after")
+            if isinstance(retry_after, int):
+                envelope["error"]["retry_after"] = retry_after
             return JSONResponse(
                 status_code=status,
-                content=build_error_envelope(
-                    status_code=status,
-                    message=str(response_payload.get("error", "request failed")),
-                    request_id=request_id,
-                ),
+                content=envelope,
             )
 
         return response_payload

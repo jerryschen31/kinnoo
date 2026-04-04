@@ -133,6 +133,9 @@ class User:
     password_hash: str
     role: Role
     force_password_change: bool
+    failed_login_attempts: int
+    locked_until: str | None
+    password_changed_at: str | None
     created_at: str
     updated_at: str
 
@@ -155,6 +158,9 @@ class User:
             password_hash=password_hash,
             role=normalized_role,
             force_password_change=bool(force_password_change),
+            failed_login_attempts=0,
+            locked_until=None,
+            password_changed_at=None,
             created_at=timestamp,
             updated_at=timestamp,
         )
@@ -174,6 +180,11 @@ class User:
             role=cls._normalize_role(str(document["role"])),
             # Older documents may not have this key; default to False.
             force_password_change=bool(document.get("force_password_change", False)),
+            failed_login_attempts=int(document.get("failed_login_attempts", 0) or 0),
+            locked_until=(str(document["locked_until"]) if document.get("locked_until") else None),
+            password_changed_at=(
+                str(document["password_changed_at"]) if document.get("password_changed_at") else None
+            ),
             created_at=str(document["created_at"]),
             updated_at=str(document["updated_at"]),
         )
@@ -185,6 +196,9 @@ class User:
             "password_hash": self.password_hash,
             "role": self.role,
             "force_password_change": self.force_password_change,
+            "failed_login_attempts": self.failed_login_attempts,
+            "locked_until": self.locked_until,
+            "password_changed_at": self.password_changed_at,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }
