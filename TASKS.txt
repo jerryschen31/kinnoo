@@ -6747,17 +6747,18 @@ tasks:
     type: task
     description: |
       Implement `kinnoo login` and `kinnoo logout` command surfaces with interactive and
-      non-interactive auth flows and secure local persistence of registry auth state.
+      non-interactive auth flows and secure local persistence of registry auth state,
+      using an email/password-first UX without requiring registry/tenant CLI flags.
     files:
       - src/kinnoo/cli.py
       - src/kinnoo/auth_command.py
       - src/kinnoo/config.py
       - src/kinnoo/publish_command.py
     steps:
-      - 'step1: Add login/logout command wiring and argument parsing for interactive and flag-driven workflows'
-      - 'step2: Add token exchange call and persist auth state (token/tenant/registry) in local kinnoo config'
+      - 'step1: Update login/logout command wiring for interactive prompts and --email/--password automation flags'
+      - 'step2: Add token exchange call and persist auth state (token/tenant/registry) in local kinnoo config using configured/default registry endpoint'
       - 'step3: Add logout behavior to clear persisted auth state and emit deterministic user diagnostics'
-      - 'step4: Ensure publish/registry clients prefer persisted auth state while preserving explicit override paths'
+      - 'step4: Derive tenant slug from authenticated identity/token claims and ensure publish/registry clients preserve explicit env override paths'
     dependencies: []
     tests: [test491]
     status: needs-review
@@ -6767,16 +6768,17 @@ tasks:
     type: task
     description: |
       Add integration coverage and docs for login/logout command behavior across interactive,
-      non-interactive, and post-logout unauthorized scenarios.
+      non-interactive, and post-logout unauthorized scenarios, reflecting the
+      email/password-first login UX.
     files:
       - tests/test_cli_registry.py
       - tests/test_cli.py
       - README.md
       - docs/CHANGELOG.md
     steps:
-      - 'step1: Add tests for successful interactive and non-interactive login flows'
+      - 'step1: Add tests for successful interactive and non-interactive login flows without registry/tenant login flags'
       - 'step2: Add tests for logout state cleanup and downstream unauthorized behavior'
-      - 'step3: Add documentation for login flags env interactions and local auth state model'
+      - 'step3: Add documentation for login prompt behavior, env interactions, and local auth state model'
       - 'step4: Verify docs and command help text are consistent with implemented UX'
     dependencies: [task332]
     tests: [test492]

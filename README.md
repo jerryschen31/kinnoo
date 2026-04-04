@@ -411,7 +411,7 @@ Notes:
 
 Phase 6 command matrix (high-signal operational commands):
 
-- `kinnoo login --registry <url> --tenant <slug>`
+- `kinnoo login`
 - `kinnoo logout`
 - `kinnoo list --remote`
 - `kinnoo search <query> --remote`
@@ -443,15 +443,17 @@ Phase 6 forward command references (consistency contract):
 Usage:
 
 - Interactive login:
-	- `kinnoo login --registry https://registry.example.com --tenant acme`
+	- `kinnoo login`
 - Non-interactive login:
-	- `kinnoo login --registry https://registry.example.com --tenant acme --email user@example.com --password '<password>'`
+	- `kinnoo login --email user@example.com --password '<password>'`
 - Logout:
 	- `kinnoo logout`
 
 Persistence and precedence:
 
 - Successful login persists `registry_url`, `registry_token`, and `tenant_slug` in `~/.kinnoo/config.yaml`.
+- Login resolves registry URL from (in order): `KINNOO_REGISTRY_URL`, existing config value, then default `https://registry.kinnoo.ai`.
+- Tenant slug is derived from authenticated identity/token claims; users do not need to pass `--tenant`.
 - `kinnoo logout` clears persisted auth keys from `~/.kinnoo/config.yaml`.
 - Environment variables remain highest precedence over file config:
 	- `KINNOO_REGISTRY_URL`

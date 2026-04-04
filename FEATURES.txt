@@ -2093,13 +2093,15 @@ features:
     tasks: [task332, task333]
     acceptance_criteria:
       - id: AC1
-        description: "`kinnoo login` supports interactive email/password flow against configured registry endpoint and stores token + tenant slug in local config."
+        description: "`kinnoo login` supports interactive email/username + hidden-password prompts, uses configured/default registry endpoint, and stores token + tenant slug in local config."
       - id: AC2
-        description: "`kinnoo login --email --password --registry` supports deterministic non-interactive usage suitable for automation."
+        description: "`kinnoo login --email --password` supports deterministic non-interactive usage suitable for automation without requiring registry/tenant flags."
       - id: AC3
         description: "`kinnoo logout` removes stored registry auth state and subsequent authenticated operations fail with clear guidance until re-login."
       - id: AC4
         description: "Publish and registry client paths prefer stored login state while preserving compatibility with explicit env-var overrides."
+      - id: AC5
+        description: "Tenant slug for login state is derived from authenticated identity (or token claims) rather than requiring user-provided `--tenant` input."
     owner: techlead-agent
     dependencies: []
     status: needs-review

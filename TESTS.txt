@@ -8149,15 +8149,15 @@ tests:
         ac: AC7
 
   - id: test491
-    title: "Login command supports interactive and non-interactive auth flows"
+    title: "Login command supports email/password-first interactive and non-interactive auth flows"
     type: integration
     preconditions: Registry auth endpoint available and CLI config path writable
     steps:
-      - step1: Run interactive login flow and submit valid credentials
-      - step2: Run non-interactive login with --email --password --registry flags
-      - step3: Verify token and tenant slug are persisted in local config
-    expected: Login succeeds in both modes and persists auth state deterministically
-    pass_criteria: Both flows return success and config contains expected token/tenant/registry values
+      - step1: Run interactive login flow and submit valid email/username + password prompts
+      - step2: Run non-interactive login with --email and --password flags only
+      - step3: Verify token and derived tenant slug are persisted in local config with resolved registry URL
+    expected: Login succeeds in both modes and persists auth state deterministically without requiring registry/tenant login flags
+    pass_criteria: Both flows return success and config contains expected token/derived-tenant/registry values
     automated: true
     automation_path: tests/test_cli_registry.py::test_feature61_login_interactive_and_noninteractive
     covers:
@@ -8165,6 +8165,8 @@ tests:
         ac: AC1
       - feature: feature61
         ac: AC2
+      - feature: feature61
+        ac: AC5
 
   - id: test492
     title: "Logout clears auth state and publish falls back to explicit auth sources"
