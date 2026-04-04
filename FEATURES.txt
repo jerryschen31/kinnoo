@@ -2765,7 +2765,7 @@ features:
       - "See phase8-planning-3.md for full context"
     owner: swe-agent
     dependencies: []
-    status: not-started
+    status: needs-review
 
   - id: feature87
     title: "Embedded signature (META-INF/signature.json)"

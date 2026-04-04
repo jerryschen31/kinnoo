@@ -7761,7 +7761,7 @@ tasks:
       - 'step3: Write or update tests and verify locally with pytest'
     dependencies: [task382]
     tests: [test541, test542]
-    status: not-started
+    status: needs-review
 
   - id: task384
     title: "Add Ed25519 signing to .kno archives via --sign flag"
