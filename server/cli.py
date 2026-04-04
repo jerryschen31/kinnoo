@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+import os
 from pathlib import Path
 import secrets
 import sys
@@ -136,10 +137,11 @@ def main(argv: list[str] | None = None) -> int:
             if not users:
                 print("no users found")
                 return 0
-            print("email\trole\tlocked")
+            print("EMAIL\tSTATUS\tTENANT\tCREATED")
             for user in users:
-                locked = "yes" if _is_locked(user.locked_until) else "no"
-                print(f"{user.username}\t{user.role}\t{locked}")
+                status = "locked" if _is_locked(user.locked_until) else "active"
+                created = user.created_at.split("T", 1)[0] if "T" in user.created_at else user.created_at
+                print(f"{user.username}\t{status}\t{user.tenant_slug}\t{created}")
             return 0
 
         if args.user_command == "reset-password":
@@ -186,9 +188,10 @@ def main(argv: list[str] | None = None) -> int:
             except ValueError as exc:
                 print(str(exc), file=sys.stderr)
                 return 1
-            print(f"created invite for: {invite['email']}")
-            print(f"token: {invite['token']}")
-            print(f"expires_at: {invite['expires_at']}")
+            base_url = os.getenv("KINNOO_PUBLIC_BASE_URL", "http://localhost:3000").rstrip("/")
+            print(f"invite token: {invite['token']}")
+            print(f"url: {base_url}/register?token={invite['token']}")
+            print(f"expires: {invite['expires_at']}")
             return 0
 
         if args.invite_command == "list":
@@ -196,9 +199,12 @@ def main(argv: list[str] | None = None) -> int:
             if not invites:
                 print("no invites found")
                 return 0
-            print("email\texpires_at\tconsumed")
+            print("EMAIL\tTOKEN\tEXPIRES\tSTATUS")
             for invite in invites:
-                print(f"{invite.get('email', '')}\t{invite.get('expires_at', '')}\t{invite.get('consumed', False)}")
+                token = str(invite.get("token", ""))
+                short_token = f"{token[:7]}..." if len(token) > 10 else token
+                status = "consumed" if bool(invite.get("consumed", False)) else "pending"
+                print(f"{invite.get('email', '')}\t{short_token}\t{invite.get('expires_at', '')}\t{status}")
             return 0
 
     parser.print_help(sys.stderr)

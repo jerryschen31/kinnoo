@@ -46,7 +46,7 @@ def test_feature102_group1(tmp_path: Path, capsys) -> None:
     assert list_rc == 0
     list_out = capsys.readouterr().out
     assert "alice@example.com" in list_out
-    assert "admin" in list_out
+    assert "active" in list_out
 
     reset_rc = main(
         [
@@ -125,15 +125,15 @@ def test_feature102_group2(tmp_path: Path, capsys) -> None:
     )
     assert create_rc == 0
     create_lines = capsys.readouterr().out.splitlines()
-    assert any("created invite for: bob@example.com" in line for line in create_lines)
-    token = _extract_value(create_lines, "token:")
+    token = _extract_value(create_lines, "invite token:")
     assert token
+    assert any("url:" in line for line in create_lines)
 
     list_rc = main(["invite", "list", "--store-root", str(store_root)])
     assert list_rc == 0
     list_out = capsys.readouterr().out
     assert "bob@example.com" in list_out
-    assert "False" in list_out
+    assert "pending" in list_out
 
     store = UserStore(store_root)
     assert store.validate_invite(token=token) is not None

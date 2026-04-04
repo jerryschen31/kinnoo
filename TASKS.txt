@@ -8312,7 +8312,7 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task415]
     tests: [test574, test575]
-    status: not-started
+    status: needs-review
 
   - id: task417
     title: "Create iac/ project structure with versions.tf, providers.tf, and state bootstrap"
