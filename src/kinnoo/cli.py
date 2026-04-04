@@ -733,14 +733,6 @@ def main():
     )
     login_parser.add_argument("--email", help="Registry account email/username")
     login_parser.add_argument("--password", help="Registry account password")
-    login_parser.add_argument(
-        "--registry",
-        help="Registry base URL (for example: https://registry.kinnoo.dev)",
-    )
-    login_parser.add_argument(
-        "--tenant",
-        help="Tenant slug for token issuance (defaults to configured tenant or global)",
-    )
 
     logout_parser = subparsers.add_parser(
         "logout",
@@ -1266,8 +1258,6 @@ def main():
         exit_code = login_command(
             email=getattr(args, "email", None),
             password=getattr(args, "password", None),
-            registry=getattr(args, "registry", None),
-            tenant_slug=getattr(args, "tenant", None),
         )
         sys.exit(exit_code)
 

@@ -117,8 +117,8 @@ def test_feature56_local_publish_tenant_path(tmp_path: Path) -> None:
 
 def test_feature61_login_interactive_and_noninteractive(tmp_path: Path) -> None:
 	accepted = {
-		("interactive@example.com", "interactive-pass", "tenant-interactive"): "token-interactive",
-		("cli@example.com", "cli-pass", "tenant-cli"): "token-cli",
+		("interactive@example.com", "interactive-pass", "interactive"): "token-interactive",
+		("cli@example.com", "cli-pass", "cli"): "token-cli",
 	}
 
 	server = _AuthTokenTestServer(accepted_credentials=accepted)
@@ -127,6 +127,7 @@ def test_feature61_login_interactive_and_noninteractive(tmp_path: Path) -> None:
 		env = {
 			**os.environ,
 			"HOME": str(tmp_path / "home"),
+			"KINNOO_REGISTRY_URL": server.base_url,
 		}
 
 		interactive = subprocess.run(
@@ -134,10 +135,6 @@ def test_feature61_login_interactive_and_noninteractive(tmp_path: Path) -> None:
 				sys.executable,
 				str(CLI_PATH),
 				"login",
-				"--registry",
-				server.base_url,
-				"--tenant",
-				"tenant-interactive",
 			],
 			input="interactive@example.com\ninteractive-pass\n",
 			capture_output=True,
@@ -151,19 +148,15 @@ def test_feature61_login_interactive_and_noninteractive(tmp_path: Path) -> None:
 		config_path = Path(env["HOME"]) / ".kinnoo" / "config.yaml"
 		assert config_path.exists()
 		first_config = config_path.read_text(encoding="utf-8")
-		assert "registry_url: '" in first_config
+		assert f"registry_url: '{server.base_url}'" in first_config
 		assert "registry_token: 'token-interactive'" in first_config
-		assert "tenant_slug: 'tenant-interactive'" in first_config
+		assert "tenant_slug: 'interactive'" in first_config
 
 		noninteractive = subprocess.run(
 			[
 				sys.executable,
 				str(CLI_PATH),
 				"login",
-				"--registry",
-				server.base_url,
-				"--tenant",
-				"tenant-cli",
 				"--email",
 				"cli@example.com",
 				"--password",
@@ -179,7 +172,7 @@ def test_feature61_login_interactive_and_noninteractive(tmp_path: Path) -> None:
 
 		second_config = config_path.read_text(encoding="utf-8")
 		assert "registry_token: 'token-cli'" in second_config
-		assert "tenant_slug: 'tenant-cli'" in second_config
+		assert "tenant_slug: 'cli'" in second_config
 	finally:
 		server.stop()
 
