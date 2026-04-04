@@ -9069,3 +9069,1263 @@ tests:
         ac: AC4
       - feature: feature85
         ac: AC5
+
+  - id: test541
+    title: "feature86 verify AC1, AC2, AC3"
+    type: integration
+    preconditions: Repo checked out with dependencies installed; server test fixtures available
+    steps:
+      - 'step1: Execute workflow for feature86 (Embedded integrity manifest (META-INF/integrity.json)) covering AC1, AC2, AC3'
+      - 'step2: Verify `kinnoo pack` produces a .kno containing META-INF/integrity.json.'
+      - 'step3: Verify META-INF/integrity.json contains SHA-256 hash and size for every file in the archive (excluding META-INF/ itself).'
+      - 'step4: Verify Integrity module provides `compute_integrity_manifest(directory) -> dict` and `verify_integrity_manifest(directory, manifest) -> list[str]`.'
+    expected: feature86 acceptance criteria AC1, AC2, AC3 are satisfied
+    pass_criteria: 'AC1: `kinnoo pack` produces a .kno containing META-INF/integrity.json.; AC2: META-INF/integrity.json contains SHA-256 hash and size for every file in the ...; AC3: Integrity module provides `compute_integrity_manifest(directory) -> dict` and...'
+    covers:
+      - feature: feature86
+        ac: AC1
+      - feature: feature86
+        ac: AC2
+      - feature: feature86
+        ac: AC3
+    automated: true
+    automation_path: tests/test_feature_86.py::test_feature86_group1
+
+  - id: test542
+    title: "feature86 verify AC4, AC5"
+    type: integration
+    preconditions: Repo checked out with dependencies installed; server test fixtures available
+    steps:
+      - 'step1: Execute workflow for feature86 (Embedded integrity manifest (META-INF/integrity.json)) covering AC4, AC5'
+      - 'step2: Verify Manifest format is documented with a JSON schema or example in the module docstring.'
+      - 'step3: Verify Existing tests for pack continue to pass; new tests cover manifest generation.'
+    expected: feature86 acceptance criteria AC4, AC5 are satisfied
+    pass_criteria: 'AC4: Manifest format is documented with a JSON schema or example in the module doc...; AC5: Existing tests for pack continue to pass; new tests cover manifest generation.'
+    covers:
+      - feature: feature86
+        ac: AC4
+      - feature: feature86
+        ac: AC5
+    automated: true
+    automation_path: tests/test_feature_86.py::test_feature86_group2
+
+  - id: test543
+    title: "feature87 verify AC1, AC2, AC3"
+    type: integration
+    preconditions: Repo checked out with dependencies installed; server test fixtures available
+    steps:
+      - 'step1: Execute workflow for feature87 (Embedded signature (META-INF/signature.json)) covering AC1, AC2, AC3'
+      - 'step2: Verify `kinnoo pack --sign` produces META-INF/signature.json alongside META-INF/integrity.json.'
+      - 'step3: Verify Signature covers the raw bytes of META-INF/integrity.json.'
+      - 'step4: Verify signature.json contains: signature (base64), public_key_fingerprint (hex), signed_at (ISO 8601).'
+    expected: feature87 acceptance criteria AC1, AC2, AC3 are satisfied
+    pass_criteria: 'AC1: `kinnoo pack --sign` produces META-INF/signature.json alongside META-INF/inte...; AC2: Signature covers the raw bytes of META-INF/integrity.json.; AC3: signature.json contains: signature (base64), public_key_fingerprint (hex), si...'
+    covers:
+      - feature: feature87
+        ac: AC1
+      - feature: feature87
+        ac: AC2
+      - feature: feature87
+        ac: AC3
+    automated: true
+    automation_path: tests/test_feature_87.py::test_feature87_group1
+
+  - id: test544
+    title: "feature87 verify AC4, AC5, AC6"
+    type: integration
+    preconditions: Repo checked out with dependencies installed; server test fixtures available
+    steps:
+      - 'step1: Execute workflow for feature87 (Embedded signature (META-INF/signature.json)) covering AC4, AC5, AC6'
+      - 'step2: Verify `kinnoo pack` without `--sign` does NOT produce signature.json (integrity.json is still generated).'
+      - 'step3: Verify Existing signing.py functions are reused; no new crypto dependencies.'
+      - 'step4: Verify Tests verify signed archives have valid signatures.'
+    expected: feature87 acceptance criteria AC4, AC5, AC6 are satisfied
+    pass_criteria: 'AC4: `kinnoo pack` without `--sign` does NOT produce signature.json (integrity.jso...; AC5: Existing signing.py functions are reused; no new crypto dependencies.; AC6: Tests verify signed archives have valid signatures.'
+    covers:
+      - feature: feature87
+        ac: AC4
+      - feature: feature87
+        ac: AC5
+      - feature: feature87
+        ac: AC6
+    automated: true
+    automation_path: tests/test_feature_87.py::test_feature87_group2
+
+  - id: test545
+    title: "feature88 verify AC1, AC2, AC3, AC4"
+    type: integration
+    preconditions: Repo checked out with dependencies installed; server test fixtures available
+    steps:
+      - 'step1: Execute workflow for feature88 (Install-time integrity verification) covering AC1, AC2, AC3, AC4'
+      - 'step2: Verify `kinnoo install` verifies META-INF/integrity.json hashes against actual file contents.'
+      - 'step3: Verify Installation aborts with clear error message if any file hash mismatches.'
+      - 'step4: Verify `kinnoo install --strict` additionally verifies META-INF/signature.json and fails if missing or invalid.'
+      - 'step5: Verify `kinnoo install --skip-verify` bypasses all verification.'
+    expected: feature88 acceptance criteria AC1, AC2, AC3, AC4 are satisfied
+    pass_criteria: 'AC1: `kinnoo install` verifies META-INF/integrity.json hashes against actual file ...; AC2: Installation aborts with clear error message if any file hash mismatches.; AC3: `kinnoo install --strict` additionally verifies META-INF/signature.json and f...; AC4: `kinnoo install --skip-verify` bypasses all verification.'
+    covers:
+      - feature: feature88
+        ac: AC1
+      - feature: feature88
+        ac: AC2
+      - feature: feature88
+        ac: AC3
+      - feature: feature88
+        ac: AC4
+    automated: true
+    automation_path: tests/test_feature_88.py::test_feature88_group1
+
+  - id: test546
+    title: "feature88 verify AC5, AC6, AC7"
+    type: integration
+    preconditions: Repo checked out with dependencies installed; server test fixtures available
+    steps:
+      - 'step1: Execute workflow for feature88 (Install-time integrity verification) covering AC5, AC6, AC7'
+      - 'step2: Verify Archives without META-INF/integrity.json install with a warning (backward compatibility with pre-feature86 archives).'
+      - 'step3: Verify Verification results are logged: number of files checked, pass/fail status.'
+      - 'step4: Verify Tests cover: valid archive, tampered file, missing integrity manifest, unsigned + strict mode, skip-verify.'
+    expected: feature88 acceptance criteria AC5, AC6, AC7 are satisfied
+    pass_criteria: 'AC5: Archives without META-INF/integrity.json install with a warning (backward com...; AC6: Verification results are logged: number of files checked, pass/fail status.; AC7: Tests cover: valid archive, tampered file, missing integrity manifest, unsign...'
+    covers:
+      - feature: feature88
+        ac: AC5
+      - feature: feature88
+        ac: AC6
+      - feature: feature88
+        ac: AC7
+    automated: true
+    automation_path: tests/test_feature_88.py::test_feature88_group2
+
+  - id: test547
+    title: "feature89 verify AC1, AC2, AC3, AC4"
+    type: integration
+    preconditions: Repo checked out with dependencies installed; server test fixtures available
+    steps:
+      - 'step1: Execute workflow for feature89 (Production server configuration and deployment hardening) covering AC1, AC2, AC3, AC4'
+      - 'step2: Verify Server logs in structured JSON format when KINNOO_ENV=production.'
+      - 'step3: Verify CORS is configured to allow only dev.kinnoo.ai and dev-api.kinnoo.ai origins.'
+      - 'step4: Verify GET /health returns 200 with {status: ok, version: X.Y.Z}.'
+      - 'step5: Verify GET /ready returns 200 only when S3 and auth store are accessible.'
+    expected: feature89 acceptance criteria AC1, AC2, AC3, AC4 are satisfied
+    pass_criteria: 'AC1: Server logs in structured JSON format when KINNOO_ENV=production.; AC2: CORS is configured to allow only dev.kinnoo.ai and dev-api.kinnoo.ai origins.; AC3: GET /health returns 200 with {status: ok, version: X.Y.Z}.; AC4: GET /ready returns 200 only when S3 and auth store are accessible.'
+    covers:
+      - feature: feature89
+        ac: AC1
+      - feature: feature89
+        ac: AC2
+      - feature: feature89
+        ac: AC3
+      - feature: feature89
+        ac: AC4
+    automated: true
+    automation_path: tests/test_feature_89.py::test_feature89_group1
+
+  - id: test548
+    title: "feature89 verify AC5, AC6, AC7"
+    type: integration
+    preconditions: Repo checked out with dependencies installed; server test fixtures available
+    steps:
+      - 'step1: Execute workflow for feature89 (Production server configuration and deployment hardening) covering AC5, AC6, AC7'
+      - 'step2: Verify Server refuses to start in production mode if required secrets are missing.'
+      - 'step3: Verify Uvicorn config: 2 workers, 30s timeout, graceful shutdown on SIGTERM.'
+      - 'step4: Verify Tests validate health/ready endpoints and CORS headers.'
+    expected: feature89 acceptance criteria AC5, AC6, AC7 are satisfied
+    pass_criteria: 'AC5: Server refuses to start in production mode if required secrets are missing.; AC6: Uvicorn config: 2 workers, 30s timeout, graceful shutdown on SIGTERM.; AC7: Tests validate health/ready endpoints and CORS headers.'
+    covers:
+      - feature: feature89
+        ac: AC5
+      - feature: feature89
+        ac: AC6
+      - feature: feature89
+        ac: AC7
+    automated: true
+    automation_path: tests/test_feature_89.py::test_feature89_group2
+
+  - id: test549
+    title: "feature90 verify AC1, AC2, AC3, AC4"
+    type: integration
+    preconditions: Repo checked out with dependencies installed; server test fixtures available
+    steps:
+      - 'step1: Execute workflow for feature90 (Server-side upload validation and integrity enforcement) covering AC1, AC2, AC3, AC4'
+      - 'step2: Verify Server rejects uploads exceeding configured max size with 413 status.'
+      - 'step3: Verify Server rejects non-zip files with 400 status.'
+      - 'step4: Verify Server rejects archives missing kinnoo.yaml with 400 status.'
+      - 'step5: Verify Server validates kinnoo.yaml has required fields (name, version, framework).'
+    expected: feature90 acceptance criteria AC1, AC2, AC3, AC4 are satisfied
+    pass_criteria: 'AC1: Server rejects uploads exceeding configured max size with 413 status.; AC2: Server rejects non-zip files with 400 status.; AC3: Server rejects archives missing kinnoo.yaml with 400 status.; AC4: Server validates kinnoo.yaml has required fields (name, version, framework).'
+    covers:
+      - feature: feature90
+        ac: AC1
+      - feature: feature90
+        ac: AC2
+      - feature: feature90
+        ac: AC3
+      - feature: feature90
+        ac: AC4
+    automated: true
+    automation_path: tests/test_feature_90.py::test_feature90_group1
+
+  - id: test550
+    title: "feature90 verify AC5, AC6, AC7"
+    type: integration
+    preconditions: Repo checked out with dependencies installed; server test fixtures available
+    steps:
+      - 'step1: Execute workflow for feature90 (Server-side upload validation and integrity enforcement) covering AC5, AC6, AC7'
+      - 'step2: Verify Server validates META-INF/integrity.json if present.'
+      - 'step3: Verify All validation errors return JSON with error details.'
+      - 'step4: Verify Tests cover: oversized upload, invalid zip, missing manifest, invalid manifest, tampered integrity.'
+    expected: feature90 acceptance criteria AC5, AC6, AC7 are satisfied
+    pass_criteria: 'AC5: Server validates META-INF/integrity.json if present.; AC6: All validation errors return JSON with error details.; AC7: Tests cover: oversized upload, invalid zip, missing manifest, invalid manifes...'
+    covers:
+      - feature: feature90
+        ac: AC5
+      - feature: feature90
+        ac: AC6
+      - feature: feature90
+        ac: AC7
+    automated: true
+    automation_path: tests/test_feature_90.py::test_feature90_group2
+
+  - id: test551
+    title: "feature91 verify AC1, AC2, AC3, AC4"
+    type: integration
+    preconditions: Repo checked out with dependencies installed; server test fixtures available
+    steps:
+      - 'step1: Execute workflow for feature91 (Production-grade rate limiting and abuse protections) covering AC1, AC2, AC3, AC4'
+      - 'step2: Verify Rate limits are configurable per endpoint group via server config.'
+      - 'step3: Verify Auth endpoints: 5 requests/minute per IP.'
+      - 'step4: Verify Publish endpoint: 10 requests/hour per tenant.'
+      - 'step5: Verify Search/download: 60 requests/minute per IP.'
+    expected: feature91 acceptance criteria AC1, AC2, AC3, AC4 are satisfied
+    pass_criteria: 'AC1: Rate limits are configurable per endpoint group via server config.; AC2: Auth endpoints: 5 requests/minute per IP.; AC3: Publish endpoint: 10 requests/hour per tenant.; AC4: Search/download: 60 requests/minute per IP.'
+    covers:
+      - feature: feature91
+        ac: AC1
+      - feature: feature91
+        ac: AC2
+      - feature: feature91
+        ac: AC3
+      - feature: feature91
+        ac: AC4
+    automated: true
+    automation_path: tests/test_feature_91.py::test_feature91_group1
+
+  - id: test552
+    title: "feature91 verify AC5, AC6, AC7"
+    type: integration
+    preconditions: Repo checked out with dependencies installed; server test fixtures available
+    steps:
+      - 'step1: Execute workflow for feature91 (Production-grade rate limiting and abuse protections) covering AC5, AC6, AC7'
+      - 'step2: Verify All 429 responses include Retry-After header.'
+      - 'step3: Verify All responses include X-RateLimit-* headers.'
+      - 'step4: Verify Tests verify rate limit enforcement and header presence.'
+    expected: feature91 acceptance criteria AC5, AC6, AC7 are satisfied
+    pass_criteria: 'AC5: All 429 responses include Retry-After header.; AC6: All responses include X-RateLimit-* headers.; AC7: Tests verify rate limit enforcement and header presence.'
+    covers:
+      - feature: feature91
+        ac: AC5
+      - feature: feature91
+        ac: AC6
+      - feature: feature91
+        ac: AC7
+    automated: true
+    automation_path: tests/test_feature_91.py::test_feature91_group2
+
+  - id: test553
+    title: "feature92 verify AC1, AC2, AC3"
+    type: unit
+    preconditions: Repo checked out with docs/ directory accessible
+    steps:
+      - 'step1: Execute workflow for feature92 (kinnoo.yaml specification document) covering AC1, AC2, AC3'
+      - 'step2: Verify docs/kinnoo-yaml-spec.md exists and documents every manifest field.'
+      - 'step3: Verify Each field has: name, type, required/optional, default, description, validation rules.'
+      - 'step4: Verify Examples provided for chatgpt, gemini, openai, claude, and generic frameworks.'
+    expected: feature92 acceptance criteria AC1, AC2, AC3 are satisfied
+    pass_criteria: 'AC1: docs/kinnoo-yaml-spec.md exists and documents every manifest field.; AC2: Each field has: name, type, required/optional, default, description, validati...; AC3: Examples provided for chatgpt, gemini, openai, claude, and generic frameworks.'
+    covers:
+      - feature: feature92
+        ac: AC1
+      - feature: feature92
+        ac: AC2
+      - feature: feature92
+        ac: AC3
+    automated: true
+    automation_path: tests/test_feature_92.py::test_feature92_group1
+
+  - id: test554
+    title: "feature92 verify AC4, AC5"
+    type: unit
+    preconditions: Repo checked out with docs/ directory accessible
+    steps:
+      - 'step1: Execute workflow for feature92 (kinnoo.yaml specification document) covering AC4, AC5'
+      - 'step2: Verify Document specifies the manifest version and any backward compatibility notes.'
+      - 'step3: Verify Cross-referenced from README.md and CLI help text.'
+    expected: feature92 acceptance criteria AC4, AC5 are satisfied
+    pass_criteria: 'AC4: Document specifies the manifest version and any backward compatibility notes.; AC5: Cross-referenced from README.md and CLI help text.'
+    covers:
+      - feature: feature92
+        ac: AC4
+      - feature: feature92
+        ac: AC5
+    automated: true
+    automation_path: tests/test_feature_92.py::test_feature92_group2
+
+  - id: test555
+    title: "feature93 verify AC1, AC2, AC3"
+    type: unit
+    preconditions: Repo checked out with docs/ directory accessible
+    steps:
+      - 'step1: Execute workflow for feature93 (CLI command reference document) covering AC1, AC2, AC3'
+      - 'step2: Verify docs/cli-reference.md exists and documents every CLI command.'
+      - 'step3: Verify Each command entry has: usage, description, arguments, options, env vars, exit codes, examples.'
+      - 'step4: Verify Covers: init, pack, install, run, publish, search, login, logout, keygen, trust, inspect, uninstall.'
+    expected: feature93 acceptance criteria AC1, AC2, AC3 are satisfied
+    pass_criteria: 'AC1: docs/cli-reference.md exists and documents every CLI command.; AC2: Each command entry has: usage, description, arguments, options, env vars, exi...; AC3: Covers: init, pack, install, run, publish, search, login, logout, keygen, tru...'
+    covers:
+      - feature: feature93
+        ac: AC1
+      - feature: feature93
+        ac: AC2
+      - feature: feature93
+        ac: AC3
+    automated: true
+    automation_path: tests/test_feature_93.py::test_feature93_group1
+
+  - id: test556
+    title: "feature93 verify AC4, AC5"
+    type: unit
+    preconditions: Repo checked out with docs/ directory accessible
+    steps:
+      - 'step1: Execute workflow for feature93 (CLI command reference document) covering AC4, AC5'
+      - 'step2: Verify Covers server commands: kinnoo-server bootstrap, user create, user list, user reset-password, invite create.'
+      - 'step3: Verify Cross-referenced from README.md.'
+    expected: feature93 acceptance criteria AC4, AC5 are satisfied
+    pass_criteria: 'AC4: Covers server commands: kinnoo-server bootstrap, user create, user list, user...; AC5: Cross-referenced from README.md.'
+    covers:
+      - feature: feature93
+        ac: AC4
+      - feature: feature93
+        ac: AC5
+    automated: true
+    automation_path: tests/test_feature_93.py::test_feature93_group2
+
+  - id: test557
+    title: "feature94 verify AC1, AC2, AC3"
+    type: unit
+    preconditions: Repo checked out with docs/ directory accessible
+    steps:
+      - 'step1: Execute workflow for feature94 (Security model document) covering AC1, AC2, AC3'
+      - 'step2: Verify docs/security-model.md exists and covers the complete security architecture.'
+      - 'step3: Verify Threat model identifies key threats and mitigations.'
+      - 'step4: Verify Signing model explains Ed25519 key generation, signing, and verification.'
+    expected: feature94 acceptance criteria AC1, AC2, AC3 are satisfied
+    pass_criteria: 'AC1: docs/security-model.md exists and covers the complete security architecture.; AC2: Threat model identifies key threats and mitigations.; AC3: Signing model explains Ed25519 key generation, signing, and verification.'
+    covers:
+      - feature: feature94
+        ac: AC1
+      - feature: feature94
+        ac: AC2
+      - feature: feature94
+        ac: AC3
+    automated: true
+    automation_path: tests/test_feature_94.py::test_feature94_group1
+
+  - id: test558
+    title: "feature94 verify AC4, AC5"
+    type: unit
+    preconditions: Repo checked out with docs/ directory accessible
+    steps:
+      - 'step1: Execute workflow for feature94 (Security model document) covering AC4, AC5'
+      - 'step2: Verify Auth flow documented: registration, login, JWT issuance, token refresh, logout.'
+      - 'step3: Verify Cross-referenced from README.md.'
+    expected: feature94 acceptance criteria AC4, AC5 are satisfied
+    pass_criteria: 'AC4: Auth flow documented: registration, login, JWT issuance, token refresh, logout.; AC5: Cross-referenced from README.md.'
+    covers:
+      - feature: feature94
+        ac: AC4
+      - feature: feature94
+        ac: AC5
+    automated: true
+    automation_path: tests/test_feature_94.py::test_feature94_group2
+
+  - id: test559
+    title: "feature95 verify AC1, AC2, AC3"
+    type: unit
+    preconditions: Repo checked out with docs/ directory accessible
+    steps:
+      - 'step1: Execute workflow for feature95 (Getting started guide and registry guide) covering AC1, AC2, AC3'
+      - 'step2: Verify docs/getting-started.md exists with a complete walkthrough from install to running an agent.'
+      - 'step3: Verify docs/registry-guide.md exists with publish, search, and install workflows.'
+      - 'step4: Verify Both guides include copy-paste terminal commands.'
+    expected: feature95 acceptance criteria AC1, AC2, AC3 are satisfied
+    pass_criteria: 'AC1: docs/getting-started.md exists with a complete walkthrough from install to ru...; AC2: docs/registry-guide.md exists with publish, search, and install workflows.; AC3: Both guides include copy-paste terminal commands.'
+    covers:
+      - feature: feature95
+        ac: AC1
+      - feature: feature95
+        ac: AC2
+      - feature: feature95
+        ac: AC3
+    automated: true
+    automation_path: tests/test_feature_95.py::test_feature95_group1
+
+  - id: test560
+    title: "feature95 verify AC4, AC5"
+    type: unit
+    preconditions: Repo checked out with docs/ directory accessible
+    steps:
+      - 'step1: Execute workflow for feature95 (Getting started guide and registry guide) covering AC4, AC5'
+      - 'step2: Verify Both guides include expected output snippets.'
+      - 'step3: Verify Cross-referenced from README.md.'
+    expected: feature95 acceptance criteria AC4, AC5 are satisfied
+    pass_criteria: 'AC4: Both guides include expected output snippets.; AC5: Cross-referenced from README.md.'
+    covers:
+      - feature: feature95
+        ac: AC4
+      - feature: feature95
+        ac: AC5
+    automated: true
+    automation_path: tests/test_feature_95.py::test_feature95_group2
+
+  - id: test561
+    title: "feature96 verify AC1, AC2, AC3"
+    type: unit
+    preconditions: Repo checked out with docs/ directory accessible
+    steps:
+      - 'step1: Execute workflow for feature96 (README rewrite and supported agents document) covering AC1, AC2, AC3'
+      - 'step2: Verify README.md is rewritten for beta: concise, professional, with badges.'
+      - 'step3: Verify README includes: overview, pip install, quick-start (5-command workflow), links to docs.'
+      - 'step4: Verify docs/supported-agents.md lists all supported frameworks with feature matrix.'
+    expected: feature96 acceptance criteria AC1, AC2, AC3 are satisfied
+    pass_criteria: 'AC1: README.md is rewritten for beta: concise, professional, with badges.; AC2: README includes: overview, pip install, quick-start (5-command workflow), lin...; AC3: docs/supported-agents.md lists all supported frameworks with feature matrix.'
+    covers:
+      - feature: feature96
+        ac: AC1
+      - feature: feature96
+        ac: AC2
+      - feature: feature96
+        ac: AC3
+    automated: true
+    automation_path: tests/test_feature_96.py::test_feature96_group1
+
+  - id: test562
+    title: "feature96 verify AC4, AC5"
+    type: unit
+    preconditions: Repo checked out with docs/ directory accessible
+    steps:
+      - 'step1: Execute workflow for feature96 (README rewrite and supported agents document) covering AC4, AC5'
+      - 'step2: Verify Framework matrix covers: init scaffold, pack, run, publish, install for each framework.'
+      - 'step3: Verify README does not reference internal development details.'
+    expected: feature96 acceptance criteria AC4, AC5 are satisfied
+    pass_criteria: 'AC4: Framework matrix covers: init scaffold, pack, run, publish, install for each ...; AC5: README does not reference internal development details.'
+    covers:
+      - feature: feature96
+        ac: AC4
+      - feature: feature96
+        ac: AC5
+    automated: true
+    automation_path: tests/test_feature_96.py::test_feature96_group2
+
+  - id: test563
+    title: "feature97 verify AC1, AC2, AC3, AC4"
+    type: unit
+    preconditions: Repo checked out with docs/ directory accessible
+    steps:
+      - 'step1: Execute workflow for feature97 (Public GitHub repository preparation) covering AC1, AC2, AC3, AC4'
+      - 'step2: Verify No secrets, API keys, or passwords present in any tracked file.'
+      - 'step3: Verify CONTRIBUTING.md exists with development setup, testing, and PR guidelines.'
+      - 'step4: Verify CODE_OF_CONDUCT.md exists.'
+      - 'step5: Verify .github/ISSUE_TEMPLATE/ contains bug report and feature request templates.'
+    expected: feature97 acceptance criteria AC1, AC2, AC3, AC4 are satisfied
+    pass_criteria: 'AC1: No secrets, API keys, or passwords present in any tracked file.; AC2: CONTRIBUTING.md exists with development setup, testing, and PR guidelines.; AC3: CODE_OF_CONDUCT.md exists.; AC4: .github/ISSUE_TEMPLATE/ contains bug report and feature request templates.'
+    covers:
+      - feature: feature97
+        ac: AC1
+      - feature: feature97
+        ac: AC2
+      - feature: feature97
+        ac: AC3
+      - feature: feature97
+        ac: AC4
+    automated: true
+    automation_path: tests/test_feature_97.py::test_feature97_group1
+
+  - id: test564
+    title: "feature97 verify AC5, AC6, AC7"
+    type: unit
+    preconditions: Repo checked out with docs/ directory accessible
+    steps:
+      - 'step1: Execute workflow for feature97 (Public GitHub repository preparation) covering AC5, AC6, AC7'
+      - 'step2: Verify .github/PULL_REQUEST_TEMPLATE.md exists.'
+      - 'step3: Verify .gitignore covers: __pycache__, .egg-info, .kno, env/, scratch/, outputs/.'
+      - 'step4: Verify No internal meeting notes, personal notes, or WIP content in tracked files.'
+    expected: feature97 acceptance criteria AC5, AC6, AC7 are satisfied
+    pass_criteria: 'AC5: .github/PULL_REQUEST_TEMPLATE.md exists.; AC6: .gitignore covers: __pycache__, .egg-info, .kno, env/, scratch/, outputs/.; AC7: No internal meeting notes, personal notes, or WIP content in tracked files.'
+    covers:
+      - feature: feature97
+        ac: AC5
+      - feature: feature97
+        ac: AC6
+      - feature: feature97
+        ac: AC7
+    automated: true
+    automation_path: tests/test_feature_97.py::test_feature97_group2
+
+  - id: test565
+    title: "feature98 verify AC1, AC2, AC3"
+    type: integration
+    preconditions: Repository checked out; .github/workflows/ directory exists
+    steps:
+      - 'step1: Execute workflow for feature98 (GitHub Actions CI/CD pipeline) covering AC1, AC2, AC3'
+      - 'step2: Verify .github/workflows/ci.yml runs pytest and linting on every PR.'
+      - 'step3: Verify .github/workflows/deploy-backend.yml builds Docker image, pushes to ECR, updates ECS on main push.'
+      - 'step4: Verify .github/workflows/deploy-frontend.yml builds and deploys Next.js to Cloudflare Pages on main push.'
+    expected: feature98 acceptance criteria AC1, AC2, AC3 are satisfied
+    pass_criteria: 'AC1: .github/workflows/ci.yml runs pytest and linting on every PR.; AC2: .github/workflows/deploy-backend.yml builds Docker image, pushes to ECR, upda...; AC3: .github/workflows/deploy-frontend.yml builds and deploys Next.js to Cloudflar...'
+    covers:
+      - feature: feature98
+        ac: AC1
+      - feature: feature98
+        ac: AC2
+      - feature: feature98
+        ac: AC3
+    automated: true
+    automation_path: tests/test_feature_98.py::test_feature98_group1
+
+  - id: test566
+    title: "feature98 verify AC4, AC5, AC6"
+    type: integration
+    preconditions: Repository checked out; .github/workflows/ directory exists
+    steps:
+      - 'step1: Execute workflow for feature98 (GitHub Actions CI/CD pipeline) covering AC4, AC5, AC6'
+      - 'step2: Verify .github/workflows/terraform.yml runs terraform plan on PR and terraform apply on merge to main.'
+      - 'step3: Verify All workflows use OIDC for AWS credentials (no static access keys).'
+      - 'step4: Verify Deployment workflows include rollback steps on failure.'
+    expected: feature98 acceptance criteria AC4, AC5, AC6 are satisfied
+    pass_criteria: 'AC4: .github/workflows/terraform.yml runs terraform plan on PR and terraform apply...; AC5: All workflows use OIDC for AWS credentials (no static access keys).; AC6: Deployment workflows include rollback steps on failure.'
+    covers:
+      - feature: feature98
+        ac: AC4
+      - feature: feature98
+        ac: AC5
+      - feature: feature98
+        ac: AC6
+    automated: true
+    automation_path: tests/test_feature_98.py::test_feature98_group2
+
+  - id: test567
+    title: "feature99 verify AC1, AC2, AC3"
+    type: integration
+    preconditions: Repository checked out; .github/workflows/ directory exists
+    steps:
+      - 'step1: Execute workflow for feature99 (PyPI package publishing configuration) covering AC1, AC2, AC3'
+      - 'step2: Verify pyproject.toml has complete PyPI metadata (name, version, description, author, license, classifiers, project-urls).'
+      - 'step3: Verify `pip install kinnoo` works from a built wheel.'
+      - 'step4: Verify .github/workflows/pypi-publish.yml publishes to PyPI on release tag.'
+    expected: feature99 acceptance criteria AC1, AC2, AC3 are satisfied
+    pass_criteria: 'AC1: pyproject.toml has complete PyPI metadata (name, version, description, author...; AC2: `pip install kinnoo` works from a built wheel.; AC3: .github/workflows/pypi-publish.yml publishes to PyPI on release tag.'
+    covers:
+      - feature: feature99
+        ac: AC1
+      - feature: feature99
+        ac: AC2
+      - feature: feature99
+        ac: AC3
+    automated: true
+    automation_path: tests/test_feature_99.py::test_feature99_group1
+
+  - id: test568
+    title: "feature99 verify AC4, AC5"
+    type: integration
+    preconditions: Repository checked out; .github/workflows/ directory exists
+    steps:
+      - 'step1: Execute workflow for feature99 (PyPI package publishing configuration) covering AC4, AC5'
+      - 'step2: Verify Workflow uses trusted publisher (OIDC) — no API tokens.'
+      - 'step3: Verify Version is sourced from a single location (pyproject.toml or __version__).'
+    expected: feature99 acceptance criteria AC4, AC5 are satisfied
+    pass_criteria: 'AC4: Workflow uses trusted publisher (OIDC) — no API tokens.; AC5: Version is sourced from a single location (pyproject.toml or __version__).'
+    covers:
+      - feature: feature99
+        ac: AC4
+      - feature: feature99
+        ac: AC5
+    automated: true
+    automation_path: tests/test_feature_99.py::test_feature99_group2
+
+  - id: test569
+    title: "feature100 verify AC1, AC2, AC3"
+    type: integration
+    preconditions: Repo checked out with dependencies installed; server test fixtures available
+    steps:
+      - 'step1: Execute workflow for feature100 (Auth hardening — lockout, password policy, token blacklist) covering AC1, AC2, AC3'
+      - 'step2: Verify Account is locked after 5 failed login attempts.'
+      - 'step3: Verify Locked account returns 423 status with retry-after time.'
+      - 'step4: Verify Lockout automatically clears after 15 minutes.'
+    expected: feature100 acceptance criteria AC1, AC2, AC3 are satisfied
+    pass_criteria: 'AC1: Account is locked after 5 failed login attempts.; AC2: Locked account returns 423 status with retry-after time.; AC3: Lockout automatically clears after 15 minutes.'
+    covers:
+      - feature: feature100
+        ac: AC1
+      - feature: feature100
+        ac: AC2
+      - feature: feature100
+        ac: AC3
+    automated: true
+    automation_path: tests/test_feature_100.py::test_feature100_group1
+
+  - id: test570
+    title: "feature100 verify AC4, AC5"
+    type: integration
+    preconditions: Repo checked out with dependencies installed; server test fixtures available
+    steps:
+      - 'step1: Execute workflow for feature100 (Auth hardening — lockout, password policy, token blacklist) covering AC4, AC5'
+      - 'step2: Verify Registration and password change enforce password policy.'
+      - 'step3: Verify Weak passwords are rejected with specific guidance (e.g., ''Password must contain at least 1 digit'').'
+    expected: feature100 acceptance criteria AC4, AC5 are satisfied
+    pass_criteria: 'AC4: Registration and password change enforce password policy.; AC5: Weak passwords are rejected with specific guidance (e.g., ''Password must cont...'
+    covers:
+      - feature: feature100
+        ac: AC4
+      - feature: feature100
+        ac: AC5
+    automated: true
+    automation_path: tests/test_feature_100.py::test_feature100_group2
+
+  - id: test571
+    title: "feature100 verify AC6, AC7, AC8, AC9"
+    type: integration
+    preconditions: Repo checked out with dependencies installed; server test fixtures available
+    steps:
+      - 'step1: Execute workflow for feature100 (Auth hardening — lockout, password policy, token blacklist) covering AC6, AC7, AC8, AC9'
+      - 'step2: Verify POST /logout blacklists the JWT token.'
+      - 'step3: Verify Blacklisted tokens are rejected by the auth middleware.'
+      - 'step4: Verify Token blacklist is periodically pruned of expired tokens.'
+      - 'step5: Verify Tests cover: lockout trigger, lockout expiry, password policy, token blacklist.'
+    expected: feature100 acceptance criteria AC6, AC7, AC8, AC9 are satisfied
+    pass_criteria: 'AC6: POST /logout blacklists the JWT token.; AC7: Blacklisted tokens are rejected by the auth middleware.; AC8: Token blacklist is periodically pruned of expired tokens.; AC9: Tests cover: lockout trigger, lockout expiry, password policy, token blacklist.'
+    covers:
+      - feature: feature100
+        ac: AC6
+      - feature: feature100
+        ac: AC7
+      - feature: feature100
+        ac: AC8
+      - feature: feature100
+        ac: AC9
+    automated: true
+    automation_path: tests/test_feature_100.py::test_feature100_group3
+
+  - id: test572
+    title: "feature101 verify AC1, AC2, AC3, AC4"
+    type: integration
+    preconditions: Docker and docker compose installed locally
+    steps:
+      - 'step1: Execute workflow for feature101 (Production Dockerfile and docker-compose) covering AC1, AC2, AC3, AC4'
+      - 'step2: Verify Dockerfile exists at project root (or server/ — TBD by SWE).'
+      - 'step3: Verify Multi-stage build: builder stage installs deps, final stage copies only needed files.'
+      - 'step4: Verify Final image runs as non-root user.'
+      - 'step5: Verify HEALTHCHECK instruction points to /health endpoint.'
+    expected: feature101 acceptance criteria AC1, AC2, AC3, AC4 are satisfied
+    pass_criteria: 'AC1: Dockerfile exists at project root (or server/ — TBD by SWE).; AC2: Multi-stage build: builder stage installs deps, final stage copies only neede...; AC3: Final image runs as non-root user.; AC4: HEALTHCHECK instruction points to /health endpoint.'
+    covers:
+      - feature: feature101
+        ac: AC1
+      - feature: feature101
+        ac: AC2
+      - feature: feature101
+        ac: AC3
+      - feature: feature101
+        ac: AC4
+    automated: true
+    automation_path: tests/test_feature_101.py::test_feature101_group1
+
+  - id: test573
+    title: "feature101 verify AC5, AC6, AC7, AC8"
+    type: integration
+    preconditions: Docker and docker compose installed locally
+    steps:
+      - 'step1: Execute workflow for feature101 (Production Dockerfile and docker-compose) covering AC5, AC6, AC7, AC8'
+      - 'step2: Verify Image size is under 200MB.'
+      - 'step3: Verify docker-compose.yml starts the server with env vars, mounts local storage.'
+      - 'step4: Verify `docker compose up` starts server accessible at localhost:8000.'
+      - 'step5: Verify Tests: build succeeds, container starts, health check passes.'
+    expected: feature101 acceptance criteria AC5, AC6, AC7, AC8 are satisfied
+    pass_criteria: 'AC5: Image size is under 200MB.; AC6: docker-compose.yml starts the server with env vars, mounts local storage.; AC7: `docker compose up` starts server accessible at localhost:8000.; AC8: Tests: build succeeds, container starts, health check passes.'
+    covers:
+      - feature: feature101
+        ac: AC5
+      - feature: feature101
+        ac: AC6
+      - feature: feature101
+        ac: AC7
+      - feature: feature101
+        ac: AC8
+    automated: true
+    automation_path: tests/test_feature_101.py::test_feature101_group2
+
+  - id: test574
+    title: "feature102 verify AC1, AC2, AC3, AC4, AC5"
+    type: integration
+    preconditions: Repo checked out with dependencies installed; server test fixtures available
+    steps:
+      - 'step1: Execute workflow for feature102 (Admin CLI for user management) covering AC1, AC2, AC3, AC4, AC5'
+      - 'step2: Verify `kinnoo-server user create --email <email>` creates a user and prints a temporary password.'
+      - 'step3: Verify `kinnoo-server user list` prints all registered users with status.'
+      - 'step4: Verify `kinnoo-server user reset-password --email <email>` generates a new temporary password.'
+      - 'step5: Verify `kinnoo-server user unlock --email <email>` clears lockout state.'
+      - 'step6: Verify `kinnoo-server user delete --email <email>` removes a user (with confirmation).'
+    expected: feature102 acceptance criteria AC1, AC2, AC3, AC4, AC5 are satisfied
+    pass_criteria: 'AC1: `kinnoo-server user create --email <email>` creates a user and prints a tempo...; AC2: `kinnoo-server user list` prints all registered users with status.; AC3: `kinnoo-server user reset-password --email <email>` generates a new temporary...; AC4: `kinnoo-server user unlock --email <email>` clears lockout state.; AC5: `kinnoo-server user delete --email <email>` removes a user (with confirmation).'
+    covers:
+      - feature: feature102
+        ac: AC1
+      - feature: feature102
+        ac: AC2
+      - feature: feature102
+        ac: AC3
+      - feature: feature102
+        ac: AC4
+      - feature: feature102
+        ac: AC5
+    automated: true
+    automation_path: tests/test_feature_102.py::test_feature102_group1
+
+  - id: test575
+    title: "feature102 verify AC6, AC7, AC8, AC9"
+    type: integration
+    preconditions: Repo checked out with dependencies installed; server test fixtures available
+    steps:
+      - 'step1: Execute workflow for feature102 (Admin CLI for user management) covering AC6, AC7, AC8, AC9'
+      - 'step2: Verify `kinnoo-server invite create --email <email> --days-valid <N>` generates an invite token.'
+      - 'step3: Verify `kinnoo-server invite list` shows all pending invites with expiry.'
+      - 'step4: Verify All commands validate inputs and print clear error messages.'
+      - 'step5: Verify Tests cover all commands with valid and invalid inputs.'
+    expected: feature102 acceptance criteria AC6, AC7, AC8, AC9 are satisfied
+    pass_criteria: 'AC6: `kinnoo-server invite create --email <email> --days-valid <N>` generates an i...; AC7: `kinnoo-server invite list` shows all pending invites with expiry.; AC8: All commands validate inputs and print clear error messages.; AC9: Tests cover all commands with valid and invalid inputs.'
+    covers:
+      - feature: feature102
+        ac: AC6
+      - feature: feature102
+        ac: AC7
+      - feature: feature102
+        ac: AC8
+      - feature: feature102
+        ac: AC9
+    automated: true
+    automation_path: tests/test_feature_102.py::test_feature102_group2
+
+  - id: test576
+    title: "feature103 verify AC1, AC2, AC3, AC4"
+    type: integration
+    preconditions: Terraform CLI installed; iac/ directory exists with module structure
+    steps:
+      - 'step1: Execute workflow for feature103 (Terraform project setup, state bootstrap, and VPC networking) covering AC1, AC2, AC3, AC4'
+      - 'step2: Verify iac/ directory exists with: versions.tf, providers.tf, variables.tf, outputs.tf, locals.tf, main.tf.'
+      - 'step3: Verify iac/state/main.tf creates S3 bucket and DynamoDB table for Terraform state.'
+      - 'step4: Verify iac/modules/vpc/ creates VPC with 2 public subnets in us-west-2a and us-west-2b.'
+      - 'step5: Verify Security groups: ALB SG (Cloudflare IPs only on 443), ECS SG (ALB SG on 8000), S3 endpoint.'
+    expected: feature103 acceptance criteria AC1, AC2, AC3, AC4 are satisfied
+    pass_criteria: 'AC1: iac/ directory exists with: versions.tf, providers.tf, variables.tf, outputs....; AC2: iac/state/main.tf creates S3 bucket and DynamoDB table for Terraform state.; AC3: iac/modules/vpc/ creates VPC with 2 public subnets in us-west-2a and us-west-2b.; AC4: Security groups: ALB SG (Cloudflare IPs only on 443), ECS SG (ALB SG on 8000)...'
+    covers:
+      - feature: feature103
+        ac: AC1
+      - feature: feature103
+        ac: AC2
+      - feature: feature103
+        ac: AC3
+      - feature: feature103
+        ac: AC4
+    automated: true
+    automation_path: tests/test_feature_103.py::test_feature103_group1
+
+  - id: test577
+    title: "feature103 verify AC5, AC6, AC7, AC8"
+    type: integration
+    preconditions: Terraform CLI installed; iac/ directory exists with module structure
+    steps:
+      - 'step1: Execute workflow for feature103 (Terraform project setup, state bootstrap, and VPC networking) covering AC5, AC6, AC7, AC8'
+      - 'step2: Verify VPC endpoint for S3 (gateway type) is configured.'
+      - 'step3: Verify No NAT Gateway resources.'
+      - 'step4: Verify iac/environments/dev/terraform.tfvars contains dev-specific values.'
+      - 'step5: Verify `terraform validate` passes for all modules.'
+    expected: feature103 acceptance criteria AC5, AC6, AC7, AC8 are satisfied
+    pass_criteria: 'AC5: VPC endpoint for S3 (gateway type) is configured.; AC6: No NAT Gateway resources.; AC7: iac/environments/dev/terraform.tfvars contains dev-specific values.; AC8: `terraform validate` passes for all modules.'
+    covers:
+      - feature: feature103
+        ac: AC5
+      - feature: feature103
+        ac: AC6
+      - feature: feature103
+        ac: AC7
+      - feature: feature103
+        ac: AC8
+    automated: true
+    automation_path: tests/test_feature_103.py::test_feature103_group2
+
+  - id: test578
+    title: "feature104 verify AC1, AC2, AC3, AC4"
+    type: integration
+    preconditions: Terraform CLI installed; iac/ directory exists with module structure
+    steps:
+      - 'step1: Execute workflow for feature104 (Terraform storage and security (S3, IAM, Secrets Manager)) covering AC1, AC2, AC3, AC4'
+      - 'step2: Verify iac/modules/s3-registry/ creates S3 bucket with AES-256 server-side encryption.'
+      - 'step3: Verify S3 bucket has GOVERNANCE mode Object Lock enabled.'
+      - 'step4: Verify S3 bucket has versioning enabled.'
+      - 'step5: Verify S3 bucket has public access blocked.'
+    expected: feature104 acceptance criteria AC1, AC2, AC3, AC4 are satisfied
+    pass_criteria: 'AC1: iac/modules/s3-registry/ creates S3 bucket with AES-256 server-side encryption.; AC2: S3 bucket has GOVERNANCE mode Object Lock enabled.; AC3: S3 bucket has versioning enabled.; AC4: S3 bucket has public access blocked.'
+    covers:
+      - feature: feature104
+        ac: AC1
+      - feature: feature104
+        ac: AC2
+      - feature: feature104
+        ac: AC3
+      - feature: feature104
+        ac: AC4
+    automated: true
+    automation_path: tests/test_feature_104.py::test_feature104_group1
+
+  - id: test579
+    title: "feature104 verify AC5, AC6, AC7"
+    type: integration
+    preconditions: Terraform CLI installed; iac/ directory exists with module structure
+    steps:
+      - 'step1: Execute workflow for feature104 (Terraform storage and security (S3, IAM, Secrets Manager)) covering AC5, AC6, AC7'
+      - 'step2: Verify iac/modules/iam/ creates ECS task role with S3 read/write policy.'
+      - 'step3: Verify ECS execution role has ECR pull, CloudWatch logs, and Secrets Manager read policies.'
+      - 'step4: Verify GitHub Actions OIDC provider and role are created.'
+    expected: feature104 acceptance criteria AC5, AC6, AC7 are satisfied
+    pass_criteria: 'AC5: iac/modules/iam/ creates ECS task role with S3 read/write policy.; AC6: ECS execution role has ECR pull, CloudWatch logs, and Secrets Manager read po...; AC7: GitHub Actions OIDC provider and role are created.'
+    covers:
+      - feature: feature104
+        ac: AC5
+      - feature: feature104
+        ac: AC6
+      - feature: feature104
+        ac: AC7
+    automated: true
+    automation_path: tests/test_feature_104.py::test_feature104_group2
+
+  - id: test580
+    title: "feature104 verify AC8, AC9"
+    type: integration
+    preconditions: Terraform CLI installed; iac/ directory exists with module structure
+    steps:
+      - 'step1: Execute workflow for feature104 (Terraform storage and security (S3, IAM, Secrets Manager)) covering AC8, AC9'
+      - 'step2: Verify iac/modules/secrets/ creates Secrets Manager secrets for JWT_SECRET, SESSION_SECRET, ADMIN_PASSWORD.'
+      - 'step3: Verify `terraform validate` passes.'
+    expected: feature104 acceptance criteria AC8, AC9 are satisfied
+    pass_criteria: 'AC8: iac/modules/secrets/ creates Secrets Manager secrets for JWT_SECRET, SESSION_...; AC9: `terraform validate` passes.'
+    covers:
+      - feature: feature104
+        ac: AC8
+      - feature: feature104
+        ac: AC9
+    automated: true
+    automation_path: tests/test_feature_104.py::test_feature104_group3
+
+  - id: test581
+    title: "feature105 verify AC1, AC2, AC3, AC4"
+    type: integration
+    preconditions: Terraform CLI installed; iac/ directory exists with module structure
+    steps:
+      - 'step1: Execute workflow for feature105 (Terraform compute stack (ECR, ALB, ACM, ECS/Fargate, EFS)) covering AC1, AC2, AC3, AC4'
+      - 'step2: Verify iac/modules/ecr/ creates ECR repository with image scanning and lifecycle policy.'
+      - 'step3: Verify iac/modules/alb/ creates ALB with HTTPS listener on port 443.'
+      - 'step4: Verify ACM certificate for dev-api.kinnoo.ai with DNS validation.'
+      - 'step5: Verify Target group health check points to /health endpoint.'
+    expected: feature105 acceptance criteria AC1, AC2, AC3, AC4 are satisfied
+    pass_criteria: 'AC1: iac/modules/ecr/ creates ECR repository with image scanning and lifecycle pol...; AC2: iac/modules/alb/ creates ALB with HTTPS listener on port 443.; AC3: ACM certificate for dev-api.kinnoo.ai with DNS validation.; AC4: Target group health check points to /health endpoint.'
+    covers:
+      - feature: feature105
+        ac: AC1
+      - feature: feature105
+        ac: AC2
+      - feature: feature105
+        ac: AC3
+      - feature: feature105
+        ac: AC4
+    automated: true
+    automation_path: tests/test_feature_105.py::test_feature105_group1
+
+  - id: test582
+    title: "feature105 verify AC5, AC6"
+    type: integration
+    preconditions: Terraform CLI installed; iac/ directory exists with module structure
+    steps:
+      - 'step1: Execute workflow for feature105 (Terraform compute stack (ECR, ALB, ACM, ECS/Fargate, EFS)) covering AC5, AC6'
+      - 'step2: Verify iac/modules/ecs-fargate/ creates ECS cluster, task definition, and service.'
+      - 'step3: Verify Task definition: 0.5 vCPU, 1GB memory, EFS mount, secrets from Secrets Manager.'
+    expected: feature105 acceptance criteria AC5, AC6 are satisfied
+    pass_criteria: 'AC5: iac/modules/ecs-fargate/ creates ECS cluster, task definition, and service.; AC6: Task definition: 0.5 vCPU, 1GB memory, EFS mount, secrets from Secrets Manager.'
+    covers:
+      - feature: feature105
+        ac: AC5
+      - feature: feature105
+        ac: AC6
+    automated: true
+    automation_path: tests/test_feature_105.py::test_feature105_group2
+
+  - id: test583
+    title: "feature105 verify AC7, AC8, AC9"
+    type: integration
+    preconditions: Terraform CLI installed; iac/ directory exists with module structure
+    steps:
+      - 'step1: Execute workflow for feature105 (Terraform compute stack (ECR, ALB, ACM, ECS/Fargate, EFS)) covering AC7, AC8, AC9'
+      - 'step2: Verify EFS file system with mount targets in both subnets.'
+      - 'step3: Verify Service desired count is 1 (single task for beta).'
+      - 'step4: Verify `terraform validate` passes.'
+    expected: feature105 acceptance criteria AC7, AC8, AC9 are satisfied
+    pass_criteria: 'AC7: EFS file system with mount targets in both subnets.; AC8: Service desired count is 1 (single task for beta).; AC9: `terraform validate` passes.'
+    covers:
+      - feature: feature105
+        ac: AC7
+      - feature: feature105
+        ac: AC8
+      - feature: feature105
+        ac: AC9
+    automated: true
+    automation_path: tests/test_feature_105.py::test_feature105_group3
+
+  - id: test584
+    title: "feature106 verify AC1, AC2, AC3"
+    type: integration
+    preconditions: Terraform CLI installed; iac/ directory exists with module structure
+    steps:
+      - 'step1: Execute workflow for feature106 (Terraform Cloudflare DNS and Pages) covering AC1, AC2, AC3'
+      - 'step2: Verify iac/modules/cloudflare/ creates DNS records for dev.kinnoo.ai and dev-api.kinnoo.ai.'
+      - 'step3: Verify dev.kinnoo.ai points to Cloudflare Pages deployment.'
+      - 'step4: Verify dev-api.kinnoo.ai proxied CNAME points to ALB DNS name.'
+    expected: feature106 acceptance criteria AC1, AC2, AC3 are satisfied
+    pass_criteria: 'AC1: iac/modules/cloudflare/ creates DNS records for dev.kinnoo.ai and dev-api.kin...; AC2: dev.kinnoo.ai points to Cloudflare Pages deployment.; AC3: dev-api.kinnoo.ai proxied CNAME points to ALB DNS name.'
+    covers:
+      - feature: feature106
+        ac: AC1
+      - feature: feature106
+        ac: AC2
+      - feature: feature106
+        ac: AC3
+    automated: true
+    automation_path: tests/test_feature_106.py::test_feature106_group1
+
+  - id: test585
+    title: "feature106 verify AC4, AC5, AC6"
+    type: integration
+    preconditions: Terraform CLI installed; iac/ directory exists with module structure
+    steps:
+      - 'step1: Execute workflow for feature106 (Terraform Cloudflare DNS and Pages) covering AC4, AC5, AC6'
+      - 'step2: Verify ACM validation CNAME records are created.'
+      - 'step3: Verify Cloudflare API token sourced from environment variable.'
+      - 'step4: Verify `terraform validate` passes.'
+    expected: feature106 acceptance criteria AC4, AC5, AC6 are satisfied
+    pass_criteria: 'AC4: ACM validation CNAME records are created.; AC5: Cloudflare API token sourced from environment variable.; AC6: `terraform validate` passes.'
+    covers:
+      - feature: feature106
+        ac: AC4
+      - feature: feature106
+        ac: AC5
+      - feature: feature106
+        ac: AC6
+    automated: true
+    automation_path: tests/test_feature_106.py::test_feature106_group2
+
+  - id: test586
+    title: "feature107 verify AC1, AC2, AC3, AC4"
+    type: integration
+    preconditions: Terraform CLI installed; iac/ directory exists with module structure
+    steps:
+      - 'step1: Execute workflow for feature107 (Terraform monitoring (CloudWatch, alarms, SNS)) covering AC1, AC2, AC3, AC4'
+      - 'step2: Verify iac/modules/monitoring/ creates CloudWatch log group with 30-day retention.'
+      - 'step3: Verify Alarm: ALB 5xx count > 10 in 5 minutes triggers SNS notification.'
+      - 'step4: Verify Alarm: unhealthy target count > 0 for 2 consecutive checks triggers SNS.'
+      - 'step5: Verify Alarm: ECS CPU utilization > 80% for 5 minutes triggers SNS.'
+    expected: feature107 acceptance criteria AC1, AC2, AC3, AC4 are satisfied
+    pass_criteria: 'AC1: iac/modules/monitoring/ creates CloudWatch log group with 30-day retention.; AC2: Alarm: ALB 5xx count > 10 in 5 minutes triggers SNS notification.; AC3: Alarm: unhealthy target count > 0 for 2 consecutive checks triggers SNS.; AC4: Alarm: ECS CPU utilization > 80% for 5 minutes triggers SNS.'
+    covers:
+      - feature: feature107
+        ac: AC1
+      - feature: feature107
+        ac: AC2
+      - feature: feature107
+        ac: AC3
+      - feature: feature107
+        ac: AC4
+    automated: true
+    automation_path: tests/test_feature_107.py::test_feature107_group1
+
+  - id: test587
+    title: "feature107 verify AC5, AC6, AC7"
+    type: integration
+    preconditions: Terraform CLI installed; iac/ directory exists with module structure
+    steps:
+      - 'step1: Execute workflow for feature107 (Terraform monitoring (CloudWatch, alarms, SNS)) covering AC5, AC6, AC7'
+      - 'step2: Verify SNS topic for alerts with email subscription (Jerry''s email).'
+      - 'step3: Verify Separate SNS topic for password reset notifications.'
+      - 'step4: Verify `terraform validate` passes.'
+    expected: feature107 acceptance criteria AC5, AC6, AC7 are satisfied
+    pass_criteria: 'AC5: SNS topic for alerts with email subscription (Jerry''s email).; AC6: Separate SNS topic for password reset notifications.; AC7: `terraform validate` passes.'
+    covers:
+      - feature: feature107
+        ac: AC5
+      - feature: feature107
+        ac: AC6
+      - feature: feature107
+        ac: AC7
+    automated: true
+    automation_path: tests/test_feature_107.py::test_feature107_group2
+
+  - id: test588
+    title: "feature108 verify AC1, AC2, AC3, AC4"
+    type: integration
+    preconditions: Repo checked out with dependencies installed; server test fixtures available
+    steps:
+      - 'step1: Execute workflow for feature108 (Invite-only registration enforcement) covering AC1, AC2, AC3, AC4'
+      - 'step2: Verify POST /register requires `invite_token` parameter.'
+      - 'step3: Verify Registration without invite token returns 403 with message.'
+      - 'step4: Verify Invalid or expired invite token returns 403.'
+      - 'step5: Verify Valid invite token is consumed (single-use).'
+    expected: feature108 acceptance criteria AC1, AC2, AC3, AC4 are satisfied
+    pass_criteria: 'AC1: POST /register requires `invite_token` parameter.; AC2: Registration without invite token returns 403 with message.; AC3: Invalid or expired invite token returns 403.; AC4: Valid invite token is consumed (single-use).'
+    covers:
+      - feature: feature108
+        ac: AC1
+      - feature: feature108
+        ac: AC2
+      - feature: feature108
+        ac: AC3
+      - feature: feature108
+        ac: AC4
+    automated: true
+    automation_path: tests/test_feature_108.py::test_feature108_group1
+
+  - id: test589
+    title: "feature108 verify AC5, AC6, AC7"
+    type: integration
+    preconditions: Repo checked out with dependencies installed; server test fixtures available
+    steps:
+      - 'step1: Execute workflow for feature108 (Invite-only registration enforcement) covering AC5, AC6, AC7'
+      - 'step2: Verify Web registration page has invite token field (pre-filled from URL query param).'
+      - 'step3: Verify Invite token validation is atomic (no race conditions).'
+      - 'step4: Verify Tests cover: valid token, expired token, reused token, missing token.'
+    expected: feature108 acceptance criteria AC5, AC6, AC7 are satisfied
+    pass_criteria: 'AC5: Web registration page has invite token field (pre-filled from URL query param).; AC6: Invite token validation is atomic (no race conditions).; AC7: Tests cover: valid token, expired token, reused token, missing token.'
+    covers:
+      - feature: feature108
+        ac: AC5
+      - feature: feature108
+        ac: AC6
+      - feature: feature108
+        ac: AC7
+    automated: true
+    automation_path: tests/test_feature_108.py::test_feature108_group2
+
+  - id: test590
+    title: "feature109 verify AC1, AC2, AC3, AC4"
+    type: integration
+    preconditions: Repo checked out with dependencies installed; server test fixtures available
+    steps:
+      - 'step1: Execute workflow for feature109 (Forgot password flow with operator alert) covering AC1, AC2, AC3, AC4'
+      - 'step2: Verify POST /forgot-password accepts email parameter.'
+      - 'step3: Verify Always returns 200 with generic message (no email enumeration).'
+      - 'step4: Verify If email exists, fires SNS notification with user email and timestamp.'
+      - 'step5: Verify If email does not exist, logs but does not fire SNS (prevents abuse).'
+    expected: feature109 acceptance criteria AC1, AC2, AC3, AC4 are satisfied
+    pass_criteria: 'AC1: POST /forgot-password accepts email parameter.; AC2: Always returns 200 with generic message (no email enumeration).; AC3: If email exists, fires SNS notification with user email and timestamp.; AC4: If email does not exist, logs but does not fire SNS (prevents abuse).'
+    covers:
+      - feature: feature109
+        ac: AC1
+      - feature: feature109
+        ac: AC2
+      - feature: feature109
+        ac: AC3
+      - feature: feature109
+        ac: AC4
+    automated: true
+    automation_path: tests/test_feature_109.py::test_feature109_group1
+
+  - id: test591
+    title: "feature109 verify AC5, AC6, AC7"
+    type: integration
+    preconditions: Repo checked out with dependencies installed; server test fixtures available
+    steps:
+      - 'step1: Execute workflow for feature109 (Forgot password flow with operator alert) covering AC5, AC6, AC7'
+      - 'step2: Verify Web page at /forgot-password with email form.'
+      - 'step3: Verify Rate limited: max 3 requests per IP per hour.'
+      - 'step4: Verify Tests cover: valid email, invalid email, rate limiting.'
+    expected: feature109 acceptance criteria AC5, AC6, AC7 are satisfied
+    pass_criteria: 'AC5: Web page at /forgot-password with email form.; AC6: Rate limited: max 3 requests per IP per hour.; AC7: Tests cover: valid email, invalid email, rate limiting.'
+    covers:
+      - feature: feature109
+        ac: AC5
+      - feature: feature109
+        ac: AC6
+      - feature: feature109
+        ac: AC7
+    automated: true
+    automation_path: tests/test_feature_109.py::test_feature109_group2
+
+  - id: test592
+    title: "feature110 verify AC1, AC2, AC3"
+    type: integration
+    preconditions: Node.js and npm installed; web/ frontend dependencies installed
+    steps:
+      - 'step1: Execute workflow for feature110 (Landing page update for invite-only beta) covering AC1, AC2, AC3'
+      - 'step2: Verify Landing page shows ''Invite-Only Beta'' messaging.'
+      - 'step3: Verify No open registration form on the landing page.'
+      - 'step4: Verify ''Email us'' link is rendered via JavaScript (not plain HTML) to prevent scraping.'
+    expected: feature110 acceptance criteria AC1, AC2, AC3 are satisfied
+    pass_criteria: 'AC1: Landing page shows ''Invite-Only Beta'' messaging.; AC2: No open registration form on the landing page.; AC3: ''Email us'' link is rendered via JavaScript (not plain HTML) to prevent scraping.'
+    covers:
+      - feature: feature110
+        ac: AC1
+      - feature: feature110
+        ac: AC2
+      - feature: feature110
+        ac: AC3
+    automated: true
+    automation_path: tests/test_feature_110.py::test_feature110_group1
+
+  - id: test593
+    title: "feature110 verify AC4, AC5, AC6"
+    type: integration
+    preconditions: Node.js and npm installed; web/ frontend dependencies installed
+    steps:
+      - 'step1: Execute workflow for feature110 (Landing page update for invite-only beta) covering AC4, AC5, AC6'
+      - 'step2: Verify Registration page (/register) shows invite token field and instructions.'
+      - 'step3: Verify `next build && next export` succeeds (static export).'
+      - 'step4: Verify Updated pages render correctly at dev.kinnoo.ai.'
+    expected: feature110 acceptance criteria AC4, AC5, AC6 are satisfied
+    pass_criteria: 'AC4: Registration page (/register) shows invite token field and instructions.; AC5: `next build && next export` succeeds (static export).; AC6: Updated pages render correctly at dev.kinnoo.ai.'
+    covers:
+      - feature: feature110
+        ac: AC4
+      - feature: feature110
+        ac: AC5
+      - feature: feature110
+        ac: AC6
+    automated: true
+    automation_path: tests/test_feature_110.py::test_feature110_group2
+
+  - id: test594
+    title: "feature111 verify AC1, AC2, AC3, AC4"
+    type: integration
+    preconditions: Registry server running; test user credentials available via env vars REGISTRY_URL and TEST_EMAIL/TEST_PASSWORD
+    steps:
+      - 'step1: Execute workflow for feature111 (End-to-end smoke test script) covering AC1, AC2, AC3, AC4'
+      - 'step2: Verify scripts/e2e-smoke-test.sh (or .py) exists and is executable.'
+      - 'step3: Verify Script accepts REGISTRY_URL and TEST_CREDENTIALS as parameters.'
+      - 'step4: Verify Tests: login → init agent → pack → publish → search → install → run → logout.'
+      - 'step5: Verify Each step prints PASS/FAIL with timing.'
+    expected: feature111 acceptance criteria AC1, AC2, AC3, AC4 are satisfied
+    pass_criteria: 'AC1: scripts/e2e-smoke-test.sh (or .py) exists and is executable.; AC2: Script accepts REGISTRY_URL and TEST_CREDENTIALS as parameters.; AC3: Tests: login → init agent → pack → publish → search → install → run → logout.; AC4: Each step prints PASS/FAIL with timing.'
+    covers:
+      - feature: feature111
+        ac: AC1
+      - feature: feature111
+        ac: AC2
+      - feature: feature111
+        ac: AC3
+      - feature: feature111
+        ac: AC4
+    automated: true
+    automation_path: tests/test_feature_111.py::test_feature111_group1
+
+  - id: test595
+    title: "feature111 verify AC5, AC6, AC7"
+    type: integration
+    preconditions: Registry server running; test user credentials available via env vars REGISTRY_URL and TEST_EMAIL/TEST_PASSWORD
+    steps:
+      - 'step1: Execute workflow for feature111 (End-to-end smoke test script) covering AC5, AC6, AC7'
+      - 'step2: Verify Script exits 0 on full pass, non-zero on any failure.'
+      - 'step3: Verify Cleans up test artifacts (published test agent is unpublished or uses test tenant).'
+      - 'step4: Verify Can be integrated into CI deploy workflow as a post-deployment check.'
+    expected: feature111 acceptance criteria AC5, AC6, AC7 are satisfied
+    pass_criteria: 'AC5: Script exits 0 on full pass, non-zero on any failure.; AC6: Cleans up test artifacts (published test agent is unpublished or uses test te...; AC7: Can be integrated into CI deploy workflow as a post-deployment check.'
+    covers:
+      - feature: feature111
+        ac: AC5
+      - feature: feature111
+        ac: AC6
+      - feature: feature111
+        ac: AC7
+    automated: true
+    automation_path: tests/test_feature_111.py::test_feature111_group2
+
+  - id: test596
+    title: "feature112 verify AC1, AC2, AC3"
+    type: manual
+    preconditions: Operator has valid registry credentials; at least 3 publishable agents prepared
+    steps:
+      - 'step1: Execute workflow for feature112 (Registry seeding and validation) covering AC1, AC2, AC3'
+      - 'step2: Verify At least 3 agents published to the registry covering different frameworks.'
+      - 'step3: Verify Each published agent is searchable via `kinnoo search`.'
+      - 'step4: Verify Each published agent can be installed and run successfully.'
+    expected: feature112 acceptance criteria AC1, AC2, AC3 are satisfied
+    pass_criteria: 'AC1: At least 3 agents published to the registry covering different frameworks.; AC2: Each published agent is searchable via `kinnoo search`.; AC3: Each published agent can be installed and run successfully.'
+    covers:
+      - feature: feature112
+        ac: AC1
+      - feature: feature112
+        ac: AC2
+      - feature: feature112
+        ac: AC3
+    automated: false
+    automation_path: null
+
+  - id: test597
+    title: "feature112 verify AC4, AC5"
+    type: manual
+    preconditions: Operator has valid registry credentials; at least 3 publishable agents prepared
+    steps:
+      - 'step1: Execute workflow for feature112 (Registry seeding and validation) covering AC4, AC5'
+      - 'step2: Verify At least one agent is signed.'
+      - 'step3: Verify docs/registry-seeding.md documents the seeding process.'
+    expected: feature112 acceptance criteria AC4, AC5 are satisfied
+    pass_criteria: 'AC4: At least one agent is signed.; AC5: docs/registry-seeding.md documents the seeding process.'
+    covers:
+      - feature: feature112
+        ac: AC4
+      - feature: feature112
+        ac: AC5
+    automated: false
+    automation_path: null
+
+  - id: test598
+    title: "feature113 verify AC1, AC2, AC3"
+    type: unit
+    preconditions: Repo checked out with docs/ directory accessible
+    steps:
+      - 'step1: Execute workflow for feature113 (Launch readiness checklist) covering AC1, AC2, AC3'
+      - 'step2: Verify docs/launch-checklist.md exists with categorized checklist items.'
+      - 'step3: Verify Categories: Infrastructure, Security, Documentation, CI/CD, Monitoring, User Onboarding.'
+      - 'step4: Verify Each item has: description, how to verify, pass/fail status field.'
+    expected: feature113 acceptance criteria AC1, AC2, AC3 are satisfied
+    pass_criteria: 'AC1: docs/launch-checklist.md exists with categorized checklist items.; AC2: Categories: Infrastructure, Security, Documentation, CI/CD, Monitoring, User ...; AC3: Each item has: description, how to verify, pass/fail status field.'
+    covers:
+      - feature: feature113
+        ac: AC1
+      - feature: feature113
+        ac: AC2
+      - feature: feature113
+        ac: AC3
+    automated: true
+    automation_path: tests/test_feature_113.py::test_feature113_group1
+
+  - id: test599
+    title: "feature113 verify AC4, AC5"
+    type: unit
+    preconditions: Repo checked out with docs/ directory accessible
+    steps:
+      - 'step1: Execute workflow for feature113 (Launch readiness checklist) covering AC4, AC5'
+      - 'step2: Verify Includes a sample user onboarding walkthrough (create user → user logs in → publishes agent).'
+      - 'step3: Verify Checklist is actionable — Jerry can follow it step by step on launch day.'
+    expected: feature113 acceptance criteria AC4, AC5 are satisfied
+    pass_criteria: 'AC4: Includes a sample user onboarding walkthrough (create user → user logs in → p...; AC5: Checklist is actionable — Jerry can follow it step by step on launch day.'
+    covers:
+      - feature: feature113
+        ac: AC4
+      - feature: feature113
+        ac: AC5
+    automated: true
+    automation_path: tests/test_feature_113.py::test_feature113_group2
