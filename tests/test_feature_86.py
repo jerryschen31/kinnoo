@@ -88,3 +88,37 @@ def test_feature86_group1(tmp_path: Path) -> None:
 
     mismatches = verify_integrity_manifest(extracted, manifest)
     assert mismatches == []
+
+
+def test_feature86_group2(tmp_path: Path) -> None:
+    doc = compute_integrity_manifest.__doc__ or ""
+    module_doc = __import__("src.kinnoo.integrity", fromlist=["integrity"]).__doc__ or ""
+    assert "Manifest schema example" in module_doc
+    assert "version" in module_doc
+    assert "files" in module_doc
+    assert "directory" in doc
+
+    agent_name = "feature86-agent-docs"
+    agent_dir = tmp_path / agent_name
+    agent_dir.mkdir()
+    _write_minimal_agent(agent_dir, agent_name)
+
+    pack_result = subprocess.run(
+        CLI + ["pack", str(agent_dir)],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        env=_pack_env(tmp_path),
+    )
+    assert pack_result.returncode == 0, pack_result.stdout + pack_result.stderr
+
+    archive = _archive_path(tmp_path, agent_name, "1.0.0")
+    with zipfile.ZipFile(archive, "r") as archive_file:
+        manifest = json.loads(archive_file.read("META-INF/integrity.json").decode("utf-8"))
+
+    assert isinstance(manifest, dict)
+    assert manifest.get("version") == 1
+    assert isinstance(manifest.get("files"), dict)
+    for entry in manifest["files"].values():
+        assert isinstance(entry.get("sha256"), str)
+        assert isinstance(entry.get("size"), int)

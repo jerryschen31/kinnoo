@@ -1,4 +1,22 @@
-"""Integrity manifest helpers for .kno archive packaging and verification."""
+"""Integrity manifest helpers for .kno archive packaging and verification.
+
+Manifest schema example:
+{
+    "version": 1,
+    "files": {
+        "run.py": {
+            "sha256": "<hex sha256>",
+            "size": 123
+        },
+        "kinnoo.yaml": {
+            "sha256": "<hex sha256>",
+            "size": 456
+        }
+    }
+}
+
+The ``files`` map stores POSIX-style relative paths and excludes ``META-INF/``.
+"""
 
 from __future__ import annotations
 
