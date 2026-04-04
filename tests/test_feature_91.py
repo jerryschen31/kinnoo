@@ -21,7 +21,13 @@ def _unverified_tenant_token(tenant_slug: str) -> str:
     return f"{_b64url({'alg': 'HS256', 'typ': 'JWT'})}.{_b64url({'tenant_slug': tenant_slug})}.sig"
 
 
-def _status_from_middleware_call(middleware, *, path: str, headers: list[tuple[bytes, bytes]], client_host: str) -> int:
+def _start_event_from_middleware_call(
+    middleware,
+    *,
+    path: str,
+    headers: list[tuple[bytes, bytes]],
+    client_host: str,
+):
     events = []
     scope = {
         "type": "http",
@@ -39,8 +45,20 @@ def _status_from_middleware_call(middleware, *, path: str, headers: list[tuple[b
     asyncio.run(middleware(scope, receive, send))
     for event in events:
         if event.get("type") == "http.response.start":
-            return int(event.get("status", 0))
-    return 0
+            return event
+    return None
+
+
+def _status_from_middleware_call(middleware, *, path: str, headers: list[tuple[bytes, bytes]], client_host: str) -> int:
+    event = _start_event_from_middleware_call(
+        middleware,
+        path=path,
+        headers=headers,
+        client_host=client_host,
+    )
+    if event is None:
+        return 0
+    return int(event.get("status", 0))
 
 
 def test_feature91_group1(tmp_path: Path) -> None:
@@ -136,18 +154,32 @@ def test_feature91_group2() -> None:
         rules={"/api/auth": RateLimitRule(requests=1, window_seconds=60, key_by="ip")},
     )
 
-    first = _status_from_middleware_call(
+    first = _start_event_from_middleware_call(
         middleware,
         path="/api/auth/token",
         headers=[(b"x-request-id", b"feature91")],
         client_host="127.0.0.1",
     )
-    second = _status_from_middleware_call(
+    second = _start_event_from_middleware_call(
         middleware,
         path="/api/auth/token",
         headers=[(b"x-request-id", b"feature91")],
         client_host="127.0.0.1",
     )
 
-    assert first == 200
-    assert second == 429
+    assert first is not None
+    assert second is not None
+    assert int(first["status"]) == 200
+    assert int(second["status"]) == 429
+
+    first_headers = {k.decode("utf-8").lower(): v.decode("utf-8") for k, v in first["headers"]}
+    second_headers = {k.decode("utf-8").lower(): v.decode("utf-8") for k, v in second["headers"]}
+
+    assert "x-ratelimit-limit" in first_headers
+    assert "x-ratelimit-remaining" in first_headers
+    assert "x-ratelimit-reset" in first_headers
+
+    assert "x-ratelimit-limit" in second_headers
+    assert "x-ratelimit-remaining" in second_headers
+    assert "x-ratelimit-reset" in second_headers
+    assert "retry-after" in second_headers

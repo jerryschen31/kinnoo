@@ -2928,7 +2928,7 @@ features:
       - "Redis-backed rate limiting deferred to post-beta"
     owner: swe-agent
     dependencies: []
-    status: not-started
+    status: needs-review
 
   - id: feature92
     title: "kinnoo.yaml specification document"
