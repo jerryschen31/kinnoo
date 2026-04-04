@@ -3221,7 +3221,7 @@ features:
       - "Requirements: server/requirements.txt or separate from client requirements.txt"
     owner: swe-agent
     dependencies: [feature89]
-    status: not-started
+    status: needs-review
 
   - id: feature102
     title: "Admin CLI for user management"
