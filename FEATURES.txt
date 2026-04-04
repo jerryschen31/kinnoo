@@ -2864,7 +2864,7 @@ features:
       - "server/app.py (194 lines) has create_app() factory function"
     owner: swe-agent
     dependencies: []
-    status: not-started
+    status: needs-review
 
   - id: feature90
     title: "Server-side upload validation and integrity enforcement"
