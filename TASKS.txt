@@ -7848,7 +7848,7 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: []
     tests: [test547, test548]
-    status: not-started
+    status: needs-review
 
   - id: task389
     title: "Harden Uvicorn config and enforce secret validation in production mode"

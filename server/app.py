@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import logging
 import os
 from pathlib import Path
 import secrets
@@ -27,6 +29,56 @@ from server.storage.sqlite_auth_store import SQLiteAuthStore
 from server.storage.user_store import UserStore
 
 
+class _JsonLogFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        payload = {
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+            "timestamp": self.formatTime(record, self.datefmt),
+        }
+        if record.exc_info:
+            payload["exception"] = self.formatException(record.exc_info)
+        return json.dumps(payload, separators=(",", ":"), sort_keys=True)
+
+
+def _configure_production_logging() -> None:
+    root_logger = logging.getLogger()
+    if root_logger.handlers:
+        root_logger.handlers.clear()
+    handler = logging.StreamHandler()
+    handler.setFormatter(_JsonLogFormatter())
+    root_logger.addHandler(handler)
+    root_logger.setLevel(logging.INFO)
+
+
+def _is_s3_ready(storage_backend: Any, config: ServerConfig) -> bool:
+    if config.storage_backend != "s3":
+        return True
+    client = getattr(storage_backend, "_client", None)
+    bucket = getattr(storage_backend, "_bucket", None)
+    if client is None or not bucket:
+        return False
+    try:
+        client.head_bucket(Bucket=bucket)
+    except Exception:
+        return False
+    return True
+
+
+def _is_auth_store_ready(config: ServerConfig) -> bool:
+    auth_root = config.local_storage_root / "auth"
+    try:
+        auth_root.mkdir(parents=True, exist_ok=True)
+        probe_file = auth_root / ".readiness-check"
+        probe_file.write_text("ok", encoding="utf-8")
+        _ = probe_file.read_text(encoding="utf-8")
+        probe_file.unlink(missing_ok=True)
+    except OSError:
+        return False
+    return True
+
+
 def create_app(*, config: ServerConfig | None = None) -> Any:
     """Create and return the server app instance."""
     try:
@@ -40,6 +92,9 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
         ) from error
 
     resolved_config = config or ServerConfig.from_env()
+    if resolved_config.kinnoo_env == "production":
+        _configure_production_logging()
+
     storage_backend = build_storage_backend_from_config(resolved_config)
     user_store = UserStore(resolved_config.local_storage_root / "auth")
     bootstrap_admin_from_env(
@@ -85,6 +140,22 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
     email_service = ConsoleEmailService(sink=email_log_sink)
 
     app = FastAPI(title="kinnoo-registry-server")
+    try:
+        from fastapi.middleware.cors import CORSMiddleware
+    except ImportError as error:
+        raise RuntimeError(
+            "fastapi CORS middleware is unavailable. Install server dependencies."
+        ) from error
+
+    allow_origins = list(resolved_config.cors_origins)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allow_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
     templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
     app.mount(
         "/static",
@@ -114,6 +185,11 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
     app.state.email_log_sink = email_log_sink
     app.state.email_service = email_service
     app.state.templates = templates
+    app.state.uvicorn_config = {
+        "workers": resolved_config.uvicorn_workers,
+        "timeout_seconds": resolved_config.uvicorn_timeout_seconds,
+        "graceful_shutdown": True,
+    }
 
     @app.middleware("http")
     async def require_web_session(request, call_next):
@@ -133,7 +209,24 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
 
     @app.get("/health")
     def health() -> dict[str, str]:
-        return {"status": "ok"}
+        return {"status": "ok", "version": resolved_config.app_version}
+
+    @app.get("/ready")
+    def ready():
+        s3_ready = _is_s3_ready(storage_backend, resolved_config)
+        auth_ready = _is_auth_store_ready(resolved_config)
+        if s3_ready and auth_ready:
+            return {"status": "ready", "checks": {"s3": True, "auth_store": True}}
+
+        from fastapi import HTTPException
+
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "status": "not_ready",
+                "checks": {"s3": s3_ready, "auth_store": auth_ready},
+            },
+        )
 
     app.include_router(
         create_auth_router(
