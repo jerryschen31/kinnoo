@@ -8258,7 +8258,7 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task389]
     tests: [test572, test573]
-    status: not-started
+    status: needs-review
 
   - id: task414
     title: "Create docker-compose.yml for local dev and verify container startup"
