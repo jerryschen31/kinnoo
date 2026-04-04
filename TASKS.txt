@@ -7830,7 +7830,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task386]
     tests: [test545, test546]
-    status: not-started
+    status: needs-review
 
   - id: task388
     title: "Add JSON logging, CORS, and health/ready endpoints to server"
