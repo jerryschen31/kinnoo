@@ -10329,3 +10329,129 @@ tests:
         ac: AC5
     automated: true
     automation_path: tests/test_feature_113.py::test_feature113_group2
+
+  - id: test600
+    title: "feature97 operator public-repo signoff verification"
+    type: manual
+    preconditions: Local repo checkout with operator access to run secret scan and review docs/templates
+    steps:
+      - 'step1: Run the public repository readiness scan script and inspect findings.'
+      - 'step2: Manually review CONTRIBUTING/CODE_OF_CONDUCT/template docs for public release quality.'
+      - 'step3: Verify no internal-only or sensitive files are in the tracked publish scope.'
+    expected: Final public-repo scrub and signoff confirms repository is safe for public exposure
+    pass_criteria: No unresolved secret/internal-content findings; explicit operator signoff record exists
+    covers:
+      - feature: feature97
+        ac: AC1
+      - feature: feature97
+        ac: AC7
+    automated: true
+    automation_path: scripts/ops/public_repo_readiness_check.sh
+
+  - id: test601
+    title: "feature99 trusted publisher OIDC manual verification"
+    type: manual
+    preconditions: PyPI project admin access and GitHub Actions release workflow configured
+    steps:
+      - 'step1: Configure trusted publisher in PyPI project settings for repository release workflow.'
+      - 'step2: Trigger a test release/tag pipeline to validate OIDC auth path.'
+      - 'step3: Confirm no API token is required and publish auth succeeds through trusted publisher.'
+    expected: PyPI trusted publisher is correctly configured and validated
+    pass_criteria: Release workflow authenticates via OIDC and reaches publish stage without static credentials
+    covers:
+      - feature: feature99
+        ac: AC4
+    automated: true
+    automation_path: scripts/ops/check_pypi_trusted_publisher.sh
+
+  - id: test602
+    title: "feature103 Terraform state bootstrap apply verification"
+    type: manual
+    preconditions: AWS access to account 386775099533 in us-west-2 with permissions to create S3 and DynamoDB
+    steps:
+      - 'step1: Apply terraform in iac/state and capture created backend resources.'
+      - 'step2: Validate state bucket and lock table exist and are configured for backend usage.'
+      - 'step3: Save backend details in operator runbook for downstream automation workflows.'
+    expected: Terraform backend bootstrap is successfully applied and documented
+    pass_criteria: S3 backend and DynamoDB lock table are live and usable by root Terraform project
+    covers:
+      - feature: feature103
+        ac: AC2
+    automated: true
+    automation_path: scripts/ops/check_terraform_state_bootstrap.sh
+
+  - id: test603
+    title: "feature106 Cloudflare DNS/operator validation"
+    type: manual
+    preconditions: Cloudflare zone admin access for kinnoo.ai and Terraform module outputs available
+    steps:
+      - 'step1: Configure Cloudflare token/zone inputs and run Terraform apply for cloudflare resources.'
+      - 'step2: Verify dev.kinnoo.ai and dev-api.kinnoo.ai resolve and map to expected targets.'
+      - 'step3: Confirm ACM DNS validation records are present and active.'
+    expected: Cloudflare DNS and ACM validation records are correctly configured in live environment
+    pass_criteria: Both dev domains resolve correctly and ACM validation CNAME records are live
+    covers:
+      - feature: feature106
+        ac: AC1
+      - feature: feature106
+        ac: AC4
+    automated: true
+    automation_path: scripts/ops/check_cloudflare_dns_setup.sh
+
+  - id: test604
+    title: "feature109 operator forgot-password runbook drill"
+    type: manual
+    preconditions: Forgot-password endpoint deployed, SNS alert target configured, admin CLI available
+    steps:
+      - 'step1: Submit forgot-password request for known user and confirm generic API response.'
+      - 'step2: Verify operator receives SNS alert for that user.'
+      - 'step3: Reset password via admin CLI and validate successful user login with reset credentials.'
+    expected: End-to-end operator reset workflow works reliably for invite-only beta support
+    pass_criteria: Alert fires, reset command succeeds, and user login succeeds after reset
+    covers:
+      - feature: feature109
+        ac: AC3
+      - feature: feature109
+        ac: AC5
+    automated: true
+    automation_path: scripts/ops/check_forgot_password_runbook.sh
+
+  - id: test605
+    title: "feature112 manual registry seeding execution verification"
+    type: manual
+    preconditions: Registry deployed with operator credentials and at least 3 seed-ready agents
+    steps:
+      - 'step1: Publish at least three agents across different frameworks, including one signed agent.'
+      - 'step2: Verify each seeded agent is searchable and installable from registry.'
+      - 'step3: Run each installed seeded agent to confirm runtime health.'
+    expected: Manual registry seeding is complete and validated for beta readiness
+    pass_criteria: Multi-framework seed set is published/searchable/installable/runnable with evidence captured
+    covers:
+      - feature: feature112
+        ac: AC1
+      - feature: feature112
+        ac: AC2
+      - feature: feature112
+        ac: AC3
+      - feature: feature112
+        ac: AC4
+    automated: true
+    automation_path: scripts/ops/check_registry_seeding.sh
+
+  - id: test606
+    title: "feature113 launch-day checklist execution verification"
+    type: manual
+    preconditions: Launch checklist document completed and target environment fully deployed
+    steps:
+      - 'step1: Execute all launch checklist sections and collect evidence for each item.'
+      - 'step2: Re-run critical smoke checks before signoff.'
+      - 'step3: Record final go/no-go decision, owner, timestamp, and any blockers.'
+    expected: Launch readiness decision is evidence-backed and reproducible
+    pass_criteria: Checklist fully executed with documented evidence and explicit go/no-go record
+    covers:
+      - feature: feature113
+        ac: AC1
+      - feature: feature113
+        ac: AC5
+    automated: true
+    automation_path: scripts/ops/check_launch_readiness.sh
