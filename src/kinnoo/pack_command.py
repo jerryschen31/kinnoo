@@ -8,6 +8,7 @@ import tempfile
 import zipfile
 import json
 import hashlib
+import base64
 from fnmatch import fnmatch
 from pathlib import Path
 from datetime import datetime, timezone
@@ -22,7 +23,12 @@ from .code_sweep import (
     sweep_memory_snapshot_credential_risks,
 )
 from .schema import normalize_env_vars
-from .signing import create_detached_signature_artifacts
+from .signing import (
+    create_detached_signature_artifacts,
+    load_ed25519_private_key,
+    public_key_fingerprint,
+    sign_payload,
+)
 from .size_format import format_size_human_readable, size_in_megabytes
 from .terminal_colors import style_text
 
@@ -765,9 +771,33 @@ def pack_agent(
     integrity_payload = (
         json.dumps(integrity_manifest, indent=2, sort_keys=True).encode("utf-8") + b"\n"
     )
-    # Keep integrity.json last so it covers all non-META-INF archive entries.
+    signature_payload: bytes | None = None
+    if sign:
+        assert signing_key_path is not None
+        try:
+            private_key = load_ed25519_private_key(Path(signing_key_path).expanduser())
+        except (OSError, ValueError) as error:
+            print(f"Error: Failed to load signing key for embedded signature: {error}", file=sys.stderr)
+            wheels_dir.cleanup()
+            return 1
+
+        signature_bytes = sign_payload(private_key, integrity_payload)
+        signature_document = {
+            "version": 1,
+            "algorithm": "ed25519",
+            "signature": base64.b64encode(signature_bytes).decode("ascii"),
+            "public_key_fingerprint": public_key_fingerprint(private_key.public_key()),
+            "signed_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        }
+        signature_payload = (
+            json.dumps(signature_document, indent=2, sort_keys=True).encode("utf-8") + b"\n"
+        )
+
+    # Keep integrity metadata at the end so it covers all non-META-INF archive entries.
     with zipfile.ZipFile(staged_archive_path, "a", zipfile.ZIP_DEFLATED) as archive_file:
         archive_file.writestr("META-INF/integrity.json", integrity_payload)
+        if signature_payload is not None:
+            archive_file.writestr("META-INF/signature.json", signature_payload)
 
     stored_record = archive_backend.store(
         name=name,
