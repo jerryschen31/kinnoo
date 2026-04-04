@@ -7000,7 +7000,7 @@ tasks:
       - 'step4: Preserve source attribution metadata across sync updates'
     dependencies: [task336]
     tests: [test503]
-    status: needs-review
+    status: completed
 
   - id: task345
     title: "Feature67 sync resilience, rate control, and diagnostics"
@@ -7020,7 +7020,7 @@ tasks:
       - 'step4: Add tests for unavailable upstream and partial-failure sync behavior'
     dependencies: [task344]
     tests: [test504]
-    status: needs-review
+    status: completed
 
   - id: task346
     title: "Feature68 GitHub Actions reference workflow and env contract"
@@ -7040,7 +7040,7 @@ tasks:
       - 'step4: Add docs links and operator guidance for setup and troubleshooting'
     dependencies: [task332]
     tests: [test505]
-    status: needs-review
+    status: completed
 
   - id: task347
     title: "Feature68 CI workflow regression checks and docs validation"
@@ -7060,7 +7060,7 @@ tasks:
       - 'step4: Validate CI docs behavior across local and remote registry modes'
     dependencies: [task346]
     tests: [test506]
-    status: needs-review
+    status: completed
 
   - id: task348
     title: "Feature69 kinnoo tests file format and parser"
@@ -7080,7 +7080,7 @@ tasks:
       - 'step4: Update schema docs with canonical format and anti-pattern guidance'
     dependencies: []
     tests: [test507]
-    status: needs-review
+    status: completed
 
   - id: task349
     title: "Feature69 kinnoo test execution engine and CLI summary"
@@ -7100,7 +7100,7 @@ tasks:
       - 'step4: Add test fixtures and docs examples for Python and JS/TS agents'
     dependencies: [task348]
     tests: [test508]
-    status: needs-review
+    status: completed
 
   - id: task350
     title: "Feature70 landing page and README messaging update"
@@ -7120,7 +7120,7 @@ tasks:
       - 'step4: Ensure wording remains aligned with implemented command behavior'
     dependencies: []
     tests: [test509]
-    status: needs-review
+    status: completed
 
   - id: task351
     title: "Feature70 docs consistency checks and release-note updates"
@@ -7140,7 +7140,7 @@ tasks:
       - 'step4: Ensure docs changes pass existing documentation integrity checks'
     dependencies: [task350]
     tests: [test510]
-    status: needs-review
+    status: completed
 
   - id: task352
     title: "Feature71 strict install enforcement"
@@ -7160,7 +7160,7 @@ tasks:
       - 'step4: Add tests for strict pass/fail behavior and user diagnostics'
     dependencies: [task222]
     tests: [test511]
-    status: needs-review
+    status: completed
 
   - id: task353
     title: "Feature71 strict publish enforcement and CI rollout docs"
@@ -7180,7 +7180,7 @@ tasks:
       - 'step4: Add publish strict-mode tests and docs alignment checks'
     dependencies: [task352, task346]
     tests: [test512]
-    status: needs-review
+    status: completed
 
   - id: task354
     title: "Feature72 lockfile write/update implementation"
@@ -7200,7 +7200,7 @@ tasks:
       - 'step4: Add tests for lockfile creation and stable update behavior'
     dependencies: []
     tests: [test513]
-    status: needs-review
+    status: completed
 
   - id: task355
     title: "Feature72 frozen lockfile install behavior"
@@ -7220,7 +7220,7 @@ tasks:
       - 'step4: Add tests and docs for frozen-mode expected behavior'
     dependencies: [task354]
     tests: [test514]
-    status: needs-review
+    status: completed
 
   - id: task356
     title: "Feature73 diff command core engine"
@@ -7240,7 +7240,7 @@ tasks:
       - 'step4: Add tests covering baseline diff output and deterministic ordering'
     dependencies: []
     tests: [test515]
-    status: needs-review
+    status: completed
 
   - id: task357
     title: "Feature73 diff json output and exit semantics"
@@ -7260,7 +7260,7 @@ tasks:
       - 'step4: Update docs with diff automation examples'
     dependencies: [task356]
     tests: [test516]
-    status: needs-review
+    status: completed
 
   - id: task358
     title: "Feature74 uninstall command and mandatory confirmation"
@@ -7280,7 +7280,7 @@ tasks:
       - 'step4: Add tests for confirmation required and successful uninstall behavior'
     dependencies: []
     tests: [test517]
-    status: needs-review
+    status: completed
 
   - id: task359
     title: "Feature74 uninstall metadata cleanup and error-path coverage"
@@ -7300,7 +7300,7 @@ tasks:
       - 'step4: Add tests/docs for metadata cleanup and error handling'
     dependencies: [task358, task354]
     tests: [test518]
-    status: needs-review
+    status: completed
 
   - id: task360
     title: "Feature75 framework adapter architecture for langchain langgraph openai"
@@ -7321,7 +7321,7 @@ tasks:
       - 'step4: Add deterministic fallback to generic analyzer when adapter coverage is incomplete'
     dependencies: []
     tests: [test519]
-    status: needs-review
+    status: completed
 
   - id: task361
     title: "Feature75 adapter confidence tuning docs and cross-runtime tests"
@@ -7341,7 +7341,7 @@ tasks:
       - 'step4: Document adapter best practices and known limitations for developers'
     dependencies: [task360]
     tests: [test520]
-    status: needs-review
+    status: completed
 
   - id: task362
     title: "Feature76 preflight CLI detection and version parsing"
@@ -7360,7 +7360,7 @@ tasks:
       - 'step4: Add unit/integration tests for missing CLI, invalid version text, and compatible version checks'
     dependencies: []
     tests: [test521]
-    status: needs-review
+    status: completed
 
   - id: task363
     title: "Feature76 preflight reuse and optional gateway health gating"
@@ -7379,7 +7379,7 @@ tasks:
       - 'step4: Add command-level tests proving the right preflight mode is invoked per command'
     dependencies: [task362]
     tests: [test522]
-    status: needs-review
+    status: completed
 
   - id: task364
     title: "Feature77 init delegation to openclaw agents add"
@@ -7398,7 +7398,7 @@ tasks:
       - 'step4: Add tests for delegation command shape and preflight-before-subprocess ordering'
     dependencies: [task363]
     tests: [test523]
-    status: needs-review
+    status: completed
 
   - id: task365
     title: "Feature77 init manifest generation and operator summary"
@@ -7418,7 +7418,7 @@ tasks:
       - 'step4: Add tests/docs for manifest shape and summary output'
     dependencies: [task364]
     tests: [test524]
-    status: needs-review
+    status: completed
 
   - id: task366
     title: "Feature78 OpenClaw workspace detection and manifest inference"
@@ -7437,7 +7437,7 @@ tasks:
       - 'step4: Add import tests covering detection confidence and manifest generation'
     dependencies: [task363]
     tests: [test525]
-    status: needs-review
+    status: completed
 
   - id: task367
     title: "Feature78 import copy/register workflow and conflict handling"
@@ -7456,7 +7456,7 @@ tasks:
       - 'step4: Add tests for copy prompt flow in-place registration flow and conflict diagnostics'
     dependencies: [task366]
     tests: [test526]
-    status: needs-review
+    status: completed
 
   - id: task368
     title: "Feature79 OpenClaw pack include rules"
@@ -7475,7 +7475,7 @@ tasks:
       - 'step4: Add tests for include contract using OpenClaw workspace fixtures'
     dependencies: []
     tests: [test527]
-    status: needs-review
+    status: completed
 
   - id: task369
     title: "Feature79 OpenClaw pack exclude rules and roundtrip viability"
@@ -7495,7 +7495,7 @@ tasks:
       - 'step4: Add Vitest fixture contract check for JS/TS-oriented workspace file expectations'
     dependencies: [task368]
     tests: [test528]
-    status: needs-review
+    status: completed
 
   - id: task370
     title: "Feature80 OpenClaw install extract and register flow"
@@ -7514,7 +7514,7 @@ tasks:
       - 'step4: Add tests for extract+register happy path and command invocation shape'
     dependencies: [task363, task369]
     tests: [test529]
-    status: needs-review
+    status: completed
 
   - id: task371
     title: "Feature80 install diagnostics conflicts and trust checks"
@@ -7534,7 +7534,7 @@ tasks:
       - 'step4: Add tests covering conflicts validation-ordering and trace content'
     dependencies: [task370]
     tests: [test530]
-    status: needs-review
+    status: completed
 
   - id: task372
     title: "Feature81 run delegation thinking passthrough and exit semantics"
@@ -7553,7 +7553,7 @@ tasks:
       - 'step4: Add tests for command mapping thinking passthrough and exit propagation'
     dependencies: [task363]
     tests: [test531]
-    status: needs-review
+    status: completed
 
   - id: task373
     title: "Feature81 gateway preflight gating and json output passthrough"
@@ -7572,7 +7572,7 @@ tasks:
       - 'step4: Add tests for gateway-down behavior text-default behavior and json output passthrough'
     dependencies: [task372]
     tests: [test532]
-    status: needs-review
+    status: completed
 
   - id: task374
     title: "Feature82 logs command wrapper and flag passthrough"
@@ -7591,7 +7591,7 @@ tasks:
       - 'step4: Add tests for command routing and passthrough behavior'
     dependencies: [task363]
     tests: [test533]
-    status: needs-review
+    status: completed
 
   - id: task375
     title: "Feature82 logs preflight validation and failure diagnostics"
@@ -7610,7 +7610,7 @@ tasks:
       - 'step4: Add tests for error-path behavior and deterministic messaging'
     dependencies: [task374]
     tests: [test534]
-    status: needs-review
+    status: completed
 
   - id: task376
     title: "Feature83 openclaw skill install command and agent resolution"
@@ -7629,7 +7629,7 @@ tasks:
       - 'step4: Add tests for existing-agent delegation behavior and command shape'
     dependencies: [task363]
     tests: [test535]
-    status: needs-review
+    status: completed
 
   - id: task377
     title: "Feature83 skill identifier normalization and outcome diagnostics"
@@ -7648,7 +7648,7 @@ tasks:
       - 'step4: Add tests for missing-agent remediation and outcome diagnostic contracts'
     dependencies: [task376]
     tests: [test536]
-    status: needs-review
+    status: completed
 
   - id: task378
     title: "Feature84 openclaw skill search command wrapper"
@@ -7667,7 +7667,7 @@ tasks:
       - 'step4: Add tests for delegation behavior and json passthrough contracts'
     dependencies: [task363]
     tests: [test537]
-    status: needs-review
+    status: completed
 
   - id: task379
     title: "Feature84 search preflight and empty/error guidance"
@@ -7686,7 +7686,7 @@ tasks:
       - 'step4: Add tests for preflight failures and empty/error guidance paths'
     dependencies: [task378]
     tests: [test538]
-    status: needs-review
+    status: completed
 
   - id: task380
     title: "Feature85 deprecation metadata and cli/help migration messaging"
@@ -7706,7 +7706,7 @@ tasks:
       - 'step4: Add tests validating help output no longer exposes deprecated usage strings'
     dependencies: [task363, task364, task366, task370, task372]
     tests: [test539]
-    status: needs-review
+    status: completed
 
   - id: task381
     title: "Feature85 runtime deprecation warnings and non-breaking compatibility"
@@ -7726,4 +7726,4 @@ tasks:
       - 'step4: Add compatibility tests ensuring deprecated paths still work while warning'
     dependencies: [task380]
     tests: [test540]
-    status: needs-review
+    status: completed

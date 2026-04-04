@@ -2300,7 +2300,7 @@ features:
         description: "Docs include troubleshooting guidance for common CI signing/publish failures."
     owner: techlead-agent
     dependencies: [feature61]
-    status: needs-review
+    status: completed
 
   - id: feature69
     title: "kinnoo test foundation with standardized test file format"
@@ -2319,7 +2319,7 @@ features:
         description: "Docs include minimal-friction examples for Python and JS/TS agents and guidance for CI integration."
     owner: techlead-agent
     dependencies: []
-    status: needs-review
+    status: completed
 
   - id: feature70
     title: "Landing page and docs messaging refresh"
@@ -2338,7 +2338,7 @@ features:
         description: "Content changes are covered by docs regression tests for key command snippets and references."
     owner: techlead-agent
     dependencies: []
-    status: needs-review
+    status: completed
 
   - id: feature71
     title: "Strict CI signed-package enforcement"
@@ -2357,7 +2357,7 @@ features:
         description: "CI documentation includes strict-mode rollout guidance and failure examples."
     owner: techlead-agent
     dependencies: []
-    status: needs-review
+    status: completed
 
   - id: feature72
     title: "Lockfile support for reproducible installs"
@@ -2376,7 +2376,7 @@ features:
         description: "Docs describe lockfile lifecycle and team/CI best practices."
     owner: techlead-agent
     dependencies: []
-    status: needs-review
+    status: completed
 
   - id: feature73
     title: "kinnoo diff command"
@@ -2395,7 +2395,7 @@ features:
         description: "Exit code semantics are deterministic: success-identical vs success-different vs fatal-error."
     owner: techlead-agent
     dependencies: []
-    status: needs-review
+    status: completed
 
   - id: feature74
     title: "kinnoo uninstall command"
@@ -2414,7 +2414,7 @@ features:
         description: "Missing-agent and partial-cleanup failure paths return deterministic actionable diagnostics."
     owner: techlead-agent
     dependencies: [feature72]
-    status: needs-review
+    status: completed
 
   - id: feature75
     title: "Framework import adapters for LangChain, LangGraph, and OpenAI Agents SDK"
@@ -2433,7 +2433,7 @@ features:
         description: "Automated adapter tests include at least one JS/TS-oriented fixture path where relevant and preserve deterministic CLI behavior."
     owner: techlead-agent
     dependencies: []
-    status: needs-review
+    status: completed
 
   # ──────────────────────────────────────────────────────────────────────
   # Phase 7 — OpenClaw CLI Wrapper (proper integration via openclaw CLI)
@@ -2479,7 +2479,7 @@ features:
       - "Consider caching preflight result within a single CLI invocation to avoid redundant subprocess calls."
     owner: techlead-agent
     dependencies: []
-    status: needs-review
+    status: completed
 
   - id: feature77
     title: "OpenClaw init via CLI wrapper"
@@ -2508,7 +2508,7 @@ features:
       - "OpenClaw version must be 2026.3.28+"
     owner: techlead-agent
     dependencies: [feature76]
-    status: needs-review
+    status: completed
 
   - id: feature78
     title: "OpenClaw import via CLI wrapper"
@@ -2537,7 +2537,7 @@ features:
       - "OpenClaw version must be 2026.3.28+"
     owner: techlead-agent
     dependencies: [feature76]
-    status: needs-review
+    status: completed
 
   - id: feature79
     title: "OpenClaw workspace pack"
@@ -2564,7 +2564,7 @@ features:
       - "Consider whether openclaw.json should be included (it may contain local-only config)."
     owner: techlead-agent
     dependencies: []
-    status: needs-review
+    status: completed
 
   - id: feature80
     title: "OpenClaw install via CLI wrapper"
@@ -2593,7 +2593,7 @@ features:
       - "OpenClaw version must be 2026.3.28+"
     owner: techlead-agent
     dependencies: [feature76, feature79]
-    status: needs-review
+    status: completed
 
   - id: feature81
     title: "OpenClaw run via CLI wrapper"
@@ -2621,7 +2621,7 @@ features:
       - "OpenClaw version must be 2026.3.28+"
     owner: techlead-agent
     dependencies: [feature76]
-    status: needs-review
+    status: completed
 
   - id: feature82
     title: "OpenClaw logs passthrough"
@@ -2645,7 +2645,7 @@ features:
       - "Consider also supporting `--local-time` passthrough."
     owner: techlead-agent
     dependencies: [feature76]
-    status: needs-review
+    status: completed
 
   - id: feature83
     title: "OpenClaw skill install for agents"
@@ -2674,7 +2674,7 @@ features:
       - "OpenClaw version must be 2026.3.28+"
     owner: techlead-agent
     dependencies: [feature76]
-    status: needs-review
+    status: completed
 
   - id: feature84
     title: "OpenClaw skill search via ClawHub"
@@ -2699,7 +2699,7 @@ features:
       - "OpenClaw version must be 2026.3.28+"
     owner: techlead-agent
     dependencies: [feature76]
-    status: needs-review
+    status: completed
   
   - id: feature85
     title: "Deprecate OpenClaw bridge features 62-67"
@@ -2731,4 +2731,4 @@ features:
       - "Full removal of deprecated code is deferred to a future cleanup phase."
     owner: techlead-agent
     dependencies: [feature76, feature77, feature78, feature80, feature81]
-    status: needs-review
+    status: completed
