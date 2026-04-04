@@ -2746,7 +2746,7 @@ features:
       archive with its SHA-256 hash and file size. Store the manifest inside the
       .kno archive at META-INF/integrity.json. Create a new module
       src/kinnoo/integrity.py with functions to compute and verify file hashes.
-    tasks: []
+    tasks: [task382, task383]
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo pack` produces a .kno containing META-INF/integrity.json."
@@ -2775,7 +2775,7 @@ features:
       in signing.py and embed the signature in META-INF/signature.json. The
       signature JSON includes the base64 signature, the public key fingerprint,
       and a timestamp.
-    tasks: []
+    tasks: [task384, task385]
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo pack --sign` produces META-INF/signature.json alongside META-INF/integrity.json."
@@ -2804,7 +2804,7 @@ features:
       files. If `--strict` flag is passed, also verify the signature. Report
       clear error messages for any mismatches. Add a `--skip-verify` flag to
       bypass verification for development workflows.
-    tasks: []
+    tasks: [task386, task387]
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo install` verifies META-INF/integrity.json hashes against actual file contents."
@@ -2841,7 +2841,7 @@ features:
       Configure Uvicorn for production (workers, timeouts, graceful shutdown).
       Ensure all secrets come from environment variables with no dev defaults in
       production mode.
-    tasks: []
+    tasks: [task388, task389]
     acceptance_criteria:
       - id: AC1
         description: "Server logs in structured JSON format when KINNOO_ENV=production."
@@ -2874,7 +2874,7 @@ features:
       required manifest files (kinnoo.yaml), manifest field validation,
       integrity.json presence and validity. Reject uploads that fail validation
       with descriptive error messages.
-    tasks: []
+    tasks: [task390, task391]
     acceptance_criteria:
       - id: AC1
         description: "Server rejects uploads exceeding configured max size with 413 status."
@@ -2906,7 +2906,7 @@ features:
       to per-IP). Add configurable limits for different endpoint groups.
       Add rate limit headers (X-RateLimit-Limit, X-RateLimit-Remaining,
       X-RateLimit-Reset). Add retry-after header on 429 responses.
-    tasks: []
+    tasks: [task392, task393]
     acceptance_criteria:
       - id: AC1
         description: "Rate limits are configurable per endpoint group via server config."
@@ -2937,7 +2937,7 @@ features:
       format. Document every field, its type, whether required/optional, default
       values, and validation rules. Include examples for each supported framework.
       Document the framework-specific fields and constraints.
-    tasks: []
+    tasks: [task394, task395]
     acceptance_criteria:
       - id: AC1
         description: "docs/kinnoo-yaml-spec.md exists and documents every manifest field."
@@ -2964,7 +2964,7 @@ features:
       sub-command. Include usage, arguments, options with defaults, environment
       variables, exit codes, and examples. Cover both client-side (kinnoo) and
       server-side (kinnoo-server) commands.
-    tasks: []
+    tasks: [task396, task397]
     acceptance_criteria:
       - id: AC1
         description: "docs/cli-reference.md exists and documents every CLI command."
@@ -2992,7 +2992,7 @@ features:
       architecture. Cover: threat model, signing model (Ed25519), integrity
       verification, trust store, permission model, auth flow (JWT), password
       hashing (Argon2id), rate limiting, and upload validation.
-    tasks: []
+    tasks: [task398, task399]
     acceptance_criteria:
       - id: AC1
         description: "docs/security-model.md exists and covers the complete security architecture."
@@ -3018,7 +3018,7 @@ features:
       creating, packing, and running an agent from scratch, and (2) a registry
       guide covering account creation, publishing, searching, and installing from
       the remote registry.
-    tasks: []
+    tasks: [task400, task401]
     acceptance_criteria:
       - id: AC1
         description: "docs/getting-started.md exists with a complete walkthrough from install to running an agent."
@@ -3044,7 +3044,7 @@ features:
       instructions, quick-start example, link to docs, feature highlights,
       supported frameworks. Create docs/supported-agents.md with a framework
       compatibility matrix.
-    tasks: []
+    tasks: [task402, task403]
     acceptance_criteria:
       - id: AC1
         description: "README.md is rewritten for beta: concise, professional, with badges."
@@ -3070,7 +3070,7 @@ features:
       data, and internal references. Create CONTRIBUTING.md, CODE_OF_CONDUCT.md.
       Update LICENSE if needed. Create issue and PR templates. Ensure .gitignore
       covers all generated files. Remove or redact any internal-only content.
-    tasks: []
+    tasks: [task404, task405]
     acceptance_criteria:
       - id: AC1
         description: "No secrets, API keys, or passwords present in any tracked file."
@@ -3102,7 +3102,7 @@ features:
       ECR, update ECS service on main branch push, (3) frontend deployment —
       build Next.js static export, deploy to Cloudflare Pages on main push,
       (4) Terraform plan on PR, apply on merge. Use OIDC for AWS credentials.
-    tasks: []
+    tasks: [task406, task407]
     acceptance_criteria:
       - id: AC1
         description: ".github/workflows/ci.yml runs pytest and linting on every PR."
@@ -3132,7 +3132,7 @@ features:
       correct metadata (name, version, description, author, license, classifiers,
       URLs). Set up trusted publisher in PyPI for GitHub Actions. Create
       .github/workflows/pypi-publish.yml triggered on release tags.
-    tasks: []
+    tasks: [task408, task409]
     acceptance_criteria:
       - id: AC1
         description: "pyproject.toml has complete PyPI metadata (name, version, description, author, license, classifiers, project-urls)."
@@ -3160,7 +3160,7 @@ features:
       policy enforcement (minimum 12 characters, at least 1 uppercase, 1 lowercase,
       1 digit, 1 special character), (3) token blacklist on logout so revoked
       tokens cannot be reused.
-    tasks: []
+    tasks: [task410, task411, task412]
     acceptance_criteria:
       - id: AC1
         description: "Account is locked after 5 failed login attempts."
@@ -3196,7 +3196,7 @@ features:
       with Python 3.11 slim. Non-root user. Health check. Create docker-compose.yml
       for local development with the server, including volume mounts for the auth
       store and registry data.
-    tasks: []
+    tasks: [task413, task414]
     acceptance_criteria:
       - id: AC1
         description: "Dockerfile exists at project root (or server/ — TBD by SWE)."
@@ -3230,7 +3230,7 @@ features:
       users and invite tokens. Commands: `kinnoo-server user create`, `user list`,
       `user reset-password`, `user unlock`, `user delete`, `invite create`,
       `invite list`. All commands operate directly on the auth store.
-    tasks: []
+    tasks: [task415, task416]
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo-server user create --email <email>` creates a user and prints a temporary password."
@@ -3270,7 +3270,7 @@ features:
       state bootstrap module (S3 bucket + DynamoDB table for state locking).
       Create the VPC module with public subnets (2 AZs), security groups, and
       VPC endpoints for S3 (gateway) and ECR (interface). No NAT Gateway.
-    tasks: []
+    tasks: [task417, task418]
     acceptance_criteria:
       - id: AC1
         description: "iac/ directory exists with: versions.tf, providers.tf, variables.tf, outputs.tf, locals.tf, main.tf."
@@ -3306,7 +3306,7 @@ features:
       (2) IAM roles: ECS task role (S3 access), ECS execution role (ECR pull,
       logs, secrets), GitHub Actions OIDC role. (3) Secrets Manager secrets
       for JWT key, session key, admin password.
-    tasks: []
+    tasks: [task419, task420, task421]
     acceptance_criteria:
       - id: AC1
         description: "iac/modules/s3-registry/ creates S3 bucket with AES-256 server-side encryption."
@@ -3343,7 +3343,7 @@ features:
       for dev-api.kinnoo.ai, target group for ECS. (3) ECS Fargate cluster,
       task definition (0.5 vCPU, 1GB memory), service with desired count 1.
       (4) EFS file system for persistent auth data.
-    tasks: []
+    tasks: [task422, task423, task424]
     acceptance_criteria:
       - id: AC1
         description: "iac/modules/ecr/ creates ECR repository with image scanning and lifecycle policy."
@@ -3380,7 +3380,7 @@ features:
       dev.kinnoo.ai CNAME to Cloudflare Pages, dev-api.kinnoo.ai CNAME to ALB.
       (2) Cloudflare Pages project for Next.js static export. (3) ACM validation
       CNAME records in Cloudflare.
-    tasks: []
+    tasks: [task425, task426]
     acceptance_criteria:
       - id: AC1
         description: "iac/modules/cloudflare/ creates DNS records for dev.kinnoo.ai and dev-api.kinnoo.ai."
@@ -3410,7 +3410,7 @@ features:
       container logs. (2) CloudWatch alarms for 5xx errors, unhealthy targets,
       high CPU. (3) SNS topic for alerts with Jerry's email subscription.
       (4) SNS topic for password reset notifications.
-    tasks: []
+    tasks: [task427, task428]
     acceptance_criteria:
       - id: AC1
         description: "iac/modules/monitoring/ creates CloudWatch log group with 30-day retention."
@@ -3446,7 +3446,7 @@ features:
       are generated via the admin CLI (feature102). Registration without a token
       returns 403. Tokens are single-use and expire after a configurable duration.
       The web registration page includes a token field.
-    tasks: []
+    tasks: [task429, task430]
     acceptance_criteria:
       - id: AC1
         description: "POST /register requires `invite_token` parameter."
@@ -3478,7 +3478,7 @@ features:
       email, log the request and fire an SNS notification to Jerry. Jerry then
       uses the admin CLI to reset the password manually. No automated email
       sending — this is a manual workflow for the invite-only beta.
-    tasks: []
+    tasks: [task431, task432]
     acceptance_criteria:
       - id: AC1
         description: "POST /forgot-password accepts email parameter."
@@ -3512,7 +3512,7 @@ features:
       link (JavaScript-rendered to prevent bot scraping). Update any marketing
       copy to reflect beta status. Ensure static export works for Cloudflare
       Pages deployment.
-    tasks: []
+    tasks: [task433, task434]
     acceptance_criteria:
       - id: AC1
         description: "Landing page shows 'Invite-Only Beta' messaging."
@@ -3546,7 +3546,7 @@ features:
       against a deployed registry. The script tests: login, init, pack, publish,
       search, install, run, logout. It should be runnable as a CLI command and
       in CI after deployment.
-    tasks: []
+    tasks: [task435, task436]
     acceptance_criteria:
       - id: AC1
         description: "scripts/e2e-smoke-test.sh (or .py) exists and is executable."
@@ -3577,7 +3577,7 @@ features:
       and provide content for beta users. Validate that each agent can be found
       via search, installed, and run successfully. Document the seeding process
       for future use.
-    tasks: []
+    tasks: [task437, task438]
     acceptance_criteria:
       - id: AC1
         description: "At least 3 agents published to the registry covering different frameworks."
@@ -3604,7 +3604,7 @@ features:
       are operational before opening the beta. Covers: infrastructure health,
       security review, documentation completeness, CI/CD validation, monitoring
       alerts, and sample user onboarding walkthrough.
-    tasks: []
+    tasks: [task439, task440]
     acceptance_criteria:
       - id: AC1
         description: "docs/launch-checklist.md exists with categorized checklist items."
