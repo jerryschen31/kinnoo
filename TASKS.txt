@@ -7865,7 +7865,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task388]
     tests: [test547, test548]
-    status: not-started
+    status: needs-review
 
   - id: task390
     title: "Add server-side upload validation (size, zip, manifest fields)"

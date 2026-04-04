@@ -52,6 +52,19 @@ def _configure_production_logging() -> None:
     root_logger.setLevel(logging.INFO)
 
 
+def _validate_production_secrets() -> None:
+    required_names = (
+        "REGISTRY_TOKEN_SIGNING_SECRET",
+        "REGISTRY_SESSION_SIGNING_SECRET",
+        "REGISTRY_REGISTER_TOKEN_SECRET",
+        "REGISTRY_PASSWORD_RESET_TOKEN_SECRET",
+    )
+    missing = [name for name in required_names if not (os.getenv(name) or "").strip()]
+    if missing:
+        joined = ", ".join(missing)
+        raise ValueError(f"Missing required production secret(s): {joined}")
+
+
 def _is_s3_ready(storage_backend: Any, config: ServerConfig) -> bool:
     if config.storage_backend != "s3":
         return True
@@ -93,6 +106,7 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
 
     resolved_config = config or ServerConfig.from_env()
     if resolved_config.kinnoo_env == "production":
+        _validate_production_secrets()
         _configure_production_logging()
 
     storage_backend = build_storage_backend_from_config(resolved_config)
@@ -186,7 +200,9 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
     app.state.email_service = email_service
     app.state.templates = templates
     app.state.uvicorn_config = {
-        "workers": resolved_config.uvicorn_workers,
+        "workers": max(2, resolved_config.uvicorn_workers)
+        if resolved_config.kinnoo_env == "production"
+        else resolved_config.uvicorn_workers,
         "timeout_seconds": resolved_config.uvicorn_timeout_seconds,
         "graceful_shutdown": True,
     }
