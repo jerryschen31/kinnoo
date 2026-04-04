@@ -180,10 +180,26 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
         PathRateLimitMiddleware,
         limiter=InMemoryRateLimiter(),
         rules={
-            "/api/auth/token": RateLimitRule(requests_per_minute=20),
-            "/api/auth/register-request": RateLimitRule(requests_per_minute=5),
-            "/api/auth/password-reset-request": RateLimitRule(requests_per_minute=5),
-            "/api/publish": RateLimitRule(requests_per_minute=20),
+            "/api/auth": RateLimitRule(
+                requests=resolved_config.auth_rate_limit_requests,
+                window_seconds=resolved_config.auth_rate_limit_window_seconds,
+                key_by="ip",
+            ),
+            "/api/publish": RateLimitRule(
+                requests=resolved_config.publish_rate_limit_requests,
+                window_seconds=resolved_config.publish_rate_limit_window_seconds,
+                key_by="tenant",
+            ),
+            "/api/search": RateLimitRule(
+                requests=resolved_config.search_rate_limit_requests,
+                window_seconds=resolved_config.search_rate_limit_window_seconds,
+                key_by="ip",
+            ),
+            "/api/download": RateLimitRule(
+                requests=resolved_config.search_rate_limit_requests,
+                window_seconds=resolved_config.search_rate_limit_window_seconds,
+                key_by="ip",
+            ),
         },
     )
     app.state.config = resolved_config
