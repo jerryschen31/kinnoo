@@ -2795,7 +2795,7 @@ features:
       - "Key pair must exist or be generated via `kinnoo keygen`"
     owner: swe-agent
     dependencies: [feature86]
-    status: not-started
+    status: needs-review
 
   - id: feature88
     title: "Install-time integrity verification"
