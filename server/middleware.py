@@ -75,7 +75,7 @@ class InMemoryRateLimiter:
         requests: int,
         window_seconds: int,
         now: float | None = None,
-    ) -> bool:
+    ) -> tuple[bool, int, int]:
         timestamp = now if now is not None else time.time()
         key = (path, client_id)
         events = self._events[key]
@@ -85,10 +85,13 @@ class InMemoryRateLimiter:
             events.popleft()
 
         if len(events) >= requests:
-            return False
+            reset_at = int(events[0] + float(window_seconds)) if events else int(timestamp + window_seconds)
+            return False, 0, reset_at
 
         events.append(timestamp)
-        return True
+        remaining = max(0, requests - len(events))
+        reset_at = int(events[0] + float(window_seconds)) if events else int(timestamp + window_seconds)
+        return True, remaining, reset_at
 
 
 class PathRateLimitMiddleware:
@@ -122,14 +125,27 @@ class PathRateLimitMiddleware:
             client_host = _tenant_or_client_from_scope(scope)
         else:
             client_host = _client_id_from_scope(scope)
-        allowed = self._limiter.allow(
+        allowed, remaining, reset_at = self._limiter.allow(
             path=path,
             client_id=client_host,
             requests=rule.requests,
             window_seconds=rule.window_seconds,
         )
         if allowed:
-            await self.app(scope, receive, send)
+            async def send_with_headers(message):
+                if message.get("type") == "http.response.start":
+                    headers = list(message.get("headers", []))
+                    headers.extend(
+                        _rate_limit_headers(
+                            limit=rule.requests,
+                            remaining=remaining,
+                            reset_at=reset_at,
+                        )
+                    )
+                    message = {**message, "headers": headers}
+                await send(message)
+
+            await self.app(scope, receive, send_with_headers)
             return
 
         request_id = _request_id_from_scope(scope)
@@ -142,7 +158,16 @@ class PathRateLimitMiddleware:
                 }
             }
         ).encode("utf-8")
+        retry_after = max(1, reset_at - int(time.time()))
         headers = [(b"content-type", b"application/json")]
+        headers.extend(
+            _rate_limit_headers(
+                limit=rule.requests,
+                remaining=remaining,
+                reset_at=reset_at,
+            )
+        )
+        headers.append((b"retry-after", str(retry_after).encode("ascii")))
         await send({"type": "http.response.start", "status": 429, "headers": headers})
         await send({"type": "http.response.body", "body": body})
 
@@ -221,3 +246,11 @@ def _tenant_from_unverified_jwt(token: str) -> str | None:
     if isinstance(tenant, str) and tenant.strip():
         return tenant.strip()
     return None
+
+
+def _rate_limit_headers(*, limit: int, remaining: int, reset_at: int) -> list[tuple[bytes, bytes]]:
+    return [
+        (b"x-ratelimit-limit", str(max(0, limit)).encode("ascii")),
+        (b"x-ratelimit-remaining", str(max(0, remaining)).encode("ascii")),
+        (b"x-ratelimit-reset", str(max(0, reset_at)).encode("ascii")),
+    ]
