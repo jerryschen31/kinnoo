@@ -96,33 +96,298 @@ The CLI's behavior on `kinnoo run` is determined entirely by this field.
 
 ---
 
-### Feature33 manifest extensions (`runtime.package_manager`, `channels`, `skills`, `state_dirs`)
+### Feature62 openclaw-skill schema contract (`type`, `provenance`)
 
-Feature33 adds optional schema fields for OpenClaw-oriented and generic Node.js agent workflows.
+Feature62 adds an explicit OpenClaw package type and provenance object while keeping metadata minimal.
 
-- `runtime.package_manager` (optional): string
-  - supported values: `npm`, `pnpm`
-  - if present with any other value, validation fails with allowed-values guidance
-- `channels` (optional): list[string]
-  - each item must be a non-empty string
-- `skills` (optional): list[string]
-  - each item must be a non-empty relative path
-  - absolute paths and parent traversal (`..`) are rejected
-- `state_dirs` (optional): list[string]
-  - each item must be a non-empty relative path
-  - absolute paths and parent traversal (`..`) are rejected
+- `type` (optional): string
+  - supported values: `agent`, `openclaw-skill`
+  - if `type: openclaw-skill`, validator enforces OpenClaw runtime compatibility
+- `provenance` (optional): object
+  - `source_registry` (required when `provenance` is present): non-empty string
+  - `source_version` (required when `provenance` is present): non-empty string
+  - at least one of:
+    - `source_slug` (non-empty string)
+    - `source_url` (non-empty string)
 
-OpenClaw-targeted validation (`framework: openclaw`):
+OpenClaw compatibility checks:
 
-- `runtime.language` must be `nodejs`
-- `runtime.type` must be `daemon`
-- `runtime.package_manager` is required and must be `npm` or `pnpm`
-- `channels` must include `stdio`
+- `framework: openclaw` requires:
+  - `runtime.language: nodejs`
+  - `runtime.type: daemon`
+- `type: openclaw-skill` requires:
+  - `framework: openclaw`
+  - `runtime.language: nodejs`
+  - `runtime.type: daemon`
 
-Non-openclaw compatibility note:
+Minimal metadata policy for Phase 6:
 
-- manifests that omit these fields remain valid
-- non-openclaw manifests may include these fields in valid shape without triggering OpenClaw-only diagnostics
+- `channels`, `skills`, and `state_dirs` are intentionally not part of this schema version.
+- If present, validation fails with deterministic guidance to remove them.
+
+Canonical examples:
+
+```yaml
+# Example 1: mirrored ClawHub skill
+name: weather-skill
+version: 1.2.3
+framework: openclaw
+type: openclaw-skill
+runtime:
+  language: nodejs
+  version: ">=20"
+  type: daemon
+entrypoint: index.js
+dependencies: []
+inputs:
+  type: string
+outputs:
+  type: string
+provenance:
+  source_registry: clawhub
+  source_slug: weather/weather-skill
+  source_url: https://clawhub.ai/skills/weather/weather-skill
+  source_version: 1.2.3
+```
+
+```yaml
+# Example 2: GitHub-origin agent (not skill)
+name: repo-triage-agent
+version: 0.4.0
+framework: langgraph
+type: agent
+runtime:
+  language: python
+  version: ">=3.11"
+  type: one-shot
+entrypoint: run.py
+dependencies:
+  - langgraph>=0.2
+  - openai>=1.0
+inputs:
+  type: string
+outputs:
+  type: string
+provenance:
+  source_registry: github
+  source_url: https://github.com/acme/repo-triage-agent
+  source_version: v0.4.0
+```
+
+```yaml
+# Example 3: locally authored OpenClaw project
+name: local-notes-skill
+version: 0.1.0
+framework: openclaw
+type: openclaw-skill
+runtime:
+  language: nodejs
+  version: ">=20"
+  type: daemon
+entrypoint: src/index.ts
+dependencies: []
+inputs:
+  type: string
+outputs:
+  type: string
+# provenance intentionally omitted for local authored project
+```
+
+Migration guidance:
+
+- Replace flat source fields with a single `provenance` object.
+- Remove `channels`, `skills`, and `state_dirs` from manifests.
+- For local projects without external source lineage, omit `provenance`.
+
+### Feature64 ClawHub import guidance (`kinnoo import --source clawhub`)
+
+When importing mirrored skills from ClawHub:
+
+- command shape:
+  - `kinnoo import --source clawhub <owner>/<slug> [destination]`
+- generated manifests use:
+  - `type: openclaw-skill`
+  - `framework: openclaw`
+  - `provenance.source_registry: clawhub`
+  - `provenance.source_version`
+  - `provenance.source_slug` (and `source_url` when available)
+
+Import report artifact:
+
+- file: `kinnoo-import-report.json`
+- requirement hints are grouped in deterministic sections:
+  - `requirements.env`
+  - `requirements.config`
+  - `requirements.bin`
+- unresolved next steps are listed in deterministic order under:
+  - `unresolved`
+
+Deterministic missing-slug behavior:
+
+- if mirror metadata for `<owner>/<slug>` is missing, import fails with actionable guidance to run:
+  - `kinnoo sync clawhub`
+
+### Feature68 CI publish workflow contract
+
+Reference workflow:
+
+- `.github/workflows/kinnoo-publish.yml`
+
+Required CI secrets/environment values:
+
+- `KINNOO_REGISTRY_URL`
+- `KINNOO_REGISTRY_TOKEN`
+- `KINNOO_TENANT_SLUG`
+
+Reference stage ordering:
+
+- install dependencies
+- preflight compatibility (`kinnoo check`)
+- pack (`kinnoo pack`)
+- publish (`kinnoo publish --remote`)
+
+Strict-mode compatibility control:
+
+- `KINNOO_CI_STRICT_MODE=1` enables strict publish flags in the workflow once strict-mode controls are available.
+
+Failure behavior contract:
+
+- workflow steps are fail-fast and must return non-zero on contract violations (missing secrets, check failures, pack failures, publish failures).
+
+Troubleshooting guidance:
+
+- Missing secret failures should be treated as configuration errors in CI, not runtime defects.
+- For signing-enabled pipelines, key-loading/signing failures should be triaged by validating secret/key path wiring before re-running publish.
+
+### Feature75 framework import adapters (`kinnoo import --from`)
+
+`kinnoo import` supports framework-aware adapter mode:
+
+- `kinnoo import <path> --from langchain`
+- `kinnoo import <path> --from langgraph`
+- `kinnoo import <path> --from openai`
+
+Adapter behavior contract:
+
+- Adapters enrich generic analyzer output with framework-specific overrides and confidence metadata.
+- If adapter coverage is below threshold, Kinnoo falls back to generic analyzer output with deterministic messaging.
+- Adapter guidance is printed separately to highlight unresolved framework-specific follow-up checks.
+
+Best practices:
+
+- Prefer `--from` when the project already targets one of the supported frameworks.
+- Keep framework marker imports explicit (for example `from langgraph...`, `from agents import...`) to maximize adapter confidence.
+- Verify framework-specific env vars and runtime prerequisites before first `kinnoo run`.
+
+Known limitations:
+
+- Adapter mode is heuristic, not full semantic understanding of arbitrary framework code.
+- Mixed-framework repositories may still require manual manifest review.
+- Unsupported frameworks should use generic import mode and manual manifest refinement.
+- Publish failures should be triaged by validating token scope, tenant slug, and explicit remote publish mode.
+
+### Feature69 standardized test spec (`kinnoo.tests.yaml`)
+
+Feature69 introduces a declarative test file for low-friction prompt/response validation.
+
+Canonical file:
+
+- `kinnoo.tests.yaml` at the agent root
+
+Schema (v1):
+
+- `version`: schema version (int or string)
+- `tests`: list of test cases
+- test case required fields:
+  - `id` (string)
+  - `name` (string)
+  - `input` (string)
+  - `assertions` (non-empty list)
+  - `timeout_seconds` (number > 0)
+  - `expected_exit_code` (int)
+
+Assertion forms:
+
+- shorthand string means `contains` assertion
+- object form with exactly one key: `contains`, `equals`, or `regex`
+- expanded object form: `{type, value, target}` where target is `stdout` or `stderr`
+
+Compatibility bridge:
+
+- if `kinnoo.tests.yaml` is not present, `kinnoo test` may load tests from `kinnoo.yaml` via:
+  - `tests_file: <relative-path>`
+  - inline `tests:` list with optional `tests_version`
+
+Anti-pattern guidance:
+
+- avoid non-deterministic assertions (for example, matching timestamps or random IDs)
+- avoid unbounded timeouts; declare explicit `timeout_seconds`
+- keep assertions output-contract focused (`contains`/`equals`/`regex`) instead of broad semantic checks
+
+Runtime-aligned examples:
+
+Python one-shot manifest + tests
+
+```yaml
+# kinnoo.yaml
+name: py-test-agent
+version: 0.1.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: ">=3.10"
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+```
+
+```yaml
+# kinnoo.tests.yaml
+version: 1
+tests:
+  - id: py-smoke
+    name: python one-shot smoke
+    input: hello
+    assertions:
+      - contains: hello
+    timeout_seconds: 5
+    expected_exit_code: 0
+```
+
+Daemon-compatible manifest + tests (for example JS/TS style runtime contracts)
+
+```yaml
+# kinnoo.yaml
+name: daemon-test-agent
+version: 0.1.0
+entrypoint: index.js
+runtime:
+  language: nodejs
+  version: ">=20"
+  type: daemon
+  run_command: "node index.js"
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+```
+
+```yaml
+# kinnoo.tests.yaml
+version: 1
+tests:
+  - id: daemon-smoke
+    name: daemon-compatible smoke
+    input: ping
+    assertions:
+      - contains: pong
+    timeout_seconds: 10
+    expected_exit_code: 0
+```
 
 ### Feature35 mutable state snapshots (`state_dirs`)
 

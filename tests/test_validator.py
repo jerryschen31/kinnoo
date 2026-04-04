@@ -684,71 +684,37 @@ def test_feature33_runtime_package_manager_validation(tmp_path: Path) -> None:
     )
 
 
-def test_feature33_extension_fields_type_and_path_safety(tmp_path: Path) -> None:
-    """Feature33 test283: channels/skills/state_dirs enforce type and path safety."""
-    valid_data = dict(_VALID_MANIFEST)
-    valid_data["runtime"] = dict(valid_data["runtime"])
-    valid_data["runtime"]["language"] = "nodejs"
-    valid_data["channels"] = ["stdio", "events"]
-    valid_data["skills"] = ["skills/openclaw/core.md", "skills/shared/prompts.md"]
-    valid_data["state_dirs"] = ["state/cache", "state/memory"]
+def test_feature33_extension_fields_are_globally_rejected(tmp_path: Path) -> None:
+    """Feature33 test283 (deprecated): channels/skills/state_dirs are unsupported in kinnoo.yaml."""
+    invalid_data = dict(_VALID_MANIFEST)
+    invalid_data["channels"] = ["stdio", "events"]
+    invalid_data["skills"] = ["skills/openclaw/core.md"]
+    invalid_data["state_dirs"] = ["state/cache"]
 
-    valid_path = tmp_path / "feature33_extension_fields_valid.yaml"
-    valid_path.write_text(yaml.dump(valid_data), encoding="utf-8")
+    invalid_path = tmp_path / "feature33_extension_fields_rejected.yaml"
+    invalid_path.write_text(yaml.dump(invalid_data), encoding="utf-8")
 
-    is_valid, errors = validate(str(valid_path))
-    assert is_valid is True, f"Expected valid feature33 extension fields to pass; errors: {errors}"
-    assert errors == []
-
-    invalid_types = dict(_VALID_MANIFEST)
-    invalid_types["channels"] = "stdio"
-    invalid_types["skills"] = ["skills/ok.md", 123]
-    invalid_types["state_dirs"] = ["state/cache", None]
-
-    invalid_types_path = tmp_path / "feature33_extension_fields_invalid_types.yaml"
-    invalid_types_path.write_text(yaml.dump(invalid_types), encoding="utf-8")
-
-    is_valid, errors = validate(str(invalid_types_path))
-    assert is_valid is False, "Expected invalid extension field types to fail"
-    assert any("Field 'channels' must be of type list" in message for message in errors), (
-        f"Expected channels list type error; got: {errors}"
+    is_valid, errors = validate(str(invalid_path))
+    assert is_valid is False, "Expected unsupported extension fields to fail"
+    assert any("Field 'channels' is not supported" in message for message in errors), (
+        f"Expected channels unsupported-field error; got: {errors}"
     )
-    assert any("Field 'skills[1]' must be of type str" in message for message in errors), (
-        f"Expected skills item type error; got: {errors}"
+    assert any("Field 'skills' is not supported" in message for message in errors), (
+        f"Expected skills unsupported-field error; got: {errors}"
     )
-    assert any("Field 'state_dirs[1]' must be of type str" in message for message in errors), (
-        f"Expected state_dirs item type error; got: {errors}"
-    )
-
-    unsafe_paths = dict(_VALID_MANIFEST)
-    unsafe_paths["skills"] = ["/absolute/skills/core.md"]
-    unsafe_paths["state_dirs"] = ["../outside-state"]
-
-    unsafe_paths_path = tmp_path / "feature33_extension_fields_unsafe_paths.yaml"
-    unsafe_paths_path.write_text(yaml.dump(unsafe_paths), encoding="utf-8")
-
-    is_valid, errors = validate(str(unsafe_paths_path))
-    assert is_valid is False, "Expected unsafe paths in extension fields to fail"
-    assert any("Field 'skills[0]'" in message and "relative path" in message for message in errors), (
-        f"Expected skills path safety error; got: {errors}"
-    )
-    assert any("Field 'state_dirs[0]'" in message and "relative path" in message for message in errors), (
-        f"Expected state_dirs path safety error; got: {errors}"
+    assert any("Field 'state_dirs' is not supported" in message for message in errors), (
+        f"Expected state_dirs unsupported-field error; got: {errors}"
     )
 
 
 def test_feature33_openclaw_framework_specific_validation(tmp_path: Path) -> None:
-    """Feature33 test284: framework=openclaw triggers targeted validation rules."""
+    """Feature33 test284: framework=openclaw still enforces runtime rules while deprecated fields are rejected."""
     valid_openclaw = dict(_VALID_MANIFEST)
     valid_openclaw["framework"] = "openclaw"
     valid_openclaw["runtime"] = dict(valid_openclaw["runtime"])
     valid_openclaw["runtime"]["language"] = "nodejs"
     valid_openclaw["runtime"]["type"] = "daemon"
     valid_openclaw["runtime"]["package_manager"] = "pnpm"
-    valid_openclaw["channels"] = ["stdio", "events"]
-    valid_openclaw["skills"] = ["skills/openclaw/core.md"]
-    valid_openclaw["state_dirs"] = ["state/openclaw"]
-
     valid_openclaw_path = tmp_path / "feature33_openclaw_valid.yaml"
     valid_openclaw_path.write_text(yaml.dump(valid_openclaw), encoding="utf-8")
 
@@ -779,11 +745,11 @@ def test_feature33_openclaw_framework_specific_validation(tmp_path: Path) -> Non
     assert any("runtime.type" in message and "daemon" in message for message in errors), (
         f"Expected openclaw runtime.type guidance; got: {errors}"
     )
-    assert any("runtime.package_manager" in message and "openclaw" in message for message in errors), (
-        f"Expected openclaw runtime.package_manager guidance; got: {errors}"
+    assert any("runtime.package_manager" in message and "unsupported value" in message for message in errors), (
+        f"Expected runtime.package_manager unsupported-value guidance; got: {errors}"
     )
-    assert any("channels" in message and "stdio" in message for message in errors), (
-        f"Expected openclaw channels guidance; got: {errors}"
+    assert any("Field 'channels' is not supported" in message for message in errors), (
+        f"Expected channels unsupported-field guidance; got: {errors}"
     )
 
     non_openclaw_control = dict(_VALID_MANIFEST)
@@ -796,17 +762,16 @@ def test_feature33_openclaw_framework_specific_validation(tmp_path: Path) -> Non
     non_openclaw_control_path.write_text(yaml.dump(non_openclaw_control), encoding="utf-8")
 
     is_valid, errors = validate(str(non_openclaw_control_path))
-    assert is_valid is True, (
-        "Expected framework-specific rules to be gated to framework=openclaw only; "
-        f"errors: {errors}"
+    assert is_valid is False, "Expected deprecated channels field to fail for all frameworks"
+    assert any("Field 'channels' is not supported" in message for message in errors), (
+        f"Expected channels unsupported-field guidance; got: {errors}"
     )
-    assert errors == []
 
 
-def test_feature35_state_dirs_validation_contract(tmp_path: Path) -> None:
-    """Feature35 test292: state_dirs contract validates safe entries and rejects malformed shapes."""
-    valid_data = dict(_VALID_MANIFEST)
-    valid_data["state_dirs"] = [
+def test_feature35_state_dirs_field_is_globally_rejected(tmp_path: Path) -> None:
+    """Feature35 test292 (deprecated): state_dirs is unsupported in kinnoo.yaml."""
+    invalid_data = dict(_VALID_MANIFEST)
+    invalid_data["state_dirs"] = [
         "memory",
         {
             "path": "state/cache",
@@ -814,48 +779,13 @@ def test_feature35_state_dirs_validation_contract(tmp_path: Path) -> None:
         },
     ]
 
-    valid_path = tmp_path / "feature35_state_dirs_valid.yaml"
-    valid_path.write_text(yaml.dump(valid_data), encoding="utf-8")
-
-    is_valid, errors = validate(str(valid_path))
-    assert is_valid is True, f"Expected valid state_dirs contract to pass; errors: {errors}"
-    assert errors == []
-
-    invalid_data = dict(_VALID_MANIFEST)
-    invalid_data["state_dirs"] = [
-        "/absolute/path",
-        "../unsafe-traversal",
-        {"path": 42},
-        {"exclude": ["*.log"]},
-        {"path": "state/memory", "exclude": "*.log"},
-        {"path": "state/memory", "exclude": ["../secrets.log", 99]},
-    ]
-
-    invalid_path = tmp_path / "feature35_state_dirs_invalid.yaml"
+    invalid_path = tmp_path / "feature35_state_dirs_rejected.yaml"
     invalid_path.write_text(yaml.dump(invalid_data), encoding="utf-8")
 
     is_valid, errors = validate(str(invalid_path))
-    assert is_valid is False, "Expected malformed/unsafe state_dirs contract to fail"
-    assert any("Field 'state_dirs[0]'" in message and "relative path" in message for message in errors), (
-        f"Expected absolute path safety error; got: {errors}"
-    )
-    assert any("Field 'state_dirs[1]'" in message and "relative path" in message for message in errors), (
-        f"Expected traversal safety error; got: {errors}"
-    )
-    assert any("Field 'state_dirs[2].path' must be of type str" in message for message in errors), (
-        f"Expected state_dirs path type error; got: {errors}"
-    )
-    assert any("Missing required field: 'state_dirs[3].path'" in message for message in errors), (
-        f"Expected missing path contract error; got: {errors}"
-    )
-    assert any("Field 'state_dirs[4].exclude' must be of type list" in message for message in errors), (
-        f"Expected exclude list type error; got: {errors}"
-    )
-    assert any("Field 'state_dirs[5].exclude[0]'" in message and "relative pattern" in message for message in errors), (
-        f"Expected unsafe exclude pattern error; got: {errors}"
-    )
-    assert any("Field 'state_dirs[5].exclude[1]' must be of type str" in message for message in errors), (
-        f"Expected exclude item type error; got: {errors}"
+    assert is_valid is False, "Expected state_dirs field to fail validation"
+    assert any("Field 'state_dirs' is not supported" in message for message in errors), (
+        f"Expected state_dirs unsupported-field error; got: {errors}"
     )
 
 # ---------------------------------------------------------------------------
@@ -1546,3 +1476,120 @@ def test_feature39_permissions_schema_validation(tmp_path: Path) -> None:
         f"errors: {errors}"
     )
     assert errors == []
+
+
+def test_feature62_openclaw_skill_schema_validation(tmp_path: Path) -> None:
+    """Feature62 test493: openclaw-skill type and provenance object validation."""
+    valid_manifest = dict(_VALID_MANIFEST)
+    valid_manifest["framework"] = "openclaw"
+    valid_manifest["type"] = "openclaw-skill"
+    valid_manifest["runtime"] = {
+        "language": "nodejs",
+        "version": ">=20",
+        "type": "daemon",
+    }
+    valid_manifest["provenance"] = {
+        "source_registry": "clawhub",
+        "source_slug": "weather/weather-skill",
+        "source_version": "1.2.3",
+    }
+
+    valid_path = tmp_path / "feature62_openclaw_skill_valid.yaml"
+    valid_path.write_text(yaml.dump(valid_manifest), encoding="utf-8")
+    is_valid, errors = validate(str(valid_path))
+    assert is_valid is True, f"Expected canonical openclaw-skill manifest to pass; errors: {errors}"
+
+    missing_registry = dict(valid_manifest)
+    missing_registry["provenance"] = {
+        "source_slug": "weather/weather-skill",
+        "source_version": "1.2.3",
+    }
+    missing_registry_path = tmp_path / "feature62_openclaw_skill_missing_registry.yaml"
+    missing_registry_path.write_text(yaml.dump(missing_registry), encoding="utf-8")
+    is_valid, errors = validate(str(missing_registry_path))
+    assert is_valid is False, "Expected missing provenance.source_registry to fail validation"
+    assert any("provenance.source_registry" in message for message in errors), (
+        f"Expected provenance.source_registry guidance; got: {errors}"
+    )
+
+    missing_slug_and_url = dict(valid_manifest)
+    missing_slug_and_url["provenance"] = {
+        "source_registry": "clawhub",
+        "source_version": "1.2.3",
+    }
+    missing_slug_and_url_path = tmp_path / "feature62_openclaw_skill_missing_slug_and_url.yaml"
+    missing_slug_and_url_path.write_text(yaml.dump(missing_slug_and_url), encoding="utf-8")
+    is_valid, errors = validate(str(missing_slug_and_url_path))
+    assert is_valid is False, "Expected missing provenance source_slug/source_url to fail validation"
+    assert any("source_slug" in message and "source_url" in message for message in errors), (
+        f"Expected source_slug/source_url requirement guidance; got: {errors}"
+    )
+
+
+def test_feature62_openclaw_skill_schema_fixture_matrix(tmp_path: Path) -> None:
+    """Feature62 test494: fixture matrix covers migration-safe provenance and metadata rules."""
+    base_manifest = dict(_VALID_MANIFEST)
+    base_manifest["framework"] = "openclaw"
+    base_manifest["type"] = "openclaw-skill"
+    base_manifest["runtime"] = {
+        "language": "nodejs",
+        "version": ">=20",
+        "type": "daemon",
+    }
+
+    valid_slug_only = dict(base_manifest)
+    valid_slug_only["provenance"] = {
+        "source_registry": "clawhub",
+        "source_slug": "weather/weather-skill",
+        "source_version": "1.2.3",
+    }
+    valid_slug_only_path = tmp_path / "feature62_fixture_valid_slug_only.yaml"
+    valid_slug_only_path.write_text(yaml.dump(valid_slug_only), encoding="utf-8")
+    is_valid, errors = validate(str(valid_slug_only_path))
+    assert is_valid is True, f"Expected slug-only provenance fixture to pass; errors: {errors}"
+
+    valid_url_only = dict(base_manifest)
+    valid_url_only["provenance"] = {
+        "source_registry": "github",
+        "source_url": "https://github.com/acme/weather-skill",
+        "source_version": "v1.2.3",
+    }
+    valid_url_only_path = tmp_path / "feature62_fixture_valid_url_only.yaml"
+    valid_url_only_path.write_text(yaml.dump(valid_url_only), encoding="utf-8")
+    is_valid, errors = validate(str(valid_url_only_path))
+    assert is_valid is True, f"Expected URL-only provenance fixture to pass; errors: {errors}"
+
+    invalid_missing_source_version = dict(base_manifest)
+    invalid_missing_source_version["provenance"] = {
+        "source_registry": "clawhub",
+        "source_slug": "weather/weather-skill",
+    }
+    invalid_missing_source_version_path = tmp_path / "feature62_fixture_missing_source_version.yaml"
+    invalid_missing_source_version_path.write_text(
+        yaml.dump(invalid_missing_source_version), encoding="utf-8"
+    )
+    is_valid, errors = validate(str(invalid_missing_source_version_path))
+    assert is_valid is False, "Expected missing provenance.source_version fixture to fail"
+    assert any("provenance.source_version" in message for message in errors), (
+        f"Expected provenance.source_version guidance; got: {errors}"
+    )
+
+    invalid_disallowed_metadata = dict(valid_slug_only)
+    invalid_disallowed_metadata["channels"] = ["stable"]
+    invalid_disallowed_metadata["skills"] = ["skills/default/SKILL.md"]
+    invalid_disallowed_metadata["state_dirs"] = ["memory"]
+    invalid_disallowed_metadata_path = tmp_path / "feature62_fixture_disallowed_metadata.yaml"
+    invalid_disallowed_metadata_path.write_text(
+        yaml.dump(invalid_disallowed_metadata), encoding="utf-8"
+    )
+    is_valid, errors = validate(str(invalid_disallowed_metadata_path))
+    assert is_valid is False, "Expected disallowed metadata fixture to fail"
+    assert any("Field 'channels' is not supported" in message for message in errors), (
+        f"Expected channels removal guidance; got: {errors}"
+    )
+    assert any("Field 'skills' is not supported" in message for message in errors), (
+        f"Expected skills removal guidance; got: {errors}"
+    )
+    assert any("Field 'state_dirs' is not supported" in message for message in errors), (
+        f"Expected state_dirs removal guidance; got: {errors}"
+    )

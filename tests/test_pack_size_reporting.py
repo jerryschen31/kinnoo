@@ -269,3 +269,51 @@ def test_list_includes_archive_size(tmp_path: Path) -> None:
     assert "Remote registry agents:" in remote_output
     assert "list-remote-agent | latest: 2.0.0 | description: remote list fixture | size: " in remote_output
     assert re.search(r"list-remote-agent .*\| size: \d+(?:\.\d)? (?:B|KB|MB|GB)", remote_output)
+
+
+def test_feature79_openclaw_pack_size_reporting_preserved(tmp_path: Path) -> None:
+        agent_dir = tmp_path / "feature79-openclaw-size"
+        agent_dir.mkdir(parents=True, exist_ok=True)
+        (agent_dir / "kinnoo.yaml").write_text(
+                """
+name: feature79-openclaw-size
+version: 1.0.0
+type: openclaw-skill
+framework: openclaw
+entrypoint: index.js
+runtime:
+    language: nodejs
+    version: '>=20'
+    type: daemon
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+""".strip()
+                + "\n",
+                encoding="utf-8",
+        )
+        (agent_dir / "index.js").write_text("console.log('size')\n", encoding="utf-8")
+        (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+        (agent_dir / "package.json").write_text('{"name":"feature79-openclaw-size"}\n', encoding="utf-8")
+        (agent_dir / "AGENTS.md").write_text("# Agents\n", encoding="utf-8")
+        (agent_dir / "skills").mkdir(parents=True, exist_ok=True)
+        (agent_dir / "skills" / "skill.md").write_text("skill\n", encoding="utf-8")
+
+        archive_root = tmp_path / "archive-root"
+        env = os.environ.copy()
+        env["KINNOO_ARCHIVE_ROOT"] = str(archive_root)
+
+        cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+        result = subprocess.run(
+                [sys.executable, str(cli_script), "pack", str(agent_dir)],
+                cwd=tmp_path,
+                capture_output=True,
+                text=True,
+                env=env,
+        )
+
+        output = f"{result.stdout}\n{result.stderr}"
+        assert result.returncode == 0, output
+        assert re.search(r"\[kinnoo pack\] Archive size: \d+(?:\.\d)? (?:B|KB|MB|GB)", output)

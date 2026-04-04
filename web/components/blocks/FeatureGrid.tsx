@@ -7,7 +7,7 @@ const FEATURES: readonly FeatureCard[] = [
   {
     title: "Supports common AI agent frameworks",
     description:
-      "Initialize, import or install AI agents developed with LangChain, LangGraph, PydanticAI, OpenAI Agents SDK, OpenClaw and more.",
+      "Initialize, import, test, or install AI agents developed with LangChain, LangGraph, PydanticAI, OpenAI Agents SDK, OpenClaw, and more.",
   },
   {
     title: "Install and run in two commands",
@@ -20,6 +20,11 @@ const FEATURES: readonly FeatureCard[] = [
       "Publish agents to a hosted registry where others can search, inspect, and install them — like npm, but for agents.",
   },
   {
+    title: "ClawHub mirror provenance",
+    description:
+      "Sync mirrored OpenClaw metadata with kinnoo sync clawhub and keep attribution explicit via the clawhub tenant provenance model.",
+  },
+  {
     title: "Built to run real-world agents",
     description:
       "From one-shot tasks to long-running daemons and MCP integrations, kinnoo supports how agents actually run in production.",
@@ -27,7 +32,7 @@ const FEATURES: readonly FeatureCard[] = [
   {
     title: "Security built-in",
     description:
-      "Signed archives, permission declarations, static security sweeps, dependency audits, preflight checks, runtime monitoring, and a kill switch — trust what you run.",
+      "Signed archives, permission declarations, static security sweeps, dependency audits, preflight checks, runtime monitoring, and a kill switch help you trust what you run.",
   },
   {
     title: "Inspect before you run",

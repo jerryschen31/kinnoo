@@ -44,6 +44,21 @@ class InstallTargetSpec:
     error: str | None = None
 
 
+@dataclass(frozen=True)
+class ClawHubMirrorRecord:
+    """Canonical ClawHub mirror metadata entry used for registry sync/import."""
+
+    tenant_slug: str
+    agent_slug: str
+    name: str
+    version: str
+    source_registry: str
+    source_version: str
+    source_url: str | None = None
+    synced_at: str | None = None
+    metadata: dict[str, Any] | None = None
+
+
 class RegistryService:
     """Backend-agnostic service boundary used by command handlers."""
 
@@ -124,6 +139,135 @@ class RegistryService:
         if version:
             return None, f"Registry version '{name}=={version}' was not found."
         return None, f"Registry agent '{name}' was not found."
+
+    def upsert_clawhub_mirror_record(
+        self,
+        *,
+        agent_slug: str,
+        source_version: str,
+        source_url: str | None = None,
+        synced_at: str | None = None,
+        metadata: Optional[dict[str, Any]] = None,
+    ) -> ClawHubMirrorRecord:
+        backend_upserter = getattr(self._backend, "upsert_clawhub_mirror_record", None)
+        if not callable(backend_upserter):
+            raise NotImplementedError("Registry backend does not support ClawHub mirror upserts.")
+
+        record = backend_upserter(
+            agent_slug=agent_slug,
+            source_version=source_version,
+            source_url=source_url,
+            synced_at=synced_at,
+            metadata=metadata,
+        )
+        if isinstance(record, ClawHubMirrorRecord):
+            return record
+
+        if isinstance(record, dict):
+            return ClawHubMirrorRecord(
+                tenant_slug=str(record.get("tenant_slug", "clawhub")),
+                agent_slug=str(record.get("agent_slug", agent_slug)),
+                name=str(record.get("name", _mirror_name_from_slug(agent_slug))),
+                version=str(record.get("version", source_version)),
+                source_registry=str(record.get("source_registry", "clawhub")),
+                source_version=str(record.get("source_version", source_version)),
+                source_url=(
+                    str(record.get("source_url"))
+                    if isinstance(record.get("source_url"), str) and str(record.get("source_url")).strip()
+                    else None
+                ),
+                synced_at=(
+                    str(record.get("synced_at"))
+                    if isinstance(record.get("synced_at"), str) and str(record.get("synced_at")).strip()
+                    else None
+                ),
+                metadata=record.get("metadata") if isinstance(record.get("metadata"), dict) else None,
+            )
+
+        raise RuntimeError("Unsupported ClawHub mirror record payload returned by backend.")
+
+    def list_clawhub_mirror_records(self) -> list[ClawHubMirrorRecord]:
+        backend_lister = getattr(self._backend, "list_clawhub_mirror_records", None)
+        if not callable(backend_lister):
+            return []
+
+        records = backend_lister()
+        normalized: list[ClawHubMirrorRecord] = []
+        for raw_record in records:
+            if isinstance(raw_record, ClawHubMirrorRecord):
+                normalized.append(raw_record)
+                continue
+            if not isinstance(raw_record, dict):
+                continue
+            normalized.append(
+                ClawHubMirrorRecord(
+                    tenant_slug=str(raw_record.get("tenant_slug", "clawhub")),
+                    agent_slug=str(raw_record.get("agent_slug", "")),
+                    name=str(raw_record.get("name", "")),
+                    version=str(raw_record.get("version", "")),
+                    source_registry=str(raw_record.get("source_registry", "clawhub")),
+                    source_version=str(raw_record.get("source_version", "")),
+                    source_url=(
+                        str(raw_record.get("source_url"))
+                        if isinstance(raw_record.get("source_url"), str)
+                        and str(raw_record.get("source_url")).strip()
+                        else None
+                    ),
+                    synced_at=(
+                        str(raw_record.get("synced_at"))
+                        if isinstance(raw_record.get("synced_at"), str)
+                        and str(raw_record.get("synced_at")).strip()
+                        else None
+                    ),
+                    metadata=(
+                        raw_record.get("metadata")
+                        if isinstance(raw_record.get("metadata"), dict)
+                        else None
+                    ),
+                )
+            )
+
+        return sorted(normalized, key=lambda item: (item.agent_slug, item.version))
+
+    def get_clawhub_mirror_record(self, *, agent_slug: str) -> ClawHubMirrorRecord | None:
+        backend_getter = getattr(self._backend, "get_clawhub_mirror_record", None)
+        if not callable(backend_getter):
+            return None
+
+        payload = backend_getter(agent_slug=agent_slug)
+        if payload is None:
+            return None
+        if isinstance(payload, ClawHubMirrorRecord):
+            return payload
+        if not isinstance(payload, dict):
+            return None
+
+        return ClawHubMirrorRecord(
+            tenant_slug=str(payload.get("tenant_slug", "clawhub")),
+            agent_slug=str(payload.get("agent_slug", agent_slug)),
+            name=str(payload.get("name", _mirror_name_from_slug(agent_slug))),
+            version=str(payload.get("version", payload.get("source_version", ""))),
+            source_registry=str(payload.get("source_registry", "clawhub")),
+            source_version=str(payload.get("source_version", payload.get("version", ""))),
+            source_url=(
+                str(payload.get("source_url"))
+                if isinstance(payload.get("source_url"), str) and str(payload.get("source_url")).strip()
+                else None
+            ),
+            synced_at=(
+                str(payload.get("synced_at"))
+                if isinstance(payload.get("synced_at"), str) and str(payload.get("synced_at")).strip()
+                else None
+            ),
+            metadata=payload.get("metadata") if isinstance(payload.get("metadata"), dict) else None,
+        )
+
+
+def _mirror_name_from_slug(agent_slug: str) -> str:
+    cleaned = agent_slug.strip().strip("/")
+    if not cleaned:
+        return "unknown"
+    return cleaned.split("/")[-1]
 
 
 def parse_install_target_spec(target: str) -> InstallTargetSpec:

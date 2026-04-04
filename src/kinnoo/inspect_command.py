@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import json
 import sys
 import zipfile
 from copy import deepcopy
@@ -18,6 +20,8 @@ try:
         INSPECT_MISSING_REQUIREMENTS_GUIDANCE_LINES,
     )
     from kinnoo.validator import validate_manifest_data
+    from kinnoo.registry_backends import MockFilesystemRegistryBackend
+    from kinnoo.registry import RegistryService
 except ImportError:
     from .checksum import ChecksumParseError, read_checksum_sidecar
     from .code_sweep import sweep_env_var_exposure
@@ -28,6 +32,8 @@ except ImportError:
         INSPECT_MISSING_REQUIREMENTS_GUIDANCE_LINES,
     )
     from .validator import validate_manifest_data
+    from .registry_backends import MockFilesystemRegistryBackend
+    from .registry import RegistryService
 
 
 def _print_missing_manifest_guidance() -> None:
@@ -496,6 +502,22 @@ def _print_inspect_output(
         else:
             print("- Env Vars: (none)")
 
+    provenance = normalized.get("provenance")
+    if isinstance(provenance, dict):
+        print("- Provenance:")
+        source_registry = provenance.get("source_registry")
+        source_version = provenance.get("source_version")
+        source_slug = provenance.get("source_slug")
+        source_url = provenance.get("source_url")
+        if isinstance(source_registry, str) and source_registry.strip():
+            print(f"  - source_registry: {source_registry}")
+        if isinstance(source_version, str) and source_version.strip():
+            print(f"  - source_version: {source_version}")
+        if isinstance(source_slug, str) and source_slug.strip():
+            print(f"  - source_slug: {source_slug}")
+        if isinstance(source_url, str) and source_url.strip():
+            print(f"  - source_url: {source_url}")
+
     _print_services_metadata(normalized)
 
     _print_asset_metadata(normalized, asset_file_sizes or {})
@@ -560,6 +582,10 @@ def _inspect_directory_target(directory_path: Path, *, full: bool, raw: bool) ->
         raw=raw,
     )
 
+    import_report = _load_import_report(directory_path)
+    if import_report is not None:
+        _print_import_report_hints(import_report)
+
     if raw:
         return 0
 
@@ -577,7 +603,47 @@ def _inspect_directory_target(directory_path: Path, *, full: bool, raw: bool) ->
     return 0
 
 
+def _load_import_report(directory_path: Path) -> dict[str, Any] | None:
+    report_path = directory_path / "kinnoo-import-report.json"
+    if not report_path.exists() or not report_path.is_file():
+        return None
+
+    try:
+        payload = json.loads(report_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    return payload
+
+
+def _print_import_report_hints(import_report: dict[str, Any]) -> None:
+    requirements = import_report.get("requirements")
+    unresolved = import_report.get("unresolved")
+
+    if isinstance(requirements, dict):
+        print("- Imported Requirement Hints:")
+        for section in ("env", "config", "bin"):
+            values = requirements.get(section)
+            if isinstance(values, list) and values:
+                rendered = ", ".join(str(item) for item in values)
+                print(f"  - {section}: {rendered}")
+            else:
+                print(f"  - {section}: (none)")
+
+    if isinstance(unresolved, list) and unresolved:
+        print("- Unresolved Guidance:")
+        for item in unresolved:
+            if isinstance(item, str) and item.strip():
+                print(f"  - {item}")
+
+
 def inspect_target(target_arg: str, *, full: bool = False, raw: bool = False) -> int:
+    normalized_target = target_arg.strip()
+    if normalized_target.lower().startswith("clawhub:") or normalized_target.lower().startswith("clawhub/"):
+        mirror_slug = normalized_target.split(":", 1)[1] if ":" in normalized_target else normalized_target
+        return _inspect_clawhub_mirror_target(mirror_slug, full=full, raw=raw)
+
     target = Path(target_arg)
     if not target.exists():
         print(f"Error: Inspect target '{target}' does not exist.", file=sys.stderr)
@@ -598,6 +664,57 @@ def inspect_target(target_arg: str, *, full: bool = False, raw: bool = False) ->
 
     print(f"Error: Inspect target '{target}' is neither a directory nor a regular file.", file=sys.stderr)
     return 1
+
+
+def _inspect_clawhub_mirror_target(slug: str, *, full: bool, raw: bool) -> int:
+    normalized_slug = slug.strip().strip("/")
+    if not normalized_slug:
+        print("Error: ClawHub inspect target slug cannot be empty.", file=sys.stderr)
+        return 1
+
+    registry_root = os.environ.get("KINNOO_REGISTRY_ROOT")
+    backend_root = Path(registry_root).expanduser() if registry_root else None
+    service = RegistryService(backend=MockFilesystemRegistryBackend(root=backend_root))
+
+    matches = [
+        record
+        for record in service.list_clawhub_mirror_records()
+        if record.agent_slug == normalized_slug
+    ]
+    if not matches:
+        print(
+            f"Error: ClawHub mirror record '{normalized_slug}' not found in local mirror index.",
+            file=sys.stderr,
+        )
+        return 1
+
+    selected = sorted(matches, key=lambda item: item.source_version, reverse=True)[0]
+
+    if raw:
+        print("Inspect target type: clawhub mirror")
+        print(f"tenant_slug: {selected.tenant_slug}")
+        print(f"agent_slug: {selected.agent_slug}")
+        print(f"name: {selected.name}")
+        print(f"version: {selected.version}")
+        print(f"source_registry: {selected.source_registry}")
+        print(f"source_version: {selected.source_version}")
+        print(f"source_url: {selected.source_url or 'N/A'}")
+        print(f"synced_at: {selected.synced_at or 'N/A'}")
+        return 0
+
+    print("Inspect target type: clawhub mirror")
+    print(f"- Name: {selected.name}")
+    print(f"- Version: {selected.version}")
+    print("- Source: ClawHub (mirrored)")
+    print(f"- Source Slug: {selected.agent_slug}")
+    print(f"- Source Registry: {selected.source_registry}")
+    if selected.source_url:
+        print(f"- Source URL: {selected.source_url}")
+    print(f"- Last Synced At: {selected.synced_at or 'N/A'}")
+    if full:
+        print(f"- Tenant Slug: {selected.tenant_slug}")
+
+    return 0
 
 
 def inspect_update_target(

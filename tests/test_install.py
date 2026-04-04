@@ -4,8 +4,10 @@ import subprocess
 import tempfile
 import json
 import base64
+import hashlib
 from pathlib import Path
 import pytest
+import yaml
 
 def make_dummy_kno_archive(archive_path, files=None):
     import zipfile
@@ -54,6 +56,177 @@ def test_install_extracts_to_user_specified_directory(tmp_path):
     assert "already exists" in result2.stderr, "Error message missing for existing directory"
 
     # Step3: --force is paused; skip this step
+
+
+def test_feature72_lockfile_write_and_stability(tmp_path, monkeypatch):
+    from kinnoo import install_command
+
+    shared_lockfile_path = tmp_path / "shared-lock.yaml"
+    monkeypatch.setenv("KINNOO_LOCKFILE_PATH", str(shared_lockfile_path))
+
+    def _manifest(name: str, version: str) -> str:
+        return (
+            f"name: {name}\n"
+            f"version: {version}\n"
+            "entrypoint: run.py\n"
+            "runtime:\n"
+            "  type: one-shot\n"
+            "  language: python\n"
+            "  version: \"3.10\"\n"
+            "dependencies: []\n"
+            "inputs:\n"
+            "  type: string\n"
+            "outputs:\n"
+            "  type: string\n"
+        )
+
+    b_archive = tmp_path / "b-agent.kno"
+    make_dummy_kno_archive(
+        b_archive,
+        files={
+            "kinnoo.yaml": _manifest("b-agent", "1.0.0"),
+            "run.py": "print('b')\n",
+            "requirements.txt": "",
+        },
+    )
+    b_target = tmp_path / "installed-b"
+    b_result = subprocess.run(
+        ["python3", "src/kinnoo/cli.py", "install", str(b_archive), str(b_target), "--yes"],
+        capture_output=True,
+        text=True,
+    )
+    assert b_result.returncode == 0, b_result.stderr
+
+    a_archive = tmp_path / "a-agent.kno"
+    make_dummy_kno_archive(
+        a_archive,
+        files={
+            "kinnoo.yaml": _manifest("a-agent", "2.0.0"),
+            "run.py": "print('a')\n",
+            "requirements.txt": "",
+        },
+    )
+    a_target = tmp_path / "installed-a"
+    a_result = subprocess.run(
+        ["python3", "src/kinnoo/cli.py", "install", str(a_archive), str(a_target), "--yes"],
+        capture_output=True,
+        text=True,
+    )
+    assert a_result.returncode == 0, a_result.stderr
+
+    lockfile_doc = yaml.safe_load(shared_lockfile_path.read_text(encoding="utf-8"))
+    assert isinstance(lockfile_doc, dict)
+    assert lockfile_doc.get("lock_version") == 1
+    assert isinstance(lockfile_doc.get("locked_at"), str)
+
+    platform_info = lockfile_doc.get("platform")
+    assert isinstance(platform_info, dict)
+    assert isinstance(platform_info.get("python"), str)
+    assert isinstance(platform_info.get("os"), str)
+
+    agents = lockfile_doc.get("agents")
+    assert isinstance(agents, dict)
+    assert list(agents.keys()) == ["a-agent", "b-agent"]
+
+    a_entry = agents["a-agent"]
+    b_entry = agents["b-agent"]
+    assert a_entry.get("version") == "2.0.0"
+    assert b_entry.get("version") == "1.0.0"
+    assert a_entry.get("source") == "archive-file"
+    assert b_entry.get("source") == "archive-file"
+    assert isinstance(a_entry.get("installed_at"), str)
+    assert isinstance(b_entry.get("installed_at"), str)
+
+    expected_a_checksum = hashlib.sha256(a_archive.read_bytes()).hexdigest()
+    expected_b_checksum = hashlib.sha256(b_archive.read_bytes()).hexdigest()
+    assert a_entry.get("archive_sha256") == expected_a_checksum
+    assert b_entry.get("archive_sha256") == expected_b_checksum
+
+    a_force_result = install_command.install_agent(
+        archive_path=str(a_archive),
+        target_dir_arg=str(a_target),
+        assume_yes=True,
+        force=True,
+    )
+    assert a_force_result == 0
+
+    updated_doc = yaml.safe_load(shared_lockfile_path.read_text(encoding="utf-8"))
+    assert isinstance(updated_doc, dict)
+    updated_agents = updated_doc.get("agents")
+    assert isinstance(updated_agents, dict)
+    assert list(updated_agents.keys()) == ["a-agent", "b-agent"]
+    assert updated_agents["a-agent"].get("archive_sha256") == expected_a_checksum
+    assert updated_agents["a-agent"].get("source") == "archive-file"
+
+
+def test_feature74_uninstall_metadata_and_errors(tmp_path, monkeypatch, capsys):
+    from kinnoo import uninstall_command
+
+    install_root = tmp_path / "feature74-install-root"
+    target_agent_dir = install_root / "feature74-agent"
+    other_agent_dir = install_root / "other-agent"
+    target_agent_dir.mkdir(parents=True, exist_ok=True)
+    other_agent_dir.mkdir(parents=True, exist_ok=True)
+    (target_agent_dir / "run.py").write_text("print('target')\n", encoding="utf-8")
+    (other_agent_dir / "run.py").write_text("print('other')\n", encoding="utf-8")
+
+    lockfile_path = tmp_path / "feature74-lock.yaml"
+    monkeypatch.setenv("KINNOO_LOCKFILE_PATH", str(lockfile_path))
+    lockfile_path.write_text(
+        (
+            "lock_version: 1\n"
+            "locked_at: 2026-03-30T00:00:00Z\n"
+            "platform:\n"
+            "  python: 3.12.0\n"
+            "  os: darwin-arm64\n"
+            "agents:\n"
+            "  feature74-agent:\n"
+            "    version: 1.0.0\n"
+            "    source: archive-file\n"
+            "    archive_sha256: aaa\n"
+            "    installed_at: 2026-03-30T00:00:00Z\n"
+            "  other-agent:\n"
+            "    version: 1.0.0\n"
+            "    source: archive-file\n"
+            "    archive_sha256: bbb\n"
+            "    installed_at: 2026-03-30T00:00:00Z\n"
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr("builtins.input", lambda _prompt: "y")
+    uninstall_exit_code = uninstall_command.uninstall_agent(
+        agent_name="feature74-agent",
+        install_root_arg=str(install_root),
+    )
+    assert uninstall_exit_code == 0
+    assert not target_agent_dir.exists()
+    assert other_agent_dir.exists()
+
+    updated_lockfile = yaml.safe_load(lockfile_path.read_text(encoding="utf-8"))
+    assert isinstance(updated_lockfile, dict)
+    updated_agents = updated_lockfile.get("agents")
+    assert isinstance(updated_agents, dict)
+    assert "feature74-agent" not in updated_agents
+    assert "other-agent" in updated_agents
+
+    uninstall_trace_path = install_root / ".kinnoo" / "uninstall-trace.jsonl"
+    assert uninstall_trace_path.exists()
+    uninstall_trace_lines = uninstall_trace_path.read_text(encoding="utf-8").strip().splitlines()
+    assert uninstall_trace_lines
+    latest_trace = json.loads(uninstall_trace_lines[-1])
+    assert latest_trace.get("event") == "uninstall"
+    assert latest_trace.get("agent") == "feature74-agent"
+    assert latest_trace.get("removed_from_lockfile") is True
+
+    missing_exit_code = uninstall_command.uninstall_agent(
+        agent_name="feature74-agent",
+        install_root_arg=str(install_root),
+    )
+    captured = capsys.readouterr()
+    combined_output = f"{captured.out}\n{captured.err}"
+    assert missing_exit_code == 1
+    assert "Installed agent 'feature74-agent' was not found" in combined_output
 
 
 def _node_manifest_yaml(package_manager: str | None = None) -> str:
@@ -185,7 +358,7 @@ def test_feature31_node_dependency_install_npm_and_pnpm(monkeypatch, tmp_path, c
 
 
 def test_feature35_install_state_overwrite_warning_and_force(tmp_path):
-    """Feature35 test294: install warns/preserves existing state by default and overwrites with explicit control."""
+    """Feature35 test294 (deprecated): install rejects manifests that declare unsupported state_dirs."""
     archive_path = tmp_path / "feature35-state-restore.kno"
     make_dummy_kno_archive(
         archive_path,
@@ -226,28 +399,9 @@ def test_feature35_install_state_overwrite_warning_and_force(tmp_path):
         capture_output=True,
         text=True,
     )
-    assert result_no_overwrite.returncode == 0, result_no_overwrite.stderr
-    assert "Existing state directory detected" in result_no_overwrite.stderr
-    assert (target_no_overwrite / "memory" / "existing.txt").exists()
-    assert not (target_no_overwrite / "memory" / "from_snapshot.txt").exists()
-
-    target_with_overwrite = tmp_path / "installed-with-overwrite"
-    result_with_overwrite = subprocess.run(
-        [
-            "python3",
-            "src/kinnoo/cli.py",
-            "install",
-            str(archive_path),
-            str(target_with_overwrite),
-            "--yes",
-            "--state-overwrite",
-        ],
-        capture_output=True,
-        text=True,
-    )
-    assert result_with_overwrite.returncode == 0, result_with_overwrite.stderr
-    assert (target_with_overwrite / "memory" / "from_snapshot.txt").exists()
-    assert not (target_with_overwrite / "memory" / "existing.txt").exists()
+    combined_output = f"{result_no_overwrite.stdout}\n{result_no_overwrite.stderr}"
+    assert result_no_overwrite.returncode != 0, "Expected install to fail for deprecated state_dirs"
+    assert "Field 'state_dirs' is not supported" in combined_output
 
 
 def test_feature40_install_signature_verification_gate(tmp_path):
@@ -314,3 +468,310 @@ def test_feature40_install_signature_verification_gate(tmp_path):
     assert invalid_result.returncode != 0
     assert "Signature verification failed" in invalid_output
     assert "Archive authenticity could not be verified" in invalid_output
+
+
+def _create_feature65_openclaw_archive(tmp_path: Path, name: str = "feature65-openclaw-direct") -> Path:
+    archive_path = tmp_path / f"{name}.kno"
+    make_dummy_kno_archive(
+        archive_path,
+        files={
+            "kinnoo.yaml": (
+                f"name: {name}\n"
+                "version: 1.0.0\n"
+                "type: openclaw-skill\n"
+                "framework: openclaw\n"
+                "entrypoint: index.js\n"
+                "runtime:\n"
+                "  type: daemon\n"
+                "  language: nodejs\n"
+                "  version: \">=20.0.0\"\n"
+                "dependencies: []\n"
+                "inputs:\n"
+                "  type: text\n"
+                "outputs:\n"
+                "  type: text\n"
+                "provenance:\n"
+                "  source_registry: clawhub\n"
+                "  source_slug: sample/skill\n"
+                "  source_version: 1.0.0\n"
+            ),
+            "index.js": "console.log('skill run')\n",
+        },
+    )
+    return archive_path
+
+
+def test_feature80_openclaw_install_extracts_to_workspace_and_registers(monkeypatch, tmp_path):
+    from kinnoo import install_command
+
+    archive_path = _create_feature65_openclaw_archive(tmp_path, name="feature80-openclaw")
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    class _PreflightOK:
+        ok = True
+        message = "ok"
+
+    monkeypatch.setattr(
+        install_command,
+        "run_openclaw_preflight_for_command",
+        lambda _command: _PreflightOK(),
+    )
+    monkeypatch.setattr(
+        install_command,
+        "check_openclaw_cli_constraint",
+        lambda _version: (True, "openclaw_cli_precheck_ok", "ok"),
+    )
+
+    captured_commands: list[list[str]] = []
+
+    class _SuccessCompleted:
+        returncode = 0
+        stderr = ""
+        stdout = "registered"
+
+    def _capture_subprocess_run(command, *args, **kwargs):
+        captured_commands.append([str(part) for part in command])
+        return _SuccessCompleted()
+
+    monkeypatch.setattr(install_command.subprocess, "run", _capture_subprocess_run)
+
+    install_exit = install_command.install_agent(
+        archive_path=str(archive_path),
+        assume_yes=True,
+        allow_unverified_publisher=True,
+    )
+
+    assert install_exit == 0
+    expected_workspace = tmp_path / ".openclaw" / "workspace-feature80-openclaw"
+    assert expected_workspace.exists()
+    assert (expected_workspace / "kinnoo.yaml").exists()
+    trace_payload = json.loads((expected_workspace / ".kinnoo" / "install-trace.json").read_text(encoding="utf-8"))
+    assert trace_payload["delegated_install"]["agent"] == "feature80-openclaw"
+    assert trace_payload["delegated_install"]["workspace"] == str(expected_workspace)
+    assert trace_payload["delegated_install"]["command"] == [
+        "openclaw",
+        "agents",
+        "add",
+        "feature80-openclaw",
+        "--workspace",
+        str(expected_workspace),
+    ]
+
+    assert captured_commands == [
+        [
+            "openclaw",
+            "agents",
+            "add",
+            "feature80-openclaw",
+            "--workspace",
+            str(expected_workspace),
+        ]
+    ]
+
+
+def test_feature80_openclaw_validation_happens_before_delegation(monkeypatch, tmp_path):
+    from kinnoo import install_command
+
+    archive_path = tmp_path / "feature80-openclaw-invalid.kno"
+    make_dummy_kno_archive(
+        archive_path,
+        files={
+            "kinnoo.yaml": (
+                "name: feature80-openclaw-invalid\n"
+                "version: 1.0.0\n"
+                "type: openclaw-skill\n"
+                "framework: openclaw\n"
+                "runtime:\n"
+                "  type: daemon\n"
+                "  language: nodejs\n"
+                "  version: \">=20.0.0\"\n"
+                "dependencies: []\n"
+                "inputs:\n"
+                "  type: text\n"
+                "outputs:\n"
+                "  type: text\n"
+            ),
+            "index.js": "console.log('invalid')\n",
+        },
+    )
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    class _PreflightOK:
+        ok = True
+        message = "ok"
+
+    monkeypatch.setattr(
+        install_command,
+        "run_openclaw_preflight_for_command",
+        lambda _command: _PreflightOK(),
+    )
+    monkeypatch.setattr(
+        install_command,
+        "check_openclaw_cli_constraint",
+        lambda _version: (True, "openclaw_cli_precheck_ok", "ok"),
+    )
+
+    invoked = {"called": False}
+
+    def _unexpected_subprocess_run(*args, **kwargs):
+        invoked["called"] = True
+        raise AssertionError("OpenClaw delegated subprocess should not run for invalid manifest")
+
+    monkeypatch.setattr(install_command.subprocess, "run", _unexpected_subprocess_run)
+
+    install_exit = install_command.install_agent(
+        archive_path=str(archive_path),
+        assume_yes=True,
+        allow_unverified_publisher=True,
+    )
+    assert install_exit != 0
+    assert invoked["called"] is False
+
+
+def test_feature65_delegated_install_checks_and_traces(monkeypatch, tmp_path, capsys):
+    from kinnoo import install_command
+
+    archive_path = _create_feature65_openclaw_archive(tmp_path)
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    class _PreflightOK:
+        ok = True
+        message = "ok"
+
+    monkeypatch.setattr(
+        install_command,
+        "run_openclaw_preflight_for_command",
+        lambda _command: _PreflightOK(),
+    )
+    workspace_target = tmp_path / ".openclaw" / "workspace-feature65-openclaw-direct"
+
+    # Success path: delegated flow should preserve kinnoo validation and emit success trace category.
+    monkeypatch.setattr(
+        install_command,
+        "check_openclaw_cli_constraint",
+        lambda _version: (
+            True,
+            "openclaw_cli_precheck_ok",
+            "delegated install precheck passed: OpenClaw CLI version 0.4.0 satisfies >= 0.2.0",
+        ),
+    )
+
+    class _SuccessCompleted:
+        returncode = 0
+        stderr = ""
+        stdout = "delegated-ok"
+
+    monkeypatch.setattr(install_command.subprocess, "run", lambda *args, **kwargs: _SuccessCompleted())
+
+    success_exit = install_command.install_agent(
+        archive_path=str(archive_path),
+        assume_yes=True,
+        allow_unverified_publisher=True,
+        minimum_openclaw_version="0.2.0",
+    )
+    success_output = capsys.readouterr()
+    assert success_exit == 0
+    assert "Manifest validated successfully" in success_output.out
+    success_trace_path = workspace_target / ".kinnoo" / "install-trace.json"
+    assert success_trace_path.exists()
+    success_trace = json.loads(success_trace_path.read_text(encoding="utf-8"))
+    assert success_trace["decision"] == {
+        "outcome": "allowed",
+        "category": "openclaw_cli_delegated_success",
+        "reason": "openclaw_cli_delegated_install_succeeded",
+        "delegated_exit_code": 0,
+    }
+
+    # Missing runtime / unsupported version categories are emitted deterministically.
+    monkeypatch.setattr(
+        install_command,
+        "check_openclaw_cli_constraint",
+        lambda _version: (
+            False,
+            "openclaw_cli_missing",
+            "delegated install precheck failed: OpenClaw CLI was not found in PATH. Install OpenClaw CLI and retry.",
+        ),
+    )
+    missing_exit = install_command.install_agent(
+        archive_path=str(archive_path),
+        assume_yes=True,
+        allow_unverified_publisher=True,
+        force=True,
+        minimum_openclaw_version="0.2.0",
+    )
+    missing_output = capsys.readouterr()
+    assert missing_exit != 0
+    assert "category=openclaw_cli_missing" in missing_output.err
+    missing_trace = json.loads((workspace_target / ".kinnoo" / "install-trace.json").read_text(encoding="utf-8"))
+    assert missing_trace["decision"]["outcome"] == "blocked"
+    assert missing_trace["decision"]["category"] == "openclaw_cli_missing"
+
+    monkeypatch.setattr(
+        install_command,
+        "check_openclaw_cli_constraint",
+        lambda _version: (
+            False,
+            "openclaw_cli_version_unsupported",
+            "delegated install precheck failed: OpenClaw CLI version 0.1.0 is below required >= 0.2.0. Upgrade OpenClaw CLI and retry.",
+        ),
+    )
+    unsupported_exit = install_command.install_agent(
+        archive_path=str(archive_path),
+        assume_yes=True,
+        allow_unverified_publisher=True,
+        force=True,
+        minimum_openclaw_version="0.2.0",
+    )
+    unsupported_output = capsys.readouterr()
+    assert unsupported_exit != 0
+    assert "category=openclaw_cli_version_unsupported" in unsupported_output.err
+    unsupported_trace = json.loads(
+        (workspace_target / ".kinnoo" / "install-trace.json").read_text(encoding="utf-8")
+    )
+    assert unsupported_trace["decision"]["outcome"] == "blocked"
+    assert unsupported_trace["decision"]["category"] == "openclaw_cli_version_unsupported"
+
+    # Delegated backend non-zero exits are wrapped with deterministic failure category.
+    monkeypatch.setattr(
+        install_command,
+        "check_openclaw_cli_constraint",
+        lambda _version: (
+            True,
+            "openclaw_cli_precheck_ok",
+            "delegated install precheck passed: OpenClaw CLI version 0.4.0 satisfies >= 0.2.0",
+        ),
+    )
+
+    class _BackendFailureCompleted:
+        returncode = 9
+        stderr = "simulated delegated backend failure"
+        stdout = ""
+
+    monkeypatch.setattr(
+        install_command.subprocess,
+        "run",
+        lambda *args, **kwargs: _BackendFailureCompleted(),
+    )
+
+    backend_fail_exit = install_command.install_agent(
+        archive_path=str(archive_path),
+        assume_yes=True,
+        allow_unverified_publisher=True,
+        force=True,
+        minimum_openclaw_version="0.2.0",
+    )
+    backend_fail_output = capsys.readouterr()
+    assert backend_fail_exit == 9
+    assert "category=openclaw_cli_delegated_nonzero_exit" in backend_fail_output.err
+    assert "simulated delegated backend failure" in backend_fail_output.err
+
+    backend_fail_trace = json.loads(
+        (workspace_target / ".kinnoo" / "install-trace.json").read_text(encoding="utf-8")
+    )
+    assert backend_fail_trace["decision"] == {
+        "outcome": "failed",
+        "category": "openclaw_cli_delegated_nonzero_exit",
+        "reason": "openclaw_cli_delegated_install_failed:openclaw_cli_delegated_nonzero_exit",
+        "delegated_exit_code": 9,
+    }

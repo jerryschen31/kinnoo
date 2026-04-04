@@ -7,6 +7,50 @@
 - `kinnoo pack` creates `.kno` artifacts as ZIP archives.
 - `kinnoo install` expects `.kno` files in this ZIP-based format.
 
+## OpenClaw Bridge Deprecation and Migration (Feature85)
+
+Bridge-era OpenClaw features (feature62-feature67) are deprecated in favor of the Phase 7 CLI-wrapper model (feature76-feature84).
+
+Migration command map:
+
+- init wrapper: `kinnoo init --framework openclaw <name>`
+- import wrapper: `kinnoo import <workspace-dir>`
+- install wrapper: `kinnoo install <archive.kno>`
+- run wrapper: `kinnoo run <agent-dir> '<prompt>' [--thinking <level>] [--json]`
+- logs wrapper: `kinnoo logs --daemon openclaw [--follow] [--json]`
+- skill install wrapper: `kinnoo install <agent-name> --openclaw-skill <owner/skill-or-url>`
+- skill search wrapper: `kinnoo search --openclaw-skill <query> [--json]`
+
+Deprecated bridge path notes:
+
+- `--experimental-openclaw-adapter` remains compatibility-only and should not be used for new workflows.
+- ClawHub mirror-first bridge flows are superseded by direct OpenClaw CLI delegation wrappers.
+
+## OpenClaw Delegated Install (Feature65, Deprecated Bridge Context)
+
+Bridge-era delegated install behavior is retained for compatibility only.
+
+`kinnoo install` routes manifests declaring `type: openclaw-skill` through a delegated OpenClaw CLI install path.
+
+Behavior:
+
+- Kinnoo trust checks still run first (integrity/signature checks, manifest validation, install summary diagnostics).
+- After validation, Kinnoo runs OpenClaw prechecks and delegates dependency install using:
+	- `openclaw skills install .`
+- Minimum CLI version gate is configurable:
+	- `kinnoo install <archive.kno> --openclaw-min-version 0.2.0`
+
+Deterministic delegated failure categories:
+
+- `openclaw_cli_missing`: OpenClaw CLI executable is missing from `PATH`.
+- `openclaw_cli_version_unsupported`: detected OpenClaw CLI version is below required minimum.
+- `openclaw_cli_delegated_nonzero_exit`: delegated OpenClaw command exited non-zero.
+
+Install trace behavior:
+
+- Delegated outcomes are written to `.kinnoo/install-trace.json` under the installed target directory.
+- Trace includes delegated backend metadata, minimum version, invoked command, category, and decision outcome.
+
 ## Manifest optional metadata (Feature9)
 
 `kinnoo.yaml` supports these optional fields:
@@ -139,6 +183,23 @@ Feature40 unsigned publisher warning and confirmation:
 	- `kinnoo install ... --yes --allow-unverified-publisher`
 	- using `--yes` without `--allow-unverified-publisher` aborts safely with guidance
 
+Feature72 lockfile frozen mode:
+
+- `kinnoo install --frozen` enforces lockfile-only reproducibility checks before extraction.
+- Frozen mode validates lockfile entry presence, pinned version, and archive checksum.
+- When lockfile drift is detected, install fails with deterministic remediation guidance:
+	- `Re-run install without --frozen to regenerate lockfile, then retry --frozen.`
+- Successful frozen installs leave lockfile content unchanged.
+
+Feature74 uninstall behavior:
+
+- `kinnoo uninstall <agent-name>` always requires interactive confirmation before deleting files.
+- Successful uninstall removes the target install directory and writes an uninstall trace event.
+- If lockfile metadata exists, uninstall removes the matching agent entry and rewrites lockfile state.
+- Missing target uninstall failures are deterministic and actionable:
+	- `Installed agent '<name>' was not found ...`
+	- verify install root configuration (`KINNOO_AGENT_INSTALL_ROOT`) before retrying.
+
 Unverified source warning:
 
 - If `<archive>.sha256` is missing, install prints:
@@ -258,6 +319,152 @@ Behavior:
 	- `REGISTRY_ADMIN_PASSWORD`
 	- `KINNOO_TENANT_SLUG` (or `global` if unset)
 - `false`: publish keeps current behavior (local/scratch default unless `--remote` or registry URL config is already forcing remote).
+
+## Feature68 CI Publish Reference Workflow
+
+Kinnoo includes a reference workflow at `.github/workflows/kinnoo-publish.yml` for automation pipelines.
+
+Pipeline stages:
+
+- install dependencies
+- preflight compatibility check (`kinnoo check`)
+- pack archive (`kinnoo pack`)
+- publish to remote registry (`kinnoo publish --remote`)
+
+Required secrets/environment contract:
+
+- `KINNOO_REGISTRY_URL`
+- `KINNOO_REGISTRY_TOKEN`
+- `KINNOO_TENANT_SLUG`
+
+Strict-mode compatibility control:
+
+- `KINNOO_CI_STRICT_MODE=1` enables strict publish flags in the reference workflow when strict mode is available.
+
+Security notes:
+
+- Never commit credentials into repository files or workflow YAML.
+- Keep registry auth values in GitHub Actions Secrets only.
+- The workflow uses fail-fast shell settings (`set -euo pipefail`) so errors terminate with deterministic non-zero exits.
+
+Troubleshooting common CI failures:
+
+- Missing secrets: ensure `KINNOO_REGISTRY_URL`, `KINNOO_REGISTRY_TOKEN`, and `KINNOO_TENANT_SLUG` are configured in repo Actions Secrets.
+- Preflight failures: run `python3 src/kinnoo/cli.py check <agent-dir>` locally to reproduce manifest/runtime contract issues.
+- Signing failures (if your pipeline enables signing): verify the private signing key path is available to the runner and referenced by your signing step.
+- Publish failures: verify token scope and tenant mapping, then retry with explicit remote mode (`kinnoo publish --remote`) for deterministic behavior.
+
+Strict rollout guidance:
+
+- Start with `KINNOO_CI_STRICT_MODE=0` while validating signature coverage for all publish paths.
+- Move to required gate mode by setting `KINNOO_CI_STRICT_MODE=1` and enforcing `publish --strict` in protected-branch workflows.
+- In strict mode, unsigned artifacts fail closed and must be re-packed with `kinnoo pack --sign`.
+
+## Feature69 kinnoo test command
+
+Kinnoo includes a standardized declarative test runner for agent projects.
+
+Canonical test file:
+
+- `kinnoo.tests.yaml`
+
+CLI usage:
+
+- `kinnoo test ./my-agent`
+- `kinnoo test ./my-agent --json`
+- `kinnoo test ./my-agent --validate-only`
+
+Minimal Python one-shot example:
+
+```yaml
+version: 1
+tests:
+	- id: smoke-oneshot
+		name: one-shot response smoke test
+		input: hello
+		assertions:
+			- contains: hello
+		timeout_seconds: 5
+		expected_exit_code: 0
+```
+
+JS/TS daemon-compatible example:
+
+```yaml
+version: 1
+tests:
+	- id: smoke-daemon
+		name: daemon-compatible response smoke test
+		input: ping
+		assertions:
+			- contains: pong
+		timeout_seconds: 10
+		expected_exit_code: 0
+```
+
+Notes:
+
+- one-shot and daemon-compatible runtimes use the same assertion contract, so CI summaries stay consistent.
+- prefer deterministic output assertions (`contains`, `equals`, `regex`) over broad semantic checks.
+
+## Feature70 phase6 command matrix and provenance messaging
+
+Phase 6 command matrix (high-signal operational commands):
+
+- `kinnoo login`
+- `kinnoo logout`
+- `kinnoo list --remote`
+- `kinnoo search <query> --remote`
+- `kinnoo import --source clawhub <owner>/<slug>`
+- `kinnoo sync clawhub`
+- `kinnoo check <agent-dir>`
+- `kinnoo test <agent-dir>`
+- `kinnoo pack <agent-dir>`
+- `kinnoo publish <agent-name> --remote`
+
+ClawHub mirror attribution model:
+
+- mirrored records are written under tenant slug `clawhub`
+- source provenance stays explicit via source registry metadata and mirror attribution fields
+- operators can verify that mirrored entries and local sync behavior reference the same `clawhub` tenant model
+
+Phase 6 forward command references (consistency contract):
+
+- strict trust mode: `kinnoo install --strict` and `kinnoo publish --strict`
+- lockfile reproducibility: `kinnoo install --frozen`
+- archive compare: `kinnoo diff <a.kno> <b.kno>`
+- uninstall flow: `kinnoo uninstall <agent-name>`
+- framework adapters: `kinnoo import --from langchain|langgraph|openai`
+
+## Registry Login and Logout
+
+`kinnoo login` and `kinnoo logout` manage local registry auth state for CLI registry workflows.
+
+Usage:
+
+- Interactive login:
+	- `kinnoo login`
+- Non-interactive login:
+	- `kinnoo login --email user@example.com --password '<password>'`
+- Logout:
+	- `kinnoo logout`
+
+Persistence and precedence:
+
+- Successful login persists `registry_url`, `registry_token`, and `tenant_slug` in `~/.kinnoo/config.yaml`.
+- Login resolves registry URL from (in order): `KINNOO_REGISTRY_URL`, existing config value, then default `https://registry.kinnoo.ai`.
+- Tenant slug is derived from authenticated identity/token claims; users do not need to pass `--tenant`.
+- `kinnoo logout` clears persisted auth keys from `~/.kinnoo/config.yaml`.
+- Environment variables remain highest precedence over file config:
+	- `KINNOO_REGISTRY_URL`
+	- `KINNOO_REGISTRY_TOKEN`
+	- `KINNOO_TENANT_SLUG`
+- After logout, registry operations requiring auth fail unless explicit env-var overrides are provided.
+
+Security notes:
+
+- Kinnoo never prints tokens or passwords in CLI output.
+- Prefer environment variables for CI/non-interactive auth flows.
 
 Notes:
 
