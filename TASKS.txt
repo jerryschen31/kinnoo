@@ -8275,7 +8275,7 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task413]
     tests: [test572, test573]
-    status: not-started
+    status: needs-review
 
   - id: task415
     title: "Implement user management CLI commands (create, list, reset-password, unlock, delete)"
