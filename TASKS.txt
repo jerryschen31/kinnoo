@@ -7795,7 +7795,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task384]
     tests: [test543, test544]
-    status: not-started
+    status: needs-review
 
   - id: task386
     title: "Add install-time integrity and signature verification (--strict, --skip-verify)"
