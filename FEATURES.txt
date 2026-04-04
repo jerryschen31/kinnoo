@@ -3070,7 +3070,7 @@ features:
       data, and internal references. Create CONTRIBUTING.md, CODE_OF_CONDUCT.md.
       Update LICENSE if needed. Create issue and PR templates. Ensure .gitignore
       covers all generated files. Remove or redact any internal-only content.
-    tasks: [task404, task405]
+    tasks: [task404, task405, task447]
     acceptance_criteria:
       - id: AC1
         description: "No secrets, API keys, or passwords present in any tracked file."
@@ -3132,7 +3132,7 @@ features:
       correct metadata (name, version, description, author, license, classifiers,
       URLs). Set up trusted publisher in PyPI for GitHub Actions. Create
       .github/workflows/pypi-publish.yml triggered on release tags.
-    tasks: [task408, task409]
+    tasks: [task408, task409, task443]
     acceptance_criteria:
       - id: AC1
         description: "pyproject.toml has complete PyPI metadata (name, version, description, author, license, classifiers, project-urls)."
@@ -3270,7 +3270,7 @@ features:
       state bootstrap module (S3 bucket + DynamoDB table for state locking).
       Create the VPC module with public subnets (2 AZs), security groups, and
       VPC endpoints for S3 (gateway) and ECR (interface). No NAT Gateway.
-    tasks: [task417, task418]
+    tasks: [task417, task418, task441]
     acceptance_criteria:
       - id: AC1
         description: "iac/ directory exists with: versions.tf, providers.tf, variables.tf, outputs.tf, locals.tf, main.tf."
@@ -3380,7 +3380,7 @@ features:
       dev.kinnoo.ai CNAME to Cloudflare Pages, dev-api.kinnoo.ai CNAME to ALB.
       (2) Cloudflare Pages project for Next.js static export. (3) ACM validation
       CNAME records in Cloudflare.
-    tasks: [task425, task426]
+    tasks: [task425, task426, task442]
     acceptance_criteria:
       - id: AC1
         description: "iac/modules/cloudflare/ creates DNS records for dev.kinnoo.ai and dev-api.kinnoo.ai."
@@ -3478,7 +3478,7 @@ features:
       email, log the request and fire an SNS notification to Jerry. Jerry then
       uses the admin CLI to reset the password manually. No automated email
       sending — this is a manual workflow for the invite-only beta.
-    tasks: [task431, task432]
+    tasks: [task431, task432, task444]
     acceptance_criteria:
       - id: AC1
         description: "POST /forgot-password accepts email parameter."
@@ -3577,7 +3577,7 @@ features:
       and provide content for beta users. Validate that each agent can be found
       via search, installed, and run successfully. Document the seeding process
       for future use.
-    tasks: [task437, task438]
+    tasks: [task437, task438, task445]
     acceptance_criteria:
       - id: AC1
         description: "At least 3 agents published to the registry covering different frameworks."
@@ -3604,7 +3604,7 @@ features:
       are operational before opening the beta. Covers: infrastructure health,
       security review, documentation completeness, CI/CD validation, monitoring
       alerts, and sample user onboarding walkthrough.
-    tasks: [task439, task440]
+    tasks: [task439, task440, task446]
     acceptance_criteria:
       - id: AC1
         description: "docs/launch-checklist.md exists with categorized checklist items."
