@@ -52,13 +52,14 @@ def publish_archive(
     max_size_bytes = max_upload_mb * 1024 * 1024
     if len(archive_bytes) > max_size_bytes:
         return PublishResult(
-            status_code=400,
+            status_code=413,
             body={"error": f"archive exceeds max upload size ({max_upload_mb} MB)"},
         )
 
-    manifest = _load_manifest_from_archive(archive_bytes)
-    if manifest is None:
-        return PublishResult(status_code=400, body={"error": "archive missing valid kinnoo.yaml"})
+    manifest, validation_error = _validate_archive_and_manifest(archive_bytes)
+    if validation_error is not None:
+        return PublishResult(status_code=validation_error[0], body={"error": validation_error[1]})
+    assert manifest is not None
 
     agent_slug = str(manifest.get("name", "")).strip()
     version = str(manifest.get("version", "")).strip()
@@ -176,16 +177,29 @@ def create_publish_router(
     return router
 
 
-def _load_manifest_from_archive(archive_bytes: bytes) -> dict[str, object] | None:
+def _validate_archive_and_manifest(
+    archive_bytes: bytes,
+) -> tuple[dict[str, object] | None, tuple[int, str] | None]:
     try:
         with zipfile.ZipFile(BytesIO(archive_bytes), "r") as archive:
             if "kinnoo.yaml" not in archive.namelist():
-                return None
+                return None, (400, "archive is missing required file: kinnoo.yaml")
             raw_manifest = archive.read("kinnoo.yaml").decode("utf-8")
             parsed = yaml.safe_load(raw_manifest)
-    except (zipfile.BadZipFile, OSError, UnicodeDecodeError, yaml.YAMLError):
-        return None
+    except zipfile.BadZipFile:
+        return None, (400, "uploaded file is not a valid zip archive")
+    except (OSError, UnicodeDecodeError, yaml.YAMLError):
+        return None, (400, "kinnoo.yaml is invalid or unreadable")
 
     if not isinstance(parsed, dict):
-        return None
-    return parsed
+        return None, (400, "kinnoo.yaml must be a mapping")
+
+    missing_fields = []
+    for field_name in ("name", "version", "framework"):
+        value = parsed.get(field_name)
+        if not isinstance(value, str) or not value.strip():
+            missing_fields.append(field_name)
+    if missing_fields:
+        return None, (400, f"kinnoo.yaml missing required field(s): {', '.join(missing_fields)}")
+
+    return parsed, None
