@@ -8294,7 +8294,7 @@ tasks:
       - 'step6: Write or update tests and verify locally with pytest'
     dependencies: [task412]
     tests: [test574, test575]
-    status: not-started
+    status: needs-review
 
   - id: task416
     title: "Implement invite token CLI commands (create, list) with input validation"
