@@ -3257,7 +3257,7 @@ features:
       - "Operates directly on the auth store file (no HTTP API needed)"
     owner: swe-agent
     dependencies: [feature100]
-    status: not-started
+    status: needs-review
 
   # ──────────────────────────────────────────────────────────────
   # Phase 12: Infrastructure as Code (features 103-107)
