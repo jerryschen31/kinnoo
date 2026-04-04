@@ -4,6 +4,7 @@ import zipfile
 import os
 import json
 import hashlib
+import base64
 from pathlib import Path
 
 # Test51: kinnoo install usage error
@@ -519,6 +520,412 @@ def _make_fake_node_toolchain(bin_dir: Path) -> None:
     npm_script.chmod(0o755)
 
 
+def _create_openclaw_skill_archive(tmp_path: Path, agent_name: str = "feature65-openclaw-skill") -> Path:
+    archive_path = tmp_path / f"{agent_name}.kno"
+    manifest = (
+        f"name: {agent_name}\n"
+        "version: 1.0.0\n"
+        "type: openclaw-skill\n"
+        "framework: openclaw\n"
+        "entrypoint: index.js\n"
+        "runtime:\n"
+        "  type: daemon\n"
+        "  language: nodejs\n"
+        "  version: \">=20.0.0\"\n"
+        "dependencies: []\n"
+        "inputs:\n"
+        "  type: text\n"
+        "outputs:\n"
+        "  type: text\n"
+        "provenance:\n"
+        "  source_registry: clawhub\n"
+        "  source_slug: sample/skill\n"
+        "  source_version: 1.0.0\n"
+    )
+    with zipfile.ZipFile(archive_path, "w") as archive:
+        archive.writestr("kinnoo.yaml", manifest)
+        archive.writestr("index.js", "console.log('openclaw-skill')\n")
+    return archive_path
+
+
+def _make_fake_openclaw_cli(bin_dir: Path, *, version: str = "2026.3.31") -> Path:
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    openclaw_script = bin_dir / "openclaw"
+    openclaw_script.write_text(
+        "#!/bin/sh\n"
+        "if [ -n \"$KINNOO_TEST_OPENCLAW_ARGS_LOG\" ]; then\n"
+        "  printf '%s\\n' \"$*\" >> \"$KINNOO_TEST_OPENCLAW_ARGS_LOG\"\n"
+        "fi\n"
+        "case \"$1\" in\n"
+        "  --version)\n"
+        f"    echo openclaw {version}\n"
+        "    exit 0\n"
+        "    ;;\n"
+        "  agents)\n"
+        "    if [ \"$2\" = \"list\" ]; then\n"
+        "      echo '[]'\n"
+        "      exit 0\n"
+        "    fi\n"
+        "    if [ \"$2\" = \"add\" ]; then\n"
+        "      echo delegated register ok\n"
+        "      exit 0\n"
+        "    fi\n"
+        "    ;;\n"
+        "esac\n"
+        "echo unsupported openclaw invocation >&2\n"
+        "exit 2\n",
+        encoding="utf-8",
+    )
+    openclaw_script.chmod(0o755)
+    return openclaw_script
+
+
+def test_feature65_delegated_install_with_prechecks(tmp_path):
+    archive_path = _create_openclaw_skill_archive(tmp_path)
+    isolated_env = dict(os.environ)
+    isolated_env["PATH"] = ""
+    isolated_env["HOME"] = str(tmp_path)
+
+    missing_cli_target = tmp_path / "feature65-openclaw-missing-cli"
+    missing_cli_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            str(archive_path),
+            str(missing_cli_target),
+            "--yes",
+        ],
+        capture_output=True,
+        text=True,
+        env=isolated_env,
+    )
+    missing_cli_output = f"{missing_cli_result.stdout}\n{missing_cli_result.stderr}"
+    assert missing_cli_result.returncode != 0, missing_cli_output
+    assert "OpenClaw CLI not found in PATH" in missing_cli_output
+    assert "openclaw preflight failed" in missing_cli_output
+
+    fake_bin = tmp_path / "fake-openclaw-bin"
+    _make_fake_openclaw_cli(fake_bin, version="2026.3.31")
+    invocation_log = tmp_path / "openclaw-invocations.log"
+
+    delegated_env = dict(os.environ)
+    delegated_env["PATH"] = f"{fake_bin}{os.pathsep}{delegated_env.get('PATH', '')}"
+    delegated_env["HOME"] = str(tmp_path)
+    delegated_env["KINNOO_TEST_OPENCLAW_ARGS_LOG"] = str(invocation_log)
+
+    delegated_target = tmp_path / "feature65-openclaw-delegated"
+    delegated_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            str(archive_path),
+            str(delegated_target),
+            "--yes",
+            "--openclaw-min-version",
+            "0.2.0",
+        ],
+        capture_output=True,
+        text=True,
+        env=delegated_env,
+    )
+    delegated_output = f"{delegated_result.stdout}\n{delegated_result.stderr}"
+    assert delegated_result.returncode == 0, delegated_output
+    assert "Delegating workspace registration to OpenClaw CLI" in delegated_output
+    assert "Workspace registration completed successfully" in delegated_output
+
+    invocations = invocation_log.read_text(encoding="utf-8").splitlines()
+    assert "--version" in invocations
+    assert "agents add feature65-openclaw-skill --workspace" in "\n".join(invocations)
+
+    delegated_workspace = tmp_path / ".openclaw" / "workspace-feature65-openclaw-skill"
+    trace_path = delegated_workspace / ".kinnoo" / "install-trace.json"
+    assert trace_path.exists(), delegated_output
+    trace_payload = json.loads(trace_path.read_text(encoding="utf-8"))
+    assert trace_payload["delegated_install"]["backend"] == "openclaw-cli"
+    assert trace_payload["delegated_install"]["minimum_version"] == "0.2.0"
+    assert trace_payload["delegated_install"]["agent"] == "feature65-openclaw-skill"
+    assert trace_payload["delegated_install"]["workspace"] == str(delegated_workspace)
+    assert trace_payload["decision"] == {
+        "outcome": "allowed",
+        "category": "openclaw_cli_delegated_success",
+        "reason": "openclaw_cli_delegated_install_succeeded",
+        "delegated_exit_code": 0,
+    }
+
+
+def test_feature80_openclaw_workspace_conflict_diagnostics(tmp_path):
+    archive_path = _create_openclaw_skill_archive(tmp_path, agent_name="feature80-conflict")
+    fake_bin = tmp_path / "fake-openclaw-bin-conflict"
+    _make_fake_openclaw_cli(fake_bin, version="2026.3.31")
+
+    existing_workspace = tmp_path / ".openclaw" / "workspace-feature80-conflict"
+    existing_workspace.mkdir(parents=True, exist_ok=True)
+
+    env = dict(os.environ)
+    env["PATH"] = f"{fake_bin}{os.pathsep}{env.get('PATH', '')}"
+    env["HOME"] = str(tmp_path)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            str(archive_path),
+            "--yes",
+            "--openclaw-min-version",
+            "0.2.0",
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode != 0, output
+    assert "OpenClaw workspace already exists" in output
+    assert "Re-run with --force" in output
+
+
+def test_feature83_skill_install_existing_agent_slug_and_url(tmp_path):
+    fake_bin = tmp_path / "feature83-openclaw-bin"
+    fake_bin.mkdir(parents=True, exist_ok=True)
+    invocation_log = tmp_path / "feature83-openclaw-invocations.log"
+    workspace_path = tmp_path / ".openclaw" / "workspace-feature83-existing"
+    workspace_path.mkdir(parents=True, exist_ok=True)
+
+    openclaw_script = fake_bin / "openclaw"
+    openclaw_script.write_text(
+        "#!/bin/sh\n"
+        "if [ -n \"$KINNOO_TEST_OPENCLAW_ARGS_LOG\" ]; then\n"
+        "  printf '%s\\n' \"$*\" >> \"$KINNOO_TEST_OPENCLAW_ARGS_LOG\"\n"
+        "fi\n"
+        "if [ \"$1\" = \"--version\" ]; then\n"
+        "  echo openclaw 2026.3.31\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"gateway\" ] && [ \"$2\" = \"status\" ] && [ \"$3\" = \"--require-rpc\" ]; then\n"
+        "  echo gateway healthy\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"agents\" ] && [ \"$2\" = \"list\" ]; then\n"
+        f"  echo '[{{\"id\":\"feature83-existing\",\"workspace\":\"{workspace_path}\"}}]'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"skills\" ] && [ \"$2\" = \"install\" ]; then\n"
+        "  echo delegated skill install ok\n"
+        "  exit 0\n"
+        "fi\n"
+        "echo unsupported invocation >&2\n"
+        "exit 2\n",
+        encoding="utf-8",
+    )
+    openclaw_script.chmod(0o755)
+
+    env = dict(os.environ)
+    env["PATH"] = f"{fake_bin}{os.pathsep}{env.get('PATH', '')}"
+    env["KINNOO_TEST_OPENCLAW_ARGS_LOG"] = str(invocation_log)
+
+    slug_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            "feature83-existing",
+            "--openclaw-skill",
+            "owner/skill-slug",
+            "--yes",
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert slug_result.returncode == 0, slug_result.stdout + slug_result.stderr
+
+    url_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            "feature83-existing",
+            "--openclaw-skill",
+            "https://clawhub.ai/owner/skill-slug",
+            "--yes",
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert url_result.returncode == 0, url_result.stdout + url_result.stderr
+
+    invocations = invocation_log.read_text(encoding="utf-8")
+    assert "agents list" in invocations
+    assert f"skills install owner/skill-slug --workspace {workspace_path}" in invocations
+    assert invocations.count(f"skills install owner/skill-slug --workspace {workspace_path}") >= 2
+
+
+def test_feature83_missing_agent_preflight_and_outcome_diagnostics(tmp_path):
+    fake_bin = tmp_path / "feature83-openclaw-diagnostics-bin"
+    fake_bin.mkdir(parents=True, exist_ok=True)
+    invocation_log = tmp_path / "feature83-openclaw-diagnostics.log"
+    workspace_path = tmp_path / ".openclaw" / "workspace-feature83-diagnostics"
+    workspace_path.mkdir(parents=True, exist_ok=True)
+
+    openclaw_script = fake_bin / "openclaw"
+    openclaw_script.write_text(
+        "#!/bin/sh\n"
+        "if [ -n \"$KINNOO_TEST_OPENCLAW_ARGS_LOG\" ]; then\n"
+        "  printf '%s\\n' \"$*\" >> \"$KINNOO_TEST_OPENCLAW_ARGS_LOG\"\n"
+        "fi\n"
+        "if [ \"$1\" = \"--version\" ]; then\n"
+        "  echo openclaw 2026.3.31\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"gateway\" ] && [ \"$2\" = \"status\" ] && [ \"$3\" = \"--require-rpc\" ]; then\n"
+        "  if [ \"$KINNOO_TEST_OPENCLAW_GATEWAY_DOWN\" = \"1\" ]; then\n"
+        "    echo gateway unavailable >&2\n"
+        "    exit 6\n"
+        "  fi\n"
+        "  echo gateway healthy\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"agents\" ] && [ \"$2\" = \"list\" ]; then\n"
+        "  if [ -n \"$KINNOO_TEST_OPENCLAW_AGENTS_JSON\" ]; then\n"
+        "    echo \"$KINNOO_TEST_OPENCLAW_AGENTS_JSON\"\n"
+        "  else\n"
+        "    echo '[]'\n"
+        "  fi\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"skills\" ] && [ \"$2\" = \"install\" ]; then\n"
+        "  if [ \"$KINNOO_TEST_OPENCLAW_SKILL_OUTCOME\" = \"already\" ]; then\n"
+        "    echo already installed\n"
+        "    exit 0\n"
+        "  fi\n"
+        "  if [ \"$KINNOO_TEST_OPENCLAW_SKILL_OUTCOME\" = \"not-found\" ]; then\n"
+        "    echo skill not found >&2\n"
+        "    exit 3\n"
+        "  fi\n"
+        "  echo skill install success\n"
+        "  exit 0\n"
+        "fi\n"
+        "echo unsupported invocation >&2\n"
+        "exit 2\n",
+        encoding="utf-8",
+    )
+    openclaw_script.chmod(0o755)
+
+    env = dict(os.environ)
+    env["PATH"] = f"{fake_bin}{os.pathsep}{env.get('PATH', '')}"
+    env["KINNOO_TEST_OPENCLAW_ARGS_LOG"] = str(invocation_log)
+
+    missing_agent_env = dict(env)
+    missing_agent_env["KINNOO_TEST_OPENCLAW_AGENTS_JSON"] = "[]"
+    missing_agent_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            "feature83-missing",
+            "--openclaw-skill",
+            "owner/missing-skill",
+            "--yes",
+        ],
+        capture_output=True,
+        text=True,
+        env=missing_agent_env,
+    )
+    missing_agent_output = f"{missing_agent_result.stdout}\n{missing_agent_result.stderr}"
+    assert missing_agent_result.returncode != 0
+    assert "Create/register the agent first and retry" in missing_agent_output
+
+    preflight_fail_env = dict(env)
+    preflight_fail_env["KINNOO_TEST_OPENCLAW_GATEWAY_DOWN"] = "1"
+    preflight_fail_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            "feature83-diagnostics",
+            "--openclaw-skill",
+            "owner/skill-a",
+            "--yes",
+        ],
+        capture_output=True,
+        text=True,
+        env=preflight_fail_env,
+    )
+    preflight_fail_output = f"{preflight_fail_result.stdout}\n{preflight_fail_result.stderr}"
+    assert preflight_fail_result.returncode != 0
+    assert "category=openclaw_gateway_unhealthy" in preflight_fail_output
+
+    success_env = dict(env)
+    success_env["KINNOO_TEST_OPENCLAW_AGENTS_JSON"] = (
+        f"[{{\"id\":\"feature83-diagnostics\",\"workspace\":\"{workspace_path}\"}}]"
+    )
+    success_env["KINNOO_TEST_OPENCLAW_SKILL_OUTCOME"] = "success"
+    success_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            "feature83-diagnostics",
+            "--openclaw-skill",
+            "https://clawhub.ai/owner/skill-a",
+            "--yes",
+        ],
+        capture_output=True,
+        text=True,
+        env=success_env,
+    )
+    success_output = f"{success_result.stdout}\n{success_result.stderr}"
+    assert success_result.returncode == 0, success_output
+    assert "outcome=success" in success_output
+
+    already_env = dict(success_env)
+    already_env["KINNOO_TEST_OPENCLAW_SKILL_OUTCOME"] = "already"
+    already_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            "feature83-diagnostics",
+            "--openclaw-skill",
+            "owner/skill-a",
+            "--yes",
+        ],
+        capture_output=True,
+        text=True,
+        env=already_env,
+    )
+    already_output = f"{already_result.stdout}\n{already_result.stderr}"
+    assert already_result.returncode == 0, already_output
+    assert "outcome=already-installed" in already_output
+
+    not_found_env = dict(success_env)
+    not_found_env["KINNOO_TEST_OPENCLAW_SKILL_OUTCOME"] = "not-found"
+    not_found_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            "feature83-diagnostics",
+            "--openclaw-skill",
+            "owner/skill-a",
+            "--yes",
+        ],
+        capture_output=True,
+        text=True,
+        env=not_found_env,
+    )
+    not_found_output = f"{not_found_result.stdout}\n{not_found_result.stderr}"
+    assert not_found_result.returncode != 0
+    assert "category=openclaw_skill_not_found" in not_found_output
+
+    invocations = invocation_log.read_text(encoding="utf-8")
+    assert f"skills install owner/skill-a --workspace {workspace_path}" in invocations
+
+
 def test_feature37_node_audit_severity_summary(tmp_path):
     node_archive = _create_node_archive(tmp_path)
     node_target_dir = tmp_path / "feature37-node-installed"
@@ -884,3 +1291,262 @@ def test_feature40_unsigned_archive_warning_and_confirmation(tmp_path):
     assert "UNVERIFIED PUBLISHER" in override_output
     assert "Unverified publisher override acknowledged" in override_output
     assert override_target_dir.exists(), override_output
+
+
+def test_feature71_strict_install_enforcement(tmp_path: Path) -> None:
+    from src.kinnoo.signing import create_detached_signature_artifacts, generate_ed25519_keypair
+
+    manifest = (
+        "name: strict-install-agent\n"
+        "version: 1.0.0\n"
+        "entrypoint: run.py\n"
+        "runtime:\n"
+        "  type: one-shot\n"
+        "  language: python\n"
+        "  version: \"3.10\"\n"
+        "dependencies: []\n"
+        "inputs:\n"
+        "  type: string\n"
+        "outputs:\n"
+        "  type: string\n"
+    )
+
+    unsigned_archive = tmp_path / "strict-unsigned.kno"
+    with zipfile.ZipFile(unsigned_archive, "w") as archive:
+        archive.writestr("kinnoo.yaml", manifest)
+        archive.writestr("run.py", "print('ok')\n")
+
+    unsigned_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            str(unsigned_archive),
+            str(tmp_path / "unsigned-target"),
+            "--yes",
+            "--strict",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    unsigned_output = f"{unsigned_result.stdout}\n{unsigned_result.stderr}"
+    assert unsigned_result.returncode != 0
+    assert "Strict mode requires archive integrity verification" in unsigned_output
+
+    private_key_path = tmp_path / "strict-private.pem"
+    public_key_path = tmp_path / "strict-public.pem"
+    generate_ed25519_keypair(private_key_path=private_key_path, public_key_path=public_key_path)
+
+    invalid_archive = tmp_path / "strict-invalid-signature.kno"
+    with zipfile.ZipFile(invalid_archive, "w") as archive:
+        archive.writestr("kinnoo.yaml", manifest)
+        archive.writestr("run.py", "print('ok')\n")
+
+    digest = hashlib.sha256(invalid_archive.read_bytes()).hexdigest()
+    Path(f"{invalid_archive}.sha256").write_text(
+        f"{digest}  {invalid_archive.name}\n",
+        encoding="utf-8",
+    )
+
+    create_detached_signature_artifacts(
+        archive_path=invalid_archive,
+        private_key_path=private_key_path,
+    )
+    signature_metadata_path = Path(f"{invalid_archive}.sig.json")
+    metadata = json.loads(signature_metadata_path.read_text(encoding="utf-8"))
+    metadata["signature_base64"] = base64.b64encode(b"strict-invalid-signature").decode("ascii")
+    signature_metadata_path.write_text(
+        json.dumps(metadata, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    invalid_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            str(invalid_archive),
+            str(tmp_path / "invalid-target"),
+            "--yes",
+            "--strict",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    invalid_output = f"{invalid_result.stdout}\n{invalid_result.stderr}"
+    assert invalid_result.returncode != 0
+    assert "Strict mode requires valid signature metadata" in invalid_output
+
+    strict_override_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            str(invalid_archive),
+            str(tmp_path / "override-target"),
+            "--yes",
+            "--strict",
+            "--allow-unverified-publisher",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    strict_override_output = f"{strict_override_result.stdout}\n{strict_override_result.stderr}"
+    assert strict_override_result.returncode != 0
+    assert "cannot be used with --strict" in strict_override_output
+
+
+def test_feature72_frozen_install_and_docs(tmp_path: Path) -> None:
+    archive_path = tmp_path / "frozen-agent.kno"
+    manifest = (
+        "name: frozen-agent\n"
+        "version: 1.2.3\n"
+        "entrypoint: run.py\n"
+        "runtime:\n"
+        "  type: one-shot\n"
+        "  language: python\n"
+        "  version: \"3.10\"\n"
+        "dependencies: []\n"
+        "inputs:\n"
+        "  type: string\n"
+        "outputs:\n"
+        "  type: string\n"
+    )
+
+    with zipfile.ZipFile(archive_path, "w") as archive:
+        archive.writestr("kinnoo.yaml", manifest)
+        archive.writestr("run.py", "print('frozen')\n")
+        archive.writestr("requirements.txt", "")
+
+    lockfile_path = tmp_path / "kinnoo-lock.yaml"
+    archive_checksum = hashlib.sha256(archive_path.read_bytes()).hexdigest()
+    lockfile_path.write_text(
+        (
+            "lock_version: 1\n"
+            "locked_at: 2026-03-30T00:00:00Z\n"
+            "platform:\n"
+            "  python: 3.12.0\n"
+            "  os: darwin-arm64\n"
+            "agents:\n"
+            "  frozen-agent:\n"
+            "    version: 1.2.3\n"
+            "    source: archive-file\n"
+            f"    archive_sha256: {archive_checksum}\n"
+            "    installed_at: 2026-03-30T00:00:00Z\n"
+        ),
+        encoding="utf-8",
+    )
+    original_lockfile_text = lockfile_path.read_text(encoding="utf-8")
+
+    install_env = dict(os.environ)
+    install_env["KINNOO_LOCKFILE_PATH"] = str(lockfile_path)
+
+    frozen_ok_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            str(archive_path),
+            str(tmp_path / "frozen-target-ok"),
+            "--yes",
+            "--frozen",
+        ],
+        capture_output=True,
+        text=True,
+        env=install_env,
+    )
+    frozen_ok_output = f"{frozen_ok_result.stdout}\n{frozen_ok_result.stderr}"
+    assert frozen_ok_result.returncode == 0, frozen_ok_output
+    assert "Frozen lockfile check passed for 'frozen-agent'" in frozen_ok_output
+    assert "Frozen mode active; lockfile left unchanged." in frozen_ok_output
+    assert lockfile_path.read_text(encoding="utf-8") == original_lockfile_text
+
+    lockfile_path.write_text(
+        (
+            "lock_version: 1\n"
+            "locked_at: 2026-03-30T00:00:00Z\n"
+            "platform:\n"
+            "  python: 3.12.0\n"
+            "  os: darwin-arm64\n"
+            "agents:\n"
+            "  frozen-agent:\n"
+            "    version: 9.9.9\n"
+            "    source: archive-file\n"
+            f"    archive_sha256: {archive_checksum}\n"
+            "    installed_at: 2026-03-30T00:00:00Z\n"
+        ),
+        encoding="utf-8",
+    )
+
+    frozen_drift_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            str(archive_path),
+            str(tmp_path / "frozen-target-drift"),
+            "--yes",
+            "--frozen",
+        ],
+        capture_output=True,
+        text=True,
+        env=install_env,
+    )
+    frozen_drift_output = f"{frozen_drift_result.stdout}\n{frozen_drift_result.stderr}"
+    assert frozen_drift_result.returncode != 0
+    assert "Frozen lock mismatch for agent 'frozen-agent'" in frozen_drift_output
+    assert "Re-run install without --frozen to regenerate lockfile" in frozen_drift_output
+
+    repo_root = Path(__file__).resolve().parents[1]
+    readme_text = (repo_root / "README.md").read_text(encoding="utf-8")
+    assert "kinnoo install --frozen" in readme_text
+    assert "Re-run install without --frozen to regenerate lockfile" in readme_text
+
+
+def test_feature74_uninstall_confirmation_and_removal(tmp_path: Path) -> None:
+    install_root = tmp_path / "agents-root"
+    agent_dir = install_root / "feature74-agent"
+    venv_marker = agent_dir / ".venv" / "pyvenv.cfg"
+    run_file = agent_dir / "run.py"
+
+    run_file.parent.mkdir(parents=True, exist_ok=True)
+    venv_marker.parent.mkdir(parents=True, exist_ok=True)
+    run_file.write_text("print('installed')\n", encoding="utf-8")
+    venv_marker.write_text("home = /mock/python\n", encoding="utf-8")
+
+    uninstall_env = dict(os.environ)
+    uninstall_env["KINNOO_AGENT_INSTALL_ROOT"] = str(install_root)
+
+    denied = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "uninstall",
+            "feature74-agent",
+        ],
+        input="n\n",
+        capture_output=True,
+        text=True,
+        env=uninstall_env,
+    )
+    denied_output = f"{denied.stdout}\n{denied.stderr}"
+    assert denied.returncode != 0, denied_output
+    assert "Uninstall aborted by user." in denied_output
+    assert agent_dir.exists(), "Reject path must preserve installed artifacts"
+
+    accepted = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "uninstall",
+            "feature74-agent",
+        ],
+        input="y\n",
+        capture_output=True,
+        text=True,
+        env=uninstall_env,
+    )
+    accepted_output = f"{accepted.stdout}\n{accepted.stderr}"
+    assert accepted.returncode == 0, accepted_output
+    assert "Removed installed agent 'feature74-agent'" in accepted_output
+    assert not agent_dir.exists(), "Accepted uninstall must remove agent artifacts"

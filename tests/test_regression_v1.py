@@ -568,7 +568,7 @@ def test_feature32_daemon_health_state_regression_gate(tmp_path, monkeypatch, ca
 
 
 def test_feature33_non_openclaw_optional_nonbreaking_regression_gate(tmp_path):
-    """Regression gate: feature33 fields are optional/non-breaking for non-openclaw manifests."""
+    """Regression gate (deprecated): channels/skills/state_dirs are globally rejected by schema."""
     from kinnoo.validator import validate
 
     def _write_manifest(agent_name: str, manifest: dict) -> Path:
@@ -641,24 +641,30 @@ def test_feature33_non_openclaw_optional_nonbreaking_regression_gate(tmp_path):
         "outputs": {"type": "text"},
     }
 
-    fixtures = [
+    baseline_fixtures = [
         ("baseline_python", baseline_python),
         ("baseline_node", baseline_node),
-        ("non_openclaw_with_extensions", non_openclaw_with_extensions),
-        ("frameworkless_with_extensions", frameworkless_with_extensions),
     ]
-
-    for fixture_name, manifest_data in fixtures:
+    for fixture_name, manifest_data in baseline_fixtures:
         manifest_path = _write_manifest(fixture_name, manifest_data)
         is_valid, errors = validate(str(manifest_path))
         assert is_valid is True, (
-            f"Expected fixture {fixture_name!r} to remain valid for non-openclaw compatibility; "
-            f"errors: {errors}"
+            f"Expected baseline fixture {fixture_name!r} to remain valid; errors: {errors}"
         )
-        assert not any("framework is 'openclaw'" in message for message in errors), (
-            f"Did not expect openclaw-targeted diagnostics for fixture {fixture_name!r}; "
-            f"errors: {errors}"
+
+    extension_fixtures = [
+        ("non_openclaw_with_extensions", non_openclaw_with_extensions),
+        ("frameworkless_with_extensions", frameworkless_with_extensions),
+    ]
+    for fixture_name, manifest_data in extension_fixtures:
+        manifest_path = _write_manifest(fixture_name, manifest_data)
+        is_valid, errors = validate(str(manifest_path))
+        assert is_valid is False, (
+            f"Expected fixture {fixture_name!r} to fail due to deprecated schema fields; errors: {errors}"
         )
+        assert any("Field 'channels' is not supported" in message for message in errors)
+        assert any("Field 'skills' is not supported" in message for message in errors)
+        assert any("Field 'state_dirs' is not supported" in message for message in errors)
 
 
 def test_feature35_assets_backward_compatibility_without_state_dirs(tmp_path):
@@ -1103,10 +1109,8 @@ def test_feature38_output_format_and_secret_safety_regression_guard(tmp_path):
         env=pack_env,
     )
     pack_output = f"{pack_result.stdout}\n{pack_result.stderr}"
-    assert pack_result.returncode == 0, pack_output
-    assert "Memory snapshot security sweep warnings:" in pack_output
-    assert "memory/snapshot.json: credential-like text pattern (AWS secret key assignment)" in pack_output
-    assert "[kinnoo pack] Archive created:" in pack_output
+    assert pack_result.returncode != 0, pack_output
+    assert "Field 'state_dirs' is not supported in this schema version" in pack_output
     assert memory_secret not in pack_output
 
 

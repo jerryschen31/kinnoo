@@ -6740,4 +6740,1980 @@ tasks:
       - "step5: Run and document smoke tests in notes/tasks/task331-smoke-tests.md"
     dependencies: []
     tests: []
+    status: needs-review
+
+  - id: task332
+    title: "Feature61 login/logout CLI commands and auth state persistence"
+    type: task
+    description: |
+      Implement `kinnoo login` and `kinnoo logout` command surfaces with interactive and
+      non-interactive auth flows and secure local persistence of registry auth state,
+      using an email/password-first UX without requiring registry/tenant CLI flags.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/auth_command.py
+      - src/kinnoo/config.py
+      - src/kinnoo/publish_command.py
+    steps:
+      - 'step1: Update login/logout command wiring for interactive prompts and --email/--password automation flags'
+      - 'step2: Add token exchange call and persist auth state (token/tenant/registry) in local kinnoo config using configured/default registry endpoint'
+      - 'step3: Add logout behavior to clear persisted auth state and emit deterministic user diagnostics'
+      - 'step4: Derive tenant slug from authenticated identity/token claims and ensure publish/registry clients preserve explicit env override paths'
+    dependencies: []
+    tests: [test491]
+    status: needs-review
+
+  - id: task333
+    title: "Feature61 login/logout tests and operator documentation"
+    type: task
+    description: |
+      Add integration coverage and docs for login/logout command behavior across interactive,
+      non-interactive, and post-logout unauthorized scenarios, reflecting the
+      email/password-first login UX.
+    files:
+      - tests/test_cli_registry.py
+      - tests/test_cli.py
+      - README.md
+      - docs/CHANGELOG.md
+    steps:
+      - 'step1: Add tests for successful interactive and non-interactive login flows without registry/tenant login flags'
+      - 'step2: Add tests for logout state cleanup and downstream unauthorized behavior'
+      - 'step3: Add documentation for login prompt behavior, env interactions, and local auth state model'
+      - 'step4: Verify docs and command help text are consistent with implemented UX'
+    dependencies: [task332]
+    tests: [test492]
+    status: needs-review
+
+  - id: task334
+    title: "Feature62 openclaw-skill schema and validator extension"
+    type: task
+    description: |
+      Extend schema and validation to support `openclaw-skill` package type and a
+      `provenance` object with deterministic compatibility rules while keeping metadata
+      intentionally minimal.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+      - src/kinnoo/import_command.py
+      - docs/manifest-schema-reference.md
+    steps:
+      - 'step1: Add schema fields and enums for openclaw-skill type and `provenance` object keys'
+      - 'step2: Implement validator rules enforcing framework/type compatibility and `provenance` requirements (`source_registry`, `source_version`, and at least one of `source_slug` or `source_url`)'
+      - 'step3: Enforce minimal metadata by rejecting `channels`, `skills`, and `state_dirs` fields with deterministic guidance'
+      - 'step4: Update schema reference docs with canonical openclaw-skill examples'
+    dependencies: []
+    tests: [test493]
+    status: needs-review
+
+  - id: task335
+    title: "Feature62 schema fixture coverage and migration guidance"
+    type: task
+    description: |
+      Add positive/negative schema fixtures and migration docs so OpenClaw manifests are
+      validated consistently and legacy errors are actionable.
+    files:
+      - tests/test_validator.py
+      - tests/test_cli_import.py
+      - docs/manifest-schema-reference.md
+    steps:
+      - 'step1: Add validator fixtures for valid and invalid openclaw-skill manifests including canonical `provenance` object shapes'
+      - 'step2: Add import-path tests asserting deterministic errors on unsupported `provenance` combinations and disallowed metadata fields'
+      - 'step3: Document migration guidance for existing manifests adopting `provenance` object fields'
+      - 'step4: Verify docs examples pass schema validation'
+    dependencies: [task334]
+    tests: [test494]
+    status: needs-review
+
+  - id: task336
+    title: "Feature63 ClawHub mirror storage with clawhub tenant ownership model"
+    type: task
+    description: |
+      Implement registry mirror storage model for ClawHub metadata under admin-controlled
+      tenant slug `clawhub` with source attribution and sync metadata fields.
+    files:
+      - src/kinnoo/registry.py
+      - src/kinnoo/registry_backends.py
+      - src/kinnoo/config.py
+      - src/kinnoo/remote_client.py
+    steps:
+      - 'step1: Add mirror record model fields for source metadata and sync timestamps'
+      - 'step2: Implement upsert semantics storing mirrored records under tenant slug clawhub'
+      - 'step3: Ensure clawhub tenant is admin-controlled/public and not dependent on username/password login'
+      - 'step4: Add deterministic APIs for listing and inspecting mirrored clawhub records'
+    dependencies: [task334]
+    tests: [test495]
+    status: needs-review
+
+  - id: task337
+    title: "Feature63 mirror attribution UX and query behavior"
+    type: task
+    description: |
+      Surface mirror provenance in CLI search/inspect outputs and add coverage for idempotent
+      sync behavior across repeated ingestion cycles.
+    files:
+      - src/kinnoo/search_command.py
+      - src/kinnoo/inspect_command.py
+      - tests/test_cli_registry.py
+      - tests/test_registry.py
+    steps:
+      - 'step1: Update search/inspect output formatting to show ClawHub source attribution and sync timestamp'
+      - 'step2: Add idempotency behavior checks for repeated mirror upserts'
+      - 'step3: Ensure query filters can target mirrored clawhub namespace deterministically'
+      - 'step4: Add regression tests for provenance labels and repeated ingestion outcomes'
+    dependencies: [task336]
+    tests: [test496]
+    status: needs-review
+
+  - id: task338
+    title: "Feature64 kinnoo import source clawhub command path"
+    type: task
+    description: |
+      Implement `kinnoo import --source clawhub <slug>` path that resolves mirror metadata
+      and scaffolds canonical openclaw-skill manifests in local project directories.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/import_command.py
+      - src/kinnoo/registry.py
+      - src/kinnoo/analyzer.py
+    steps:
+      - 'step1: Add source clawhub argument parsing and slug resolution in import command'
+      - 'step2: Resolve metadata from mirror index with deterministic error handling and live-fallback option'
+      - 'step3: Scaffold openclaw-skill manifest with `provenance` object (`source_registry`, `source_version`, and `source_slug` and/or `source_url`) plus baseline requirements'
+      - 'step4: Persist local import report artifact describing inferred and unresolved fields'
+    dependencies: [task334, task336]
+    tests: [test497]
+    status: needs-review
+
+  - id: task339
+    title: "Feature64 import hinting and unresolved guidance"
+    type: task
+    description: |
+      Enhance ClawHub import results with requirement hints and deterministic unresolved
+      guidance so operators understand next steps before install/run.
+    files:
+      - src/kinnoo/import_command.py
+      - src/kinnoo/inspect_command.py
+      - tests/test_cli_import.py
+      - docs/manifest-schema-reference.md
+    steps:
+      - 'step1: Parse mirrored requirement metadata into env/config/bin hint sections'
+      - 'step2: Render unresolved guidance block with deterministic ordering and wording'
+      - 'step3: Ensure inspect output exposes imported `provenance` object fields and hint metadata clearly'
+      - 'step4: Add tests asserting guidance output and saved import report structure'
+    dependencies: [task338]
+    tests: [test498]
+    status: needs-review
+
+  - id: task340
+    title: "Feature65 delegated OpenClaw install runtime integration"
+    type: task
+    description: |
+      Implement delegated install path for openclaw-skill packages by invoking OpenClaw CLI
+      after deterministic prechecks in kinnoo install flow.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/health_check.py
+      - src/kinnoo/cli.py
+      - src/kinnoo/install_trace.py
+    steps:
+      - 'step1: Detect openclaw-skill package type during install and route to delegated backend'
+      - 'step2: Validate OpenClaw CLI availability and minimum version prior to delegation'
+      - 'step3: Execute delegated install command with structured diagnostics and trace capture'
+      - 'step4: Keep kinnoo-side validation and trust checks active around delegated flow'
+    dependencies: [task334]
+    tests: [test499]
+    status: needs-review
+
+  - id: task341
+    title: "Feature65 delegated install failure-mode handling and tests"
+    type: task
+    description: |
+      Add robust delegated install failure handling for missing OpenClaw runtime, invalid
+      versions, and backend failures with actionable operator guidance.
+    files:
+      - src/kinnoo/install_command.py
+      - tests/test_cli_install.py
+      - tests/test_install.py
+      - README.md
+    steps:
+      - 'step1: Add deterministic remediation errors for missing/unsupported OpenClaw runtime'
+      - 'step2: Add failure wrapping for delegated CLI non-zero exits with categorized diagnostics'
+      - 'step3: Add install tests for success and each failure category'
+      - 'step4: Update README install docs with delegated behavior and prerequisites'
+    dependencies: [task340]
+    tests: [test500]
+    status: needs-review
+
+  - id: task342
+    title: "Feature66 OpenClaw run adapter backend selection and flagging"
+    type: task
+    description: |
+      Implement OpenClaw run adapter v1 with backend selection logic and explicit compatibility
+      gate controls for experimental runtime behavior.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/cli.py
+      - src/kinnoo/health_check.py
+      - src/kinnoo/terminal_colors.py
+    steps:
+      - 'step1: Add openclaw-skill run routing in run command with package-type aware execution'
+      - 'step2: Implement version-aware backend selection (native skills run vs fallback path)'
+      - 'step3: Add experimental compatibility flag gating and deterministic guardrail messages'
+      - 'step4: Emit structured adapter diagnostics including selected backend and invocation details'
+    dependencies: [task340]
+    tests: [test501]
+    status: deprecated
+
+  - id: task343
+    title: "Feature66 run adapter error handling and regression tests"
+    type: task
+    description: |
+      Add comprehensive run adapter tests and failure handling for unsupported versions,
+      runtime invocation failures, and diagnostic output consistency.
+    files:
+      - src/kinnoo/run_command.py
+      - tests/test_cli.py
+      - tests/test_run_preflight.py
+      - docs/CHANGELOG.md
+    steps:
+      - 'step1: Add deterministic error paths for unsupported adapter versions and missing backend features'
+      - 'step2: Add integration tests for adapter success path and categorized failures'
+      - 'step3: Validate user-facing diagnostics include actionable next steps'
+      - 'step4: Document adapter limitations and compatibility notes in changelog/docs'
+    dependencies: [task342]
+    tests: [test502]
+    status: deprecated
+
+  - id: task344
+    title: "Feature67 sync clawhub command with incremental/full modes"
+    type: task
+    description: |
+      Implement `kinnoo sync clawhub` command with incremental and full sync strategies,
+      upsert semantics, and clawhub tenant attribution.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/sync_command.py
+      - src/kinnoo/registry.py
+      - src/kinnoo/remote_client.py
+    steps:
+      - 'step1: Add sync command parser for source selection and full/since options'
+      - 'step2: Implement incremental/full sync orchestration and clawhub-tenant upsert writes'
+      - 'step3: Add deterministic counts for created updated skipped and failed records'
+      - 'step4: Preserve source attribution metadata across sync updates'
+    dependencies: [task336]
+    tests: [test503]
     status: completed
+
+  - id: task345
+    title: "Feature67 sync resilience, rate control, and diagnostics"
+    type: task
+    description: |
+      Add sync resilience controls (rate limiting/backoff/error classification) and
+      user-facing diagnostics for operational safety.
+    files:
+      - src/kinnoo/sync_command.py
+      - src/kinnoo/logging_utils.py
+      - tests/test_cli_registry_modes.py
+      - tests/test_registry.py
+    steps:
+      - 'step1: Add polite fetch policy and retry/backoff for transient upstream failures'
+      - 'step2: Add deterministic failure category summaries in sync output'
+      - 'step3: Ensure failed records do not corrupt existing mirror state'
+      - 'step4: Add tests for unavailable upstream and partial-failure sync behavior'
+    dependencies: [task344]
+    tests: [test504]
+    status: completed
+
+  - id: task346
+    title: "Feature68 GitHub Actions reference workflow and env contract"
+    type: task
+    description: |
+      Add official GitHub Actions workflow for kinnoo publish pipelines and define required
+      environment/secrets contract for registry auth and strict trust behavior.
+    files:
+      - .github/workflows/kinnoo-publish.yml
+      - README.md
+      - docs/CHANGELOG.md
+      - docs/manifest-schema-reference.md
+    steps:
+      - 'step1: Add reference workflow stages for install preflight pack and publish'
+      - 'step2: Document required env vars and secrets for registry auth and strict CI mode'
+      - 'step3: Ensure workflow demonstrates deterministic non-zero failure handling'
+      - 'step4: Add docs links and operator guidance for setup and troubleshooting'
+    dependencies: [task332]
+    tests: [test505]
+    status: completed
+
+  - id: task347
+    title: "Feature68 CI workflow regression checks and docs validation"
+    type: task
+    description: |
+      Add checks ensuring workflow snippets and docs remain in sync and represent valid
+      automation patterns for Phase 6 publish/install operations.
+    files:
+      - tests/test_docs.py
+      - tests/test_suite_integrity.py
+      - README.md
+      - .github/workflows/kinnoo-publish.yml
+    steps:
+      - 'step1: Add docs tests covering workflow command snippets and strict mode flags'
+      - 'step2: Add integrity checks for required workflow secret/env references'
+      - 'step3: Add regression checks for README workflow section consistency'
+      - 'step4: Validate CI docs behavior across local and remote registry modes'
+    dependencies: [task346]
+    tests: [test506]
+    status: completed
+
+  - id: task348
+    title: "Feature69 kinnoo tests file format and parser"
+    type: task
+    description: |
+      Define and implement standardized `kinnoo.tests.yaml` format and parser for
+      low-friction prompt/response style agent test declarations.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/test_command.py
+      - src/kinnoo/validator.py
+      - docs/manifest-schema-reference.md
+    steps:
+      - 'step1: Define kinnoo.tests.yaml schema including id input expected assertions timeout and exit-code fields'
+      - 'step2: Implement parser/validator and deterministic diagnostics for invalid test specs'
+      - 'step3: Add compatibility bridge for tests declared inline or via external file reference'
+      - 'step4: Update schema docs with canonical format and anti-pattern guidance'
+    dependencies: []
+    tests: [test507]
+    status: completed
+
+  - id: task349
+    title: "Feature69 kinnoo test execution engine and CLI summary"
+    type: task
+    description: |
+      Implement test execution engine and CLI reporting for standardized agent tests with
+      deterministic pass/fail accounting and machine-readable output mode.
+    files:
+      - src/kinnoo/test_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+      - tests/test_install.py
+    steps:
+      - 'step1: Execute declared test cases sequentially with timeout and expected assertion evaluation'
+      - 'step2: Support one-shot and daemon-compatible run paths with normalized output capture'
+      - 'step3: Emit deterministic summary `N/M passed` plus JSON mode for automation'
+      - 'step4: Add test fixtures and docs examples for Python and JS/TS agents'
+    dependencies: [task348]
+    tests: [test508]
+    status: completed
+
+  - id: task350
+    title: "Feature70 landing page and README messaging update"
+    type: task
+    description: |
+      Update landing and README messaging for Phase 6 capabilities including OpenClaw support,
+      ClawHub mirror provenance, and trust posture.
+    files:
+      - README.md
+      - web/app/page.tsx
+      - web/components/blocks/Hero.tsx
+      - web/components/blocks/Features.tsx
+    steps:
+      - 'step1: Refresh landing hero and feature-card copy to reflect Phase 6 scope'
+      - 'step2: Update README command matrix and OpenClaw integration documentation'
+      - 'step3: Add explicit ClawHub mirror attribution language and clawhub tenant model notes'
+      - 'step4: Ensure wording remains aligned with implemented command behavior'
+    dependencies: []
+    tests: [test509]
+    status: completed
+
+  - id: task351
+    title: "Feature70 docs consistency checks and release-note updates"
+    type: task
+    description: |
+      Add docs consistency updates and tests so landing/docs/README messaging remains
+      synchronized with Phase 6 behavior.
+    files:
+      - docs/CHANGELOG.md
+      - tests/test_docs.py
+      - README.md
+      - notes/phases/phase6-planning-6.md
+    steps:
+      - 'step1: Update release notes and docs references for newly introduced Phase 6 commands'
+      - 'step2: Add docs tests for key command snippets and provenance messaging'
+      - 'step3: Verify docs references to strict mode lockfile and import adapters are consistent'
+      - 'step4: Ensure docs changes pass existing documentation integrity checks'
+    dependencies: [task350]
+    tests: [test510]
+    status: completed
+
+  - id: task352
+    title: "Feature71 strict install enforcement"
+    type: task
+    description: |
+      Implement strict install controls requiring signed artifacts and verified trust state
+      on automation paths.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/cli.py
+      - src/kinnoo/signing.py
+      - tests/test_cli_install.py
+    steps:
+      - 'step1: Add `--strict` install flag and strict policy evaluation branch'
+      - 'step2: Reject missing/invalid signature artifacts under strict mode with deterministic exit semantics'
+      - 'step3: Disallow unverified override controls in strict mode'
+      - 'step4: Add tests for strict pass/fail behavior and user diagnostics'
+    dependencies: [task222]
+    tests: [test511]
+    status: completed
+
+  - id: task353
+    title: "Feature71 strict publish enforcement and CI rollout docs"
+    type: task
+    description: |
+      Extend strict policy to publish path and document staged rollout guidance for CI
+      pipelines adopting signed-package enforcement.
+    files:
+      - src/kinnoo/publish_command.py
+      - src/kinnoo/cli.py
+      - README.md
+      - .github/workflows/kinnoo-publish.yml
+    steps:
+      - 'step1: Add `--strict` publish flag and enforce signature/trust requirements before upload'
+      - 'step2: Emit deterministic guidance for unsigned artifacts and required remediation'
+      - 'step3: Add CI examples showing strict mode as required gate in automation'
+      - 'step4: Add publish strict-mode tests and docs alignment checks'
+    dependencies: [task352, task346]
+    tests: [test512]
+    status: completed
+
+  - id: task354
+    title: "Feature72 lockfile write/update implementation"
+    type: task
+    description: |
+      Implement lockfile persistence in install flows with deterministic schema and stable
+      serialization behavior.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/schema.py
+      - src/kinnoo/config.py
+      - tests/test_install.py
+    steps:
+      - 'step1: Define lockfile schema and serialization helpers for resolved installs'
+      - 'step2: Write/update lockfile after successful installs including version source checksums and platform metadata'
+      - 'step3: Ensure deterministic ordering and additive update semantics'
+      - 'step4: Add tests for lockfile creation and stable update behavior'
+    dependencies: []
+    tests: [test513]
+    status: completed
+
+  - id: task355
+    title: "Feature72 frozen lockfile install behavior"
+    type: task
+    description: |
+      Add frozen install mode consuming lockfile-only resolution and deterministic failures
+      on lock drift or missing entries.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli_install.py
+      - README.md
+    steps:
+      - 'step1: Add `--frozen` install flag and lockfile-only resolution path'
+      - 'step2: Fail deterministically when lock entries are missing stale or incompatible'
+      - 'step3: Add user guidance for regenerating lockfile when drift is detected'
+      - 'step4: Add tests and docs for frozen-mode expected behavior'
+    dependencies: [task354]
+    tests: [test514]
+    status: completed
+
+  - id: task356
+    title: "Feature73 diff command core engine"
+    type: task
+    description: |
+      Implement core archive diff engine for manifest and file tree comparisons between
+      two .kno artifacts with deterministic ordering.
+    files:
+      - src/kinnoo/diff_command.py
+      - src/kinnoo/cli.py
+      - src/kinnoo/inspect_command.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add diff command parser and archive extraction helpers'
+      - 'step2: Implement manifest-level comparison for dependencies env_vars and permissions'
+      - 'step3: Implement file tree change detection (added removed modified) with stable ordering'
+      - 'step4: Add tests covering baseline diff output and deterministic ordering'
+    dependencies: []
+    tests: [test515]
+    status: completed
+
+  - id: task357
+    title: "Feature73 diff json output and exit semantics"
+    type: task
+    description: |
+      Add machine-readable diff output and deterministic exit code contracts for CI and
+      automation use cases.
+    files:
+      - src/kinnoo/diff_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+      - README.md
+    steps:
+      - 'step1: Add `--json` output mode with stable schema fields for all diff categories'
+      - 'step2: Implement deterministic exit-code behavior for identical different and fatal-error outcomes'
+      - 'step3: Add regression tests for JSON schema and exit-code contracts'
+      - 'step4: Update docs with diff automation examples'
+    dependencies: [task356]
+    tests: [test516]
+    status: completed
+
+  - id: task358
+    title: "Feature74 uninstall command and mandatory confirmation"
+    type: task
+    description: |
+      Implement uninstall command for individual agents with mandatory interactive confirmation
+      and safe deletion sequencing.
+    files:
+      - src/kinnoo/uninstall_command.py
+      - src/kinnoo/cli.py
+      - src/kinnoo/install_trace.py
+      - tests/test_cli_install.py
+    steps:
+      - 'step1: Add uninstall command parser and installed-agent resolution'
+      - 'step2: Enforce mandatory interactive confirmation before destructive operations'
+      - 'step3: Remove agent directory and runtime artifacts with safe failure handling'
+      - 'step4: Add tests for confirmation required and successful uninstall behavior'
+    dependencies: []
+    tests: [test517]
+    status: completed
+
+  - id: task359
+    title: "Feature74 uninstall metadata cleanup and error-path coverage"
+    type: task
+    description: |
+      Ensure uninstall updates lockfile/install traces and handles missing/partial cleanup
+      paths with deterministic diagnostics.
+    files:
+      - src/kinnoo/uninstall_command.py
+      - src/kinnoo/install_command.py
+      - tests/test_install.py
+      - README.md
+    steps:
+      - 'step1: Update lockfile and install trace entries after successful uninstall'
+      - 'step2: Add deterministic errors for missing target or partial cleanup failures'
+      - 'step3: Ensure uninstall behavior remains single-target only with no bulk-delete path'
+      - 'step4: Add tests/docs for metadata cleanup and error handling'
+    dependencies: [task358, task354]
+    tests: [test518]
+    status: completed
+
+  - id: task360
+    title: "Feature75 framework adapter architecture for langchain langgraph openai"
+    type: task
+    description: |
+      Implement framework-aware import adapter framework and baseline adapters for
+      langchain, langgraph, and OpenAI Agents SDK.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/import_command.py
+      - src/kinnoo/framework_adapters/langchain_adapter.py
+      - src/kinnoo/framework_adapters/langgraph_adapter.py
+      - src/kinnoo/framework_adapters/openai_adapter.py
+    steps:
+      - 'step1: Add `--from` parser choices for langchain langgraph openai in import command'
+      - 'step2: Implement adapter interface and baseline adapter modules for each framework'
+      - 'step3: Merge adapter outputs into analyzer report and import wizard confidence fields'
+      - 'step4: Add deterministic fallback to generic analyzer when adapter coverage is incomplete'
+    dependencies: []
+    tests: [test519]
+    status: completed
+
+  - id: task361
+    title: "Feature75 adapter confidence tuning docs and cross-runtime tests"
+    type: task
+    description: |
+      Tune adapter output quality and add cross-runtime fixture coverage including JS/TS
+      oriented checks with Vitest where JS behavior is directly validated.
+    files:
+      - src/kinnoo/analyzer.py
+      - tests/test_cli_import.py
+      - web/__tests__/framework-adapter-fixtures.test.ts
+      - docs/manifest-schema-reference.md
+    steps:
+      - 'step1: Add fixtures and thresholds proving higher-confidence inference for langchain langgraph and openai adapter flows'
+      - 'step2: Add graceful degradation tests for unsupported patterns and fallback messaging'
+      - 'step3: Add Vitest coverage for JS/TS fixture behavior with automation path bound to .ts test function identifiers'
+      - 'step4: Document adapter best practices and known limitations for developers'
+    dependencies: [task360]
+    tests: [test520]
+    status: completed
+
+  - id: task362
+    title: "Feature76 preflight CLI detection and version parsing"
+    type: task
+    description: |
+      Add a reusable OpenClaw preflight module that validates CLI availability and
+      enforces minimum supported OpenClaw version.
+    files:
+      - src/kinnoo/openclaw_preflight.py
+      - src/kinnoo/errors.py
+      - tests/test_cli_openclaw_preflight.py
+    steps:
+      - 'step1: Implement OpenClaw CLI presence check using deterministic subprocess probes'
+      - 'step2: Parse OpenClaw date-based versions (YYYY.M.D[-suffix]) and enforce >= 2026.3.28'
+      - 'step3: Return deterministic remediation guidance when CLI is missing or version is too old'
+      - 'step4: Add unit/integration tests for missing CLI, invalid version text, and compatible version checks'
+    dependencies: []
+    tests: [test521]
+    status: completed
+
+  - id: task363
+    title: "Feature76 preflight reuse and optional gateway health gating"
+    type: task
+    description: |
+      Wire the preflight module into OpenClaw command entry points with optional
+      gateway health probing for runtime commands.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/openclaw_preflight.py
+      - tests/test_cli_openclaw_preflight.py
+    steps:
+      - 'step1: Add optional gateway health probe mode via `openclaw gateway status`'
+      - 'step2: Ensure init/import/install use CLI+version checks only while run/logs/skill commands require gateway health'
+      - 'step3: Reuse one preflight code path across command handlers to avoid duplicated subprocess logic'
+      - 'step4: Add command-level tests proving the right preflight mode is invoked per command'
+    dependencies: [task362]
+    tests: [test522]
+    status: completed
+
+  - id: task364
+    title: "Feature77 init delegation to openclaw agents add"
+    type: task
+    description: |
+      Rework OpenClaw init so kinnoo delegates agent creation to the OpenClaw CLI
+      using the workspace-<name> convention.
+    files:
+      - src/kinnoo/init_command.py
+      - src/kinnoo/cli.py
+      - tests/test_init.py
+    steps:
+      - 'step1: Add OpenClaw init flow that runs preflight before any mutation'
+      - 'step2: Delegate creation to `openclaw agents add <name> --workspace ~/.openclaw/workspace-<name>`'
+      - 'step3: Add deterministic existing-workspace error handling with non-destructive behavior'
+      - 'step4: Add tests for delegation command shape and preflight-before-subprocess ordering'
+    dependencies: [task363]
+    tests: [test523]
+    status: completed
+
+  - id: task365
+    title: "Feature77 init manifest generation and operator summary"
+    type: task
+    description: |
+      Generate kinnoo.yaml for newly added OpenClaw agents and provide clear
+      post-init operator guidance.
+    files:
+      - src/kinnoo/init_command.py
+      - src/kinnoo/manifest.py
+      - tests/test_init.py
+      - README.md
+    steps:
+      - 'step1: Generate valid kinnoo.yaml in the OpenClaw workspace after successful `agents add`'
+      - 'step2: Populate framework/runtime fields consistent with OpenClaw requirements'
+      - 'step3: Print deterministic summary with agent name workspace path and next-step guidance'
+      - 'step4: Add tests/docs for manifest shape and summary output'
+    dependencies: [task364]
+    tests: [test524]
+    status: completed
+
+  - id: task366
+    title: "Feature78 OpenClaw workspace detection and manifest inference"
+    type: task
+    description: |
+      Extend import flow to detect OpenClaw workspace signatures and infer a valid
+      kinnoo.yaml from local workspace structure.
+    files:
+      - src/kinnoo/import_command.py
+      - src/kinnoo/analyzer.py
+      - tests/test_cli_import.py
+    steps:
+      - 'step1: Detect OpenClaw workspace signals (AGENTS.md, SOUL.md, openclaw.json, skills/, memory/)'
+      - 'step2: Generate kinnoo.yaml with OpenClaw framework/runtime/workspace metadata'
+      - 'step3: Add deterministic error handling for missing directories and non-OpenClaw sources'
+      - 'step4: Add import tests covering detection confidence and manifest generation'
+    dependencies: [task363]
+    tests: [test525]
+    status: completed
+
+  - id: task367
+    title: "Feature78 import copy/register workflow and conflict handling"
+    type: task
+    description: |
+      Implement import-time copy/register paths for workspaces outside ~/.openclaw
+      and ensure registration consistency for in-place workspaces.
+    files:
+      - src/kinnoo/import_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli_import.py
+    steps:
+      - 'step1: Prompt to copy external workspaces into ~/.openclaw and register via `openclaw agents add`'
+      - 'step2: For in-place workspaces, verify registration using `openclaw agents list` and add missing registrations'
+      - 'step3: Add deterministic conflict handling when destination workspace already exists'
+      - 'step4: Add tests for copy prompt flow in-place registration flow and conflict diagnostics'
+    dependencies: [task366]
+    tests: [test526]
+    status: completed
+
+  - id: task368
+    title: "Feature79 OpenClaw pack include rules"
+    type: task
+    description: |
+      Update packaging logic so OpenClaw identity and workspace content files are
+      included deterministically in .kno archives.
+    files:
+      - src/kinnoo/pack_command.py
+      - src/kinnoo/archive.py
+      - tests/test_pack.py
+    steps:
+      - 'step1: Include OpenClaw identity files (AGENTS.md SOUL.md TOOLS.md USER.md MEMORY.md IDENTITY.md BOOTSTRAP.md HEARTBEAT.md)'
+      - 'step2: Include memory/ and skills/ directories with deterministic ordering'
+      - 'step3: Ensure missing optional identity files do not fail pack'
+      - 'step4: Add tests for include contract using OpenClaw workspace fixtures'
+    dependencies: []
+    tests: [test527]
+    status: completed
+
+  - id: task369
+    title: "Feature79 OpenClaw pack exclude rules and roundtrip viability"
+    type: task
+    description: |
+      Add deterministic excludes for runtime artifacts and verify resulting archives
+      remain installable through OpenClaw install wrapper flow.
+    files:
+      - src/kinnoo/pack_command.py
+      - tests/test_pack_robustness.py
+      - tests/test_pack_size_reporting.py
+      - web/__tests__/openclaw-pack-fixtures.test.ts
+    steps:
+      - 'step1: Exclude .git/ .openclaw/ node_modules/ and related runtime-only artifacts'
+      - 'step2: Preserve archive size reporting behavior for OpenClaw archives'
+      - 'step3: Add roundtrip fixture coverage proving packed archive remains installable by feature80 flow'
+      - 'step4: Add Vitest fixture contract check for JS/TS-oriented workspace file expectations'
+    dependencies: [task368]
+    tests: [test528]
+    status: completed
+
+  - id: task370
+    title: "Feature80 OpenClaw install extract and register flow"
+    type: task
+    description: |
+      Implement OpenClaw install path that extracts to ~/.openclaw/workspace-<name>
+      and registers the agent with `openclaw agents add`.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/cli.py
+      - tests/test_install.py
+    steps:
+      - 'step1: Add OpenClaw install branch selecting workspace-<name> extraction target'
+      - 'step2: Run preflight before extraction and registration'
+      - 'step3: Delegate registration to `openclaw agents add <name> --workspace <path>`'
+      - 'step4: Add tests for extract+register happy path and command invocation shape'
+    dependencies: [task363, task369]
+    tests: [test529]
+    status: completed
+
+  - id: task371
+    title: "Feature80 install diagnostics conflicts and trust checks"
+    type: task
+    description: |
+      Add deterministic conflict diagnostics and preserve kinnoo-side validation,
+      security, and install trace reporting around delegated OpenClaw registration.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/install_trace.py
+      - tests/test_install.py
+      - tests/test_cli_install.py
+    steps:
+      - 'step1: Add existing-workspace conflict handling with actionable remediation guidance'
+      - 'step2: Ensure manifest validation and security checks execute before openclaw subprocess delegation'
+      - 'step3: Record delegated command outcomes in install diagnostics and traces'
+      - 'step4: Add tests covering conflicts validation-ordering and trace content'
+    dependencies: [task370]
+    tests: [test530]
+    status: completed
+
+  - id: task372
+    title: "Feature81 run delegation thinking passthrough and exit semantics"
+    type: task
+    description: |
+      Implement OpenClaw run wrapper that maps kinnoo run arguments to
+      `openclaw agent` invocation and propagates exit behavior deterministically.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Map `kinnoo run <name> <prompt>` to `openclaw agent --agent <name> --message <prompt>`'
+      - 'step2: Add optional `--thinking <level>` passthrough support'
+      - 'step3: Propagate non-zero openclaw exit codes with actionable diagnostics'
+      - 'step4: Add tests for command mapping thinking passthrough and exit propagation'
+    dependencies: [task363]
+    tests: [test531]
+    status: completed
+
+  - id: task373
+    title: "Feature81 gateway preflight gating and json output passthrough"
+    type: task
+    description: |
+      Enforce gateway-health preflight for OpenClaw run and support JSON output
+      passthrough while keeping text input as default UX.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/openclaw_preflight.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Require gateway health preflight before run execution'
+      - 'step2: Keep text prompt as default run input path'
+      - 'step3: Support `--json` output passthrough without introducing JSON input in this phase'
+      - 'step4: Add tests for gateway-down behavior text-default behavior and json output passthrough'
+    dependencies: [task372]
+    tests: [test532]
+    status: completed
+
+  - id: task374
+    title: "Feature82 logs command wrapper and flag passthrough"
+    type: task
+    description: |
+      Add OpenClaw logs wrapper command mode in kinnoo with direct passthrough of
+      follow/json options to `openclaw logs`.
+    files:
+      - src/kinnoo/logs_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add `kinnoo logs --daemon openclaw` command routing'
+      - 'step2: Delegate to `openclaw logs` preserving stdout/stderr passthrough'
+      - 'step3: Pass through `--follow` and `--json` flags deterministically'
+      - 'step4: Add tests for command routing and passthrough behavior'
+    dependencies: [task363]
+    tests: [test533]
+    status: completed
+
+  - id: task375
+    title: "Feature82 logs preflight validation and failure diagnostics"
+    type: task
+    description: |
+      Ensure OpenClaw logs wrapper enforces CLI preflight and emits actionable
+      diagnostics for missing CLI or gateway/RPC failures.
+    files:
+      - src/kinnoo/logs_command.py
+      - src/kinnoo/openclaw_preflight.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add preflight checks before log delegation'
+      - 'step2: Emit deterministic remediation guidance for missing CLI and failed RPC probes'
+      - 'step3: Keep diagnostics stable for both human-readable and json flag modes'
+      - 'step4: Add tests for error-path behavior and deterministic messaging'
+    dependencies: [task374]
+    tests: [test534]
+    status: completed
+
+  - id: task376
+    title: "Feature83 openclaw skill install command and agent resolution"
+    type: task
+    description: |
+      Add `kinnoo install --openclaw-skill` command path that validates the target
+      agent exists and delegates skill install to OpenClaw.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli_install.py
+    steps:
+      - 'step1: Add parser support for `kinnoo install --openclaw-skill <slug-or-url> <agent>`'
+      - 'step2: Resolve agent existence via `openclaw agents list` before installation'
+      - 'step3: Delegate install to OpenClaw skills command targeting the resolved agent workspace'
+      - 'step4: Add tests for existing-agent delegation behavior and command shape'
+    dependencies: [task363]
+    tests: [test535]
+    status: completed
+
+  - id: task377
+    title: "Feature83 skill identifier normalization and outcome diagnostics"
+    type: task
+    description: |
+      Normalize skill slug/URL input forms and provide deterministic operator
+      diagnostics for missing agent and skill outcome states.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/openclaw_preflight.py
+      - tests/test_cli_install.py
+    steps:
+      - 'step1: Normalize and validate ClawHub skill identifiers from slug and URL forms'
+      - 'step2: Enforce gateway-aware preflight before delegated skill installation'
+      - 'step3: Add deterministic messages for success already-installed and not-found outcomes'
+      - 'step4: Add tests for missing-agent remediation and outcome diagnostic contracts'
+    dependencies: [task376]
+    tests: [test536]
+    status: completed
+
+  - id: task378
+    title: "Feature84 openclaw skill search command wrapper"
+    type: task
+    description: |
+      Add `kinnoo search --openclaw-skill <query>` as a thin wrapper around
+      `openclaw skills search` including JSON passthrough support.
+    files:
+      - src/kinnoo/search_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli_registry.py
+    steps:
+      - 'step1: Add parser support for `kinnoo search --openclaw-skill <query>`'
+      - 'step2: Delegate to `openclaw skills search <query>` with stdout passthrough'
+      - 'step3: Support optional `--json` passthrough mode for machine-readable output'
+      - 'step4: Add tests for delegation behavior and json passthrough contracts'
+    dependencies: [task363]
+    tests: [test537]
+    status: completed
+
+  - id: task379
+    title: "Feature84 search preflight and empty/error guidance"
+    type: task
+    description: |
+      Add deterministic preflight and operator guidance paths for OpenClaw skill
+      search when CLI/Gateway are unavailable or no results are returned.
+    files:
+      - src/kinnoo/search_command.py
+      - src/kinnoo/openclaw_preflight.py
+      - tests/test_cli_registry.py
+    steps:
+      - 'step1: Enforce preflight before search delegation'
+      - 'step2: Provide deterministic human guidance for empty-result and upstream failure cases'
+      - 'step3: Preserve stable behavior in `--json` mode for no-result responses'
+      - 'step4: Add tests for preflight failures and empty/error guidance paths'
+    dependencies: [task378]
+    tests: [test538]
+    status: completed
+
+  - id: task380
+    title: "Feature85 deprecation metadata and cli/help migration messaging"
+    type: task
+    description: |
+      Mark bridge-era OpenClaw features as deprecated in manifests and remove stale
+      help text while adding migration pointers to new CLI-wrapper flows.
+    files:
+      - FEATURES.txt
+      - src/kinnoo/cli.py
+      - README.md
+      - docs/CHANGELOG.md
+    steps:
+      - 'step1: Mark feature62-feature67 as deprecated in FEATURES.txt with references to feature76-feature84 replacements'
+      - 'step2: Remove or update help text advertising deprecated bridge-only flows'
+      - 'step3: Add migration guidance notes in docs/readme surfaces'
+      - 'step4: Add tests validating help output no longer exposes deprecated usage strings'
+    dependencies: [task363, task364, task366, task370, task372]
+    tests: [test539]
+    status: completed
+
+  - id: task381
+    title: "Feature85 runtime deprecation warnings and non-breaking compatibility"
+    type: task
+    description: |
+      Keep bridge-era command paths functional but clearly deprecated, with test
+      annotations and warning output that direct users to replacement commands.
+    files:
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+      - tests/test_cli_registry_modes.py
+      - tests/test_registry.py
+    steps:
+      - 'step1: Emit deterministic deprecation warnings when bridge-era paths are used'
+      - 'step2: Preserve existing behavior to avoid breaking users during transition window'
+      - 'step3: Annotate legacy tests as deprecated-path coverage where applicable'
+      - 'step4: Add compatibility tests ensuring deprecated paths still work while warning'
+    dependencies: [task380]
+    tests: [test540]
+    status: completed
+
+  - id: task382
+    title: "Create integrity.py module and embed SHA-256 manifest in .kno archives"
+    type: task
+    description: |
+      Implement feature86 (Embedded integrity manifest (META-INF/integrity.json)): AC1, AC2, AC3.
+    files:
+      - src/kinnoo/integrity.py
+      - src/kinnoo/pack_command.py
+    steps:
+      - 'step1: Implement `kinnoo pack` produces a .kno containing META-INF/integrity.json.'
+      - 'step2: Implement META-INF/integrity.json contains SHA-256 hash and size for every file in the archive (excluding META-INF/ itself).'
+      - 'step3: Implement Integrity module provides `compute_integrity_manifest(directory) -> dict` and `verify_integrity_manifest(directory, manifest) -> list[str]`.'
+      - 'step4: Write or update tests and verify locally with pytest'
+    dependencies: []
+    tests: [test541, test542]
+    status: not-started
+
+  - id: task383
+    title: "Document integrity manifest format and verify pack integration"
+    type: task
+    description: |
+      Implement feature86 (Embedded integrity manifest (META-INF/integrity.json)): AC4, AC5.
+    files:
+      - src/kinnoo/integrity.py
+      - src/kinnoo/pack_command.py
+    steps:
+      - 'step1: Implement Manifest format is documented with a JSON schema or example in the module docstring.'
+      - 'step2: Implement Existing tests for pack continue to pass; new tests cover manifest generation.'
+      - 'step3: Write or update tests and verify locally with pytest'
+    dependencies: [task382]
+    tests: [test541, test542]
+    status: not-started
+
+  - id: task384
+    title: "Add Ed25519 signing to .kno archives via --sign flag"
+    type: task
+    description: |
+      Implement feature87 (Embedded signature (META-INF/signature.json)): AC1, AC2, AC3.
+    files:
+      - src/kinnoo/signing.py
+      - src/kinnoo/pack_command.py
+    steps:
+      - 'step1: Implement `kinnoo pack --sign` produces META-INF/signature.json alongside META-INF/integrity.json.'
+      - 'step2: Implement Signature covers the raw bytes of META-INF/integrity.json.'
+      - 'step3: Implement signature.json contains: signature (base64), public_key_fingerprint (hex), signed_at (ISO 8601).'
+      - 'step4: Write or update tests and verify locally with pytest'
+    dependencies: [task383]
+    tests: [test543, test544]
+    status: not-started
+
+  - id: task385
+    title: "Verify signature integration and unsigned archive backward compat"
+    type: task
+    description: |
+      Implement feature87 (Embedded signature (META-INF/signature.json)): AC4, AC5, AC6.
+    files:
+      - src/kinnoo/signing.py
+      - src/kinnoo/pack_command.py
+    steps:
+      - 'step1: Implement `kinnoo pack` without `--sign` does NOT produce signature.json (integrity.json is still generated).'
+      - 'step2: Implement Existing signing.py functions are reused; no new crypto dependencies.'
+      - 'step3: Implement Tests verify signed archives have valid signatures.'
+      - 'step4: Write or update tests and verify locally with pytest'
+    dependencies: [task384]
+    tests: [test543, test544]
+    status: not-started
+
+  - id: task386
+    title: "Add install-time integrity and signature verification (--strict, --skip-verify)"
+    type: task
+    description: |
+      Implement feature88 (Install-time integrity verification): AC1, AC2, AC3, AC4.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/integrity.py
+    steps:
+      - 'step1: Implement `kinnoo install` verifies META-INF/integrity.json hashes against actual file contents.'
+      - 'step2: Implement Installation aborts with clear error message if any file hash mismatches.'
+      - 'step3: Implement `kinnoo install --strict` additionally verifies META-INF/signature.json and fails if missing or invalid.'
+      - 'step4: Implement `kinnoo install --skip-verify` bypasses all verification.'
+      - 'step5: Write or update tests and verify locally with pytest'
+    dependencies: [task383, task385]
+    tests: [test545, test546]
+    status: not-started
+
+  - id: task387
+    title: "Handle missing manifests, tampered files, and backward compat in install"
+    type: task
+    description: |
+      Implement feature88 (Install-time integrity verification): AC5, AC6, AC7.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/integrity.py
+    steps:
+      - 'step1: Implement Archives without META-INF/integrity.json install with a warning (backward compatibility with pre-feature86 archives).'
+      - 'step2: Implement Verification results are logged: number of files checked, pass/fail status.'
+      - 'step3: Implement Tests cover: valid archive, tampered file, missing integrity manifest, unsigned + strict mode, skip-verify.'
+      - 'step4: Write or update tests and verify locally with pytest'
+    dependencies: [task386]
+    tests: [test545, test546]
+    status: not-started
+
+  - id: task388
+    title: "Add JSON logging, CORS, and health/ready endpoints to server"
+    type: task
+    description: |
+      Implement feature89 (Production server configuration and deployment hardening): AC1, AC2, AC3, AC4.
+    files:
+      - server/config.py
+      - server/app.py
+    steps:
+      - 'step1: Implement Server logs in structured JSON format when KINNOO_ENV=production.'
+      - 'step2: Implement CORS is configured to allow only dev.kinnoo.ai and dev-api.kinnoo.ai origins.'
+      - 'step3: Implement GET /health returns 200 with {status: ok, version: X.Y.Z}.'
+      - 'step4: Implement GET /ready returns 200 only when S3 and auth store are accessible.'
+      - 'step5: Write or update tests and verify locally with pytest'
+    dependencies: []
+    tests: [test547, test548]
+    status: not-started
+
+  - id: task389
+    title: "Harden Uvicorn config and enforce secret validation in production mode"
+    type: task
+    description: |
+      Implement feature89 (Production server configuration and deployment hardening): AC5, AC6, AC7.
+    files:
+      - server/config.py
+      - server/app.py
+    steps:
+      - 'step1: Implement Server refuses to start in production mode if required secrets are missing.'
+      - 'step2: Implement Uvicorn config: 2 workers, 30s timeout, graceful shutdown on SIGTERM.'
+      - 'step3: Implement Tests validate health/ready endpoints and CORS headers.'
+      - 'step4: Write or update tests and verify locally with pytest'
+    dependencies: [task388]
+    tests: [test547, test548]
+    status: not-started
+
+  - id: task390
+    title: "Add server-side upload validation (size, zip, manifest fields)"
+    type: task
+    description: |
+      Implement feature90 (Server-side upload validation and integrity enforcement): AC1, AC2, AC3, AC4.
+    files:
+      - server/routes/publish.py
+    steps:
+      - 'step1: Implement Server rejects uploads exceeding configured max size with 413 status.'
+      - 'step2: Implement Server rejects non-zip files with 400 status.'
+      - 'step3: Implement Server rejects archives missing kinnoo.yaml with 400 status.'
+      - 'step4: Implement Server validates kinnoo.yaml has required fields (name, version, framework).'
+      - 'step5: Write or update tests and verify locally with pytest'
+    dependencies: [task383]
+    tests: [test549, test550]
+    status: not-started
+
+  - id: task391
+    title: "Enforce integrity.json validation on upload and return JSON errors"
+    type: task
+    description: |
+      Implement feature90 (Server-side upload validation and integrity enforcement): AC5, AC6, AC7.
+    files:
+      - server/routes/publish.py
+    steps:
+      - 'step1: Implement Server validates META-INF/integrity.json if present.'
+      - 'step2: Implement All validation errors return JSON with error details.'
+      - 'step3: Implement Tests cover: oversized upload, invalid zip, missing manifest, invalid manifest, tampered integrity.'
+      - 'step4: Write or update tests and verify locally with pytest'
+    dependencies: [task390]
+    tests: [test549, test550]
+    status: not-started
+
+  - id: task392
+    title: "Implement configurable per-endpoint and per-tenant rate limiting"
+    type: task
+    description: |
+      Implement feature91 (Production-grade rate limiting and abuse protections): AC1, AC2, AC3, AC4.
+    files:
+      - server/middleware.py
+    steps:
+      - 'step1: Implement Rate limits are configurable per endpoint group via server config.'
+      - 'step2: Implement Auth endpoints: 5 requests/minute per IP.'
+      - 'step3: Implement Publish endpoint: 10 requests/hour per tenant.'
+      - 'step4: Implement Search/download: 60 requests/minute per IP.'
+      - 'step5: Write or update tests and verify locally with pytest'
+    dependencies: []
+    tests: [test551, test552]
+    status: not-started
+
+  - id: task393
+    title: "Add X-RateLimit-* and Retry-After headers to all responses"
+    type: task
+    description: |
+      Implement feature91 (Production-grade rate limiting and abuse protections): AC5, AC6, AC7.
+    files:
+      - server/middleware.py
+    steps:
+      - 'step1: Implement All 429 responses include Retry-After header.'
+      - 'step2: Implement All responses include X-RateLimit-* headers.'
+      - 'step3: Implement Tests verify rate limit enforcement and header presence.'
+      - 'step4: Write or update tests and verify locally with pytest'
+    dependencies: [task392]
+    tests: [test551, test552]
+    status: not-started
+
+  - id: task394
+    title: "Create kinnoo.yaml spec doc with field reference table"
+    type: task
+    description: |
+      Implement feature92 (kinnoo.yaml specification document): AC1, AC2, AC3.
+    files:
+      - docs/kinnoo-yaml-spec.md
+      - src/kinnoo/validator.py
+    steps:
+      - 'step1: Implement docs/kinnoo-yaml-spec.md exists and documents every manifest field.'
+      - 'step2: Implement Each field has: name, type, required/optional, default, description, validation rules.'
+      - 'step3: Implement Examples provided for chatgpt, gemini, openai, claude, and generic frameworks.'
+      - 'step4: Write or update tests and verify locally with pytest'
+    dependencies: []
+    tests: [test553, test554]
+    status: not-started
+
+  - id: task395
+    title: "Add framework examples and version/compat notes to spec doc"
+    type: task
+    description: |
+      Implement feature92 (kinnoo.yaml specification document): AC4, AC5.
+    files:
+      - docs/kinnoo-yaml-spec.md
+    steps:
+      - 'step1: Implement Document specifies the manifest version and any backward compatibility notes.'
+      - 'step2: Implement Cross-referenced from README.md and CLI help text.'
+      - 'step3: Write or update tests and verify locally with pytest'
+    dependencies: [task394]
+    tests: [test553, test554]
+    status: not-started
+
+  - id: task396
+    title: "Create CLI reference doc for client commands (init through uninstall)"
+    type: task
+    description: |
+      Implement feature93 (CLI command reference document): AC1, AC2, AC3.
+    files:
+      - docs/cli-reference.md
+      - src/kinnoo/cli.py
+    steps:
+      - 'step1: Implement docs/cli-reference.md exists and documents every CLI command.'
+      - 'step2: Implement Each command entry has: usage, description, arguments, options, env vars, exit codes, examples.'
+      - 'step3: Implement Covers: init, pack, install, run, publish, search, login, logout, keygen, trust, inspect, uninstall.'
+      - 'step4: Write or update tests and verify locally with pytest'
+    dependencies: []
+    tests: [test555, test556]
+    status: not-started
+
+  - id: task397
+    title: "Add server CLI commands and cross-references to CLI reference"
+    type: task
+    description: |
+      Implement feature93 (CLI command reference document): AC4, AC5.
+    files:
+      - docs/cli-reference.md
+      - server/cli.py
+    steps:
+      - 'step1: Implement Covers server commands: kinnoo-server bootstrap, user create, user list, user reset-password, invite create.'
+      - 'step2: Implement Cross-referenced from README.md.'
+      - 'step3: Write or update tests and verify locally with pytest'
+    dependencies: [task396]
+    tests: [test555, test556]
+    status: not-started
+
+  - id: task398
+    title: "Create security model doc with threat model and signing architecture"
+    type: task
+    description: |
+      Implement feature94 (Security model document): AC1, AC2, AC3.
+    files:
+      - docs/security-model.md
+    steps:
+      - 'step1: Implement docs/security-model.md exists and covers the complete security architecture.'
+      - 'step2: Implement Threat model identifies key threats and mitigations.'
+      - 'step3: Implement Signing model explains Ed25519 key generation, signing, and verification.'
+      - 'step4: Write or update tests and verify locally with pytest'
+    dependencies: [task383, task385, task387]
+    tests: [test557, test558]
+    status: not-started
+
+  - id: task399
+    title: "Document auth flow and cross-reference from README"
+    type: task
+    description: |
+      Implement feature94 (Security model document): AC4, AC5.
+    files:
+      - docs/security-model.md
+      - README.md
+    steps:
+      - 'step1: Implement Auth flow documented: registration, login, JWT issuance, token refresh, logout.'
+      - 'step2: Implement Cross-referenced from README.md.'
+      - 'step3: Write or update tests and verify locally with pytest'
+    dependencies: [task398]
+    tests: [test557, test558]
+    status: not-started
+
+  - id: task400
+    title: "Create getting-started guide with end-to-end agent walkthrough"
+    type: task
+    description: |
+      Implement feature95 (Getting started guide and registry guide): AC1, AC2, AC3.
+    files:
+      - docs/getting-started.md
+    steps:
+      - 'step1: Implement docs/getting-started.md exists with a complete walkthrough from install to running an agent.'
+      - 'step2: Implement docs/registry-guide.md exists with publish, search, and install workflows.'
+      - 'step3: Implement Both guides include copy-paste terminal commands.'
+      - 'step4: Write or update tests and verify locally with pytest'
+    dependencies: []
+    tests: [test559, test560]
+    status: not-started
+
+  - id: task401
+    title: "Create registry guide with publish/install workflows and expected output"
+    type: task
+    description: |
+      Implement feature95 (Getting started guide and registry guide): AC4, AC5.
+    files:
+      - docs/registry-guide.md
+    steps:
+      - 'step1: Implement Both guides include expected output snippets.'
+      - 'step2: Implement Cross-referenced from README.md.'
+      - 'step3: Write or update tests and verify locally with pytest'
+    dependencies: [task400]
+    tests: [test559, test560]
+    status: not-started
+
+  - id: task402
+    title: "Rewrite README for beta with badges and quick-start"
+    type: task
+    description: |
+      Implement feature96 (README rewrite and supported agents document): AC1, AC2, AC3.
+    files:
+      - README.md
+    steps:
+      - 'step1: Implement README.md is rewritten for beta: concise, professional, with badges.'
+      - 'step2: Implement README includes: overview, pip install, quick-start (5-command workflow), links to docs.'
+      - 'step3: Implement docs/supported-agents.md lists all supported frameworks with feature matrix.'
+      - 'step4: Write or update tests and verify locally with pytest'
+    dependencies: [task395, task397]
+    tests: [test561, test562]
+    status: not-started
+
+  - id: task403
+    title: "Create supported-agents.md with framework compatibility matrix"
+    type: task
+    description: |
+      Implement feature96 (README rewrite and supported agents document): AC4, AC5.
+    files:
+      - docs/supported-agents.md
+    steps:
+      - 'step1: Implement Framework matrix covers: init scaffold, pack, run, publish, install for each framework.'
+      - 'step2: Implement README does not reference internal development details.'
+      - 'step3: Write or update tests and verify locally with pytest'
+    dependencies: [task402]
+    tests: [test561, test562]
+    status: not-started
+
+  - id: task404
+    title: "Audit repo for secrets and create CONTRIBUTING.md, CODE_OF_CONDUCT.md"
+    type: task
+    description: |
+      Implement feature97 (Public GitHub repository preparation): AC1, AC2, AC3, AC4.
+    files:
+      - CONTRIBUTING.md
+      - CODE_OF_CONDUCT.md
+    steps:
+      - 'step1: Implement No secrets, API keys, or passwords present in any tracked file.'
+      - 'step2: Implement CONTRIBUTING.md exists with development setup, testing, and PR guidelines.'
+      - 'step3: Implement CODE_OF_CONDUCT.md exists.'
+      - 'step4: Implement .github/ISSUE_TEMPLATE/ contains bug report and feature request templates.'
+      - 'step5: Write or update tests and verify locally with pytest'
+    dependencies: []
+    tests: [test563, test564]
+    status: not-started
+
+  - id: task405
+    title: "Create issue/PR templates and verify .gitignore coverage"
+    type: task
+    description: |
+      Implement feature97 (Public GitHub repository preparation): AC5, AC6, AC7.
+    files:
+      - .github/ISSUE_TEMPLATE/
+      - .github/PULL_REQUEST_TEMPLATE.md
+      - .gitignore
+    steps:
+      - 'step1: Implement .github/PULL_REQUEST_TEMPLATE.md exists.'
+      - 'step2: Implement .gitignore covers: __pycache__, .egg-info, .kno, env/, scratch/, outputs/.'
+      - 'step3: Implement No internal meeting notes, personal notes, or WIP content in tracked files.'
+      - 'step4: Write or update tests and verify locally with pytest'
+    dependencies: [task404]
+    tests: [test563, test564]
+    status: not-started
+
+  - id: task406
+    title: "Create CI and backend deploy GitHub Actions workflows"
+    type: task
+    description: |
+      Implement feature98 (GitHub Actions CI/CD pipeline): AC1, AC2, AC3.
+    files:
+      - .github/workflows/ci.yml
+      - .github/workflows/deploy-backend.yml
+    steps:
+      - 'step1: Implement .github/workflows/ci.yml runs pytest and linting on every PR.'
+      - 'step2: Implement .github/workflows/deploy-backend.yml builds Docker image, pushes to ECR, updates ECS on main push.'
+      - 'step3: Implement .github/workflows/deploy-frontend.yml builds and deploys Next.js to Cloudflare Pages on main push.'
+      - 'step4: Write or update tests and verify locally with pytest'
+    dependencies: [task418, task424]
+    tests: [test565, test566]
+    status: not-started
+
+  - id: task407
+    title: "Create frontend deploy and Terraform plan/apply workflows with OIDC"
+    type: task
+    description: |
+      Implement feature98 (GitHub Actions CI/CD pipeline): AC4, AC5, AC6.
+    files:
+      - .github/workflows/deploy-frontend.yml
+      - .github/workflows/terraform.yml
+    steps:
+      - 'step1: Implement .github/workflows/terraform.yml runs terraform plan on PR and terraform apply on merge to main.'
+      - 'step2: Implement All workflows use OIDC for AWS credentials (no static access keys).'
+      - 'step3: Implement Deployment workflows include rollback steps on failure.'
+      - 'step4: Write or update tests and verify locally with pytest'
+    dependencies: [task406]
+    tests: [test565, test566]
+    status: not-started
+
+  - id: task408
+    title: "Validate pyproject.toml metadata and configure trusted publisher"
+    type: task
+    description: |
+      Implement feature99 (PyPI package publishing configuration): AC1, AC2, AC3.
+    files:
+      - pyproject.toml
+    steps:
+      - 'step1: Implement pyproject.toml has complete PyPI metadata (name, version, description, author, license, classifiers, project-urls).'
+      - 'step2: Implement `pip install kinnoo` works from a built wheel.'
+      - 'step3: Implement .github/workflows/pypi-publish.yml publishes to PyPI on release tag.'
+      - 'step4: Write or update tests and verify locally with pytest'
+    dependencies: []
+    tests: [test567, test568]
+    status: not-started
+
+  - id: task409
+    title: "Create pypi-publish.yml workflow triggered on release tags"
+    type: task
+    description: |
+      Implement feature99 (PyPI package publishing configuration): AC4, AC5.
+    files:
+      - .github/workflows/pypi-publish.yml
+    steps:
+      - 'step1: Implement Workflow uses trusted publisher (OIDC) — no API tokens.'
+      - 'step2: Implement Version is sourced from a single location (pyproject.toml or __version__).'
+      - 'step3: Write or update tests and verify locally with pytest'
+    dependencies: [task408]
+    tests: [test567, test568]
+    status: not-started
+
+  - id: task410
+    title: "Implement account lockout after 5 failed logins with 15-min cooldown"
+    type: task
+    description: |
+      Implement feature100 (Auth hardening — lockout, password policy, token blacklist): AC1, AC2, AC3.
+    files:
+      - server/auth/token.py
+      - server/storage/user_store.py
+    steps:
+      - 'step1: Implement Account is locked after 5 failed login attempts.'
+      - 'step2: Implement Locked account returns 423 status with retry-after time.'
+      - 'step3: Implement Lockout automatically clears after 15 minutes.'
+      - 'step4: Write or update tests and verify locally with pytest'
+    dependencies: []
+    tests: [test569, test570, test571]
+    status: not-started
+
+  - id: task411
+    title: "Implement password policy enforcement with specific guidance messages"
+    type: task
+    description: |
+      Implement feature100 (Auth hardening — lockout, password policy, token blacklist): AC4, AC5.
+    files:
+      - server/routes/auth.py
+    steps:
+      - 'step1: Implement Registration and password change enforce password policy.'
+      - 'step2: Implement Weak passwords are rejected with specific guidance (e.g., ''Password must contain at least 1 digit'').'
+      - 'step3: Write or update tests and verify locally with pytest'
+    dependencies: [task410]
+    tests: [test569, test570, test571]
+    status: not-started
+
+  - id: task412
+    title: "Implement JWT token blacklist on logout with automatic pruning"
+    type: task
+    description: |
+      Implement feature100 (Auth hardening — lockout, password policy, token blacklist): AC6, AC7, AC8, AC9.
+    files:
+      - server/auth/token.py
+      - server/middleware.py
+    steps:
+      - 'step1: Implement POST /logout blacklists the JWT token.'
+      - 'step2: Implement Blacklisted tokens are rejected by the auth middleware.'
+      - 'step3: Implement Token blacklist is periodically pruned of expired tokens.'
+      - 'step4: Implement Tests cover: lockout trigger, lockout expiry, password policy, token blacklist.'
+      - 'step5: Write or update tests and verify locally with pytest'
+    dependencies: [task411]
+    tests: [test569, test570, test571]
+    status: not-started
+
+  - id: task413
+    title: "Create multi-stage production Dockerfile with non-root user and healthcheck"
+    type: task
+    description: |
+      Implement feature101 (Production Dockerfile and docker-compose): AC1, AC2, AC3, AC4.
+    files:
+      - Dockerfile
+    steps:
+      - 'step1: Implement Dockerfile exists at project root (or server/ — TBD by SWE).'
+      - 'step2: Implement Multi-stage build: builder stage installs deps, final stage copies only needed files.'
+      - 'step3: Implement Final image runs as non-root user.'
+      - 'step4: Implement HEALTHCHECK instruction points to /health endpoint.'
+      - 'step5: Write or update tests and verify locally with pytest'
+    dependencies: [task389]
+    tests: [test572, test573]
+    status: not-started
+
+  - id: task414
+    title: "Create docker-compose.yml for local dev and verify container startup"
+    type: task
+    description: |
+      Implement feature101 (Production Dockerfile and docker-compose): AC5, AC6, AC7, AC8.
+    files:
+      - docker-compose.yml
+    steps:
+      - 'step1: Implement Image size is under 200MB.'
+      - 'step2: Implement docker-compose.yml starts the server with env vars, mounts local storage.'
+      - 'step3: Implement `docker compose up` starts server accessible at localhost:8000.'
+      - 'step4: Implement Tests: build succeeds, container starts, health check passes.'
+      - 'step5: Write or update tests and verify locally with pytest'
+    dependencies: [task413]
+    tests: [test572, test573]
+    status: not-started
+
+  - id: task415
+    title: "Implement user management CLI commands (create, list, reset-password, unlock, delete)"
+    type: task
+    description: |
+      Implement feature102 (Admin CLI for user management): AC1, AC2, AC3, AC4, AC5.
+    files:
+      - server/cli.py
+      - server/storage/user_store.py
+    steps:
+      - 'step1: Implement `kinnoo-server user create --email <email>` creates a user and prints a temporary password.'
+      - 'step2: Implement `kinnoo-server user list` prints all registered users with status.'
+      - 'step3: Implement `kinnoo-server user reset-password --email <email>` generates a new temporary password.'
+      - 'step4: Implement `kinnoo-server user unlock --email <email>` clears lockout state.'
+      - 'step5: Implement `kinnoo-server user delete --email <email>` removes a user (with confirmation).'
+      - 'step6: Write or update tests and verify locally with pytest'
+    dependencies: [task412]
+    tests: [test574, test575]
+    status: not-started
+
+  - id: task416
+    title: "Implement invite token CLI commands (create, list) with input validation"
+    type: task
+    description: |
+      Implement feature102 (Admin CLI for user management): AC6, AC7, AC8, AC9.
+    files:
+      - server/cli.py
+      - server/storage/user_store.py
+    steps:
+      - 'step1: Implement `kinnoo-server invite create --email <email> --days-valid <N>` generates an invite token.'
+      - 'step2: Implement `kinnoo-server invite list` shows all pending invites with expiry.'
+      - 'step3: Implement All commands validate inputs and print clear error messages.'
+      - 'step4: Implement Tests cover all commands with valid and invalid inputs.'
+      - 'step5: Write or update tests and verify locally with pytest'
+    dependencies: [task415]
+    tests: [test574, test575]
+    status: not-started
+
+  - id: task417
+    title: "Create iac/ project structure with versions.tf, providers.tf, and state bootstrap"
+    type: task
+    description: |
+      Implement feature103 (Terraform project setup, state bootstrap, and VPC networking): AC1, AC2, AC3, AC4.
+    files:
+      - iac/versions.tf
+      - iac/providers.tf
+      - iac/variables.tf
+      - iac/main.tf
+      - iac/state/main.tf
+    steps:
+      - 'step1: Implement iac/ directory exists with: versions.tf, providers.tf, variables.tf, outputs.tf, locals.tf, main.tf.'
+      - 'step2: Implement iac/state/main.tf creates S3 bucket and DynamoDB table for Terraform state.'
+      - 'step3: Implement iac/modules/vpc/ creates VPC with 2 public subnets in us-west-2a and us-west-2b.'
+      - 'step4: Implement Security groups: ALB SG (Cloudflare IPs only on 443), ECS SG (ALB SG on 8000), S3 endpoint.'
+      - 'step5: Write or update tests and verify locally with pytest'
+    dependencies: []
+    tests: [test576, test577]
+    status: not-started
+
+  - id: task418
+    title: "Create VPC module with public subnets, security groups, and S3 endpoint"
+    type: task
+    description: |
+      Implement feature103 (Terraform project setup, state bootstrap, and VPC networking): AC5, AC6, AC7, AC8.
+    files:
+      - iac/modules/vpc/main.tf
+      - iac/modules/vpc/variables.tf
+      - iac/modules/vpc/outputs.tf
+      - iac/environments/dev/terraform.tfvars
+    steps:
+      - 'step1: Implement VPC endpoint for S3 (gateway type) is configured.'
+      - 'step2: Implement No NAT Gateway resources.'
+      - 'step3: Implement iac/environments/dev/terraform.tfvars contains dev-specific values.'
+      - 'step4: Implement `terraform validate` passes for all modules.'
+      - 'step5: Write or update tests and verify locally with pytest'
+    dependencies: [task417]
+    tests: [test576, test577]
+    status: not-started
+
+  - id: task419
+    title: "Create S3 registry module with encryption, Object Lock, and versioning"
+    type: task
+    description: |
+      Implement feature104 (Terraform storage and security (S3, IAM, Secrets Manager)): AC1, AC2, AC3, AC4.
+    files:
+      - iac/modules/s3-registry/main.tf
+      - iac/modules/s3-registry/variables.tf
+    steps:
+      - 'step1: Implement iac/modules/s3-registry/ creates S3 bucket with AES-256 server-side encryption.'
+      - 'step2: Implement S3 bucket has GOVERNANCE mode Object Lock enabled.'
+      - 'step3: Implement S3 bucket has versioning enabled.'
+      - 'step4: Implement S3 bucket has public access blocked.'
+      - 'step5: Write or update tests and verify locally with pytest'
+    dependencies: [task418]
+    tests: [test578, test579, test580]
+    status: not-started
+
+  - id: task420
+    title: "Create IAM roles module (ECS task, execution, GitHub OIDC)"
+    type: task
+    description: |
+      Implement feature104 (Terraform storage and security (S3, IAM, Secrets Manager)): AC5, AC6, AC7.
+    files:
+      - iac/modules/iam/main.tf
+      - iac/modules/iam/variables.tf
+    steps:
+      - 'step1: Implement iac/modules/iam/ creates ECS task role with S3 read/write policy.'
+      - 'step2: Implement ECS execution role has ECR pull, CloudWatch logs, and Secrets Manager read policies.'
+      - 'step3: Implement GitHub Actions OIDC provider and role are created.'
+      - 'step4: Write or update tests and verify locally with pytest'
+    dependencies: [task419]
+    tests: [test578, test579, test580]
+    status: not-started
+
+  - id: task421
+    title: "Create Secrets Manager module for JWT, session, and admin secrets"
+    type: task
+    description: |
+      Implement feature104 (Terraform storage and security (S3, IAM, Secrets Manager)): AC8, AC9.
+    files:
+      - iac/modules/secrets/main.tf
+      - iac/modules/secrets/variables.tf
+    steps:
+      - 'step1: Implement iac/modules/secrets/ creates Secrets Manager secrets for JWT_SECRET, SESSION_SECRET, ADMIN_PASSWORD.'
+      - 'step2: Implement `terraform validate` passes.'
+      - 'step3: Write or update tests and verify locally with pytest'
+    dependencies: [task420]
+    tests: [test578, test579, test580]
+    status: not-started
+
+  - id: task422
+    title: "Create ECR repository and ALB modules with HTTPS/ACM"
+    type: task
+    description: |
+      Implement feature105 (Terraform compute stack (ECR, ALB, ACM, ECS/Fargate, EFS)): AC1, AC2, AC3, AC4.
+    files:
+      - iac/modules/ecr/main.tf
+      - iac/modules/alb/main.tf
+    steps:
+      - 'step1: Implement iac/modules/ecr/ creates ECR repository with image scanning and lifecycle policy.'
+      - 'step2: Implement iac/modules/alb/ creates ALB with HTTPS listener on port 443.'
+      - 'step3: Implement ACM certificate for dev-api.kinnoo.ai with DNS validation.'
+      - 'step4: Implement Target group health check points to /health endpoint.'
+      - 'step5: Write or update tests and verify locally with pytest'
+    dependencies: [task418, task421]
+    tests: [test581, test582, test583]
+    status: not-started
+
+  - id: task423
+    title: "Create ECS Fargate cluster, task definition, and service"
+    type: task
+    description: |
+      Implement feature105 (Terraform compute stack (ECR, ALB, ACM, ECS/Fargate, EFS)): AC5, AC6.
+    files:
+      - iac/modules/ecs-fargate/main.tf
+      - iac/modules/ecs-fargate/variables.tf
+    steps:
+      - 'step1: Implement iac/modules/ecs-fargate/ creates ECS cluster, task definition, and service.'
+      - 'step2: Implement Task definition: 0.5 vCPU, 1GB memory, EFS mount, secrets from Secrets Manager.'
+      - 'step3: Write or update tests and verify locally with pytest'
+    dependencies: [task422]
+    tests: [test581, test582, test583]
+    status: not-started
+
+  - id: task424
+    title: "Create EFS module with mount targets and verify terraform validate"
+    type: task
+    description: |
+      Implement feature105 (Terraform compute stack (ECR, ALB, ACM, ECS/Fargate, EFS)): AC7, AC8, AC9.
+    files:
+      - iac/modules/ecs-fargate/main.tf
+    steps:
+      - 'step1: Implement EFS file system with mount targets in both subnets.'
+      - 'step2: Implement Service desired count is 1 (single task for beta).'
+      - 'step3: Implement `terraform validate` passes.'
+      - 'step4: Write or update tests and verify locally with pytest'
+    dependencies: [task423]
+    tests: [test581, test582, test583]
+    status: not-started
+
+  - id: task425
+    title: "Create Cloudflare DNS module for dev.kinnoo.ai and dev-api.kinnoo.ai"
+    type: task
+    description: |
+      Implement feature106 (Terraform Cloudflare DNS and Pages): AC1, AC2, AC3.
+    files:
+      - iac/modules/cloudflare/main.tf
+      - iac/modules/cloudflare/variables.tf
+    steps:
+      - 'step1: Implement iac/modules/cloudflare/ creates DNS records for dev.kinnoo.ai and dev-api.kinnoo.ai.'
+      - 'step2: Implement dev.kinnoo.ai points to Cloudflare Pages deployment.'
+      - 'step3: Implement dev-api.kinnoo.ai proxied CNAME points to ALB DNS name.'
+      - 'step4: Write or update tests and verify locally with pytest'
+    dependencies: [task418, task424]
+    tests: [test584, test585]
+    status: not-started
+
+  - id: task426
+    title: "Add ACM validation CNAME records and Cloudflare API token config"
+    type: task
+    description: |
+      Implement feature106 (Terraform Cloudflare DNS and Pages): AC4, AC5, AC6.
+    files:
+      - iac/modules/cloudflare/main.tf
+    steps:
+      - 'step1: Implement ACM validation CNAME records are created.'
+      - 'step2: Implement Cloudflare API token sourced from environment variable.'
+      - 'step3: Implement `terraform validate` passes.'
+      - 'step4: Write or update tests and verify locally with pytest'
+    dependencies: [task425]
+    tests: [test584, test585]
+    status: not-started
+
+  - id: task427
+    title: "Create CloudWatch log group and alarm modules (5xx, unhealthy, CPU)"
+    type: task
+    description: |
+      Implement feature107 (Terraform monitoring (CloudWatch, alarms, SNS)): AC1, AC2, AC3, AC4.
+    files:
+      - iac/modules/monitoring/main.tf
+      - iac/modules/monitoring/variables.tf
+    steps:
+      - 'step1: Implement iac/modules/monitoring/ creates CloudWatch log group with 30-day retention.'
+      - 'step2: Implement Alarm: ALB 5xx count > 10 in 5 minutes triggers SNS notification.'
+      - 'step3: Implement Alarm: unhealthy target count > 0 for 2 consecutive checks triggers SNS.'
+      - 'step4: Implement Alarm: ECS CPU utilization > 80% for 5 minutes triggers SNS.'
+      - 'step5: Write or update tests and verify locally with pytest'
+    dependencies: [task418, task424]
+    tests: [test586, test587]
+    status: not-started
+
+  - id: task428
+    title: "Create SNS topics for alerts and password reset notifications"
+    type: task
+    description: |
+      Implement feature107 (Terraform monitoring (CloudWatch, alarms, SNS)): AC5, AC6, AC7.
+    files:
+      - iac/modules/monitoring/main.tf
+    steps:
+      - 'step1: Implement SNS topic for alerts with email subscription (Jerry''s email).'
+      - 'step2: Implement Separate SNS topic for password reset notifications.'
+      - 'step3: Implement `terraform validate` passes.'
+      - 'step4: Write or update tests and verify locally with pytest'
+    dependencies: [task427]
+    tests: [test586, test587]
+    status: not-started
+
+  - id: task429
+    title: "Add invite token validation to registration endpoint"
+    type: task
+    description: |
+      Implement feature108 (Invite-only registration enforcement): AC1, AC2, AC3, AC4.
+    files:
+      - server/routes/auth.py
+      - server/storage/user_store.py
+    steps:
+      - 'step1: Implement POST /register requires `invite_token` parameter.'
+      - 'step2: Implement Registration without invite token returns 403 with message.'
+      - 'step3: Implement Invalid or expired invite token returns 403.'
+      - 'step4: Implement Valid invite token is consumed (single-use).'
+      - 'step5: Write or update tests and verify locally with pytest'
+    dependencies: [task416]
+    tests: [test588, test589]
+    status: not-started
+
+  - id: task430
+    title: "Add invite token field to web registration and handle race conditions"
+    type: task
+    description: |
+      Implement feature108 (Invite-only registration enforcement): AC5, AC6, AC7.
+    files:
+      - server/routes/web_auth.py
+      - server/storage/user_store.py
+    steps:
+      - 'step1: Implement Web registration page has invite token field (pre-filled from URL query param).'
+      - 'step2: Implement Invite token validation is atomic (no race conditions).'
+      - 'step3: Implement Tests cover: valid token, expired token, reused token, missing token.'
+      - 'step4: Write or update tests and verify locally with pytest'
+    dependencies: [task429]
+    tests: [test588, test589]
+    status: not-started
+
+  - id: task431
+    title: "Add forgot-password endpoint with SNS notification to operator"
+    type: task
+    description: |
+      Implement feature109 (Forgot password flow with operator alert): AC1, AC2, AC3, AC4.
+    files:
+      - server/routes/auth.py
+    steps:
+      - 'step1: Implement POST /forgot-password accepts email parameter.'
+      - 'step2: Implement Always returns 200 with generic message (no email enumeration).'
+      - 'step3: Implement If email exists, fires SNS notification with user email and timestamp.'
+      - 'step4: Implement If email does not exist, logs but does not fire SNS (prevents abuse).'
+      - 'step5: Write or update tests and verify locally with pytest'
+    dependencies: [task416, task428]
+    tests: [test590, test591]
+    status: not-started
+
+  - id: task432
+    title: "Add forgot-password web page with rate limiting"
+    type: task
+    description: |
+      Implement feature109 (Forgot password flow with operator alert): AC5, AC6, AC7.
+    files:
+      - server/routes/web_auth.py
+    steps:
+      - 'step1: Implement Web page at /forgot-password with email form.'
+      - 'step2: Implement Rate limited: max 3 requests per IP per hour.'
+      - 'step3: Implement Tests cover: valid email, invalid email, rate limiting.'
+      - 'step4: Write or update tests and verify locally with pytest'
+    dependencies: [task431]
+    tests: [test590, test591]
+    status: not-started
+
+  - id: task433
+    title: "Update landing page with invite-only messaging and hide open registration"
+    type: task
+    description: |
+      Implement feature110 (Landing page update for invite-only beta): AC1, AC2, AC3.
+    files:
+      - web/
+    steps:
+      - 'step1: Implement Landing page shows ''Invite-Only Beta'' messaging.'
+      - 'step2: Implement No open registration form on the landing page.'
+      - 'step3: Implement ''Email us'' link is rendered via JavaScript (not plain HTML) to prevent scraping.'
+      - 'step4: Write or update tests and verify locally with pytest'
+    dependencies: []
+    tests: [test592, test593]
+    status: not-started
+
+  - id: task434
+    title: "Add JS-rendered email link and verify static export works"
+    type: task
+    description: |
+      Implement feature110 (Landing page update for invite-only beta): AC4, AC5, AC6.
+    files:
+      - web/
+    steps:
+      - 'step1: Implement Registration page (/register) shows invite token field and instructions.'
+      - 'step2: Implement `next build && next export` succeeds (static export).'
+      - 'step3: Implement Updated pages render correctly at dev.kinnoo.ai.'
+      - 'step4: Write or update tests and verify locally with pytest'
+    dependencies: [task433]
+    tests: [test592, test593]
+    status: not-started
+
+  - id: task435
+    title: "Create e2e smoke test script with parameterized registry URL and credentials"
+    type: task
+    description: |
+      Implement feature111 (End-to-end smoke test script): AC1, AC2, AC3, AC4.
+    files:
+      - scripts/e2e-smoke-test.sh
+    steps:
+      - 'step1: Implement scripts/e2e-smoke-test.sh (or .py) exists and is executable.'
+      - 'step2: Implement Script accepts REGISTRY_URL and TEST_CREDENTIALS as parameters.'
+      - 'step3: Implement Tests: login → init agent → pack → publish → search → install → run → logout.'
+      - 'step4: Implement Each step prints PASS/FAIL with timing.'
+      - 'step5: Write or update tests and verify locally with pytest'
+    dependencies: [task389, task414]
+    tests: [test594, test595]
+    status: not-started
+
+  - id: task436
+    title: "Add cleanup, CI integration, and per-step timing to smoke test"
+    type: task
+    description: |
+      Implement feature111 (End-to-end smoke test script): AC5, AC6, AC7.
+    files:
+      - scripts/e2e-smoke-test.sh
+    steps:
+      - 'step1: Implement Script exits 0 on full pass, non-zero on any failure.'
+      - 'step2: Implement Cleans up test artifacts (published test agent is unpublished or uses test tenant).'
+      - 'step3: Implement Can be integrated into CI deploy workflow as a post-deployment check.'
+      - 'step4: Write or update tests and verify locally with pytest'
+    dependencies: [task435]
+    tests: [test594, test595]
+    status: not-started
+
+  - id: task437
+    title: "Publish 3+ agents covering different frameworks to the registry"
+    type: task
+    description: |
+      Implement feature112 (Registry seeding and validation): AC1, AC2, AC3.
+    files:
+      - docs/registry-seeding.md
+    steps:
+      - 'step1: Implement At least 3 agents published to the registry covering different frameworks.'
+      - 'step2: Implement Each published agent is searchable via `kinnoo search`.'
+      - 'step3: Implement Each published agent can be installed and run successfully.'
+      - 'step4: Write or update tests and verify locally with pytest'
+    dependencies: [task383, task385, task387, task389, task391]
+    tests: [test596, test597]
+    status: not-started
+
+  - id: task438
+    title: "Verify searchability, installability, and document seeding process"
+    type: task
+    description: |
+      Implement feature112 (Registry seeding and validation): AC4, AC5.
+    files:
+      - docs/registry-seeding.md
+    steps:
+      - 'step1: Implement At least one agent is signed.'
+      - 'step2: Implement docs/registry-seeding.md documents the seeding process.'
+      - 'step3: Write or update tests and verify locally with pytest'
+    dependencies: [task437]
+    tests: [test596, test597]
+    status: not-started
+
+  - id: task439
+    title: "Create launch checklist doc with Infrastructure, Security, CI/CD sections"
+    type: task
+    description: |
+      Implement feature113 (Launch readiness checklist): AC1, AC2, AC3.
+    files:
+      - docs/launch-checklist.md
+    steps:
+      - 'step1: Implement docs/launch-checklist.md exists with categorized checklist items.'
+      - 'step2: Implement Categories: Infrastructure, Security, Documentation, CI/CD, Monitoring, User Onboarding.'
+      - 'step3: Implement Each item has: description, how to verify, pass/fail status field.'
+      - 'step4: Write or update tests and verify locally with pytest'
+    dependencies: []
+    tests: [test598, test599]
+    status: not-started
+
+  - id: task440
+    title: "Add User Onboarding walkthrough and make checklist actionable for operator"
+    type: task
+    description: |
+      Implement feature113 (Launch readiness checklist): AC4, AC5.
+    files:
+      - docs/launch-checklist.md
+    steps:
+      - 'step1: Implement Includes a sample user onboarding walkthrough (create user → user logs in → publishes agent).'
+      - 'step2: Implement Checklist is actionable — Jerry can follow it step by step on launch day.'
+      - 'step3: Write or update tests and verify locally with pytest'
+    dependencies: [task439]
+    tests: [test598, test599]
+    status: not-started

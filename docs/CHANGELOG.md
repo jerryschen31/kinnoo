@@ -2,7 +2,48 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+### Added
+- Added Feature68 reference GitHub Actions workflow at `.github/workflows/kinnoo-publish.yml` covering install, preflight, pack, and remote publish stages.
+- Added Feature69 standardized test contract documentation for `kinnoo.tests.yaml` and `kinnoo test` execution modes.
+- Added Feature70 landing-page and README messaging updates for OpenClaw bridge, ClawHub mirror attribution, and Phase 6 command matrix coverage.
+
+### Changed
+- Added CI environment/secrets contract documentation for `KINNOO_REGISTRY_URL`, `KINNOO_REGISTRY_TOKEN`, `KINNOO_TENANT_SLUG`, and strict-mode compatibility control.
+- Added docs consistency references for strict mode (`--strict`), lockfile freeze mode (`--frozen`), `kinnoo diff`, `kinnoo uninstall`, and framework import adapters (`kinnoo import --from ...`).
+- Deprecated OpenClaw bridge-era feature metadata (feature62-feature67) in favor of Phase 7 wrapper features (feature76-feature84) and added migration command guidance in README/help surfaces.
+- Deprecated legacy CLI import regression tests that no longer match wrapper-era OpenClaw import behavior:
+  - `tests/test_cli_import.py::test_feature36_openclaw_detection_weighted_confidence_output`
+  - `tests/test_cli_import.py::test_feature36_infers_runtime_skills_state_dirs`
+  - `tests/test_cli_import.py::test_feature36_manifest_valid_or_todo_guidance`
+  - `tests/test_cli_import.py::test_feature62_import_openclaw_manifest_migration_guidance`
+- Bumped project version from `0.29.0` to `0.30.0` after Phase 7 final review closure.
+
+## [v0.30.0] - 2026-03-30
+### Added
+- Implemented Feature66 OpenClaw run adapter v1 for `type: openclaw-skill` manifests behind explicit compatibility gating.
+- Added backend selection diagnostics for OpenClaw adapter routing:
+  - `openclaw_adapter_backend_native_skills_run` for OpenClaw CLI >= 0.3.0 (`openclaw skills run .`)
+  - `openclaw_adapter_backend_legacy_run` for OpenClaw CLI >= 0.2.0 and < 0.3.0 (`openclaw run .`)
+
+### Changed
+- Added deterministic adapter failure categories with actionable remediation:
+  - `openclaw_adapter_cli_missing`
+  - `openclaw_adapter_version_unsupported`
+  - `openclaw_adapter_runtime_nonzero_exit`
+- Added explicit experimental compatibility gate for adapter behavior:
+  - `kinnoo run <agent-dir> <input> --experimental-openclaw-adapter`
+
+### Notes
+- Adapter compatibility is intentionally explicit: kinnoo does not silently switch incompatible execution strategies.
+- `kinnoo run --preflight` remains a readiness path and does not require adapter enablement.
+
 ## [v0.29.0] - 2026-03-26
+### Added
+- Added CLI auth commands:
+  - `kinnoo login` for interactive and non-interactive registry token issuance and local auth-state persistence.
+  - `kinnoo logout` for clearing persisted registry auth state.
+
 ### Changed
 - Updated stale test assertions to match current frontend and integration behavior:
   - Sub-phase 4 integration assertions now validate SSR auth-me contract via dynamic backend base URL usage.
@@ -11,6 +52,7 @@ All notable changes to this project will be documented in this file.
   - Frontend unit tests now match current classes/responsive layout and the two-step login CSRF + POST request flow.
 - Added argon2-cffi to root requirements.txt to ensure password rehash paths and auth regression tests run in a fresh root environment.
 - Bumped project version from v0.28.0 to v0.29.0.
+- Documented auth-state precedence and post-logout behavior for publish/registry flows in README.
 
 ## [v0.28.0] - 2026-03-24
 ### Added

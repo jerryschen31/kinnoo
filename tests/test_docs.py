@@ -1,4 +1,13 @@
 from pathlib import Path
+import re
+import subprocess
+import sys
+
+import yaml
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+from kinnoo.validator import validate_manifest_data  # noqa: E402
 
 
 def test_feature9_schema_docs_cover_optional_fields_and_constraints() -> None:
@@ -377,3 +386,212 @@ def test_feature35_docs_cover_mutable_state_semantics_and_assets_compatibility()
     assert "manifests without `state_dirs`" in combined_text or "without state_dirs" in combined_lower
     assert "asset-only behavior" in combined_lower or "assets" in combined_lower
     assert "remain valid" in combined_lower
+
+
+def test_feature62_openclaw_schema_docs_consistency() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    schema_doc = repo_root / "docs" / "manifest-schema-reference.md"
+
+    schema_text = schema_doc.read_text(encoding="utf-8")
+    section_start = "### Feature62 openclaw-skill schema contract (`type`, `provenance`)"
+    assert section_start in schema_text
+
+    section_text = schema_text.split(section_start, 1)[1]
+    next_section_index = section_text.find("\n### ")
+    if next_section_index != -1:
+        section_text = section_text[:next_section_index]
+
+    assert "source_registry" in section_text
+    assert "source_version" in section_text
+    assert "source_slug" in section_text
+    assert "source_url" in section_text
+    assert "at least one" in section_text
+
+    assert "channels`, `skills`, and `state_dirs`" in section_text
+    assert "validation fails" in section_text
+    assert "Remove `channels`, `skills`, and `state_dirs`" in section_text
+
+    yaml_blocks = re.findall(r"```yaml\n(.*?)```", section_text, flags=re.DOTALL)
+    assert len(yaml_blocks) >= 3, "Expected canonical Feature62 YAML examples in docs"
+
+    for block in yaml_blocks:
+        manifest_data = yaml.safe_load(block)
+        assert isinstance(manifest_data, dict)
+        is_valid, errors = validate_manifest_data(manifest_data)
+        assert is_valid is True, (
+            "Expected Feature62 docs YAML example to pass validation; "
+            f"errors: {errors}; yaml block: {block}"
+        )
+
+def test_feature85_deprecation_metadata_and_help_cleanup() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    features_text = (repo_root / "FEATURES.txt").read_text(encoding="utf-8")
+    readme_text = (repo_root / "README.md").read_text(encoding="utf-8")
+
+    for feature_id in ("feature62", "feature63", "feature64", "feature65", "feature66", "feature67"):
+        anchor = f"- id: {feature_id}"
+        assert anchor in features_text
+    assert "status: deprecated" in features_text
+    assert "replacements: feature76" in features_text
+
+    run_help = subprocess.run(
+        [sys.executable, str(repo_root / "src" / "kinnoo" / "cli.py"), "run", "--help"],
+        capture_output=True,
+        text=True,
+    )
+    run_help_output = f"{run_help.stdout}\n{run_help.stderr}"
+    assert run_help.returncode == 0, run_help_output
+    assert "--experimental-openclaw-adapter" not in run_help_output
+
+    assert "OpenClaw Bridge Deprecation and Migration (Feature85)" in readme_text
+    assert "kinnoo run <agent-dir> '<prompt>' [--thinking <level>] [--json]" in readme_text
+    assert "kinnoo logs --daemon openclaw [--follow] [--json]" in readme_text
+    assert "kinnoo install <agent-name> --openclaw-skill <owner/skill-or-url>" in readme_text
+    assert "kinnoo search --openclaw-skill <query> [--json]" in readme_text
+
+
+def test_feature68_workflow_contract_and_envs() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    workflow_path = repo_root / ".github" / "workflows" / "kinnoo-publish.yml"
+    readme_path = repo_root / "README.md"
+    schema_path = repo_root / "docs" / "manifest-schema-reference.md"
+
+    assert workflow_path.exists(), "Expected Feature68 workflow file to exist"
+
+    workflow_text = workflow_path.read_text(encoding="utf-8")
+    readme_text = readme_path.read_text(encoding="utf-8")
+    schema_text = schema_path.read_text(encoding="utf-8")
+    combined_docs = f"{readme_text}\n{schema_text}"
+
+    workflow_data = yaml.safe_load(workflow_text)
+    assert isinstance(workflow_data, dict)
+
+    jobs = workflow_data.get("jobs")
+    assert isinstance(jobs, dict)
+    publish_job = jobs.get("publish")
+    assert isinstance(publish_job, dict)
+
+    job_env = publish_job.get("env")
+    assert isinstance(job_env, dict)
+    assert "KINNOO_REGISTRY_URL" in job_env
+    assert "KINNOO_REGISTRY_TOKEN" in job_env
+    assert "KINNOO_TENANT_SLUG" in job_env
+    assert "KINNOO_CI_STRICT_MODE" in job_env
+
+    steps = publish_job.get("steps")
+    assert isinstance(steps, list)
+    step_names = [step.get("name", "") for step in steps if isinstance(step, dict)]
+    assert any("Install" in str(name) for name in step_names)
+    assert any("preflight" in str(name).lower() for name in step_names)
+    assert any("Pack" in str(name) for name in step_names)
+    assert any("Publish" in str(name) for name in step_names)
+
+    assert "python3 src/kinnoo/cli.py check" in workflow_text
+    assert "python3 src/kinnoo/cli.py pack" in workflow_text
+    assert "python3 src/kinnoo/cli.py publish" in workflow_text
+    assert "--remote" in workflow_text
+
+    assert "KINNOO_REGISTRY_URL" in combined_docs
+    assert "KINNOO_REGISTRY_TOKEN" in combined_docs
+    assert "KINNOO_TENANT_SLUG" in combined_docs
+    assert "KINNOO_CI_STRICT_MODE" in combined_docs
+
+
+def test_feature68_ci_failure_and_troubleshooting_docs() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    workflow_path = repo_root / ".github" / "workflows" / "kinnoo-publish.yml"
+    readme_path = repo_root / "README.md"
+    schema_path = repo_root / "docs" / "manifest-schema-reference.md"
+
+    workflow_text = workflow_path.read_text(encoding="utf-8")
+    readme_text = readme_path.read_text(encoding="utf-8")
+    schema_text = schema_path.read_text(encoding="utf-8")
+    combined_docs = f"{readme_text}\n{schema_text}"
+    combined_lower = combined_docs.lower()
+
+    assert "set -euo pipefail" in workflow_text
+    assert "non-zero" in combined_lower
+    assert "troubleshooting common ci failures" in combined_lower
+    assert "signing failures" in combined_lower
+    assert "publish failures" in combined_lower
+
+    for required_secret in (
+        "KINNOO_REGISTRY_URL",
+        "KINNOO_REGISTRY_TOKEN",
+        "KINNOO_TENANT_SLUG",
+    ):
+        assert required_secret in combined_docs
+
+    expected_commands = (
+        "python3 src/kinnoo/cli.py check",
+        "python3 src/kinnoo/cli.py pack",
+        "python3 src/kinnoo/cli.py publish",
+    )
+    for command in expected_commands:
+        assert command in workflow_text
+
+    assert "kinnoo publish --remote" in combined_docs
+
+
+def test_feature70_landing_and_readme_phase6_messaging() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    landing_path = repo_root / "web" / "app" / "(public)" / "page.tsx"
+    feature_grid_path = repo_root / "web" / "components" / "blocks" / "FeatureGrid.tsx"
+    readme_path = repo_root / "README.md"
+
+    landing_text = landing_path.read_text(encoding="utf-8")
+    feature_grid_text = feature_grid_path.read_text(encoding="utf-8")
+    readme_text = readme_path.read_text(encoding="utf-8")
+
+    combined_landing = f"{landing_text}\n{feature_grid_text}".lower()
+    readme_lower = readme_text.lower()
+
+    assert "openclaw" in combined_landing
+    assert "clawhub" in combined_landing
+    assert "trust" in combined_landing
+    assert "provenance" in combined_landing
+
+    required_phase6_commands = (
+        "kinnoo login",
+        "kinnoo logout",
+        "kinnoo import --source clawhub",
+        "kinnoo sync clawhub",
+        "kinnoo test",
+        "kinnoo publish",
+    )
+    for command in required_phase6_commands:
+        assert command in readme_lower
+
+    assert "phase 6 command matrix" in readme_lower
+    assert "clawhub mirror attribution model" in readme_lower
+
+
+def test_feature70_provenance_docs_and_regression() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    readme_path = repo_root / "README.md"
+    schema_path = repo_root / "docs" / "manifest-schema-reference.md"
+    planning_path = repo_root / "notes" / "phases" / "phase6-planning-6.md"
+
+    readme_text = readme_path.read_text(encoding="utf-8")
+    schema_text = schema_path.read_text(encoding="utf-8")
+    planning_text = planning_path.read_text(encoding="utf-8")
+
+    combined = f"{readme_text}\n{schema_text}\n{planning_text}"
+    combined_lower = combined.lower()
+
+    assert "clawhub" in combined_lower
+    assert "tenant" in combined_lower
+    assert "provenance" in combined_lower
+    assert "source_registry" in combined
+    assert "source_version" in combined
+
+    command_references = (
+        "kinnoo install --strict",
+        "kinnoo publish --strict",
+        "kinnoo install --frozen",
+        "kinnoo diff <a.kno> <b.kno>",
+        "kinnoo uninstall <agent-name>",
+        "kinnoo import --from langchain|langgraph|openai",
+    )
+    for command in command_references:
+        assert command in combined

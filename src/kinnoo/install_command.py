@@ -9,8 +9,13 @@ import re
 import os
 import json
 import tempfile
+import hashlib
+import platform
+from datetime import datetime, timezone
 from urllib import request as urllib_request
+from urllib.parse import urlparse
 from pathlib import Path
+import yaml
 
 NODE_LIFECYCLE_SCRIPT_NAMES = {
     "preinstall",
@@ -31,15 +36,20 @@ try:
     )
     from kinnoo.registry import RegistryService, parse_install_target_spec
     from kinnoo.registry_backends import MockFilesystemRegistryBackend
-    from kinnoo.config import load_registry_config
+    from kinnoo.config import load_registry_config, resolve_lockfile_path
     from kinnoo.remote_client import RemoteRegistryClient
-    from kinnoo.health_check import check_node_package_manager_availability, check_node_runtime_constraint
-    from kinnoo.schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars
+    from kinnoo.health_check import (
+        check_node_package_manager_availability,
+        check_node_runtime_constraint,
+        check_openclaw_cli_constraint,
+    )
+    from kinnoo.schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars, LOCKFILE_SCHEMA_VERSION
     from kinnoo.inspect_command import read_manifest_from_kno_archive
     from kinnoo.validator import validate
     from kinnoo.install_trace import write_install_trace
     from kinnoo.logging_utils import emit_violation_event_diagnostic
     from kinnoo.signing import verify_detached_signature_artifacts
+    from kinnoo.openclaw_preflight import run_openclaw_preflight_for_command
 except ImportError:
     from .checksum import (
         ChecksumParseError,
@@ -49,15 +59,20 @@ except ImportError:
     )
     from .registry import RegistryService, parse_install_target_spec
     from .registry_backends import MockFilesystemRegistryBackend
-    from .config import load_registry_config
+    from .config import load_registry_config, resolve_lockfile_path
     from .remote_client import RemoteRegistryClient
-    from .health_check import check_node_package_manager_availability, check_node_runtime_constraint
-    from .schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars
+    from .health_check import (
+        check_node_package_manager_availability,
+        check_node_runtime_constraint,
+        check_openclaw_cli_constraint,
+    )
+    from .schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars, LOCKFILE_SCHEMA_VERSION
     from .inspect_command import read_manifest_from_kno_archive
     from .validator import validate
     from .install_trace import write_install_trace
     from .logging_utils import emit_violation_event_diagnostic
     from .signing import verify_detached_signature_artifacts
+    from .openclaw_preflight import run_openclaw_preflight_for_command
 
 
 def _read_requirements(requirements_path: Path) -> list[str]:
@@ -105,6 +120,242 @@ def _requirement_name(requirement_line: str) -> str:
 def _requirement_display_name(requirement_line: str) -> str:
     base = re.split(r"[<>=!~\[\s]", requirement_line, maxsplit=1)[0]
     return base.strip()
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        while True:
+            chunk = handle.read(65536)
+            if not chunk:
+                break
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _load_signature_fingerprint(archive_path: Path) -> str | None:
+    metadata_path = Path(f"{archive_path}.sig.json")
+    if not metadata_path.exists() or not metadata_path.is_file():
+        return None
+    try:
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, json.JSONDecodeError):
+        return None
+    if not isinstance(metadata, dict):
+        return None
+    fingerprint = metadata.get("public_key_fingerprint_sha256")
+    if isinstance(fingerprint, str) and fingerprint.strip():
+        return fingerprint.strip()
+    return None
+
+
+def _update_lockfile_after_install(
+    *,
+    target_dir: Path,
+    agent_name: str,
+    agent_version: str,
+    archive_path: Path,
+    install_source: str,
+) -> int:
+    lockfile_path = resolve_lockfile_path(start_dir=target_dir)
+    lockfile_path.parent.mkdir(parents=True, exist_ok=True)
+
+    existing_doc: dict[str, object] = {}
+    if lockfile_path.exists() and lockfile_path.is_file():
+        try:
+            loaded = yaml.safe_load(lockfile_path.read_text(encoding="utf-8"))
+            if isinstance(loaded, dict):
+                existing_doc = dict(loaded)
+        except (OSError, yaml.YAMLError):
+            existing_doc = {}
+
+    agents = existing_doc.get("agents")
+    if not isinstance(agents, dict):
+        agents = {}
+
+    fingerprint = _load_signature_fingerprint(archive_path)
+    agent_entry: dict[str, object] = {
+        "version": agent_version,
+        "source": install_source,
+        "archive_sha256": _sha256_file(archive_path),
+        "installed_at": _utc_now_iso(),
+    }
+    if fingerprint is not None:
+        agent_entry["signature_fingerprint"] = fingerprint
+
+    agents[agent_name] = agent_entry
+
+    ordered_agents: dict[str, object] = {}
+    for key in sorted(agents.keys()):
+        ordered_agents[str(key)] = agents[key]
+
+    lockfile_doc: dict[str, object] = {
+        "lock_version": LOCKFILE_SCHEMA_VERSION,
+        "locked_at": _utc_now_iso(),
+        "platform": {
+            "python": platform.python_version(),
+            "os": f"{platform.system().lower()}-{platform.machine().lower()}",
+        },
+        "agents": ordered_agents,
+    }
+
+    try:
+        lockfile_path.write_text(
+            yaml.safe_dump(lockfile_doc, sort_keys=False),
+            encoding="utf-8",
+        )
+    except OSError as error:
+        print(f"Error: Failed to write lockfile '{lockfile_path}': {error}", file=sys.stderr)
+        return 1
+
+    print(f"[kinnoo install] Updated lockfile: {lockfile_path}")
+    return 0
+
+
+def _finalize_install_success(
+    *,
+    frozen_mode: bool,
+    target_dir: Path,
+    agent_name: str,
+    agent_version: str,
+    archive_path: Path,
+    install_source: str,
+) -> int:
+    if frozen_mode:
+        print("[kinnoo install] Frozen mode active; lockfile left unchanged.")
+        return 0
+
+    return _update_lockfile_after_install(
+        target_dir=target_dir,
+        agent_name=agent_name,
+        agent_version=agent_version,
+        archive_path=archive_path,
+        install_source=install_source,
+    )
+
+
+def _resolve_install_lockfile_path(
+    *,
+    archive_path: Path,
+    target_dir_arg: str | None,
+) -> Path:
+    if target_dir_arg:
+        try:
+            start_dir = Path(target_dir_arg).expanduser().resolve()
+        except OSError:
+            start_dir = Path.cwd()
+    else:
+        start_dir = archive_path.with_suffix("")
+    return resolve_lockfile_path(start_dir=start_dir)
+
+
+def _enforce_frozen_install_lock(
+    *,
+    archive_path: Path,
+    target_dir_arg: str | None,
+    agent_name: str,
+    agent_version: str,
+) -> int:
+    lockfile_path = _resolve_install_lockfile_path(
+        archive_path=archive_path,
+        target_dir_arg=target_dir_arg,
+    )
+
+    if not lockfile_path.exists() or not lockfile_path.is_file():
+        print(
+            f"Error: Frozen install requires lockfile at '{lockfile_path}'.",
+            file=sys.stderr,
+        )
+        print(
+            "Error: Re-run install without --frozen to regenerate lockfile, then retry --frozen.",
+            file=sys.stderr,
+        )
+        return 1
+
+    try:
+        lockfile_doc = yaml.safe_load(lockfile_path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as error:
+        print(f"Error: Failed to read frozen lockfile '{lockfile_path}': {error}", file=sys.stderr)
+        return 1
+
+    if not isinstance(lockfile_doc, dict):
+        print(
+            f"Error: Frozen install lockfile '{lockfile_path}' is not a valid mapping.",
+            file=sys.stderr,
+        )
+        return 1
+
+    agents = lockfile_doc.get("agents")
+    if not isinstance(agents, dict):
+        print(
+            f"Error: Frozen install lockfile '{lockfile_path}' is missing an 'agents' mapping.",
+            file=sys.stderr,
+        )
+        return 1
+
+    agent_entry = agents.get(agent_name)
+    if not isinstance(agent_entry, dict):
+        print(
+            f"Error: Frozen lockfile entry not found for agent '{agent_name}'.",
+            file=sys.stderr,
+        )
+        print(
+            "Error: Re-run install without --frozen to regenerate lockfile, then retry --frozen.",
+            file=sys.stderr,
+        )
+        return 1
+
+    locked_version = agent_entry.get("version")
+    if not isinstance(locked_version, str) or not locked_version.strip():
+        print(
+            f"Error: Frozen lockfile entry for '{agent_name}' is missing a valid version.",
+            file=sys.stderr,
+        )
+        return 1
+
+    normalized_locked_version = locked_version.strip()
+    if normalized_locked_version != agent_version:
+        print(
+            "Error: Frozen lock mismatch for agent "
+            f"'{agent_name}': lockfile version is '{normalized_locked_version}' "
+            f"but archive version is '{agent_version}'.",
+            file=sys.stderr,
+        )
+        print(
+            "Error: Re-run install without --frozen to regenerate lockfile, then retry --frozen.",
+            file=sys.stderr,
+        )
+        return 1
+
+    locked_checksum = agent_entry.get("archive_sha256")
+    if not isinstance(locked_checksum, str) or not locked_checksum.strip():
+        print(
+            f"Error: Frozen lockfile entry for '{agent_name}' is missing archive_sha256.",
+            file=sys.stderr,
+        )
+        return 1
+
+    resolved_locked_checksum = locked_checksum.strip().lower()
+    actual_checksum = _sha256_file(archive_path)
+    if resolved_locked_checksum != actual_checksum:
+        print(
+            "Error: Frozen lock mismatch for agent "
+            f"'{agent_name}': lockfile checksum is '{resolved_locked_checksum}' "
+            f"but archive checksum is '{actual_checksum}'.",
+            file=sys.stderr,
+        )
+        print(
+            "Error: Re-run install without --frozen to regenerate lockfile, then retry --frozen.",
+            file=sys.stderr,
+        )
+        return 1
+
+    print(f"[kinnoo install] Frozen lockfile check passed for '{agent_name}'.")
+    return 0
 
 
 def _wheel_distribution_name(wheel_filename: str) -> str:
@@ -403,6 +654,125 @@ def _install_node_dependencies(
     return 0
 
 
+DEFAULT_OPENCLAW_MINIMUM_VERSION = "0.1.0"
+
+
+def _write_openclaw_install_trace(
+    target_dir: Path,
+    *,
+    agent_name: str,
+    minimum_version: str,
+    delegated_command: list[str],
+    outcome: str,
+    category: str,
+    decision_reason: str,
+    delegated_exit_code: int | None,
+) -> None:
+    trace_payload: dict[str, object] = {
+        "schema_version": "1.0",
+        "runtime_language": "nodejs",
+        "delegated_install": {
+            "backend": "openclaw-cli",
+            "agent": agent_name,
+            "workspace": str(target_dir),
+            "minimum_version": minimum_version,
+            "command": delegated_command,
+        },
+        "decision": {
+            "outcome": outcome,
+            "category": category,
+            "reason": decision_reason,
+            "delegated_exit_code": delegated_exit_code,
+        },
+    }
+    trace_path = write_install_trace(target_dir=target_dir, payload=trace_payload)
+    if trace_path is not None:
+        print(f"[kinnoo install] Wrote install trace: '{trace_path}'")
+
+
+def _install_openclaw_skill_dependencies(
+    target_dir: Path,
+    *,
+    agent_name: str,
+    minimum_openclaw_version: str,
+) -> int:
+    precheck_ok, precheck_category, precheck_message = check_openclaw_cli_constraint(
+        minimum_openclaw_version
+    )
+    print(f"[kinnoo install][openclaw] [{precheck_category}] {precheck_message}")
+    delegated_command = [
+        "openclaw",
+        "agents",
+        "add",
+        agent_name,
+        "--workspace",
+        str(target_dir),
+    ]
+    if not precheck_ok:
+        _write_openclaw_install_trace(
+            target_dir=target_dir,
+            agent_name=agent_name,
+            minimum_version=minimum_openclaw_version,
+            delegated_command=delegated_command,
+            outcome="blocked",
+            category=precheck_category,
+            decision_reason=f"openclaw_cli_precheck_failed:{precheck_category}",
+            delegated_exit_code=None,
+        )
+        print(
+            f"Error: OpenClaw delegated install prechecks failed (category={precheck_category}). "
+            "Install/upgrade OpenClaw CLI and retry.",
+            file=sys.stderr,
+        )
+        return 1
+
+    print(
+        "[kinnoo install][openclaw] Delegating workspace registration to OpenClaw CLI: "
+        f"{' '.join(delegated_command)}"
+    )
+    delegated_result = subprocess.run(
+        delegated_command,
+        capture_output=True,
+        text=True,
+        cwd=target_dir,
+    )
+
+    if delegated_result.returncode != 0:
+        delegated_category = "openclaw_cli_delegated_nonzero_exit"
+        _write_openclaw_install_trace(
+            target_dir=target_dir,
+            agent_name=agent_name,
+            minimum_version=minimum_openclaw_version,
+            delegated_command=delegated_command,
+            outcome="failed",
+            category=delegated_category,
+            decision_reason=f"openclaw_cli_delegated_install_failed:{delegated_category}",
+            delegated_exit_code=int(delegated_result.returncode),
+        )
+        print(
+            "Error: OpenClaw delegated install failed "
+            f"(category={delegated_category}). "
+            "Review OpenClaw CLI output and retry.",
+            file=sys.stderr,
+        )
+        if delegated_result.stderr:
+            print(delegated_result.stderr, file=sys.stderr)
+        return delegated_result.returncode
+
+    _write_openclaw_install_trace(
+        target_dir=target_dir,
+        agent_name=agent_name,
+        minimum_version=minimum_openclaw_version,
+        delegated_command=delegated_command,
+        outcome="allowed",
+        category="openclaw_cli_delegated_success",
+        decision_reason="openclaw_cli_delegated_install_succeeded",
+        delegated_exit_code=0,
+    )
+    print("[kinnoo install][openclaw] Workspace registration completed successfully.")
+    return 0
+
+
 def _iter_state_dir_paths(manifest_data: dict[str, object]) -> list[str]:
     """Return normalized state directory roots from manifest state_dirs entries."""
     declared_state_dirs = manifest_data.get("state_dirs")
@@ -541,10 +911,22 @@ def install_agent(
     ignore_scripts: bool = False,
     accept_permissions: bool = False,
     allow_unverified_publisher: bool = False,
+    strict_mode: bool = False,
+    frozen_mode: bool = False,
     expected_publisher_public_key: str | None = None,
     use_local: bool = False,
     use_remote: bool = False,
+    minimum_openclaw_version: str = DEFAULT_OPENCLAW_MINIMUM_VERSION,
+    openclaw_skill_identifier: str | None = None,
+    install_source: str = "archive-file",
 ) -> int:
+    if openclaw_skill_identifier is not None:
+        return _install_openclaw_skill_for_existing_agent(
+            agent_name=archive_path,
+            skill_identifier=openclaw_skill_identifier,
+            minimum_openclaw_version=minimum_openclaw_version,
+        )
+
     target_spec = parse_install_target_spec(archive_path)
     if target_spec.kind == "invalid":
         print(f"Error: {target_spec.error}", file=sys.stderr)
@@ -566,6 +948,7 @@ def install_agent(
 
         backend = None
         backend_label = "local"
+        resolved_install_source = "registry-local"
         if use_local:
             backend = MockFilesystemRegistryBackend(root=backend_root)
         elif use_remote:
@@ -584,6 +967,7 @@ def install_agent(
                 tenant_slug=config.tenant_slug,
             )
             backend_label = "remote"
+            resolved_install_source = "registry-remote"
         else:
             config = load_registry_config()
             if config.registry_url:
@@ -600,8 +984,10 @@ def install_agent(
                     tenant_slug=config.tenant_slug,
                 )
                 backend_label = "remote"
+                resolved_install_source = "registry-remote"
             else:
                 backend = MockFilesystemRegistryBackend(root=backend_root)
+                resolved_install_source = "registry-local"
 
         service = RegistryService(backend=backend)
 
@@ -679,7 +1065,11 @@ def install_agent(
                 ignore_scripts=ignore_scripts,
                 accept_permissions=accept_permissions,
                 allow_unverified_publisher=allow_unverified_publisher,
+                strict_mode=strict_mode,
+                frozen_mode=frozen_mode,
                 expected_publisher_public_key=expected_publisher_key,
+                minimum_openclaw_version=minimum_openclaw_version,
+                install_source=resolved_install_source,
             )
         finally:
             if backend_label == "remote" and resolved_archive_path.exists():
@@ -696,8 +1086,194 @@ def install_agent(
         ignore_scripts=ignore_scripts,
         accept_permissions=accept_permissions,
         allow_unverified_publisher=allow_unverified_publisher,
+        strict_mode=strict_mode,
+        frozen_mode=frozen_mode,
         expected_publisher_public_key=expected_publisher_public_key,
+        minimum_openclaw_version=minimum_openclaw_version,
+        install_source=install_source,
     )
+
+
+def _resolve_openclaw_agent_workspace(agent_name: str) -> tuple[str | None, str | None]:
+    try:
+        result = subprocess.run(
+            ["openclaw", "agents", "list"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError as error:
+        return None, f"failed to execute openclaw agents list: {error}"
+
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "").strip()
+        return None, detail or "openclaw agents list returned non-zero exit code"
+
+    try:
+        payload = json.loads(result.stdout.strip() or "[]")
+    except json.JSONDecodeError:
+        return None, "openclaw agents list output was not valid JSON"
+
+    if not isinstance(payload, list):
+        return None, "openclaw agents list output was not a JSON list"
+
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        item_id = item.get("id")
+        if not isinstance(item_id, str) or item_id != agent_name:
+            continue
+        workspace_value = item.get("workspace")
+        if isinstance(workspace_value, str) and workspace_value.strip():
+            return workspace_value.strip(), None
+        fallback_workspace = str(Path.home() / ".openclaw" / f"workspace-{agent_name}")
+        return fallback_workspace, None
+
+    return None, "agent not found"
+
+
+def _normalize_openclaw_skill_identifier(raw_identifier: str) -> tuple[str | None, str | None]:
+    candidate = raw_identifier.strip()
+    if not candidate:
+        return None, "skill identifier is empty"
+
+    parsed = urlparse(candidate)
+    if parsed.scheme in {"http", "https"} and parsed.netloc:
+        host = parsed.netloc.lower()
+        if host.startswith("www."):
+            host = host[4:]
+        if host not in {"clawhub.ai", "app.clawhub.ai"}:
+            return None, "unsupported skill URL host"
+
+        segments = [segment for segment in parsed.path.split("/") if segment]
+        if len(segments) >= 3 and segments[0] in {"skills", "skill"}:
+            owner, slug = segments[1], segments[2]
+        elif len(segments) >= 2:
+            owner, slug = segments[0], segments[1]
+        else:
+            return None, "skill URL must contain owner/slug path"
+
+        normalized = f"{owner.strip()}/{slug.strip()}"
+        if "/" not in normalized or normalized.startswith("/") or normalized.endswith("/"):
+            return None, "skill URL did not resolve to a valid owner/slug"
+        return normalized, None
+
+    if "/" not in candidate:
+        return None, "skill identifier must be owner/slug or a supported URL"
+
+    owner, slug = candidate.split("/", 1)
+    owner = owner.strip()
+    slug = slug.strip()
+    if not owner or not slug:
+        return None, "skill identifier must include non-empty owner and slug"
+    return f"{owner}/{slug}", None
+
+
+def _classify_openclaw_skill_install_outcome(*, returncode: int, stdout: str, stderr: str) -> tuple[str, bool]:
+    combined = f"{stdout}\n{stderr}".lower()
+    if "already installed" in combined or "already-installed" in combined:
+        return "already-installed", True
+    if "not found" in combined or "not-found" in combined:
+        return "not-found", False
+    if returncode == 0:
+        return "success", True
+    return "failed", False
+
+
+def _install_openclaw_skill_for_existing_agent(
+    *,
+    agent_name: str,
+    skill_identifier: str,
+    minimum_openclaw_version: str,
+) -> int:
+    normalized_agent = agent_name.strip()
+    if not normalized_agent:
+        print("Error: agent name is required for --openclaw-skill installs.", file=sys.stderr)
+        return 1
+
+    normalized_skill, normalize_error = _normalize_openclaw_skill_identifier(skill_identifier)
+    if normalized_skill is None:
+        print(
+            "Error: invalid --openclaw-skill identifier. "
+            f"{normalize_error}. Use owner/slug or a supported ClawHub URL.",
+            file=sys.stderr,
+        )
+        return 1
+
+    preflight_result = run_openclaw_preflight_for_command(
+        "openclaw-skill-install",
+        minimum_version=minimum_openclaw_version,
+    )
+    if not preflight_result.ok:
+        print(
+            "Error: OpenClaw skill install preflight failed "
+            f"(category={preflight_result.category}). {preflight_result.message}",
+            file=sys.stderr,
+        )
+        return 1
+
+    workspace_path, resolve_error = _resolve_openclaw_agent_workspace(normalized_agent)
+    if workspace_path is None:
+        print(
+            f"Error: OpenClaw agent '{normalized_agent}' was not found. "
+            "Create/register the agent first and retry.",
+            file=sys.stderr,
+        )
+        if resolve_error and resolve_error != "agent not found":
+            print(f"Error: OpenClaw agent resolution failed: {resolve_error}", file=sys.stderr)
+        return 1
+
+    command = [
+        "openclaw",
+        "skills",
+        "install",
+        normalized_skill,
+        "--workspace",
+        workspace_path,
+    ]
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    if result.stdout:
+        print(result.stdout, end="")
+    if result.stderr:
+        print(result.stderr, end="", file=sys.stderr)
+
+    outcome, success = _classify_openclaw_skill_install_outcome(
+        returncode=int(result.returncode),
+        stdout=result.stdout or "",
+        stderr=result.stderr or "",
+    )
+    if outcome == "success":
+        print(
+            f"[kinnoo install][openclaw-skill] outcome=success agent={normalized_agent} skill={normalized_skill}"
+        )
+        return 0
+    if outcome == "already-installed":
+        print(
+            f"[kinnoo install][openclaw-skill] outcome=already-installed agent={normalized_agent} skill={normalized_skill}"
+        )
+        return 0
+    if outcome == "not-found":
+        print(
+            f"Error: OpenClaw skill install outcome=not-found (category=openclaw_skill_not_found) "
+            f"agent={normalized_agent} skill={normalized_skill}",
+            file=sys.stderr,
+        )
+        return 1
+
+    if result.returncode != 0:
+        print(
+            "Error: OpenClaw skill install delegation failed "
+            "(category=openclaw_skill_install_nonzero_exit).",
+            file=sys.stderr,
+        )
+
+    return 0 if success else int(result.returncode)
 
 
 def _install_from_archive_path(
@@ -710,7 +1286,11 @@ def _install_from_archive_path(
     ignore_scripts: bool = False,
     accept_permissions: bool = False,
     allow_unverified_publisher: bool = False,
+    strict_mode: bool = False,
+    frozen_mode: bool = False,
     expected_publisher_public_key: str | None = None,
+    minimum_openclaw_version: str = DEFAULT_OPENCLAW_MINIMUM_VERSION,
+    install_source: str = "archive-file",
 ) -> int:
     archive = Path(archive_path)
     if not archive.exists() or not archive.is_file():
@@ -718,6 +1298,13 @@ def _install_from_archive_path(
         return 1
     if not str(archive).endswith(".kno"):
         print(f"Error: Archive '{archive}' is not a .kno file.", file=sys.stderr)
+        return 1
+
+    if strict_mode and allow_unverified_publisher:
+        print(
+            "Error: --allow-unverified-publisher cannot be used with --strict.",
+            file=sys.stderr,
+        )
         return 1
 
     checksum_path = checksum_sidecar_path_for_archive(archive)
@@ -747,6 +1334,13 @@ def _install_from_archive_path(
         print("[kinnoo install] Archive checksum verified.")
 
     source_is_unverified = not checksum_path.exists()
+    if strict_mode and source_is_unverified:
+        print(
+            "Error: Strict mode requires archive integrity verification; checksum sidecar is missing.",
+            file=sys.stderr,
+        )
+        return 1
+
     if source_is_unverified:
         print("No checksum file found — archive integrity not verified", file=sys.stderr)
         warning_message = "This agent is from an unverified source."
@@ -766,6 +1360,18 @@ def _install_from_archive_path(
     signature_path = Path(f"{archive}.sig")
     signature_metadata_path = Path(f"{archive}.sig.json")
     has_signature_artifacts = signature_path.exists() or signature_metadata_path.exists()
+
+    if strict_mode and not (signature_path.exists() and signature_metadata_path.exists()):
+        print(
+            "Error: Strict mode requires valid signature metadata; unsigned artifacts are not allowed.",
+            file=sys.stderr,
+        )
+        print(
+            "Error: Re-pack with --sign and retry install in strict mode.",
+            file=sys.stderr,
+        )
+        return 1
+
     if has_signature_artifacts:
         if not signature_path.exists() or not signature_metadata_path.exists():
             print(
@@ -790,6 +1396,11 @@ def _install_from_archive_path(
                 f"Error: Signature verification failed: {error}",
                 file=sys.stderr,
             )
+            if strict_mode:
+                print(
+                    "Error: Strict mode requires valid signature metadata; unsigned artifacts are not allowed.",
+                    file=sys.stderr,
+                )
             print(
                 "Error: Archive authenticity could not be verified. Re-download from a trusted publisher or re-pack with a valid signing key.",
                 file=sys.stderr,
@@ -848,6 +1459,21 @@ def _install_from_archive_path(
 
     agent_name = str(manifest_data.get("name", "unknown"))
     agent_version = str(manifest_data.get("version", "unknown"))
+    manifest_type = "agent"
+    manifest_type_value = manifest_data.get("type")
+    if isinstance(manifest_type_value, str) and manifest_type_value.strip():
+        manifest_type = manifest_type_value.strip().lower()
+
+    if frozen_mode:
+        frozen_validation_exit_code = _enforce_frozen_install_lock(
+            archive_path=archive,
+            target_dir_arg=target_dir_arg,
+            agent_name=agent_name,
+            agent_version=agent_version,
+        )
+        if frozen_validation_exit_code != 0:
+            return frozen_validation_exit_code
+
     env_var_names = normalize_env_vars(manifest_data.get("env_vars"))
     requirement_lines = _read_requirements_from_archive(archive)
     dependency_names = [_requirement_display_name(line) for line in requirement_lines]
@@ -945,7 +1571,15 @@ def _install_from_archive_path(
             print("Install aborted by user.", file=sys.stderr)
             return 1
 
-    if target_dir_arg:
+    if manifest_type == "openclaw-skill":
+        preflight_result = run_openclaw_preflight_for_command("install")
+        if not preflight_result.ok:
+            print(f"Error: {preflight_result.message}", file=sys.stderr)
+            return 1
+
+    if manifest_type == "openclaw-skill":
+        target_dir = Path.home() / ".openclaw" / f"workspace-{agent_name}"
+    elif target_dir_arg:
         target_dir = Path(target_dir_arg).resolve()
     else:
         target_dir = archive.with_suffix("")
@@ -955,6 +1589,16 @@ def _install_from_archive_path(
         return 1
 
     if target_dir.exists() and not force:
+        if manifest_type == "openclaw-skill":
+            print(
+                f"Error: OpenClaw workspace already exists at '{target_dir}'.",
+                file=sys.stderr,
+            )
+            print(
+                "Error: Re-run with --force to replace the workspace or remove it manually before retrying.",
+                file=sys.stderr,
+            )
+            return 1
         print(f"Error: Target directory '{target_dir}' already exists. Aborting to prevent overwrite.", file=sys.stderr)
         return 1
     if target_dir.exists() and force:
@@ -1007,6 +1651,23 @@ def _install_from_archive_path(
         shutil.rmtree(target_dir, ignore_errors=True)
         return restore_exit_code
 
+    if manifest_type == "openclaw-skill":
+        openclaw_exit_code = _install_openclaw_skill_dependencies(
+            target_dir=target_dir,
+            agent_name=agent_name,
+            minimum_openclaw_version=minimum_openclaw_version,
+        )
+        if openclaw_exit_code != 0:
+            return openclaw_exit_code
+        return _finalize_install_success(
+            frozen_mode=frozen_mode,
+            target_dir=target_dir,
+            agent_name=agent_name,
+            agent_version=agent_version,
+            archive_path=archive,
+            install_source=install_source,
+        )
+
     runtime_language = "python"
     if isinstance(runtime, dict):
         runtime_language_value = runtime.get("language")
@@ -1014,11 +1675,21 @@ def _install_from_archive_path(
             runtime_language = runtime_language_value.strip().lower()
 
     if runtime_language == "nodejs":
-        return _install_node_dependencies(
+        node_exit_code = _install_node_dependencies(
             target_dir=target_dir,
             runtime=runtime if isinstance(runtime, dict) else {},
             allow_vulnerable=allow_vulnerable,
             ignore_scripts=ignore_scripts,
+        )
+        if node_exit_code != 0:
+            return node_exit_code
+        return _finalize_install_success(
+            frozen_mode=frozen_mode,
+            target_dir=target_dir,
+            agent_name=agent_name,
+            agent_version=agent_version,
+            archive_path=archive,
+            install_source=install_source,
         )
 
     wheels_dir = target_dir / "wheels"
@@ -1064,7 +1735,14 @@ def _install_from_archive_path(
             print("[kinnoo install] All wheels installed successfully.")
         else:
             print("[kinnoo install] No dependencies listed in requirements.txt. Skipping dependency install.")
-        return 0
+        return _finalize_install_success(
+            frozen_mode=frozen_mode,
+            target_dir=target_dir,
+            agent_name=agent_name,
+            agent_version=agent_version,
+            archive_path=archive,
+            install_source=install_source,
+        )
 
     offline_mode_enabled = _is_offline_mode_enabled()
 
@@ -1146,4 +1824,11 @@ def _install_from_archive_path(
         print("[kinnoo install] Dependencies installed successfully from bundled wheels.")
         print("[kinnoo install] Offline-ready install path used (no network fallback required).")
 
-    return 0
+    return _finalize_install_success(
+        frozen_mode=frozen_mode,
+        target_dir=target_dir,
+        agent_name=agent_name,
+        agent_version=agent_version,
+        archive_path=archive,
+        install_source=install_source,
+    )

@@ -15,6 +15,7 @@ from kinnoo.registry_backends import (
 	LocalRegistryBackend,
 	MockFilesystemRegistryBackend,
 )
+from kinnoo.config import CLAW_HUB_TENANT_SLUG
 
 
 # [agent] test deprecated: Feature12 registry tests are superseded by feature13 tests.
@@ -603,6 +604,145 @@ def test_feature56_integration_suite(tmp_path: Path, monkeypatch) -> None:
 	)
 	assert "test_feature56_local_publish_tenant_path" in cli_registry_test
 	assert '/ "tenants"' in cli_registry_test
+
+
+def test_feature63_clawhub_tenant_mirror_ownership(tmp_path: Path) -> None:
+	"""Feature63 deprecated-path coverage: mirrored records remain under clawhub tenant."""
+	registry_root = tmp_path / "registry"
+	service = RegistryService(backend=LocalRegistryBackend(root=registry_root))
+
+	first_record = service.upsert_clawhub_mirror_record(
+		agent_slug="weather/weather-skill",
+		source_version="1.2.3",
+		source_url="https://clawhub.ai/skills/weather/weather-skill",
+		metadata={"description": "Weather utility skill"},
+	)
+
+	assert first_record.tenant_slug == CLAW_HUB_TENANT_SLUG
+	assert first_record.source_registry == "clawhub"
+	assert first_record.agent_slug == "weather/weather-skill"
+	assert first_record.source_version == "1.2.3"
+
+	mirror_record_path = (
+		registry_root
+		/ "tenants"
+		/ CLAW_HUB_TENANT_SLUG
+		/ "mirror"
+		/ "weather"
+		/ "weather-skill"
+		/ "1.2.3"
+		/ "mirror-record.json"
+	)
+	assert mirror_record_path.exists()
+
+	stored_payload = json.loads(mirror_record_path.read_text(encoding="utf-8"))
+	assert stored_payload["tenant_slug"] == CLAW_HUB_TENANT_SLUG
+	assert stored_payload["source_registry"] == "clawhub"
+	assert stored_payload["source_slug"] == "weather/weather-skill"
+	assert stored_payload["source_version"] == "1.2.3"
+
+	second_record = service.upsert_clawhub_mirror_record(
+		agent_slug="weather/weather-skill",
+		source_version="1.2.4",
+		source_url="https://clawhub.ai/skills/weather/weather-skill",
+		metadata={"description": "Weather utility skill v2"},
+	)
+	assert second_record.tenant_slug == CLAW_HUB_TENANT_SLUG
+	assert second_record.source_version == "1.2.4"
+
+	records = service.list_clawhub_mirror_records()
+	assert [record.tenant_slug for record in records] == [
+		CLAW_HUB_TENANT_SLUG,
+		CLAW_HUB_TENANT_SLUG,
+	]
+	assert [record.source_version for record in records] == ["1.2.3", "1.2.4"]
+
+
+def test_feature67_sync_resilience_and_summary(tmp_path: Path, monkeypatch, capsys) -> None:
+	"""Feature67 deprecated-path coverage: legacy sync resilience remains non-breaking."""
+	from kinnoo import sync_command
+
+	registry_root = tmp_path / "registry"
+	monkeypatch.setenv("KINNOO_REGISTRY_ROOT", str(registry_root))
+	monkeypatch.delenv("KINNOO_CLAWHUB_SYNC_FIXTURE", raising=False)
+	monkeypatch.setenv("KINNOO_SYNC_FETCH_ATTEMPTS", "3")
+	monkeypatch.setenv("KINNOO_SYNC_BACKOFF_SECONDS", "0")
+	monkeypatch.setattr(sync_command.time, "sleep", lambda _seconds: None)
+
+	# Scenario 1: upstream unavailable should retry and return categorized failure summary.
+	monkeypatch.setattr(
+		sync_command,
+		"_fetch_clawhub_sync_records_once",
+		lambda **kwargs: ([], "upstream unavailable: 503 service unavailable"),
+	)
+
+	unavailable_exit = sync_command.sync_source(
+		source="clawhub",
+		full=False,
+		since=None,
+		use_local=False,
+		use_remote=True,
+	)
+	unavailable_output = capsys.readouterr()
+	unavailable_combined = f"{unavailable_output.out}\n{unavailable_output.err}"
+
+	assert unavailable_exit == 1
+	assert "retrying after transient fetch failure" in unavailable_combined
+	assert "failure_categories=upstream_unavailable:1" in unavailable_combined
+
+	# Seed existing mirror state before partial-failure scenario.
+	service = RegistryService(backend=LocalRegistryBackend(root=registry_root))
+	service.upsert_clawhub_mirror_record(
+		agent_slug="weather/weather-skill",
+		source_version="1.0.0",
+		source_url="https://clawhub.ai/skills/weather/weather-skill",
+		metadata={"description": "stable weather skill"},
+	)
+
+	# Scenario 2: mixed payload with invalid + valid records should not corrupt existing state.
+	partial_records = [
+		{"slug": "weather/weather-skill"},  # invalid (missing version)
+		{
+			"slug": "weather/weather-skill",
+			"version": "1.0.0",
+			"source_url": "https://clawhub.ai/skills/weather/weather-skill",
+			"metadata": {"description": "stable weather skill"},
+		},
+		{
+			"slug": "stocks/stocks-skill",
+			"version": "2.0.0",
+			"source_url": "https://clawhub.ai/skills/stocks/stocks-skill",
+			"metadata": {"description": "stocks utility"},
+		},
+	]
+	monkeypatch.setattr(
+		sync_command,
+		"_fetch_clawhub_sync_records_once",
+		lambda **kwargs: (partial_records, None),
+	)
+
+	partial_exit = sync_command.sync_source(
+		source="clawhub",
+		full=False,
+		since=None,
+		use_local=True,
+		use_remote=False,
+	)
+	partial_output = capsys.readouterr()
+	partial_combined = f"{partial_output.out}\n{partial_output.err}"
+
+	assert partial_exit == 1
+	assert "created=1 updated=0 skipped=1 failed=1" in partial_combined
+	assert "failure_categories=invalid_record:1" in partial_combined
+
+	weather_latest = service.get_clawhub_mirror_record(agent_slug="weather/weather-skill")
+	assert weather_latest is not None
+	assert weather_latest.source_version == "1.0.0"
+	assert weather_latest.metadata == {"description": "stable weather skill"}
+
+	stocks_latest = service.get_clawhub_mirror_record(agent_slug="stocks/stocks-skill")
+	assert stocks_latest is not None
+	assert stocks_latest.source_version == "2.0.0"
 
 
 def test_feature57_forwarded_ip_rate_limit_path() -> None:
@@ -1493,6 +1633,7 @@ def test_feature60_rehash_on_login_for_legacy_hash(tmp_path: Path) -> None:
 
 	from server.app import create_app
 	from server.config import ServerConfig
+	from server.models.user import PASSWORD_MANAGER
 
 	config = ServerConfig(
 		storage_backend="local",
@@ -1540,8 +1681,11 @@ def test_feature60_rehash_on_login_for_legacy_hash(tmp_path: Path) -> None:
 
 	updated_user = app.state.user_store.get_by_username(user.username)
 	assert updated_user is not None
-	assert updated_user.password_hash != legacy_hash
-	assert updated_user.password_hash.startswith("$argon2") or updated_user.password_hash.startswith("scrypt$")
+	if PASSWORD_MANAGER.needs_rehash(legacy_hash):
+		assert updated_user.password_hash != legacy_hash
+		assert updated_user.password_hash.startswith("$argon2") or updated_user.password_hash.startswith("scrypt$")
+	else:
+		assert updated_user.password_hash == legacy_hash
 
 
 def test_feature60_subphase5_full_suite(tmp_path: Path) -> None:

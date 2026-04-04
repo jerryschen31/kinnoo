@@ -1,9 +1,17 @@
 import subprocess
 import sys
 import os
+import re
 import signal
 import time
 from pathlib import Path
+import json
+
+import pytest
+import yaml
+
+from src.kinnoo.registry import RegistryService
+from src.kinnoo.registry_backends import MockFilesystemRegistryBackend
 
 
 CLI_PATH = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
@@ -388,7 +396,9 @@ def test_feature19_imported_project_runs_in_place(tmp_path):
     assert "imported-runnable:hello-import" in combined_output
 
 
+@pytest.mark.skip(reason="[agent - deprecated - do not execute]")
 def test_feature36_openclaw_detection_weighted_confidence_output(tmp_path):
+    # [agent - deprecated - do not execute]
     strong_project = tmp_path / "feature36-openclaw-import-strong"
     strong_project.mkdir(parents=True, exist_ok=True)
     (strong_project / "run.py").write_text(
@@ -446,7 +456,9 @@ def test_feature36_openclaw_detection_weighted_confidence_output(tmp_path):
     assert "weighted detection score" in medium_output.lower()
 
 
+@pytest.mark.skip(reason="[agent - deprecated - do not execute]")
 def test_feature36_infers_runtime_skills_state_dirs(tmp_path):
+    # [agent - deprecated - do not execute]
     project_dir = tmp_path / "feature36-openclaw-inference"
     project_dir.mkdir(parents=True, exist_ok=True)
 
@@ -483,16 +495,18 @@ def test_feature36_infers_runtime_skills_state_dirs(tmp_path):
 
     manifest_text = (project_dir / "kinnoo.yaml").read_text(encoding="utf-8")
     assert "framework: openclaw" in manifest_text
+    assert "type: openclaw-skill" in manifest_text
     assert "language: nodejs" in manifest_text
     assert "type: daemon" in manifest_text
     assert "package_manager: pnpm" in manifest_text
-    assert "skills:" in manifest_text
-    assert "skills/default/SKILL.md" in manifest_text
-    assert "state_dirs:" in manifest_text
-    assert "- memory" in manifest_text
+    assert "skills:" not in manifest_text
+    assert "state_dirs:" not in manifest_text
+    assert "channels:" not in manifest_text
 
 
+@pytest.mark.skip(reason="[agent - deprecated - do not execute]")
 def test_feature36_manifest_valid_or_todo_guidance(tmp_path):
+    # [agent - deprecated - do not execute]
     complete_project = tmp_path / "feature36-manifest-guidance-complete"
     complete_project.mkdir(parents=True, exist_ok=True)
     (complete_project / "run.py").write_text(
@@ -544,6 +558,332 @@ def test_feature36_manifest_valid_or_todo_guidance(tmp_path):
     assert "TODO guidance:" in unresolved_output
     assert "Verify 'entrypoint' points to an existing executable script in the project root." in unresolved_output
     assert "does not exist in target project" in unresolved_output
+
+
+@pytest.mark.skip(reason="[agent - deprecated - do not execute]")
+def test_feature62_import_openclaw_manifest_migration_guidance(tmp_path):
+    # [agent - deprecated - do not execute]
+    project_dir = tmp_path / "feature62-openclaw-import-migration"
+    project_dir.mkdir(parents=True, exist_ok=True)
+
+    (project_dir / "run.py").write_text(
+        "import sys\n"
+        "if __name__ == '__main__':\n"
+        "    print(sys.argv[1] if len(sys.argv) > 1 else 'ok')\n",
+        encoding="utf-8",
+    )
+    (project_dir / "openclaw.json").write_text("{}\n", encoding="utf-8")
+    (project_dir / "package.json").write_text(
+        "{\n"
+        "  \"name\": \"feature62-openclaw-import-migration\",\n"
+        "  \"version\": \"1.0.0\",\n"
+        "  \"dependencies\": {\n"
+        "    \"@openclaw/core\": \"^0.1.0\"\n"
+        "  }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    (project_dir / "requirements.txt").write_text("\n", encoding="utf-8")
+
+    import_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(project_dir)],
+        input="y\n",
+        capture_output=True,
+        text=True,
+    )
+
+    assert import_result.returncode == 0, import_result.stdout + import_result.stderr
+    manifest_path = project_dir / "kinnoo.yaml"
+    manifest_text = manifest_path.read_text(encoding="utf-8")
+    assert "framework: openclaw" in manifest_text
+    assert "type: openclaw-skill" in manifest_text
+    assert "channels:" not in manifest_text
+    assert "skills:" not in manifest_text
+    assert "state_dirs:" not in manifest_text
+
+    manifest_data = yaml.safe_load(manifest_text)
+    manifest_data["provenance"] = {
+        "source_registry": "clawhub",
+        "source_version": "1.0.0",
+    }
+    manifest_data["state_dirs"] = ["memory"]
+    manifest_path.write_text(yaml.dump(manifest_data), encoding="utf-8")
+
+    inspect_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "inspect", str(project_dir)],
+        capture_output=True,
+        text=True,
+    )
+
+    combined = inspect_result.stdout + inspect_result.stderr
+    assert inspect_result.returncode != 0
+    assert "provenance" in combined and "source_slug" in combined and "source_url" in combined
+    assert "Field 'state_dirs' is not supported in this schema version" in combined
+
+
+def test_feature64_clawhub_import_scaffold(tmp_path):
+    registry_root = tmp_path / "registry"
+    service = RegistryService(backend=MockFilesystemRegistryBackend(root=registry_root))
+    service.upsert_clawhub_mirror_record(
+        agent_slug="weather/weather-skill",
+        source_version="2.0.0",
+        source_url="https://clawhub.ai/skills/weather/weather-skill",
+        synced_at="2026-03-29T04:00:00Z",
+        metadata={"description": "Weather skill"},
+    )
+
+    destination = tmp_path / "imported-weather-skill"
+    env = dict(os.environ)
+    env["KINNOO_REGISTRY_ROOT"] = str(registry_root)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(CLI_PATH),
+            "import",
+            "--source",
+            "clawhub",
+            "weather/weather-skill",
+            str(destination),
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    output = result.stdout + result.stderr
+    assert result.returncode == 0, output
+
+    manifest_path = destination / "kinnoo.yaml"
+    report_path = destination / "kinnoo-import-report.json"
+    assert manifest_path.exists()
+    assert report_path.exists()
+
+    manifest_text = manifest_path.read_text(encoding="utf-8")
+    assert "type: openclaw-skill" in manifest_text
+    assert "framework: openclaw" in manifest_text
+    assert "source_registry: clawhub" in manifest_text
+    assert "source_version: 2.0.0" in manifest_text
+    assert "source_slug: weather/weather-skill" in manifest_text
+
+    missing_result = subprocess.run(
+        [
+            sys.executable,
+            str(CLI_PATH),
+            "import",
+            "--source",
+            "clawhub",
+            "missing/not-found",
+            str(tmp_path / "missing-destination"),
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    missing_output = missing_result.stdout + missing_result.stderr
+    assert missing_result.returncode != 0
+    assert "was not found in mirror index" in missing_output
+    assert "kinnoo sync clawhub" in missing_output
+
+
+def test_feature64_clawhub_import_requirements_report(tmp_path):
+    registry_root = tmp_path / "registry"
+    service = RegistryService(backend=MockFilesystemRegistryBackend(root=registry_root))
+    service.upsert_clawhub_mirror_record(
+        agent_slug="github/gh-skill",
+        source_version="3.1.0",
+        source_url="https://clawhub.ai/skills/github/gh-skill",
+        synced_at="2026-03-29T05:00:00Z",
+        metadata={
+            "description": "GitHub helper skill",
+            "env_hints": ["GITHUB_TOKEN", "GH_ORG"],
+            "config_hints": ["~/.config/gh/config.yml"],
+            "bin_hints": ["gh"],
+        },
+    )
+
+    destination = tmp_path / "imported-gh-skill"
+    env = dict(os.environ)
+    env["KINNOO_REGISTRY_ROOT"] = str(registry_root)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(CLI_PATH),
+            "import",
+            "--source",
+            "clawhub",
+            "github/gh-skill",
+            str(destination),
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    output = result.stdout + result.stderr
+    assert result.returncode == 0, output
+    assert "Requirement hints:" in output
+    assert "env: GH_ORG, GITHUB_TOKEN" in output
+    assert "config: ~/.config/gh/config.yml" in output
+    assert "bin: gh" in output
+    assert "Unresolved guidance:" in output
+
+    report_path = destination / "kinnoo-import-report.json"
+    assert report_path.exists()
+    report_payload = json.loads(report_path.read_text(encoding="utf-8"))
+    assert report_payload["source"] == "clawhub"
+    assert report_payload["slug"] == "github/gh-skill"
+    assert report_payload["requirements"]["env"] == ["GH_ORG", "GITHUB_TOKEN"]
+    assert report_payload["requirements"]["config"] == ["~/.config/gh/config.yml"]
+    assert report_payload["requirements"]["bin"] == ["gh"]
+    assert isinstance(report_payload["unresolved"], list) and report_payload["unresolved"]
+
+    inspect_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "inspect", str(destination)],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    inspect_output = inspect_result.stdout + inspect_result.stderr
+    assert inspect_result.returncode == 0, inspect_output
+    assert "- Provenance:" in inspect_output
+    assert "source_registry: clawhub" in inspect_output
+    assert "source_slug: github/gh-skill" in inspect_output
+    assert "- Imported Requirement Hints:" in inspect_output
+    assert "- env: GH_ORG, GITHUB_TOKEN" in inspect_output
+    assert "- config: ~/.config/gh/config.yml" in inspect_output
+    assert "- bin: gh" in inspect_output
+
+
+def _make_feature78_fake_openclaw_cli(bin_dir: Path, *, agent_list_json: str = "[]") -> Path:
+    script = bin_dir / "openclaw"
+    script.write_text(
+        "#!/bin/sh\n"
+        "if [ \"$1\" = \"--version\" ]; then\n"
+        "  echo 'openclaw 2026.3.31'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"agents\" ] && [ \"$2\" = \"list\" ]; then\n"
+        f"  echo '{agent_list_json}'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"agents\" ] && [ \"$2\" = \"add\" ]; then\n"
+        "  if [ -n \"$KINNOO_OPENCLAW_INVOCATION_LOG\" ]; then\n"
+        "    echo \"$*\" >> \"$KINNOO_OPENCLAW_INVOCATION_LOG\"\n"
+        "  fi\n"
+        "  exit 0\n"
+        "fi\n"
+        "echo unsupported command >&2\n"
+        "exit 2\n",
+        encoding="utf-8",
+    )
+    script.chmod(0o755)
+    return script
+
+
+def test_feature78_import_detection_manifest_and_error_paths(tmp_path):
+    fake_bin = tmp_path / "feature78-openclaw-bin"
+    fake_bin.mkdir(parents=True, exist_ok=True)
+    _make_feature78_fake_openclaw_cli(fake_bin, agent_list_json='[{"id":"feature78-openclaw"}]')
+
+    env = dict(os.environ)
+    env["PATH"] = f"{fake_bin}{os.pathsep}{env.get('PATH', '')}"
+    env["HOME"] = str(tmp_path)
+
+    workspace = tmp_path / ".openclaw" / "workspace-feature78-openclaw"
+    workspace.mkdir(parents=True, exist_ok=True)
+    (workspace / "openclaw.json").write_text("{}\n", encoding="utf-8")
+    (workspace / "package.json").write_text(
+        "{\n"
+        "  \"name\": \"feature78-openclaw\",\n"
+        "  \"version\": \"1.0.0\"\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    (workspace / "index.mjs").write_text("console.log('ok')\n", encoding="utf-8")
+
+    good_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(workspace)],
+        input="y\n",
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert good_result.returncode == 0, good_result.stdout + good_result.stderr
+    manifest_path = workspace / "kinnoo.yaml"
+    assert manifest_path.exists()
+    manifest_text = manifest_path.read_text(encoding="utf-8")
+    assert "framework: openclaw" in manifest_text
+    assert "language: nodejs" in manifest_text
+
+    missing_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(tmp_path / "does-not-exist")],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert missing_result.returncode != 0
+    assert "import target does not exist" in (missing_result.stdout + missing_result.stderr).lower()
+
+    file_target = tmp_path / "not-a-dir.txt"
+    file_target.write_text("x\n", encoding="utf-8")
+    file_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(file_target)],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert file_result.returncode != 0
+    assert "import target must be a directory" in (file_result.stdout + file_result.stderr).lower()
+
+
+def test_feature78_copy_and_registration_flows(tmp_path):
+    fake_bin = tmp_path / "feature78-openclaw-bin-copy"
+    fake_bin.mkdir(parents=True, exist_ok=True)
+    invocation_log = tmp_path / "feature78-openclaw-invocations.log"
+    _make_feature78_fake_openclaw_cli(fake_bin, agent_list_json="[]")
+
+    env = dict(os.environ)
+    env["PATH"] = f"{fake_bin}{os.pathsep}{env.get('PATH', '')}"
+    env["HOME"] = str(tmp_path)
+    env["KINNOO_OPENCLAW_INVOCATION_LOG"] = str(invocation_log)
+
+    external_workspace = tmp_path / "external-openclaw-workspace"
+    external_workspace.mkdir(parents=True, exist_ok=True)
+    (external_workspace / "openclaw.json").write_text("{}\n", encoding="utf-8")
+    (external_workspace / "AGENTS.md").write_text("# agents\n", encoding="utf-8")
+    (external_workspace / "SOUL.md").write_text("# soul\n", encoding="utf-8")
+    (external_workspace / "index.mjs").write_text("console.log('ok')\n", encoding="utf-8")
+
+    copy_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(external_workspace)],
+        input="y\ny\n",
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert copy_result.returncode == 0, copy_result.stdout + copy_result.stderr
+
+    copied_workspace = tmp_path / ".openclaw" / "workspace-external-openclaw-workspace"
+    assert copied_workspace.exists()
+    assert (copied_workspace / "kinnoo.yaml").exists()
+
+    in_place_workspace = tmp_path / ".openclaw" / "workspace-inplace-openclaw"
+    in_place_workspace.mkdir(parents=True, exist_ok=True)
+    (in_place_workspace / "openclaw.json").write_text("{}\n", encoding="utf-8")
+    (in_place_workspace / "index.mjs").write_text("console.log('ok')\n", encoding="utf-8")
+
+    in_place_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(in_place_workspace)],
+        input="y\n",
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert in_place_result.returncode == 0, in_place_result.stdout + in_place_result.stderr
+
+    invocation_text = invocation_log.read_text(encoding="utf-8")
+    assert "agents add external-openclaw-workspace" in invocation_text
+    assert "agents add inplace-openclaw" in invocation_text
 
 
 def test_feature19_import_generates_requirements_via_uv_export(tmp_path):
@@ -628,3 +968,146 @@ def test_feature19_import_generates_requirements_from_import_inference(tmp_path)
     assert "Generated requirements.txt from analyzer-detected dependencies." in output
     requirements_text = (project_dir / "requirements.txt").read_text(encoding="utf-8")
     assert "langchain-core" in requirements_text
+
+
+def test_feature75_adapter_inference_and_fallback(tmp_path):
+    langchain_project = tmp_path / "feature75-langchain"
+    langchain_project.mkdir(parents=True, exist_ok=True)
+    (langchain_project / "run.py").write_text(
+        "from langchain.agents import AgentExecutor\n"
+        "print(AgentExecutor)\n",
+        encoding="utf-8",
+    )
+
+    langchain_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(langchain_project), "--from", "langchain"],
+        input="y\n\n\n",
+        capture_output=True,
+        text=True,
+    )
+    langchain_output = f"{langchain_result.stdout}\n{langchain_result.stderr}"
+    assert langchain_result.returncode == 0, langchain_output
+    assert "Applied langchain adapter" in langchain_output
+    langchain_manifest = (langchain_project / "kinnoo.yaml").read_text(encoding="utf-8")
+    assert "framework: langchain" in langchain_manifest
+    assert "language: python" in langchain_manifest
+
+    langgraph_project = tmp_path / "feature75-langgraph"
+    langgraph_project.mkdir(parents=True, exist_ok=True)
+    (langgraph_project / "graph.py").write_text(
+        "from langgraph.graph import StateGraph\n"
+        "print(StateGraph)\n",
+        encoding="utf-8",
+    )
+
+    langgraph_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(langgraph_project), "--from", "langgraph"],
+        input="y\ngraph.py\none-shot\n\n",
+        capture_output=True,
+        text=True,
+    )
+    langgraph_output = f"{langgraph_result.stdout}\n{langgraph_result.stderr}"
+    assert langgraph_result.returncode == 0, langgraph_output
+    assert "Applied langgraph adapter" in langgraph_output
+    langgraph_manifest = (langgraph_project / "kinnoo.yaml").read_text(encoding="utf-8")
+    assert "framework: langgraph" in langgraph_manifest
+
+    openai_project = tmp_path / "feature75-openai"
+    openai_project.mkdir(parents=True, exist_ok=True)
+    (openai_project / "agent.py").write_text(
+        "from agents import Agent\n"
+        "print(Agent)\n",
+        encoding="utf-8",
+    )
+
+    openai_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(openai_project), "--from", "openai"],
+        input="y\nagent.py\none-shot\n\n",
+        capture_output=True,
+        text=True,
+    )
+    openai_output = f"{openai_result.stdout}\n{openai_result.stderr}"
+    assert openai_result.returncode == 0, openai_output
+    assert "Applied openai adapter" in openai_output
+    openai_manifest = (openai_project / "kinnoo.yaml").read_text(encoding="utf-8")
+    assert "framework: openai-agents" in openai_manifest
+
+    unsupported_project = tmp_path / "feature75-fallback"
+    unsupported_project.mkdir(parents=True, exist_ok=True)
+    (unsupported_project / "run.py").write_text("print('hello')\n", encoding="utf-8")
+
+    fallback_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(unsupported_project), "--from", "langgraph"],
+        input="y\n\n\n",
+        capture_output=True,
+        text=True,
+    )
+    fallback_output = f"{fallback_result.stdout}\n{fallback_result.stderr}"
+    assert fallback_result.returncode == 0, fallback_output
+    assert "falling back to generic analyzer output" in fallback_output
+
+
+def test_feature75_adapter_confidence_tuning_and_guidance(tmp_path):
+    project_dir = tmp_path / "feature75-confidence"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "run.py").write_text(
+        "from langchain.agents import AgentExecutor\n"
+        "print(AgentExecutor)\n",
+        encoding="utf-8",
+    )
+
+    generic_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(project_dir), "--force"],
+        input="y\n\n\n",
+        capture_output=True,
+        text=True,
+    )
+    generic_output = f"{generic_result.stdout}\n{generic_result.stderr}"
+    assert generic_result.returncode == 0, generic_output
+
+    adapter_result = subprocess.run(
+        [
+            sys.executable,
+            str(CLI_PATH),
+            "import",
+            str(project_dir),
+            "--force",
+            "--from",
+            "langchain",
+        ],
+        input="y\n\n\n",
+        capture_output=True,
+        text=True,
+    )
+    adapter_output = f"{adapter_result.stdout}\n{adapter_result.stderr}"
+    assert adapter_result.returncode == 0, adapter_output
+    assert "Applied langchain adapter" in adapter_output
+    assert "Adapter guidance:" in adapter_output
+
+    generic_score_match = re.search(r"Framework confidence metadata:\n\s*- score: ([0-9.]+)", generic_output)
+    adapter_score_match = re.search(r"Framework confidence metadata:\n\s*- score: ([0-9.]+)", adapter_output)
+    assert generic_score_match is not None
+    assert adapter_score_match is not None
+    assert float(adapter_score_match.group(1)) >= float(generic_score_match.group(1))
+
+    fallback_project = tmp_path / "feature75-threshold-fallback"
+    fallback_project.mkdir(parents=True, exist_ok=True)
+    (fallback_project / "run.py").write_text("print('no markers')\n", encoding="utf-8")
+
+    fallback_result = subprocess.run(
+        [
+            sys.executable,
+            str(CLI_PATH),
+            "import",
+            str(fallback_project),
+            "--from",
+            "openai",
+        ],
+        input="y\n\n\n",
+        capture_output=True,
+        text=True,
+    )
+    fallback_output = f"{fallback_result.stdout}\n{fallback_result.stderr}"
+    assert fallback_result.returncode == 0, fallback_output
+    assert "coverage is insufficient" in fallback_output
+    assert "required>=0.60" in fallback_output

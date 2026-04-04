@@ -22,12 +22,23 @@ except ImportError:
 RUN_USAGE_TEXT = (
     "Usage: kinnoo run <agent-dir> '<input>'\n"
     "       kinnoo run <agent-dir>\n"
+    "       kinnoo run <agent-dir> '<input>' --thinking <low|medium|high>\n"
+    "       kinnoo run <agent-dir> '<input>' --json\n"
     "       kinnoo run <agent-dir> --json-input '<json>'\n"
     "       kinnoo run <agent-dir> --json-file <json-file>\n"
     "       kinnoo run <agent-dir> -- <args...>"
 )
 
 IMPORT_USAGE_TEXT = "Usage: kinnoo import [path]"
+
+
+def _emit_bridge_path_deprecation_warning(*, path: str, replacement: str) -> None:
+    print(
+        "[kinnoo deprecation] category=openclaw_bridge_path_deprecated "
+        f"path={path} replacement={replacement} "
+        "message=legacy bridge path remains supported for compatibility but is deprecated",
+        file=sys.stderr,
+    )
 
 
 def _format_top_level_help_text() -> str:
@@ -37,7 +48,7 @@ def _format_top_level_help_text() -> str:
     usage_help = style_text("-h", color="neon_green", stream=sys.stdout)
     usage_version = style_text("--version", color="light_blue", bold=True, stream=sys.stdout)
     usage_commands = style_text(
-        "{init,run,stop,attach,logs,install,pack,keygen,inspect,publish,list,search,import,check}",
+        "{init,run,test,stop,attach,logs,install,pack,keygen,inspect,publish,list,search,sync,login,logout,import,check}",
         color="neon_green",
         bold=True,
         stream=sys.stdout,
@@ -50,13 +61,14 @@ def _format_top_level_help_text() -> str:
     other_header = style_text("other:", color="purple", bold=True, stream=sys.stdout)
     options_header = style_text("options:", color="purple", bold=True, stream=sys.stdout)
 
-    all_agents_set = style_text("{init,run,install,pack,inspect, import,check}", color="neon_green", bold=True, stream=sys.stdout)
+    all_agents_set = style_text("{init,run,test,install,pack,inspect, import,check}", color="neon_green", bold=True, stream=sys.stdout)
     daemon_set = style_text("{stop,attach,logs}", color="neon_green", bold=True, stream=sys.stdout)
-    registry_set = style_text("{publish,install,list,search}", color="neon_green", bold=True, stream=sys.stdout)
+    registry_set = style_text("{publish,install,list,search,sync,login,logout}", color="neon_green", bold=True, stream=sys.stdout)
     other_set = style_text("{keygen}", color="neon_green", bold=True, stream=sys.stdout)
 
     init_cmd = style_text("init", color="neon_green", bold=True, stream=sys.stdout)
     run_cmd = style_text("run", color="neon_green", bold=True, stream=sys.stdout)
+    test_cmd = style_text("test", color="neon_green", bold=True, stream=sys.stdout)
     pack_cmd = style_text("pack", color="neon_green", bold=True, stream=sys.stdout)
     inspect_cmd = style_text("inspect", color="neon_green", bold=True, stream=sys.stdout)
     import_cmd = style_text("import", color="neon_green", bold=True, stream=sys.stdout)
@@ -68,6 +80,9 @@ def _format_top_level_help_text() -> str:
     install_cmd = style_text("install", color="neon_green", bold=True, stream=sys.stdout)
     list_cmd = style_text("list", color="neon_green", bold=True, stream=sys.stdout)
     search_cmd = style_text("search", color="neon_green", bold=True, stream=sys.stdout)
+    sync_cmd = style_text("sync", color="neon_green", bold=True, stream=sys.stdout)
+    login_cmd = style_text("login", color="neon_green", bold=True, stream=sys.stdout)
+    logout_cmd = style_text("logout", color="neon_green", bold=True, stream=sys.stdout)
     keygen_cmd = style_text("keygen", color="neon_green", bold=True, stream=sys.stdout)
 
     opt_help = style_text("--help", color="light_blue", bold=True, stream=sys.stdout)
@@ -81,6 +96,7 @@ def _format_top_level_help_text() -> str:
         f"    {all_agents_set}\n"
         f"        {init_cmd}                Scaffold a new kinnoo agent\n"
         f"        {run_cmd}                 Run a kinnoo agent\n"
+        f"        {test_cmd}                Execute standardized declarative tests for an agent\n"
         f"        {pack_cmd}                Package an agent directory into a .kno archive\n"
         f"        {inspect_cmd}             Inspect metadata from an agent directory or .kno archive\n"
         f"        {import_cmd}              Import an existing agent project in-place and prepare kinnoo metadata\n"
@@ -95,7 +111,10 @@ def _format_top_level_help_text() -> str:
         f"        {publish_cmd}             Publish latest archived agent artifact to the registry\n"
         f"        {install_cmd}             Install a kinnoo agent from archive (.kno) or registry\n"
         f"        {list_cmd}                List agents from local archive (default) or remote registry\n"
-        f"        {search_cmd}              Search agents from local archive (default) or remote registry\n\n"
+        f"        {search_cmd}              Search agents from local archive (default) or remote registry\n"
+        f"        {sync_cmd}                Sync source metadata into local registry mirror\n"
+        f"        {login_cmd}               Authenticate to a registry and persist auth state locally\n"
+        f"        {logout_cmd}              Clear persisted registry auth state\n\n"
         f"{other_header}\n"
         f"    {other_set}\n"
         f"        {keygen_cmd}              Generate an Ed25519 keypair for archive signing\n\n"
@@ -246,6 +265,21 @@ def main():
         help="Show predicted runtime behavior without executing full entrypoint side effects",
     )
     run_parser.add_argument(
+        "--experimental-openclaw-adapter",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
+    run_parser.add_argument(
+        "--thinking",
+        choices=["low", "medium", "high"],
+        help="(OpenClaw run) Optional thinking level passthrough",
+    )
+    run_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="(OpenClaw run) Request machine-readable output passthrough",
+    )
+    run_parser.add_argument(
         "--max-seconds",
         type=float,
         help=(
@@ -268,6 +302,35 @@ def main():
             "Memory budget in MB for supported platforms. "
             "If omitted, no memory budget is enforced by this option."
         ),
+    )
+
+    test_parser = subparsers.add_parser(
+        "test",
+        help="Execute standardized declarative tests for an agent",
+        formatter_class=argparse.RawTextHelpFormatter,
+        description="Execute standardized declarative tests for an agent",
+        epilog=(
+            "Examples:\n"
+            "  kinnoo test ./my-agent --validate-only\n"
+            "  kinnoo test ./my-agent --tests-file ./kinnoo.tests.yaml --validate-only"
+        ),
+    )
+    test_parser.add_argument("agent_dir", nargs="?", help="Path to agent directory")
+    test_parser.add_argument(
+        "--tests-file",
+        dest="tests_file",
+        help="Optional path to a kinnoo.tests.yaml file (relative to agent dir or absolute)",
+    )
+    test_parser.add_argument(
+        "--validate-only",
+        action="store_true",
+        help="Validate and load test declarations without executing the runtime",
+    )
+    test_parser.add_argument(
+        "--json",
+        dest="json_output",
+        action="store_true",
+        help="Emit machine-readable JSON output",
     )
 
     # Add 'stop' subcommand
@@ -294,9 +357,19 @@ def main():
     )
     logs_parser.add_argument("agent_dir", nargs="?", help="Path to daemon agent directory")
     logs_parser.add_argument(
+        "--daemon",
+        choices=["openclaw"],
+        help="Use delegated daemon logs backend (currently: openclaw)",
+    )
+    logs_parser.add_argument(
         "--follow",
         action="store_true",
         help="Stream new log lines until daemon exits or operator interrupts",
+    )
+    logs_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="(OpenClaw daemon logs) request machine-readable passthrough output",
     )
     logs_parser.add_argument(
         "--tail",
@@ -354,6 +427,16 @@ def main():
         action="store_true",
         help="(OpenClaw/Node-focused) Disable Node package lifecycle scripts during dependency installation",
     )
+    openclaw_install_group.add_argument(
+        "--openclaw-min-version",
+        default="0.1.0",
+        help="(OpenClaw-skill) Minimum OpenClaw CLI version required for delegated install (default: 0.1.0)",
+    )
+    openclaw_install_group.add_argument(
+        "--openclaw-skill",
+        dest="openclaw_skill",
+        help="Install an OpenClaw skill into an existing OpenClaw agent workspace",
+    )
     install_parser.add_argument(
         "--accept-permissions",
         action="store_true",
@@ -363,6 +446,16 @@ def main():
         "--allow-unverified-publisher",
         action="store_true",
         help="Allow non-interactive install when archive has no publisher signature metadata",
+    )
+    install_parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Require strict signature and integrity verification gates for install",
+    )
+    install_parser.add_argument(
+        "--frozen",
+        action="store_true",
+        help="Require lockfile-only reproducible install; fail on lock drift or missing entries",
     )
     install_source_group = install_parser.add_mutually_exclusive_group()
     install_source_group.add_argument(
@@ -406,6 +499,37 @@ def main():
         action="store_true",
         help="Run preflight checks before packaging; on FAIL prompt to continue.",
     )
+
+    # Add 'diff' subcommand
+    diff_parser = subparsers.add_parser(
+        "diff",
+        help="Compare two .kno archives and report manifest/file changes",
+        formatter_class=argparse.RawTextHelpFormatter,
+        description="Compare two .kno archives and report manifest/file changes",
+        epilog=(
+            "Examples:\n"
+            "  kinnoo diff ./dist/agent-1.0.0.kno ./dist/agent-1.1.0.kno"
+        ),
+    )
+    diff_parser.add_argument("archive_a", help="Path to baseline .kno archive")
+    diff_parser.add_argument("archive_b", help="Path to candidate .kno archive")
+    diff_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit machine-readable diff payload",
+    )
+
+    uninstall_parser = subparsers.add_parser(
+        "uninstall",
+        help="Remove an installed agent by name with confirmation",
+        formatter_class=argparse.RawTextHelpFormatter,
+        description="Remove an installed agent by name with confirmation",
+        epilog=(
+            "Examples:\n"
+            "  kinnoo uninstall my-agent"
+        ),
+    )
+    uninstall_parser.add_argument("agent_name", nargs="?", help="Installed agent name to remove")
 
     # Add 'keygen' subcommand
     keygen_parser = subparsers.add_parser(
@@ -499,6 +623,11 @@ def main():
         choices=["major", "minor", "patch"],
         help="Optional version bump applied during --pack flow before publish.",
     )
+    publish_parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Require strict signature/trust gates before publish upload.",
+    )
 
     # Add 'list' subcommand
     list_parser = subparsers.add_parser(
@@ -547,6 +676,70 @@ def main():
         nargs="?",
         help="Search query to match against agent name and description",
     )
+    search_parser.add_argument(
+        "--openclaw-skill",
+        action="store_true",
+        help="Delegate search to OpenClaw skills search wrapper mode",
+    )
+    search_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="(OpenClaw skill search) request machine-readable passthrough output",
+    )
+
+    sync_parser = subparsers.add_parser(
+        "sync",
+        help="Sync source metadata into local registry mirror",
+        formatter_class=argparse.RawTextHelpFormatter,
+        description="Sync source metadata into local registry mirror",
+        epilog=(
+            "Examples:\n"
+            "  kinnoo sync clawhub\n"
+            "  kinnoo sync clawhub --full\n"
+            "  kinnoo sync clawhub --since 2026-03-01T00:00:00Z"
+        ),
+    )
+    sync_parser.add_argument(
+        "source",
+        choices=["clawhub"],
+        help="Source namespace to sync",
+    )
+    sync_parser.add_argument(
+        "--full",
+        action="store_true",
+        help="Run full sync mode instead of incremental sync",
+    )
+    sync_parser.add_argument(
+        "--since",
+        help="Incremental sync cursor timestamp (ISO8601), if supported by source",
+    )
+    sync_source_group = sync_parser.add_mutually_exclusive_group()
+    sync_source_group.add_argument(
+        "--local",
+        action="store_true",
+        help="Force local fixture-driven sync mode",
+    )
+    sync_source_group.add_argument(
+        "--remote",
+        action="store_true",
+        help="Force configured remote sync mode",
+    )
+
+    login_parser = subparsers.add_parser(
+        "login",
+        help="Authenticate to a registry and persist auth state locally",
+        formatter_class=argparse.RawTextHelpFormatter,
+        description="Authenticate to a registry and persist auth state locally",
+    )
+    login_parser.add_argument("--email", help="Registry account email/username")
+    login_parser.add_argument("--password", help="Registry account password")
+
+    logout_parser = subparsers.add_parser(
+        "logout",
+        help="Clear persisted registry auth state",
+        description="Clear persisted registry auth state",
+    )
+    del logout_parser
 
     # Add 'import' subcommand
     import_parser = subparsers.add_parser(
@@ -559,7 +752,8 @@ def main():
             "  kinnoo import\n"
             "  kinnoo import ./existing-project --force\n"
             "  kinnoo import https://github.com/org/repo\n"
-            "  kinnoo import https://github.com/org/repo ./imported-agent"
+            "  kinnoo import https://github.com/org/repo ./imported-agent\n"
+            "  kinnoo import --source clawhub weather/weather-skill"
         ),
     )
     import_parser.add_argument(
@@ -579,6 +773,22 @@ def main():
         "--force",
         action="store_true",
         help="Overwrite existing kinnoo.yaml in target directory",
+    )
+    import_parser.add_argument(
+        "--source",
+        choices=["clawhub"],
+        help="Import from an explicit source namespace (currently: clawhub)",
+    )
+    import_parser.add_argument(
+        "--live-fallback",
+        action="store_true",
+        help="Allow remote source fallback when a mirror record is missing",
+    )
+    import_parser.add_argument(
+        "--from",
+        dest="framework_from",
+        choices=["langchain", "langgraph", "openai"],
+        help="Use framework-aware adapter hints for import inference",
     )
 
     check_parser = subparsers.add_parser(
@@ -639,6 +849,11 @@ def main():
         preflight_mode = bool(getattr(args, "preflight", False))
         input_arg = args.input
         pass_through_args = run_pass_through_args
+        if bool(getattr(args, "experimental_openclaw_adapter", False)):
+            _emit_bridge_path_deprecation_warning(
+                path="run_experimental_openclaw_adapter",
+                replacement="kinnoo run <agent-dir> '<prompt>' [--thinking <level>] [--json]",
+            )
         if not hasattr(args, "agent_dir") or args.agent_dir is None:
             if preflight_mode:
                 print("Usage: kinnoo run <agent-dir> --preflight", file=sys.stderr)
@@ -661,9 +876,31 @@ def main():
             pass_through_args=pass_through_args,
             sandbox=bool(getattr(args, "sandbox", False)),
             dry_run=bool(getattr(args, "dry_run", False)),
+            experimental_openclaw_adapter=bool(getattr(args, "experimental_openclaw_adapter", False)),
+            openclaw_thinking=getattr(args, "thinking", None),
+            openclaw_json_output=bool(getattr(args, "json", False)),
             max_seconds=getattr(args, "max_seconds", None),
             max_cpu_seconds=getattr(args, "max_cpu_seconds", None),
             max_memory_mb=getattr(args, "max_memory_mb", None),
+        )
+        sys.exit(exit_code)
+
+    elif args.command == "test":
+        agent_dir = getattr(args, "agent_dir", None)
+        if agent_dir is None:
+            print("Usage: kinnoo test <agent-dir> [--tests-file path] [--validate-only] [--json]", file=sys.stderr)
+            sys.exit(1)
+
+        try:
+            from kinnoo.test_command import run_test_command
+        except ImportError:
+            from .test_command import run_test_command
+
+        exit_code = run_test_command(
+            agent_dir_arg=agent_dir,
+            tests_file_arg=getattr(args, "tests_file", None),
+            validate_only=bool(getattr(args, "validate_only", False)),
+            json_output=bool(getattr(args, "json_output", False)),
         )
         sys.exit(exit_code)
 
@@ -687,12 +924,20 @@ def main():
         ignore_scripts = bool(getattr(args, "ignore_scripts", False))
         accept_permissions = bool(getattr(args, "accept_permissions", False))
         allow_unverified_publisher = bool(getattr(args, "allow_unverified_publisher", False))
+        strict_mode = bool(getattr(args, "strict", False))
+        frozen_mode = bool(getattr(args, "frozen", False))
         use_local = bool(getattr(args, "local", False))
         use_remote = bool(getattr(args, "remote", False))
+        minimum_openclaw_version = str(getattr(args, "openclaw_min_version", "0.1.0"))
+        openclaw_skill = getattr(args, "openclaw_skill", None)
         try:
             from kinnoo.install_command import install_agent
         except ImportError:
             from .install_command import install_agent
+
+        if openclaw_skill and archive_path is None:
+            print("Usage: kinnoo install <agent-name> --openclaw-skill <skill-slug-or-url>", file=sys.stderr)
+            sys.exit(1)
 
         exit_code = install_agent(
             archive_path=archive_path,
@@ -704,8 +949,12 @@ def main():
             ignore_scripts=ignore_scripts,
             accept_permissions=accept_permissions,
             allow_unverified_publisher=allow_unverified_publisher,
+            strict_mode=strict_mode,
+            frozen_mode=frozen_mode,
             use_local=use_local,
             use_remote=use_remote,
+            minimum_openclaw_version=minimum_openclaw_version,
+            openclaw_skill_identifier=openclaw_skill,
         )
         sys.exit(exit_code)
 
@@ -738,6 +987,19 @@ def main():
         sys.exit(exit_code)
 
     elif args.command == "logs":
+        daemon = getattr(args, "daemon", None)
+        if daemon == "openclaw":
+            try:
+                from kinnoo.logs_command import logs_openclaw
+            except ImportError:
+                from .logs_command import logs_openclaw
+
+            exit_code = logs_openclaw(
+                follow=bool(getattr(args, "follow", False)),
+                json_output=bool(getattr(args, "json", False)),
+            )
+            sys.exit(exit_code)
+
         agent_dir = getattr(args, "agent_dir", None)
         if agent_dir is None:
             print("Usage: kinnoo logs <agent-dir> [--tail N] [--follow]", file=sys.stderr)
@@ -772,6 +1034,39 @@ def main():
             signing_key_path=getattr(args, "signing_key", None),
             preflight=bool(getattr(args, "preflight", False)),
         )
+        sys.exit(exit_code)
+
+    elif args.command == "diff":
+        archive_a = getattr(args, "archive_a", None)
+        archive_b = getattr(args, "archive_b", None)
+        if archive_a is None or archive_b is None:
+            print("Usage: kinnoo diff <archive-a.kno> <archive-b.kno>", file=sys.stderr)
+            sys.exit(1)
+
+        try:
+            from kinnoo.diff_command import diff_archives
+        except ImportError:
+            from .diff_command import diff_archives
+
+        exit_code = diff_archives(
+            archive_a,
+            archive_b,
+            json_output=bool(getattr(args, "json", False)),
+        )
+        sys.exit(exit_code)
+
+    elif args.command == "uninstall":
+        agent_name = getattr(args, "agent_name", None)
+        if agent_name is None:
+            print("Usage: kinnoo uninstall <agent-name>", file=sys.stderr)
+            sys.exit(1)
+
+        try:
+            from kinnoo.uninstall_command import uninstall_agent
+        except ImportError:
+            from .uninstall_command import uninstall_agent
+
+        exit_code = uninstall_agent(agent_name=agent_name)
         sys.exit(exit_code)
 
     elif args.command == "keygen":
@@ -851,6 +1146,7 @@ def main():
         use_remote = bool(getattr(args, "remote", False))
         use_pack = bool(getattr(args, "pack", False))
         bump = getattr(args, "bump", None)
+        strict_mode = bool(getattr(args, "strict", False))
 
         if use_local and use_remote:
             print("Error: --local and --remote cannot be used together.", file=sys.stderr)
@@ -871,6 +1167,7 @@ def main():
             use_remote=use_remote,
             pack=use_pack,
             bump=bump,
+            strict_mode=strict_mode,
         )
         sys.exit(exit_code)
 
@@ -896,6 +1193,18 @@ def main():
             print("Usage: kinnoo search [--local | --remote] <query>", file=sys.stderr)
             sys.exit(1)
 
+        if bool(getattr(args, "openclaw_skill", False)):
+            try:
+                from kinnoo.search_command import search_openclaw_skills
+            except ImportError:
+                from .search_command import search_openclaw_skills
+
+            exit_code = search_openclaw_skills(
+                query=query,
+                json_output=bool(getattr(args, "json", False)),
+            )
+            sys.exit(exit_code)
+
         if bool(getattr(args, "local", False)):
             source = "local"
         elif bool(getattr(args, "remote", False)):
@@ -911,10 +1220,63 @@ def main():
         exit_code = search_agents(query=query, source=source)
         sys.exit(exit_code)
 
+    elif args.command == "sync":
+        source = getattr(args, "source", None)
+        if source is None:
+            print("Usage: kinnoo sync clawhub [--full] [--since <iso8601>]", file=sys.stderr)
+            sys.exit(1)
+
+        if str(source).strip().lower() == "clawhub":
+            _emit_bridge_path_deprecation_warning(
+                path="sync_clawhub",
+                replacement=(
+                    "kinnoo search --openclaw-skill <query> [--json]; "
+                    "kinnoo install <agent-name> --openclaw-skill <owner/skill-or-url>"
+                ),
+            )
+
+        try:
+            from kinnoo.sync_command import sync_source
+        except ImportError:
+            from .sync_command import sync_source
+
+        exit_code = sync_source(
+            source=source,
+            full=bool(getattr(args, "full", False)),
+            since=getattr(args, "since", None),
+            use_local=bool(getattr(args, "local", False)),
+            use_remote=bool(getattr(args, "remote", False)),
+        )
+        sys.exit(exit_code)
+
+    elif args.command == "login":
+        try:
+            from kinnoo.auth_command import login_command
+        except ImportError:
+            from .auth_command import login_command
+
+        exit_code = login_command(
+            email=getattr(args, "email", None),
+            password=getattr(args, "password", None),
+        )
+        sys.exit(exit_code)
+
+    elif args.command == "logout":
+        try:
+            from kinnoo.auth_command import logout_command
+        except ImportError:
+            from .auth_command import logout_command
+
+        exit_code = logout_command()
+        sys.exit(exit_code)
+
     elif args.command == "import":
         target_path_arg = getattr(args, "target", None)
         import_path_arg = getattr(args, "import_path", None)
         force = bool(getattr(args, "force", False))
+        source = getattr(args, "source", None)
+        live_fallback = bool(getattr(args, "live_fallback", False))
+        framework_from = getattr(args, "framework_from", None)
 
         try:
             from kinnoo.import_command import import_agent
@@ -925,6 +1287,9 @@ def main():
             target_path_arg=target_path_arg,
             import_path_arg=import_path_arg,
             force=force,
+            source=source,
+            live_fallback=live_fallback,
+            framework_from=framework_from,
         )
         sys.exit(exit_code)
 

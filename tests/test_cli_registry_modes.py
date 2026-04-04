@@ -100,6 +100,36 @@ def _write_remote_registry_entry(
     )
 
 
+def _write_minimal_python_agent(agent_dir: Path) -> None:
+    agent_dir.mkdir(parents=True, exist_ok=True)
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: feature85-legacy-run-agent",
+                "version: 1.0.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.10\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "run.py").write_text(
+        "import sys\n"
+        "print('legacy-run-ok', sys.argv[1] if len(sys.argv) > 1 else '')\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+
+
 def test_list_default_local_and_remote_modes(tmp_path: Path) -> None:
     archive_root = tmp_path / "archive-sandbox"
     registry_root = tmp_path / "registry-sandbox"
@@ -317,3 +347,177 @@ def test_feature55_proxy_rewrite_forwarding() -> None:
     # Forwarding semantics are contractually preserved by proxy rewrites with pass-through headers.
     assert "X-Forwarded-For" in text or "forwarded" in text.lower()
     assert "X-Request-Id" in text or "request-id" in text.lower()
+
+
+def test_feature67_sync_modes_and_upsert(tmp_path: Path) -> None:
+    """Feature67 deprecated-path coverage: legacy sync remains functional during migration."""
+    registry_root = tmp_path / "registry-sandbox"
+    fixture_path = tmp_path / "clawhub-sync-fixture.json"
+
+    first_payload = {
+        "items": [
+            {
+                "slug": "owner-alpha/agent-alpha",
+                "version": "1.0.0",
+                "source_url": "https://clawhub.dev/owner-alpha/agent-alpha",
+                "metadata": {"title": "Agent Alpha"},
+            },
+            {
+                "slug": "owner-beta/agent-beta",
+                "version": "2.1.0",
+                "source_url": "https://clawhub.dev/owner-beta/agent-beta",
+                "metadata": {"title": "Agent Beta"},
+            },
+        ]
+    }
+    fixture_path.write_text(json.dumps(first_payload, indent=2) + "\n", encoding="utf-8")
+
+    env = {
+        **os.environ,
+        "KINNOO_REGISTRY_ROOT": str(registry_root),
+        "KINNOO_CLAWHUB_SYNC_FIXTURE": str(fixture_path),
+    }
+
+    incremental_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "sync", "clawhub"],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    incremental_output = f"{incremental_result.stdout}\n{incremental_result.stderr}"
+    assert incremental_result.returncode == 0, incremental_output
+    assert "source=clawhub mode=incremental created=2 updated=0 skipped=0 failed=0" in incremental_output
+
+    alpha_record_path = (
+        registry_root
+        / "tenants"
+        / "clawhub"
+        / "mirror"
+        / "owner-alpha"
+        / "agent-alpha"
+        / "1.0.0"
+        / "mirror-record.json"
+    )
+    beta_record_path = (
+        registry_root
+        / "tenants"
+        / "clawhub"
+        / "mirror"
+        / "owner-beta"
+        / "agent-beta"
+        / "2.1.0"
+        / "mirror-record.json"
+    )
+    assert alpha_record_path.exists(), incremental_output
+    assert beta_record_path.exists(), incremental_output
+
+    alpha_record = json.loads(alpha_record_path.read_text(encoding="utf-8"))
+    assert alpha_record["tenant_slug"] == "clawhub"
+    assert alpha_record["source_registry"] == "clawhub"
+    assert alpha_record["source_slug"] == "owner-alpha/agent-alpha"
+
+    second_payload = {
+        "items": [
+            {
+                "slug": "owner-alpha/agent-alpha",
+                "version": "1.1.0",
+                "source_url": "https://clawhub.dev/owner-alpha/agent-alpha",
+                "metadata": {"title": "Agent Alpha"},
+            },
+            {
+                "slug": "owner-beta/agent-beta",
+                "version": "2.1.0",
+                "source_url": "https://clawhub.dev/owner-beta/agent-beta",
+                "metadata": {"title": "Agent Beta"},
+            },
+        ]
+    }
+    fixture_path.write_text(json.dumps(second_payload, indent=2) + "\n", encoding="utf-8")
+
+    full_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "sync", "clawhub", "--full"],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    full_output = f"{full_result.stdout}\n{full_result.stderr}"
+    assert full_result.returncode == 0, full_output
+    assert "source=clawhub mode=full created=0 updated=1 skipped=1 failed=0" in full_output
+
+    alpha_updated_path = (
+        registry_root
+        / "tenants"
+        / "clawhub"
+        / "mirror"
+        / "owner-alpha"
+        / "agent-alpha"
+        / "1.1.0"
+        / "mirror-record.json"
+    )
+    assert alpha_updated_path.exists(), full_output
+    alpha_updated = json.loads(alpha_updated_path.read_text(encoding="utf-8"))
+    assert alpha_updated["source_registry"] == "clawhub"
+    assert alpha_updated["source_slug"] == "owner-alpha/agent-alpha"
+
+
+def test_feature85_deprecated_paths_warn_and_remain_compatible(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "feature85-legacy-run-agent"
+    _write_minimal_python_agent(agent_dir)
+
+    legacy_run = subprocess.run(
+        [
+            sys.executable,
+            str(CLI_PATH),
+            "run",
+            str(agent_dir),
+            "hello",
+            "--experimental-openclaw-adapter",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    legacy_run_output = f"{legacy_run.stdout}\n{legacy_run.stderr}"
+    assert legacy_run.returncode == 0, legacy_run_output
+    assert "legacy-run-ok hello" in legacy_run_output
+    assert "category=openclaw_bridge_path_deprecated" in legacy_run_output
+    assert "path=run_experimental_openclaw_adapter" in legacy_run_output
+    assert "replacement=kinnoo run <agent-dir> '<prompt>' [--thinking <level>] [--json]" in legacy_run_output
+
+    registry_root = tmp_path / "registry-sandbox"
+    fixture_path = tmp_path / "clawhub-sync-fixture.json"
+    fixture_path.write_text(
+        json.dumps(
+            {
+                "items": [
+                    {
+                        "slug": "owner-alpha/agent-alpha",
+                        "version": "1.0.0",
+                        "source_url": "https://clawhub.dev/owner-alpha/agent-alpha",
+                        "metadata": {"title": "Agent Alpha"},
+                    }
+                ]
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    sync_env = {
+        **os.environ,
+        "KINNOO_REGISTRY_ROOT": str(registry_root),
+        "KINNOO_CLAWHUB_SYNC_FIXTURE": str(fixture_path),
+    }
+    legacy_sync = subprocess.run(
+        [sys.executable, str(CLI_PATH), "sync", "clawhub"],
+        capture_output=True,
+        text=True,
+        env=sync_env,
+    )
+    legacy_sync_output = f"{legacy_sync.stdout}\n{legacy_sync.stderr}"
+    assert legacy_sync.returncode == 0, legacy_sync_output
+    assert "category=openclaw_bridge_path_deprecated" in legacy_sync_output
+    assert "path=sync_clawhub" in legacy_sync_output
+    assert "kinnoo search --openclaw-skill <query> [--json]" in legacy_sync_output
+    assert "kinnoo install <agent-name> --openclaw-skill <owner/skill-or-url>" in legacy_sync_output
+    assert "source=clawhub mode=incremental created=1 updated=0 skipped=0 failed=0" in legacy_sync_output
