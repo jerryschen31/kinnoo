@@ -2826,7 +2826,7 @@ features:
       - "Backward compatibility is critical — old archives must still install"
     owner: swe-agent
     dependencies: [feature86, feature87]
-    status: not-started
+    status: needs-review
 
   # ──────────────────────────────────────────────────────────────
   # Phase 9: Server Hardening & Containerization (features 89-91, 100-102)
