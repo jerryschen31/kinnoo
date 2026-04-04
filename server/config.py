@@ -43,6 +43,12 @@ class ServerConfig:
     app_version: str = "0.30.0"
     uvicorn_workers: int = 1
     uvicorn_timeout_seconds: int = 30
+    auth_rate_limit_requests: int = 5
+    auth_rate_limit_window_seconds: int = 60
+    publish_rate_limit_requests: int = 10
+    publish_rate_limit_window_seconds: int = 3600
+    search_rate_limit_requests: int = 60
+    search_rate_limit_window_seconds: int = 60
     registry_admin_email: str | None = None
     registry_admin_password: str | None = None
     frontend_url: str = "http://localhost:3000"
@@ -99,6 +105,12 @@ class ServerConfig:
             app_version=(os.getenv("KINNOO_VERSION") or "0.30.0").strip() or "0.30.0",
             uvicorn_workers=_read_int_env("UVICORN_WORKERS", uvicorn_workers_default),
             uvicorn_timeout_seconds=_read_int_env("UVICORN_TIMEOUT_SECONDS", 30),
+            auth_rate_limit_requests=_read_int_env("RATE_LIMIT_AUTH_REQUESTS", 5),
+            auth_rate_limit_window_seconds=_read_int_env("RATE_LIMIT_AUTH_WINDOW_SECONDS", 60),
+            publish_rate_limit_requests=_read_int_env("RATE_LIMIT_PUBLISH_REQUESTS", 10),
+            publish_rate_limit_window_seconds=_read_int_env("RATE_LIMIT_PUBLISH_WINDOW_SECONDS", 3600),
+            search_rate_limit_requests=_read_int_env("RATE_LIMIT_SEARCH_REQUESTS", 60),
+            search_rate_limit_window_seconds=_read_int_env("RATE_LIMIT_SEARCH_WINDOW_SECONDS", 60),
             registry_admin_email=(os.getenv("REGISTRY_ADMIN_EMAIL") or "").strip() or None,
             registry_admin_password=os.getenv("REGISTRY_ADMIN_PASSWORD") or None,
             frontend_url=(os.getenv("FRONTEND_URL") or "http://localhost:3000").strip(),
