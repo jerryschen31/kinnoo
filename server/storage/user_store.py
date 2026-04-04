@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
 from typing import Iterable
@@ -62,6 +64,34 @@ class UserStore:
 
     def any_admin_exists(self) -> bool:
         return any(user.role == "admin" for user in self.list_users())
+
+    def increment_failed_login(self, *, user: User, lockout_after: int = 5, lockout_minutes: int = 15) -> User:
+        attempts = int(user.failed_login_attempts) + 1
+        lock_until: str | None = None
+        if attempts >= lockout_after:
+            attempts = lockout_after
+            lock_until = (
+                datetime.now(timezone.utc) + timedelta(minutes=lockout_minutes)
+            ).isoformat().replace("+00:00", "Z")
+
+        updated = replace(
+            user,
+            failed_login_attempts=attempts,
+            locked_until=lock_until,
+            updated_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        )
+        self.save(updated)
+        return updated
+
+    def reset_login_failures(self, *, user: User) -> User:
+        updated = replace(
+            user,
+            failed_login_attempts=0,
+            locked_until=None,
+            updated_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        )
+        self.save(updated)
+        return updated
 
     def _read_user(self, path: Path) -> User:
         raw = json.loads(path.read_text(encoding="utf-8"))
