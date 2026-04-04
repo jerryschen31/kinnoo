@@ -7745,7 +7745,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: []
     tests: [test541, test542]
-    status: not-started
+    status: needs-review
 
   - id: task383
     title: "Document integrity manifest format and verify pack integration"
