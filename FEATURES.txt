@@ -2896,7 +2896,7 @@ features:
       - "Max upload size should come from ServerConfig"
     owner: swe-agent
     dependencies: [feature86]
-    status: not-started
+    status: needs-review
 
   - id: feature91
     title: "Production-grade rate limiting and abuse protections"

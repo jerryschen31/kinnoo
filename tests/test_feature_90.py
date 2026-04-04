@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from io import BytesIO
 import zipfile
@@ -97,3 +98,32 @@ def test_feature90_group2(tmp_path) -> None:
         headers={"Authorization": f"Bearer {token}"},
     )
     assert ok.status_code == 201
+
+    files = {
+        "kinnoo.yaml": valid_manifest.encode("utf-8"),
+        "README.md": b"test archive",
+    }
+    integrity_manifest = {
+        "version": 1,
+        "files": {
+            path: {"sha256": hashlib.sha256(data).hexdigest(), "size": len(data)}
+            for path, data in files.items()
+        },
+    }
+    integrity_manifest["files"]["README.md"]["sha256"] = "0" * 64
+
+    tampered_payload = BytesIO()
+    with zipfile.ZipFile(tampered_payload, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for path, data in files.items():
+            archive.writestr(path, data)
+        archive.writestr("META-INF/integrity.json", json.dumps(integrity_manifest))
+
+    tampered = client.post(
+        "/api/publish",
+        files={"file": ("tampered.kno", tampered_payload.getvalue(), "application/octet-stream")},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert tampered.status_code == 400
+    error_payload = tampered.json()
+    assert "error" in error_payload
+    assert "hash mismatch" in json.dumps(error_payload).lower()

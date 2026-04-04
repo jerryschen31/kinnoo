@@ -7898,7 +7898,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task390]
     tests: [test549, test550]
-    status: not-started
+    status: needs-review
 
   - id: task392
     title: "Implement configurable per-endpoint and per-tenant rate limiting"
