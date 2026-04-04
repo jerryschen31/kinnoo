@@ -7813,7 +7813,7 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task383, task385]
     tests: [test545, test546]
-    status: not-started
+    status: needs-review
 
   - id: task387
     title: "Handle missing manifests, tampered files, and backward compat in install"
