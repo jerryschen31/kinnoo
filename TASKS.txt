@@ -7882,7 +7882,7 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task383]
     tests: [test549, test550]
-    status: not-started
+    status: needs-review
 
   - id: task391
     title: "Enforce integrity.json validation on upload and return JSON errors"
