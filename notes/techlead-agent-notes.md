@@ -1741,3 +1741,20 @@ User installed OpenClaw v2026.3.28, tested the CLI directly, and determined that
 - Validation:
   - `python src/validate_project_manifests.py` -> pass
 - Full `python -m pytest` run from repo root currently fails due unrelated workspace test-collection conflicts (example-scratch and server/mock-server module collisions); no failures tied to the manifest edits above.
+
+## Phase 9 Tech Lead Review 1 (2026-04-04)
+
+- Reviewed feature89-feature91 and feature100-feature102 against Phase 9 plan in `notes/phases/phase8-planning-3.md`.
+- Created formal review write-up in `notes/phases/phase9-features-review-notes.md` under section "Tech Lead Review 1".
+- Full regression executed and passing:
+  - `/Users/jerry/.pyenv/versions/3.11.12/bin/python -m pytest tests` -> `516 passed, 10 skipped`
+- Manifest validation executed and passing:
+  - `/Users/jerry/.pyenv/versions/3.11.12/bin/python src/validate_project_manifests.py` -> pass
+- Key decision notes:
+  - feature100 is still partial (task410 done; task411/task412 not started), so it should not be treated as complete.
+  - feature101 and feature102 are implemented but have AC-depth gaps in current tests.
+- Minor fixes applied during review:
+  - `server/cli.py`: fixed user-list tenant slug derivation bug.
+  - `docker-compose.yml`: removed inline secret literals; now requires env vars.
+  - `src/kinnoo/templates.py`: made dotenv import optional for generated MCP client template.
+  - `tests/test_registry.py`: updated legacy publish fixtures to include `framework` field.

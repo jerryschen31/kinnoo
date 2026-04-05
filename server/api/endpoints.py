@@ -35,7 +35,16 @@ def post_auth_token(
             user_store=user_store,
             tenant_slug=tenant_slug,
         )
-    except PermissionError:
+    except PermissionError as error:
+        message = str(error)
+        if message.startswith("423 account_locked"):
+            retry_after = 900
+            if "retry_after=" in message:
+                try:
+                    retry_after = int(message.rsplit("retry_after=", 1)[1])
+                except ValueError:
+                    retry_after = 900
+            return 423, {"error": "account_locked", "retry_after": retry_after}
         return 401, {"error": "invalid username or password"}
 
     return 200, {
