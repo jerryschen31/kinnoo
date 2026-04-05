@@ -2930,6 +2930,10 @@ features:
     dependencies: []
     status: needs-review
 
+# ──────────────────────────────────────────────────────────────
+# Phase 11: Documentation (features 92-99)
+# ──────────────────────────────────────────────────────────────
+
   - id: feature92
     title: "kinnoo.yaml specification document"
     description: |
@@ -3151,6 +3155,11 @@ features:
     owner: swe-agent
     dependencies: []
     status: not-started
+
+
+# ──────────────────────────────────────────────────────────────
+# Phase 9: Server Hardening & Containerization (features 89-91, 100-102)
+# ──────────────────────────────────────────────────────────────
 
   - id: feature100
     title: "Auth hardening — lockout, password policy, token blacklist"
