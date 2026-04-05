@@ -10,6 +10,7 @@ import os
 import json
 import tempfile
 import hashlib
+import base64
 import platform
 from datetime import datetime, timezone
 from urllib import request as urllib_request
@@ -49,6 +50,12 @@ try:
     from kinnoo.install_trace import write_install_trace
     from kinnoo.logging_utils import emit_violation_event_diagnostic
     from kinnoo.signing import verify_detached_signature_artifacts
+    from kinnoo.signing import (
+        load_ed25519_public_key_from_pem,
+        public_key_fingerprint,
+        verify_signature,
+    )
+    from kinnoo.integrity import verify_integrity_manifest
     from kinnoo.openclaw_preflight import run_openclaw_preflight_for_command
 except ImportError:
     from .checksum import (
@@ -72,6 +79,8 @@ except ImportError:
     from .install_trace import write_install_trace
     from .logging_utils import emit_violation_event_diagnostic
     from .signing import verify_detached_signature_artifacts
+    from .signing import load_ed25519_public_key_from_pem, public_key_fingerprint, verify_signature
+    from .integrity import verify_integrity_manifest
     from .openclaw_preflight import run_openclaw_preflight_for_command
 
 
@@ -151,6 +160,104 @@ def _load_signature_fingerprint(archive_path: Path) -> str | None:
     if isinstance(fingerprint, str) and fingerprint.strip():
         return fingerprint.strip()
     return None
+
+
+def _load_sidecar_public_key_pem(archive_path: Path) -> str | None:
+    metadata_path = Path(f"{archive_path}.sig.json")
+    if not metadata_path.exists() or not metadata_path.is_file():
+        return None
+    try:
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, json.JSONDecodeError):
+        return None
+    if not isinstance(metadata, dict):
+        return None
+    public_key_pem = metadata.get("public_key_pem")
+    if isinstance(public_key_pem, str) and public_key_pem.strip():
+        return public_key_pem.strip()
+    return None
+
+
+def _verify_embedded_integrity_and_signature(
+    *,
+    extracted_dir: Path,
+    archive_path: Path,
+    strict_mode: bool,
+    expected_publisher_public_key: str | None,
+) -> tuple[bool, str]:
+    integrity_path = extracted_dir / "META-INF" / "integrity.json"
+    signature_path = extracted_dir / "META-INF" / "signature.json"
+
+    if not integrity_path.exists() or not integrity_path.is_file():
+        if strict_mode:
+            return False, "Error: Strict mode requires META-INF/integrity.json in the archive."
+        return True, "Warning: META-INF/integrity.json not found; continuing for backward compatibility."
+
+    try:
+        manifest = json.loads(integrity_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        return False, f"Error: Failed to parse META-INF/integrity.json: {error}"
+
+    mismatches = verify_integrity_manifest(extracted_dir, manifest)
+    if mismatches:
+        mismatch_details = "\n".join(f"  - {item}" for item in mismatches)
+        return (
+            False,
+            "Verification FAILED: integrity mismatch detected.\n" + mismatch_details,
+        )
+
+    file_count = len(manifest.get("files", {})) if isinstance(manifest, dict) else 0
+    success_message = f"[kinnoo install] Verified {file_count} files, all passed."
+
+    if not strict_mode:
+        return True, success_message
+
+    if not signature_path.exists() or not signature_path.is_file():
+        return False, "Error: Strict mode requires META-INF/signature.json but it was not found."
+
+    try:
+        signature_doc = json.loads(signature_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        return False, f"Error: Failed to parse META-INF/signature.json: {error}"
+
+    if not isinstance(signature_doc, dict):
+        return False, "Error: META-INF/signature.json must contain a JSON object."
+
+    signature_base64 = signature_doc.get("signature")
+    if not isinstance(signature_base64, str) or not signature_base64.strip():
+        return False, "Error: META-INF/signature.json is missing required 'signature' field."
+
+    try:
+        signature_bytes = base64.b64decode(signature_base64.encode("ascii"))
+    except (ValueError, UnicodeEncodeError) as error:
+        return False, f"Error: META-INF/signature.json has invalid base64 signature: {error}"
+
+    public_key_pem = expected_publisher_public_key
+    if public_key_pem is None:
+        embedded_public_key = signature_doc.get("public_key_pem")
+        if isinstance(embedded_public_key, str) and embedded_public_key.strip():
+            public_key_pem = embedded_public_key.strip()
+    if public_key_pem is None:
+        public_key_pem = _load_sidecar_public_key_pem(archive_path)
+    if public_key_pem is None:
+        return False, "Error: Strict mode could not resolve public key for signature verification."
+
+    try:
+        signing_public_key = load_ed25519_public_key_from_pem(public_key_pem)
+    except ValueError as error:
+        return False, f"Error: Invalid embedded signing public key: {error}"
+
+    actual_fingerprint = public_key_fingerprint(signing_public_key)
+    expected_fingerprint = signature_doc.get("public_key_fingerprint")
+    if isinstance(expected_fingerprint, str) and expected_fingerprint.strip():
+        if expected_fingerprint.strip() != actual_fingerprint:
+            return False, "Error: signature fingerprint does not match signing public key."
+
+    integrity_payload = integrity_path.read_bytes()
+    if not verify_signature(signing_public_key, integrity_payload, signature_bytes):
+        return False, "Error: signature verification failed for META-INF/integrity.json."
+
+    return True, success_message + "\n[kinnoo install] Embedded signature verified."
 
 
 def _update_lockfile_after_install(
@@ -912,6 +1019,7 @@ def install_agent(
     accept_permissions: bool = False,
     allow_unverified_publisher: bool = False,
     strict_mode: bool = False,
+    skip_verify: bool = False,
     frozen_mode: bool = False,
     expected_publisher_public_key: str | None = None,
     use_local: bool = False,
@@ -1066,6 +1174,7 @@ def install_agent(
                 accept_permissions=accept_permissions,
                 allow_unverified_publisher=allow_unverified_publisher,
                 strict_mode=strict_mode,
+                skip_verify=skip_verify,
                 frozen_mode=frozen_mode,
                 expected_publisher_public_key=expected_publisher_key,
                 minimum_openclaw_version=minimum_openclaw_version,
@@ -1087,6 +1196,7 @@ def install_agent(
         accept_permissions=accept_permissions,
         allow_unverified_publisher=allow_unverified_publisher,
         strict_mode=strict_mode,
+        skip_verify=skip_verify,
         frozen_mode=frozen_mode,
         expected_publisher_public_key=expected_publisher_public_key,
         minimum_openclaw_version=minimum_openclaw_version,
@@ -1287,6 +1397,7 @@ def _install_from_archive_path(
     accept_permissions: bool = False,
     allow_unverified_publisher: bool = False,
     strict_mode: bool = False,
+    skip_verify: bool = False,
     frozen_mode: bool = False,
     expected_publisher_public_key: str | None = None,
     minimum_openclaw_version: str = DEFAULT_OPENCLAW_MINIMUM_VERSION,
@@ -1308,143 +1419,147 @@ def _install_from_archive_path(
         return 1
 
     checksum_path = checksum_sidecar_path_for_archive(archive)
-    if checksum_path.exists():
-        try:
-            expected_checksum, expected_archive_filename = read_checksum_sidecar(checksum_path)
-        except (OSError, ChecksumParseError) as error:
-            print(f"Error: Failed to read checksum sidecar: {error}", file=sys.stderr)
-            return 1
-
-        if expected_archive_filename != archive.name:
-            print(
-                "Error: Checksum sidecar filename does not match archive filename.",
-                file=sys.stderr,
-            )
-            return 1
-
-        # [agent] Integrity verification must occur before extraction/write side effects.
-        checksum_matches, _ = verify_archive_checksum(archive, expected_checksum)
-        if not checksum_matches:
-            print(
-                "Archive integrity check failed — the file may be corrupted or tampered with",
-                file=sys.stderr,
-            )
-            return 1
-
-        print("[kinnoo install] Archive checksum verified.")
-
-    source_is_unverified = not checksum_path.exists()
-    if strict_mode and source_is_unverified:
-        print(
-            "Error: Strict mode requires archive integrity verification; checksum sidecar is missing.",
-            file=sys.stderr,
-        )
-        return 1
-
-    if source_is_unverified:
-        print("No checksum file found — archive integrity not verified", file=sys.stderr)
-        warning_message = "This agent is from an unverified source."
-        print(warning_message, file=sys.stderr)
-        if not assume_yes:
-            try:
-                unverified_confirmation = input(
-                    "This agent is from an unverified source. Continue? (y/n): "
-                ).strip().lower()
-            except EOFError:
-                print("Install aborted by user.", file=sys.stderr)
-                return 1
-            if unverified_confirmation not in {"y", "yes"}:
-                print("Install aborted by user.", file=sys.stderr)
-                return 1
-
     signature_path = Path(f"{archive}.sig")
     signature_metadata_path = Path(f"{archive}.sig.json")
-    has_signature_artifacts = signature_path.exists() or signature_metadata_path.exists()
 
-    if strict_mode and not (signature_path.exists() and signature_metadata_path.exists()):
-        print(
-            "Error: Strict mode requires valid signature metadata; unsigned artifacts are not allowed.",
-            file=sys.stderr,
-        )
-        print(
-            "Error: Re-pack with --sign and retry install in strict mode.",
-            file=sys.stderr,
-        )
-        return 1
-
-    if has_signature_artifacts:
-        if not signature_path.exists() or not signature_metadata_path.exists():
-            print(
-                "Error: Signed archive is missing required signature artifacts (.sig and .sig.json).",
-                file=sys.stderr,
-            )
-            print(
-                "Error: Re-pack with --sign and retry install.",
-                file=sys.stderr,
-            )
-            return 1
-
-        try:
-            verify_detached_signature_artifacts(
-                archive_path=archive,
-                signature_path=signature_path,
-                metadata_path=signature_metadata_path,
-                expected_public_key_pem=expected_publisher_public_key,
-            )
-        except ValueError as error:
-            print(
-                f"Error: Signature verification failed: {error}",
-                file=sys.stderr,
-            )
-            if strict_mode:
-                print(
-                    "Error: Strict mode requires valid signature metadata; unsigned artifacts are not allowed.",
-                    file=sys.stderr,
-                )
-            print(
-                "Error: Archive authenticity could not be verified. Re-download from a trusted publisher or re-pack with a valid signing key.",
-                file=sys.stderr,
-            )
-            return 1
-
-        print("[kinnoo install] Archive signature verified.")
-    elif checksum_path.exists():
-        if expected_publisher_public_key is not None:
-            print(
-                "Error: Registry publisher key association exists but archive signature metadata is missing.",
-                file=sys.stderr,
-            )
-            print(
-                "Error: Re-publish a signed archive with matching publisher signature metadata.",
-                file=sys.stderr,
-            )
-            return 1
-        print(
-            "Warning: UNVERIFIED PUBLISHER - no signature metadata found for this archive.",
-            file=sys.stderr,
-        )
-        if assume_yes:
-            if not allow_unverified_publisher:
-                print(
-                    "Error: Non-interactive install requires --allow-unverified-publisher when signature metadata is absent.",
-                    file=sys.stderr,
-                )
-                return 1
-            print(
-                "[kinnoo install] Unverified publisher override acknowledged via --allow-unverified-publisher."
-            )
-        else:
+    if skip_verify:
+        print("[kinnoo install] Verification skipped (--skip-verify).")
+    else:
+        if checksum_path.exists():
             try:
-                publisher_confirmation = input(
-                    "UNVERIFIED PUBLISHER: no signature metadata found. Continue? [y/N]: "
-                ).strip().lower()
-            except EOFError:
-                print("Install aborted: unverified publisher not approved.", file=sys.stderr)
+                expected_checksum, expected_archive_filename = read_checksum_sidecar(checksum_path)
+            except (OSError, ChecksumParseError) as error:
+                print(f"Error: Failed to read checksum sidecar: {error}", file=sys.stderr)
                 return 1
 
-            if publisher_confirmation not in {"y", "yes"}:
-                print("Install aborted: unverified publisher not approved.", file=sys.stderr)
+            if expected_archive_filename != archive.name:
+                print(
+                    "Error: Checksum sidecar filename does not match archive filename.",
+                    file=sys.stderr,
+                )
                 return 1
+
+            # [agent] Integrity verification must occur before extraction/write side effects.
+            checksum_matches, _ = verify_archive_checksum(archive, expected_checksum)
+            if not checksum_matches:
+                print(
+                    "Archive integrity check failed — the file may be corrupted or tampered with",
+                    file=sys.stderr,
+                )
+                return 1
+
+            print("[kinnoo install] Archive checksum verified.")
+
+        source_is_unverified = not checksum_path.exists()
+        if strict_mode and source_is_unverified:
+            print(
+                "Error: Strict mode requires archive integrity verification; checksum sidecar is missing.",
+                file=sys.stderr,
+            )
+            return 1
+
+        if source_is_unverified:
+            print("No checksum file found — archive integrity not verified", file=sys.stderr)
+            warning_message = "This agent is from an unverified source."
+            print(warning_message, file=sys.stderr)
+            if not assume_yes:
+                try:
+                    unverified_confirmation = input(
+                        "This agent is from an unverified source. Continue? (y/n): "
+                    ).strip().lower()
+                except EOFError:
+                    print("Install aborted by user.", file=sys.stderr)
+                    return 1
+                if unverified_confirmation not in {"y", "yes"}:
+                    print("Install aborted by user.", file=sys.stderr)
+                    return 1
+
+        has_signature_artifacts = signature_path.exists() or signature_metadata_path.exists()
+
+        if strict_mode and not (signature_path.exists() and signature_metadata_path.exists()):
+            print(
+                "Error: Strict mode requires valid signature metadata; unsigned artifacts are not allowed.",
+                file=sys.stderr,
+            )
+            print(
+                "Error: Re-pack with --sign and retry install in strict mode.",
+                file=sys.stderr,
+            )
+            return 1
+
+        if has_signature_artifacts:
+            if not signature_path.exists() or not signature_metadata_path.exists():
+                print(
+                    "Error: Signed archive is missing required signature artifacts (.sig and .sig.json).",
+                    file=sys.stderr,
+                )
+                print(
+                    "Error: Re-pack with --sign and retry install.",
+                    file=sys.stderr,
+                )
+                return 1
+
+            try:
+                verify_detached_signature_artifacts(
+                    archive_path=archive,
+                    signature_path=signature_path,
+                    metadata_path=signature_metadata_path,
+                    expected_public_key_pem=expected_publisher_public_key,
+                )
+            except ValueError as error:
+                print(
+                    f"Error: Signature verification failed: {error}",
+                    file=sys.stderr,
+                )
+                if strict_mode:
+                    print(
+                        "Error: Strict mode requires valid signature metadata; unsigned artifacts are not allowed.",
+                        file=sys.stderr,
+                    )
+                print(
+                    "Error: Archive authenticity could not be verified. Re-download from a trusted publisher or re-pack with a valid signing key.",
+                    file=sys.stderr,
+                )
+                return 1
+
+            print("[kinnoo install] Archive signature verified.")
+        elif checksum_path.exists():
+            if expected_publisher_public_key is not None:
+                print(
+                    "Error: Registry publisher key association exists but archive signature metadata is missing.",
+                    file=sys.stderr,
+                )
+                print(
+                    "Error: Re-publish a signed archive with matching publisher signature metadata.",
+                    file=sys.stderr,
+                )
+                return 1
+            print(
+                "Warning: UNVERIFIED PUBLISHER - no signature metadata found for this archive.",
+                file=sys.stderr,
+            )
+            if assume_yes:
+                if not allow_unverified_publisher:
+                    print(
+                        "Error: Non-interactive install requires --allow-unverified-publisher when signature metadata is absent.",
+                        file=sys.stderr,
+                    )
+                    return 1
+                print(
+                    "[kinnoo install] Unverified publisher override acknowledged via --allow-unverified-publisher."
+                )
+            else:
+                try:
+                    publisher_confirmation = input(
+                        "UNVERIFIED PUBLISHER: no signature metadata found. Continue? [y/N]: "
+                    ).strip().lower()
+                except EOFError:
+                    print("Install aborted: unverified publisher not approved.", file=sys.stderr)
+                    return 1
+
+                if publisher_confirmation not in {"y", "yes"}:
+                    print("Install aborted: unverified publisher not approved.", file=sys.stderr)
+                    return 1
 
     manifest_data = read_manifest_from_kno_archive(archive)
     if manifest_data is None:
@@ -1625,6 +1740,20 @@ def _install_from_archive_path(
         print(f"Error: kinnoo.yaml not found in extracted directory '{target_dir}'. Aborting install.", file=sys.stderr)
         shutil.rmtree(target_dir, ignore_errors=True)
         return 1
+
+    if not skip_verify:
+        embedded_ok, embedded_message = _verify_embedded_integrity_and_signature(
+            extracted_dir=target_dir,
+            archive_path=archive,
+            strict_mode=strict_mode,
+            expected_publisher_public_key=expected_publisher_public_key,
+        )
+        if embedded_message:
+            target_stream = sys.stdout if embedded_ok else sys.stderr
+            print(embedded_message, file=target_stream)
+        if not embedded_ok:
+            shutil.rmtree(target_dir, ignore_errors=True)
+            return 1
 
     try:
         is_valid, errors = validate(str(kinnoo_yaml_path))
