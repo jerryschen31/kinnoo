@@ -1742,6 +1742,19 @@ User installed OpenClaw v2026.3.28, tested the CLI directly, and determined that
   - `python src/validate_project_manifests.py` -> pass
 - Full `python -m pytest` run from repo root currently fails due unrelated workspace test-collection conflicts (example-scratch and server/mock-server module collisions); no failures tied to the manifest edits above.
 
+## Phase 8 Tech Lead Review 1 (2026-04-04)
+
+- Reviewed feature86-feature88 against `notes/phases/phase8-planning-3.md` Phase 8 scope.
+- Wrote formal review entry in `notes/phases/phase8-features-review-notes.md` under "Tech Lead Review 1".
+- Validation runs:
+  - `/Users/jerry/.pyenv/versions/3.11.12/bin/python -m pytest tests/test_feature_86.py tests/test_feature_87.py tests/test_feature_88.py` -> pass
+  - `/Users/jerry/.pyenv/versions/3.11.12/bin/python -m pytest tests` -> `516 passed, 10 skipped`
+- Security check:
+  - Repo-wide credential-pattern scan found test/dev placeholder matches only; no clear production secret leakage tied to phase8 implementation.
+- Review outcome:
+  - feature86, feature88 implementation validated as ready for approval path.
+  - feature87 functionally good with a recommended non-blocking test-depth improvement (metadata format assertions).
+
 ## Phase 9 Tech Lead Review 1 (2026-04-04)
 
 - Reviewed feature89-feature91 and feature100-feature102 against Phase 9 plan in `notes/phases/phase8-planning-3.md`.
