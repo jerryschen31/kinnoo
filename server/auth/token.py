@@ -10,6 +10,7 @@ import hmac
 import json
 import secrets
 from typing import Any
+from dataclasses import replace
 
 from server.storage.user_store import UserStore
 
@@ -169,8 +170,39 @@ class TokenService:
         tenant_slug: str = "global",
     ) -> str:
         user = user_store.get_by_username(username)
-        if user is None or not user.verify_password(plaintext_password):
+        if user is None:
             raise PermissionError("401 unauthorized: invalid username or password")
+
+        now = datetime.now(timezone.utc)
+        if user.locked_until:
+            try:
+                locked_until = datetime.fromisoformat(user.locked_until.replace("Z", "+00:00"))
+            except ValueError:
+                locked_until = None
+
+            if locked_until is not None and locked_until > now:
+                retry_after = max(1, int((locked_until - now).total_seconds()))
+                raise PermissionError(f"423 account_locked: retry_after={retry_after}")
+
+            # Expired lockout should be cleared lazily on next auth attempt.
+            user = user_store.reset_login_failures(user=user)
+
+        if not user.verify_password(plaintext_password):
+            updated = user_store.increment_failed_login(user=user, lockout_after=5, lockout_minutes=15)
+            if updated.locked_until:
+                raise PermissionError("423 account_locked: retry_after=900")
+            raise PermissionError("401 unauthorized: invalid username or password")
+
+        if user.failed_login_attempts > 0 or user.locked_until is not None:
+            user = user_store.reset_login_failures(user=user)
+
+        if user.password_changed_at is None:
+            user = replace(
+                user,
+                password_changed_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                updated_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            )
+            user_store.save(user)
 
         if user.role == "admin":
             scopes = ["registry:read", "registry:publish", "registry:admin"]

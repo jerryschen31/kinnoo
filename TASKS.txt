@@ -7848,7 +7848,7 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: []
     tests: [test547, test548]
-    status: not-started
+    status: needs-review
 
   - id: task389
     title: "Harden Uvicorn config and enforce secret validation in production mode"
@@ -7865,7 +7865,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task388]
     tests: [test547, test548]
-    status: not-started
+    status: needs-review
 
   - id: task390
     title: "Add server-side upload validation (size, zip, manifest fields)"
@@ -7882,7 +7882,7 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task383]
     tests: [test549, test550]
-    status: not-started
+    status: needs-review
 
   - id: task391
     title: "Enforce integrity.json validation on upload and return JSON errors"
@@ -7898,7 +7898,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task390]
     tests: [test549, test550]
-    status: not-started
+    status: needs-review
 
   - id: task392
     title: "Implement configurable per-endpoint and per-tenant rate limiting"
@@ -7915,7 +7915,7 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: []
     tests: [test551, test552]
-    status: not-started
+    status: needs-review
 
   - id: task393
     title: "Add X-RateLimit-* and Retry-After headers to all responses"
@@ -7931,7 +7931,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task392]
     tests: [test551, test552]
-    status: not-started
+    status: needs-review
 
   - id: task394
     title: "Create kinnoo.yaml spec doc with field reference table"
@@ -8208,7 +8208,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: []
     tests: [test569, test570, test571]
-    status: not-started
+    status: needs-review
 
   - id: task411
     title: "Implement password policy enforcement with specific guidance messages"
@@ -8258,7 +8258,7 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task389]
     tests: [test572, test573]
-    status: not-started
+    status: needs-review
 
   - id: task414
     title: "Create docker-compose.yml for local dev and verify container startup"
@@ -8275,7 +8275,7 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task413]
     tests: [test572, test573]
-    status: not-started
+    status: needs-review
 
   - id: task415
     title: "Implement user management CLI commands (create, list, reset-password, unlock, delete)"
@@ -8294,7 +8294,7 @@ tasks:
       - 'step6: Write or update tests and verify locally with pytest'
     dependencies: [task412]
     tests: [test574, test575]
-    status: not-started
+    status: needs-review
 
   - id: task416
     title: "Implement invite token CLI commands (create, list) with input validation"
@@ -8312,7 +8312,7 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task415]
     tests: [test574, test575]
-    status: not-started
+    status: needs-review
 
   - id: task417
     title: "Create iac/ project structure with versions.tf, providers.tf, and state bootstrap"

@@ -433,6 +433,7 @@ def test_feature56_auth_fallback_paths(tmp_path: Path) -> None:
 	manifest = (
 		"name: feature56-agent\n"
 		"version: 1.0.0\n"
+		"framework: generic\n"
 		"visibility: private\n"
 		"entrypoint: run.py\n"
 		"runtime:\n"
@@ -566,6 +567,7 @@ def test_feature56_integration_suite(tmp_path: Path, monkeypatch) -> None:
 	manifest = (
 		"name: suite-feature56-agent\n"
 		"version: 1.0.0\n"
+		"framework: generic\n"
 		"visibility: private\n"
 		"entrypoint: run.py\n"
 		"runtime:\n"

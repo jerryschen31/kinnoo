@@ -2864,7 +2864,7 @@ features:
       - "server/app.py (194 lines) has create_app() factory function"
     owner: swe-agent
     dependencies: []
-    status: not-started
+    status: needs-review
 
   - id: feature90
     title: "Server-side upload validation and integrity enforcement"
@@ -2896,7 +2896,7 @@ features:
       - "Max upload size should come from ServerConfig"
     owner: swe-agent
     dependencies: [feature86]
-    status: not-started
+    status: needs-review
 
   - id: feature91
     title: "Production-grade rate limiting and abuse protections"
@@ -2928,7 +2928,7 @@ features:
       - "Redis-backed rate limiting deferred to post-beta"
     owner: swe-agent
     dependencies: []
-    status: not-started
+    status: needs-review
 
   - id: feature92
     title: "kinnoo.yaml specification document"
@@ -3221,7 +3221,7 @@ features:
       - "Requirements: server/requirements.txt or separate from client requirements.txt"
     owner: swe-agent
     dependencies: [feature89]
-    status: not-started
+    status: needs-review
 
   - id: feature102
     title: "Admin CLI for user management"
@@ -3257,7 +3257,7 @@ features:
       - "Operates directly on the auth store file (no HTTP API needed)"
     owner: swe-agent
     dependencies: [feature100]
-    status: not-started
+    status: needs-review
 
   # ──────────────────────────────────────────────────────────────
   # Phase 12: Infrastructure as Code (features 103-107)
