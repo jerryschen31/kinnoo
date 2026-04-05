@@ -7745,7 +7745,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: []
     tests: [test541, test542]
-    status: not-started
+    status: needs-review
 
   - id: task383
     title: "Document integrity manifest format and verify pack integration"
@@ -7761,7 +7761,7 @@ tasks:
       - 'step3: Write or update tests and verify locally with pytest'
     dependencies: [task382]
     tests: [test541, test542]
-    status: not-started
+    status: needs-review
 
   - id: task384
     title: "Add Ed25519 signing to .kno archives via --sign flag"
@@ -7778,7 +7778,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task383]
     tests: [test543, test544]
-    status: not-started
+    status: needs-review
 
   - id: task385
     title: "Verify signature integration and unsigned archive backward compat"
@@ -7795,7 +7795,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task384]
     tests: [test543, test544]
-    status: not-started
+    status: needs-review
 
   - id: task386
     title: "Add install-time integrity and signature verification (--strict, --skip-verify)"
@@ -7813,7 +7813,7 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task383, task385]
     tests: [test545, test546]
-    status: not-started
+    status: needs-review
 
   - id: task387
     title: "Handle missing manifests, tampered files, and backward compat in install"
@@ -7830,7 +7830,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task386]
     tests: [test545, test546]
-    status: not-started
+    status: needs-review
 
   - id: task388
     title: "Add JSON logging, CORS, and health/ready endpoints to server"
@@ -7848,7 +7848,7 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: []
     tests: [test547, test548]
-    status: not-started
+    status: needs-review
 
   - id: task389
     title: "Harden Uvicorn config and enforce secret validation in production mode"
@@ -7865,7 +7865,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task388]
     tests: [test547, test548]
-    status: not-started
+    status: needs-review
 
   - id: task390
     title: "Add server-side upload validation (size, zip, manifest fields)"
@@ -7882,7 +7882,7 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task383]
     tests: [test549, test550]
-    status: not-started
+    status: needs-review
 
   - id: task391
     title: "Enforce integrity.json validation on upload and return JSON errors"
@@ -7898,7 +7898,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task390]
     tests: [test549, test550]
-    status: not-started
+    status: needs-review
 
   - id: task392
     title: "Implement configurable per-endpoint and per-tenant rate limiting"
@@ -7915,7 +7915,7 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: []
     tests: [test551, test552]
-    status: not-started
+    status: needs-review
 
   - id: task393
     title: "Add X-RateLimit-* and Retry-After headers to all responses"
@@ -7931,7 +7931,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task392]
     tests: [test551, test552]
-    status: not-started
+    status: needs-review
 
   - id: task394
     title: "Create kinnoo.yaml spec doc with field reference table"
@@ -8141,7 +8141,7 @@ tasks:
       - 'step2: Implement .github/workflows/deploy-backend.yml builds Docker image, pushes to ECR, updates ECS on main push.'
       - 'step3: Implement .github/workflows/deploy-frontend.yml builds and deploys Next.js to Cloudflare Pages on main push.'
       - 'step4: Write or update tests and verify locally with pytest'
-    dependencies: [task418, task424]
+    dependencies: [task418, task424, task441]
     tests: [test565, test566]
     status: not-started
 
@@ -8158,7 +8158,7 @@ tasks:
       - 'step2: Implement All workflows use OIDC for AWS credentials (no static access keys).'
       - 'step3: Implement Deployment workflows include rollback steps on failure.'
       - 'step4: Write or update tests and verify locally with pytest'
-    dependencies: [task406]
+    dependencies: [task406, task441]
     tests: [test565, test566]
     status: not-started
 
@@ -8189,7 +8189,7 @@ tasks:
       - 'step1: Implement Workflow uses trusted publisher (OIDC) — no API tokens.'
       - 'step2: Implement Version is sourced from a single location (pyproject.toml or __version__).'
       - 'step3: Write or update tests and verify locally with pytest'
-    dependencies: [task408]
+    dependencies: [task408, task443]
     tests: [test567, test568]
     status: not-started
 
@@ -8208,7 +8208,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: []
     tests: [test569, test570, test571]
-    status: not-started
+    status: needs-review
 
   - id: task411
     title: "Implement password policy enforcement with specific guidance messages"
@@ -8258,7 +8258,7 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task389]
     tests: [test572, test573]
-    status: not-started
+    status: needs-review
 
   - id: task414
     title: "Create docker-compose.yml for local dev and verify container startup"
@@ -8275,7 +8275,7 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task413]
     tests: [test572, test573]
-    status: not-started
+    status: needs-review
 
   - id: task415
     title: "Implement user management CLI commands (create, list, reset-password, unlock, delete)"
@@ -8294,7 +8294,7 @@ tasks:
       - 'step6: Write or update tests and verify locally with pytest'
     dependencies: [task412]
     tests: [test574, test575]
-    status: not-started
+    status: needs-review
 
   - id: task416
     title: "Implement invite token CLI commands (create, list) with input validation"
@@ -8312,7 +8312,7 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task415]
     tests: [test574, test575]
-    status: not-started
+    status: needs-review
 
   - id: task417
     title: "Create iac/ project structure with versions.tf, providers.tf, and state bootstrap"
@@ -8668,7 +8668,7 @@ tasks:
       - 'step2: Implement Each published agent is searchable via `kinnoo search`.'
       - 'step3: Implement Each published agent can be installed and run successfully.'
       - 'step4: Write or update tests and verify locally with pytest'
-    dependencies: [task383, task385, task387, task389, task391]
+    dependencies: [task383, task385, task387, task389, task391, task441, task442]
     tests: [test596, test597]
     status: not-started
 
@@ -8683,7 +8683,7 @@ tasks:
       - 'step1: Implement At least one agent is signed.'
       - 'step2: Implement docs/registry-seeding.md documents the seeding process.'
       - 'step3: Write or update tests and verify locally with pytest'
-    dependencies: [task437]
+    dependencies: [task437, task445]
     tests: [test596, test597]
     status: not-started
 
@@ -8716,4 +8716,151 @@ tasks:
       - 'step3: Write or update tests and verify locally with pytest'
     dependencies: [task439]
     tests: [test598, test599]
+    status: not-started
+
+  - id: task441
+    title: "Apply Terraform state bootstrap in AWS and capture backend outputs"
+    type: task
+    description: |
+      Manual operator step for feature103. Run Terraform state bootstrap in AWS
+      account 386775099533, verify S3 + DynamoDB state backend exists, and
+      record backend settings for downstream Terraform workflows.
+    files:
+      - iac/state/main.tf
+      - iac/environments/dev/terraform.tfvars
+      - docs/iac-operator-runbook.md
+    steps:
+      - 'step1: Export AWS credentials/profile for account 386775099533 (us-west-2).'
+      - 'step2: Run `terraform init && terraform apply` from iac/state/ and approve changes.'
+      - 'step3: Verify state bucket versioning and DynamoDB lock table exist in AWS console or CLI.'
+      - 'step4: Record backend bucket/table/region in docs/iac-operator-runbook.md for reproducibility.'
+      - 'step5: Run regression script for bootstrap verification.'
+    dependencies: [task417, task418]
+    tests: [test602]
+    status: paused
+
+  - id: task442
+    title: "Configure Cloudflare credentials and complete live DNS validation"
+    type: task
+    description: |
+      Manual operator step for feature106. Provide Cloudflare API credentials,
+      ensure kinnoo.ai zone access is correct, run Terraform apply for DNS, and
+      confirm dev and dev-api endpoints resolve as expected.
+    files:
+      - iac/modules/cloudflare/main.tf
+      - iac/environments/dev/terraform.tfvars
+      - docs/iac-operator-runbook.md
+    steps:
+      - 'step1: Create/rotate a scoped Cloudflare API token with DNS edit permissions for kinnoo.ai.'
+      - 'step2: Export token and zone id in shell environment used for Terraform apply.'
+      - 'step3: Run Terraform apply for cloudflare module and confirm records are created.'
+      - 'step4: Verify dev.kinnoo.ai and dev-api.kinnoo.ai DNS responses and proxy status.'
+      - 'step5: Run DNS validation regression script and archive output in docs/iac-operator-runbook.md.'
+    dependencies: [task425, task426, task441]
+    tests: [test603]
+    status: not-started
+
+  - id: task443
+    title: "Configure PyPI trusted publisher (OIDC) for release workflow"
+    type: task
+    description: |
+      Manual operator step for feature99. In PyPI project settings, configure
+      GitHub Actions trusted publishing for this repository and validate that a
+      release-tag workflow can mint an OIDC token and publish without API keys.
+    files:
+      - .github/workflows/pypi-publish.yml
+      - pyproject.toml
+      - docs/pypi-release-runbook.md
+    steps:
+      - 'step1: Open PyPI project settings and add a Trusted Publisher entry for the repository/workflow.'
+      - 'step2: Confirm release tag pattern and workflow filename match the PyPI trusted publisher configuration.'
+      - 'step3: Trigger a dry-run or TestPyPI release workflow to validate OIDC auth path.'
+      - 'step4: Record final settings and screenshots/notes in docs/pypi-release-runbook.md.'
+      - 'step5: Execute trusted-publisher regression check script.'
+    dependencies: [task408]
+    tests: [test601]
+    status: not-started
+
+  - id: task444
+    title: "Run operator forgot-password drill and verify reset runbook"
+    type: task
+    description: |
+      Manual operator step for feature109. Execute an end-to-end forgot-password
+      drill: user request, SNS alert receipt, admin reset command, and successful
+      user re-login with temporary credentials.
+    files:
+      - docs/password-reset-runbook.md
+      - server/routes/auth.py
+      - server/cli.py
+    steps:
+      - 'step1: Submit forgot-password request for a known test account.'
+      - 'step2: Confirm SNS alert is received by operator mailbox with expected metadata.'
+      - 'step3: Run `kinnoo-server user reset-password --email <test-user>` and capture output securely.'
+      - 'step4: Validate user can log in with temporary password and is forced through required reset flow if configured.'
+      - 'step5: Record elapsed response time and any gaps in docs/password-reset-runbook.md.'
+    dependencies: [task431, task432, task415]
+    tests: [test604]
+    status: not-started
+
+  - id: task445
+    title: "Execute registry seeding runbook with signed multi-framework agents"
+    type: task
+    description: |
+      Manual operator step for feature112. Publish and verify at least three
+      real agents (different frameworks), including at least one signed archive,
+      then validate search/install/run end-to-end in the live registry.
+    files:
+      - docs/registry-seeding.md
+      - outputs/registry-seeding/
+    steps:
+      - 'step1: Select at least 3 production-like agents across different frameworks (chatgpt/openai/gemini minimum).'
+      - 'step2: Publish selected agents to remote registry; ensure at least one publish uses signing.'
+      - 'step3: For each published agent, validate search visibility plus install and run success.'
+      - 'step4: Capture command logs/screenshots in outputs/registry-seeding/ and summarize results in docs/registry-seeding.md.'
+      - 'step5: Execute seeding verification script for regression traceability.'
+    dependencies: [task437]
+    tests: [test605]
+    status: not-started
+
+  - id: task446
+    title: "Execute launch-day checklist and record go/no-go decision"
+    type: task
+    description: |
+      Manual operator step for feature113. Run the full launch checklist against
+      the live dev/beta environment, capture pass/fail evidence for each section,
+      and document final go/no-go decision with timestamp.
+    files:
+      - docs/launch-checklist.md
+      - outputs/launch-readiness/
+    steps:
+      - 'step1: Execute every checklist item in docs/launch-checklist.md and mark pass/fail with evidence links.'
+      - 'step2: Re-run critical smoke checks (auth, publish/install, monitoring alarms, rollback path) before signoff.'
+      - 'step3: Capture unresolved blockers and mitigation owners, if any.'
+      - 'step4: Record final go/no-go decision, decision owner, and timestamp in outputs/launch-readiness/summary.md.'
+      - 'step5: Run launch-readiness regression script and attach output artifact.'
+    dependencies: [task439, task440, task436, task445]
+    tests: [test606]
+    status: not-started
+
+  - id: task447
+    title: "Run final public-repo scrub and explicit operator release signoff"
+    type: task
+    description: |
+      Manual operator step for feature97. Before public repository exposure,
+      perform a final human review for secrets/internal notes and confirm that
+      public-facing community docs/templates are appropriate for open-source use.
+    files:
+      - CONTRIBUTING.md
+      - CODE_OF_CONDUCT.md
+      - .github/ISSUE_TEMPLATE/
+      - .github/PULL_REQUEST_TEMPLATE.md
+      - .gitignore
+    steps:
+      - 'step1: Run secret scanning and inspect high-risk paths (notes/, scratch/, env/, outputs/) for accidental tracking.'
+      - 'step2: Manually review CONTRIBUTING/CODE_OF_CONDUCT/templates for public wording and legal readiness.'
+      - 'step3: Confirm sensitive or internal-only documents are removed/redacted or excluded from publish path.'
+      - 'step4: Add release signoff note with date, reviewer, and result to docs/public-release-signoff.md.'
+      - 'step5: Execute repo-readiness regression check script.'
+    dependencies: [task404, task405]
+    tests: [test600]
     status: not-started

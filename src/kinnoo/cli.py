@@ -453,6 +453,11 @@ def main():
         help="Require strict signature and integrity verification gates for install",
     )
     install_parser.add_argument(
+        "--skip-verify",
+        action="store_true",
+        help="Skip all archive integrity/signature verification checks (development-only)",
+    )
+    install_parser.add_argument(
         "--frozen",
         action="store_true",
         help="Require lockfile-only reproducible install; fail on lock drift or missing entries",
@@ -925,6 +930,7 @@ def main():
         accept_permissions = bool(getattr(args, "accept_permissions", False))
         allow_unverified_publisher = bool(getattr(args, "allow_unverified_publisher", False))
         strict_mode = bool(getattr(args, "strict", False))
+        skip_verify = bool(getattr(args, "skip_verify", False))
         frozen_mode = bool(getattr(args, "frozen", False))
         use_local = bool(getattr(args, "local", False))
         use_remote = bool(getattr(args, "remote", False))
@@ -950,6 +956,7 @@ def main():
             accept_permissions=accept_permissions,
             allow_unverified_publisher=allow_unverified_publisher,
             strict_mode=strict_mode,
+            skip_verify=skip_verify,
             frozen_mode=frozen_mode,
             use_local=use_local,
             use_remote=use_remote,

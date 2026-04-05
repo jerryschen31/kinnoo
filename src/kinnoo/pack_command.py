@@ -6,6 +6,9 @@ import subprocess
 import sys
 import tempfile
 import zipfile
+import json
+import hashlib
+import base64
 from fnmatch import fnmatch
 from pathlib import Path
 from datetime import datetime, timezone
@@ -20,9 +23,35 @@ from .code_sweep import (
     sweep_memory_snapshot_credential_risks,
 )
 from .schema import normalize_env_vars
-from .signing import create_detached_signature_artifacts
+from .signing import (
+    create_detached_signature_artifacts,
+    load_ed25519_private_key,
+    public_key_fingerprint,
+    sign_payload,
+)
 from .size_format import format_size_human_readable, size_in_megabytes
 from .terminal_colors import style_text
+
+
+def _build_archive_integrity_manifest(archive_path: Path) -> dict:
+    files: dict[str, dict[str, object]] = {}
+    with zipfile.ZipFile(archive_path, "r") as archive_file:
+        for info in archive_file.infolist():
+            if info.is_dir():
+                continue
+            arcname = info.filename
+            if arcname.startswith("META-INF/"):
+                continue
+            payload = archive_file.read(arcname)
+            files[arcname] = {
+                "sha256": hashlib.sha256(payload).hexdigest(),
+                "size": len(payload),
+            }
+
+    return {
+        "version": 1,
+        "files": files,
+    }
 
 class WheelBuildError(Exception):
     pass
@@ -737,6 +766,38 @@ def pack_agent(
             archive_file.write(wheel_path, arcname=f"wheels/{os.path.basename(wheel_path)}")
         if missing_wheels_report_path is not None:
             archive_file.write(missing_wheels_report_path, arcname="wheels/missing_wheels.txt")
+
+    integrity_manifest = _build_archive_integrity_manifest(staged_archive_path)
+    integrity_payload = (
+        json.dumps(integrity_manifest, indent=2, sort_keys=True).encode("utf-8") + b"\n"
+    )
+    signature_payload: bytes | None = None
+    if sign:
+        assert signing_key_path is not None
+        try:
+            private_key = load_ed25519_private_key(Path(signing_key_path).expanduser())
+        except (OSError, ValueError) as error:
+            print(f"Error: Failed to load signing key for embedded signature: {error}", file=sys.stderr)
+            wheels_dir.cleanup()
+            return 1
+
+        signature_bytes = sign_payload(private_key, integrity_payload)
+        signature_document = {
+            "version": 1,
+            "algorithm": "ed25519",
+            "signature": base64.b64encode(signature_bytes).decode("ascii"),
+            "public_key_fingerprint": public_key_fingerprint(private_key.public_key()),
+            "signed_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        }
+        signature_payload = (
+            json.dumps(signature_document, indent=2, sort_keys=True).encode("utf-8") + b"\n"
+        )
+
+    # Keep integrity metadata at the end so it covers all non-META-INF archive entries.
+    with zipfile.ZipFile(staged_archive_path, "a", zipfile.ZIP_DEFLATED) as archive_file:
+        archive_file.writestr("META-INF/integrity.json", integrity_payload)
+        if signature_payload is not None:
+            archive_file.writestr("META-INF/signature.json", signature_payload)
 
     stored_record = archive_backend.store(
         name=name,

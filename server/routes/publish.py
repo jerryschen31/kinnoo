@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 import hashlib
 from io import BytesIO
 import importlib
@@ -52,13 +53,14 @@ def publish_archive(
     max_size_bytes = max_upload_mb * 1024 * 1024
     if len(archive_bytes) > max_size_bytes:
         return PublishResult(
-            status_code=400,
+            status_code=413,
             body={"error": f"archive exceeds max upload size ({max_upload_mb} MB)"},
         )
 
-    manifest = _load_manifest_from_archive(archive_bytes)
-    if manifest is None:
-        return PublishResult(status_code=400, body={"error": "archive missing valid kinnoo.yaml"})
+    manifest, validation_error = _validate_archive_and_manifest(archive_bytes)
+    if validation_error is not None:
+        return PublishResult(status_code=validation_error[0], body={"error": validation_error[1]})
+    assert manifest is not None
 
     agent_slug = str(manifest.get("name", "")).strip()
     version = str(manifest.get("version", "")).strip()
@@ -176,16 +178,88 @@ def create_publish_router(
     return router
 
 
-def _load_manifest_from_archive(archive_bytes: bytes) -> dict[str, object] | None:
+def _validate_archive_and_manifest(
+    archive_bytes: bytes,
+) -> tuple[dict[str, object] | None, tuple[int, str] | None]:
     try:
         with zipfile.ZipFile(BytesIO(archive_bytes), "r") as archive:
             if "kinnoo.yaml" not in archive.namelist():
-                return None
+                return None, (400, "archive is missing required file: kinnoo.yaml")
             raw_manifest = archive.read("kinnoo.yaml").decode("utf-8")
             parsed = yaml.safe_load(raw_manifest)
-    except (zipfile.BadZipFile, OSError, UnicodeDecodeError, yaml.YAMLError):
-        return None
+
+            integrity_error = _validate_integrity_manifest_in_archive(archive)
+            if integrity_error is not None:
+                return None, (400, integrity_error)
+    except zipfile.BadZipFile:
+        return None, (400, "uploaded file is not a valid zip archive")
+    except (OSError, UnicodeDecodeError, yaml.YAMLError):
+        return None, (400, "kinnoo.yaml is invalid or unreadable")
 
     if not isinstance(parsed, dict):
+        return None, (400, "kinnoo.yaml must be a mapping")
+
+    missing_fields = []
+    for field_name in ("name", "version", "framework"):
+        value = parsed.get(field_name)
+        if not isinstance(value, str) or not value.strip():
+            missing_fields.append(field_name)
+    if missing_fields:
+        return None, (400, f"kinnoo.yaml missing required field(s): {', '.join(missing_fields)}")
+
+    return parsed, None
+
+
+def _validate_integrity_manifest_in_archive(archive: zipfile.ZipFile) -> str | None:
+    integrity_path = "META-INF/integrity.json"
+    if integrity_path not in archive.namelist():
         return None
-    return parsed
+
+    try:
+        manifest = json.loads(archive.read(integrity_path).decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return "integrity validation failed: META-INF/integrity.json is invalid JSON"
+
+    manifest_files = manifest.get("files")
+    if not isinstance(manifest_files, dict):
+        return "integrity validation failed: integrity manifest must contain a files mapping"
+
+    actual_files = {
+        name
+        for name in archive.namelist()
+        if not name.endswith("/") and not name.startswith("META-INF/")
+    }
+    expected_files = set(manifest_files.keys())
+
+    for relpath in sorted(expected_files):
+        record = manifest_files.get(relpath)
+        if not isinstance(record, dict):
+            return f"integrity validation failed: {relpath} has invalid record"
+
+        expected_hash = record.get("sha256")
+        expected_size = record.get("size")
+        if not isinstance(expected_hash, str) or not expected_hash:
+            return f"integrity validation failed: {relpath} missing sha256"
+        if not isinstance(expected_size, int):
+            return f"integrity validation failed: {relpath} missing size"
+        if relpath not in actual_files:
+            return f"integrity validation failed: {relpath} missing from archive"
+
+        payload = archive.read(relpath)
+        if len(payload) != expected_size:
+            return (
+                "integrity validation failed: "
+                f"{relpath} size mismatch (expected {expected_size}, got {len(payload)})"
+            )
+        actual_hash = hashlib.sha256(payload).hexdigest()
+        if actual_hash != expected_hash:
+            return f"integrity validation failed: {relpath} hash mismatch"
+
+    extra_files = sorted(actual_files - expected_files)
+    if extra_files:
+        return (
+            "integrity validation failed: archive contains file(s) not listed in integrity manifest: "
+            + ", ".join(extra_files)
+        )
+
+    return None
