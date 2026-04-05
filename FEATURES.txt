@@ -3257,7 +3257,7 @@ features:
       - "Operates directly on the auth store file (no HTTP API needed)"
     owner: swe-agent
     dependencies: [feature100]
-    status: needs-review
+    status: paused
 
   # ──────────────────────────────────────────────────────────────
   # Phase 12: Infrastructure as Code (features 103-107)
@@ -3433,7 +3433,7 @@ features:
       - "30-day log retention is sufficient for beta"
     owner: swe-agent
     dependencies: [feature103, feature105]
-    status: not-started
+    status: paused
 
   # ──────────────────────────────────────────────────────────────
   # Phase 14: Beta Operations Setup (features 108-110)
@@ -3502,7 +3502,7 @@ features:
       - "Jerry sees alert, runs: kinnoo-server user reset-password --email user@example.com"
     owner: swe-agent
     dependencies: [feature102, feature107]
-    status: not-started
+    status: paused
 
   - id: feature110
     title: "Landing page update for invite-only beta"

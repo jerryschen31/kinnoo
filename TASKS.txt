@@ -8737,7 +8737,7 @@ tasks:
       - 'step5: Run regression script for bootstrap verification.'
     dependencies: [task417, task418]
     tests: [test602]
-    status: not-started
+    status: paused
 
   - id: task442
     title: "Configure Cloudflare credentials and complete live DNS validation"
