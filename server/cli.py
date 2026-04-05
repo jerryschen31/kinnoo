@@ -10,6 +10,7 @@ import secrets
 import sys
 
 from server.bootstrap import bootstrap_admin
+from server.models.user import username_to_tenant_slug
 from server.storage.user_store import UserStore
 
 
@@ -141,7 +142,8 @@ def main(argv: list[str] | None = None) -> int:
             for user in users:
                 status = "locked" if _is_locked(user.locked_until) else "active"
                 created = user.created_at.split("T", 1)[0] if "T" in user.created_at else user.created_at
-                print(f"{user.username}\t{status}\t{user.tenant_slug}\t{created}")
+                tenant_slug = username_to_tenant_slug(user.username)
+                print(f"{user.username}\t{status}\t{tenant_slug}\t{created}")
             return 0
 
         if args.user_command == "reset-password":

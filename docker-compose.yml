@@ -11,10 +11,10 @@ services:
       KINNOO_ENV: dev
       REGISTRY_STORAGE_BACKEND: local
       REGISTRY_LOCAL_STORAGE_ROOT: /data
-      REGISTRY_TOKEN_SIGNING_SECRET: dev-token-signing-secret
-      REGISTRY_SESSION_SIGNING_SECRET: dev-session-signing-secret
-      REGISTRY_REGISTER_TOKEN_SECRET: dev-register-token-secret
-      REGISTRY_PASSWORD_RESET_TOKEN_SECRET: dev-password-reset-token-secret
+      REGISTRY_TOKEN_SIGNING_SECRET: ${REGISTRY_TOKEN_SIGNING_SECRET?set-in-shell-or-.env}
+      REGISTRY_SESSION_SIGNING_SECRET: ${REGISTRY_SESSION_SIGNING_SECRET?set-in-shell-or-.env}
+      REGISTRY_REGISTER_TOKEN_SECRET: ${REGISTRY_REGISTER_TOKEN_SECRET?set-in-shell-or-.env}
+      REGISTRY_PASSWORD_RESET_TOKEN_SECRET: ${REGISTRY_PASSWORD_RESET_TOKEN_SECRET?set-in-shell-or-.env}
     volumes:
       - ./data:/data
     restart: unless-stopped
