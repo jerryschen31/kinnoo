@@ -8404,7 +8404,7 @@ tasks:
       - 'step3: Write or update tests and verify locally with pytest'
     dependencies: [task420]
     tests: [test578, test579, test580]
-    status: not-started
+    status: needs-review
 
   - id: task422
     title: "Create ECR repository and ALB modules with HTTPS/ACM"
