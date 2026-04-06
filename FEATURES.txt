@@ -3411,7 +3411,7 @@ features:
       - "Pages project may be created manually — Terraform manages DNS only if Pages API is limited"
     owner: swe-agent
     dependencies: [feature103, feature105]
-    status: not-started
+    status: in-progress
 
   - id: feature107
     title: "Terraform monitoring (CloudWatch, alarms, SNS)"
