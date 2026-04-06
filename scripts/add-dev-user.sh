@@ -15,6 +15,8 @@ Required:
 Optional:
   --role <role>             user (default) or admin
   --mode <mode>             local (default) or ecs
+  --password <value>        Set deterministic password after user creation (avoid in shell history)
+  --password-env <name>     Read password from environment variable <name>
 
 Local mode options:
   --store-root <path>       Auth store root (default: .registry-storage/auth)
@@ -30,6 +32,7 @@ ECS mode options:
 Examples:
   scripts/add-dev-user.sh --email newuser@example.com
   scripts/add-dev-user.sh --email admin@example.com --role admin
+  scripts/add-dev-user.sh --email user@example.com --password-env KINNOOTEAM_USER_PASSWORD
   scripts/add-dev-user.sh --email dev@example.com --mode ecs --region us-west-2
 EOF
 }
@@ -44,6 +47,8 @@ ECS_CLUSTER="kinnoo-dev-cluster"
 ECS_SERVICE="kinnoo-dev-service"
 ECS_CONTAINER="kinnoo-server"
 ECS_STORE_ROOT="/data/.registry-storage/auth"
+PASSWORD_VALUE=""
+PASSWORD_ENV_VAR=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -87,6 +92,14 @@ while [[ $# -gt 0 ]]; do
       ECS_STORE_ROOT="${2:-}"
       shift 2
       ;;
+    --password)
+      PASSWORD_VALUE="${2:-}"
+      shift 2
+      ;;
+    --password-env)
+      PASSWORD_ENV_VAR="${2:-}"
+      shift 2
+      ;;
     -h|--help)
       usage
       exit 0
@@ -115,6 +128,23 @@ if [[ "$ROLE" != "user" && "$ROLE" != "admin" ]]; then
   exit 2
 fi
 
+if [[ -n "$PASSWORD_VALUE" && -n "$PASSWORD_ENV_VAR" ]]; then
+  echo "Error: use either --password or --password-env, not both" >&2
+  exit 2
+fi
+
+resolve_password() {
+  if [[ -n "$PASSWORD_ENV_VAR" ]]; then
+    if [[ -z "${!PASSWORD_ENV_VAR:-}" ]]; then
+      echo "Error: environment variable '$PASSWORD_ENV_VAR' is not set or empty" >&2
+      exit 2
+    fi
+    printf '%s' "${!PASSWORD_ENV_VAR}"
+    return
+  fi
+  printf '%s' "$PASSWORD_VALUE"
+}
+
 if [[ "$MODE" == "local" ]]; then
   echo "[info] Creating user locally using server CLI"
   echo "[info] store-root: $STORE_ROOT"
@@ -122,6 +152,28 @@ if [[ "$MODE" == "local" ]]; then
     --store-root "$STORE_ROOT" \
     --email "$EMAIL" \
     --role "$ROLE"
+
+  resolved_password="$(resolve_password)"
+  if [[ -n "$resolved_password" ]]; then
+    echo "[info] Setting deterministic password from provided source"
+    KINNOO_PASSWORD_SET_STORE_ROOT="$STORE_ROOT" \
+    KINNOO_PASSWORD_SET_EMAIL="$EMAIL" \
+    KINNOO_PASSWORD_SET_VALUE="$resolved_password" \
+    "$PYTHON_BIN" - <<'PY'
+from pathlib import Path
+import os
+
+from server.storage.user_store import UserStore
+
+store = UserStore(Path(os.environ["KINNOO_PASSWORD_SET_STORE_ROOT"]))
+store.reset_password(
+    email=os.environ["KINNOO_PASSWORD_SET_EMAIL"],
+    new_password=os.environ["KINNOO_PASSWORD_SET_VALUE"],
+)
+store.unlock_user(email=os.environ["KINNOO_PASSWORD_SET_EMAIL"])
+print("[info] Password updated and account unlocked.")
+PY
+  fi
   exit 0
 fi
 
@@ -147,6 +199,18 @@ if [[ "$MODE" == "ecs" ]]; then
     --container "$ECS_CONTAINER" \
     --interactive \
     --command "sh -lc 'PYTHONPATH=/app python /app/server/cli.py user create --store-root \"$ECS_STORE_ROOT\" --email \"$EMAIL\" --role \"$ROLE\"'"
+
+  resolved_password="$(resolve_password)"
+  if [[ -n "$resolved_password" ]]; then
+    echo "[info] Setting deterministic password inside ECS task from provided source"
+    aws ecs execute-command \
+      --region "$AWS_REGION" \
+      --cluster "$ECS_CLUSTER" \
+      --task "$task_arn" \
+      --container "$ECS_CONTAINER" \
+      --interactive \
+      --command "sh -lc 'PYTHONPATH=/app KINNOO_PASSWORD_SET_STORE_ROOT=\"$ECS_STORE_ROOT\" KINNOO_PASSWORD_SET_EMAIL=\"$EMAIL\" KINNOO_PASSWORD_SET_VALUE=\"$resolved_password\" python - <<\"PY\"\nfrom pathlib import Path\nimport os\nfrom server.storage.user_store import UserStore\nstore = UserStore(Path(os.environ[\"KINNOO_PASSWORD_SET_STORE_ROOT\"]))\nstore.reset_password(email=os.environ[\"KINNOO_PASSWORD_SET_EMAIL\"], new_password=os.environ[\"KINNOO_PASSWORD_SET_VALUE\"])\nstore.unlock_user(email=os.environ[\"KINNOO_PASSWORD_SET_EMAIL\"])\nprint(\"[info] Password updated and account unlocked.\")\nPY'"
+  fi
   exit 0
 fi
 

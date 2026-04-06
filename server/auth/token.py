@@ -12,6 +12,7 @@ import secrets
 from typing import Any
 from dataclasses import replace
 
+from server.models.user import username_to_tenant_slug
 from server.storage.user_store import UserStore
 
 
@@ -167,7 +168,7 @@ class TokenService:
         username: str,
         plaintext_password: str,
         user_store: UserStore,
-        tenant_slug: str = "global",
+        tenant_slug: str | None = None,
     ) -> str:
         user = user_store.get_by_username(username)
         if user is None:
@@ -206,10 +207,15 @@ class TokenService:
 
         if user.role == "admin":
             scopes = ["registry:read", "registry:publish", "registry:admin"]
+            resolved_tenant_slug = (
+                tenant_slug.strip() if isinstance(tenant_slug, str) and tenant_slug.strip() else "global"
+            )
         else:
             scopes = ["registry:read"]
+            # Tenant context for non-admin credentials is always identity-derived.
+            resolved_tenant_slug = username_to_tenant_slug(user.username)
 
-        return self.issue_token(subject=user.id, tenant_slug=tenant_slug, scopes=scopes)
+        return self.issue_token(subject=user.id, tenant_slug=resolved_tenant_slug, scopes=scopes)
 
     def _validate_signature(self, *, signing_input: str, signature: str, header: dict[str, Any]) -> None:
         kid = header.get("kid")

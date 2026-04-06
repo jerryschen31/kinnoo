@@ -453,13 +453,17 @@ Persistence and precedence:
 
 - Successful login persists `registry_url`, `registry_token`, and `tenant_slug` in `~/.kinnoo/config.yaml`.
 - Login resolves registry URL from (in order): `KINNOO_REGISTRY_URL`, existing config value, then default `https://registry.kinnoo.ai`.
-- Tenant slug is derived from authenticated identity/token claims; users do not need to pass `--tenant`.
+- Tenant slug is resolved by the auth handshake and persisted from token claims; users do not need to pass `--tenant`.
 - `kinnoo logout` clears persisted auth keys from `~/.kinnoo/config.yaml`.
 - Environment variables remain highest precedence over file config:
 	- `KINNOO_REGISTRY_URL`
 	- `KINNOO_REGISTRY_TOKEN`
 	- `KINNOO_TENANT_SLUG`
-- After logout, registry operations requiring auth fail unless explicit env-var overrides are provided.
+- After logout, remote registry operations requiring auth fail unless explicit env-var overrides are provided.
+- `kinnoo list --remote` and `kinnoo search --remote` are fail-closed:
+	- they require `KINNOO_REGISTRY_URL` (or a persisted `registry_url`),
+	- they require token + tenant auth context,
+	- they do not fall back to local mock storage.
 
 Security notes:
 
@@ -687,13 +691,13 @@ Behavior:
 
 - `kinnoo list` (default local archive)
 - `kinnoo list --local` (same as default)
-- `kinnoo list --remote` (mock registry inventory)
+- `kinnoo list --remote` (configured remote registry inventory; no local fallback)
 
 ### Search source modes
 
 - `kinnoo search <query>` (default local archive)
 - `kinnoo search --local <query>` (same as default)
-- `kinnoo search --remote <query>` (mock registry inventory)
+- `kinnoo search --remote <query>` (configured remote registry inventory; no local fallback)
 
 Search and list preserve consistent output shape (`name`, `latest`, `description`) and use case-insensitive matching for search name/description filtering.
 
