@@ -8388,7 +8388,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task419]
     tests: [test578, test579, test580]
-    status: not-started
+    status: needs-review
 
   - id: task421
     title: "Create Secrets Manager module for JWT, session, and admin secrets"
