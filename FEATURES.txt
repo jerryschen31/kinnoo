@@ -3479,7 +3479,7 @@ features:
       - "Depends on feature102 for invite token generation"
     owner: swe-agent
     dependencies: [feature102]
-    status: not-started
+    status: paused
 
   - id: feature109
     title: "Forgot password flow with operator alert"

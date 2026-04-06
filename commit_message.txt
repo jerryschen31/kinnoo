@@ -1,12 +1,34 @@
-Fix: Install requirements when runtime.path overrides Python interpreter
+Fix: Cloudflare argument issues
 
-- Update src/kinnoo/run_command.py so Python runtime.path override still honors dependency setup.
-- When runtime.path is set and requirements.txt is non-empty:
-  - create/use .venv with the overridden interpreter (runtime.path -m venv .venv),
-  - install dependencies into that .venv,
-  - execute entrypoint with .venv Python.
-- Keep direct execution with runtime.path when requirements.txt is empty (no unnecessary .venv creation).
-- Preserve existing fallback behavior when runtime.path is unresolved.
-- Add regression coverage in tests/test_cli.py:
-  - test_run_runtime_path_python_installs_requirements validates venv creation + pip install under runtime.path,
-  - existing runtime.path tests continue to pass for command lookup, direct override, and node fallback behavior.
+What I changed
+
+Replaced deprecated Cloudflare record argument
+Updated Cloudflare records from value to content in main.tf.
+Removed plan-time unstable for_each on ACM validation records
+Replaced dynamic list-based for_each with a single deterministic ACM validation record object in main.tf.
+Updated module input shape from acm_validation_records (list) to acm_validation_record (object) in variables.tf.
+Updated ALB output to emit a single acm_validation_record object in outputs.tf.
+Updated root module wiring in main.tf.
+Updated root output reference in outputs.tf.
+Updated related regression tests
+Adjusted feature106 assertions for content and new ACM input contract in test_feature_106.py.
+Verification results
+
+Terraform validate
+Success (no schema errors) after changes.
+Related Python regressions
+Ran: python3 -m pytest tests --testmon -k 'test_feature106_group1 or test_feature106_group2'
+Result: 2 passed.
+Terraform plan behavior
+Your two original issues are gone:
+No deprecation warning for value.
+No invalid for_each error.
+Current blocker in your environment is now Cloudflare provider auth:
+must provide exactly one of api_key, api_token, or api_user_service_key
+What you should run now
+
+Export Cloudflare token
+export CLOUDFLARE_API_TOKEN=your_token
+Re-run plan
+cd iac
+terraform plan -var-file=environments/dev/terraform.tfvars -out=tfplan-dev
