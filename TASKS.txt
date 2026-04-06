@@ -8618,11 +8618,11 @@ tasks:
       - 'step1: Implement No ''Email us'' or mailto contact links appear anywhere in web UI.'
       - 'step2: Implement Valid login routes users to registry-dev.kinnoo.ai behavior-equivalent registry page.'
       - 'step3: Implement Registry page shows authenticated user''s registry as before.'
-      - 'step4: Implement `next build && next export` succeeds (static export).'
+      - 'step4: Implement `next build` succeeds for static deployment workflow (Next.js 16 removed `next export`).'
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task433]
     tests: [test592, test593]
-    status: not-started
+    status: needs-review
 
   - id: task435
     title: "Create e2e smoke test script with parameterized registry URL and credentials"

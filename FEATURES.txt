@@ -3527,7 +3527,7 @@ features:
       - id: AC1
         description: "Landing page remains unchanged from the current version (no copy/layout changes)."
       - id: AC2
-        description: "Clicking Sign Up routes to a simple invite-only page with the exact provided message text."
+        description: "Clicking Sign Up routes to a simple invite-only page with text: 'Sign up is currently invite-only. Please contact me for early access.'."
       - id: AC3
         description: "Invite-only page has a single 'Contact Me' button that opens https://twitter.com/messages/compose?recipient_id=4118511499 in a new tab/modal flow."
       - id: AC4
@@ -3537,7 +3537,7 @@ features:
       - id: AC6
         description: "registry-dev.kinnoo.ai renders the authenticated user's registry view as before."
       - id: AC7
-        description: "`next build && next export` succeeds (static export)."
+        description: "`next build` succeeds for static deployment workflow (Next.js 16 removed `next export` in favor of build-time static export configuration)."
     notes:
       - "Modify: web/ directory (Next.js frontend)"
       - "web/next.config.ts (~40 lines) already has rewrite config"
@@ -3545,7 +3545,7 @@ features:
       - "Signup CTA contact path is Twitter/X DM only"
     owner: swe-agent
     dependencies: []
-    status: in-progress
+    status: needs-review
 
   # ──────────────────────────────────────────────────────────────
   # Phase 15: Deployment, Testing & Launch (features 111-113)
