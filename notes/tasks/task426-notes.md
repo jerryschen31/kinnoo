@@ -1,5 +1,11 @@
 # Task 426 Notes
 
+## Reimplementation Pass (Current)
+
+- Re-validated ACM DNS validation record handling and provider auth assumptions for AC4-AC6.
+- Updated feature106 group2 test assertions to match Cloudflare provider v4 record resources.
+- Re-ran targeted regression for task426.
+
 ## Summary
 
 Implemented feature106 AC4-AC6 code paths:

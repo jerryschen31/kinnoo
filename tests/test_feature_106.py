@@ -31,6 +31,7 @@ def test_feature106_group2() -> None:
 
     assert "acm_validation_records" in module_vars
     assert "for_each" in module_main
-    assert 'resource "cloudflare_dns_record" "acm_validation"' in module_main
+    assert 'resource "cloudflare_record" "acm_validation"' in module_main
+    assert "value   = each.value.value" in module_main
     assert "CLOUDFLARE_API_TOKEN" in providers_tf
     assert 'terraform {' in _read("iac/versions.tf")
