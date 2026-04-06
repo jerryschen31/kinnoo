@@ -14,8 +14,6 @@ type RegistryDataState = {
   agents: AgentSummary[];
 };
 
-export const runtime = "edge";
-
 export default function RegistryPage() {
   const [activeView, setActiveView] = useState<"my-agents" | "search">("my-agents");
   const [searchQuery, setSearchQuery] = useState("");
