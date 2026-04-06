@@ -84,5 +84,40 @@ def test_feature99_group1() -> None:
 
 
 def test_feature99_group2() -> None:
-    # Group2 is implemented in task409.
-    pass
+    workflow_text = _read_text(".github/workflows/pypi-publish.yml")
+    assert "id-token: write" in workflow_text
+    assert "contents: read" in workflow_text
+    assert "pypa/gh-action-pypi-publish@release/v1" in workflow_text
+
+    # Trusted publishing must not rely on static token secrets.
+    assert "PYPI_API_TOKEN" not in workflow_text
+    assert "__token__" not in workflow_text
+    assert "password:" not in workflow_text
+
+    pyproject = _read_pyproject()
+    project = pyproject.get("project")
+    assert isinstance(project, dict)
+
+    workspace_version_result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import sys; "
+                "sys.path.insert(0, 'src'); "
+                "import kinnoo; "
+                "print(kinnoo.__version__)"
+            ),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert workspace_version_result.returncode == 0, (
+        workspace_version_result.stdout + "\n" + workspace_version_result.stderr
+    )
+    assert workspace_version_result.stdout.strip() == str(project.get("version", "")).strip()
+
+    init_text = _read_text("src/kinnoo/__init__.py")
+    assert '__version__ = "' not in init_text
+    assert "__version__ = _resolve_version()" in init_text
