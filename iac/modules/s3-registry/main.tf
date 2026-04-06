@@ -37,6 +37,19 @@ resource "aws_s3_bucket_object_lock_configuration" "registry" {
   }
 }
 
+resource "aws_s3_bucket_lifecycle_configuration" "registry" {
+  bucket = aws_s3_bucket.registry.id
+
+  rule {
+    id     = "expire-noncurrent-versions"
+    status = "Enabled"
+
+    noncurrent_version_expiration {
+      noncurrent_days = 30
+    }
+  }
+}
+
 resource "aws_s3_bucket_public_access_block" "registry" {
   bucket = aws_s3_bucket.registry.id
 

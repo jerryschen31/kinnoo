@@ -1,5 +1,11 @@
 # Task 419 Notes
 
+## Reimplementation Pass (Current)
+
+- Re-validated module structure and acceptance criteria coverage for AC1-AC4.
+- Added an S3 lifecycle rule to expire noncurrent versions after 30 days to align with feature-level storage hygiene requirements.
+- Re-ran targeted regression for task419.
+
 ## Summary
 
 Implemented S3 registry Terraform module for feature104 AC1-AC4:

@@ -8388,7 +8388,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task419]
     tests: [test578, test579, test580]
-    status: needs-review
+    status: not-started
 
   - id: task421
     title: "Create Secrets Manager module for JWT, session, and admin secrets"
@@ -8404,7 +8404,7 @@ tasks:
       - 'step3: Write or update tests and verify locally with pytest'
     dependencies: [task420]
     tests: [test578, test579, test580]
-    status: needs-review
+    status: not-started
 
   - id: task422
     title: "Create ECR repository and ALB modules with HTTPS/ACM"
@@ -8471,7 +8471,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task418, task424]
     tests: [test584, test585]
-    status: needs-review
+    status: not-started
 
   - id: task426
     title: "Add ACM validation CNAME records and Cloudflare API token config"
@@ -8487,7 +8487,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task425]
     tests: [test584, test585]
-    status: needs-review
+    status: not-started
 
   - id: task427
     title: "Create CloudWatch log group and alarm modules (5xx, unhealthy, CPU)"
@@ -8731,9 +8731,9 @@ tasks:
       - docs/iac-operator-runbook.md
     steps:
       - 'step1: Export AWS credentials/profile for account 386775099533 (us-west-2).'
-      - 'step2: Run `terraform init && terraform apply` from iac/state/ and approve changes.'
+      - 'step2: Run `terraform init -reconfigure -backend-config=../environments/dev/backend.hcl && terraform apply` from iac/state/ and approve changes.'
       - 'step3: Verify state bucket exists/versioning is enabled and backend config uses use_lockfile=true.'
-      - 'step4: Record backend bucket/key/region/use_lockfile settings in docs/iac-operator-runbook.md for reproducibility.'
+      - 'step4: Record dev/prod backend-config conventions (backend.hcl per environment) plus bucket/key/region/use_lockfile settings in docs/iac-operator-runbook.md for reproducibility.'
       - 'step5: Run regression script for bootstrap verification.'
     dependencies: [task417, task418]
     tests: [test602]
@@ -8753,7 +8753,7 @@ tasks:
     steps:
       - 'step1: Create/rotate a scoped Cloudflare API token with DNS edit permissions for kinnoo.ai.'
       - 'step2: Export token and zone id in shell environment used for Terraform apply.'
-      - 'step3: Run Terraform apply for cloudflare module and confirm records are created.'
+      - 'step3: From iac/, run `terraform init -reconfigure -backend-config=environments/dev/backend.hcl` and then `terraform apply -var-file=environments/dev/terraform.tfvars` to confirm dev records are created in the dev state only.'
       - 'step4: Verify dev.kinnoo.ai and dev-api.kinnoo.ai DNS responses and proxy status.'
       - 'step5: Run DNS validation regression script and archive output in docs/iac-operator-runbook.md.'
     dependencies: [task425, task426, task441]
