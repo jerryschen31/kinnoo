@@ -1,12 +1,19 @@
-Fix: Install requirements when runtime.path overrides Python interpreter
+Fix: Fixed deployment gaps
 
-- Update src/kinnoo/run_command.py so Python runtime.path override still honors dependency setup.
-- When runtime.path is set and requirements.txt is non-empty:
-  - create/use .venv with the overridden interpreter (runtime.path -m venv .venv),
-  - install dependencies into that .venv,
-  - execute entrypoint with .venv Python.
-- Keep direct execution with runtime.path when requirements.txt is empty (no unnecessary .venv creation).
-- Preserve existing fallback behavior when runtime.path is unresolved.
-- Add regression coverage in tests/test_cli.py:
-  - test_run_runtime_path_python_installs_requirements validates venv creation + pip install under runtime.path,
-  - existing runtime.path tests continue to pass for command lookup, direct override, and node fallback behavior.
+What I changed
+
+Task outlines all current gaps and the operator steps you need to perform:
+secrets AWSCURRENT values
+push ECR image
+force ECS deploy
+verify target health
+Cloudflare Pages same-account custom-domain cutover
+
+Fixed the test603 automation gap you highlighted
+test603 pointed to a missing script at TESTS.txt:10402
+Implemented the missing script:
+check_cloudflare_dns_setup.sh
+
+ added supporting task448 scripts:
+check_task448_backend_readiness.sh
+check_task448_cloudflare_pages_cutover.sh

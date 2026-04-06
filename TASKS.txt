@@ -8327,13 +8327,13 @@ tasks:
       - iac/state/main.tf
     steps:
       - 'step1: Implement iac/ directory exists with: versions.tf, providers.tf, variables.tf, outputs.tf, locals.tf, main.tf.'
-      - 'step2: Implement iac/state/main.tf creates S3 bucket and DynamoDB table for Terraform state.'
+      - 'step2: Implement iac/state/main.tf and backend config use S3 backend with use_lockfile=true (no DynamoDB lock table).'
       - 'step3: Implement iac/modules/vpc/ creates VPC with 2 public subnets in us-west-2a and us-west-2b.'
       - 'step4: Implement Security groups: ALB SG (Cloudflare IPs only on 443), ECS SG (ALB SG on 8000), S3 endpoint.'
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: []
     tests: [test576, test577]
-    status: not-started
+    status: needs-review
 
   - id: task418
     title: "Create VPC module with public subnets, security groups, and S3 endpoint"
@@ -8353,7 +8353,7 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task417]
     tests: [test576, test577]
-    status: not-started
+    status: needs-review
 
   - id: task419
     title: "Create S3 registry module with encryption, Object Lock, and versioning"
@@ -8371,7 +8371,7 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task418]
     tests: [test578, test579, test580]
-    status: not-started
+    status: needs-review
 
   - id: task420
     title: "Create IAM roles module (ECS task, execution, GitHub OIDC)"
@@ -8388,7 +8388,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task419]
     tests: [test578, test579, test580]
-    status: not-started
+    status: needs-review
 
   - id: task421
     title: "Create Secrets Manager module for JWT, session, and admin secrets"
@@ -8404,7 +8404,7 @@ tasks:
       - 'step3: Write or update tests and verify locally with pytest'
     dependencies: [task420]
     tests: [test578, test579, test580]
-    status: not-started
+    status: needs-review
 
   - id: task422
     title: "Create ECR repository and ALB modules with HTTPS/ACM"
@@ -8422,7 +8422,7 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task418, task421]
     tests: [test581, test582, test583]
-    status: not-started
+    status: needs-review
 
   - id: task423
     title: "Create ECS Fargate cluster, task definition, and service"
@@ -8438,7 +8438,7 @@ tasks:
       - 'step3: Write or update tests and verify locally with pytest'
     dependencies: [task422]
     tests: [test581, test582, test583]
-    status: not-started
+    status: needs-review
 
   - id: task424
     title: "Create EFS module with mount targets and verify terraform validate"
@@ -8454,7 +8454,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task423]
     tests: [test581, test582, test583]
-    status: not-started
+    status: needs-review
 
   - id: task425
     title: "Create Cloudflare DNS module for dev.kinnoo.ai and dev-api.kinnoo.ai"
@@ -8471,7 +8471,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task418, task424]
     tests: [test584, test585]
-    status: not-started
+    status: needs-review
 
   - id: task426
     title: "Add ACM validation CNAME records and Cloudflare API token config"
@@ -8487,7 +8487,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task425]
     tests: [test584, test585]
-    status: not-started
+    status: needs-review
 
   - id: task427
     title: "Create CloudWatch log group and alarm modules (5xx, unhealthy, CPU)"
@@ -8592,36 +8592,37 @@ tasks:
     status: not-started
 
   - id: task433
-    title: "Update landing page with invite-only messaging and hide open registration"
+    title: "Keep landing unchanged and simplify Sign Up invite-only page"
     type: task
     description: |
       Implement feature110 (Landing page update for invite-only beta): AC1, AC2, AC3.
     files:
       - web/
     steps:
-      - 'step1: Implement Landing page shows ''Invite-Only Beta'' messaging.'
-      - 'step2: Implement No open registration form on the landing page.'
-      - 'step3: Implement ''Email us'' link is rendered via JavaScript (not plain HTML) to prevent scraping.'
+      - 'step1: Implement Landing page remains unchanged (no copy/layout delta).'
+      - 'step2: Implement Sign Up route renders the simplified invite-only message page.'
+      - 'step3: Implement Invite-only page includes only one contact action: ''Contact Me'' to Twitter/X DM link.'
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: []
     tests: [test592, test593]
-    status: not-started
+    status: needs-review
 
   - id: task434
-    title: "Add JS-rendered email link and verify static export works"
+    title: "Verify no mailto flow and preserve login/registry + static export"
     type: task
     description: |
-      Implement feature110 (Landing page update for invite-only beta): AC4, AC5, AC6.
+      Implement feature110 (Landing page update for invite-only beta): AC4, AC5, AC6, AC7.
     files:
       - web/
     steps:
-      - 'step1: Implement Registration page (/register) shows invite token field and instructions.'
-      - 'step2: Implement `next build && next export` succeeds (static export).'
-      - 'step3: Implement Updated pages render correctly at dev.kinnoo.ai.'
-      - 'step4: Write or update tests and verify locally with pytest'
+      - 'step1: Implement No ''Email us'' or mailto contact links appear anywhere in web UI.'
+      - 'step2: Implement Valid login routes users to registry-dev.kinnoo.ai behavior-equivalent registry page.'
+      - 'step3: Implement Registry page shows authenticated user''s registry as before.'
+      - 'step4: Implement `next build` succeeds for static deployment workflow (Next.js 16 removed `next export`).'
+      - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task433]
     tests: [test592, test593]
-    status: not-started
+    status: needs-review
 
   - id: task435
     title: "Create e2e smoke test script with parameterized registry URL and credentials"
@@ -8719,25 +8720,25 @@ tasks:
     status: not-started
 
   - id: task441
-    title: "Apply Terraform state bootstrap in AWS and capture backend outputs"
+    title: "Apply Terraform state bootstrap in AWS and verify S3 native lockfile backend"
     type: task
     description: |
       Manual operator step for feature103. Run Terraform state bootstrap in AWS
-      account 386775099533, verify S3 + DynamoDB state backend exists, and
-      record backend settings for downstream Terraform workflows.
+      account 386775099533, verify S3 backend with native lockfile locking is
+      configured, and record backend settings for downstream Terraform workflows.
     files:
       - iac/state/main.tf
       - iac/environments/dev/terraform.tfvars
       - docs/iac-operator-runbook.md
     steps:
       - 'step1: Export AWS credentials/profile for account 386775099533 (us-west-2).'
-      - 'step2: Run `terraform init && terraform apply` from iac/state/ and approve changes.'
-      - 'step3: Verify state bucket versioning and DynamoDB lock table exist in AWS console or CLI.'
-      - 'step4: Record backend bucket/table/region in docs/iac-operator-runbook.md for reproducibility.'
+      - 'step2: Run `terraform init -reconfigure -backend-config=../environments/dev/backend.hcl && terraform apply` from iac/state/ and approve changes.'
+      - 'step3: Verify state bucket exists/versioning is enabled and backend config uses use_lockfile=true.'
+      - 'step4: Record dev/prod backend-config conventions (backend.hcl per environment) plus bucket/key/region/use_lockfile settings in docs/iac-operator-runbook.md for reproducibility.'
       - 'step5: Run regression script for bootstrap verification.'
     dependencies: [task417, task418]
     tests: [test602]
-    status: paused
+    status: completed
 
   - id: task442
     title: "Configure Cloudflare credentials and complete live DNS validation"
@@ -8753,7 +8754,7 @@ tasks:
     steps:
       - 'step1: Create/rotate a scoped Cloudflare API token with DNS edit permissions for kinnoo.ai.'
       - 'step2: Export token and zone id in shell environment used for Terraform apply.'
-      - 'step3: Run Terraform apply for cloudflare module and confirm records are created.'
+      - 'step3: From iac/, run `terraform init -reconfigure -backend-config=environments/dev/backend.hcl` and then `terraform apply -var-file=environments/dev/terraform.tfvars` to confirm dev records are created in the dev state only.'
       - 'step4: Verify dev.kinnoo.ai and dev-api.kinnoo.ai DNS responses and proxy status.'
       - 'step5: Run DNS validation regression script and archive output in docs/iac-operator-runbook.md.'
     dependencies: [task425, task426, task441]
@@ -8863,4 +8864,29 @@ tasks:
       - 'step5: Execute repo-readiness regression check script.'
     dependencies: [task404, task405]
     tests: [test600]
+    status: not-started
+
+  - id: task448
+    title: "Resolve dev infra blockers (Cloudflare 1014 + ECS/ECR readiness)"
+    type: task
+    description: |
+      Manual operator remediation task for feature106/feature105 deployment gaps.
+      Complete Cloudflare Pages same-account custom-domain cutover for dev.kinnoo.ai,
+      seed required Secrets Manager values, push ECR image, force ECS redeploy,
+      and verify ALB target registration and endpoint health.
+    files:
+      - notes/tasks/task448-human-handoff.md
+      - iac/modules/cloudflare/main.tf
+      - iac/main.tf
+      - scripts/ops/check_task448_backend_readiness.sh
+      - scripts/ops/check_task448_cloudflare_pages_cutover.sh
+    steps:
+      - 'step1: Set AWSCURRENT values for kinnoo/dev/jwt-secret, kinnoo/dev/session-secret, and kinnoo/dev/admin-password in Secrets Manager.'
+      - 'step2: Build and push Docker image to 386775099533.dkr.ecr.us-west-2.amazonaws.com/kinnoo-dev-server:latest.'
+      - 'step3: Force ECS deployment for kinnoo-dev-service and wait for service stability.'
+      - 'step4: Verify kinnoo-dev-tg has healthy registered targets and dev-api.kinnoo.ai/health returns non-503 response.'
+      - 'step5: In Cloudflare, delete dev CNAME -> kinnoo.pages.dev, attach dev.kinnoo.ai as a custom domain on the Pages project in the same account, and verify no 1014 on https://dev.kinnoo.ai.'
+      - 'step6: Run automated validation scripts for backend readiness and Cloudflare Pages cutover, and archive output with task448 handoff notes.'
+    dependencies: [task424, task426, task442]
+    tests: [test607, test608]
     status: not-started

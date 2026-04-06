@@ -143,7 +143,7 @@ iac/
 ├── locals.tf                # Common locals (tags, naming)
 ├── main.tf                  # Module instantiation
 ├── state/
-│   └── main.tf              # Bootstrap: S3 + DynamoDB for state
+│   └── main.tf              # Bootstrap: S3 backend + native lockfile locking
 ├── modules/
 │   ├── vpc/                 # VPC, subnets, SGs, VPC endpoints
 │   ├── s3-registry/         # S3 bucket with encryption, Object Lock

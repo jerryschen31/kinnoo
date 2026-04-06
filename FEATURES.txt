@@ -2930,6 +2930,10 @@ features:
     dependencies: []
     status: needs-review
 
+# ──────────────────────────────────────────────────────────────
+# Phase 11: Documentation (features 92-99)
+# ──────────────────────────────────────────────────────────────
+
   - id: feature92
     title: "kinnoo.yaml specification document"
     description: |
@@ -3152,6 +3156,11 @@ features:
     dependencies: []
     status: not-started
 
+
+# ──────────────────────────────────────────────────────────────
+# Phase 9: Server Hardening & Containerization (features 89-91, 100-102)
+# ──────────────────────────────────────────────────────────────
+
   - id: feature100
     title: "Auth hardening — lockout, password policy, token blacklist"
     description: |
@@ -3267,7 +3276,7 @@ features:
     title: "Terraform project setup, state bootstrap, and VPC networking"
     description: |
       Create the iac/ directory structure with Terraform project files. Create a
-      state bootstrap module (S3 bucket + DynamoDB table for state locking).
+      state bootstrap module (S3 backend with native lockfile state locking).
       Create the VPC module with public subnets (2 AZs), security groups, and
       VPC endpoints for S3 (gateway) and ECR (interface). No NAT Gateway.
     tasks: [task417, task418, task441]
@@ -3275,7 +3284,7 @@ features:
       - id: AC1
         description: "iac/ directory exists with: versions.tf, providers.tf, variables.tf, outputs.tf, locals.tf, main.tf."
       - id: AC2
-        description: "iac/state/main.tf creates S3 bucket and DynamoDB table for Terraform state."
+        description: "iac/state/main.tf and backend config use S3 backend with use_lockfile=true (no DynamoDB lock table)."
       - id: AC3
         description: "iac/modules/vpc/ creates VPC with 2 public subnets in us-west-2a and us-west-2b."
       - id: AC4
@@ -3293,6 +3302,7 @@ features:
       - "AWS account: 386775099533, region: us-west-2"
       - "Cloudflare IP ranges: https://www.cloudflare.com/ips/ — use data source"
       - "State bootstrap is applied manually before other modules"
+      - "Each Terraform root stack should use a unique backend key for isolated state files"
       - "VPC endpoints avoid needing NAT for ECS → S3/ECR"
     owner: swe-agent
     dependencies: []
@@ -3333,7 +3343,7 @@ features:
       - "OIDC provider setup for GitHub Actions: repo kinnoo/kinnoo"
     owner: swe-agent
     dependencies: [feature103]
-    status: not-started
+    status: needs-review
 
   - id: feature105
     title: "Terraform compute stack (ECR, ALB, ACM, ECS/Fargate, EFS)"
@@ -3371,7 +3381,7 @@ features:
       - "ACM certificate validation requires Cloudflare DNS records (feature106)"
     owner: swe-agent
     dependencies: [feature103, feature104]
-    status: not-started
+    status: needs-review
 
   - id: feature106
     title: "Terraform Cloudflare DNS and Pages"
@@ -3380,7 +3390,7 @@ features:
       dev.kinnoo.ai CNAME to Cloudflare Pages, dev-api.kinnoo.ai CNAME to ALB.
       (2) Cloudflare Pages project for Next.js static export. (3) ACM validation
       CNAME records in Cloudflare.
-    tasks: [task425, task426, task442]
+    tasks: [task425, task426, task442, task448]
     acceptance_criteria:
       - id: AC1
         description: "iac/modules/cloudflare/ creates DNS records for dev.kinnoo.ai and dev-api.kinnoo.ai."
@@ -3401,7 +3411,7 @@ features:
       - "Pages project may be created manually — Terraform manages DNS only if Pages API is limited"
     owner: swe-agent
     dependencies: [feature103, feature105]
-    status: not-started
+    status: in-progress
 
   - id: feature107
     title: "Terraform monitoring (CloudWatch, alarms, SNS)"
@@ -3469,7 +3479,7 @@ features:
       - "Depends on feature102 for invite token generation"
     owner: swe-agent
     dependencies: [feature102]
-    status: not-started
+    status: paused
 
   - id: feature109
     title: "Forgot password flow with operator alert"
@@ -3507,33 +3517,35 @@ features:
   - id: feature110
     title: "Landing page update for invite-only beta"
     description: |
-      Update the Next.js web frontend for the invite-only beta. Remove or hide
-      open registration. Add messaging about invite-only access. Add "Email us"
-      link (JavaScript-rendered to prevent bot scraping). Update any marketing
-      copy to reflect beta status. Ensure static export works for Cloudflare
-      Pages deployment.
+      Keep the landing page unchanged for now. Update the signup path to show a
+      minimal invite-only message and a single "Contact Me" action that opens a
+      Twitter/X DM compose link to Jerry. Do not render any email or mailto
+      contact path. Preserve login and registry behavior for authenticated users,
+      and keep static export compatibility for deployment.
     tasks: [task433, task434]
     acceptance_criteria:
       - id: AC1
-        description: "Landing page shows 'Invite-Only Beta' messaging."
+        description: "Landing page remains unchanged from the current version (no copy/layout changes)."
       - id: AC2
-        description: "No open registration form on the landing page."
+        description: "Clicking Sign Up routes to a simple invite-only page with text: 'Sign up is currently invite-only. Please contact me for early access.'."
       - id: AC3
-        description: "'Email us' link is rendered via JavaScript (not plain HTML) to prevent scraping."
+        description: "Invite-only page has a single 'Contact Me' button that opens https://twitter.com/messages/compose?recipient_id=4118511499 in a new tab/modal flow."
       - id: AC4
-        description: "Registration page (/register) shows invite token field and instructions."
+        description: "No 'Email us' link or mailto contact flow is shown anywhere in the web experience."
       - id: AC5
-        description: "`next build && next export` succeeds (static export)."
+        description: "Valid login redirects the user to registry-dev.kinnoo.ai behavior-equivalent registry route."
       - id: AC6
-        description: "Updated pages render correctly at dev.kinnoo.ai."
+        description: "registry-dev.kinnoo.ai renders the authenticated user's registry view as before."
+      - id: AC7
+        description: "`next build` succeeds for static deployment workflow (Next.js 16 removed `next export` in favor of build-time static export configuration)."
     notes:
       - "Modify: web/ directory (Next.js frontend)"
       - "web/next.config.ts (~40 lines) already has rewrite config"
       - "Static export: output: 'export' in next.config.ts"
-      - "Email obfuscation: simple JS that builds the mailto: link on page load"
+      - "Signup CTA contact path is Twitter/X DM only"
     owner: swe-agent
     dependencies: []
-    status: not-started
+    status: needs-review
 
   # ──────────────────────────────────────────────────────────────
   # Phase 15: Deployment, Testing & Launch (features 111-113)
