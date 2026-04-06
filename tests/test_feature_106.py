@@ -11,13 +11,13 @@ def test_feature106_group1() -> None:
     module_main = _read("iac/modules/cloudflare/main.tf")
     module_vars = _read("iac/modules/cloudflare/variables.tf")
 
-    assert 'resource "cloudflare_dns_record" "dev_pages"' in module_main
-    assert 'resource "cloudflare_dns_record" "dev_api"' in module_main
+    assert 'resource "cloudflare_record" "dev_pages"' in module_main
+    assert 'resource "cloudflare_record" "dev_api"' in module_main
     assert 'name    = local.dev_host' in module_main
     assert 'name    = local.dev_api_host' in module_main
     assert 'type    = "CNAME"' in module_main
-    assert 'content = var.pages_target' in module_main
-    assert 'content = var.alb_dns_name' in module_main
+    assert 'value   = var.pages_target' in module_main
+    assert 'value   = var.alb_dns_name' in module_main
     assert 'proxied = true' in module_main
 
     assert 'variable "zone_id"' in module_vars
