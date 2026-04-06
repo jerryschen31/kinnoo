@@ -256,6 +256,54 @@ def test_feature61_logout_and_auth_precedence(tmp_path: Path) -> None:
 		server.stop()
 
 
+def test_feature61_publish_toggle_prefers_logged_in_auth_state(tmp_path: Path) -> None:
+	archive_root = tmp_path / "archive"
+	_write_archive(archive_root, name="feature61-agent", version="1.0.0")
+
+	home_dir = tmp_path / "home"
+	config_path = home_dir / ".kinnoo" / "config.yaml"
+	config_path.parent.mkdir(parents=True, exist_ok=True)
+
+	server = _AuthPublishTestServer(accepted_publish_token="config-token")
+	server.start()
+	try:
+		config_path.write_text(
+			"\n".join(
+				[
+					f"registry_url: '{server.base_url}'",
+					"registry_token: 'config-token'",
+					"tenant_slug: 'jerryschen'",
+				]
+			)
+			+ "\n",
+			encoding="utf-8",
+		)
+
+		(tmp_path / "kinnoo-config.txt").write_text(
+			"publish_to_authenticated_registry=true\n",
+			encoding="utf-8",
+		)
+
+		env = {
+			**os.environ,
+			"HOME": str(home_dir),
+			"KINNOO_ARCHIVE_ROOT": str(archive_root),
+		}
+
+		publish_result = subprocess.run(
+			[sys.executable, str(CLI_PATH), "publish", "feature61-agent", "--remote"],
+			capture_output=True,
+			text=True,
+			env=env,
+			cwd=tmp_path,
+		)
+		publish_output = f"{publish_result.stdout}\n{publish_result.stderr}"
+		assert publish_result.returncode == 0, publish_output
+		assert "Published feature61-agent==1.0.0 (remote)" in publish_output
+	finally:
+		server.stop()
+
+
 def test_feature61_hardened_login_logout_remote_auth_gating(tmp_path: Path) -> None:
 	archive_root = tmp_path / "archive"
 	_write_archive(archive_root, name="feature61-agent", version="1.0.0")

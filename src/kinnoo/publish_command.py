@@ -210,8 +210,18 @@ def _resolve_publish_backend(*, use_local: bool, use_remote: bool) -> tuple[Any 
     if remote_requested:
         resolved_token = config.registry_token
         resolved_tenant = config.tenant_slug
+        has_persisted_auth_state = bool(
+            isinstance(resolved_token, str)
+            and resolved_token.strip()
+            and isinstance(resolved_tenant, str)
+            and resolved_tenant.strip()
+        )
 
-        if publish_behavior.publish_to_authenticated_registry and not use_local:
+        if (
+            publish_behavior.publish_to_authenticated_registry
+            and not use_local
+            and not has_persisted_auth_state
+        ):
             token_result = _issue_registry_token_with_admin_credentials(config=config)
             if isinstance(token_result, str):
                 return None, "", token_result
