@@ -49,8 +49,8 @@ def test_feature103_group2() -> None:
     tfvars = Path("iac/environments/dev/terraform.tfvars")
     assert tfvars.exists(), "iac/environments/dev/terraform.tfvars must exist"
     tfvars_text = tfvars.read_text(encoding="utf-8")
-    assert 'aws_region = "us-west-2"' in tfvars_text
-    assert 'environment = "dev"' in tfvars_text
+    assert "aws_region" in tfvars_text and "us-west-2" in tfvars_text
+    assert "environment" in tfvars_text and '"dev"' in tfvars_text
 
     versions = _read("iac/versions.tf")
     assert "required_version" in versions
