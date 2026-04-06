@@ -9621,9 +9621,9 @@ tests:
       - 'step1: Execute workflow for feature99 (PyPI package publishing configuration) covering AC1, AC2, AC3'
       - 'step2: Verify pyproject.toml has complete PyPI metadata (name, version, description, author, license, classifiers, project-urls).'
       - 'step3: Verify `pip install kinnoo` works from a built wheel.'
-      - 'step4: Verify .github/workflows/pypi-publish.yml publishes to PyPI on release tag.'
+      - 'step4: Verify .github/workflows/pypi-publish.yml publishes to PyPI on push to master.'
     expected: feature99 acceptance criteria AC1, AC2, AC3 are satisfied
-    pass_criteria: 'AC1: pyproject.toml has complete PyPI metadata (name, version, description, author...; AC2: `pip install kinnoo` works from a built wheel.; AC3: .github/workflows/pypi-publish.yml publishes to PyPI on release tag.'
+    pass_criteria: 'AC1: pyproject.toml has complete PyPI metadata (name, version, description, author...; AC2: `pip install kinnoo` works from a built wheel.; AC3: .github/workflows/pypi-publish.yml publishes to PyPI on push to master.'
     covers:
       - feature: feature99
         ac: AC1
@@ -10354,9 +10354,9 @@ tests:
   - id: test601
     title: "feature99 trusted publisher OIDC manual verification"
     type: manual
-    preconditions: PyPI project admin access and GitHub Actions release workflow configured
+    preconditions: PyPI project admin access and GitHub Actions master-push workflow configured
     steps:
-      - 'step1: Configure trusted publisher in PyPI project settings for repository release workflow.'
+      - 'step1: Configure trusted publisher in PyPI project settings for repository master-push workflow.'
       - 'step2: Trigger a test release/tag pipeline to validate OIDC auth path.'
       - 'step3: Confirm no API token is required and publish auth succeeds through trusted publisher.'
     expected: PyPI trusted publisher is correctly configured and validated

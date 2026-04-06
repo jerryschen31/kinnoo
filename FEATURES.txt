@@ -3135,7 +3135,7 @@ features:
       Configure the project for PyPI publishing. Validate pyproject.toml has
       correct metadata (name, version, description, author, license, classifiers,
       URLs). Set up trusted publisher in PyPI for GitHub Actions. Create
-      .github/workflows/pypi-publish.yml triggered on release tags.
+      .github/workflows/pypi-publish.yml triggered on push to master.
     tasks: [task408, task409, task443]
     acceptance_criteria:
       - id: AC1
@@ -3143,7 +3143,7 @@ features:
       - id: AC2
         description: "`pip install kinnoo` works from a built wheel."
       - id: AC3
-        description: ".github/workflows/pypi-publish.yml publishes to PyPI on release tag."
+        description: ".github/workflows/pypi-publish.yml publishes to PyPI on push to master."
       - id: AC4
         description: "Workflow uses trusted publisher (OIDC) — no API tokens."
       - id: AC5
@@ -3154,7 +3154,7 @@ features:
       - "Trusted publisher setup requires manual PyPI configuration by operator"
     owner: swe-agent
     dependencies: []
-    status: not-started
+    status: in-progress
 
 
 # ──────────────────────────────────────────────────────────────

@@ -6,16 +6,32 @@ build-backend = "setuptools.build_meta"
 name = "kinnoo"
 version = "0.7.0"
 description = "Kinnoo agent CLI and scaffolding tools"
+license = "MIT"
 authors = [
-    { name = "Kinnoo Team" }
+    { name = "Jerry Chen", email = "jerryschen@gmail.com" }
 ]
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Build Tools",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 
 dependencies = [
     "PyYAML>=6.0",
     "cryptography>=42.0"
 ]
+
+[project.urls]
+Homepage = "https://github.com/jerryjliu/kinnoo"
+Documentation = "https://github.com/jerryjliu/kinnoo/tree/master/docs"
+Repository = "https://github.com/jerryjliu/kinnoo"
+Issues = "https://github.com/jerryjliu/kinnoo/issues"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
