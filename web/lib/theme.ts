@@ -2,7 +2,7 @@ export type ThemeConfig = {
   colors: {
     bg: "#000000";
     text: "#F9FAFB";
-    accent: "#3B82F6";
+    accent: "#FF7F00";
     surface: "#111111";
     cardBorder: "rgba(255,255,255,0.1)";
   };
@@ -29,7 +29,7 @@ const rawThemeConfig: ThemeConfig = {
   colors: {
     bg: "#000000",
     text: "#F9FAFB",
-    accent: "#3B82F6",
+    accent: "#FF7F00",
     surface: "#111111",
     cardBorder: "rgba(255,255,255,0.1)",
   },

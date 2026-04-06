@@ -8,9 +8,9 @@ export default function LandingPage() {
         <div className="max-w-4xl space-y-4">
           <h1
             id="landing-hero-title"
-            className="text-5xl font-semibold leading-none tracking-tight text-[#3B82F6] sm:text-6xl"
+            className="text-5xl font-semibold leading-none tracking-tight text-[#FF7F00] sm:text-6xl"
           >
-            kinnoo
+            kinnoo 🍊
           </h1>
           <p className="text-2xl font-bold text-[#F9FAFB] sm:text-3xl">
             The package manager for AI agents
@@ -30,7 +30,7 @@ export default function LandingPage() {
       <section aria-label="Features">
         <div className="space-y-4">
           <h2 className="text-lg font-bold text-[#F9FAFB] sm:text-xl">
-            Why developers choose Kinnoo
+            Why developers choose Kinnoo 🍊
           </h2>
           <p className="text-base leading-relaxed normal-case text-white/80 sm:text-lg">
             Take any AI agent — a LangGraph chatbot, a PydanticAI workflow, or an OpenClaw skill mirrored from ClawHub — and turn it into a signed, versioned, portable package with provenance you can verify before install

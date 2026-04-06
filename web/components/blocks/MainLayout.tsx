@@ -16,7 +16,7 @@ function HeaderButton({ href, children }: HeaderButtonProps) {
   return (
     <Link
       href={href}
-      className="inline-flex h-9 items-center justify-center rounded-button border border-white/20 px-3 text-sm font-medium text-kinnoo-text transition hover:border-[#3B82F6] hover:text-[#3B82F6] max-[399px]:px-2 max-[399px]:text-xs"
+      className="inline-flex h-9 items-center justify-center rounded-button border border-white/20 px-3 text-sm font-medium text-kinnoo-text transition hover:border-[#FF7F00] hover:text-[#FF7F00] max-[399px]:px-2 max-[399px]:text-xs"
       style={{ borderRadius: themeConfig.radii.button }}
     >
       {children}
@@ -98,7 +98,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
 
             <Link
               href="/"
-              className="text-lg font-medium tracking-wide text-kinnoo-text transition hover:text-[#3B82F6] sm:text-xl"
+              className="text-lg font-medium tracking-wide text-kinnoo-text transition hover:text-[#FF7F00] sm:text-xl"
             >
               kinnoo
             </Link>

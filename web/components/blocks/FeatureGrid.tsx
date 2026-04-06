@@ -47,7 +47,7 @@ export default function FeatureGrid() {
       {FEATURES.map((feature) => (
         <article
           key={feature.title}
-          className="group min-h-40 overflow-hidden rounded-card border-2 border-white/25 bg-[#222222] p-5 transition hover:-translate-y-0.5 hover:border-[#3B82F6] focus-within:border-[#3B82F6] focus-within:ring-1 focus-within:ring-[#3B82F6]"
+          className="group min-h-40 overflow-hidden rounded-card border-2 border-white/25 bg-[#222222] p-5 transition hover:-translate-y-0.5 hover:border-[#FF7F00] focus-within:border-[#FF7F00] focus-within:ring-1 focus-within:ring-[#FF7F00]"
         >
           <h3 className="mb-3 text-xl font-semibold leading-snug text-[#F9FAFB]">{feature.title}</h3>
           <p className="text-sm leading-relaxed text-[#F9FAFB] sm:text-base">{feature.description}</p>
