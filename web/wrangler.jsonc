@@ -16,5 +16,11 @@
       "binding": "WORKER_SELF_REFERENCE",
       "service": "kinnoo"
     }
+  ],
+  "routes": [
+    {
+      "pattern": "dev.kinnoo.ai",
+      "custom_domain": true
+    }
   ]
 }

@@ -25,6 +25,7 @@ ECS mode options:
   --cluster <name>          ECS cluster name (default: kinnoo-dev-cluster)
   --service <name>          ECS service name (default: kinnoo-dev-service)
   --container <name>        ECS container name (default: kinnoo-server)
+  --ecs-store-root <path>   Auth store root in ECS container (default: /data/.registry-storage/auth)
 
 Examples:
   scripts/add-dev-user.sh --email newuser@example.com
@@ -42,6 +43,7 @@ AWS_REGION="us-west-2"
 ECS_CLUSTER="kinnoo-dev-cluster"
 ECS_SERVICE="kinnoo-dev-service"
 ECS_CONTAINER="kinnoo-server"
+ECS_STORE_ROOT="/data/.registry-storage/auth"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -81,6 +83,10 @@ while [[ $# -gt 0 ]]; do
       ECS_CONTAINER="${2:-}"
       shift 2
       ;;
+    --ecs-store-root)
+      ECS_STORE_ROOT="${2:-}"
+      shift 2
+      ;;
     -h|--help)
       usage
       exit 0
@@ -96,6 +102,11 @@ done
 if [[ -z "$EMAIL" ]]; then
   echo "Error: --email is required" >&2
   usage
+  exit 2
+fi
+
+if ! [[ "$EMAIL" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
+  echo "Error: --email must be a valid email address" >&2
   exit 2
 fi
 
@@ -135,7 +146,7 @@ if [[ "$MODE" == "ecs" ]]; then
     --task "$task_arn" \
     --container "$ECS_CONTAINER" \
     --interactive \
-    --command "python /app/server/cli.py user create --store-root /data/auth --email $EMAIL --role $ROLE"
+    --command "sh -lc 'PYTHONPATH=/app python /app/server/cli.py user create --store-root \"$ECS_STORE_ROOT\" --email \"$EMAIL\" --role \"$ROLE\"'"
   exit 0
 fi
 
