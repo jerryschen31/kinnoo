@@ -8438,7 +8438,7 @@ tasks:
       - 'step3: Write or update tests and verify locally with pytest'
     dependencies: [task422]
     tests: [test581, test582, test583]
-    status: not-started
+    status: needs-review
 
   - id: task424
     title: "Create EFS module with mount targets and verify terraform validate"
