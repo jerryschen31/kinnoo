@@ -3390,7 +3390,7 @@ features:
       dev.kinnoo.ai CNAME to Cloudflare Pages, dev-api.kinnoo.ai CNAME to ALB.
       (2) Cloudflare Pages project for Next.js static export. (3) ACM validation
       CNAME records in Cloudflare.
-    tasks: [task425, task426, task442]
+    tasks: [task425, task426, task442, task448]
     acceptance_criteria:
       - id: AC1
         description: "iac/modules/cloudflare/ creates DNS records for dev.kinnoo.ai and dev-api.kinnoo.ai."
