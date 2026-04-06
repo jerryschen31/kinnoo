@@ -22,6 +22,7 @@ scripts/archive/
 .registry*
 .specstory/
 kinnoo-config.txt
+iac/tfplan*
 
 # Next.js web frontend
 web/node_modules/
