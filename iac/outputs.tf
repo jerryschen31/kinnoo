@@ -33,9 +33,9 @@ output "alb_target_group_arn" {
   value       = module.alb.target_group_arn
 }
 
-output "acm_validation_records" {
-  description = "ACM DNS validation records for Cloudflare"
-  value       = module.alb.acm_validation_records
+output "acm_validation_record" {
+  description = "ACM DNS validation record for Cloudflare"
+  value       = module.alb.acm_validation_record
 }
 
 output "ecs_cluster_arn" {

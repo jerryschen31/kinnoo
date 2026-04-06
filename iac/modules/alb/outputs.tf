@@ -18,14 +18,12 @@ output "acm_arn" {
   value       = aws_acm_certificate.api.arn
 }
 
-output "acm_validation_records" {
-  description = "DNS validation records to publish in Cloudflare"
-  value = [
-    for dvo in aws_acm_certificate.api.domain_validation_options : {
-      name  = dvo.resource_record_name
-      type  = dvo.resource_record_type
-      value = dvo.resource_record_value
-      ttl   = 60
-    }
-  ]
+output "acm_validation_record" {
+  description = "DNS validation CNAME record to publish in Cloudflare"
+  value = {
+    name  = one(aws_acm_certificate.api.domain_validation_options).resource_record_name
+    type  = one(aws_acm_certificate.api.domain_validation_options).resource_record_type
+    value = one(aws_acm_certificate.api.domain_validation_options).resource_record_value
+    ttl   = 60
+  }
 }

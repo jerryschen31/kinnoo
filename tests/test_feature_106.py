@@ -16,8 +16,8 @@ def test_feature106_group1() -> None:
     assert 'name    = local.dev_host' in module_main
     assert 'name    = local.dev_api_host' in module_main
     assert 'type    = "CNAME"' in module_main
-    assert 'value   = var.pages_target' in module_main
-    assert 'value   = var.alb_dns_name' in module_main
+    assert 'content = var.pages_target' in module_main
+    assert 'content = var.alb_dns_name' in module_main
     assert 'proxied = true' in module_main
 
     assert 'variable "zone_id"' in module_vars
@@ -29,9 +29,8 @@ def test_feature106_group2() -> None:
     module_vars = _read("iac/modules/cloudflare/variables.tf")
     providers_tf = _read("iac/providers.tf")
 
-    assert "acm_validation_records" in module_vars
-    assert "for_each" in module_main
+    assert "acm_validation_record" in module_vars
     assert 'resource "cloudflare_record" "acm_validation"' in module_main
-    assert "value   = each.value.value" in module_main
+    assert "content = var.acm_validation_record.value" in module_main
     assert "CLOUDFLARE_API_TOKEN" in providers_tf
     assert 'terraform {' in _read("iac/versions.tf")
