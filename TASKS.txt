@@ -8191,7 +8191,7 @@ tasks:
       - 'step3: Write or update tests and verify locally with pytest'
     dependencies: [task408, task443]
     tests: [test567, test568]
-    status: not-started
+    status: needs-review
 
   - id: task410
     title: "Implement account lockout after 5 failed logins with 15-min cooldown"
