@@ -1,40 +1,54 @@
 import type { NextConfig } from "next";
 
-function normalizeBackendUrl(rawUrl: string | undefined): string {
-  const trimmed = rawUrl?.trim();
-  if (!trimmed) {
-    return "http://localhost:8000";
-  }
-  return trimmed.endsWith("/") ? trimmed.slice(0, -1) : trimmed;
+function buildSecurityHeaders(nodeEnv: string | undefined): Record<string, string> {
+	const isProduction = (nodeEnv ?? "").toLowerCase() === "production";
+	const contentSecurityPolicy = isProduction
+		? [
+				"default-src 'self'",
+				"script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com",
+				"style-src 'self' 'unsafe-inline'",
+				"img-src 'self' data: blob:",
+				"font-src 'self' data:",
+				"connect-src 'self' https: wss:",
+				"frame-ancestors 'none'",
+			].join("; ")
+		: [
+				"default-src 'self'",
+				"script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com",
+				"style-src 'self' 'unsafe-inline'",
+				"img-src 'self' data: blob:",
+				"font-src 'self' data:",
+				"connect-src 'self' https: http: ws: wss:",
+				"frame-ancestors 'none'",
+			].join("; ");
+
+	const headers: Record<string, string> = {
+		"X-Frame-Options": "DENY",
+		"X-Content-Type-Options": "nosniff",
+		"Referrer-Policy": "strict-origin-when-cross-origin",
+		"Content-Security-Policy": contentSecurityPolicy,
+	};
+
+	if (isProduction) {
+		headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
+	}
+
+	return headers;
 }
 
-// BACKEND_URL is the primary contract for phase 5 integration.
-// KINNOO_API_BASE_URL is retained as a compatibility fallback.
-const backendUrl = normalizeBackendUrl(
-  process.env.BACKEND_URL ?? process.env.KINNOO_API_BASE_URL,
-);
-
-// Proxy rewrites preserve inbound forwarding headers.
-// Backend relies on X-Forwarded-For and X-Request-Id when present.
-// X-Forwarded-For is consumed by backend rate limiting for client identity.
-
 const nextConfig: NextConfig = {
-  async rewrites() {
-    return [
-      {
-        source: "/api/login",
-        destination: `${backendUrl}/login`,
-      },
-      {
-        source: "/api/logout",
-        destination: `${backendUrl}/logout`,
-      },
-      {
-        source: "/api/:path*",
-        destination: `${backendUrl}/api/:path*`,
-      },
-    ];
-  },
+	async headers() {
+		const securityHeaders = buildSecurityHeaders(process.env.NODE_ENV);
+		return [
+			{
+				source: "/:path*",
+				headers: Object.entries(securityHeaders).map(([key, value]) => ({
+					key,
+					value,
+				})),
+			},
+		];
+	},
 };
 
 export default nextConfig;

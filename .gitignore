@@ -27,6 +27,8 @@ iac/tfplan*
 # Next.js web frontend
 web/node_modules/
 web/.next*
+web/.open-next/
+web/.wrangler/
 
 # Terraform local artifacts
 **/.terraform/
