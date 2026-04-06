@@ -10195,9 +10195,9 @@ tests:
       - 'step2: Verify no ''Email us'' or mailto contact flow is shown in web experience.'
       - 'step3: Verify valid login leads to registry-dev.kinnoo.ai behavior-equivalent registry route.'
       - 'step4: Verify registry-dev.kinnoo.ai renders authenticated user''s registry as before.'
-      - 'step5: Verify `next build && next export` succeeds (static export).'
+      - 'step5: Verify `next build` succeeds for static deployment workflow (Next.js 16 removed `next export`).'
     expected: feature110 acceptance criteria AC4, AC5, AC6, AC7 are satisfied
-    pass_criteria: 'AC4: No ''Email us'' link or mailto contact flow is shown anywhere in the web experience.; AC5: Valid login redirects the user to registry-dev.kinnoo.ai behavior-equivalent registry route.; AC6: registry-dev.kinnoo.ai renders the authenticated user''s registry view as before.; AC7: `next build && next export` succeeds (static export).'
+    pass_criteria: 'AC4: No ''Email us'' link or mailto contact flow is shown anywhere in the web experience.; AC5: Valid login redirects the user to registry-dev.kinnoo.ai behavior-equivalent registry route.; AC6: registry-dev.kinnoo.ai renders the authenticated user''s registry view as before.; AC7: `next build` succeeds for static deployment workflow (Next.js 16 removed `next export`).'
     covers:
       - feature: feature110
         ac: AC4
