@@ -8333,7 +8333,7 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: []
     tests: [test576, test577]
-    status: not-started
+    status: needs-review
 
   - id: task418
     title: "Create VPC module with public subnets, security groups, and S3 endpoint"
