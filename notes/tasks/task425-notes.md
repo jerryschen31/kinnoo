@@ -1,5 +1,11 @@
 # Task 425 Notes
 
+## Reimplementation Pass (Current)
+
+- Re-validated Cloudflare DNS resources for AC1-AC3.
+- Updated feature106 group1 test assertions to match Cloudflare provider v4 resource schema (`cloudflare_record` + `value`).
+- Re-ran targeted regression for task425.
+
 ## Summary
 
 Implemented feature106 AC1-AC3 baseline in the Cloudflare module:
