@@ -35,12 +35,19 @@ variable "cloudflare_api_token" {
   sensitive   = true
 }
 
-variable "zone_id" {
-  description = "Cloudflare zone ID for kinnoo.ai"
+variable "github_repo" {
+  description = "GitHub repository in owner/name format for OIDC trust"
   type        = string
+  default     = "kinnoo/kinnoo"
 }
 
-variable "alb_dns_name" {
-  description = "ALB DNS name used by dev-api CNAME"
+variable "sns_topic_arn" {
+  description = "SNS topic ARN for operator notifications"
+  type        = string
+  default     = ""
+}
+
+variable "zone_id" {
+  description = "Cloudflare zone ID for kinnoo.ai"
   type        = string
 }

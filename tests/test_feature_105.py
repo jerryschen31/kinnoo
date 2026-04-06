@@ -36,8 +36,8 @@ def test_feature105_group2() -> None:
     assert 'resource "aws_ecs_task_definition" "app"' in ecs_main
     assert 'cpu                      = 512' in ecs_main
     assert 'memory                   = 1024' in ecs_main
-    assert "efsVolumeConfiguration" in ecs_main
-    assert '"secrets": [' in ecs_main
+    assert "efs_volume_configuration" in ecs_main
+    assert "secrets =" in ecs_main
     assert 'resource "aws_ecs_service" "app"' in ecs_main
 
 
