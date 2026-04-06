@@ -8353,7 +8353,7 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task417]
     tests: [test576, test577]
-    status: not-started
+    status: needs-review
 
   - id: task419
     title: "Create S3 registry module with encryption, Object Lock, and versioning"
