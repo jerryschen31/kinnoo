@@ -34,3 +34,13 @@ variable "cloudflare_api_token" {
   default     = ""
   sensitive   = true
 }
+
+variable "zone_id" {
+  description = "Cloudflare zone ID for kinnoo.ai"
+  type        = string
+}
+
+variable "alb_dns_name" {
+  description = "ALB DNS name used by dev-api CNAME"
+  type        = string
+}

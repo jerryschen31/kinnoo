@@ -3381,7 +3381,7 @@ features:
       - "ACM certificate validation requires Cloudflare DNS records (feature106)"
     owner: swe-agent
     dependencies: [feature103, feature104]
-    status: not-started
+    status: in-progress
 
   - id: feature106
     title: "Terraform Cloudflare DNS and Pages"
