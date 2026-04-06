@@ -11,6 +11,15 @@ SERVICE="kinnoo-dev-service"
 CONTAINER_NAME=""
 KEEP_ARTIFACTS="false"
 REGISTRY_LOCAL_STORAGE_ROOT="/data/.registry-storage"
+ARTIFACT_DIR=""
+
+cleanup() {
+  if [[ "$KEEP_ARTIFACTS" != "true" && -n "$ARTIFACT_DIR" ]]; then
+    rm -rf "$ARTIFACT_DIR"
+  fi
+}
+
+trap cleanup EXIT
 
 usage() {
   cat <<'EOF'
@@ -95,6 +104,13 @@ require_cmd aws
 require_cmd jq
 require_cmd openssl
 
+# Keep generated task definition payloads in a private directory to avoid
+# leaving secret material in the repo workspace or shell history artifacts.
+umask 077
+ARTIFACT_DIR=$(mktemp -d -t kinnoo-registry-secrets.XXXXXX)
+TD_CURRENT_JSON="$ARTIFACT_DIR/td-current.json"
+TD_NEW_JSON="$ARTIFACT_DIR/td-new.json"
+
 echo "[1/8] Fetching current task definition ARN for service ${SERVICE}..."
 TD_ARN=$(aws --profile "$PROFILE" --region "$REGION" ecs describe-services \
   --cluster "$CLUSTER" --services "$SERVICE" \
@@ -137,7 +153,7 @@ export REGISTRY_LOCAL_STORAGE_ROOT
 echo "[4/8] Downloading current task definition JSON..."
 aws --profile "$PROFILE" --region "$REGION" ecs describe-task-definition \
   --task-definition "$TD_ARN" \
-  --query 'taskDefinition' --output json > td-current.json
+  --query 'taskDefinition' --output json > "$TD_CURRENT_JSON"
 
 echo "[5/8] Building new task definition payload with REGISTRY_* secrets..."
 jq '
@@ -170,11 +186,11 @@ jq '
         )
       else . end
     )
-' td-current.json > td-new.json
+  ' "$TD_CURRENT_JSON" > "$TD_NEW_JSON"
 
 echo "[6/8] Registering new task definition revision..."
 NEW_TD_ARN=$(aws --profile "$PROFILE" --region "$REGION" ecs register-task-definition \
-  --cli-input-json file://td-new.json \
+  --cli-input-json file://"$TD_NEW_JSON" \
   --query 'taskDefinition.taskDefinitionArn' --output text)
 
 echo "New task definition: $NEW_TD_ARN"
@@ -196,8 +212,8 @@ aws --profile "$PROFILE" --region "$REGION" ecs describe-services \
   --query 'services[0].{desired:desiredCount,running:runningCount,pending:pendingCount,taskDefinition:taskDefinition}' \
   --output table
 
-if [[ "$KEEP_ARTIFACTS" != "true" ]]; then
-  rm -f td-current.json td-new.json
+if [[ "$KEEP_ARTIFACTS" == "true" ]]; then
+  echo "Kept artifacts in: $ARTIFACT_DIR"
 fi
 
 echo "Done."
