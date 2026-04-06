@@ -43,7 +43,10 @@ def test_feature105_group2() -> None:
 
 def test_feature105_group3() -> None:
     ecs_main = _read("iac/modules/ecs-fargate/main.tf")
+    ecs_vars = _read("iac/modules/ecs-fargate/variables.tf")
 
     assert 'resource "aws_efs_file_system" "auth"' in ecs_main
     assert 'resource "aws_efs_mount_target" "auth"' in ecs_main
-    assert 'desired_count   = 1' in ecs_main
+    assert 'desired_count   = var.desired_count' in ecs_main
+    assert 'variable "desired_count"' in ecs_vars
+    assert 'default     = 1' in ecs_vars
