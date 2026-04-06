@@ -20,13 +20,12 @@ variable "alb_dns_name" {
   type        = string
 }
 
-variable "acm_validation_records" {
-  description = "ACM validation CNAME records to publish in Cloudflare"
-  type = list(object({
+variable "acm_validation_record" {
+  description = "ACM validation CNAME record to publish in Cloudflare"
+  type = object({
     name  = string
     type  = string
     value = string
     ttl   = number
-  }))
-  default = []
+  })
 }

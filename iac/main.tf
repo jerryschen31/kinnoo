@@ -79,9 +79,9 @@ module "ecs_fargate" {
 module "cloudflare" {
   source = "./modules/cloudflare"
 
-  zone_id                 = var.zone_id
-  domain                  = "kinnoo.ai"
-  pages_target            = "kinnoo.pages.dev"
-  alb_dns_name            = module.alb.alb_dns_name
-  acm_validation_records  = module.alb.acm_validation_records
+  zone_id                = var.zone_id
+  domain                 = "kinnoo.ai"
+  pages_target           = "kinnoo.pages.dev"
+  alb_dns_name           = module.alb.alb_dns_name
+  acm_validation_record  = module.alb.acm_validation_record
 }
