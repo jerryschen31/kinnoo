@@ -5,6 +5,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "kinnoo",
   description: "Package and share your AI agents",
+  icons: {
+    icon: "/icon",
+    shortcut: "/icon",
+    apple: "/icon",
+  },
 };
 
 export default function RootLayout({

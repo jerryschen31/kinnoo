@@ -201,7 +201,7 @@ export default function AgentManifestModal({
           ) : null}
 
           {installCommand ? (
-            <div className="mt-4 rounded-card border-2 border-white/25 bg-[#222222] p-4 transition hover:border-[#3B82F6] card-border-1">
+            <div className="mt-4 rounded-card border-2 border-white/25 bg-[#222222] p-4 transition hover:border-[#FF7F00] card-border-1">
               <p className="mb-2 text-xs uppercase tracking-[0.18em] text-white/50">Terminal</p>
               <div className="flex items-center justify-between gap-3">
                 <code className="text-sm text-kinnoo-text sm:text-base">{installCommand}</code>
