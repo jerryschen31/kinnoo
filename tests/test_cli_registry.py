@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import base64
 import json
 import os
 from pathlib import Path
@@ -117,8 +118,8 @@ def test_feature56_local_publish_tenant_path(tmp_path: Path) -> None:
 
 def test_feature61_login_interactive_and_noninteractive(tmp_path: Path) -> None:
 	accepted = {
-		("interactive@example.com", "interactive-pass", "interactive"): "token-interactive",
-		("cli@example.com", "cli-pass", "cli"): "token-cli",
+		("interactive@example.com", "interactive-pass"): "team-interactive",
+		("cli@example.com", "cli-pass"): "platform-ops",
 	}
 
 	server = _AuthTokenTestServer(accepted_credentials=accepted)
@@ -149,8 +150,8 @@ def test_feature61_login_interactive_and_noninteractive(tmp_path: Path) -> None:
 		assert config_path.exists()
 		first_config = config_path.read_text(encoding="utf-8")
 		assert f"registry_url: '{server.base_url}'" in first_config
-		assert "registry_token: 'token-interactive'" in first_config
-		assert "tenant_slug: 'interactive'" in first_config
+		assert "tenant_slug: 'team-interactive'" in first_config
+		assert "tenant_slug: 'interactive'" not in first_config
 
 		noninteractive = subprocess.run(
 			[
@@ -171,8 +172,8 @@ def test_feature61_login_interactive_and_noninteractive(tmp_path: Path) -> None:
 		assert "Login successful." in noninteractive_output
 
 		second_config = config_path.read_text(encoding="utf-8")
-		assert "registry_token: 'token-cli'" in second_config
-		assert "tenant_slug: 'cli'" in second_config
+		assert "tenant_slug: 'platform-ops'" in second_config
+		assert "tenant_slug: 'cli'" not in second_config
 	finally:
 		server.stop()
 
@@ -255,6 +256,163 @@ def test_feature61_logout_and_auth_precedence(tmp_path: Path) -> None:
 		server.stop()
 
 
+def test_feature61_hardened_login_logout_remote_auth_gating(tmp_path: Path) -> None:
+	archive_root = tmp_path / "archive"
+	_write_archive(archive_root, name="feature61-agent", version="1.0.0")
+
+	server = _RegistryAuthGatingTestServer(
+		user_credentials={
+			("kinnooteam@gmail.com", "kinnooteam-pass"): "team-kinnoo",
+			("admin@example.com", "admin-secret"): "global",
+		}
+	)
+	server.start()
+	try:
+		home_dir = tmp_path / "home"
+		env = {
+			**os.environ,
+			"HOME": str(home_dir),
+			"KINNOO_REGISTRY_URL": server.base_url,
+			"KINNOO_ARCHIVE_ROOT": str(archive_root),
+		}
+
+		login = subprocess.run(
+			[
+				sys.executable,
+				str(CLI_PATH),
+				"login",
+				"--email",
+				"kinnooteam@gmail.com",
+				"--password",
+				"kinnooteam-pass",
+			],
+			capture_output=True,
+			text=True,
+			env=env,
+			cwd=tmp_path,
+		)
+		login_output = f"{login.stdout}\n{login.stderr}"
+		assert login.returncode == 0, login_output
+		assert "Login successful." in login_output
+
+		config_path = home_dir / ".kinnoo" / "config.yaml"
+		config_after_login = config_path.read_text(encoding="utf-8")
+		assert "tenant_slug: 'team-kinnoo'" in config_after_login
+		assert "tenant_slug: 'kinnooteam'" not in config_after_login
+
+		list_remote = subprocess.run(
+			[sys.executable, str(CLI_PATH), "list", "--remote"],
+			capture_output=True,
+			text=True,
+			env=env,
+			cwd=tmp_path,
+		)
+		list_output = f"{list_remote.stdout}\n{list_remote.stderr}"
+		assert list_remote.returncode == 0, list_output
+		assert "Remote registry agents:" in list_output
+
+		search_remote = subprocess.run(
+			[sys.executable, str(CLI_PATH), "search", "--remote", "feature61"],
+			capture_output=True,
+			text=True,
+			env=env,
+			cwd=tmp_path,
+		)
+		search_output = f"{search_remote.stdout}\n{search_remote.stderr}"
+		assert search_remote.returncode == 0, search_output
+		assert "Remote registry search results for: feature61" in search_output
+
+		logout = subprocess.run(
+			[sys.executable, str(CLI_PATH), "logout"],
+			capture_output=True,
+			text=True,
+			env=env,
+			cwd=tmp_path,
+		)
+		logout_output = f"{logout.stdout}\n{logout.stderr}"
+		assert logout.returncode == 0, logout_output
+		assert "Logout successful." in logout_output
+
+		config_after_logout = config_path.read_text(encoding="utf-8") if config_path.exists() else ""
+		assert "registry_token" not in config_after_logout
+		assert "tenant_slug" not in config_after_logout
+
+		list_after_logout = subprocess.run(
+			[sys.executable, str(CLI_PATH), "list", "--remote"],
+			capture_output=True,
+			text=True,
+			env=env,
+			cwd=tmp_path,
+		)
+		list_after_logout_output = f"{list_after_logout.stdout}\n{list_after_logout.stderr}"
+		assert list_after_logout.returncode != 0
+		assert "Remote registry authentication is missing" in list_after_logout_output
+
+		search_after_logout = subprocess.run(
+			[sys.executable, str(CLI_PATH), "search", "--remote", "feature61"],
+			capture_output=True,
+			text=True,
+			env=env,
+			cwd=tmp_path,
+		)
+		search_after_logout_output = f"{search_after_logout.stdout}\n{search_after_logout.stderr}"
+		assert search_after_logout.returncode != 0
+		assert "Remote registry authentication is missing" in search_after_logout_output
+
+		no_registry_home = tmp_path / "home-no-registry"
+		no_registry_env = {
+			**os.environ,
+			"HOME": str(no_registry_home),
+			"KINNOO_ARCHIVE_ROOT": str(archive_root),
+		}
+
+		list_no_registry = subprocess.run(
+			[sys.executable, str(CLI_PATH), "list", "--remote"],
+			capture_output=True,
+			text=True,
+			env=no_registry_env,
+			cwd=tmp_path,
+		)
+		list_no_registry_output = f"{list_no_registry.stdout}\n{list_no_registry.stderr}"
+		assert list_no_registry.returncode != 0
+		assert "Remote mode requires a registry URL" in list_no_registry_output
+		assert "does not fall back to local mock storage" in list_no_registry_output
+
+		search_no_registry = subprocess.run(
+			[sys.executable, str(CLI_PATH), "search", "--remote", "feature61"],
+			capture_output=True,
+			text=True,
+			env=no_registry_env,
+			cwd=tmp_path,
+		)
+		search_no_registry_output = f"{search_no_registry.stdout}\n{search_no_registry.stderr}"
+		assert search_no_registry.returncode != 0
+		assert "Remote mode requires a registry URL" in search_no_registry_output
+		assert "does not fall back to local mock storage" in search_no_registry_output
+
+		(tmp_path / "kinnoo-config.txt").write_text(
+			"publish_to_authenticated_registry=true\n",
+			encoding="utf-8",
+		)
+		publish_env = {
+			**env,
+			"REGISTRY_ADMIN_EMAIL": "admin@example.com",
+			"REGISTRY_ADMIN_PASSWORD": "admin-secret",
+		}
+		publish_with_admin_bypass = subprocess.run(
+			[sys.executable, str(CLI_PATH), "publish", "feature61-agent", "--remote"],
+			capture_output=True,
+			text=True,
+			env=publish_env,
+			cwd=tmp_path,
+		)
+		publish_output = f"{publish_with_admin_bypass.stdout}\n{publish_with_admin_bypass.stderr}"
+		assert publish_with_admin_bypass.returncode == 0, publish_output
+		assert "Published feature61-agent==1.0.0 (remote)" in publish_output
+	finally:
+		server.stop()
+
+
 def test_feature63_mirror_attribution_and_idempotency(tmp_path: Path) -> None:
 	registry_root = tmp_path / "registry"
 	service = RegistryService(backend=MockFilesystemRegistryBackend(root=registry_root))
@@ -289,14 +447,27 @@ def test_feature63_mirror_attribution_and_idempotency(tmp_path: Path) -> None:
 	from src.kinnoo.config import RegistryConfig
 	from src.kinnoo.inspect_command import inspect_target
 
-	previous_registry_root = os.environ.get("KINNOO_REGISTRY_ROOT")
 	original_load_registry_config = search_command.load_registry_config
+	original_remote_client = search_command.RemoteRegistryClient
+	original_registry_service = search_command.RegistryService
+
+	class _MirrorRemoteClientStub:
+		def __init__(self, *, base_url: str, token: str, tenant_slug: str) -> None:
+			del base_url, token, tenant_slug
+
+		def search_agents(self, *, query: str) -> list[object]:
+			return service.search_agents(query=query)
+
+		def list_clawhub_mirror_records(self) -> list[object]:
+			return service.list_clawhub_mirror_records()
+
 	search_command.load_registry_config = lambda: RegistryConfig(
-		registry_url=None,
-		registry_token=None,
-		tenant_slug=None,
+		registry_url="https://registry.example.test",
+		registry_token="token",
+		tenant_slug="tenant-alpha",
 	)
-	os.environ["KINNOO_REGISTRY_ROOT"] = str(registry_root)
+	search_command.RemoteRegistryClient = _MirrorRemoteClientStub
+	search_command.RegistryService = RegistryService
 	try:
 		search_stdout = io.StringIO()
 		search_stderr = io.StringIO()
@@ -325,10 +496,8 @@ def test_feature63_mirror_attribution_and_idempotency(tmp_path: Path) -> None:
 		assert "Last Synced At: 2026-03-29T03:00:00Z" in inspect_output
 	finally:
 		search_command.load_registry_config = original_load_registry_config
-		if previous_registry_root is None:
-			os.environ.pop("KINNOO_REGISTRY_ROOT", None)
-		else:
-			os.environ["KINNOO_REGISTRY_ROOT"] = previous_registry_root
+		search_command.RemoteRegistryClient = original_remote_client
+		search_command.RegistryService = original_registry_service
 
 
 def test_feature71_strict_publish_and_docs(tmp_path: Path) -> None:
@@ -585,7 +754,7 @@ def test_feature84_skill_search_preflight_empty_and_error_guidance(tmp_path: Pat
 
 
 class _AuthTokenTestServer:
-	def __init__(self, *, accepted_credentials: dict[tuple[str, str, str], str]) -> None:
+	def __init__(self, *, accepted_credentials: dict[tuple[str, str], str]) -> None:
 		self._accepted_credentials = accepted_credentials
 		self._server = ThreadingHTTPServer(("127.0.0.1", 0), _make_auth_handler(accepted_credentials))
 		self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
@@ -627,7 +796,7 @@ class _AuthPublishTestServer:
 
 
 def _make_auth_handler(
-	accepted_credentials: dict[tuple[str, str, str], str],
+	accepted_credentials: dict[tuple[str, str], str],
 ) -> type[BaseHTTPRequestHandler]:
 	class _AuthHandler(BaseHTTPRequestHandler):
 		def do_POST(self) -> None:  # noqa: N802
@@ -645,12 +814,16 @@ def _make_auth_handler(
 
 			username = str(payload.get("username", ""))
 			password = str(payload.get("password", ""))
-			tenant_slug = str(payload.get("tenant_slug", ""))
-			token = accepted_credentials.get((username, password, tenant_slug))
-			if token is None:
+			if "tenant_slug" in payload:
+				self._write_json(400, {"error": "tenant_slug should not be required for login"})
+				return
+
+			tenant_slug = accepted_credentials.get((username, password))
+			if tenant_slug is None:
 				self._write_json(401, {"error": {"message": "invalid username or password"}})
 				return
 
+			token = _make_test_jwt(tenant_slug)
 			self._write_json(
 				200,
 				{
@@ -672,6 +845,156 @@ def _make_auth_handler(
 			self.wfile.write(encoded)
 
 	return _AuthHandler
+
+
+class _RegistryAuthGatingTestServer:
+	def __init__(self, *, user_credentials: dict[tuple[str, str], str]) -> None:
+		self._server = ThreadingHTTPServer(
+			("127.0.0.1", 0),
+			_make_registry_auth_gating_handler(user_credentials=user_credentials),
+		)
+		self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
+
+	@property
+	def base_url(self) -> str:
+		host, port = self._server.server_address
+		return f"http://{host}:{port}"
+
+	def start(self) -> None:
+		self._thread.start()
+
+	def stop(self) -> None:
+		self._server.shutdown()
+		self._server.server_close()
+		self._thread.join(timeout=2)
+
+
+def _make_registry_auth_gating_handler(
+	*,
+	user_credentials: dict[tuple[str, str], str],
+) -> type[BaseHTTPRequestHandler]:
+	issued_tokens: set[str] = set()
+
+	class _RegistryAuthGatingHandler(BaseHTTPRequestHandler):
+		def do_POST(self) -> None:  # noqa: N802
+			if self.path == "/api/auth/token":
+				self._handle_auth_token()
+				return
+
+			if self.path == "/api/publish":
+				self._handle_publish()
+				return
+
+			self._write_json(404, {"error": "not found"})
+
+		def do_GET(self) -> None:  # noqa: N802
+			if self.path.startswith("/api/agents"):
+				self._require_auth_or_401()
+				self._write_json(
+					200,
+					{
+						"items": [
+							{
+								"name": "feature61-agent",
+								"latest_version": "1.0.0",
+								"description": "feature61 remote fixture",
+							}
+						]
+					},
+				)
+				return
+
+			if self.path.startswith("/api/search"):
+				self._require_auth_or_401()
+				self._write_json(
+					200,
+					{
+						"items": [
+							{
+								"name": "feature61-agent",
+								"latest_version": "1.0.0",
+								"description": "feature61 remote fixture",
+							}
+						]
+					},
+				)
+				return
+
+			self._write_json(404, {"error": "not found"})
+
+		def log_message(self, format: str, *args: object) -> None:  # noqa: A003
+			del format, args
+
+		def _handle_auth_token(self) -> None:
+			content_length = int(self.headers.get("Content-Length", "0"))
+			payload_text = self.rfile.read(content_length).decode("utf-8")
+			try:
+				payload = json.loads(payload_text)
+			except json.JSONDecodeError:
+				self._write_json(400, {"error": "invalid JSON"})
+				return
+
+			username = str(payload.get("username", ""))
+			password = str(payload.get("password", ""))
+			tenant_slug = user_credentials.get((username, password))
+			if tenant_slug is None:
+				self._write_json(401, {"error": "invalid username or password"})
+				return
+
+			requested_tenant = payload.get("tenant_slug")
+			if isinstance(requested_tenant, str) and requested_tenant.strip():
+				tenant_slug = requested_tenant.strip()
+
+			token = _make_test_jwt(tenant_slug)
+			issued_tokens.add(token)
+			self._write_json(
+				200,
+				{
+					"access_token": token,
+					"token_type": "Bearer",
+					"expires_in": 3600,
+				},
+			)
+
+		def _handle_publish(self) -> None:
+			if not self._require_auth_or_401():
+				return
+
+			content_length = int(self.headers.get("Content-Length", "0"))
+			_ = self.rfile.read(content_length)
+			self._write_json(200, {"archive_path": "remote://feature61-agent/1.0.0"})
+
+		def _require_auth_or_401(self) -> bool:
+			authorization = self.headers.get("Authorization", "")
+			if not authorization.startswith("Bearer "):
+				self._write_json(401, {"error": "unauthorized"})
+				return False
+			token = authorization.split(" ", 1)[1].strip()
+			if token not in issued_tokens:
+				self._write_json(401, {"error": "unauthorized"})
+				return False
+			return True
+
+		def _write_json(self, status_code: int, payload: dict[str, object]) -> None:
+			encoded = json.dumps(payload).encode("utf-8")
+			self.send_response(status_code)
+			self.send_header("Content-Type", "application/json")
+			self.send_header("Content-Length", str(len(encoded)))
+			self.end_headers()
+			self.wfile.write(encoded)
+
+	return _RegistryAuthGatingHandler
+
+
+def _make_test_jwt(tenant_slug: str) -> str:
+	header_segment = _base64url_json({"alg": "none", "typ": "JWT"})
+	payload_segment = _base64url_json({"tenant_slug": tenant_slug})
+	return f"{header_segment}.{payload_segment}.signature"
+
+
+def _base64url_json(payload: dict[str, str]) -> str:
+	encoded = base64.urlsafe_b64encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
+	return encoded.decode("utf-8").rstrip("=")
 
 
 def _make_auth_publish_handler(*, accepted_publish_token: str) -> type[BaseHTTPRequestHandler]:
