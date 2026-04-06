@@ -5,6 +5,7 @@ from __future__ import annotations
 import getpass
 import base64
 import json
+import os
 import sys
 from urllib import error as urllib_error
 from urllib import request as urllib_request
@@ -17,6 +18,13 @@ from .config import (
 
 
 DEFAULT_REGISTRY_URL = "https://registry.kinnoo.ai"
+
+
+def _http_user_agent() -> str:
+    configured = (os.environ.get("KINNOO_HTTP_USER_AGENT") or "").strip()
+    if configured:
+        return configured
+    return "curl/8.7.1"
 
 
 def login_command(
@@ -136,6 +144,7 @@ def _issue_token(
         headers={
             "Content-Type": "application/json",
             "Accept": "application/json",
+            "User-Agent": _http_user_agent(),
         },
         method="POST",
     )
@@ -199,5 +208,18 @@ def _extract_error_message(payload: dict[str, object] | None) -> str:
     message_value = payload.get("message")
     if isinstance(message_value, str):
         return message_value
+
+    # Cloudflare and other edge providers often include human-readable details here.
+    detail_value = payload.get("detail")
+    if isinstance(detail_value, str):
+        return detail_value
+
+    title_value = payload.get("title")
+    if isinstance(title_value, str):
+        return title_value
+
+    owner_action = payload.get("what_you_should_do")
+    if isinstance(owner_action, str):
+        return owner_action
 
     return ""

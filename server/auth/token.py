@@ -207,8 +207,11 @@ class TokenService:
 
         if user.role == "admin":
             scopes = ["registry:read", "registry:publish", "registry:admin"]
+            # Admin can explicitly target a tenant, otherwise default to identity-derived tenant.
             resolved_tenant_slug = (
-                tenant_slug.strip() if isinstance(tenant_slug, str) and tenant_slug.strip() else "global"
+                tenant_slug.strip()
+                if isinstance(tenant_slug, str) and tenant_slug.strip()
+                else username_to_tenant_slug(user.username)
             )
         else:
             scopes = ["registry:read"]
