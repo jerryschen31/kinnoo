@@ -8327,7 +8327,7 @@ tasks:
       - iac/state/main.tf
     steps:
       - 'step1: Implement iac/ directory exists with: versions.tf, providers.tf, variables.tf, outputs.tf, locals.tf, main.tf.'
-      - 'step2: Implement iac/state/main.tf creates S3 bucket and DynamoDB table for Terraform state.'
+      - 'step2: Implement iac/state/main.tf and backend config use S3 backend with use_lockfile=true (no DynamoDB lock table).'
       - 'step3: Implement iac/modules/vpc/ creates VPC with 2 public subnets in us-west-2a and us-west-2b.'
       - 'step4: Implement Security groups: ALB SG (Cloudflare IPs only on 443), ECS SG (ALB SG on 8000), S3 endpoint.'
       - 'step5: Write or update tests and verify locally with pytest'
@@ -8719,12 +8719,12 @@ tasks:
     status: not-started
 
   - id: task441
-    title: "Apply Terraform state bootstrap in AWS and capture backend outputs"
+    title: "Apply Terraform state bootstrap in AWS and verify S3 native lockfile backend"
     type: task
     description: |
       Manual operator step for feature103. Run Terraform state bootstrap in AWS
-      account 386775099533, verify S3 + DynamoDB state backend exists, and
-      record backend settings for downstream Terraform workflows.
+      account 386775099533, verify S3 backend with native lockfile locking is
+      configured, and record backend settings for downstream Terraform workflows.
     files:
       - iac/state/main.tf
       - iac/environments/dev/terraform.tfvars
@@ -8732,12 +8732,12 @@ tasks:
     steps:
       - 'step1: Export AWS credentials/profile for account 386775099533 (us-west-2).'
       - 'step2: Run `terraform init && terraform apply` from iac/state/ and approve changes.'
-      - 'step3: Verify state bucket versioning and DynamoDB lock table exist in AWS console or CLI.'
-      - 'step4: Record backend bucket/table/region in docs/iac-operator-runbook.md for reproducibility.'
+      - 'step3: Verify state bucket exists/versioning is enabled and backend config uses use_lockfile=true.'
+      - 'step4: Record backend bucket/key/region/use_lockfile settings in docs/iac-operator-runbook.md for reproducibility.'
       - 'step5: Run regression script for bootstrap verification.'
     dependencies: [task417, task418]
     tests: [test602]
-    status: paused
+    status: not-started
 
   - id: task442
     title: "Configure Cloudflare credentials and complete live DNS validation"

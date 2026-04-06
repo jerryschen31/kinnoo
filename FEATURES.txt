@@ -3276,7 +3276,7 @@ features:
     title: "Terraform project setup, state bootstrap, and VPC networking"
     description: |
       Create the iac/ directory structure with Terraform project files. Create a
-      state bootstrap module (S3 bucket + DynamoDB table for state locking).
+      state bootstrap module (S3 backend with native lockfile state locking).
       Create the VPC module with public subnets (2 AZs), security groups, and
       VPC endpoints for S3 (gateway) and ECR (interface). No NAT Gateway.
     tasks: [task417, task418, task441]
@@ -3284,7 +3284,7 @@ features:
       - id: AC1
         description: "iac/ directory exists with: versions.tf, providers.tf, variables.tf, outputs.tf, locals.tf, main.tf."
       - id: AC2
-        description: "iac/state/main.tf creates S3 bucket and DynamoDB table for Terraform state."
+        description: "iac/state/main.tf and backend config use S3 backend with use_lockfile=true (no DynamoDB lock table)."
       - id: AC3
         description: "iac/modules/vpc/ creates VPC with 2 public subnets in us-west-2a and us-west-2b."
       - id: AC4
@@ -3302,6 +3302,7 @@ features:
       - "AWS account: 386775099533, region: us-west-2"
       - "Cloudflare IP ranges: https://www.cloudflare.com/ips/ — use data source"
       - "State bootstrap is applied manually before other modules"
+      - "Each Terraform root stack should use a unique backend key for isolated state files"
       - "VPC endpoints avoid needing NAT for ECS → S3/ECR"
     owner: swe-agent
     dependencies: []
