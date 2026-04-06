@@ -8865,3 +8865,28 @@ tasks:
     dependencies: [task404, task405]
     tests: [test600]
     status: not-started
+
+  - id: task448
+    title: "Resolve dev infra blockers (Cloudflare 1014 + ECS/ECR readiness)"
+    type: task
+    description: |
+      Manual operator remediation task for feature106/feature105 deployment gaps.
+      Complete Cloudflare Pages same-account custom-domain cutover for dev.kinnoo.ai,
+      seed required Secrets Manager values, push ECR image, force ECS redeploy,
+      and verify ALB target registration and endpoint health.
+    files:
+      - notes/tasks/task448-human-handoff.md
+      - iac/modules/cloudflare/main.tf
+      - iac/main.tf
+      - scripts/ops/check_task448_backend_readiness.sh
+      - scripts/ops/check_task448_cloudflare_pages_cutover.sh
+    steps:
+      - 'step1: Set AWSCURRENT values for kinnoo/dev/jwt-secret, kinnoo/dev/session-secret, and kinnoo/dev/admin-password in Secrets Manager.'
+      - 'step2: Build and push Docker image to 386775099533.dkr.ecr.us-west-2.amazonaws.com/kinnoo-dev-server:latest.'
+      - 'step3: Force ECS deployment for kinnoo-dev-service and wait for service stability.'
+      - 'step4: Verify kinnoo-dev-tg has healthy registered targets and dev-api.kinnoo.ai/health returns non-503 response.'
+      - 'step5: In Cloudflare, delete dev CNAME -> kinnoo.pages.dev, attach dev.kinnoo.ai as a custom domain on the Pages project in the same account, and verify no 1014 on https://dev.kinnoo.ai.'
+      - 'step6: Run automated validation scripts for backend readiness and Cloudflare Pages cutover, and archive output with task448 handoff notes.'
+    dependencies: [task424, task426, task442]
+    tests: [test607, test608]
+    status: not-started

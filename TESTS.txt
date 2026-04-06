@@ -10458,3 +10458,43 @@ tests:
         ac: AC5
     automated: true
     automation_path: scripts/ops/check_launch_readiness.sh
+
+  - id: test607
+    title: "feature106 operator backend readiness remediation verification"
+    type: manual
+    preconditions: AWS credentials for account 386775099533 and region us-west-2; ECS/ALB/ECR resources provisioned
+    steps:
+      - 'step1: Run scripts/ops/check_task448_backend_readiness.sh with AWS_PROFILE/AWS_REGION targeting dev environment.'
+      - 'step2: Verify script confirms AWSCURRENT secret values, non-empty ECR repository, ECS running task count >= 1, and healthy ALB targets.'
+      - 'step3: Attach script output to task448 handoff evidence.'
+    expected: Backend deployment prerequisites are fully remediated and runtime stack is healthy
+    pass_criteria: Script exits 0 and reports all checks as [ok]
+    covers:
+      - feature: feature105
+        ac: AC1
+      - feature: feature105
+        ac: AC5
+      - feature: feature105
+        ac: AC8
+    automated: true
+    automation_path: scripts/ops/check_task448_backend_readiness.sh
+
+  - id: test608
+    title: "feature106 Cloudflare Pages same-account cutover verification"
+    type: manual
+    preconditions: Cloudflare token and zone ID available; EXPECTED_DEV_PAGES_TARGET set to same-account Pages hostname
+    steps:
+      - 'step1: Run scripts/ops/check_cloudflare_dns_setup.sh to validate dev/dev-api DNS and ACM validation records.'
+      - 'step2: Run scripts/ops/check_task448_cloudflare_pages_cutover.sh with EXPECTED_DEV_PAGES_TARGET set to the intended Pages hostname.'
+      - 'step3: Confirm dev.kinnoo.ai no longer serves Cloudflare error 1014.'
+    expected: Cloudflare DNS is valid and dev.kinnoo.ai is correctly cut over to same-account Pages custom domain
+    pass_criteria: Both scripts exit 0 and Cloudflare 1014 is absent on dev.kinnoo.ai
+    covers:
+      - feature: feature106
+        ac: AC1
+      - feature: feature106
+        ac: AC2
+      - feature: feature106
+        ac: AC4
+    automated: true
+    automation_path: scripts/ops/check_task448_cloudflare_pages_cutover.sh
