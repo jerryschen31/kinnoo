@@ -54,6 +54,29 @@ resource "aws_iam_role_policy_attachment" "ecs_execution_default" {
 
 data "aws_iam_policy_document" "ecs_execution_extras" {
   statement {
+    sid = "EcrRead"
+
+    actions = [
+      "ecr:BatchGetImage",
+      "ecr:GetDownloadUrlForLayer",
+      "ecr:GetAuthorizationToken",
+    ]
+
+    resources = ["*"]
+  }
+
+  statement {
+    sid = "CloudWatchLogsWrite"
+
+    actions = [
+      "logs:CreateLogStream",
+      "logs:PutLogEvents",
+    ]
+
+    resources = ["*"]
+  }
+
+  statement {
     sid = "SecretsRead"
 
     actions = [

@@ -1,5 +1,11 @@
 # Task 420 Notes
 
+## Reimplementation Pass (Current)
+
+- Re-validated IAM resources for AC5-AC7.
+- Strengthened execution-role inline policy coverage with explicit ECR read actions and CloudWatch Logs write actions so runtime permissions are explicit in module code.
+- Re-ran targeted regression for task420.
+
 ## Summary
 
 Implemented IAM module for feature104 AC5-AC7:
