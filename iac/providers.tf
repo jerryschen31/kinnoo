@@ -4,5 +4,5 @@ provider "aws" {
 }
 
 provider "cloudflare" {
-  api_token = var.cloudflare_api_token
+  # API token is supplied via CLOUDFLARE_API_TOKEN in the shell environment.
 }

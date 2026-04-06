@@ -8487,7 +8487,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task425]
     tests: [test584, test585]
-    status: not-started
+    status: needs-review
 
   - id: task427
     title: "Create CloudWatch log group and alarm modules (5xx, unhealthy, CPU)"
