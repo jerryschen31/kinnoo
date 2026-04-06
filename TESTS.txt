@@ -10171,11 +10171,11 @@ tests:
     preconditions: Node.js and npm installed; web/ frontend dependencies installed
     steps:
       - 'step1: Execute workflow for feature110 (Landing page update for invite-only beta) covering AC1, AC2, AC3'
-      - 'step2: Verify Landing page shows ''Invite-Only Beta'' messaging.'
-      - 'step3: Verify No open registration form on the landing page.'
-      - 'step4: Verify ''Email us'' link is rendered via JavaScript (not plain HTML) to prevent scraping.'
+      - 'step2: Verify Landing page remains unchanged from the current baseline.'
+      - 'step3: Verify clicking Sign Up routes to the simplified invite-only message page.'
+      - 'step4: Verify invite-only page includes one ''Contact Me'' action that opens Twitter/X DM compose URL.'
     expected: feature110 acceptance criteria AC1, AC2, AC3 are satisfied
-    pass_criteria: 'AC1: Landing page shows ''Invite-Only Beta'' messaging.; AC2: No open registration form on the landing page.; AC3: ''Email us'' link is rendered via JavaScript (not plain HTML) to prevent scraping.'
+    pass_criteria: 'AC1: Landing page remains unchanged from the current version (no copy/layout changes).; AC2: Clicking Sign Up routes to a simple invite-only page with the exact provided message text.; AC3: Invite-only page has a single ''Contact Me'' button that opens https://twitter.com/messages/compose?recipient_id=4118511499 in a new tab/modal flow.'
     covers:
       - feature: feature110
         ac: AC1
@@ -10187,16 +10187,17 @@ tests:
     automation_path: tests/test_feature_110.py::test_feature110_group1
 
   - id: test593
-    title: "feature110 verify AC4, AC5, AC6"
+    title: "feature110 verify AC4, AC5, AC6, AC7"
     type: integration
     preconditions: Node.js and npm installed; web/ frontend dependencies installed
     steps:
-      - 'step1: Execute workflow for feature110 (Landing page update for invite-only beta) covering AC4, AC5, AC6'
-      - 'step2: Verify Registration page (/register) shows invite token field and instructions.'
-      - 'step3: Verify `next build && next export` succeeds (static export).'
-      - 'step4: Verify Updated pages render correctly at dev.kinnoo.ai.'
-    expected: feature110 acceptance criteria AC4, AC5, AC6 are satisfied
-    pass_criteria: 'AC4: Registration page (/register) shows invite token field and instructions.; AC5: `next build && next export` succeeds (static export).; AC6: Updated pages render correctly at dev.kinnoo.ai.'
+      - 'step1: Execute workflow for feature110 (Landing page update for invite-only beta) covering AC4, AC5, AC6, AC7'
+      - 'step2: Verify no ''Email us'' or mailto contact flow is shown in web experience.'
+      - 'step3: Verify valid login leads to registry-dev.kinnoo.ai behavior-equivalent registry route.'
+      - 'step4: Verify registry-dev.kinnoo.ai renders authenticated user''s registry as before.'
+      - 'step5: Verify `next build && next export` succeeds (static export).'
+    expected: feature110 acceptance criteria AC4, AC5, AC6, AC7 are satisfied
+    pass_criteria: 'AC4: No ''Email us'' link or mailto contact flow is shown anywhere in the web experience.; AC5: Valid login redirects the user to registry-dev.kinnoo.ai behavior-equivalent registry route.; AC6: registry-dev.kinnoo.ai renders the authenticated user''s registry view as before.; AC7: `next build && next export` succeeds (static export).'
     covers:
       - feature: feature110
         ac: AC4
@@ -10204,6 +10205,8 @@ tests:
         ac: AC5
       - feature: feature110
         ac: AC6
+      - feature: feature110
+        ac: AC7
     automated: true
     automation_path: tests/test_feature_110.py::test_feature110_group2
 
