@@ -8592,33 +8592,34 @@ tasks:
     status: not-started
 
   - id: task433
-    title: "Update landing page with invite-only messaging and hide open registration"
+    title: "Keep landing unchanged and simplify Sign Up invite-only page"
     type: task
     description: |
       Implement feature110 (Landing page update for invite-only beta): AC1, AC2, AC3.
     files:
       - web/
     steps:
-      - 'step1: Implement Landing page shows ''Invite-Only Beta'' messaging.'
-      - 'step2: Implement No open registration form on the landing page.'
-      - 'step3: Implement ''Email us'' link is rendered via JavaScript (not plain HTML) to prevent scraping.'
+      - 'step1: Implement Landing page remains unchanged (no copy/layout delta).'
+      - 'step2: Implement Sign Up route renders the simplified invite-only message page.'
+      - 'step3: Implement Invite-only page includes only one contact action: ''Contact Me'' to Twitter/X DM link.'
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: []
     tests: [test592, test593]
-    status: not-started
+    status: needs-review
 
   - id: task434
-    title: "Add JS-rendered email link and verify static export works"
+    title: "Verify no mailto flow and preserve login/registry + static export"
     type: task
     description: |
-      Implement feature110 (Landing page update for invite-only beta): AC4, AC5, AC6.
+      Implement feature110 (Landing page update for invite-only beta): AC4, AC5, AC6, AC7.
     files:
       - web/
     steps:
-      - 'step1: Implement Registration page (/register) shows invite token field and instructions.'
-      - 'step2: Implement `next build && next export` succeeds (static export).'
-      - 'step3: Implement Updated pages render correctly at dev.kinnoo.ai.'
-      - 'step4: Write or update tests and verify locally with pytest'
+      - 'step1: Implement No ''Email us'' or mailto contact links appear anywhere in web UI.'
+      - 'step2: Implement Valid login routes users to registry-dev.kinnoo.ai behavior-equivalent registry page.'
+      - 'step3: Implement Registry page shows authenticated user''s registry as before.'
+      - 'step4: Implement `next build && next export` succeeds (static export).'
+      - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task433]
     tests: [test592, test593]
     status: not-started

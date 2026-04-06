@@ -3517,33 +3517,35 @@ features:
   - id: feature110
     title: "Landing page update for invite-only beta"
     description: |
-      Update the Next.js web frontend for the invite-only beta. Remove or hide
-      open registration. Add messaging about invite-only access. Add "Email us"
-      link (JavaScript-rendered to prevent bot scraping). Update any marketing
-      copy to reflect beta status. Ensure static export works for Cloudflare
-      Pages deployment.
+      Keep the landing page unchanged for now. Update the signup path to show a
+      minimal invite-only message and a single "Contact Me" action that opens a
+      Twitter/X DM compose link to Jerry. Do not render any email or mailto
+      contact path. Preserve login and registry behavior for authenticated users,
+      and keep static export compatibility for deployment.
     tasks: [task433, task434]
     acceptance_criteria:
       - id: AC1
-        description: "Landing page shows 'Invite-Only Beta' messaging."
+        description: "Landing page remains unchanged from the current version (no copy/layout changes)."
       - id: AC2
-        description: "No open registration form on the landing page."
+        description: "Clicking Sign Up routes to a simple invite-only page with the exact provided message text."
       - id: AC3
-        description: "'Email us' link is rendered via JavaScript (not plain HTML) to prevent scraping."
+        description: "Invite-only page has a single 'Contact Me' button that opens https://twitter.com/messages/compose?recipient_id=4118511499 in a new tab/modal flow."
       - id: AC4
-        description: "Registration page (/register) shows invite token field and instructions."
+        description: "No 'Email us' link or mailto contact flow is shown anywhere in the web experience."
       - id: AC5
-        description: "`next build && next export` succeeds (static export)."
+        description: "Valid login redirects the user to registry-dev.kinnoo.ai behavior-equivalent registry route."
       - id: AC6
-        description: "Updated pages render correctly at dev.kinnoo.ai."
+        description: "registry-dev.kinnoo.ai renders the authenticated user's registry view as before."
+      - id: AC7
+        description: "`next build && next export` succeeds (static export)."
     notes:
       - "Modify: web/ directory (Next.js frontend)"
       - "web/next.config.ts (~40 lines) already has rewrite config"
       - "Static export: output: 'export' in next.config.ts"
-      - "Email obfuscation: simple JS that builds the mailto: link on page load"
+      - "Signup CTA contact path is Twitter/X DM only"
     owner: swe-agent
     dependencies: []
-    status: not-started
+    status: in-progress
 
   # ──────────────────────────────────────────────────────────────
   # Phase 15: Deployment, Testing & Launch (features 111-113)
