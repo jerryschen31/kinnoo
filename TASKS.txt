@@ -8172,14 +8172,14 @@ tasks:
     steps:
       - 'step1: Implement pyproject.toml has complete PyPI metadata (name, version, description, author, license, classifiers, project-urls).'
       - 'step2: Implement `pip install kinnoo` works from a built wheel.'
-      - 'step3: Implement .github/workflows/pypi-publish.yml publishes to PyPI on release tag.'
+      - 'step3: Implement .github/workflows/pypi-publish.yml publishes to PyPI on push to master.'
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: []
     tests: [test567, test568]
-    status: not-started
+    status: needs-review
 
   - id: task409
-    title: "Create pypi-publish.yml workflow triggered on release tags"
+    title: "Create pypi-publish.yml workflow triggered on push to master"
     type: task
     description: |
       Implement feature99 (PyPI package publishing configuration): AC4, AC5.
