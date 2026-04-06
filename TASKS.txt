@@ -8890,3 +8890,30 @@ tasks:
     dependencies: [task424, task426, task442]
     tests: [test607, test608]
     status: not-started
+
+  - id: task449
+    title: "Login and logout CLI hardening"
+    type: task
+    description: |
+      Harden CLI auth flows so `kinnoo login` resolves tenant context without manual
+      tenant guessing and `kinnoo logout` reliably blocks subsequent authenticated
+      list/search operations until explicit re-login, while preserving intentional
+      admin-credential publish bypass behavior when enabled.
+    files:
+      - src/kinnoo/auth_command.py
+      - src/kinnoo/publish_command.py
+      - src/kinnoo/list_command.py
+      - src/kinnoo/search_command.py
+      - src/kinnoo/config.py
+      - tests/test_cli_registry.py
+      - README.md
+    steps:
+      - 'step1: Implement true tenant discovery handshake during login so auth does not rely on guessed tenant slug from email and users do not need manual tenant input.'
+      - 'step2: Ensure login persists resolved registry_url, registry_token, and tenant_slug deterministically with clear diagnostics.'
+      - 'step3: Remove remote --list/--search fallback to local mock when registry_url is missing; return an explicit, actionable error with remediation steps.'
+      - 'step4: Ensure logout clears local auth state and remote list/search fail closed until re-login.'
+      - 'step5: Preserve explicit publish bypass path for publish_to_authenticated_registry=true when REGISTRY_ADMIN_EMAIL and REGISTRY_ADMIN_PASSWORD are provided.'
+      - 'step6: Update operator docs with hardened login/logout and remote-registry usage guidance (including no-fallback remote mode behavior).'
+    dependencies: [task332, task333]
+    tests: [test609]
+    status: not-started

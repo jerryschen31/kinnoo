@@ -2090,7 +2090,7 @@ features:
       Add first-class CLI authentication commands for registry workflows so users can
       login interactively or non-interactively, persist registry credentials locally,
       and logout safely.
-    tasks: [task332, task333]
+    tasks: [task332, task333, task449]
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo login` supports interactive email/username + hidden-password prompts, uses configured/default registry endpoint, and stores token + tenant slug in local config."
