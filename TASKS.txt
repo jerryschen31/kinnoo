@@ -8371,7 +8371,7 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task418]
     tests: [test578, test579, test580]
-    status: not-started
+    status: needs-review
 
   - id: task420
     title: "Create IAM roles module (ECS task, execution, GitHub OIDC)"
@@ -8737,7 +8737,7 @@ tasks:
       - 'step5: Run regression script for bootstrap verification.'
     dependencies: [task417, task418]
     tests: [test602]
-    status: not-started
+    status: completed
 
   - id: task442
     title: "Configure Cloudflare credentials and complete live DNS validation"
