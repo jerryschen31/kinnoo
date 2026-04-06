@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import MainLayout from "../components/blocks/MainLayout";
@@ -39,33 +39,28 @@ describe("Sign up entry points and signup page", () => {
     expect(loginSignupLink.getAttribute("href")).toBe("/signup");
   });
 
-  it("validates email and shows confirmation state for valid submit", async () => {
-    const fetchSpy = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValue(new Response(JSON.stringify({ message: "ok" }), { status: 200 }));
-
+  it("renders invite-only message with one Contact Me action", () => {
     render(<SignupPage />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Send Verification Link" }));
-    expect(screen.getByText("Email is required.")).toBeTruthy();
-    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(
+      screen.getByText("Sign up is currently invite-only. Please contact me for early access."),
+    ).toBeTruthy();
 
-    fireEvent.change(screen.getByLabelText("Email address"), {
-      target: { value: "invalid-email" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Send Verification Link" }));
-    expect(screen.getByText("Enter a valid email address.")).toBeTruthy();
-    expect(fetchSpy).not.toHaveBeenCalled();
+    const contactLink = screen.getByRole("link", { name: "Contact Me" });
+    expect(contactLink).toBeTruthy();
+    expect(contactLink.getAttribute("href")).toBe(
+      "https://twitter.com/messages/compose?recipient_id=4118511499",
+    );
+    expect(contactLink.getAttribute("target")).toBe("_blank");
 
-    fireEvent.change(screen.getByLabelText("Email address"), {
-      target: { value: "dev@example.com" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Send Verification Link" }));
+    expect(screen.getAllByRole("link", { name: "Contact Me" })).toHaveLength(1);
+  });
 
-    await waitFor(() => {
-      expect(screen.getByText("Check your email for a verification link.")).toBeTruthy();
-    });
+  it("does not render legacy signup form elements", () => {
+    render(<SignupPage />);
 
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(screen.queryByLabelText("Email address")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Send Verification Link" })).toBeNull();
+    expect(screen.queryByText("Check your email for a verification link.")).toBeNull();
   });
 });

@@ -9821,11 +9821,11 @@ tests:
     steps:
       - 'step1: Execute workflow for feature103 (Terraform project setup, state bootstrap, and VPC networking) covering AC1, AC2, AC3, AC4'
       - 'step2: Verify iac/ directory exists with: versions.tf, providers.tf, variables.tf, outputs.tf, locals.tf, main.tf.'
-      - 'step3: Verify iac/state/main.tf creates S3 bucket and DynamoDB table for Terraform state.'
+      - 'step3: Verify iac/state/main.tf and backend config use S3 backend with use_lockfile=true (no DynamoDB lock table).'
       - 'step4: Verify iac/modules/vpc/ creates VPC with 2 public subnets in us-west-2a and us-west-2b.'
       - 'step5: Verify Security groups: ALB SG (Cloudflare IPs only on 443), ECS SG (ALB SG on 8000), S3 endpoint.'
     expected: feature103 acceptance criteria AC1, AC2, AC3, AC4 are satisfied
-    pass_criteria: 'AC1: iac/ directory exists with: versions.tf, providers.tf, variables.tf, outputs....; AC2: iac/state/main.tf creates S3 bucket and DynamoDB table for Terraform state.; AC3: iac/modules/vpc/ creates VPC with 2 public subnets in us-west-2a and us-west-2b.; AC4: Security groups: ALB SG (Cloudflare IPs only on 443), ECS SG (ALB SG on 8000)...'
+    pass_criteria: 'AC1: iac/ directory exists with: versions.tf, providers.tf, variables.tf, outputs....; AC2: iac/state/main.tf and backend config use S3 backend with use_lockfile=true (no DynamoDB lock table).; AC3: iac/modules/vpc/ creates VPC with 2 public subnets in us-west-2a and us-west-2b.; AC4: Security groups: ALB SG (Cloudflare IPs only on 443), ECS SG (ALB SG on 8000)...'
     covers:
       - feature: feature103
         ac: AC1
@@ -10171,11 +10171,11 @@ tests:
     preconditions: Node.js and npm installed; web/ frontend dependencies installed
     steps:
       - 'step1: Execute workflow for feature110 (Landing page update for invite-only beta) covering AC1, AC2, AC3'
-      - 'step2: Verify Landing page shows ''Invite-Only Beta'' messaging.'
-      - 'step3: Verify No open registration form on the landing page.'
-      - 'step4: Verify ''Email us'' link is rendered via JavaScript (not plain HTML) to prevent scraping.'
+      - 'step2: Verify Landing page remains unchanged from the current baseline.'
+      - 'step3: Verify clicking Sign Up routes to the simplified invite-only message page.'
+      - 'step4: Verify invite-only page includes one ''Contact Me'' action that opens Twitter/X DM compose URL.'
     expected: feature110 acceptance criteria AC1, AC2, AC3 are satisfied
-    pass_criteria: 'AC1: Landing page shows ''Invite-Only Beta'' messaging.; AC2: No open registration form on the landing page.; AC3: ''Email us'' link is rendered via JavaScript (not plain HTML) to prevent scraping.'
+    pass_criteria: 'AC1: Landing page remains unchanged from the current version (no copy/layout changes).; AC2: Clicking Sign Up routes to a simple invite-only page with the exact provided message text.; AC3: Invite-only page has a single ''Contact Me'' button that opens https://twitter.com/messages/compose?recipient_id=4118511499 in a new tab/modal flow.'
     covers:
       - feature: feature110
         ac: AC1
@@ -10187,16 +10187,17 @@ tests:
     automation_path: tests/test_feature_110.py::test_feature110_group1
 
   - id: test593
-    title: "feature110 verify AC4, AC5, AC6"
+    title: "feature110 verify AC4, AC5, AC6, AC7"
     type: integration
     preconditions: Node.js and npm installed; web/ frontend dependencies installed
     steps:
-      - 'step1: Execute workflow for feature110 (Landing page update for invite-only beta) covering AC4, AC5, AC6'
-      - 'step2: Verify Registration page (/register) shows invite token field and instructions.'
-      - 'step3: Verify `next build && next export` succeeds (static export).'
-      - 'step4: Verify Updated pages render correctly at dev.kinnoo.ai.'
-    expected: feature110 acceptance criteria AC4, AC5, AC6 are satisfied
-    pass_criteria: 'AC4: Registration page (/register) shows invite token field and instructions.; AC5: `next build && next export` succeeds (static export).; AC6: Updated pages render correctly at dev.kinnoo.ai.'
+      - 'step1: Execute workflow for feature110 (Landing page update for invite-only beta) covering AC4, AC5, AC6, AC7'
+      - 'step2: Verify no ''Email us'' or mailto contact flow is shown in web experience.'
+      - 'step3: Verify valid login leads to registry-dev.kinnoo.ai behavior-equivalent registry route.'
+      - 'step4: Verify registry-dev.kinnoo.ai renders authenticated user''s registry as before.'
+      - 'step5: Verify `next build` succeeds for static deployment workflow (Next.js 16 removed `next export`).'
+    expected: feature110 acceptance criteria AC4, AC5, AC6, AC7 are satisfied
+    pass_criteria: 'AC4: No ''Email us'' link or mailto contact flow is shown anywhere in the web experience.; AC5: Valid login redirects the user to registry-dev.kinnoo.ai behavior-equivalent registry route.; AC6: registry-dev.kinnoo.ai renders the authenticated user''s registry view as before.; AC7: `next build` succeeds for static deployment workflow (Next.js 16 removed `next export`).'
     covers:
       - feature: feature110
         ac: AC4
@@ -10204,6 +10205,8 @@ tests:
         ac: AC5
       - feature: feature110
         ac: AC6
+      - feature: feature110
+        ac: AC7
     automated: true
     automation_path: tests/test_feature_110.py::test_feature110_group2
 
@@ -10367,13 +10370,13 @@ tests:
   - id: test602
     title: "feature103 Terraform state bootstrap apply verification"
     type: manual
-    preconditions: AWS access to account 386775099533 in us-west-2 with permissions to create S3 and DynamoDB
+    preconditions: AWS access to account 386775099533 in us-west-2 with permissions to create/manage S3 backend resources
     steps:
       - 'step1: Apply terraform in iac/state and capture created backend resources.'
-      - 'step2: Validate state bucket and lock table exist and are configured for backend usage.'
-      - 'step3: Save backend details in operator runbook for downstream automation workflows.'
+      - 'step2: Validate state bucket exists and backend is configured with use_lockfile=true and module-specific key path.'
+      - 'step3: Save backend details (bucket/key/region/use_lockfile) in operator runbook for downstream automation workflows.'
     expected: Terraform backend bootstrap is successfully applied and documented
-    pass_criteria: S3 backend and DynamoDB lock table are live and usable by root Terraform project
+    pass_criteria: S3 backend with native lockfile state locking is live and usable by root Terraform project
     covers:
       - feature: feature103
         ac: AC2
@@ -10455,3 +10458,43 @@ tests:
         ac: AC5
     automated: true
     automation_path: scripts/ops/check_launch_readiness.sh
+
+  - id: test607
+    title: "feature106 operator backend readiness remediation verification"
+    type: manual
+    preconditions: AWS credentials for account 386775099533 and region us-west-2; ECS/ALB/ECR resources provisioned
+    steps:
+      - 'step1: Run scripts/ops/check_task448_backend_readiness.sh with AWS_PROFILE/AWS_REGION targeting dev environment.'
+      - 'step2: Verify script confirms AWSCURRENT secret values, non-empty ECR repository, ECS running task count >= 1, and healthy ALB targets.'
+      - 'step3: Attach script output to task448 handoff evidence.'
+    expected: Backend deployment prerequisites are fully remediated and runtime stack is healthy
+    pass_criteria: Script exits 0 and reports all checks as [ok]
+    covers:
+      - feature: feature105
+        ac: AC1
+      - feature: feature105
+        ac: AC5
+      - feature: feature105
+        ac: AC8
+    automated: true
+    automation_path: scripts/ops/check_task448_backend_readiness.sh
+
+  - id: test608
+    title: "feature106 Cloudflare Pages same-account cutover verification"
+    type: manual
+    preconditions: Cloudflare token and zone ID available; EXPECTED_DEV_PAGES_TARGET set to same-account Pages hostname
+    steps:
+      - 'step1: Run scripts/ops/check_cloudflare_dns_setup.sh to validate dev/dev-api DNS and ACM validation records.'
+      - 'step2: Run scripts/ops/check_task448_cloudflare_pages_cutover.sh with EXPECTED_DEV_PAGES_TARGET set to the intended Pages hostname.'
+      - 'step3: Confirm dev.kinnoo.ai no longer serves Cloudflare error 1014.'
+    expected: Cloudflare DNS is valid and dev.kinnoo.ai is correctly cut over to same-account Pages custom domain
+    pass_criteria: Both scripts exit 0 and Cloudflare 1014 is absent on dev.kinnoo.ai
+    covers:
+      - feature: feature106
+        ac: AC1
+      - feature: feature106
+        ac: AC2
+      - feature: feature106
+        ac: AC4
+    automated: true
+    automation_path: scripts/ops/check_task448_cloudflare_pages_cutover.sh
