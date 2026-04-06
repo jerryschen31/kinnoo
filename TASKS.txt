@@ -8422,7 +8422,7 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task418, task421]
     tests: [test581, test582, test583]
-    status: not-started
+    status: needs-review
 
   - id: task423
     title: "Create ECS Fargate cluster, task definition, and service"

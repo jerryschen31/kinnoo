@@ -8,3 +8,12 @@ module "vpc" {
   public_subnet_cidrs = var.public_subnet_cidrs
   tags                = local.common_tags
 }
+
+module "cloudflare" {
+  source = "./modules/cloudflare"
+
+  zone_id      = var.zone_id
+  domain       = "kinnoo.ai"
+  pages_target = "kinnoo.pages.dev"
+  alb_dns_name = var.alb_dns_name
+}
