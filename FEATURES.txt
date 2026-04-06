@@ -3343,7 +3343,7 @@ features:
       - "OIDC provider setup for GitHub Actions: repo kinnoo/kinnoo"
     owner: swe-agent
     dependencies: [feature103]
-    status: in-progress
+    status: needs-review
 
   - id: feature105
     title: "Terraform compute stack (ECR, ALB, ACM, ECS/Fargate, EFS)"
