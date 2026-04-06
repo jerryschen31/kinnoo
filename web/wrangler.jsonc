@@ -17,6 +17,9 @@
       "service": "kinnoo"
     }
   ],
+  "vars": {
+    "BACKEND_URL": "https://dev-api.kinnoo.ai"
+  },
   "routes": [
     {
       "pattern": "dev.kinnoo.ai",

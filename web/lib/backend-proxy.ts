@@ -25,10 +25,22 @@ function getBackendUrl(): string {
 
 function copyHeaders(source: Headers): Headers {
   const nextHeaders = new Headers();
-  source.forEach((value, key) => {
-    if (!HOP_BY_HOP_HEADERS.has(key.toLowerCase())) {
-      nextHeaders.set(key, value);
+
+  // Preserve multiple Set-Cookie headers; using set() would overwrite earlier cookies.
+  const maybeSetCookie = source as Headers & { getSetCookie?: () => string[] };
+  const setCookies = maybeSetCookie.getSetCookie?.() ?? [];
+  if (setCookies.length > 0) {
+    for (const cookie of setCookies) {
+      nextHeaders.append("set-cookie", cookie);
     }
+  }
+
+  source.forEach((value, key) => {
+    const normalizedKey = key.toLowerCase();
+    if (HOP_BY_HOP_HEADERS.has(normalizedKey) || normalizedKey === "set-cookie") {
+      return;
+    }
+    nextHeaders.append(key, value);
   });
   return nextHeaders;
 }
