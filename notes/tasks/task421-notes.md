@@ -1,5 +1,11 @@
 # Task 421 Notes
 
+## Reimplementation Pass (Current)
+
+- Re-validated Secrets Manager resources for AC8-AC9.
+- Added explicit `secret_names` output to complement ARN output for easier ECS/runtime integration.
+- Re-ran targeted regression for task421.
+
 ## Summary
 
 Implemented Secrets Manager module for feature104 AC8-AC9:

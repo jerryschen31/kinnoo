@@ -35,3 +35,8 @@ output "secret_arns" {
     ADMIN_PASSWORD = aws_secretsmanager_secret.admin_password.arn
   }
 }
+
+output "secret_names" {
+  description = "Secrets Manager names for runtime secret lookups"
+  value       = local.secret_names
+}
