@@ -2987,7 +2987,7 @@ features:
       - "Some server commands (feature102) may not exist yet — document planned commands with [planned] tag"
     owner: swe-agent
     dependencies: []
-    status: not-started
+    status: in-progress
 
   - id: feature94
     title: "Security model document"

@@ -7980,7 +7980,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: []
     tests: [test555, test556]
-    status: not-started
+    status: needs-review
 
   - id: task397
     title: "Add server CLI commands and cross-references to CLI reference"
