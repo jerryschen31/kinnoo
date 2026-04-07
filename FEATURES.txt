@@ -317,7 +317,7 @@ features:
       - id: AC1
         description: "`kinnoo pack` includes transitive dependencies (not just direct), so pip install in an offline venv succeeds."
       - id: AC2
-        description: "Archive format is zip with .kno extension; code, tests, and authoritative packaging docs (README + docs/manifest-schema-reference.md) reference zip consistently."
+        description: "Archive format is zip with .kno extension; code, tests, and authoritative packaging docs (README + notes/manifest-schema-reference.md) reference zip consistently."
       - id: AC3
         description: "If a wheel build fails for a dependency, `kinnoo pack` warns but continues (does not abort the entire pack)."
       - id: AC4
@@ -2959,7 +2959,7 @@ features:
       - "Reference: existing test fixtures for valid manifest examples"
     owner: swe-agent
     dependencies: []
-    status: not-started
+    status: needs-review
 
   - id: feature93
     title: "CLI command reference document"
@@ -2987,7 +2987,7 @@ features:
       - "Some server commands (feature102) may not exist yet — document planned commands with [planned] tag"
     owner: swe-agent
     dependencies: []
-    status: not-started
+    status: needs-review
 
   - id: feature94
     title: "Security model document"
@@ -3013,7 +3013,7 @@ features:
       - "Reference: src/kinnoo/signing.py, server/auth/token.py, server/auth/session.py"
     owner: swe-agent
     dependencies: [feature86, feature87, feature88]
-    status: not-started
+    status: needs-review
 
   - id: feature95
     title: "Getting started guide and registry guide"
@@ -3039,7 +3039,7 @@ features:
       - "Focus on the invite-only beta workflow"
     owner: swe-agent
     dependencies: []
-    status: not-started
+    status: needs-review
 
   - id: feature96
     title: "README rewrite and supported agents document"
@@ -3065,7 +3065,7 @@ features:
       - "Create: docs/supported-agents.md"
     owner: swe-agent
     dependencies: [feature92, feature93]
-    status: not-started
+    status: needs-review
 
   - id: feature97
     title: "Public GitHub repository preparation"

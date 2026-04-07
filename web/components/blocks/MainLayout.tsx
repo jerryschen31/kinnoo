@@ -78,17 +78,17 @@ export default function MainLayout({ children }: MainLayoutProps) {
                     </Dialog.Close>
                   </div>
                   <nav className="flex flex-col gap-3 text-sm">
-                    <a href="https://github.com/jerryschen31/kinnoo" target="_blank" rel="noreferrer">
+                    <a href="https://github.com/kinnoo-project/kinnoo" target="_blank" rel="noreferrer">
                       GitHub
                     </a>
                     <a
-                      href="https://github.com/jerryschen31/kinnoo/tree/master/docs"
+                      href="https://github.com/kinnoo-project/kinnoo/tree/main/docs"
                       target="_blank"
                       rel="noreferrer"
                     >
                       Docs
                     </a>
-                    <a href="https://github.com/jerryschen31/kinnoo/issues" target="_blank" rel="noreferrer">
+                    <a href="https://github.com/kinnoo-project/kinnoo/issues" target="_blank" rel="noreferrer">
                       Report an Issue
                     </a>
                   </nav>
