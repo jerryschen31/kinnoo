@@ -31,13 +31,13 @@ describe.skip("Landing page", () => {
 
     expect(
       screen.getByText(
-        "The open, secure platform to package, publish and share any AI agent",
+        "The open, secure platform to package, publish, test, and run AI agents",
       ),
     ).toBeTruthy();
 
     expect(
       screen.getByText(
-        "Take any AI agent — a LangGraph chatbot, a PydanticAI workflow, an OpenClaw daemon — and give it a portable, version-controlled, signed package that anyone can install and run",
+        "Kinnoo brings DevOps rigor to the AI agent ecosystem. Initialize, package, distribute, and deploy agents from multiple frameworks into a single, secure, verifiable workflow.",
       ),
     ).toBeTruthy();
   });
@@ -61,32 +61,32 @@ describe.skip("Landing page", () => {
       {
         title: "Supports common AI agent frameworks",
         description:
-          "Initialize, import or install AI agents developed with LangChain, LangGraph, PydanticAI, OpenAI Agents SDK, OpenClaw and more.",
+          "Initialize, import, install and test AI agents developed with LangChain, LangGraph, PydanticAI, OpenAI Agents SDK, OpenClaw, and more.",
       },
       {
-        title: "One-command packaging",
+        title: "Hosted agent registry",
         description:
-          "Bundle your agent, its dependencies, assets, and state into a single portable .kno archive — ready to share or publish.",
+          "Publish agents to a hosted registry where others can search, inspect, and install them — like npm, but for agents.",
       },
       {
-        title: "Discover and install from a registry",
+        title: "From Zero to Running in Seconds",
         description:
-          "Publish agents to a hosted registry where others can search, inspect, and install them with kinnoo install — like npm, but for agents.",
+          "kinnoo install and kinnoo run — no README hunting, no venv setup, no env var guessing. Dependencies, runtime, and configuration are handled by kinnoo.",
       },
       {
-        title: "Built to run real-world agents",
+        title: "Built for production workflows",
         description:
-          "kinnoo handles environment setup, dependency isolation, and runtime wiring for Python and Node.js agents, including one-shot and long-running daemon-based agents.",
+          "From simple one-shot agents to complex multi-agent handoffs, Kinnoo provides the standardized environment agents need to interact reliably. Package agents into portable units that run consistently from local dev to production.",
       },
       {
-        title: "Security built-in",
+        title: "Security-first by design",
         description:
-          "Signed archives, permission declarations, static security sweeps, dependency audits, preflight checks, runtime monitoring, and a kill switch — trust what you run.",
+          "Signed archives, permission declarations, static security sweeps, dependency audits, preflight checks, runtime monitoring, and a kill switch help you trust what you run.",
       },
       {
         title: "Inspect before you run",
         description:
-          "Review any agent's manifest, dependencies, environment variables, permissions, and services before installation — no surprises.",
+          "Review agent manifests, dependencies, environment variables, permissions, service calls and cryptographic integrity of agent files before installation — no surprises.",
       },
     ];
 
