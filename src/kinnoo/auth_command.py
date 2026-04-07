@@ -5,6 +5,7 @@ from __future__ import annotations
 import getpass
 import base64
 import json
+import os
 import sys
 from urllib import error as urllib_error
 from urllib import request as urllib_request
@@ -17,6 +18,13 @@ from .config import (
 
 
 DEFAULT_REGISTRY_URL = "https://registry.kinnoo.ai"
+
+
+def _http_user_agent() -> str:
+    configured = (os.environ.get("KINNOO_HTTP_USER_AGENT") or "").strip()
+    if configured:
+        return configured
+    return "curl/8.7.1"
 
 
 def login_command(
@@ -48,13 +56,19 @@ def login_command(
         registry_url=resolved_registry,
         email=resolved_email,
         password=resolved_password,
-        tenant_slug=_username_to_tenant_slug(resolved_email),
+        tenant_slug=None,
     )
     if error_message is not None:
         print(f"Error: {error_message}")
         return 1
 
-    resolved_tenant = _tenant_slug_from_token(token) or _username_to_tenant_slug(resolved_email)
+    resolved_tenant = _tenant_slug_from_token(token)
+    if not resolved_tenant:
+        print(
+            "Error: Registry auth response did not include tenant context. "
+            "Contact the registry administrator.",
+        )
+        return 1
 
     save_registry_auth_state(
         registry_url=resolved_registry,
@@ -76,29 +90,6 @@ def _prompt_for_password() -> str:
     except Exception:
         pass
     return input("Password: ")
-
-
-def _username_to_tenant_slug(username: str) -> str:
-    raw = username.strip().lower()
-    if "@" in raw:
-        raw = raw.split("@", 1)[0]
-
-    # Match server-side tenant slug normalization for deterministic CLI behavior.
-    normalized: list[str] = []
-    previous_dash = False
-    for char in raw:
-        is_allowed = ("a" <= char <= "z") or ("0" <= char <= "9") or char == "-"
-        if is_allowed:
-            normalized.append(char)
-            previous_dash = char == "-"
-            continue
-
-        if not previous_dash:
-            normalized.append("-")
-            previous_dash = True
-
-    slug = "".join(normalized).strip("-")
-    return slug or "default"
 
 
 def _tenant_slug_from_token(token: str) -> str | None:
@@ -135,15 +126,16 @@ def _issue_token(
     registry_url: str,
     email: str,
     password: str,
-    tenant_slug: str,
+    tenant_slug: str | None,
 ) -> tuple[str, str | None]:
-    payload = json.dumps(
-        {
-            "username": email,
-            "password": password,
-            "tenant_slug": tenant_slug,
-        }
-    ).encode("utf-8")
+    payload_data: dict[str, str] = {
+        "username": email,
+        "password": password,
+    }
+    if isinstance(tenant_slug, str) and tenant_slug.strip():
+        payload_data["tenant_slug"] = tenant_slug.strip()
+
+    payload = json.dumps(payload_data).encode("utf-8")
 
     token_url = f"{registry_url.rstrip('/')}/api/auth/token"
     request = urllib_request.Request(
@@ -152,6 +144,7 @@ def _issue_token(
         headers={
             "Content-Type": "application/json",
             "Accept": "application/json",
+            "User-Agent": _http_user_agent(),
         },
         method="POST",
     )
@@ -215,5 +208,18 @@ def _extract_error_message(payload: dict[str, object] | None) -> str:
     message_value = payload.get("message")
     if isinstance(message_value, str):
         return message_value
+
+    # Cloudflare and other edge providers often include human-readable details here.
+    detail_value = payload.get("detail")
+    if isinstance(detail_value, str):
+        return detail_value
+
+    title_value = payload.get("title")
+    if isinstance(title_value, str):
+        return title_value
+
+    owner_action = payload.get("what_you_should_do")
+    if isinstance(owner_action, str):
+        return owner_action
 
     return ""

@@ -10,7 +10,6 @@ from pathlib import Path
 from .config import load_registry_config
 from .archive import LocalArchiveBackend
 from .registry import RegistryService
-from .registry_backends import MockFilesystemRegistryBackend
 from .remote_client import RemoteRegistryClient
 from .openclaw_preflight import run_openclaw_preflight_for_command
 
@@ -91,24 +90,28 @@ def search_agents(query: str, source: str = "local") -> int:
         effective_source = "remote" if config.registry_url else "local"
 
     if effective_source == "remote":
-        if config.registry_url and config.registry_token and config.tenant_slug:
-            service = RegistryService(
-                backend=RemoteRegistryClient(
-                    base_url=config.registry_url,
-                    token=config.registry_token,
-                    tenant_slug=config.tenant_slug,
-                )
-            )
-        elif config.registry_url:
+        if not config.registry_url:
             print(
-                "Error: Remote registry URL is configured but token/tenant settings are missing.",
+                "Error: Remote mode requires a registry URL. "
+                "Run 'kinnoo login' or set KINNOO_REGISTRY_URL. "
+                "Remote mode does not fall back to local mock storage.",
             )
             return 1
-        else:
-            registry_root = os.environ.get("KINNOO_REGISTRY_ROOT")
-            backend_root = Path(registry_root).expanduser() if registry_root else None
-            backend = MockFilesystemRegistryBackend(root=backend_root)
-            service = RegistryService(backend=backend)
+
+        if not config.registry_token or not config.tenant_slug:
+            print(
+                "Error: Remote registry authentication is missing. "
+                "Run 'kinnoo login' or set KINNOO_REGISTRY_TOKEN and KINNOO_TENANT_SLUG.",
+            )
+            return 1
+
+        service = RegistryService(
+            backend=RemoteRegistryClient(
+                base_url=config.registry_url,
+                token=config.registry_token,
+                tenant_slug=config.tenant_slug,
+            )
+        )
 
         results = service.search_agents(query=query_text)
         mirror_results = [

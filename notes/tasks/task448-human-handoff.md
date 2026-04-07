@@ -41,7 +41,7 @@ You are correct, there are still missing pieces, and I confirmed this with live 
 
 2. Build and push server image to ECR latest
 - aws --profile jerry --region us-west-2 ecr get-login-password | docker login --username AWS --password-stdin 386775099533.dkr.ecr.us-west-2.amazonaws.com
-- docker build -t kinnoo-dev-server:latest .
+- docker build --platform linux/amd64 -t kinnoo-dev-server:latest .
 - docker tag kinnoo-dev-server:latest 386775099533.dkr.ecr.us-west-2.amazonaws.com/kinnoo-dev-server:latest
 - docker push 386775099533.dkr.ecr.us-west-2.amazonaws.com/kinnoo-dev-server:latest
 
