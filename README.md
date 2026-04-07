@@ -10,6 +10,7 @@
 ## Documentation
 
 - `docs/kinnoo-yaml-spec.md` — manifest field reference and validation rules.
+- `docs/cli-reference.md` — client/server command usage and options reference.
 
 ## OpenClaw Bridge Deprecation and Migration (Feature85)
 
