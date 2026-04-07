@@ -317,7 +317,7 @@ features:
       - id: AC1
         description: "`kinnoo pack` includes transitive dependencies (not just direct), so pip install in an offline venv succeeds."
       - id: AC2
-        description: "Archive format is zip with .kno extension; code, tests, and authoritative packaging docs (README + docs/manifest-schema-reference.md) reference zip consistently."
+        description: "Archive format is zip with .kno extension; code, tests, and authoritative packaging docs (README + notes/manifest-schema-reference.md) reference zip consistently."
       - id: AC3
         description: "If a wheel build fails for a dependency, `kinnoo pack` warns but continues (does not abort the entire pack)."
       - id: AC4
