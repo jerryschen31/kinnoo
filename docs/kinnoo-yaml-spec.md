@@ -183,6 +183,15 @@ outputs:
 - Some defaults are introduced by normalization code when reading manifest data (`dependencies`, `inputs`, `outputs`, `assets` fields).
 - YAML may allow single-string forms for `inputs.type`/`outputs.type`; runtime normalizes to list form.
 
+## Manifest Format History
+
+- Current format source: `src/kinnoo/schema.py` + `src/kinnoo/validator.py` in this repository state.
+- No in-file manifest version key is required at this time.
+- Backward-compatibility posture:
+  - Older manifests that satisfy required fields remain valid.
+  - Newly introduced optional fields are additive.
+  - A small set of deferred/unsupported metadata keys is intentionally rejected by validator rules.
+
 ## Command Cross-Reference
 
 - `kinnoo inspect` is the fastest way to validate and review manifest metadata in a directory or `.kno` archive.
