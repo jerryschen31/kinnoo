@@ -3039,7 +3039,7 @@ features:
       - "Focus on the invite-only beta workflow"
     owner: swe-agent
     dependencies: []
-    status: not-started
+    status: in-progress
 
   - id: feature96
     title: "README rewrite and supported agents document"
