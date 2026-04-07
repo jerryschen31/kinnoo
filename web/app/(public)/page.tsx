@@ -33,7 +33,7 @@ export default function LandingPage() {
             Why developers choose Kinnoo 🍊
           </h2>
           <p className="text-base leading-relaxed normal-case text-white/80 sm:text-lg">
-            Kinnoo brings simplicity, reliability and unity to the AI agent ecosystem. Easily package and publish agents from any framework to a secure registry, where end-users can install and run them consistently in any environment.
+            Kinnoo brings simplicity, reliability and unity to the AI agent ecosystem. Easily package and publish agents from multiple frameworks to a secure registry, where end-users can install and run them consistently in any environment.
           </p>
           <FeatureGrid />
         </div>
