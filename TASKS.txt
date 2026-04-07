@@ -8012,7 +8012,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task383, task385, task387]
     tests: [test557, test558]
-    status: not-started
+    status: needs-review
 
   - id: task399
     title: "Document auth flow and cross-reference from README"
@@ -8028,7 +8028,7 @@ tasks:
       - 'step3: Write or update tests and verify locally with pytest'
     dependencies: [task398]
     tests: [test557, test558]
-    status: not-started
+    status: needs-review
 
   - id: task400
     title: "Create getting-started guide with end-to-end agent walkthrough"
