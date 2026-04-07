@@ -24,6 +24,12 @@ kinnoo init --framework chatgpt my-agent
 
 This creates a scaffolded project in `./my-agent`.
 
+Expected output (example):
+
+```text
+Initialized agent: my-agent
+```
+
 ## 3) Configure Manifest and Runtime Inputs
 
 Open `my-agent/kinnoo.yaml` and verify key fields:
@@ -41,6 +47,13 @@ If your framework requires provider credentials, export them in your shell befor
 kinnoo run ./my-agent "hello"
 ```
 
+Expected output (example):
+
+```text
+[kinnoo] running agent my-agent
+...agent response...
+```
+
 For readiness checks without full execution:
 
 ```bash
@@ -51,6 +64,13 @@ kinnoo run ./my-agent --preflight
 
 ```bash
 kinnoo pack ./my-agent
+```
+
+Expected output (example):
+
+```text
+[kinnoo pack] Packaging agent directory...
+[kinnoo pack] Archive written: .../my-agent-<version>.kno
 ```
 
 Optional signed package:

@@ -20,6 +20,14 @@ Interactive login:
 kinnoo login
 ```
 
+Expected output (example):
+
+```text
+Login successful.
+Registry: https://dev-api.kinnoo.ai
+Tenant: <your-tenant>
+```
+
 Non-interactive login:
 
 ```bash
@@ -32,6 +40,13 @@ Publish latest archive source by name:
 
 ```bash
 kinnoo publish my-agent --remote
+```
+
+Expected output (example):
+
+```text
+Published my-agent==<version> (remote)
+Remote publish result: ...
 ```
 
 Pack and publish from directory:
@@ -53,12 +68,26 @@ kinnoo list --remote
 kinnoo search my-agent --remote
 ```
 
+Expected output (example):
+
+```text
+Remote registry agents:
+- my-agent  <latest-version>
+```
+
 ## 6) Install from Registry
 
 Latest version:
 
 ```bash
 kinnoo install my-agent --remote
+```
+
+Expected output (example):
+
+```text
+[kinnoo install] Installing my-agent...
+[kinnoo install] Completed.
 ```
 
 Exact version:
