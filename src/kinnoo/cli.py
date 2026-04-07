@@ -481,10 +481,16 @@ def main():
     pack_parser.epilog = (
         "Examples:\n"
         "  kinnoo pack ./my-agent\n"
+        "  kinnoo pack ./my-agent --public\n"
         "  kinnoo pack ./my-agent --bump patch\n"
         "  kinnoo pack ./my-agent --sign --signing-key ./keys/kinnoo-ed25519-private.pem"
     )
     pack_parser.add_argument("agent_dir", nargs="?", help="Path to agent directory to package")
+    pack_parser.add_argument(
+        "--public",
+        action="store_true",
+        help="Ensure kinnoo.yaml has visibility: public before packaging.",
+    )
     pack_parser.add_argument(
         "--bump",
         choices=["patch", "minor", "major"],
@@ -597,7 +603,8 @@ def main():
             "  kinnoo publish my-agent --local\n"
             "  kinnoo publish my-agent --remote\n"
             "  kinnoo publish ./dist/my-agent-1.0.0.kno --remote\n"
-            "  kinnoo publish ./my-agent --pack --bump minor --remote"
+            "  kinnoo publish ./my-agent --pack --bump minor --remote\n"
+            "  kinnoo publish ./my-agent --pack --public --remote"
         ),
     )
     publish_parser.add_argument(
@@ -622,6 +629,11 @@ def main():
         "--pack",
         action="store_true",
         help="Pack first, then publish. With --pack, <target> must be a file path to an agent directory.",
+    )
+    publish_parser.add_argument(
+        "--public",
+        action="store_true",
+        help="With --pack, ensure kinnoo.yaml has visibility: public before packaging.",
     )
     publish_parser.add_argument(
         "--bump",
@@ -1027,7 +1039,7 @@ def main():
     elif args.command == "pack":
         agent_dir = args.agent_dir
         if agent_dir is None:
-            print("Usage: kinnoo pack <agent-dir>")
+            print("Usage: kinnoo pack <agent-dir> [--public]")
             sys.exit(1)
         try:
             from kinnoo.pack_command import pack_agent
@@ -1036,6 +1048,7 @@ def main():
 
         exit_code = pack_agent(
             agent_dir,
+            make_public=bool(getattr(args, "public", False)),
             bump=getattr(args, "bump", None),
             sign=bool(getattr(args, "sign", False)),
             signing_key_path=getattr(args, "signing_key", None),
@@ -1144,7 +1157,7 @@ def main():
         if target is None:
             print(
                 "Usage: kinnoo publish <agent-name|archive.kno|agent-dir-path> "
-                "[--pack] [--bump {major,minor,patch}] [--local|--remote]",
+                "[--pack] [--public] [--bump {major,minor,patch}] [--local|--remote]",
                 file=sys.stderr,
             )
             sys.exit(1)
@@ -1152,6 +1165,7 @@ def main():
         use_local = bool(getattr(args, "local", False))
         use_remote = bool(getattr(args, "remote", False))
         use_pack = bool(getattr(args, "pack", False))
+        make_public = bool(getattr(args, "public", False))
         bump = getattr(args, "bump", None)
         strict_mode = bool(getattr(args, "strict", False))
 
@@ -1161,6 +1175,10 @@ def main():
 
         if bump is not None and not use_pack:
             print("Error: --bump can only be used together with --pack.", file=sys.stderr)
+            sys.exit(1)
+
+        if make_public and not use_pack:
+            print("Error: --public can only be used together with --pack.", file=sys.stderr)
             sys.exit(1)
 
         try:
@@ -1173,6 +1191,7 @@ def main():
             use_local=use_local,
             use_remote=use_remote,
             pack=use_pack,
+            make_public=make_public,
             bump=bump,
             strict_mode=strict_mode,
         )

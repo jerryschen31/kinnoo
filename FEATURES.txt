@@ -3154,7 +3154,7 @@ features:
       - "Trusted publisher setup requires manual PyPI configuration by operator"
     owner: swe-agent
     dependencies: []
-    status: in-progress
+    status: needs-review
 
 
 # ──────────────────────────────────────────────────────────────
@@ -3411,7 +3411,7 @@ features:
       - "Pages project may be created manually — Terraform manages DNS only if Pages API is limited"
     owner: swe-agent
     dependencies: [feature103, feature105]
-    status: in-progress
+    status: needs-review
 
   - id: feature107
     title: "Terraform monitoring (CloudWatch, alarms, SNS)"

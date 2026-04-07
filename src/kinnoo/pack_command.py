@@ -446,6 +446,7 @@ def build_wheels(requirements_path: Path, wheels_dir: Path):
 
 def pack_agent(
     agent_dir: str,
+    make_public: bool = False,
     bump: str | None = None,
     sign: bool = False,
     signing_key_path: str | None = None,
@@ -490,8 +491,22 @@ def pack_agent(
             print(f"  - {error}", file=sys.stderr)
         return 1
 
-    with open(kinnoo_yaml_path, "r") as manifest_file:
+    with open(kinnoo_yaml_path, "r", encoding="utf-8") as manifest_file:
         manifest = yaml.safe_load(manifest_file)
+
+    if not isinstance(manifest, dict):
+        print("Error: kinnoo.yaml must parse to a mapping/object", file=sys.stderr)
+        return 1
+
+    if make_public:
+        current_visibility = manifest.get("visibility")
+        if isinstance(current_visibility, str) and current_visibility.strip().lower() == "public":
+            print("[kinnoo pack] Manifest visibility already public")
+        else:
+            manifest["visibility"] = "public"
+            with open(kinnoo_yaml_path, "w", encoding="utf-8") as manifest_file:
+                yaml.safe_dump(manifest, manifest_file, sort_keys=False)
+            print(f"[kinnoo pack] Updated visibility to public in {kinnoo_yaml_path}")
 
     runtime_language = "python"
     runtime_section = manifest.get("runtime") if isinstance(manifest, dict) else None
