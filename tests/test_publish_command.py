@@ -7,6 +7,21 @@ from pathlib import Path
 
 
 CLI_PATH = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+SRC_ROOT = Path(__file__).resolve().parents[1] / "src"
+
+
+def _cli_env(*, archive_root: Path, registry_root: Path) -> dict[str, str]:
+    existing_pythonpath = os.environ.get("PYTHONPATH", "")
+    pythonpath_parts = [str(SRC_ROOT)]
+    if existing_pythonpath:
+        pythonpath_parts.append(existing_pythonpath)
+
+    return {
+        **os.environ,
+        "KINNOO_ARCHIVE_ROOT": str(archive_root),
+        "KINNOO_REGISTRY_ROOT": str(registry_root),
+        "PYTHONPATH": os.pathsep.join(pythonpath_parts),
+    }
 
 
 def _write_agent_dir(agent_root: Path, *, name: str, version: str) -> Path:
@@ -18,6 +33,7 @@ def _write_agent_dir(agent_root: Path, *, name: str, version: str) -> Path:
             [
                 f"name: {name}",
                 f"version: {version}",
+                "framework: generic",
                 "entrypoint: run.py",
                 "runtime:",
                 "  language: python",
@@ -46,14 +62,10 @@ def test_publish_with_pack_packs_then_publishes(tmp_path: Path) -> None:
 
     agent_dir = _write_agent_dir(work_root, name="pack-publish-agent", version="1.0.0")
 
-    env = {
-        **os.environ,
-        "KINNOO_ARCHIVE_ROOT": str(archive_root),
-        "KINNOO_REGISTRY_ROOT": str(registry_root),
-    }
+    env = _cli_env(archive_root=archive_root, registry_root=registry_root)
 
     result = subprocess.run(
-        [sys.executable, str(CLI_PATH), "publish", str(agent_dir), "--pack"],
+        [sys.executable, str(CLI_PATH), "publish", str(agent_dir), "--pack", "--local"],
         capture_output=True,
         text=True,
         env=env,
@@ -65,8 +77,12 @@ def test_publish_with_pack_packs_then_publishes(tmp_path: Path) -> None:
     assert "[kinnoo pack] Packaging agent directory" in output
     assert "Published pack-publish-agent==1.0.0" in output
 
-    published_archive = registry_root / "pack-publish-agent" / "1.0.0" / "pack-publish-agent.kno"
-    assert published_archive.exists()
+    published_archives = [
+        candidate
+        for candidate in registry_root.rglob("pack-publish-agent.kno")
+        if "1.0.0" in candidate.as_posix()
+    ]
+    assert published_archives
 
 
 def test_publish_with_pack_and_bump_publishes_bumped_version(tmp_path: Path) -> None:
@@ -77,11 +93,7 @@ def test_publish_with_pack_and_bump_publishes_bumped_version(tmp_path: Path) -> 
 
     agent_dir = _write_agent_dir(work_root, name="bump-publish-agent", version="1.2.3")
 
-    env = {
-        **os.environ,
-        "KINNOO_ARCHIVE_ROOT": str(archive_root),
-        "KINNOO_REGISTRY_ROOT": str(registry_root),
-    }
+    env = _cli_env(archive_root=archive_root, registry_root=registry_root)
 
     result = subprocess.run(
         [
@@ -92,6 +104,7 @@ def test_publish_with_pack_and_bump_publishes_bumped_version(tmp_path: Path) -> 
             "--pack",
             "--bump",
             "minor",
+            "--local",
         ],
         capture_output=True,
         text=True,
@@ -103,8 +116,12 @@ def test_publish_with_pack_and_bump_publishes_bumped_version(tmp_path: Path) -> 
     assert result.returncode == 0
     assert "Published bump-publish-agent==1.3.0" in output
 
-    published_archive = registry_root / "bump-publish-agent" / "1.3.0" / "bump-publish-agent.kno"
-    assert published_archive.exists()
+    published_archives = [
+        candidate
+        for candidate in registry_root.rglob("bump-publish-agent.kno")
+        if "1.3.0" in candidate.as_posix()
+    ]
+    assert published_archives
     manifest_text = (agent_dir / "kinnoo.yaml").read_text(encoding="utf-8")
     assert "version: 1.3.0" in manifest_text
 
@@ -117,11 +134,7 @@ def test_publish_pack_bump_guardrail_errors(tmp_path: Path) -> None:
 
     agent_dir = _write_agent_dir(work_root, name="guardrail-agent", version="2.0.0")
 
-    env = {
-        **os.environ,
-        "KINNOO_ARCHIVE_ROOT": str(archive_root),
-        "KINNOO_REGISTRY_ROOT": str(registry_root),
-    }
+    env = _cli_env(archive_root=archive_root, registry_root=registry_root)
 
     bump_without_pack = subprocess.run(
         [sys.executable, str(CLI_PATH), "publish", "guardrail-agent", "--bump", "minor"],
@@ -134,8 +147,19 @@ def test_publish_pack_bump_guardrail_errors(tmp_path: Path) -> None:
     assert bump_without_pack.returncode != 0
     assert "--bump can only be used together with --pack" in bump_without_pack_output
 
+    public_without_pack = subprocess.run(
+        [sys.executable, str(CLI_PATH), "publish", "guardrail-agent", "--public"],
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=tmp_path,
+    )
+    public_without_pack_output = f"{public_without_pack.stdout}\n{public_without_pack.stderr}"
+    assert public_without_pack.returncode != 0
+    assert "--public can only be used together with --pack" in public_without_pack_output
+
     missing_archive_no_pack = subprocess.run(
-        [sys.executable, str(CLI_PATH), "publish", "missing-agent"],
+        [sys.executable, str(CLI_PATH), "publish", "missing-agent", "--local"],
         capture_output=True,
         text=True,
         env=env,
@@ -163,3 +187,29 @@ def test_publish_pack_bump_guardrail_errors(tmp_path: Path) -> None:
     invalid_bump_output = f"{invalid_bump_value.stdout}\n{invalid_bump_value.stderr}"
     assert invalid_bump_value.returncode != 0
     assert "invalid choice" in invalid_bump_output
+
+
+def test_publish_with_pack_public_sets_manifest_visibility(tmp_path: Path) -> None:
+    archive_root = tmp_path / "archive-sandbox"
+    registry_root = tmp_path / "registry-sandbox"
+    work_root = tmp_path / "work"
+    work_root.mkdir(parents=True, exist_ok=True)
+
+    agent_dir = _write_agent_dir(work_root, name="public-publish-agent", version="1.0.0")
+
+    env = _cli_env(archive_root=archive_root, registry_root=registry_root)
+
+    result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "publish", str(agent_dir), "--pack", "--public", "--local"],
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=tmp_path,
+    )
+
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0
+    assert "Updated visibility to public" in output
+
+    manifest_text = (agent_dir / "kinnoo.yaml").read_text(encoding="utf-8")
+    assert "visibility: public" in manifest_text
