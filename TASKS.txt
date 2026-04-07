@@ -8090,7 +8090,7 @@ tasks:
       - 'step3: Write or update tests and verify locally with pytest'
     dependencies: [task402]
     tests: [test561, test562]
-    status: not-started
+    status: needs-review
 
   - id: task404
     title: "Audit repo for secrets and create CONTRIBUTING.md, CODE_OF_CONDUCT.md"
