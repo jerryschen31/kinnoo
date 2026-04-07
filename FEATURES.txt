@@ -3634,3 +3634,26 @@ features:
     owner: swe-agent
     dependencies: []
     status: not-started
+
+  - id: feature114
+    title: "kinnoo test hardening"
+    description: |
+      Harden `kinnoo test` usability with clearer CLI reference documentation,
+      richer verbose diagnostics, and interactive test-file authoring workflows.
+      Add native append support so operators can grow suites incrementally without
+      manually editing YAML.
+    tasks: [task450]
+    acceptance_criteria:
+      - id: AC1
+        description: "CLI reference documents kinnoo.tests.yaml schema and supported assertion types (contains, not_contains, equals, regex) with practical examples including OR/case-insensitive regex usage."
+      - id: AC2
+        description: "`kinnoo test --verbose` exposes per-test diagnostics for input, expected_output, actual_output, runtime_duration_sec, expected_exit_code, actual_exit_code, and error_message on failures in both text and --json modes."
+      - id: AC3
+        description: "`kinnoo test --create [file] <agent-dir>` provides an interactive prompt that generates a valid tests YAML, defaulting to kinnoo.tests.yaml when file name is omitted."
+      - id: AC4
+        description: "`kinnoo test --create <file> --append <agent-dir>` appends additional interactive test cases to an existing tests YAML without corrupting prior entries."
+      - id: AC5
+        description: "`kinnoo test -h` includes the new --verbose, --create, and --append options with usage examples."
+    owner: swe-agent
+    dependencies: [feature69]
+    status: in-progress

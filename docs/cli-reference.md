@@ -52,14 +52,80 @@ This reference documents the current Kinnoo command-line interfaces.
 
 ### test
 
-- Usage: `kinnoo test [--tests-file <path>] [--validate-only] [--json] <agent_dir>`
-- Description: Run declarative tests for an agent.
+- Usage: `kinnoo test [--tests-file <path>] [--validate-only] [--json] [--verbose] [--create [file]] [--append] <agent_dir>`
+- Description: Run declarative tests for an agent, or interactively create/update a tests file.
 - Arguments: `agent_dir`.
-- Options: `--tests-file`, `--validate-only`, `--json`.
+- Options:
+  - `--tests-file <path>`: Use a specific tests file (relative to agent dir or absolute path).
+  - `--validate-only`: Validate and parse test declarations without executing runtime commands.
+  - `--json`: Emit machine-readable JSON results.
+  - `--verbose`: Include per-test diagnostics (input, expected output contract, actual output, runtime duration, exit-code details, and error message when failed).
+  - `--create [file]`: Interactively create a tests file in the agent directory (defaults to `kinnoo.tests.yaml` when file is omitted).
+  - `--append`: Append test cases to an existing tests file. Requires `--create <file>` or `--create`.
 - Env vars: none required.
 - Exit codes: non-zero when declarations are invalid or tests fail.
 - Examples:
   - `kinnoo test ./my-agent --validate-only`
+  - `kinnoo test ./my-agent --verbose`
+  - `kinnoo test ./my-agent --json --verbose`
+  - `kinnoo test ./my-agent --create`
+  - `kinnoo test ./my-agent --create custom.tests.yaml --append`
+
+#### kinnoo.tests.yaml quick reference
+
+Top-level schema:
+
+- `version`: tests document version (`1`)
+- `tests`: list of test case objects
+
+Test case fields:
+
+- `id`: unique test id string
+- `name`: human-readable test name
+- `input`: input string passed to runtime entrypoint
+- `assertions`: non-empty list of output assertions
+- `timeout_seconds`: numeric timeout budget for process execution
+- `expected_exit_code`: expected process exit code
+
+Assertion forms:
+
+- Shorthand string (equivalent to `contains` on stdout):
+  - `- "hello"`
+- Object shorthand:
+  - `- contains: "hello"`
+  - `- not_contains: "traceback"`
+  - `- equals: "done"`
+  - `- regex: "^result: (ok|pass)$"`
+- Explicit typed object:
+  - `- type: contains`
+    `  value: "hello"`
+    `  target: stdout`
+
+Assertion behavior:
+
+- `contains`: output contains substring.
+- `not_contains`: output does not contain substring.
+- `equals`: output exactly equals expected value (trimmed comparison).
+- `regex`: output matches regular expression.
+- Exit code checks are done via `expected_exit_code` per test case.
+
+Regex tips:
+
+- OR matching: use `hello|hi`
+- Case-insensitive matching: use `(?i)` prefix, e.g. `(?i)hello|hi`
+
+Minimal example:
+
+    version: 1
+    tests:
+      - id: smoke-oneshot
+        name: one-shot smoke test
+        input: hello
+        assertions:
+          - contains: hello
+          - not_contains: traceback
+        timeout_seconds: 10
+        expected_exit_code: 0
 
 ### check
 

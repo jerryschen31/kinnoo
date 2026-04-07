@@ -311,8 +311,11 @@ def main():
         description="Execute standardized declarative tests for an agent",
         epilog=(
             "Examples:\n"
-            "  kinnoo test ./my-agent --validate-only\n"
-            "  kinnoo test ./my-agent --tests-file ./kinnoo.tests.yaml --validate-only"
+            "  kinnoo test ./my-agent\n"
+            "  kinnoo test ./my-agent --tests-file ./kinnoo.tests.yaml --validate-only\n"
+            "  kinnoo test ./my-agent --verbose\n"
+            "  kinnoo test ./my-agent --create\n"
+            "  kinnoo test ./my-agent --create custom.tests.yaml --append"
         ),
     )
     test_parser.add_argument("agent_dir", nargs="?", help="Path to agent directory")
@@ -331,6 +334,23 @@ def main():
         dest="json_output",
         action="store_true",
         help="Emit machine-readable JSON output",
+    )
+    test_parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Include per-test detailed diagnostics (input, expected/actual output, duration, exit codes)",
+    )
+    test_parser.add_argument(
+        "--create",
+        nargs="?",
+        const="kinnoo.tests.yaml",
+        metavar="file",
+        help="Interactively create a tests YAML (uses agent dir when provided, else current directory; default file: kinnoo.tests.yaml)",
+    )
+    test_parser.add_argument(
+        "--append",
+        action="store_true",
+        help="Append interactive test cases to an existing tests YAML (requires --create)",
     )
 
     # Add 'stop' subcommand
@@ -909,8 +929,12 @@ def main():
 
     elif args.command == "test":
         agent_dir = getattr(args, "agent_dir", None)
-        if agent_dir is None:
-            print("Usage: kinnoo test <agent-dir> [--tests-file path] [--validate-only] [--json]", file=sys.stderr)
+        create_file_name = getattr(args, "create", None)
+        if agent_dir is None and create_file_name is None:
+            print(
+                "Usage: kinnoo test [<agent-dir>] [--tests-file path] [--validate-only] [--json] [--verbose] [--create [file]] [--append]",
+                file=sys.stderr,
+            )
             sys.exit(1)
 
         try:
@@ -923,6 +947,9 @@ def main():
             tests_file_arg=getattr(args, "tests_file", None),
             validate_only=bool(getattr(args, "validate_only", False)),
             json_output=bool(getattr(args, "json_output", False)),
+            verbose=bool(getattr(args, "verbose", False)),
+            create_file_name=create_file_name,
+            append=bool(getattr(args, "append", False)),
         )
         sys.exit(exit_code)
 

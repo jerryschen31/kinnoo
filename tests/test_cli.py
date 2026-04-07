@@ -503,6 +503,366 @@ def test_feature69_execution_engine_and_docs_examples(tmp_path):
     assert "type: daemon" in combined_docs
 
 
+def test_feature114_verbose_output_and_not_contains_assertion(tmp_path):
+    agent_dir = tmp_path / "feature114-verbose"
+    agent_dir.mkdir()
+
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: feature114-verbose",
+                "version: 1.0.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.10\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "run.py").write_text(
+        "import sys\n"
+        "print(f'Hello {sys.argv[1]}')\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "kinnoo.tests.yaml").write_text(
+        "\n".join(
+            [
+                "version: 1",
+                "tests:",
+                "  - id: verbose-1",
+                "    name: verbose output contract",
+                "    input: world",
+                "    assertions:",
+                "      - contains: Hello world",
+                "      - not_contains: traceback",
+                "    timeout_seconds: 5",
+                "    expected_exit_code: 0",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    text_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "test", str(agent_dir), "--verbose"],
+        capture_output=True,
+        text=True,
+    )
+    assert text_result.returncode == 0
+    assert "expected_output=" in text_result.stdout
+    assert "actual_output=" in text_result.stdout
+    assert "runtime_duration_sec=" in text_result.stdout
+    assert "expected_exit_code=" in text_result.stdout
+    assert "actual_exit_code=" in text_result.stdout
+
+    json_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "test", str(agent_dir), "--json", "--verbose"],
+        capture_output=True,
+        text=True,
+    )
+    assert json_result.returncode == 0
+    payload = json.loads(json_result.stdout)
+    assert payload["verbose"] is True
+    assert payload["passed"] == 1
+    result = payload["results"][0]
+    assert result["input"] == "world"
+    assert "expected_output" in result
+    assert "actual_output" in result
+    assert "runtime_duration_sec" in result
+    assert result["expected_exit_code"] == 0
+    assert result["actual_exit_code"] == 0
+    assert result["error_message"] == ""
+
+
+def test_feature114_create_interactive_default_tests_file(tmp_path):
+    agent_dir = tmp_path / "feature114-create"
+    agent_dir.mkdir()
+
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: feature114-create",
+                "version: 1.0.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.10\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    interactive_answers = "\n".join(
+        [
+            "smoke-create-1",
+            "interactive smoke",
+            "hello",
+            "contains",
+            "hello",
+            "stdout",
+            "n",
+            "10",
+            "0",
+            "n",
+        ]
+    ) + "\n"
+
+    create_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "test", str(agent_dir), "--create"],
+        capture_output=True,
+        text=True,
+        input=interactive_answers,
+    )
+    assert create_result.returncode == 0
+    assert (agent_dir / "kinnoo.tests.yaml").exists()
+
+    validate_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "test",
+            str(agent_dir),
+            "--validate-only",
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert validate_result.returncode == 0
+    payload = json.loads(validate_result.stdout)
+    assert payload["valid"] is True
+    assert payload["total"] == 1
+
+
+def test_feature114_create_append_custom_tests_file(tmp_path):
+    agent_dir = tmp_path / "feature114-append"
+    agent_dir.mkdir()
+
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: feature114-append",
+                "version: 1.0.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.10\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    first_case_answers = "\n".join(
+        [
+            "append-1",
+            "append case one",
+            "hello",
+            "contains",
+            "hello",
+            "stdout",
+            "n",
+            "5",
+            "0",
+            "n",
+        ]
+    ) + "\n"
+    first_create = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "test",
+            str(agent_dir),
+            "--create",
+            "custom.tests.yaml",
+        ],
+        capture_output=True,
+        text=True,
+        input=first_case_answers,
+    )
+    assert first_create.returncode == 0
+
+    second_case_answers = "\n".join(
+        [
+            "append-2",
+            "append case two",
+            "hi",
+            "regex",
+            "(?i)hello|hi",
+            "stdout",
+            "n",
+            "5",
+            "0",
+            "n",
+        ]
+    ) + "\n"
+    append_create = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "test",
+            str(agent_dir),
+            "--create",
+            "custom.tests.yaml",
+            "--append",
+        ],
+        capture_output=True,
+        text=True,
+        input=second_case_answers,
+    )
+    assert append_create.returncode == 0
+
+    validate_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "test",
+            str(agent_dir),
+            "--tests-file",
+            "custom.tests.yaml",
+            "--validate-only",
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert validate_result.returncode == 0
+    payload = json.loads(validate_result.stdout)
+    assert payload["valid"] is True
+    assert payload["total"] == 2
+
+
+def test_feature114_test_help_lists_new_flags():
+    result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "test", "-h"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert "--verbose" in result.stdout
+    assert "--create" in result.stdout
+    assert "--append" in result.stdout
+
+
+def test_feature114_create_and_append_without_agent_dir(tmp_path):
+    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+
+    create_answers = "\n".join(
+        [
+            "shared-1",
+            "shared test one",
+            "hello",
+            "contains",
+            "hello",
+            "stdout",
+            "n",
+            "10",
+            "0",
+            "n",
+        ]
+    ) + "\n"
+
+    create_result = subprocess.run(
+        [sys.executable, str(cli_path), "test", "--create", "my-new-test-file.yaml"],
+        capture_output=True,
+        text=True,
+        input=create_answers,
+        cwd=tmp_path,
+    )
+    assert create_result.returncode == 0
+    created_path = tmp_path / "my-new-test-file.yaml"
+    assert created_path.exists()
+    created_text = created_path.read_text(encoding="utf-8")
+    assert "id: shared-1" in created_text
+
+    append_answers = "\n".join(
+        [
+            "shared-2",
+            "shared test two",
+            "hi",
+            "regex",
+            "(?i)hello|hi",
+            "stdout",
+            "n",
+            "10",
+            "0",
+            "n",
+        ]
+    ) + "\n"
+
+    append_result = subprocess.run(
+        [
+            sys.executable,
+            str(cli_path),
+            "test",
+            "--create",
+            "my-new-test-file.yaml",
+            "--append",
+        ],
+        capture_output=True,
+        text=True,
+        input=append_answers,
+        cwd=tmp_path,
+    )
+    assert append_result.returncode == 0
+
+    appended_text = created_path.read_text(encoding="utf-8")
+    assert "id: shared-1" in appended_text
+    assert "id: shared-2" in appended_text
+
+
+def test_feature114_create_prompt_displays_assertion_options(tmp_path):
+    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+
+    answers = "\n".join(
+        [
+            "prompt-1",
+            "prompt shape test",
+            "hello",
+            "",
+            "hello",
+            "",
+            "n",
+            "10",
+            "0",
+            "n",
+        ]
+    ) + "\n"
+
+    result = subprocess.run(
+        [sys.executable, str(cli_path), "test", "--create", "prompt-shape.tests.yaml"],
+        capture_output=True,
+        text=True,
+        input=answers,
+        cwd=tmp_path,
+    )
+
+    assert result.returncode == 0
+    assert "[contains (default) / not_contains / equals / regex]" in result.stdout
+    assert "[stdout (default) / json]" in result.stdout
+
+
 def test_publish_toggle_true_prefers_authenticated_remote(monkeypatch, tmp_path):
     from kinnoo import publish_command
 

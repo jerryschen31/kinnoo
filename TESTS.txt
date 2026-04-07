@@ -10525,3 +10525,83 @@ tests:
         ac: AC5
     automated: true
     automation_path: tests/test_cli_registry.py::test_feature61_hardened_login_logout_remote_auth_gating
+
+  - id: test610
+    title: "feature114 CLI reference documents kinnoo test YAML schema and assertions"
+    type: integration
+    preconditions: docs/cli-reference.md updated for kinnoo test hardening
+    steps:
+      - 'step1: Verify docs include kinnoo.tests.yaml schema fields and supported assertion forms.'
+      - 'step2: Verify docs include assertion semantics for contains, not_contains, equals, regex and expected_exit_code behavior.'
+      - 'step3: Verify docs include regex examples for OR matching and ignore-case usage.'
+    expected: CLI reference provides actionable authoring guidance for kinnoo.tests.yaml
+    pass_criteria: Required schema/assertion sections and regex examples are present in docs
+    covers:
+      - feature: feature114
+        ac: AC1
+    automated: true
+    automation_path: tests/test_docs.py::test_feature114_cli_reference_covers_test_yaml_and_assertions
+
+  - id: test611
+    title: "feature114 verbose output reports detailed per-test diagnostics in text and JSON"
+    type: integration
+    preconditions: kinnoo test command supports --verbose output mode
+    steps:
+      - 'step1: Run kinnoo test with --verbose and verify text output includes input, expected_output, actual_output, runtime_duration_sec, expected_exit_code, actual_exit_code, and error details for failed tests.'
+      - 'step2: Run kinnoo test with --json --verbose and verify equivalent detail fields in JSON payload.'
+      - 'step3: Verify not_contains assertion behavior remains deterministic.'
+    expected: Verbose mode yields detailed diagnostics in both output formats
+    pass_criteria: Text/JSON verbose contracts include expected fields and assertions execute correctly
+    covers:
+      - feature: feature114
+        ac: AC2
+    automated: true
+    automation_path: tests/test_cli.py::test_feature114_verbose_output_and_not_contains_assertion
+
+  - id: test612
+    title: "feature114 interactive create flow writes valid kinnoo.tests.yaml"
+    type: integration
+    preconditions: kinnoo test supports --create interactive mode
+    steps:
+      - 'step1: Run kinnoo test <agent-dir> --create with scripted stdin responses for one test case.'
+      - 'step2: Verify default output file kinnoo.tests.yaml is created in the agent directory.'
+      - 'step3: Validate generated declaration via kinnoo test --validate-only --json.'
+    expected: Interactive flow creates a valid tests file without manual YAML editing
+    pass_criteria: Create command succeeds and resulting file validates with expected total count
+    covers:
+      - feature: feature114
+        ac: AC3
+    automated: true
+    automation_path: tests/test_cli.py::test_feature114_create_interactive_default_tests_file
+
+  - id: test613
+    title: "feature114 append flow preserves existing tests and appends new cases"
+    type: integration
+    preconditions: kinnoo test supports --create <file> --append
+    steps:
+      - 'step1: Create custom tests file with one case using interactive create mode.'
+      - 'step2: Run interactive append mode and add one additional test case.'
+      - 'step3: Validate resulting file and verify total test case count increments without loss of existing entries.'
+    expected: Append mode safely grows existing tests file
+    pass_criteria: Validation succeeds and combined tests count reflects both original and appended cases
+    covers:
+      - feature: feature114
+        ac: AC4
+    automated: true
+    automation_path: tests/test_cli.py::test_feature114_create_append_custom_tests_file
+
+  - id: test614
+    title: "feature114 kinnoo test help output includes new hardening flags"
+    type: integration
+    preconditions: kinnoo test argparse surface includes hardening options
+    steps:
+      - 'step1: Run kinnoo test -h.'
+      - 'step2: Verify help output includes --verbose, --create, and --append options.'
+      - 'step3: Verify command exits successfully with code 0.'
+    expected: Help output documents new kinnoo test hardening flags
+    pass_criteria: Help output contains all expected flags and exits 0
+    covers:
+      - feature: feature114
+        ac: AC5
+    automated: true
+    automation_path: tests/test_cli.py::test_feature114_test_help_lists_new_flags

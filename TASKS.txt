@@ -8917,3 +8917,30 @@ tasks:
     dependencies: [task332, task333]
     tests: [test609]
     status: not-started
+
+  - id: task450
+    title: "kinnoo test hardening"
+    type: task
+    description: |
+      Improve kinnoo test UX and diagnostics by documenting test YAML authoring,
+      adding verbose per-test execution detail, and introducing interactive
+      create/append workflows for kinnoo.tests.yaml files.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/test_command.py
+      - docs/cli-reference.md
+      - tests/test_cli.py
+      - FEATURES.txt
+      - TASKS.txt
+      - TESTS.txt
+      - notes/tasks/task450-notes.md
+    steps:
+      - 'step1: Extend `kinnoo test` CLI flags with --verbose, --create, and --append and update help usage output.'
+      - 'step2: Add interactive tests-file generation flow for `kinnoo test --create [file] <agent-dir>` with assertion guidance and defaults.'
+      - 'step3: Add append workflow for `kinnoo test --create <file> --append <agent-dir>` that preserves and validates existing declarations.'
+      - 'step4: Add richer verbose diagnostics to both text and JSON test execution outputs without changing baseline non-verbose behavior.'
+      - 'step5: Expand CLI reference with kinnoo.tests.yaml schema and assertion examples including regex OR and case-insensitive patterns.'
+      - 'step6: Add automated tests for verbose output contract and interactive create/append flows; run manifest validator and targeted pytest.'
+    dependencies: [task348, task349]
+    tests: [test610, test611, test612, test613, test614]
+    status: needs-review

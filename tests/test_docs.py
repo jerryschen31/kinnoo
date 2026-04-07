@@ -595,3 +595,19 @@ def test_feature70_provenance_docs_and_regression() -> None:
     )
     for command in command_references:
         assert command in combined
+
+
+def test_feature114_cli_reference_covers_test_yaml_and_assertions() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    cli_reference_path = repo_root / "docs" / "cli-reference.md"
+
+    cli_reference_text = cli_reference_path.read_text(encoding="utf-8")
+
+    assert "kinnoo.tests.yaml quick reference" in cli_reference_text
+    assert "contains" in cli_reference_text
+    assert "not_contains" in cli_reference_text
+    assert "equals" in cli_reference_text
+    assert "regex" in cli_reference_text
+    assert "expected_exit_code" in cli_reference_text
+    assert "hello|hi" in cli_reference_text
+    assert "(?i)hello|hi" in cli_reference_text
