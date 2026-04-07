@@ -2959,7 +2959,7 @@ features:
       - "Reference: existing test fixtures for valid manifest examples"
     owner: swe-agent
     dependencies: []
-    status: not-started
+    status: in-progress
 
   - id: feature93
     title: "CLI command reference document"
