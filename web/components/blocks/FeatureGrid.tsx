@@ -7,37 +7,32 @@ const FEATURES: readonly FeatureCard[] = [
   {
     title: "Supports common AI agent frameworks",
     description:
-      "Initialize, import, test, or install AI agents developed with LangChain, LangGraph, PydanticAI, OpenAI Agents SDK, OpenClaw, and more.",
+      "Initialize, import, install and test AI agents developed with LangChain, LangGraph, PydanticAI, OpenAI Agents SDK, OpenClaw, and more.",
   },
   {
-    title: "Install and run in two commands",
-    description:
-      "kinnoo install and kinnoo run — no README hunting, no venv setup, no env var guessing. Dependencies, runtime, and configuration are handled by kinnoo.",
-  },
-  {
-    title: "Publish to a hosted registry",
+    title: "Hosted agent registry",
     description:
       "Publish agents to a hosted registry where others can search, inspect, and install them — like npm, but for agents.",
   },
   {
-    title: "ClawHub mirror provenance",
+    title: "From Zero to Running in Seconds",
     description:
-      "Sync mirrored OpenClaw metadata with kinnoo sync clawhub and keep attribution explicit via the clawhub tenant provenance model.",
+      "kinnoo install and kinnoo run — no README hunting, no venv setup, no env var guessing. Dependencies, runtime, and configuration are handled by kinnoo.",
   },
   {
-    title: "Built to run real-world agents",
+    title: "Built for production workflows",
     description:
-      "From one-shot tasks to long-running daemons and MCP integrations, kinnoo supports how agents actually run in production.",
+      "From simple one-shot agents to complex multi-agent handoffs, Kinnoo provides the standardized environment agents need to interact reliably. Package agents into portable units that run consistently from local dev to production.",
   },
   {
-    title: "Security built-in",
+    title: "Security-first by design",
     description:
       "Signed archives, permission declarations, static security sweeps, dependency audits, preflight checks, runtime monitoring, and a kill switch help you trust what you run.",
   },
   {
     title: "Inspect before you run",
     description:
-      "Review any agent's manifest, dependencies, environment variables, permissions, and services before installation — no surprises.",
+      "Review agent manifests, dependencies, environment variables, permissions, service calls and cryptographic integrity of agent files before installation — no surprises.",
   },
 ] as const;
 

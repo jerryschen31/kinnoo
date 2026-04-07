@@ -16,7 +16,7 @@ export default function LandingPage() {
             The package manager for AI agents
           </p>
           <p className="max-w-3xl text-lg leading-relaxed text-white/80 sm:text-xl">
-            The open, secure platform to package, publish, test, and operate AI agents across one-shot and daemon-compatible runtimes
+            The open, secure platform to package, publish, test, and run AI agents
           </p>
         </div>
       </section>
@@ -33,7 +33,7 @@ export default function LandingPage() {
             Why developers choose Kinnoo 🍊
           </h2>
           <p className="text-base leading-relaxed normal-case text-white/80 sm:text-lg">
-            Take any AI agent — a LangGraph chatbot, a PydanticAI workflow, or an OpenClaw skill mirrored from ClawHub — and turn it into a signed, versioned, portable package with provenance you can verify before install
+            Kinnoo brings simplicity, reliability and unity to the AI agent ecosystem. Easily package and publish agents from any framework to a secure registry, where end-users can install and run them consistently in any environment.
           </p>
           <FeatureGrid />
         </div>
