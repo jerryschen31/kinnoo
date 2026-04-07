@@ -782,7 +782,7 @@ tasks:
       - src/kinnoo/install_command.py
       - src/kinnoo/cli.py
       - README.md
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
     steps:
       - step1: Update pack/install archive handling so `.kno` is treated as a zip-based artifact consistently
       - step2: Remove or replace conflicting tar.gz assumptions in runtime logic and error/help messages
@@ -944,7 +944,7 @@ tasks:
       Update schema documentation to describe feature9 optional fields and
       validation constraints, including env_vars formatting rules.
     files:
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
       - README.md
     steps:
       - step1: Document optional fields description, author, license, and env_vars with accepted types
@@ -1053,7 +1053,7 @@ tasks:
       Update docs with env_vars resolution order, secure usage guidance, and the
       non-disclosure invariant for secrets.
     files:
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
       - README.md
       - notes/swe-handoff.md
     steps:
@@ -1217,7 +1217,7 @@ tasks:
       error guidance for directory and archive inspection flows.
     files:
       - README.md
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
     steps:
       - step1: Document command usage for directory and `.kno` inputs with example invocations
       - step2: Document output semantics including optional-field omission and names-only env_vars display
@@ -1414,7 +1414,7 @@ tasks:
       examples for latest and explicit version installs and duplicate publish errors.
     files:
       - README.md
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
       - notes/swe-handoff.md
     steps:
       - step1: Document `kinnoo publish <archive.kno>` and `kinnoo publish <archive.kno> --local` behavior and expected registry path layout
@@ -1661,7 +1661,7 @@ tasks:
       pack, publish, install/list/search source modes, and mock registry behavior.
     files:
       - README.md
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
       - notes/swe-handoff.md
     steps:
       - step1: Document local archive path semantics for pack and default behavior
@@ -1706,7 +1706,7 @@ tasks:
       - src/kinnoo/publish_command.py
       - tests/test_publish_refactor.py
       - README.md
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
     steps:
       - step1: Replace relative mock registry root with home-expanded absolute root `~/kinnoo-mock-registry-scratch`
       - step2: Ensure publish target path renders as `<home>/kinnoo-mock-registry-scratch/jerry/<agent>/<version>/<agent>.kno`
@@ -1818,7 +1818,7 @@ tasks:
       security constraints, and expected output semantics for operators.
     files:
       - README.md
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
       - notes/swe-handoff.md
     steps:
       - step1: Add `kinnoo run --preflight` usage examples and expected checklist behavior
@@ -1967,7 +1967,7 @@ tasks:
       security sweep in inspect/pack, and the no-secret-values invariant.
     files:
       - README.md
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
     steps:
       - step1: Document install summary prompt behavior and --yes/-y flag
       - step2: Document unverified source warning behavior
@@ -2091,7 +2091,7 @@ tasks:
       that validate feature16 acceptance criteria end-to-end.
     files:
       - README.md
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
       - tests/test_docs.py
     steps:
       - step1: Document checksum generation in pack and storage in local archive paths
@@ -2161,7 +2161,7 @@ tasks:
       docs regression assertions for feature17 command behavior.
     files:
       - README.md
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
       - tests/test_docs.py
     steps:
       - 'step1: Document `Archive size: <value>` output and >100 MB warning semantics'
@@ -2316,18 +2316,18 @@ tasks:
     title: "Docs and regression coverage for feature18"
     type: task
     description: |
-      Document the input safety guard feature in README.md and docs/manifest-schema-reference.md.
+      Document the input safety guard feature in README.md and notes/manifest-schema-reference.md.
       Add a docs regression test in test_docs.py asserting that feature18 documentation
       coverage statements remain present. Documentation should describe the guard behavior,
       supported threat categories, --no-guard flag, type-aware checking, and the pluggable
       architecture for future ML guard replacement.
     files:
       - README.md
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
       - tests/test_docs.py
     steps:
       - 'step1: Add "Input Safety Guard" section to README.md describing: guard behavior on kinnoo run, list of 6 threat categories, --no-guard flag, type-aware checking for future parameterized inputs, pluggable Protocol-based design'
-      - 'step2: Add input safety section to docs/manifest-schema-reference.md describing the guard contract and threat categories'
+      - 'step2: Add input safety section to notes/manifest-schema-reference.md describing the guard contract and threat categories'
       - 'step3: Add test_feature18_docs_cover_input_safety_guard test in test_docs.py asserting required feature18 documentation strings are present'
     dependencies: [task116, task117, task118]
     tests: [test164]
@@ -2750,7 +2750,7 @@ tasks:
       pack/install flows.
     files:
       - README.md
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
       - tests/test_pack.py
       - tests/test_cli_install.py
     steps:
@@ -3478,7 +3478,7 @@ tasks:
       inspect, preflight, and help output.
     files:
       - README.md
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
       - src/kinnoo/run_command.py
       - src/kinnoo/inspect_command.py
       - tests/test_docs.py
@@ -3705,7 +3705,7 @@ tasks:
       OpenClaw and generic Node.js agents using new feature33 fields so
       schema behavior is clear and operator-facing guidance is actionable.
     files:
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
       - README.md
       - tests/test_docs.py
     steps:
@@ -3909,7 +3909,7 @@ tasks:
       state_dirs are absent.
     files:
       - README.md
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
       - tests/test_docs.py
       - tests/test_regression_v1.py
     steps:
@@ -4224,7 +4224,7 @@ tasks:
     files:
       - src/kinnoo/schema.py
       - src/kinnoo/validator.py
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
       - tests/test_validator.py
     steps:
       - 'step1: Define schema shape and allowed values for permissions fields including filesystem scope enum and env_access list validation'
@@ -4350,7 +4350,7 @@ tasks:
       - src/kinnoo/pack_command.py
       - src/kinnoo/signing.py
       - tests/test_pack.py
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
     steps:
       - 'step1: Add `--sign` pack flag and load signing key material from explicit CLI/config inputs'
       - 'step2: Sign deterministic archive payload bytes using Ed25519 and emit detached signature artifact'
@@ -6795,7 +6795,7 @@ tasks:
       - src/kinnoo/schema.py
       - src/kinnoo/validator.py
       - src/kinnoo/import_command.py
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
     steps:
       - 'step1: Add schema fields and enums for openclaw-skill type and `provenance` object keys'
       - 'step2: Implement validator rules enforcing framework/type compatibility and `provenance` requirements (`source_registry`, `source_version`, and at least one of `source_slug` or `source_url`)'
@@ -6814,7 +6814,7 @@ tasks:
     files:
       - tests/test_validator.py
       - tests/test_cli_import.py
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
     steps:
       - 'step1: Add validator fixtures for valid and invalid openclaw-skill manifests including canonical `provenance` object shapes'
       - 'step2: Add import-path tests asserting deterministic errors on unsupported `provenance` combinations and disallowed metadata fields'
@@ -6894,7 +6894,7 @@ tasks:
       - src/kinnoo/import_command.py
       - src/kinnoo/inspect_command.py
       - tests/test_cli_import.py
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
     steps:
       - 'step1: Parse mirrored requirement metadata into env/config/bin hint sections'
       - 'step2: Render unresolved guidance block with deterministic ordering and wording'
@@ -7034,7 +7034,7 @@ tasks:
       - .github/workflows/kinnoo-publish.yml
       - README.md
       - docs/CHANGELOG.md
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
     steps:
       - 'step1: Add reference workflow stages for install preflight pack and publish'
       - 'step2: Document required env vars and secrets for registry auth and strict CI mode'
@@ -7074,7 +7074,7 @@ tasks:
       - src/kinnoo/schema.py
       - src/kinnoo/test_command.py
       - src/kinnoo/validator.py
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
     steps:
       - 'step1: Define kinnoo.tests.yaml schema including id input expected assertions timeout and exit-code fields'
       - 'step2: Implement parser/validator and deterministic diagnostics for invalid test specs'
@@ -7335,7 +7335,7 @@ tasks:
       - src/kinnoo/analyzer.py
       - tests/test_cli_import.py
       - web/__tests__/framework-adapter-fixtures.test.ts
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
     steps:
       - 'step1: Add fixtures and thresholds proving higher-confidence inference for langchain langgraph and openai adapter flows'
       - 'step2: Add graceful degradation tests for unsupported patterns and fallback messaging'
