@@ -9621,9 +9621,9 @@ tests:
       - 'step1: Execute workflow for feature99 (PyPI package publishing configuration) covering AC1, AC2, AC3'
       - 'step2: Verify pyproject.toml has complete PyPI metadata (name, version, description, author, license, classifiers, project-urls).'
       - 'step3: Verify `pip install kinnoo` works from a built wheel.'
-      - 'step4: Verify .github/workflows/pypi-publish.yml publishes to PyPI on release tag.'
+      - 'step4: Verify .github/workflows/pypi-publish.yml publishes to PyPI on push to master.'
     expected: feature99 acceptance criteria AC1, AC2, AC3 are satisfied
-    pass_criteria: 'AC1: pyproject.toml has complete PyPI metadata (name, version, description, author...; AC2: `pip install kinnoo` works from a built wheel.; AC3: .github/workflows/pypi-publish.yml publishes to PyPI on release tag.'
+    pass_criteria: 'AC1: pyproject.toml has complete PyPI metadata (name, version, description, author...; AC2: `pip install kinnoo` works from a built wheel.; AC3: .github/workflows/pypi-publish.yml publishes to PyPI on push to master.'
     covers:
       - feature: feature99
         ac: AC1
@@ -10354,9 +10354,9 @@ tests:
   - id: test601
     title: "feature99 trusted publisher OIDC manual verification"
     type: manual
-    preconditions: PyPI project admin access and GitHub Actions release workflow configured
+    preconditions: PyPI project admin access and GitHub Actions master-push workflow configured
     steps:
-      - 'step1: Configure trusted publisher in PyPI project settings for repository release workflow.'
+      - 'step1: Configure trusted publisher in PyPI project settings for repository master-push workflow.'
       - 'step2: Trigger a test release/tag pipeline to validate OIDC auth path.'
       - 'step3: Confirm no API token is required and publish auth succeeds through trusted publisher.'
     expected: PyPI trusted publisher is correctly configured and validated
@@ -10498,3 +10498,30 @@ tests:
         ac: AC4
     automated: true
     automation_path: scripts/ops/check_task448_cloudflare_pages_cutover.sh
+
+  - id: test609
+    title: "feature61 hardened login tenant resolution and post-logout auth gating"
+    type: automated
+    preconditions: CLI configured for remote registry endpoint; auth fixture supports credential->tenant resolution
+    steps:
+      - 'step1: Run kinnoo login with only email/password and verify tenant slug is discovered by auth handshake (not email-derived guessing) and persisted without manual tenant input.'
+      - 'step2: Verify kinnoo list --remote and kinnoo search --remote succeed after login using persisted auth state.'
+      - 'step3: Run kinnoo logout and verify local auth keys are removed from config.'
+      - 'step4: Verify kinnoo list --remote and kinnoo search --remote fail with actionable login guidance after logout.'
+      - 'step5: Verify --remote list/search with no registry_url configured fails with explicit non-fallback guidance instead of using local mock backend.'
+      - 'step6: Verify publish_to_authenticated_registry=true still allows publish with REGISTRY_ADMIN_EMAIL/REGISTRY_ADMIN_PASSWORD bypass after logout.'
+    expected: Login resolves tenant context automatically, remote list/search are fail-closed with no local fallback, and explicit admin publish bypass remains supported
+    pass_criteria: Post-login remote operations succeed; post-logout remote list/search fail until re-login; missing-registry remote mode errors explicitly; admin bypass publish path succeeds when configured
+    covers:
+      - feature: feature61
+        ac: AC1
+      - feature: feature61
+        ac: AC2
+      - feature: feature61
+        ac: AC3
+      - feature: feature61
+        ac: AC4
+      - feature: feature61
+        ac: AC5
+    automated: true
+    automation_path: tests/test_cli_registry.py::test_feature61_hardened_login_logout_remote_auth_gating

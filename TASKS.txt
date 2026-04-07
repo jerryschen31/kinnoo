@@ -782,7 +782,7 @@ tasks:
       - src/kinnoo/install_command.py
       - src/kinnoo/cli.py
       - README.md
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
     steps:
       - step1: Update pack/install archive handling so `.kno` is treated as a zip-based artifact consistently
       - step2: Remove or replace conflicting tar.gz assumptions in runtime logic and error/help messages
@@ -944,7 +944,7 @@ tasks:
       Update schema documentation to describe feature9 optional fields and
       validation constraints, including env_vars formatting rules.
     files:
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
       - README.md
     steps:
       - step1: Document optional fields description, author, license, and env_vars with accepted types
@@ -1053,7 +1053,7 @@ tasks:
       Update docs with env_vars resolution order, secure usage guidance, and the
       non-disclosure invariant for secrets.
     files:
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
       - README.md
       - notes/swe-handoff.md
     steps:
@@ -1217,7 +1217,7 @@ tasks:
       error guidance for directory and archive inspection flows.
     files:
       - README.md
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
     steps:
       - step1: Document command usage for directory and `.kno` inputs with example invocations
       - step2: Document output semantics including optional-field omission and names-only env_vars display
@@ -1414,7 +1414,7 @@ tasks:
       examples for latest and explicit version installs and duplicate publish errors.
     files:
       - README.md
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
       - notes/swe-handoff.md
     steps:
       - step1: Document `kinnoo publish <archive.kno>` and `kinnoo publish <archive.kno> --local` behavior and expected registry path layout
@@ -1661,7 +1661,7 @@ tasks:
       pack, publish, install/list/search source modes, and mock registry behavior.
     files:
       - README.md
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
       - notes/swe-handoff.md
     steps:
       - step1: Document local archive path semantics for pack and default behavior
@@ -1706,7 +1706,7 @@ tasks:
       - src/kinnoo/publish_command.py
       - tests/test_publish_refactor.py
       - README.md
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
     steps:
       - step1: Replace relative mock registry root with home-expanded absolute root `~/kinnoo-mock-registry-scratch`
       - step2: Ensure publish target path renders as `<home>/kinnoo-mock-registry-scratch/jerry/<agent>/<version>/<agent>.kno`
@@ -1818,7 +1818,7 @@ tasks:
       security constraints, and expected output semantics for operators.
     files:
       - README.md
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
       - notes/swe-handoff.md
     steps:
       - step1: Add `kinnoo run --preflight` usage examples and expected checklist behavior
@@ -1967,7 +1967,7 @@ tasks:
       security sweep in inspect/pack, and the no-secret-values invariant.
     files:
       - README.md
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
     steps:
       - step1: Document install summary prompt behavior and --yes/-y flag
       - step2: Document unverified source warning behavior
@@ -2091,7 +2091,7 @@ tasks:
       that validate feature16 acceptance criteria end-to-end.
     files:
       - README.md
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
       - tests/test_docs.py
     steps:
       - step1: Document checksum generation in pack and storage in local archive paths
@@ -2161,7 +2161,7 @@ tasks:
       docs regression assertions for feature17 command behavior.
     files:
       - README.md
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
       - tests/test_docs.py
     steps:
       - 'step1: Document `Archive size: <value>` output and >100 MB warning semantics'
@@ -2316,18 +2316,18 @@ tasks:
     title: "Docs and regression coverage for feature18"
     type: task
     description: |
-      Document the input safety guard feature in README.md and docs/manifest-schema-reference.md.
+      Document the input safety guard feature in README.md and notes/manifest-schema-reference.md.
       Add a docs regression test in test_docs.py asserting that feature18 documentation
       coverage statements remain present. Documentation should describe the guard behavior,
       supported threat categories, --no-guard flag, type-aware checking, and the pluggable
       architecture for future ML guard replacement.
     files:
       - README.md
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
       - tests/test_docs.py
     steps:
       - 'step1: Add "Input Safety Guard" section to README.md describing: guard behavior on kinnoo run, list of 6 threat categories, --no-guard flag, type-aware checking for future parameterized inputs, pluggable Protocol-based design'
-      - 'step2: Add input safety section to docs/manifest-schema-reference.md describing the guard contract and threat categories'
+      - 'step2: Add input safety section to notes/manifest-schema-reference.md describing the guard contract and threat categories'
       - 'step3: Add test_feature18_docs_cover_input_safety_guard test in test_docs.py asserting required feature18 documentation strings are present'
     dependencies: [task116, task117, task118]
     tests: [test164]
@@ -2750,7 +2750,7 @@ tasks:
       pack/install flows.
     files:
       - README.md
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
       - tests/test_pack.py
       - tests/test_cli_install.py
     steps:
@@ -3478,7 +3478,7 @@ tasks:
       inspect, preflight, and help output.
     files:
       - README.md
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
       - src/kinnoo/run_command.py
       - src/kinnoo/inspect_command.py
       - tests/test_docs.py
@@ -3705,7 +3705,7 @@ tasks:
       OpenClaw and generic Node.js agents using new feature33 fields so
       schema behavior is clear and operator-facing guidance is actionable.
     files:
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
       - README.md
       - tests/test_docs.py
     steps:
@@ -3909,7 +3909,7 @@ tasks:
       state_dirs are absent.
     files:
       - README.md
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
       - tests/test_docs.py
       - tests/test_regression_v1.py
     steps:
@@ -4224,7 +4224,7 @@ tasks:
     files:
       - src/kinnoo/schema.py
       - src/kinnoo/validator.py
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
       - tests/test_validator.py
     steps:
       - 'step1: Define schema shape and allowed values for permissions fields including filesystem scope enum and env_access list validation'
@@ -4350,7 +4350,7 @@ tasks:
       - src/kinnoo/pack_command.py
       - src/kinnoo/signing.py
       - tests/test_pack.py
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
     steps:
       - 'step1: Add `--sign` pack flag and load signing key material from explicit CLI/config inputs'
       - 'step2: Sign deterministic archive payload bytes using Ed25519 and emit detached signature artifact'
@@ -6795,7 +6795,7 @@ tasks:
       - src/kinnoo/schema.py
       - src/kinnoo/validator.py
       - src/kinnoo/import_command.py
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
     steps:
       - 'step1: Add schema fields and enums for openclaw-skill type and `provenance` object keys'
       - 'step2: Implement validator rules enforcing framework/type compatibility and `provenance` requirements (`source_registry`, `source_version`, and at least one of `source_slug` or `source_url`)'
@@ -6814,7 +6814,7 @@ tasks:
     files:
       - tests/test_validator.py
       - tests/test_cli_import.py
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
     steps:
       - 'step1: Add validator fixtures for valid and invalid openclaw-skill manifests including canonical `provenance` object shapes'
       - 'step2: Add import-path tests asserting deterministic errors on unsupported `provenance` combinations and disallowed metadata fields'
@@ -6894,7 +6894,7 @@ tasks:
       - src/kinnoo/import_command.py
       - src/kinnoo/inspect_command.py
       - tests/test_cli_import.py
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
     steps:
       - 'step1: Parse mirrored requirement metadata into env/config/bin hint sections'
       - 'step2: Render unresolved guidance block with deterministic ordering and wording'
@@ -7034,7 +7034,7 @@ tasks:
       - .github/workflows/kinnoo-publish.yml
       - README.md
       - docs/CHANGELOG.md
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
     steps:
       - 'step1: Add reference workflow stages for install preflight pack and publish'
       - 'step2: Document required env vars and secrets for registry auth and strict CI mode'
@@ -7074,7 +7074,7 @@ tasks:
       - src/kinnoo/schema.py
       - src/kinnoo/test_command.py
       - src/kinnoo/validator.py
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
     steps:
       - 'step1: Define kinnoo.tests.yaml schema including id input expected assertions timeout and exit-code fields'
       - 'step2: Implement parser/validator and deterministic diagnostics for invalid test specs'
@@ -7335,7 +7335,7 @@ tasks:
       - src/kinnoo/analyzer.py
       - tests/test_cli_import.py
       - web/__tests__/framework-adapter-fixtures.test.ts
-      - docs/manifest-schema-reference.md
+      - notes/manifest-schema-reference.md
     steps:
       - 'step1: Add fixtures and thresholds proving higher-confidence inference for langchain langgraph and openai adapter flows'
       - 'step2: Add graceful degradation tests for unsupported patterns and fallback messaging'
@@ -7948,7 +7948,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: []
     tests: [test553, test554]
-    status: not-started
+    status: needs-review
 
   - id: task395
     title: "Add framework examples and version/compat notes to spec doc"
@@ -7963,7 +7963,7 @@ tasks:
       - 'step3: Write or update tests and verify locally with pytest'
     dependencies: [task394]
     tests: [test553, test554]
-    status: not-started
+    status: needs-review
 
   - id: task396
     title: "Create CLI reference doc for client commands (init through uninstall)"
@@ -7980,7 +7980,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: []
     tests: [test555, test556]
-    status: not-started
+    status: needs-review
 
   - id: task397
     title: "Add server CLI commands and cross-references to CLI reference"
@@ -7996,7 +7996,7 @@ tasks:
       - 'step3: Write or update tests and verify locally with pytest'
     dependencies: [task396]
     tests: [test555, test556]
-    status: not-started
+    status: needs-review
 
   - id: task398
     title: "Create security model doc with threat model and signing architecture"
@@ -8012,7 +8012,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task383, task385, task387]
     tests: [test557, test558]
-    status: not-started
+    status: needs-review
 
   - id: task399
     title: "Document auth flow and cross-reference from README"
@@ -8028,7 +8028,7 @@ tasks:
       - 'step3: Write or update tests and verify locally with pytest'
     dependencies: [task398]
     tests: [test557, test558]
-    status: not-started
+    status: needs-review
 
   - id: task400
     title: "Create getting-started guide with end-to-end agent walkthrough"
@@ -8044,7 +8044,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: []
     tests: [test559, test560]
-    status: not-started
+    status: needs-review
 
   - id: task401
     title: "Create registry guide with publish/install workflows and expected output"
@@ -8059,7 +8059,7 @@ tasks:
       - 'step3: Write or update tests and verify locally with pytest'
     dependencies: [task400]
     tests: [test559, test560]
-    status: not-started
+    status: needs-review
 
   - id: task402
     title: "Rewrite README for beta with badges and quick-start"
@@ -8075,7 +8075,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task395, task397]
     tests: [test561, test562]
-    status: not-started
+    status: needs-review
 
   - id: task403
     title: "Create supported-agents.md with framework compatibility matrix"
@@ -8090,7 +8090,7 @@ tasks:
       - 'step3: Write or update tests and verify locally with pytest'
     dependencies: [task402]
     tests: [test561, test562]
-    status: not-started
+    status: needs-review
 
   - id: task404
     title: "Audit repo for secrets and create CONTRIBUTING.md, CODE_OF_CONDUCT.md"
@@ -8172,14 +8172,14 @@ tasks:
     steps:
       - 'step1: Implement pyproject.toml has complete PyPI metadata (name, version, description, author, license, classifiers, project-urls).'
       - 'step2: Implement `pip install kinnoo` works from a built wheel.'
-      - 'step3: Implement .github/workflows/pypi-publish.yml publishes to PyPI on release tag.'
+      - 'step3: Implement .github/workflows/pypi-publish.yml publishes to PyPI on push to master.'
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: []
     tests: [test567, test568]
-    status: not-started
+    status: needs-review
 
   - id: task409
-    title: "Create pypi-publish.yml workflow triggered on release tags"
+    title: "Create pypi-publish.yml workflow triggered on push to master"
     type: task
     description: |
       Implement feature99 (PyPI package publishing configuration): AC4, AC5.
@@ -8191,7 +8191,7 @@ tasks:
       - 'step3: Write or update tests and verify locally with pytest'
     dependencies: [task408, task443]
     tests: [test567, test568]
-    status: not-started
+    status: needs-review
 
   - id: task410
     title: "Implement account lockout after 5 failed logins with 15-min cooldown"
@@ -8889,4 +8889,31 @@ tasks:
       - 'step6: Run automated validation scripts for backend readiness and Cloudflare Pages cutover, and archive output with task448 handoff notes.'
     dependencies: [task424, task426, task442]
     tests: [test607, test608]
+    status: not-started
+
+  - id: task449
+    title: "Login and logout CLI hardening"
+    type: task
+    description: |
+      Harden CLI auth flows so `kinnoo login` resolves tenant context without manual
+      tenant guessing and `kinnoo logout` reliably blocks subsequent authenticated
+      list/search operations until explicit re-login, while preserving intentional
+      admin-credential publish bypass behavior when enabled.
+    files:
+      - src/kinnoo/auth_command.py
+      - src/kinnoo/publish_command.py
+      - src/kinnoo/list_command.py
+      - src/kinnoo/search_command.py
+      - src/kinnoo/config.py
+      - tests/test_cli_registry.py
+      - README.md
+    steps:
+      - 'step1: Implement true tenant discovery handshake during login so auth does not rely on guessed tenant slug from email and users do not need manual tenant input.'
+      - 'step2: Ensure login persists resolved registry_url, registry_token, and tenant_slug deterministically with clear diagnostics.'
+      - 'step3: Remove remote --list/--search fallback to local mock when registry_url is missing; return an explicit, actionable error with remediation steps.'
+      - 'step4: Ensure logout clears local auth state and remote list/search fail closed until re-login.'
+      - 'step5: Preserve explicit publish bypass path for publish_to_authenticated_registry=true when REGISTRY_ADMIN_EMAIL and REGISTRY_ADMIN_PASSWORD are provided.'
+      - 'step6: Update operator docs with hardened login/logout and remote-registry usage guidance (including no-fallback remote mode behavior).'
+    dependencies: [task332, task333]
+    tests: [test609]
     status: not-started

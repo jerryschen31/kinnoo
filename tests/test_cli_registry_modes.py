@@ -2,6 +2,9 @@ import json
 import os
 import subprocess
 import sys
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import parse_qs, urlparse
 import zipfile
 from pathlib import Path
 
@@ -48,56 +51,76 @@ def _write_archive(
     return archive_path
 
 
-def _write_remote_registry_entry(
-    registry_root: Path,
-    *,
-    name: str,
-    version: str,
-    description: str,
-) -> None:
-    version_dir = registry_root / name / version
-    version_dir.mkdir(parents=True, exist_ok=True)
+class _RemoteRegistryFixtureServer:
+    def __init__(self, *, items: list[dict[str, str]]) -> None:
+        self._server = ThreadingHTTPServer(
+            ("127.0.0.1", 0),
+            _make_remote_registry_fixture_handler(items=items),
+        )
+        self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
 
-    archive_path = version_dir / f"{name}.kno"
-    with zipfile.ZipFile(archive_path, "w") as archive_zip:
-        archive_zip.writestr(
-            "kinnoo.yaml",
-            "\n".join(
-                [
-                    f"name: {name}",
-                    f"version: {version}",
-                    f"description: {description}",
-                    "entrypoint: run.py",
-                    "runtime:",
-                    "  language: python",
-                    "  version: \">=3.10\"",
-                    "  type: one-shot",
-                    "dependencies: []",
-                    "inputs:",
-                    "  type: text",
-                    "outputs:",
-                    "  type: text",
+    @property
+    def base_url(self) -> str:
+        host, port = self._server.server_address
+        return f"http://{host}:{port}"
+
+    def start(self) -> None:
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._server.shutdown()
+        self._server.server_close()
+        self._thread.join(timeout=2)
+
+
+def _make_remote_registry_fixture_handler(
+    *, items: list[dict[str, str]]
+) -> type[BaseHTTPRequestHandler]:
+    class _RemoteRegistryFixtureHandler(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:  # noqa: N802
+            parsed = urlparse(self.path)
+            if parsed.path == "/api/agents":
+                if not self._authorized():
+                    return
+                self._write_json(200, {"items": items})
+                return
+
+            if parsed.path == "/api/search":
+                if not self._authorized():
+                    return
+                query = ""
+                parsed_query = parse_qs(parsed.query)
+                if "q" in parsed_query and parsed_query["q"]:
+                    query = parsed_query["q"][0].lower()
+                filtered = [
+                    item
+                    for item in items
+                    if query in item["name"].lower() or query in item["description"].lower()
                 ]
-            )
-            + "\n",
-        )
-        archive_zip.writestr("run.py", "print('remote')\n")
-        archive_zip.writestr("requirements.txt", "")
+                self._write_json(200, {"items": filtered})
+                return
 
-    metadata_path = version_dir / "manifest-metadata.json"
-    metadata_path.write_text(
-        json.dumps(
-            {
-                "name": name,
-                "version": version,
-                "description": description,
-            },
-            sort_keys=True,
-            indent=2,
-        )
-        + "\n",
-        encoding="utf-8",
-    )
+            self._write_json(404, {"error": "not found"})
+
+        def log_message(self, format: str, *args: object) -> None:  # noqa: A003
+            del format, args
+
+        def _authorized(self) -> bool:
+            authorization = self.headers.get("Authorization", "")
+            if authorization != "Bearer token":
+                self._write_json(401, {"error": "unauthorized"})
+                return False
+            return True
+
+        def _write_json(self, status_code: int, payload: dict[str, object]) -> None:
+            encoded = json.dumps(payload).encode("utf-8")
+            self.send_response(status_code)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(encoded)))
+            self.end_headers()
+            self.wfile.write(encoded)
+
+    return _RemoteRegistryFixtureHandler
 
 
 def _write_minimal_python_agent(agent_dir: Path) -> None:
@@ -132,7 +155,6 @@ def _write_minimal_python_agent(agent_dir: Path) -> None:
 
 def test_list_default_local_and_remote_modes(tmp_path: Path) -> None:
     archive_root = tmp_path / "archive-sandbox"
-    registry_root = tmp_path / "registry-sandbox"
 
     _write_archive(
         archive_root,
@@ -153,61 +175,71 @@ def test_list_default_local_and_remote_modes(tmp_path: Path) -> None:
         description="Beta archive",
     )
 
-    _write_remote_registry_entry(
-        registry_root,
-        name="remote-agent",
-        version="9.0.0",
-        description="Remote inventory",
+    server = _RemoteRegistryFixtureServer(
+        items=[
+            {
+                "name": "remote-agent",
+                "latest_version": "9.0.0",
+                "description": "Remote inventory",
+            }
+        ]
     )
+    server.start()
+    try:
+        local_env = {
+            **os.environ,
+            "KINNOO_ARCHIVE_ROOT": str(archive_root),
+        }
+        remote_env = {
+            **local_env,
+            "KINNOO_REGISTRY_URL": server.base_url,
+            "KINNOO_REGISTRY_TOKEN": "token",
+            "KINNOO_TENANT_SLUG": "tenant-alpha",
+        }
 
-    env = {
-        **os.environ,
-        "KINNOO_ARCHIVE_ROOT": str(archive_root),
-        "KINNOO_REGISTRY_ROOT": str(registry_root),
-    }
-
-    default_local = subprocess.run(
+        default_local = subprocess.run(
         [sys.executable, str(CLI_PATH), "list"],
         capture_output=True,
         text=True,
-        env=env,
-    )
-    local_flag = subprocess.run(
+            env=local_env,
+        )
+        local_flag = subprocess.run(
         [sys.executable, str(CLI_PATH), "list", "--local"],
         capture_output=True,
         text=True,
-        env=env,
-    )
-    remote_flag = subprocess.run(
+            env=local_env,
+        )
+        remote_flag = subprocess.run(
         [sys.executable, str(CLI_PATH), "list", "--remote"],
         capture_output=True,
         text=True,
-        env=env,
-    )
+            env=remote_env,
+        )
 
-    default_output = f"{default_local.stdout}\n{default_local.stderr}"
-    local_output = f"{local_flag.stdout}\n{local_flag.stderr}"
-    remote_output = f"{remote_flag.stdout}\n{remote_flag.stderr}"
+        default_output = f"{default_local.stdout}\n{default_local.stderr}"
+        local_output = f"{local_flag.stdout}\n{local_flag.stderr}"
+        remote_output = f"{remote_flag.stdout}\n{remote_flag.stderr}"
 
-    assert default_local.returncode == 0
-    assert local_flag.returncode == 0
-    assert remote_flag.returncode == 0
+        assert default_local.returncode == 0
+        assert local_flag.returncode == 0
+        assert remote_flag.returncode == 0
 
-    assert "Local archive agents:" in default_output
-    assert "alpha-agent | latest: 2.0.0 | description: Alpha latest" in default_output
-    assert "beta-agent | latest: 0.5.0 | description: Beta archive" in default_output
-    assert "remote-agent" not in default_output
+        assert "Local archive agents:" in default_output
+        assert "alpha-agent | latest: 2.0.0 | description: Alpha latest" in default_output
+        assert "beta-agent | latest: 0.5.0 | description: Beta archive" in default_output
+        assert "remote-agent" not in default_output
 
-    assert default_output == local_output
+        assert default_output == local_output
 
-    assert "Remote registry agents:" in remote_output
-    assert "remote-agent | latest: 9.0.0 | description: Remote inventory" in remote_output
-    assert "alpha-agent" not in remote_output
+        assert "Remote registry agents:" in remote_output
+        assert "remote-agent | latest: 9.0.0 | description: Remote inventory" in remote_output
+        assert "alpha-agent" not in remote_output
+    finally:
+        server.stop()
 
 
 def test_search_default_local_and_remote_modes(tmp_path: Path) -> None:
     archive_root = tmp_path / "archive-sandbox"
-    registry_root = tmp_path / "registry-sandbox"
 
     _write_archive(
         archive_root,
@@ -222,73 +254,81 @@ def test_search_default_local_and_remote_modes(tmp_path: Path) -> None:
         description="Different local description",
     )
 
-    _write_remote_registry_entry(
-        registry_root,
-        name="remote-alpha",
-        version="3.0.0",
-        description="alpha in remote metadata",
+    server = _RemoteRegistryFixtureServer(
+        items=[
+            {
+                "name": "remote-alpha",
+                "latest_version": "3.0.0",
+                "description": "alpha in remote metadata",
+            },
+            {
+                "name": "remote-beta",
+                "latest_version": "4.0.0",
+                "description": "no local match",
+            },
+        ]
     )
-    _write_remote_registry_entry(
-        registry_root,
-        name="remote-beta",
-        version="4.0.0",
-        description="no local match",
-    )
+    server.start()
+    try:
+        local_env = {
+            **os.environ,
+            "KINNOO_ARCHIVE_ROOT": str(archive_root),
+        }
+        remote_env = {
+            **local_env,
+            "KINNOO_REGISTRY_URL": server.base_url,
+            "KINNOO_REGISTRY_TOKEN": "token",
+            "KINNOO_TENANT_SLUG": "tenant-alpha",
+        }
 
-    env = {
-        **os.environ,
-        "KINNOO_ARCHIVE_ROOT": str(archive_root),
-        "KINNOO_REGISTRY_ROOT": str(registry_root),
-    }
-
-    default_local = subprocess.run(
+        default_local = subprocess.run(
         [sys.executable, str(CLI_PATH), "search", "ALPHA"],
         capture_output=True,
         text=True,
-        env=env,
-    )
-    local_flag = subprocess.run(
+            env=local_env,
+        )
+        local_flag = subprocess.run(
         [sys.executable, str(CLI_PATH), "search", "--local", "ALPHA"],
         capture_output=True,
         text=True,
-        env=env,
-    )
-    remote_flag = subprocess.run(
+            env=local_env,
+        )
+        remote_flag = subprocess.run(
         [sys.executable, str(CLI_PATH), "search", "--remote", "ALPHA"],
         capture_output=True,
         text=True,
-        env=env,
-    )
+            env=remote_env,
+        )
 
-    default_output = f"{default_local.stdout}\n{default_local.stderr}"
-    local_output = f"{local_flag.stdout}\n{local_flag.stderr}"
-    remote_output = f"{remote_flag.stdout}\n{remote_flag.stderr}"
+        default_output = f"{default_local.stdout}\n{default_local.stderr}"
+        local_output = f"{local_flag.stdout}\n{local_flag.stderr}"
+        remote_output = f"{remote_flag.stdout}\n{remote_flag.stderr}"
 
-    assert default_local.returncode == 0
-    assert local_flag.returncode == 0
-    assert remote_flag.returncode == 0
+        assert default_local.returncode == 0
+        assert local_flag.returncode == 0
+        assert remote_flag.returncode == 0
 
-    assert "Local archive search results for: ALPHA" in default_output
-    assert "alpha-agent | latest: 1.2.0 | description: Alpha ARCHIVE entry" in default_output
-    assert "beta-agent" not in default_output
-    assert "remote-alpha" not in default_output
+        assert "Local archive search results for: ALPHA" in default_output
+        assert "alpha-agent | latest: 1.2.0 | description: Alpha ARCHIVE entry" in default_output
+        assert "beta-agent" not in default_output
+        assert "remote-alpha" not in default_output
 
-    assert default_output == local_output
+        assert default_output == local_output
 
-    assert "Remote registry search results for: ALPHA" in remote_output
-    assert "remote-alpha | latest: 3.0.0 | description: alpha in remote metadata" in remote_output
-    assert "remote-beta" not in remote_output
-    assert "alpha-agent" not in remote_output
+        assert "Remote registry search results for: ALPHA" in remote_output
+        assert "remote-alpha | latest: 3.0.0 | description: alpha in remote metadata" in remote_output
+        assert "remote-beta" not in remote_output
+        assert "alpha-agent" not in remote_output
+    finally:
+        server.stop()
 
 
 def test_source_mode_argument_validation_errors(tmp_path: Path) -> None:
     archive_root = tmp_path / "archive-sandbox"
-    registry_root = tmp_path / "registry-sandbox"
 
     env = {
         **os.environ,
         "KINNOO_ARCHIVE_ROOT": str(archive_root),
-        "KINNOO_REGISTRY_ROOT": str(registry_root),
     }
 
     list_conflict = subprocess.run(

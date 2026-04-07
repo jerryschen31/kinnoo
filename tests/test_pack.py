@@ -35,8 +35,49 @@ def agent_dir(tmp_path):
 
 def test_pack_missing_argument_prints_usage(tmp_path):
     result = subprocess.run(KINNOO_CLI + ["pack"], cwd=tmp_path, capture_output=True, text=True)
-    assert "Usage: kinnoo pack <agent-dir>" in result.stdout or result.stderr
+    assert "Usage: kinnoo pack <agent-dir> [--public]" in result.stdout or result.stderr
     assert result.returncode != 0
+
+
+def test_pack_public_sets_manifest_visibility(tmp_path):
+    d = tmp_path / "publicagent"
+    d.mkdir()
+    (d / "kinnoo.yaml").write_text(
+        """
+name: publicagent
+version: 1.0.0
+framework: generic
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+""",
+        encoding="utf-8",
+    )
+    (d / "run.py").write_text("print('hello')\n", encoding="utf-8")
+    (d / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+
+    result = subprocess.run(
+        KINNOO_CLI + ["pack", str(d), "--public"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, f"pack failed: {output}"
+    assert "Updated visibility to public" in output
+
+    manifest_text = (d / "kinnoo.yaml").read_text(encoding="utf-8")
+    assert "visibility: public" in manifest_text
 
 def test_pack_inside_agent_dir_prints_error(agent_dir):
     # Run kinnoo pack . from inside agent dir

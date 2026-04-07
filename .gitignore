@@ -29,6 +29,7 @@ web/node_modules/
 web/.next*
 web/.open-next/
 web/.wrangler/
+.wrangler/
 
 # Terraform local artifacts
 **/.terraform/

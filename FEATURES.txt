@@ -317,7 +317,7 @@ features:
       - id: AC1
         description: "`kinnoo pack` includes transitive dependencies (not just direct), so pip install in an offline venv succeeds."
       - id: AC2
-        description: "Archive format is zip with .kno extension; code, tests, and authoritative packaging docs (README + docs/manifest-schema-reference.md) reference zip consistently."
+        description: "Archive format is zip with .kno extension; code, tests, and authoritative packaging docs (README + notes/manifest-schema-reference.md) reference zip consistently."
       - id: AC3
         description: "If a wheel build fails for a dependency, `kinnoo pack` warns but continues (does not abort the entire pack)."
       - id: AC4
@@ -2090,7 +2090,7 @@ features:
       Add first-class CLI authentication commands for registry workflows so users can
       login interactively or non-interactively, persist registry credentials locally,
       and logout safely.
-    tasks: [task332, task333]
+    tasks: [task332, task333, task449]
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo login` supports interactive email/username + hidden-password prompts, uses configured/default registry endpoint, and stores token + tenant slug in local config."
@@ -2959,7 +2959,7 @@ features:
       - "Reference: existing test fixtures for valid manifest examples"
     owner: swe-agent
     dependencies: []
-    status: not-started
+    status: needs-review
 
   - id: feature93
     title: "CLI command reference document"
@@ -2987,7 +2987,7 @@ features:
       - "Some server commands (feature102) may not exist yet — document planned commands with [planned] tag"
     owner: swe-agent
     dependencies: []
-    status: not-started
+    status: needs-review
 
   - id: feature94
     title: "Security model document"
@@ -3013,7 +3013,7 @@ features:
       - "Reference: src/kinnoo/signing.py, server/auth/token.py, server/auth/session.py"
     owner: swe-agent
     dependencies: [feature86, feature87, feature88]
-    status: not-started
+    status: needs-review
 
   - id: feature95
     title: "Getting started guide and registry guide"
@@ -3039,7 +3039,7 @@ features:
       - "Focus on the invite-only beta workflow"
     owner: swe-agent
     dependencies: []
-    status: not-started
+    status: needs-review
 
   - id: feature96
     title: "README rewrite and supported agents document"
@@ -3065,7 +3065,7 @@ features:
       - "Create: docs/supported-agents.md"
     owner: swe-agent
     dependencies: [feature92, feature93]
-    status: not-started
+    status: needs-review
 
   - id: feature97
     title: "Public GitHub repository preparation"
@@ -3135,7 +3135,7 @@ features:
       Configure the project for PyPI publishing. Validate pyproject.toml has
       correct metadata (name, version, description, author, license, classifiers,
       URLs). Set up trusted publisher in PyPI for GitHub Actions. Create
-      .github/workflows/pypi-publish.yml triggered on release tags.
+      .github/workflows/pypi-publish.yml triggered on push to master.
     tasks: [task408, task409, task443]
     acceptance_criteria:
       - id: AC1
@@ -3143,7 +3143,7 @@ features:
       - id: AC2
         description: "`pip install kinnoo` works from a built wheel."
       - id: AC3
-        description: ".github/workflows/pypi-publish.yml publishes to PyPI on release tag."
+        description: ".github/workflows/pypi-publish.yml publishes to PyPI on push to master."
       - id: AC4
         description: "Workflow uses trusted publisher (OIDC) — no API tokens."
       - id: AC5
@@ -3154,7 +3154,7 @@ features:
       - "Trusted publisher setup requires manual PyPI configuration by operator"
     owner: swe-agent
     dependencies: []
-    status: not-started
+    status: needs-review
 
 
 # ──────────────────────────────────────────────────────────────
@@ -3411,7 +3411,7 @@ features:
       - "Pages project may be created manually — Terraform manages DNS only if Pages API is limited"
     owner: swe-agent
     dependencies: [feature103, feature105]
-    status: in-progress
+    status: needs-review
 
   - id: feature107
     title: "Terraform monitoring (CloudWatch, alarms, SNS)"
