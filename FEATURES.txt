@@ -3065,7 +3065,7 @@ features:
       - "Create: docs/supported-agents.md"
     owner: swe-agent
     dependencies: [feature92, feature93]
-    status: not-started
+    status: in-progress
 
   - id: feature97
     title: "Public GitHub repository preparation"
