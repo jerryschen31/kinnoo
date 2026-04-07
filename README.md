@@ -12,6 +12,8 @@
 - `docs/kinnoo-yaml-spec.md` — manifest field reference and validation rules.
 - `docs/cli-reference.md` — client/server command usage and options reference.
 - `docs/security-model.md` — security architecture, trust model, and auth controls.
+- `docs/getting-started.md` — first-run workflow from install to pack.
+- `docs/registry-guide.md` — invite-only registry login/publish/search/install workflows.
 
 ## OpenClaw Bridge Deprecation and Migration (Feature85)
 
