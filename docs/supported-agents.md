@@ -25,6 +25,13 @@ This document summarizes currently supported framework templates and core lifecy
 
 ## Notes
 
+- Naming alignment for common labels:
+	- ChatGPT -> `chatgpt`
+	- OpenAI -> `openai-agents`
+	- Gemini -> `gemini`
+	- Claude -> `claude-chat`
+	- Generic -> `generic`
+
 - `openclaw` run/log flows use delegated wrapper behavior and may require external OpenClaw runtime tooling.
 - Registry operations (`publish`, `install`, `list`, `search`) can run in local/mock mode or configured remote mode.
 - Trust-sensitive operations are available through existing flags such as `--strict` and archive signing workflows.
