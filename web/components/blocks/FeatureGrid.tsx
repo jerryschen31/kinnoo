@@ -27,7 +27,7 @@ const FEATURES: readonly FeatureCard[] = [
   {
     title: "Security-first by design",
     description:
-      "Signed archives, permission declarations, static security sweeps, dependency audits, preflight checks, runtime monitoring, and a kill switch help you trust what you run.",
+      "Signed archives, permission declarations, static security sweeps, dependency audits, preflight checks, runtime monitoring, and a kill switch - trust what you run.",
   },
   {
     title: "Inspect before you run",
