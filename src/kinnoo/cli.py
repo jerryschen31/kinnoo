@@ -563,7 +563,12 @@ def main():
     inspect_parser = subparsers.add_parser(
         "inspect",
         help="Inspect metadata from an agent directory or .kno archive",
+        formatter_class=argparse.RawTextHelpFormatter,
         description="Inspect metadata from an agent directory or .kno archive",
+        epilog=(
+            "Reference:\n"
+            "  docs/kinnoo-yaml-spec.md"
+        ),
     )
     inspect_parser.add_argument(
         "target",

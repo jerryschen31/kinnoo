@@ -7,6 +7,10 @@
 - `kinnoo pack` creates `.kno` artifacts as ZIP archives.
 - `kinnoo install` expects `.kno` files in this ZIP-based format.
 
+## Documentation
+
+- `docs/kinnoo-yaml-spec.md` — manifest field reference and validation rules.
+
 ## OpenClaw Bridge Deprecation and Migration (Feature85)
 
 Bridge-era OpenClaw features (feature62-feature67) are deprecated in favor of the Phase 7 CLI-wrapper model (feature76-feature84).
