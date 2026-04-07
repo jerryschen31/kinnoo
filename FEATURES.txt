@@ -3013,7 +3013,7 @@ features:
       - "Reference: src/kinnoo/signing.py, server/auth/token.py, server/auth/session.py"
     owner: swe-agent
     dependencies: [feature86, feature87, feature88]
-    status: not-started
+    status: needs-review
 
   - id: feature95
     title: "Getting started guide and registry guide"
