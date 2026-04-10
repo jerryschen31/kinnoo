@@ -557,3 +557,48 @@ With the TUF role renaming, the implementation steps from the previous section b
 | 2 | `META-INF/signature.json` | `signing.py`, `pack_command.py`, `install_command.py` |
 | 3 | `root.json` + root key embedding | New `trust.py`, `constants.py`, server-side |
 | 4 | `targets.json` + signed index | Server-side endpoint, `remote_client.py`, `install_command.py` |
+
+----
+
+### Follow-up question 2026-04-09
+
+**Prompt**
+The current version of kinnoo implements this META-INF/integrity.json that contains per-file hashing informatio, correct? This is outlined in the file notes/ubuntu-apt-lessons-learned.md:
+Embedded integrity manifest inside .kno (medium priority) — make archives self-verifying so sidecars can't get separated when shared outside the registry.
+(My thoughts)
+Regarding “Self-verifying”(suggested by another agent): There is a clever trick to this, because you can’t hash a file that contains its own hash (it creates a circular logic loop). The standard approach is
+
+Hash the files: Calculate the SHA-256 for every file in the project (the code, the assets, the config).
+Create the Manifest: Write those hashes into a file (e.g., integrity.json).
+Pack it: Put the code AND the integrity.json into the .kno zip.
+Verify: When kinnoo install is called, it opens the zip, looks at integrity.json, and re-hashes the files inside to see if they match the "proof" inside the manifest.
+In this way, the integrity manifest is embedded in the archive.
+Pro Tip: If you implement this, you should follow the JAR Manifest style. Put your hashes in a directory called META-INF/ inside your zip. It’s a decades-old standard that security auditors immediately recognize and respect.
+If this is implemented, do we still need the checksum sidecar when an agent is packed? In other words, using the example below, do we still need the test-agent-phase13-js.kno.sha256 sidecar?
+
+Example:
+[kinnoo pack] Packaging agent directory: test-agent-phase13-js
+[kinnoo pack] Archive created: /Users/jerry/.kinnoo/archive/test-agent-phase13-js/0.1.0/test-agent-phase13-js.kno
+[kinnoo pack] Checksum sidecar written: /Users/jerry/.kinnoo/archive/test-agent-phase13-js/0.1.0/test-agent-phase13-js.kno.sha256
+
+**Response**
+ yes, META-INF integrity is implemented, and yes, the .kno.sha256 sidecar is still needed in the current design.
+
+What is implemented now
+
+Pack writes embedded per-file integrity metadata to META-INF/integrity.json in the archive: pack_command.py:813
+Pack can also write embedded META-INF/signature.json when signing is enabled: pack_command.py:815
+Integrity manifest generation hashes all non-META-INF files per-file: pack_command.py:32
+Why the sidecar is still used
+
+Pack always writes the checksum sidecar after archive creation: pack_command.py:831
+Install verifies the archive against the sidecar before extraction: install_command.py:1421 and install_command.py:1443
+In strict mode, missing sidecar is an install error today: install_command.py:1456
+How embedded integrity is used at install
+
+Install validates META-INF/integrity.json after extraction and reports mismatch/failure: install_command.py:188
+In strict mode, embedded integrity/signature are required and verified: install_command.py:193 and install_command.py:216
+So for your concrete example
+
+Yes, test-agent-phase13-js.kno.sha256 is still expected in the current implementation.
+Embedded META-INF integrity did not replace sidecars yet; they are currently layered checks.
