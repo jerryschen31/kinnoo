@@ -19,6 +19,24 @@ All notable changes to this project will be documented in this file.
   - `tests/test_cli_import.py::test_feature62_import_openclaw_manifest_migration_guidance`
  - Bumped project version from `0.5.5` to `0.6.0` after Phase 7 final review closure.
 
+## [v0.7.1] - 2026-04-09
+### Added
+- Added remote install hardening for registry latest resolution so `kinnoo install --remote <agent>` resolves explicit `latest_version` before download resolution.
+- Added authenticated archive byte retrieval route for local-backend download responses (`/api/agents/{tenant}/{agent}/{version}/archive`) and route-level rewrite of non-client-reachable `file://` payloads.
+- Added S3 missing-key normalization in server and mock-server storage backends so missing objects map to `FileNotFoundError` instead of unhandled provider exceptions.
+- Added regression coverage for:
+  - remote latest resolution and authenticated same-host download fetch,
+  - local-backend download URL rewrite + archive endpoint behavior,
+  - S3 missing-key normalization for server/mock-server backends.
+
+### Changed
+- Updated ECS runtime registry configuration to explicit S3 backend env vars (`REGISTRY_STORAGE_BACKEND`, `REGISTRY_S3_BUCKET`, `REGISTRY_S3_REGION`) for archive/metadata persistence in object storage.
+- Switched deployment image build/push workflow to explicit `linux/amd64` manifests to satisfy ECS/Fargate pull requirements and avoid architecture mismatch rollout failures.
+- Seeded remote S3-backed registry with first published agent and validated end-to-end `kinnoo list` + `kinnoo install --remote` behavior.
+
+### Notes
+- Pre-cutover local/EFS-only registry artifacts are not automatically present in S3 and must be republished or migrated to restore installability.
+
 ## [v0.7.0] - 2026-04-06
 ### Added
 - Consolidated Phase 7+ delivery into a dev-ready platform release spanning CLI, backend API, and frontend operator flows.

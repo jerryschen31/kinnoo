@@ -10605,3 +10605,147 @@ tests:
         ac: AC5
     automated: true
     automation_path: tests/test_cli.py::test_feature114_test_help_lists_new_flags
+
+  - id: test615
+    title: "feature28 remote install resolves latest to explicit version before download"
+    type: integration
+    preconditions: Remote install path is configured with --remote selector and authenticated config values
+    steps:
+      - 'step1: Execute install flow for a registry-latest selector with a remote backend that lists latest_version metadata.'
+      - 'step2: Verify install resolves latest_version first, then calls resolve() with an explicit semantic version.'
+      - 'step3: Verify archive download proceeds using resolved version payload.'
+    expected: Latest selector is converted to explicit version before remote download resolution
+    pass_criteria: Install succeeds and resolve() is invoked with the expected explicit version value
+    covers:
+      - feature: feature28
+        ac: AC6
+    automated: true
+    automation_path: tests/test_cli.py::test_install_remote_latest_resolves_explicit_version_before_download
+
+  - id: test616
+    title: "feature28 remote install emits actionable error for invalid root-relative download paths"
+    type: integration
+    preconditions: Remote resolve response includes a non-presigned root-relative download_url that cannot be fetched
+    steps:
+      - 'step1: Execute install flow for remote registry-latest selector with backend resolve payload containing root-relative storage path.'
+      - 'step2: Force backend request_bytes fallback to fail and capture stderr output.'
+      - 'step3: Verify install exits non-zero with clear remediation guidance for server download URL contract.'
+    expected: Install fails cleanly with actionable messaging instead of ambiguous local file errors
+    pass_criteria: Exit code is non-zero and stderr contains root-relative path contract guidance
+    covers:
+      - feature: feature28
+        ac: AC8
+    automated: true
+    automation_path: tests/test_cli.py::test_install_remote_reports_filesystem_download_url_as_server_error
+
+  - id: test617
+    title: "feature28 remote client request_bytes uses bearer auth for raw path downloads"
+    type: unit
+    preconditions: RemoteRegistryClient initialized with base_url and token
+    steps:
+      - 'step1: Call request_bytes() with an API path using a stubbed urlopen response.'
+      - 'step2: Verify returned payload bytes and request headers include Authorization bearer token.'
+      - 'step3: Verify requested URL joins base_url and provided path correctly.'
+    expected: request_bytes performs authenticated byte fetch with deterministic URL/header behavior
+    pass_criteria: Returned bytes match fixture payload and outgoing request contains expected URL + Authorization header
+    covers:
+      - feature: feature28
+        ac: AC3
+    automated: true
+    automation_path: tests/test_remote_client.py::test_remote_client_request_bytes_uses_auth
+
+  - id: test618
+    title: "feature28 remote client request_bytes surfaces HTTP errors with actionable context"
+    type: unit
+    preconditions: RemoteRegistryClient initialized; urlopen configured to raise HTTPError
+    steps:
+      - 'step1: Invoke request_bytes() when remote endpoint returns HTTP 404 with JSON body.'
+      - 'step2: Verify RemoteRegistryClientError is raised and includes not-found guidance plus response details.'
+      - 'step3: Confirm error text remains actionable for CLI consumers.'
+    expected: HTTP failures are translated into normalized RemoteRegistryClientError messages
+    pass_criteria: Exception is raised and message includes both status guidance and response-body hint
+    covers:
+      - feature: feature28
+        ac: AC8
+    automated: true
+    automation_path: tests/test_remote_client.py::test_remote_client_request_bytes_http_error
+
+  - id: test619
+    title: "feature28 direct cli.py execution prioritizes local src over PYTHONPATH shadow package"
+    type: integration
+    preconditions: CLI is invoked via python src/kinnoo/cli.py and a conflicting fake kinnoo package is present on PYTHONPATH
+    steps:
+      - 'step1: Create a fake kinnoo package on PYTHONPATH with sentinel version value.'
+      - 'step2: Run python src/kinnoo/cli.py --version from an external working directory.'
+      - 'step3: Verify output does not report the fake package sentinel version.'
+    expected: Direct cli.py invocation resolves local workspace modules even when PYTHONPATH contains a conflicting package
+    pass_criteria: Command exits 0 and printed version is not the fake package sentinel value
+    covers:
+      - feature: feature28
+        ac: AC7
+    automated: true
+    automation_path: tests/test_cli.py::test_cli_direct_script_execution_prefers_local_src_over_pythonpath
+
+  - id: test620
+    title: "feature28 remote install uses authenticated byte fetch for same-host HTTP download URLs"
+    type: integration
+    preconditions: Remote resolve payload returns same-host HTTP(S) download_url and backend token auth is configured
+    steps:
+      - 'step1: Execute remote install flow with a resolve payload containing a same-host HTTP download URL.'
+      - 'step2: Stub backend.request_bytes() to return archive payload bytes and track calls.'
+      - 'step3: Verify install succeeds and download uses authenticated backend byte fetch path.'
+    expected: Same-host HTTP download URLs are fetched with auth-aware request_bytes instead of anonymous urlopen
+    pass_criteria: Install succeeds and backend.request_bytes() is called for the resolved HTTP URL
+    covers:
+      - feature: feature28
+        ac: AC6
+    automated: true
+    automation_path: tests/test_cli.py::test_install_remote_same_host_http_download_uses_authenticated_backend_fetch
+
+  - id: test621
+    title: "feature29 local storage download endpoint returns API archive URL and serves bytes"
+    type: integration
+    preconditions: Registry server download route is configured with local storage backend and authenticated read scope
+    steps:
+      - 'step1: Request download metadata for an existing local-backend archive version.'
+      - 'step2: Verify response download_url points to authenticated /archive API endpoint instead of file:// path.'
+      - 'step3: Request archive endpoint and verify payload bytes and content-type are returned successfully.'
+    expected: Local backend download metadata is client-reachable over HTTP and archive bytes are retrievable via authenticated endpoint
+    pass_criteria: download_url is API path and archive endpoint returns 200 with expected archive payload
+    covers:
+      - feature: feature29
+        ac: AC5
+    automated: true
+    automation_path: server/tests/test_download.py::test_download_endpoint_local_storage_returns_api_archive_url
+
+  - id: test622
+    title: "feature29 server S3 backend maps missing object errors to FileNotFoundError"
+    type: unit
+    preconditions: S3 storage backend wired with client that raises NoSuchKey for missing keys
+    steps:
+      - 'step1: Construct S3StorageBackend with a fake client that raises NoSuchKey from get_object.'
+      - 'step2: Call get_object() for a non-existent key.'
+      - 'step3: Verify backend raises FileNotFoundError instead of leaking provider-specific exception type.'
+    expected: Missing S3 objects are normalized to FileNotFoundError for metadata manager optional reads
+    pass_criteria: get_object() raises FileNotFoundError for missing key path
+    covers:
+      - feature: feature29
+        ac: AC7
+    automated: true
+    automation_path: server/tests/test_storage.py::test_s3_get_object_missing_key_raises_file_not_found
+
+  - id: test623
+    title: "feature29 mock-server S3 backend maps missing object errors to FileNotFoundError"
+    type: unit
+    preconditions: Mock-server S3 storage backend wired with client that raises NoSuchKey for missing keys
+    steps:
+      - 'step1: Construct mock-server S3StorageBackend with a fake client that raises NoSuchKey from get_object.'
+      - 'step2: Call get_object() for a non-existent key.'
+      - 'step3: Verify backend raises FileNotFoundError to match server behavior.'
+    expected: Mock-server missing-object handling matches server S3 backend semantics
+    pass_criteria: get_object() raises FileNotFoundError for missing key path
+    covers:
+      - feature: feature29
+        ac: AC8
+    automated: true
+    automation_path: mock-server/tests/test_storage.py::test_s3_get_object_missing_key_raises_file_not_found

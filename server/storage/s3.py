@@ -43,7 +43,18 @@ class S3StorageBackend:
         self._client.put_object(Bucket=self._bucket, Key=key, Body=data, ContentType=content_type)
 
     def get_object(self, *, key: str) -> bytes:
-        response = self._client.get_object(Bucket=self._bucket, Key=key)
+        try:
+            response = self._client.get_object(Bucket=self._bucket, Key=key)
+        except Exception as error:
+            error_name = error.__class__.__name__
+            error_code = (
+                getattr(error, "response", {}).get("Error", {}).get("Code")
+                if hasattr(error, "response")
+                else None
+            )
+            if error_name in {"NoSuchKey", "NotFound"} or error_code in {"NoSuchKey", "404", "NotFound"}:
+                raise FileNotFoundError(f"Object not found: {key}") from None
+            raise
         body = response["Body"]
         return body.read() if hasattr(body, "read") else bytes(body)
 

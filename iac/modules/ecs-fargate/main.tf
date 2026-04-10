@@ -113,6 +113,22 @@ resource "aws_ecs_task_definition" "app" {
           value = "production"
         },
         {
+          name  = "REGISTRY_STORAGE_BACKEND"
+          value = "s3"
+        },
+        {
+          name  = "REGISTRY_S3_BUCKET"
+          value = var.registry_bucket_name
+        },
+        {
+          name  = "REGISTRY_S3_REGION"
+          value = var.aws_region
+        },
+        {
+          name  = "REGISTRY_LOCAL_STORAGE_ROOT"
+          value = "/data/.registry-storage"
+        },
+        {
           name  = "S3_BUCKET"
           value = var.registry_bucket_name
         },

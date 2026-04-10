@@ -87,7 +87,20 @@ class RemoteRegistryClient:
         encoded_name = urllib_parse.quote(name, safe="")
         encoded_version = urllib_parse.quote(selected_version, safe="")
         path = f"/api/agents/{encoded_tenant}/{encoded_name}/{encoded_version}/download"
-        return self._request_json(method="GET", path=path)
+        response = self._request_json(method="GET", path=path)
+        if isinstance(response, dict):
+            response = dict(response)
+            raw_download_url = response.get("download_url")
+            if isinstance(raw_download_url, str):
+                normalized_download_url = raw_download_url.strip()
+                if normalized_download_url:
+                    parsed = urllib_parse.urlparse(normalized_download_url)
+                    if not parsed.scheme:
+                        if not normalized_download_url.startswith("/"):
+                            normalized_download_url = "/" + normalized_download_url.lstrip("/")
+                        normalized_download_url = f"{self._base_url}{normalized_download_url}"
+                    response["download_url"] = normalized_download_url
+        return response
 
     def search(self, *, query: str, tenant: str | None = None) -> list[dict[str, Any]]:
         """Search agents by name/description on remote registry."""
@@ -215,6 +228,40 @@ class RemoteRegistryClient:
                 "Please try again or contact the registry administrator."
             ) from None
         return decoded
+
+    def request_bytes(self, *, path: str) -> bytes:
+        """Fetch raw bytes from a remote API path using bearer auth."""
+        normalized_path = path.strip()
+        if not normalized_path:
+            raise ValueError("path must be non-empty")
+        if not normalized_path.startswith("/"):
+            normalized_path = "/" + normalized_path
+
+        url = f"{self._base_url}{normalized_path}"
+        headers = {
+            "Authorization": f"Bearer {self._token}",
+            "User-Agent": _http_user_agent(),
+        }
+
+        request = urllib_request.Request(
+            url=url,
+            headers=headers,
+            method="GET",
+        )
+
+        try:
+            with urllib_request.urlopen(request, timeout=self._timeout_seconds) as response:
+                return response.read()
+        except urllib_error.HTTPError as error:
+            response_body = _read_http_error_body(error)
+            raise RemoteRegistryClientError(
+                _message_for_http_error(error.code, response_body=response_body)
+            ) from None
+        except urllib_error.URLError:
+            raise RemoteRegistryClientError(
+                "Remote registry request failed (network error). "
+                "Check network connectivity and registry URL."
+            ) from None
 
 
 def _message_for_http_error(status_code: int, *, response_body: str = "") -> str:

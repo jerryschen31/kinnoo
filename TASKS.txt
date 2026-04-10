@@ -8944,3 +8944,31 @@ tasks:
     dependencies: [task348, task349]
     tests: [test610, test611, test612, test613, test614]
     status: needs-review
+
+  - id: task451
+    title: "Fix remote install latest resolution and download URL handling"
+    type: issue
+    description: |
+      Resolve a remote-install regression where `kinnoo list` succeeded but `kinnoo install`
+      failed for `latest` selectors and some remote download URL payloads. The CLI now resolves
+      latest version explicitly from remote summaries before calling download resolution and
+      supports authenticated byte download for relative API paths/root-relative paths with
+      actionable error messages when server payloads are invalid.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/remote_client.py
+      - tests/test_cli.py
+      - tests/test_remote_client.py
+      - notes/tasks/task451-notes.md
+      - TASKS.txt
+      - TESTS.txt
+    steps:
+      - 'step1: Diagnose mismatch between remote list success and remote install failures for latest selector and archive download path handling.'
+      - 'step2: Update install remote flow to resolve explicit latest_version from remote summaries before calling resolve/download endpoint.'
+      - 'step3: Add robust remote download URL handling for http(s), file, /api relative paths, and authenticated root-relative path fetch with clear fallback errors.'
+      - 'step4: Add RemoteRegistryClient.request_bytes() helper for authenticated raw-byte fetch requests used by install fallback path.'
+      - 'step5: Add regression tests for latest-version pre-resolution, root-relative download-url failure messaging, and request_bytes auth/error behavior.'
+      - 'step6: Execute targeted pytest validation for new regression coverage.'
+    dependencies: [task232]
+    tests: [test615, test616, test617, test618, test619, test620, test621, test622, test623]
+    status: needs-review
