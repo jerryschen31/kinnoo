@@ -1,5 +1,6 @@
 import subprocess
 import sys
+import os
 import pytest
 import re
 import types
@@ -26,6 +27,31 @@ def test_cli_version_flag():
     assert result.returncode == 0
     output = result.stdout.strip()
     assert re.search(r"\b\d+\.\d+\.\d+\b", output), f"Expected semantic version in output, got: {output!r}"
+
+
+def test_cli_direct_script_execution_prefers_local_src_over_pythonpath(tmp_path: Path) -> None:
+    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    fake_site_root = tmp_path / "fake-site"
+    fake_kinnoo_pkg = fake_site_root / "kinnoo"
+    fake_kinnoo_pkg.mkdir(parents=True, exist_ok=True)
+
+    (fake_kinnoo_pkg / "__init__.py").write_text("__version__ = '9.9.9-fake'\n", encoding="utf-8")
+    (fake_kinnoo_pkg / "schema.py").write_text("NAME_PATTERN = r'^[a-z0-9-]+$'\n", encoding="utf-8")
+    (fake_kinnoo_pkg / "terminal_colors.py").write_text(
+        "def style_text(text, **kwargs):\n    return text\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(cli_path), "--version"],
+        capture_output=True,
+        text=True,
+        env={**os.environ, "PYTHONPATH": str(fake_site_root)},
+        cwd=tmp_path,
+    )
+
+    assert result.returncode == 0, f"Unexpected stderr: {result.stderr}"
+    assert result.stdout.strip() != "9.9.9-fake"
 
 
 def test_top_level_help_grouped_menu_exact_text():
@@ -154,6 +180,9 @@ def test_backend_selection(monkeypatch, tmp_path):
     class _FakeRemoteBackend:
         def __init__(self, *args, **kwargs):
             del args, kwargs
+
+        def list_latest_agents(self):
+            return [{"name": "demo-agent", "latest_version": "1.0.0"}]
 
         def resolve(self, *, name, version=None, tenant=None):
             del name, version, tenant
@@ -373,6 +402,160 @@ def test_feature69_standardized_tests_file_parser(tmp_path):
     assert inline_payload["valid"] is True
     assert inline_payload["total"] == 1
     assert inline_payload["source"].endswith("kinnoo.yaml")
+
+
+def test_install_remote_latest_resolves_explicit_version_before_download(monkeypatch, tmp_path) -> None:
+    from kinnoo import install_command
+
+    called_versions: list[str | None] = []
+
+    class _FakeRemoteBackend:
+        def __init__(self, *args, **kwargs):
+            del args, kwargs
+
+        def list_latest_agents(self):
+            return [{"name": "demo-agent", "latest_version": "2.4.1"}]
+
+        def resolve(self, *, name, version=None, tenant=None):
+            del name, tenant
+            called_versions.append(version)
+            return {"download_url": "/api/download/demo-agent/2.4.1"}
+
+        def request_bytes(self, *, path: str) -> bytes:
+            assert path == "/api/download/demo-agent/2.4.1"
+            return b"fake-kno-bytes"
+
+    def _fake_parse_install_target_spec(_target: str):
+        return type(
+            "_Spec",
+            (),
+            {
+                "kind": "registry-latest",
+                "raw_target": "demo-agent",
+                "name": "demo-agent",
+                "version": None,
+                "archive_path": None,
+                "error": None,
+            },
+        )()
+
+    monkeypatch.setattr(install_command, "RemoteRegistryClient", _FakeRemoteBackend)
+    monkeypatch.setattr(install_command, "parse_install_target_spec", _fake_parse_install_target_spec)
+    monkeypatch.setattr(install_command, "_install_from_archive_path", lambda **kwargs: 0)
+    monkeypatch.setenv("KINNOO_REGISTRY_URL", "https://registry.example.test")
+    monkeypatch.setenv("KINNOO_REGISTRY_TOKEN", "token")
+    monkeypatch.setenv("KINNOO_TENANT_SLUG", "acme")
+
+    exit_code = install_command.install_agent(
+        archive_path="demo-agent",
+        target_dir_arg=str(tmp_path / "installed-remote"),
+        assume_yes=True,
+        use_remote=True,
+    )
+
+    assert exit_code == 0
+    assert called_versions == ["2.4.1"]
+
+
+def test_install_remote_reports_filesystem_download_url_as_server_error(monkeypatch, capsys) -> None:
+    from kinnoo import install_command
+
+    class _FakeRemoteBackend:
+        def __init__(self, *args, **kwargs):
+            del args, kwargs
+
+        def list_latest_agents(self):
+            return [{"name": "demo-agent", "latest_version": "1.0.0"}]
+
+        def resolve(self, *, name, version=None, tenant=None):
+            del name, version, tenant
+            return {
+                "download_url": "/data/.registry-storage/archives/tenants/acme/agents/demo-agent/versions/1.0.0/demo-agent.kno"
+            }
+
+        def request_bytes(self, *, path: str) -> bytes:
+            del path
+            raise RuntimeError("404 from backend path fetch")
+
+    def _fake_parse_install_target_spec(_target: str):
+        return type(
+            "_Spec",
+            (),
+            {
+                "kind": "registry-latest",
+                "raw_target": "demo-agent",
+                "name": "demo-agent",
+                "version": None,
+                "archive_path": None,
+                "error": None,
+            },
+        )()
+
+    monkeypatch.setattr(install_command, "RemoteRegistryClient", _FakeRemoteBackend)
+    monkeypatch.setattr(install_command, "parse_install_target_spec", _fake_parse_install_target_spec)
+    monkeypatch.setenv("KINNOO_REGISTRY_URL", "https://registry.example.test")
+    monkeypatch.setenv("KINNOO_REGISTRY_TOKEN", "token")
+    monkeypatch.setenv("KINNOO_TENANT_SLUG", "acme")
+
+    exit_code = install_command.install_agent(
+        archive_path="demo-agent",
+        assume_yes=True,
+        use_remote=True,
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert "root-relative path that could not be downloaded" in captured.err
+
+
+def test_install_remote_uses_authenticated_fetch_for_same_host_http_download_url(monkeypatch, tmp_path) -> None:
+    from kinnoo import install_command
+
+    class _FakeRemoteBackend:
+        def __init__(self, *args, **kwargs):
+            del args, kwargs
+            self._base_url = "https://registry.example.test"
+
+        def list_latest_agents(self):
+            return [{"name": "demo-agent", "latest_version": "1.0.0"}]
+
+        def resolve(self, *, name, version=None, tenant=None):
+            del name, version, tenant
+            return {"download_url": "https://registry.example.test/api/agents/acme/demo-agent/1.0.0/archive"}
+
+        def request_bytes(self, *, path: str) -> bytes:
+            assert path == "/api/agents/acme/demo-agent/1.0.0/archive"
+            return b"PK\x03\x04fake"
+
+    def _fake_parse_install_target_spec(_target: str):
+        return type(
+            "_Spec",
+            (),
+            {
+                "kind": "registry-latest",
+                "raw_target": "demo-agent",
+                "name": "demo-agent",
+                "version": None,
+                "archive_path": None,
+                "error": None,
+            },
+        )()
+
+    monkeypatch.setattr(install_command, "RemoteRegistryClient", _FakeRemoteBackend)
+    monkeypatch.setattr(install_command, "parse_install_target_spec", _fake_parse_install_target_spec)
+    monkeypatch.setattr(install_command, "_install_from_archive_path", lambda **kwargs: 0)
+    monkeypatch.setenv("KINNOO_REGISTRY_URL", "https://registry.example.test")
+    monkeypatch.setenv("KINNOO_REGISTRY_TOKEN", "token")
+    monkeypatch.setenv("KINNOO_TENANT_SLUG", "acme")
+
+    exit_code = install_command.install_agent(
+        archive_path="demo-agent",
+        target_dir_arg=str(tmp_path / "installed-remote"),
+        assume_yes=True,
+        use_remote=True,
+    )
+
+    assert exit_code == 0
 
 
 def test_feature69_execution_engine_and_docs_examples(tmp_path):

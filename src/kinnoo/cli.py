@@ -8,6 +8,15 @@ import sys
 import re
 from pathlib import Path
 
+
+# Ensure direct script execution (`python src/kinnoo/cli.py ...`) imports this
+# workspace's modules before any globally installed/shadowed `kinnoo` package.
+_LOCAL_SRC_ROOT = Path(__file__).resolve().parents[1]
+_LOCAL_SRC_ROOT_STR = str(_LOCAL_SRC_ROOT)
+if _LOCAL_SRC_ROOT_STR in sys.path:
+    sys.path.remove(_LOCAL_SRC_ROOT_STR)
+sys.path.insert(0, _LOCAL_SRC_ROOT_STR)
+
 try:
     from kinnoo.schema import NAME_PATTERN
     from kinnoo import __version__ as KINNOO_VERSION
