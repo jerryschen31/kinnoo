@@ -62,14 +62,14 @@ _LANGUAGE_ALIASES = {
 }
 
 _FRAMEWORK_LANGUAGE_COMPATIBILITY = {
-    "gemini": {"python"},
-    "chatgpt": {"python"},
-    "claude-chat": {"python"},
+    "gemini": {"python", "javascript", "typescript"},
+    "chatgpt": {"python", "javascript", "typescript"},
+    "claude-chat": {"python", "javascript", "typescript"},
     "pydantic-ai": {"python"},
-    "langgraph": {"python"},
+    "langgraph": {"python", "javascript", "typescript"},
     "openai-agents": {"python"},
-    "mcp-client": {"python"},
-    "mcp-server": {"python"},
+    "mcp-client": {"python", "javascript", "typescript"},
+    "mcp-server": {"python", "javascript", "typescript"},
     "openclaw": {"javascript", "typescript"},
     "no-framework": {"python", "javascript", "typescript"},
 }
@@ -153,6 +153,44 @@ def _build_node_manifest(name: str, *, entrypoint: str, language: str) -> str:
         "outputs:\n"
         "  type: text\n"
     )
+
+
+def _select_menu_option(prompt: str, options: list[str]) -> str:
+    print(prompt)
+    for index, option in enumerate(options, start=1):
+        print(f"  {index}. {option}")
+
+    while True:
+        raw_value = input("Select an option by number: ").strip()
+        if not raw_value.isdigit():
+            print("Invalid selection. Enter a number.")
+            continue
+        selected_index = int(raw_value)
+        if 1 <= selected_index <= len(options):
+            return options[selected_index - 1]
+        print("Invalid selection. Enter a valid number from the list.")
+
+
+def interactive_init_wizard(target_dir: Path) -> tuple[str, str, str]:
+    """Prompt for framework/language selection and return scaffold parameters."""
+    framework_options = SUPPORTED_FRAMEWORKS.copy()
+    selected_framework = _select_menu_option("Select framework:", framework_options)
+
+    language_options = sorted(_FRAMEWORK_LANGUAGE_COMPATIBILITY[selected_framework])
+    if len(language_options) == 1:
+        selected_language = language_options[0]
+        print(f"Selected language: {selected_language}")
+    else:
+        selected_language = _select_menu_option("Select language:", language_options)
+
+    base_name = f"{selected_framework}-agent" if selected_framework != "no-framework" else "agent"
+    agent_name = base_name
+    suffix = 1
+    while (target_dir / agent_name).exists():
+        suffix += 1
+        agent_name = f"{base_name}-{suffix}"
+
+    return selected_framework, selected_language, agent_name
 
 
 def init_agent(
