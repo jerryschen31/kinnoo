@@ -35,8 +35,112 @@ def agent_dir(tmp_path):
 
 def test_pack_missing_argument_prints_usage(tmp_path):
     result = subprocess.run(KINNOO_CLI + ["pack"], cwd=tmp_path, capture_output=True, text=True)
-    assert "Usage: kinnoo pack <agent-dir> [--public]" in result.stdout or result.stderr
+    output = f"{result.stdout}\n{result.stderr}"
+    assert "Usage: kinnoo pack <agent-dir>" in output
     assert result.returncode != 0
+
+
+def test_pack_excludes_data_by_default(tmp_path):
+    agent = tmp_path / "pack-data-default"
+    agent.mkdir()
+    (agent / "data").mkdir()
+    (agent / "data" / "secret.txt").write_text("should not be packaged\n", encoding="utf-8")
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: pack-data-default
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.py").write_text("print('ok')\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    result = subprocess.run(
+        KINNOO_CLI + ["pack", str(agent)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+    archive = _canonical_archive_path(tmp_path, "pack-data-default", "1.0.0")
+    with zipfile.ZipFile(archive, "r") as zf:
+        names = set(zf.namelist())
+        assert "data/secret.txt" not in names
+
+
+def test_pack_include_exclude_options(tmp_path):
+    agent = tmp_path / "pack-include-exclude"
+    agent.mkdir()
+    (agent / "data").mkdir()
+    (agent / "data" / "dataset.json").write_text('{"ok": true}\n', encoding="utf-8")
+    (agent / "tools").mkdir()
+    (agent / "tools" / "tool.py").write_text("print('tool')\n", encoding="utf-8")
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: pack-include-exclude
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+files:
+  - tools/tool.py
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.py").write_text("print('ok')\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    include_result = subprocess.run(
+        KINNOO_CLI + ["pack", str(agent), "--include", "data"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert include_result.returncode == 0, include_result.stdout + include_result.stderr
+
+    archive = _canonical_archive_path(tmp_path, "pack-include-exclude", "1.0.0")
+    with zipfile.ZipFile(archive, "r") as zf:
+        names = set(zf.namelist())
+        assert "data/dataset.json" in names
+        assert "tools/tool.py" in names
+
+    exclude_result = subprocess.run(
+        KINNOO_CLI + ["pack", str(agent), "--exclude", "tools"],
+        cwd=tmp_path,
+        input="y\n",
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert exclude_result.returncode == 0, exclude_result.stdout + exclude_result.stderr
+
+    with zipfile.ZipFile(archive, "r") as zf:
+        names = set(zf.namelist())
+        assert "tools/tool.py" not in names
 
 
 def test_pack_public_sets_manifest_visibility(tmp_path):
@@ -406,6 +510,57 @@ outputs:
     assert "[kinnoo pack] Agent version:" not in invalid_output
 
 
+def test_pack_bump_default_patch(tmp_path):
+    agent_dir = tmp_path / "bump-default-patch"
+    agent_dir.mkdir()
+    manifest_path = agent_dir / "kinnoo.yaml"
+    manifest_path.write_text(
+        """
+name: bump-default-patch
+version: 3.4.5
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "run.py").write_text("print('ok')\n", encoding="utf-8")
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    result = subprocess.run(
+        KINNOO_CLI + ["pack", str(agent_dir), "--bump"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, output
+    assert "Agent version: 3.4.6" in output
+    assert "version: 3.4.6" in manifest_path.read_text(encoding="utf-8")
+
+
+def test_pack_public_help_default_private(tmp_path):
+    result = subprocess.run(
+        KINNOO_CLI + ["pack", "-h"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0
+    assert "default is private" in output
+
+
 def test_feature22_pack_includes_assets_recursively_when_enabled(tmp_path):
     agent = tmp_path / "asset-agent"
     agent.mkdir()
@@ -460,7 +615,7 @@ assets:
 
 
 def test_pack_preflight_pass_records_status(tmp_path):
-    """Feature46 test366: pack --preflight writes PASS metadata to kinnoo.yaml."""
+    """Feature115 test643: pack --preflight is a dry-run and does not create archive."""
     cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
     cli_cmd = ["python3", str(cli_script)]
 
@@ -498,15 +653,57 @@ outputs:
 
     output = f"{result.stdout}\n{result.stderr}"
     assert result.returncode == 0, output
-    assert "Preflight result: PASS" in output
+    assert "Preflight (dry-run)" in output
+    assert "Files that would be packaged" in output
+    assert "Destination:" in output
 
-    manifest_text = (agent / "kinnoo.yaml").read_text(encoding="utf-8")
-    assert "preflight_status: PASS" in manifest_text
-    assert "preflight_date:" in manifest_text
+    archive = _canonical_archive_path(tmp_path, "pack-preflight-pass-agent", "1.0.0")
+    assert not archive.exists(), "--preflight should not create an archive"
+
+
+def test_pack_preflight_dry_run(tmp_path):
+    agent = tmp_path / "pack-preflight-dry-run"
+    agent.mkdir()
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: pack-preflight-dry-run
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.py").write_text("print('ok')\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    result = subprocess.run(
+        KINNOO_CLI + ["pack", str(agent), "--preflight"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, output
+    assert "Preflight (dry-run)" in output
+    assert "run.py" in output
+    assert "kinnoo.yaml" in output
+    assert "Estimated archive payload size" in output
+    assert not _canonical_archive_path(tmp_path, "pack-preflight-dry-run", "1.0.0").exists()
 
 
 def test_pack_preflight_fail_warns(tmp_path):
-    """Feature46 test367: pack --preflight warns on FAIL and proceeds only with confirmation."""
+    """Legacy preflight compatibility: --preflight stays dry-run even with unmet deps."""
     cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
     cli_cmd = ["python3", str(cli_script)]
 
@@ -531,24 +728,134 @@ outputs:
         encoding="utf-8",
     )
     (agent / "run.py").write_text("print('ok')\n", encoding="utf-8")
-    # Non-empty requirements and missing .venv should produce preflight FAIL.
+    # Non-empty requirements should not change dry-run behavior.
     (agent / "requirements.txt").write_text("requests==2.31.0\n", encoding="utf-8")
 
     env = _pack_env(tmp_path)
     proceed_result = subprocess.run(
         cli_cmd + ["pack", str(agent), "--preflight"],
         cwd=tmp_path,
-        input="y\n",
         capture_output=True,
         text=True,
         env=env,
     )
 
     proceed_output = f"{proceed_result.stdout}\n{proceed_result.stderr}"
-    assert "Preflight result: FAIL" in proceed_output
-    assert "Warning: preflight checks failed before pack." in proceed_output
-    assert "Preflight failed. Continue packing anyway? [y/N]:" in proceed_output
+    assert "Preflight (dry-run)" in proceed_output
     assert proceed_result.returncode == 0, proceed_output
+    archive = _canonical_archive_path(tmp_path, "pack-preflight-fail-agent", "1.0.0")
+    assert not archive.exists()
+
+
+def test_pack_sign_merged_argument(tmp_path):
+    env = _pack_env(tmp_path)
+
+    key_dir = tmp_path / "keys"
+    key_dir.mkdir()
+    private_key_path = key_dir / "publisher-private.pem"
+    public_key_path = key_dir / "publisher-public.pem"
+
+    keygen_result = subprocess.run(
+        KINNOO_CLI
+        + [
+            "keygen",
+            "--private-key",
+            str(private_key_path),
+            "--public-key",
+            str(public_key_path),
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert keygen_result.returncode == 0, keygen_result.stderr
+
+    agent = tmp_path / "pack-sign-merged"
+    agent.mkdir()
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: pack-sign-merged
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.py").write_text("print('ok')\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    merged_result = subprocess.run(
+        KINNOO_CLI + ["pack", str(agent), "--sign", str(private_key_path)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert merged_result.returncode == 0, merged_result.stdout + merged_result.stderr
+
+    removed_option_result = subprocess.run(
+        KINNOO_CLI + ["pack", str(agent), "--signing-key", str(private_key_path)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert removed_option_result.returncode != 0
+    assert "unrecognized arguments: --signing-key" in (removed_option_result.stdout + removed_option_result.stderr)
+
+
+def test_pack_json_output(tmp_path):
+    agent = tmp_path / "pack-json-output"
+    agent.mkdir()
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: pack-json-output
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.py").write_text("print('ok')\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    result = subprocess.run(
+        KINNOO_CLI + ["pack", str(agent), "--json"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    payload = json.loads(result.stdout.strip())
+    assert payload["agent_dir"] == str(agent.resolve())
+    assert payload["visibility"] == "private"
+    assert payload["archive_path"].endswith("pack-json-output.kno")
+    assert payload["checksum_sidecar_path"].endswith("pack-json-output.kno.sha256")
+    assert isinstance(payload["archive_size_bytes"], int)
+    assert payload["agent_version"] == "1.0.0"
+    assert payload["error_code"] is None
+    assert payload["error_message"] is None
 
 
 def test_feature22_pack_skips_assets_when_bundle_false(tmp_path):
@@ -1222,7 +1529,6 @@ outputs:
             "pack",
             str(agent),
             "--sign",
-            "--signing-key",
             str(private_key_path),
         ],
         cwd=tmp_path,
