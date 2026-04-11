@@ -9010,7 +9010,7 @@ tasks:
     status: needs-review
 
   # ────────────────────────────────────────────────────────────────
-  # feature115 — UAT Part 1: CLI Hardening (task453 – task486)
+  # feature115 — UAT Part 1: CLI Hardening (task453 – task487)
   # ────────────────────────────────────────────────────────────────
   # [agent] Terraform-first infra policy for this feature block:
   # [agent] If a task introduces or changes infrastructure (AWS/Cloudflare/networking/compute),
@@ -9667,6 +9667,8 @@ tasks:
       - 'step1: Add/extend Terraform resources in iac/ for Lambda security checks (function, IAM, and required wiring). Set Lambda timeout to 1 minute.'
       - 'step2: Wire publish route to invoke Lambda after successful publish.'
       - 'step3: Lambda writes results back to metadata store.'
+      - 'step3a: Define explicit retry policy for async Lambda invoke attempts (default 3 total attempts) and surface invocation failure detail.'
+      - 'step3b: Preserve inline publish-time checks as fail-safe fallback if Lambda invocation path fails.'
       - 'step4: Run terraform plan/apply for target env and record the plan/apply summary in notes.'
       - 'step5: Add integration test for end-to-end publish → Lambda → report flow.'
     dependencies: [task481]
@@ -9759,4 +9761,46 @@ tasks:
       - 'step4: Add regression tests proving no traceback is emitted and user-facing lines are printed.'
     dependencies: [task484, task485]
     tests: [test672, test673]
+    status: needs-review
+
+  - id: task487
+    title: "Hotfix - init/run help cleanup + task482 retry/fallback diagnostics"
+    type: task
+    description: |
+      Apply UX and reliability hotfixes requested during feature115 validation:
+      remove legacy init --framework option in favor of positional framework,
+      remove run --thinking option, add orange-icon command descriptions in
+      subcommand help, and codify task482 retry/fallback behavior with concrete
+      diagnostics about Lambda deployment prerequisites.
+    files:
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+      - server/services/security_check.py
+      - server/tests/test_security_check.py
+      - iac/modules/ecr/main.tf
+      - iac/modules/ecr/outputs.tf
+      - iac/outputs.tf
+      - iac/variables.tf
+      - iac/environments/dev/terraform.tfvars
+      - scripts/ops/build_and_push_lambda_security_check_image.sh
+      - Dockerfile.lambda
+      - lambda_handler.py
+      - TASKS.txt
+      - TESTS.txt
+      - FEATURES.txt
+      - notes/tasks/task482-notes.md
+      - notes/tasks/task487-notes.md
+    steps:
+      - 'step1: Remove init --framework parser/dispatch support and keep positional framework help authoritative.'
+      - 'step2: Remove run --thinking option from CLI parser/usage text and keep run execution deterministic.'
+      - 'step3: Add orange icon prefix to subcommand help descriptions.'
+      - 'step4: Add/verify tests for init help shape, framework-flag rejection, run help changes, and orange-prefixed descriptions.'
+      - 'step5: Add explicit Lambda invoke retry + fallback behavior and regression test coverage.'
+      - 'step6: Record task482 deployment diagnosis (terraform apply + ECS rollout prerequisites) in notes.'
+      - 'step7: Add dedicated Terraform-managed ECR repository outputs and policies for Lambda security-check image storage.'
+      - 'step8: Remove invalid lambda image default and enforce explicit private ECR image URI validation.'
+      - 'step9: Add automation script to build/push Lambda image and update dev tfvars to valid image tag.'
+      - 'step10: Validate Lambda creation with targeted Terraform apply using pushed account ECR image.'
+    dependencies: [task482, task486]
+    tests: [test674, test675, test676]
     status: needs-review

@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 
 from server.app import create_app
 from server.config import ServerConfig
-from server.services.security_check import run_post_publish_checks
+from server.services.security_check import invoke_security_check_lambda_async, run_post_publish_checks
 
 
 def _build_archive(
@@ -221,3 +221,30 @@ def test_containerized_security_check(monkeypatch, tmp_path: Path) -> None:
     assert version_doc is not None
     assert isinstance(version_doc.security_report, list)
     assert len(version_doc.security_report) == 3
+
+
+def test_containerized_security_check_lambda_retry_fallback(monkeypatch) -> None:
+    attempts = {"count": 0}
+
+    class _FailingLambdaClient:
+        def invoke(self, **_kwargs):
+            attempts["count"] += 1
+            raise RuntimeError("simulated lambda invoke failure")
+
+    fake_boto3 = types.SimpleNamespace(client=lambda _service_name: _FailingLambdaClient())
+    monkeypatch.setitem(sys.modules, "boto3", fake_boto3)
+    monkeypatch.setenv("KINNOO_SECURITY_CHECK_EXECUTION_MODE", "lambda")
+    monkeypatch.setenv("KINNOO_SECURITY_CHECK_LAMBDA_NAME", "kinnoo-dev-security-check")
+    monkeypatch.setenv("KINNOO_SECURITY_CHECK_LAMBDA_RETRIES", "2")
+
+    result = invoke_security_check_lambda_async(
+        tenant_slug="tenant-alpha",
+        agent_slug="agent-retry",
+        version="1.0.0",
+    )
+
+    assert attempts["count"] == 3
+    assert result["mode"] == "lambda"
+    assert result["invoked"] is False
+    assert result["attempts"] == 3
+    assert result["fallback"] == "inline_publish_checks_preserved"

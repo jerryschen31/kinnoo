@@ -135,13 +135,37 @@ def invoke_security_check_lambda_async(*, tenant_slug: str, agent_slug: str, ver
         "version": version,
     }
 
+    retries_raw = (os.getenv("KINNOO_SECURITY_CHECK_LAMBDA_RETRIES") or "2").strip()
     try:
-        boto3.client("lambda").invoke(
-            FunctionName=function_name,
-            InvocationType="Event",
-            Payload=json.dumps(payload).encode("utf-8"),
-        )
-    except Exception as error:
-        return {"mode": "lambda", "invoked": False, "detail": str(error)}
+        retry_count = max(0, int(retries_raw))
+    except ValueError:
+        retry_count = 2
 
-    return {"mode": "lambda", "invoked": True, "detail": function_name}
+    attempts_total = retry_count + 1
+    last_error: str | None = None
+
+    lambda_client = boto3.client("lambda")
+    for _ in range(attempts_total):
+        try:
+            lambda_client.invoke(
+                FunctionName=function_name,
+                InvocationType="Event",
+                Payload=json.dumps(payload).encode("utf-8"),
+            )
+            return {
+                "mode": "lambda",
+                "invoked": True,
+                "detail": function_name,
+                "attempts": attempts_total,
+            }
+        except Exception as error:
+            last_error = str(error)
+
+    # Fallback behavior: inline checks already completed in publish flow before async dispatch.
+    return {
+        "mode": "lambda",
+        "invoked": False,
+        "attempts": attempts_total,
+        "detail": f"lambda invoke failed after {attempts_total} attempts: {last_error or 'unknown error'}",
+        "fallback": "inline_publish_checks_preserved",
+    }

@@ -11578,3 +11578,51 @@ tests:
         ac: AC14
     automated: true
     automation_path: tests/test_cli.py::test_remote_registry_errors_render_without_traceback_for_list_and_search
+
+  - id: test674
+    title: "init help uses positional framework and rejects legacy --framework"
+    type: integration
+    preconditions: CLI available
+    steps:
+      - 'step1: Run kinnoo init -h and verify --framework flag is absent while positional framework help remains present.'
+      - 'step2: Verify --language help uses metavar form (LANGUAGE).' 
+      - 'step3: Run kinnoo init --framework <value> and verify parser rejects the legacy flag.'
+    expected: Init command advertises positional framework only and rejects deprecated flag
+    pass_criteria: Help output shape matches hotfix and legacy flag path exits with parser error
+    covers:
+      - feature: feature115
+        ac: AC15
+    automated: true
+    automation_path: tests/test_cli.py::test_init_help_deprecates_framework_flag_and_uses_language_metavar
+
+  - id: test675
+    title: "run help removes thinking option and uses orange description"
+    type: integration
+    preconditions: CLI available
+    steps:
+      - 'step1: Run kinnoo run -h.'
+      - 'step2: Verify first line is orange-prefixed command description.'
+      - 'step3: Verify --thinking option is not present.'
+    expected: Run help is icon-prefixed and no longer includes --thinking
+    pass_criteria: Description line starts with 🍊 and help text excludes --thinking
+    covers:
+      - feature: feature115
+        ac: AC15
+    automated: true
+    automation_path: tests/test_cli.py::test_run_help_removes_thinking_option_and_has_orange_title
+
+  - id: test676
+    title: "lambda async invoke retries and reports fallback"
+    type: integration
+    preconditions: security check service configured for lambda mode and boto3 client invocation fails
+    steps:
+      - 'step1: Configure lambda mode with retry count and mock lambda client invoke failures.'
+      - 'step2: Call invoke_security_check_lambda_async.'
+      - 'step3: Verify retry count is honored and fallback detail is returned.'
+    expected: Lambda invoke path retries deterministically and returns explicit fallback result
+    pass_criteria: Attempts equal configured retries + 1; result reports invoked=false with fallback marker
+    covers:
+      - feature: feature115
+        ac: AC15
+    automated: true
+    automation_path: server/tests/test_security_check.py::test_containerized_security_check_lambda_retry_fallback
