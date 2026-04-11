@@ -4,6 +4,7 @@ Handles argument parsing and dispatches subcommands.
 """
 
 import argparse
+import subprocess
 import sys
 import re
 from pathlib import Path
@@ -50,8 +51,34 @@ def _emit_bridge_path_deprecation_warning(*, path: str, replacement: str) -> Non
     )
 
 
+def _resolve_short_commit_hash() -> str:
+    """Resolve short git commit hash for CLI branding; fail closed to 'unknown'."""
+    repo_root = Path(__file__).resolve().parents[2]
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return "unknown"
+
+    commit_hash = result.stdout.strip()
+    if not commit_hash:
+        return "unknown"
+    return commit_hash
+
+
 def _format_top_level_help_text() -> str:
-    title = style_text("Kinnoo CLI", color="cyan", bold=True, stream=sys.stdout)
+    commit_hash = _resolve_short_commit_hash()
+    title = style_text(
+        f"🍊 Kinnoo CLI v{KINNOO_VERSION} ({commit_hash})",
+        color="cyan",
+        bold=True,
+        stream=sys.stdout,
+    )
     usage_label = style_text("usage:", color="purple", bold=True, stream=sys.stdout)
     usage_kinnoo = style_text("kinnoo", color="pink", bold=True, stream=sys.stdout)
     usage_help = style_text("-h", color="neon_green", stream=sys.stdout)

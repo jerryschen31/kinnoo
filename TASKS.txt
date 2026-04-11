@@ -9037,7 +9037,7 @@ tasks:
       - 'step4: Add test that kinnoo -h output starts with 🍊 Kinnoo CLI v and contains a parenthesized hash.'
     dependencies: []
     tests: [test628]
-    status: not-started
+    status: needs-review
 
   - id: task454
     title: "init - framework as required positional argument"
