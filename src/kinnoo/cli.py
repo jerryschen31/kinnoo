@@ -710,15 +710,16 @@ def main():
             "a file path to an agent directory"
         ),
     )
-    publish_parser.add_argument(
+    publish_source_group = publish_parser.add_mutually_exclusive_group()
+    publish_source_group.add_argument(
         "--local",
         action="store_true",
-        help="Explicitly select the local registry backend",
+        help="Publish to local registry",
     )
-    publish_parser.add_argument(
+    publish_source_group.add_argument(
         "--remote",
         action="store_true",
-        help="Explicitly select the remote registry backend",
+        help="Publish to remote registry (default)",
     )
     publish_parser.add_argument(
         "--pack",
