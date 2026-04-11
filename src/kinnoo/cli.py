@@ -24,11 +24,13 @@ sys.path.insert(0, _LOCAL_SRC_ROOT_STR)
 try:
     from kinnoo.schema import NAME_PATTERN
     from kinnoo import __version__ as KINNOO_VERSION
+    from kinnoo.remote_client import RemoteRegistryClientError
     from kinnoo.terminal_colors import style_text
 except ImportError:
     # fallback for direct script execution
     from .schema import NAME_PATTERN
     from . import __version__ as KINNOO_VERSION
+    from .remote_client import RemoteRegistryClientError
     from .terminal_colors import style_text
 
 
@@ -72,6 +74,24 @@ def _resolve_short_commit_hash() -> str:
     if not commit_hash:
         return "unknown"
     return commit_hash
+
+
+def _print_remote_registry_error(error: RemoteRegistryClientError) -> None:
+    """Render remote registry failures as concise CLI-facing lines on stdout."""
+    raw_message = str(error).strip()
+    if not raw_message:
+        print("[kinnoo] ERROR: Remote registry request failed.")
+        return
+
+    response_marker = " Response: "
+    if response_marker in raw_message:
+        headline, response_payload = raw_message.split(response_marker, 1)
+        print(f"[kinnoo] ERROR: {headline.strip()}")
+        if response_payload.strip():
+            print(f"[kinnoo] Response: {response_payload.strip()}")
+        return
+
+    print(f"[kinnoo] ERROR: {raw_message}")
 
 
 def _format_top_level_help_text() -> str:
@@ -1345,13 +1365,17 @@ def main():
         except ImportError:
             from .fetch_command import fetch_agent
 
-        exit_code = fetch_agent(
-            target=target,
-            use_local=bool(getattr(args, "local", False)),
-            use_remote=bool(getattr(args, "remote", False)),
-            strict_mode=bool(getattr(args, "strict", False)),
-            json_output=bool(getattr(args, "json", False)),
-        )
+        try:
+            exit_code = fetch_agent(
+                target=target,
+                use_local=bool(getattr(args, "local", False)),
+                use_remote=bool(getattr(args, "remote", False)),
+                strict_mode=bool(getattr(args, "strict", False)),
+                json_output=bool(getattr(args, "json", False)),
+            )
+        except RemoteRegistryClientError as error:
+            _print_remote_registry_error(error)
+            sys.exit(1)
         sys.exit(exit_code)
 
     elif args.command == "keygen":
@@ -1454,16 +1478,20 @@ def main():
         except ImportError:
             from .publish_command import publish_agent
 
-        exit_code = publish_agent(
-            target=target,
-            use_local=use_local,
-            use_remote=use_remote,
-            pack=use_pack,
-            make_public=make_public,
-            bump=bump,
-            strict_mode=strict_mode,
-            json_output=json_output,
-        )
+        try:
+            exit_code = publish_agent(
+                target=target,
+                use_local=use_local,
+                use_remote=use_remote,
+                pack=use_pack,
+                make_public=make_public,
+                bump=bump,
+                strict_mode=strict_mode,
+                json_output=json_output,
+            )
+        except RemoteRegistryClientError as error:
+            _print_remote_registry_error(error)
+            sys.exit(1)
         sys.exit(exit_code)
 
     elif args.command == "list":
@@ -1479,7 +1507,11 @@ def main():
         except ImportError:
             from .list_command import list_agents
 
-        exit_code = list_agents(source=source, json_output=bool(getattr(args, "json", False)))
+        try:
+            exit_code = list_agents(source=source, json_output=bool(getattr(args, "json", False)))
+        except RemoteRegistryClientError as error:
+            _print_remote_registry_error(error)
+            sys.exit(1)
         sys.exit(exit_code)
 
     elif args.command == "search":
@@ -1500,7 +1532,11 @@ def main():
         except ImportError:
             from .search_command import search_agents
 
-        exit_code = search_agents(query=query, source=source, json_output=bool(getattr(args, "json", False)))
+        try:
+            exit_code = search_agents(query=query, source=source, json_output=bool(getattr(args, "json", False)))
+        except RemoteRegistryClientError as error:
+            _print_remote_registry_error(error)
+            sys.exit(1)
         sys.exit(exit_code)
 
     elif args.command == "sync":
