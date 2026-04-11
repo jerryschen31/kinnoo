@@ -19,6 +19,23 @@ All notable changes to this project will be documented in this file.
   - `tests/test_cli_import.py::test_feature62_import_openclaw_manifest_migration_guidance`
  - Bumped project version from `0.5.5` to `0.6.0` after Phase 7 final review closure.
 
+## [v0.7.6] - 2026-04-11
+### Added
+- Added CLI JSON output modes for command workflows that are commonly automated (`list`, `search`, `inspect`, `run`, `pack`, `publish`, and non-interactive `install`).
+- Added new lifecycle-oriented CLI commands for archive retrieval and cleanup (`kinnoo fetch`, `kinnoo uninstall`) to improve offline and operator workflows.
+
+### Changed
+- Refined `kinnoo init` UX to require explicit framework selection for non-interactive use while supporting interactive wizard-based selection when no args are provided.
+- Updated `kinnoo init` scaffold defaults/minimal behavior and template outputs to align generated files and entrypoints with framework/language expectations.
+- Clarified and hardened `kinnoo pack` options (`--include`/`--exclude`, preflight behavior, bump semantics, signing argument shape).
+- Updated `kinnoo publish` option semantics so local and remote targets are mutually exclusive and reflected consistently in help/JSON output.
+- Simplified and hardened `kinnoo install` OpenClaw-related behavior and option surface; removed deprecated flags and aligned defaults with workspace-based installs.
+- Renamed `run` policy flag semantics from sandbox wording to explicit policy-enforcement wording for clearer operator intent.
+- Updated `inspect --update` behavior to use key/value updates with confirmation prompts (unless warnings are explicitly skipped).
+
+### Notes
+- This patch release focuses on CLI behavior parity with current UAT expectations and automation-friendly output contracts.
+
 ## [v0.7.5] - 2026-04-11
 ### Added
 - Added dedicated Lambda security-check ECR repository management in Terraform, including lifecycle policy and root/module outputs for image publishing workflows.
