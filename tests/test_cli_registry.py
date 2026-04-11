@@ -461,6 +461,99 @@ def test_feature61_hardened_login_logout_remote_auth_gating(tmp_path: Path) -> N
 		server.stop()
 
 
+def test_publish_preserves_all_versions(tmp_path: Path) -> None:
+	archive_root = tmp_path / "archive"
+	registry_root = tmp_path / "registry"
+
+	_write_archive(archive_root, name="feature115-versioned-agent", version="1.0.0")
+	publish_v1_env = {
+		**os.environ,
+		"KINNOO_ARCHIVE_ROOT": str(archive_root),
+		"KINNOO_REGISTRY_ROOT": str(registry_root),
+	}
+	publish_v1 = subprocess.run(
+		[
+			sys.executable,
+			str(CLI_PATH),
+			"publish",
+			"feature115-versioned-agent",
+			"--local",
+		],
+		capture_output=True,
+		text=True,
+		env=publish_v1_env,
+		cwd=tmp_path,
+	)
+	publish_v1_output = f"{publish_v1.stdout}\n{publish_v1.stderr}"
+	assert publish_v1.returncode == 0, publish_v1_output
+
+	_write_archive(archive_root, name="feature115-versioned-agent", version="1.1.0")
+	publish_v2 = subprocess.run(
+		[
+			sys.executable,
+			str(CLI_PATH),
+			"publish",
+			"feature115-versioned-agent",
+			"--local",
+		],
+		capture_output=True,
+		text=True,
+		env=publish_v1_env,
+		cwd=tmp_path,
+	)
+	publish_v2_output = f"{publish_v2.stdout}\n{publish_v2.stderr}"
+	assert publish_v2.returncode == 0, publish_v2_output
+
+	v1_target_line = next(
+		(line for line in publish_v1_output.splitlines() if line.startswith("Target registry path: ")),
+		None,
+	)
+	v2_target_line = next(
+		(line for line in publish_v2_output.splitlines() if line.startswith("Target registry path: ")),
+		None,
+	)
+	assert v1_target_line is not None, publish_v1_output
+	assert v2_target_line is not None, publish_v2_output
+
+	v1_registry_archive = Path(v1_target_line.replace("Target registry path: ", "", 1).strip())
+	v2_registry_archive = Path(v2_target_line.replace("Target registry path: ", "", 1).strip())
+	assert v1_registry_archive.exists()
+	assert v2_registry_archive.exists()
+
+	list_result = subprocess.run(
+		[
+			sys.executable,
+			str(CLI_PATH),
+			"list",
+			"--local",
+		],
+		capture_output=True,
+		text=True,
+		env=publish_v1_env,
+		cwd=tmp_path,
+	)
+	list_output = f"{list_result.stdout}\n{list_result.stderr}"
+	assert list_result.returncode == 0, list_output
+	assert "feature115-versioned-agent | latest: 1.1.0" in list_output
+
+	search_result = subprocess.run(
+		[
+			sys.executable,
+			str(CLI_PATH),
+			"search",
+			"--local",
+			"feature115-versioned-agent",
+		],
+		capture_output=True,
+		text=True,
+		env=publish_v1_env,
+		cwd=tmp_path,
+	)
+	search_output = f"{search_result.stdout}\n{search_result.stderr}"
+	assert search_result.returncode == 0, search_output
+	assert "feature115-versioned-agent | latest: 1.1.0" in search_output
+
+
 def test_feature63_mirror_attribution_and_idempotency(tmp_path: Path) -> None:
 	registry_root = tmp_path / "registry"
 	service = RegistryService(backend=MockFilesystemRegistryBackend(root=registry_root))
@@ -799,6 +892,97 @@ def test_feature84_skill_search_preflight_empty_and_error_guidance(tmp_path: Pat
 	error_output = f"{error_result.stdout}\n{error_result.stderr}"
 	assert error_result.returncode != 0
 	assert "category=openclaw_skill_search_nonzero_exit" in error_output
+
+
+def test_search_openclaw_skills_removed(tmp_path: Path) -> None:
+	result = subprocess.run(
+		[
+			sys.executable,
+			str(CLI_PATH),
+			"search",
+			"--openclaw-skills",
+			"weather",
+		],
+		capture_output=True,
+		text=True,
+	)
+	output = f"{result.stdout}\n{result.stderr}"
+	assert result.returncode != 0
+	assert "unrecognized arguments: --openclaw-skills" in output
+
+	help_result = subprocess.run(
+		[sys.executable, str(CLI_PATH), "search", "-h"],
+		capture_output=True,
+		text=True,
+	)
+	help_output = f"{help_result.stdout}\n{help_result.stderr}"
+	assert help_result.returncode == 0
+	assert "--openclaw-skills" not in help_output
+	assert "--openclaw-skill" not in help_output
+
+
+def test_search_json_output(tmp_path: Path) -> None:
+	archive_root = tmp_path / "archive"
+	_write_archive(archive_root, name="task477-json-agent", version="1.0.0")
+
+	env = {
+		**os.environ,
+		"KINNOO_ARCHIVE_ROOT": str(archive_root),
+	}
+
+	result = subprocess.run(
+		[
+			sys.executable,
+			str(CLI_PATH),
+			"search",
+			"--local",
+			"--json",
+			"task477",
+		],
+		capture_output=True,
+		text=True,
+		env=env,
+	)
+	output = f"{result.stdout}\n{result.stderr}"
+	assert result.returncode == 0, output
+
+	payload = json.loads(result.stdout.strip())
+	assert payload["source"] == "local"
+	assert payload["query"] == "task477"
+	assert isinstance(payload["results"], list)
+	assert payload["results"]
+	assert payload["results"][0]["name"] == "task477-json-agent"
+
+
+def test_list_json_output(tmp_path: Path) -> None:
+	archive_root = tmp_path / "archive"
+	_write_archive(archive_root, name="task478-json-agent", version="1.0.0")
+
+	env = {
+		**os.environ,
+		"KINNOO_ARCHIVE_ROOT": str(archive_root),
+	}
+
+	result = subprocess.run(
+		[
+			sys.executable,
+			str(CLI_PATH),
+			"list",
+			"--local",
+			"--json",
+		],
+		capture_output=True,
+		text=True,
+		env=env,
+	)
+	output = f"{result.stdout}\n{result.stderr}"
+	assert result.returncode == 0, output
+
+	payload = json.loads(result.stdout.strip())
+	assert payload["source"] == "local"
+	assert isinstance(payload["results"], list)
+	assert payload["results"]
+	assert payload["results"][0]["name"] == "task478-json-agent"
 
 
 class _AuthTokenTestServer:

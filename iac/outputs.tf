@@ -23,6 +23,11 @@ output "ecr_repository_url" {
   value       = module.ecr.repository_url
 }
 
+output "lambda_security_check_ecr_repository_url" {
+  description = "ECR repository URL for security-check Lambda image"
+  value       = module.ecr.lambda_security_check_repository_url
+}
+
 output "alb_dns_name" {
   description = "ALB DNS name"
   value       = module.alb.alb_dns_name
@@ -51,4 +56,14 @@ output "ecs_service_name" {
 output "efs_file_system_id" {
   description = "EFS file system ID"
   value       = module.ecs_fargate.efs_file_system_id
+}
+
+output "security_check_lambda_name" {
+  description = "Security-check Lambda function name"
+  value       = module.lambda_security_check.function_name
+}
+
+output "security_check_lambda_arn" {
+  description = "Security-check Lambda function ARN"
+  value       = module.lambda_security_check.function_arn
 }

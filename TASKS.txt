@@ -9010,7 +9010,7 @@ tasks:
     status: needs-review
 
   # ────────────────────────────────────────────────────────────────
-  # feature115 — UAT Part 1: CLI Hardening (task453 – task485)
+  # feature115 — UAT Part 1: CLI Hardening (task453 – task487)
   # ────────────────────────────────────────────────────────────────
   # [agent] Terraform-first infra policy for this feature block:
   # [agent] If a task introduces or changes infrastructure (AWS/Cloudflare/networking/compute),
@@ -9037,7 +9037,7 @@ tasks:
       - 'step4: Add test that kinnoo -h output starts with 🍊 Kinnoo CLI v and contains a parenthesized hash.'
     dependencies: []
     tests: [test628]
-    status: not-started
+    status: needs-review
 
   - id: task454
     title: "init - framework as required positional argument"
@@ -9062,7 +9062,7 @@ tasks:
       - 'step5: Add tests for framework positional argument and no-framework template output.'
     dependencies: []
     tests: [test629, test630]
-    status: not-started
+    status: needs-review
 
   - id: task455
     title: "init - interactive wizard when no arguments"
@@ -9087,7 +9087,7 @@ tasks:
       - 'step4: Add test that wizard prompts appear and selections produce valid scaffolds (mock stdin).'
     dependencies: [task454]
     tests: [test631]
-    status: not-started
+    status: needs-review
 
   - id: task456
     title: "init - change default python entrypoint to main.py"
@@ -9107,7 +9107,7 @@ tasks:
       - 'step4: Add test that python init produces main.py (not run.py).'
     dependencies: []
     tests: [test632]
-    status: not-started
+    status: needs-review
 
   - id: task457
     title: "init - complete template with folders and --minimal flag"
@@ -9133,7 +9133,7 @@ tasks:
       - 'step5: Add tests for complete template output and minimal template output for each language category.'
     dependencies: [task454, task456]
     tests: [test633, test634, test635]
-    status: not-started
+    status: needs-review
 
   - id: task458
     title: "init - README.md template improvements"
@@ -9156,7 +9156,7 @@ tasks:
       - 'step4: Add test that README contains expected sections and footer.'
     dependencies: [task456, task457]
     tests: [test636]
-    status: not-started
+    status: needs-review
 
   - id: task459
     title: "init - language-specific .gitignore templates"
@@ -9176,7 +9176,7 @@ tasks:
       - 'step3: Add tests verifying exact .gitignore content for each language category.'
     dependencies: [task457]
     tests: [test637, test638, test639, test640]
-    status: not-started
+    status: needs-review
 
   - id: task460
     title: "pack - ignore data/ by default and add --include/--exclude"
@@ -9197,7 +9197,7 @@ tasks:
       - 'step4: Add tests for data/ exclusion by default and --include data override.'
     dependencies: []
     tests: [test641, test642]
-    status: not-started
+    status: needs-review
 
   - id: task461
     title: "pack - --preflight dry-run"
@@ -9217,7 +9217,7 @@ tasks:
       - 'step4: Add test that --preflight lists files and does not create an archive.'
     dependencies: []
     tests: [test643]
-    status: not-started
+    status: needs-review
 
   - id: task462
     title: "pack - help text updates and default patch bump"
@@ -9239,7 +9239,7 @@ tasks:
       - 'step4: Add test that --bump without version increments patch; --public description is correct.'
     dependencies: []
     tests: [test644, test645]
-    status: not-started
+    status: needs-review
 
   - id: task463
     title: "pack - merge --signing-key into --sign"
@@ -9262,7 +9262,7 @@ tasks:
       - 'step5: Add test that --sign SIGNING_KEY is accepted and --signing-key is rejected.'
     dependencies: []
     tests: [test646]
-    status: not-started
+    status: needs-review
 
   - id: task464
     title: "pack - --json flag for structured output"
@@ -9283,7 +9283,7 @@ tasks:
       - 'step4: Add test that --json produces valid JSON with expected keys.'
     dependencies: []
     tests: [test647]
-    status: not-started
+    status: needs-review
 
   - id: task465
     title: "publish - --local | --remote mutual exclusion and help text"
@@ -9302,7 +9302,7 @@ tasks:
       - 'step3: Add test that using both --local and --remote produces an error.'
     dependencies: []
     tests: [test648]
-    status: not-started
+    status: needs-review
 
   - id: task466
     title: "publish - version history and Agent Versions tab"
@@ -9324,7 +9324,7 @@ tasks:
       - 'step4: Add test that multiple publishes of different versions are all retrievable.'
     dependencies: []
     tests: [test649]
-    status: not-started
+    status: needs-review
 
   - id: task467
     title: "publish - --json flag for structured output"
@@ -9344,7 +9344,7 @@ tasks:
       - 'step4: Add test that --json produces valid JSON with expected keys.'
     dependencies: []
     tests: [test650]
-    status: not-started
+    status: needs-review
 
   - id: task468
     title: "install - remove deprecated openclaw options"
@@ -9365,7 +9365,7 @@ tasks:
       - 'step4: Add test that these options are rejected by the parser.'
     dependencies: []
     tests: [test651]
-    status: not-started
+    status: needs-review
 
   - id: task469
     title: "install - default openclaw install to ~/.openclaw/workspace-<name>"
@@ -9384,7 +9384,7 @@ tasks:
       - 'step4: Add test for default openclaw install path and custom override.'
     dependencies: [task468]
     tests: [test652]
-    status: not-started
+    status: needs-review
 
   - id: task470
     title: "install - --json flag for structured output"
@@ -9405,7 +9405,7 @@ tasks:
       - 'step4: Add test that --json with -y produces valid JSON; --json without -y errors.'
     dependencies: []
     tests: [test653]
-    status: not-started
+    status: needs-review
 
   - id: task471
     title: "run - --json structured output for all agent types"
@@ -9427,7 +9427,7 @@ tasks:
       - 'step4: Add tests for --json output structure for non-openclaw agents.'
     dependencies: []
     tests: [test654]
-    status: not-started
+    status: needs-review
 
   - id: task472
     title: "run - replace --sandbox with --enforce-policy"
@@ -9449,7 +9449,7 @@ tasks:
       - 'step4: Add test that --enforce-policy is accepted and --sandbox is rejected.'
     dependencies: []
     tests: [test655]
-    status: not-started
+    status: needs-review
 
   - id: task473
     title: "inspect - --json flag for structured output"
@@ -9471,7 +9471,7 @@ tasks:
       - 'step5: Add tests for --json output with various option combinations.'
     dependencies: []
     tests: [test656]
-    status: not-started
+    status: needs-review
 
   - id: task474
     title: "inspect - --update simplification to 2 arguments"
@@ -9493,7 +9493,7 @@ tasks:
       - 'step4: Add test for --update before and after target argument.'
     dependencies: []
     tests: [test657]
-    status: not-started
+    status: needs-review
 
   - id: task475
     title: "inspect - --update confirmation prompt"
@@ -9514,7 +9514,7 @@ tasks:
       - 'step5: Add tests for prompt behavior and --skip-warnings bypass.'
     dependencies: [task474]
     tests: [test658]
-    status: not-started
+    status: needs-review
 
   - id: task476
     title: "Comment out sync, stop, attach, logs commands and daemon help"
@@ -9535,7 +9535,7 @@ tasks:
       - 'step6: Add test that sync/stop/attach/logs are not recognized as valid commands.'
     dependencies: []
     tests: [test659]
-    status: not-started
+    status: needs-review
 
   - id: task477
     title: "search - remove --openclaw-skills and refactor --json"
@@ -9555,7 +9555,7 @@ tasks:
       - 'step4: Add tests that --openclaw-skills is rejected and --json outputs valid JSON.'
     dependencies: []
     tests: [test660, test661]
-    status: not-started
+    status: needs-review
 
   - id: task478
     title: "list - add --json option"
@@ -9573,29 +9573,31 @@ tasks:
       - 'step3: Add test that --json produces valid JSON output.'
     dependencies: []
     tests: [test662]
-    status: not-started
+    status: needs-review
 
   - id: task479
-    title: "Registry UI - security column icons in agent tables"
+    title: "Registry UI - inline security icons in Name column"
     type: task
     description: |
-      Add a "Security" column to the right of "Version" in the My Agents table
-      and Search results table in the registry UI. Icons:
-      ✅ signed + verified, 📦 archive integrity verified, 🧩 per-file integrity verified,
-      ❌ any check failed. Green check replaces pen icon (no need for both).
-      Icon state is sourced from server-side security check results.
+      Show security icons inline in the Name column for My Agents and Search
+      results tables in the registry UI. Icons:
+      ✅ signed + verified, 📦 integrity verified (archive and/or per-file),
+      ❌ any check failed. Render with two spaces between name and icons
+      (example: "s3-seed-agent  ✅📦"). Icon state is sourced from
+      server-side security check results.
     files:
-      - server/templates/registry.html
-      - server/routes/registry.py
-      - server/metadata/manager.py
+      - server/templates/agents.html
+      - server/templates/search.html
+      - server/routes/web_agents.py
+      - server/metadata/models.py
     steps:
       - 'step1: Add security_status field to agent metadata schema.'
-      - 'step2: Add Security column to My Agents and Search results tables in registry.html.'
+      - 'step2: Render security icons inline next to Name in My Agents and Search results tables.'
       - 'step3: Render appropriate icons based on security_status data.'
-      - 'step4: Add test that security column renders correct icons for various states.'
+      - 'step4: Add test that Name column renders inline icons correctly for various states.'
     dependencies: []
     tests: [test663]
-    status: not-started
+    status: needs-review
 
   - id: task480
     title: "Registry - server-side security check script"
@@ -9617,7 +9619,7 @@ tasks:
       - 'step5: Add unit tests for each check function with pass/fail cases.'
     dependencies: []
     tests: [test664]
-    status: not-started
+    status: needs-review
 
   - id: task481
     title: "Registry - update security column and persist check report"
@@ -9641,7 +9643,7 @@ tasks:
       - 'step5: Add test that publish triggers checks and updates metadata.'
     dependencies: [task480]
     tests: [test665]
-    status: not-started
+    status: needs-review
 
   - id: task482
     title: "Registry - containerized Lambda for server-side checks"
@@ -9665,23 +9667,26 @@ tasks:
       - 'step1: Add/extend Terraform resources in iac/ for Lambda security checks (function, IAM, and required wiring). Set Lambda timeout to 1 minute.'
       - 'step2: Wire publish route to invoke Lambda after successful publish.'
       - 'step3: Lambda writes results back to metadata store.'
+      - 'step3a: Define explicit retry policy for async Lambda invoke attempts (default 3 total attempts) and surface invocation failure detail.'
+      - 'step3b: Preserve inline publish-time checks as fail-safe fallback if Lambda invocation path fails.'
       - 'step4: Run terraform plan/apply for target env and record the plan/apply summary in notes.'
       - 'step5: Add integration test for end-to-end publish → Lambda → report flow.'
     dependencies: [task481]
     tests: [test666]
-    status: not-started
+    status: needs-review
 
   - id: task483
-    title: "Registry UI - Security tab in agent modal"
+    title: "Registry UI - Security tab in selected-agent details"
     type: task
     description: |
-      Add a new "Security" tab to the agent detail modal in the registry UI
-      (alongside Registry Manifest and Agent Manifest). The Security tab shows
+      Add a new "Security" tab to the selected-agent details panel in the
+      registry UI (alongside Registry Manifest). The Security tab shows
       server-side check results: one line per check with [PASS] or [FAIL].
       Keep it concise — no verbose details.
     files:
-      - server/templates/registry.html
-      - server/routes/registry.py
+      - server/templates/agents.html
+      - server/routes/web_agents.py
+      - server/tests/test_web_agents.py
     steps:
       - 'step1: Add Security tab header to agent modal tab bar.'
       - 'step2: Fetch security report data when Security tab is selected.'
@@ -9689,7 +9694,7 @@ tasks:
       - 'step4: Add test that Security tab renders correctly with sample check data.'
     dependencies: [task481]
     tests: [test667]
-    status: not-started
+    status: needs-review
 
   - id: task484
     title: "New kinnoo fetch command"
@@ -9713,7 +9718,7 @@ tasks:
       - 'step6: Add tests for fetch download, integrity check, and strict verification.'
     dependencies: []
     tests: [test668, test669]
-    status: not-started
+    status: needs-review
 
   - id: task485
     title: "New kinnoo uninstall command"
@@ -9736,4 +9741,70 @@ tasks:
       - 'step5: Add tests for all three uninstall modes and confirmation bypass.'
     dependencies: []
     tests: [test670, test671]
-    status: not-started
+    status: needs-review
+
+  - id: task486
+    title: "Hotfix - hide traceback for remote registry auth/conflict failures"
+    type: task
+    description: |
+      Prevent raw Python traceback output when remote registry operations fail
+      with actionable HTTP errors (for example 401 unauthorized and 409 conflict)
+      in list/fetch/search/publish flows. Instead, surface concise user-facing
+      messages and optional response payload lines on stdout.
+    files:
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add centralized formatter for RemoteRegistryClientError messages in CLI layer.'
+      - 'step2: Catch RemoteRegistryClientError in fetch/list/search/publish command dispatch paths.'
+      - 'step3: Print concise [kinnoo] error lines (headline and response payload) to stdout and exit non-zero.'
+      - 'step4: Add regression tests proving no traceback is emitted and user-facing lines are printed.'
+    dependencies: [task484, task485]
+    tests: [test672, test673]
+    status: needs-review
+
+  - id: task487
+    title: "Hotfix - init/run help cleanup + task482 retry/fallback diagnostics"
+    type: task
+    description: |
+      Apply UX and reliability hotfixes requested during feature115 validation:
+      remove legacy init --framework option in favor of positional framework,
+      remove run --thinking option, add orange-icon command descriptions in
+      subcommand help, and codify task482 retry/fallback behavior with concrete
+      diagnostics about Lambda deployment prerequisites.
+    files:
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+      - server/services/security_check.py
+      - server/tests/test_security_check.py
+      - iac/main.tf
+      - iac/modules/lambda-security-check/main.tf
+      - iac/modules/lambda-security-check/variables.tf
+      - iac/modules/ecr/main.tf
+      - iac/modules/ecr/outputs.tf
+      - iac/outputs.tf
+      - iac/variables.tf
+      - iac/environments/dev/terraform.tfvars
+      - scripts/ops/build_and_push_lambda_security_check_image.sh
+      - Dockerfile.lambda
+      - lambda_handler.py
+      - tests/test_lambda_handler.py
+      - TASKS.txt
+      - TESTS.txt
+      - FEATURES.txt
+      - notes/tasks/task482-notes.md
+      - notes/tasks/task487-notes.md
+    steps:
+      - 'step1: Remove init --framework parser/dispatch support and keep positional framework help authoritative.'
+      - 'step2: Remove run --thinking option from CLI parser/usage text and keep run execution deterministic.'
+      - 'step3: Add orange icon prefix to subcommand help descriptions.'
+      - 'step4: Add/verify tests for init help shape, framework-flag rejection, run help changes, and orange-prefixed descriptions.'
+      - 'step5: Add explicit Lambda invoke retry + fallback behavior and regression test coverage.'
+      - 'step6: Record task482 deployment diagnosis (terraform apply + ECS rollout prerequisites) in notes.'
+      - 'step7: Add dedicated Terraform-managed ECR repository outputs and policies for Lambda security-check image storage.'
+      - 'step8: Remove invalid lambda image default and enforce explicit private ECR image URI validation.'
+      - 'step9: Add automation script to build/push Lambda image and update dev tfvars to valid image tag.'
+      - 'step10: Validate Lambda creation with targeted Terraform apply using pushed account ECR image.'
+    dependencies: [task482, task486]
+    tests: [test674, test675, test676, test677]
+    status: needs-review

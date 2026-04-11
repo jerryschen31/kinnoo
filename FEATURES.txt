@@ -3672,7 +3672,7 @@ features:
       (--json, --update simplification, confirmation prompt), command deprecation (sync/stop/
       attach/logs comment-out), search/list --json options, registry UI security column and
       tab, new fetch and uninstall commands.
-    tasks: [task453, task454, task455, task456, task457, task458, task459, task460, task461, task462, task463, task464, task465, task466, task467, task468, task469, task470, task471, task472, task473, task474, task475, task476, task477, task478, task479, task480, task481, task482, task483, task484, task485]
+    tasks: [task453, task454, task455, task456, task457, task458, task459, task460, task461, task462, task463, task464, task465, task466, task467, task468, task469, task470, task471, task472, task473, task474, task475, task476, task477, task478, task479, task480, task481, task482, task483, task484, task485, task486, task487]
     acceptance_criteria:
       - id: AC1
         description: "kinnoo -h displays 🍊 Kinnoo CLI v<version> (<commit-hash>) as the title line."
@@ -3700,9 +3700,13 @@ features:
         description: "kinnoo fetch downloads archive to local archive with integrity verification (and signature verification in --strict mode) without unpacking."
       - id: AC13
         description: "kinnoo uninstall supports three modes: delete dir+all archives, delete dir+specific version archive, delete archive-only with version specifier."
+      - id: AC14
+        description: "kinnoo list/search/fetch/publish catch remote registry client errors and print concise [kinnoo] user-facing messages (including response payload when present) without Python traceback output."
+      - id: AC15
+        description: "kinnoo init help/path fully deprecates --framework in favor of positional framework, kinnoo run removes --thinking, command help descriptions are orange-prefixed, and task482 lambda invocation has explicit retry/fallback behavior with operator-visible diagnostics."
     notes:
       - "Based on UAT Part 1 findings documented in notes/phases/phase13-sat-uat-updates.md"
-      - "33 tasks (task453-task485), 44 tests (test628-test671)"
+      - "35 tasks (task453-task487), 49 tests (test628-test676)"
       - "SWE handoff brief in notes/features/feature115-notes.md"
     owner: swe-agent
     dependencies: [feature114]
