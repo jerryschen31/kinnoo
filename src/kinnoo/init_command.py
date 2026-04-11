@@ -100,9 +100,92 @@ This is a Kinnoo agent scaffolded with `kinnoo init --language {language_flag}`.
 - See `kinnoo.yaml` for manifest fields.
 """
 
-_DEFAULT_GITIGNORE_TEMPLATE = """# Kinnoo scaffold defaults
+_GITIGNORE_PYTHON = """# --- Kinnoo & Agent Ops ---
+.kinnoo/             # Local PID files and CLI state
+.env                 # API keys
+*.pem                # Private keys
+.agent-repo-cache*
+
+# --- Git ---
+.git/
+
+# --- Environment ---
+__pycache__/
+.venv/
+env/
+venv/
+*.py[cod]
+*$py.class
+.pytest_cache/
+*.DS_Store*
+
+# --- Data & Distribution ---
+dist/
+build/
+*.egg-info/
+"""
+
+_GITIGNORE_JAVASCRIPT = """# --- Kinnoo & Agent Ops ---
 .kinnoo/
 .env
+*.pem
+.agent-repo-cache*
+
+# --- Environment ---
+node_modules/
+.npm
+.pnpm-debug.log*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.DS_Store*
+
+# --- Build Artifacts ---
+dist/
+out/
+.cache/
+"""
+
+_GITIGNORE_TYPESCRIPT = """# --- Kinnoo & Agent Ops ---
+.kinnoo/
+.env
+*.pem
+
+# --- Environment ---
+node_modules/
+.npm
+dist/                # Compiled JS output
+*.tsbuildinfo        # Incremental build state
+.pnpm-debug.log*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.DS_Store*
+.cache/
+
+# --- Testing & Coverage ---
+coverage/
+.vitest/
+
+# --- Config & Lockfiles ---
+# but ignore local dev overrides
+.env.local
+.env.development.local
+"""
+
+_GITIGNORE_OPENCLAW = """--- OpenClaw Core Privacy ---
+memory/              # 🛡️ CRITICAL: Ignores all daily YYYY-MM-DD.md logs
+.dreams/             # Experimental background consolidation logs
+scratch/             # The agent's temporary workspace/download area
+
+# --- Kinnoo & Security ---
+.kinnoo/
+.env
+
+# --- Credentials & Config ---
+.openclaw/           # Local gateway settings & auth tokens
+.env
+credentials.json
 *.pem
 *.DS_Store*
 """
@@ -338,7 +421,7 @@ def init_agent(
         (agent_dir / "README.md").write_text(readme_text)
 
         if not minimal:
-            (agent_dir / ".gitignore").write_text(_DEFAULT_GITIGNORE_TEMPLATE)
+            (agent_dir / ".gitignore").write_text(_GITIGNORE_OPENCLAW)
             (agent_dir / "BOOTSTRAP.md").write_text(_OPENCLAW_BOOTSTRAP_TEMPLATE)
             (agent_dir / "HEARTBEAT.md").write_text(_OPENCLAW_HEARTBEAT_TEMPLATE)
             (agent_dir / "MEMORY.md").write_text(_OPENCLAW_MEMORY_TEMPLATE)
@@ -397,9 +480,16 @@ def init_agent(
         (agent_dir / "README.md").write_text(readme_text)
 
     if not minimal:
+        if effective_language == "python":
+            gitignore_template = _GITIGNORE_PYTHON
+        elif effective_language == "javascript":
+            gitignore_template = _GITIGNORE_JAVASCRIPT
+        else:
+            gitignore_template = _GITIGNORE_TYPESCRIPT
+
         for folder_name in ("tools", "prompts", "evals", "tests", "data"):
             (agent_dir / folder_name).mkdir()
-        (agent_dir / ".gitignore").write_text(_DEFAULT_GITIGNORE_TEMPLATE)
+        (agent_dir / ".gitignore").write_text(gitignore_template)
 
 def main():
     parser = argparse.ArgumentParser(

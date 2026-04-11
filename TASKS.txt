@@ -9176,7 +9176,7 @@ tasks:
       - 'step3: Add tests verifying exact .gitignore content for each language category.'
     dependencies: [task457]
     tests: [test637, test638, test639, test640]
-    status: not-started
+    status: needs-review
 
   - id: task460
     title: "pack - ignore data/ by default and add --include/--exclude"
