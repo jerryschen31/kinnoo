@@ -11393,16 +11393,16 @@ tests:
     automation_path: tests/test_cli_registry.py::test_list_json_output
 
   - id: test663
-    title: "Registry UI shows Security column with correct icons"
+    title: "Registry UI shows inline Name-column security icons"
     type: manual
     preconditions: Registry server running, agents with various security states published
     steps:
       - 'step1: Open registry UI and navigate to My Agents.'
-      - 'step2: Verify Security column appears to the right of Version.'
+      - 'step2: Verify Name column renders security icons inline after the agent name with spacing.'
       - 'step3: Verify ✅ appears for signed+verified agents.'
-      - 'step4: Verify 📦 appears for archive-integrity-verified agents.'
+      - 'step4: Verify 📦 appears for integrity-verified agents (archive and/or per-file).'
       - 'step5: Verify ❌ appears for agents with failed checks.'
-    expected: Security column shows correct icons per agent state
+    expected: Name column shows correct inline icons per agent state
     pass_criteria: Icons match agent security status in all cases
     covers:
       - feature: feature115
@@ -11464,12 +11464,12 @@ tests:
     automation_path: server/tests/test_security_check.py::test_containerized_security_check
 
   - id: test667
-    title: "Registry UI Security tab shows check results"
+    title: "Registry UI selected-agent Security tab shows check results"
     type: manual
     preconditions: Registry server running, agent with completed security checks
     steps:
       - 'step1: Open registry UI and click on an agent name.'
-      - 'step2: Navigate to the Security tab in the modal.'
+      - 'step2: Navigate to the Security tab in selected-agent details.'
       - 'step3: Verify one-line-per-check results with [PASS] or [FAIL] are shown.'
     expected: Security tab displays concise per-check results
     pass_criteria: Each check listed with [PASS] or [FAIL] badge
@@ -11528,7 +11528,7 @@ tests:
       - feature: feature115
         ac: AC13
     automated: true
-    automation_path: tests/test_cli.py::test_uninstall_dir_and_all_archives
+    automation_path: tests/test_cli.py::test_uninstall_deletes_agent_directory_and_all_version_archives
 
   - id: test671
     title: "uninstall specific version archive only"
@@ -11545,4 +11545,100 @@ tests:
       - feature: feature115
         ac: AC13
     automated: true
-    automation_path: tests/test_cli.py::test_uninstall_specific_version
+    automation_path: tests/test_cli.py::test_uninstall_version_and_latest_alias
+
+  - id: test672
+    title: "remote registry errors render cleanly for fetch/publish"
+    type: integration
+    preconditions: CLI available; remote command path raises RemoteRegistryClientError with response payload
+    steps:
+      - 'step1: Trigger fetch and publish command dispatch paths with mocked remote error messages.'
+      - 'step2: Verify CLI exits non-zero and prints [kinnoo] ERROR headline + [kinnoo] Response line to stdout.'
+      - 'step3: Verify output does not contain Python traceback text.'
+    expected: User-facing remote error output with no traceback
+    pass_criteria: Non-zero exit, clean error lines printed, no traceback
+    covers:
+      - feature: feature115
+        ac: AC14
+    automated: true
+    automation_path: tests/test_cli.py::test_remote_registry_errors_render_without_traceback_for_fetch_and_publish
+
+  - id: test673
+    title: "remote registry errors render cleanly for list/search"
+    type: integration
+    preconditions: CLI available; remote command path raises RemoteRegistryClientError with response payload
+    steps:
+      - 'step1: Trigger list and search command dispatch paths with mocked remote unauthorized error messages.'
+      - 'step2: Verify CLI exits non-zero and prints [kinnoo] ERROR headline + [kinnoo] Response line to stdout.'
+      - 'step3: Verify output does not contain Python traceback text.'
+    expected: User-facing remote error output with no traceback
+    pass_criteria: Non-zero exit, clean error lines printed, no traceback
+    covers:
+      - feature: feature115
+        ac: AC14
+    automated: true
+    automation_path: tests/test_cli.py::test_remote_registry_errors_render_without_traceback_for_list_and_search
+
+  - id: test674
+    title: "init help uses positional framework and rejects legacy --framework"
+    type: integration
+    preconditions: CLI available
+    steps:
+      - 'step1: Run kinnoo init -h and verify --framework flag is absent while positional framework help remains present.'
+      - 'step2: Verify --language help uses metavar form (LANGUAGE).' 
+      - 'step3: Run kinnoo init --framework <value> and verify parser rejects the legacy flag.'
+    expected: Init command advertises positional framework only and rejects deprecated flag
+    pass_criteria: Help output shape matches hotfix and legacy flag path exits with parser error
+    covers:
+      - feature: feature115
+        ac: AC15
+    automated: true
+    automation_path: tests/test_cli.py::test_init_help_deprecates_framework_flag_and_uses_language_metavar
+
+  - id: test675
+    title: "run help removes thinking option and uses orange description"
+    type: integration
+    preconditions: CLI available
+    steps:
+      - 'step1: Run kinnoo run -h.'
+      - 'step2: Verify first line is orange-prefixed command description.'
+      - 'step3: Verify --thinking option is not present.'
+    expected: Run help is icon-prefixed and no longer includes --thinking
+    pass_criteria: Description line starts with 🍊 and help text excludes --thinking
+    covers:
+      - feature: feature115
+        ac: AC15
+    automated: true
+    automation_path: tests/test_cli.py::test_run_help_removes_thinking_option_and_has_orange_title
+
+  - id: test676
+    title: "lambda async invoke retries and reports fallback"
+    type: integration
+    preconditions: security check service configured for lambda mode and boto3 client invocation fails
+    steps:
+      - 'step1: Configure lambda mode with retry count and mock lambda client invoke failures.'
+      - 'step2: Call invoke_security_check_lambda_async.'
+      - 'step3: Verify retry count is honored and fallback detail is returned.'
+    expected: Lambda invoke path retries deterministically and returns explicit fallback result
+    pass_criteria: Attempts equal configured retries + 1; result reports invoked=false with fallback marker
+    covers:
+      - feature: feature115
+        ac: AC15
+    automated: true
+    automation_path: server/tests/test_security_check.py::test_containerized_security_check_lambda_retry_fallback
+
+  - id: test677
+    title: "lambda S3 trigger processes archive and writes security report artifacts"
+    type: integration
+    preconditions: Lambda handler receives S3 put event for tenant-scoped .kno object with metadata document present
+    steps:
+      - 'step1: Seed fake S3 objects with a valid .kno archive, checksum sidecar, and existing metadata JSON for one tenant/agent/version path.'
+      - 'step2: Execute lambda_handler.handler with an S3 event record pointing to the .kno object key.'
+      - 'step3: Verify handler writes security report output object and updates metadata security_status/security_report fields.'
+    expected: Archive-triggered lambda run persists pass/fail check rows and metadata updates for UI consumption
+    pass_criteria: processed_count=1, result object exists, metadata document contains dict security_status and report list
+    covers:
+      - feature: feature115
+        ac: AC15
+    automated: true
+    automation_path: tests/test_lambda_handler.py::test_lambda_handler_processes_kno_and_updates_metadata

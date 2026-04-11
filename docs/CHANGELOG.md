@@ -19,6 +19,39 @@ All notable changes to this project will be documented in this file.
   - `tests/test_cli_import.py::test_feature62_import_openclaw_manifest_migration_guidance`
  - Bumped project version from `0.5.5` to `0.6.0` after Phase 7 final review closure.
 
+## [v0.7.5] - 2026-04-11
+### Added
+- Added dedicated Lambda security-check ECR repository management in Terraform, including lifecycle policy and root/module outputs for image publishing workflows.
+- Added automation script at scripts/ops/build_and_push_lambda_security_check_image.sh to build and push Lambda-compatible container images to the Terraform-managed ECR repository.
+
+### Changed
+- Completed task487 CLI UX hardening updates: removed legacy init --framework option, removed run --thinking option, and added orange-prefixed subcommand help description lines.
+- Hardened Terraform lambda_security_check_image_uri input by removing invalid public base-image default and requiring explicit private ECR image URI + tag.
+- Updated dev Terraform environment configuration to reference a valid private ECR Lambda image URI.
+- Added Lambda invoke retry/fallback semantics in server security-check dispatch flow with deterministic retry count and fallback marker reporting.
+
+### Notes
+- Task487 implementation includes infrastructure preparation and successful Lambda function creation using a pushed private ECR image.
+- Lambda execution path has not yet been fully validated end-to-end via publish-triggered invocation and full security-report writeback verification in the live environment.
+
+## [v0.7.4] - 2026-04-10
+### Added
+- Completed Feature115 UAT Part 1 CLI hardening delivery (tasks 453-486), including the new `kinnoo fetch` command and expanded uninstall target modes.
+- Added registry UI security signal surfaces for list/search/details views, including concise security status indicators and a selected-agent Security tab.
+- Added server-side post-publish security checks with persisted report metadata and containerized async execution wiring.
+
+### Changed
+- Hardened CLI command UX across init/pack/publish/install/run/inspect/list/search to align with UAT Part 1 behaviors and structured output expectations.
+- Updated CLI remote-registry error handling to avoid uncaught Python tracebacks for list/search/fetch/publish failures; commands now emit concise `[kinnoo]` error lines with response payload when available (task486).
+
+### Notes
+- Feature115 coverage now includes 34 tasks (task453-task486) and 46 mapped tests (test628-test673).
+
+## [v0.7.3] - 2026-04-10
+### Changed
+- Minor kinnoo init usage changes
+- Minor kinnoo help usage menu edits
+
 ## [v0.7.2] - 2026-04-10
 ### Added
 - Added runtime language normalization helper to treat `nodejs`, `javascript`, and `typescript` as Node-compatible runtime aliases across CLI execution and validation flows.

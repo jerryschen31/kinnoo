@@ -18,6 +18,7 @@ from server.auth.token import TokenService
 from server.metadata.manager import MetadataManager
 from server.metadata.models import VersionMetadata, utc_now_iso
 from server.routes.errors import build_error_envelope, resolve_request_id
+from server.services.security_check import invoke_security_check_lambda_async, run_post_publish_checks_bytes
 from server.storage.base import StorageBackend
 
 
@@ -98,6 +99,17 @@ def publish_archive(
     )
 
     timestamp = utc_now_iso()
+    check_report = run_post_publish_checks_bytes(archive_bytes)
+    security_report_rows = [
+        {
+            "check_name": str(item.get("check_name", "")),
+            "status": str(item.get("status", "")),
+            "detail": str(item.get("detail", "")),
+            "timestamp": timestamp,
+        }
+        for item in check_report.get("checks", [])
+        if isinstance(item, dict)
+    ]
     version_metadata = VersionMetadata(
         tenant_slug=tenant_slug,
         agent_slug=agent_slug,
@@ -115,8 +127,15 @@ def publish_archive(
         },
         created_at=timestamp,
         updated_at=timestamp,
+        security_status=check_report.get("security_status", ""),
+        security_report=security_report_rows,
     )
     metadata_manager.upsert_version_metadata(version_metadata)
+    _ = invoke_security_check_lambda_async(
+        tenant_slug=tenant_slug,
+        agent_slug=agent_slug,
+        version=version,
+    )
 
     return PublishResult(
         status_code=201,

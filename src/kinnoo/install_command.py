@@ -1654,10 +1654,15 @@ def _install_from_archive_path(
 
     agent_name = str(manifest_data.get("name", "unknown"))
     agent_version = str(manifest_data.get("version", "unknown"))
+    manifest_framework = ""
+    manifest_framework_value = manifest_data.get("framework")
+    if isinstance(manifest_framework_value, str) and manifest_framework_value.strip():
+        manifest_framework = manifest_framework_value.strip().lower()
     manifest_type = "agent"
     manifest_type_value = manifest_data.get("type")
     if isinstance(manifest_type_value, str) and manifest_type_value.strip():
         manifest_type = manifest_type_value.strip().lower()
+    is_openclaw_agent = manifest_framework == "openclaw" or manifest_type == "openclaw-skill"
 
     if frozen_mode:
         frozen_validation_exit_code = _enforce_frozen_install_lock(
@@ -1772,10 +1777,10 @@ def _install_from_archive_path(
             print(f"Error: {preflight_result.message}", file=sys.stderr)
             return 1
 
-    if manifest_type == "openclaw-skill":
-        target_dir = Path.home() / ".openclaw" / f"workspace-{agent_name}"
-    elif target_dir_arg:
+    if target_dir_arg:
         target_dir = Path(target_dir_arg).resolve()
+    elif is_openclaw_agent:
+        target_dir = Path.home() / ".openclaw" / f"workspace-{agent_name}"
     else:
         target_dir = archive.with_suffix("")
 
@@ -1784,7 +1789,7 @@ def _install_from_archive_path(
         return 1
 
     if target_dir.exists() and not force:
-        if manifest_type == "openclaw-skill":
+        if is_openclaw_agent:
             print(
                 f"Error: OpenClaw workspace already exists at '{target_dir}'.",
                 file=sys.stderr,

@@ -5,7 +5,6 @@ Agent scaffolding logic for kinnoo init.
 import argparse
 import sys
 import os
-import subprocess
 from pathlib import Path
 from typing import Optional
 from kinnoo.templates import (
@@ -28,9 +27,9 @@ from kinnoo.templates import (
 )
 
 try:
-    from kinnoo.openclaw_preflight import run_openclaw_preflight_for_command
+    from kinnoo import __version__ as KINNOO_VERSION
 except ImportError:
-    from .openclaw_preflight import run_openclaw_preflight_for_command
+    from . import __version__ as KINNOO_VERSION
 
 SUPPORTED_FRAMEWORKS = [
     "gemini",
@@ -42,6 +41,7 @@ SUPPORTED_FRAMEWORKS = [
     "mcp-client",
     "mcp-server",
     "openclaw",
+    "no-framework",
 ]
 
 SUPPORTED_LANGUAGES = [
@@ -61,15 +61,16 @@ _LANGUAGE_ALIASES = {
 }
 
 _FRAMEWORK_LANGUAGE_COMPATIBILITY = {
-    "gemini": {"python"},
-    "chatgpt": {"python"},
-    "claude-chat": {"python"},
+    "gemini": {"python", "javascript", "typescript"},
+    "chatgpt": {"python", "javascript", "typescript"},
+    "claude-chat": {"python", "javascript", "typescript"},
     "pydantic-ai": {"python"},
-    "langgraph": {"python"},
+    "langgraph": {"python", "javascript", "typescript"},
     "openai-agents": {"python"},
-    "mcp-client": {"python"},
-    "mcp-server": {"python"},
+    "mcp-client": {"python", "javascript", "typescript"},
+    "mcp-server": {"python", "javascript", "typescript"},
     "openclaw": {"javascript", "typescript"},
+    "no-framework": {"python", "javascript", "typescript"},
 }
 
 _JS_RUN_TEMPLATE = """const inputText = process.argv[2] || '';
@@ -98,6 +99,148 @@ This is a Kinnoo agent scaffolded with `kinnoo init --language {language_flag}`.
 - Edit `{entrypoint}` to implement your agent logic.
 - See `kinnoo.yaml` for manifest fields.
 """
+
+_GITIGNORE_PYTHON = """# --- Kinnoo & Agent Ops ---
+.kinnoo/             # Local PID files and CLI state
+.env                 # API keys
+*.pem                # Private keys
+.agent-repo-cache*
+
+# --- Git ---
+.git/
+
+# --- Environment ---
+__pycache__/
+.venv/
+env/
+venv/
+*.py[cod]
+*$py.class
+.pytest_cache/
+*.DS_Store*
+
+# --- Data & Distribution ---
+dist/
+build/
+*.egg-info/
+"""
+
+_GITIGNORE_JAVASCRIPT = """# --- Kinnoo & Agent Ops ---
+.kinnoo/
+.env
+*.pem
+.agent-repo-cache*
+
+# --- Environment ---
+node_modules/
+.npm
+.pnpm-debug.log*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.DS_Store*
+
+# --- Build Artifacts ---
+dist/
+out/
+.cache/
+"""
+
+_GITIGNORE_TYPESCRIPT = """# --- Kinnoo & Agent Ops ---
+.kinnoo/
+.env
+*.pem
+
+# --- Environment ---
+node_modules/
+.npm
+dist/                # Compiled JS output
+*.tsbuildinfo        # Incremental build state
+.pnpm-debug.log*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.DS_Store*
+.cache/
+
+# --- Testing & Coverage ---
+coverage/
+.vitest/
+
+# --- Config & Lockfiles ---
+# but ignore local dev overrides
+.env.local
+.env.development.local
+"""
+
+_GITIGNORE_OPENCLAW = """--- OpenClaw Core Privacy ---
+memory/              # 🛡️ CRITICAL: Ignores all daily YYYY-MM-DD.md logs
+.dreams/             # Experimental background consolidation logs
+scratch/             # The agent's temporary workspace/download area
+
+# --- Kinnoo & Security ---
+.kinnoo/
+.env
+
+# --- Credentials & Config ---
+.openclaw/           # Local gateway settings & auth tokens
+.env
+credentials.json
+*.pem
+*.DS_Store*
+"""
+
+_OPENCLAW_BOOTSTRAP_TEMPLATE = """# BOOTSTRAP
+
+Document startup checks and first-run setup steps for this agent.
+"""
+
+_OPENCLAW_HEARTBEAT_TEMPLATE = """# HEARTBEAT
+
+Track periodic health notes and runtime heartbeat expectations.
+"""
+
+_OPENCLAW_MEMORY_TEMPLATE = """# MEMORY
+
+Capture high-level long-term context and references for this agent.
+"""
+
+_OPENCLAW_IDENTITY_TEMPLATE = """# IDENTITY
+
+Define the agent persona, role, and non-negotiable behaviors.
+"""
+
+_OPENCLAW_USER_TEMPLATE = """# USER
+
+Describe user preferences, interaction patterns, and constraints.
+"""
+
+
+def _folder_guide_table() -> str:
+    return (
+        "\n## Folder Guide\n\n"
+        "| Folder | What goes here |\n"
+        "| --- | --- |\n"
+        "| tools/ | Tool wrappers and utility code the agent can call |\n"
+        "| prompts/ | Prompt snippets and reusable instructions |\n"
+        "| evals/ | Evaluation cases and scoring fixtures |\n"
+        "| tests/ | Regression and smoke tests for this agent |\n"
+        "| data/ | Local sample data and offline test fixtures |\n"
+    )
+
+
+def _standardize_readme(readme_text: str, *, entrypoint: str, include_folder_table: bool) -> str:
+    lines: list[str] = [readme_text.rstrip(), ""]
+    lines.append(f"- Edit `{entrypoint}` to implement your agent run logic.")
+    lines.append("- `kinnoo.yaml` holds the agent manifest and runtime metadata contract.")
+
+    if include_folder_table:
+        lines.append(_folder_guide_table().rstrip())
+
+    lines.append("")
+    lines.append("---")
+    lines.append(f"🍊 *This agent was scaffolded with Kinnoo CLI v{KINNOO_VERSION} using Schema 0.1.0.*")
+    return "\n".join(lines).rstrip() + "\n"
 
 
 def _build_openclaw_wrapper_manifest(name: str) -> str:
@@ -153,53 +296,57 @@ def _build_node_manifest(name: str, *, entrypoint: str, language: str) -> str:
     )
 
 
+def _select_menu_option(prompt: str, options: list[str]) -> str:
+    print(prompt)
+    for index, option in enumerate(options, start=1):
+        print(f"  {index}. {option}")
+
+    while True:
+        raw_value = input("Select an option by number: ").strip()
+        if not raw_value.isdigit():
+            print("Invalid selection. Enter a number.")
+            continue
+        selected_index = int(raw_value)
+        if 1 <= selected_index <= len(options):
+            return options[selected_index - 1]
+        print("Invalid selection. Enter a valid number from the list.")
+
+
+def interactive_init_wizard(target_dir: Path) -> tuple[str, str, str]:
+    """Prompt for framework/language selection and return scaffold parameters."""
+    framework_options = SUPPORTED_FRAMEWORKS.copy()
+    selected_framework = _select_menu_option("Select framework:", framework_options)
+
+    language_options = sorted(_FRAMEWORK_LANGUAGE_COMPATIBILITY[selected_framework])
+    if len(language_options) == 1:
+        selected_language = language_options[0]
+        print(f"Selected language: {selected_language}")
+    else:
+        selected_language = _select_menu_option("Select language:", language_options)
+
+    base_name = f"{selected_framework}-agent" if selected_framework != "no-framework" else "agent"
+    agent_name = base_name
+    suffix = 1
+    while (target_dir / agent_name).exists():
+        suffix += 1
+        agent_name = f"{base_name}-{suffix}"
+
+    return selected_framework, selected_language, agent_name
+
+
 def init_agent(
     name: str,
     target_dir: Path,
     framework: Optional[str] = None,
     language: Optional[str] = None,
+    minimal: bool = False,
 ):
-    if framework == "openclaw":
-        # Feature77: OpenClaw init delegates lifecycle registration to OpenClaw CLI.
-        # Workspace convention is explicit for deterministic install/import/run flows.
-        workspace_dir = Path.home() / ".openclaw" / f"workspace-{name}"
-        if workspace_dir.exists():
-            raise FileExistsError(f"Directory {workspace_dir} already exists.")
+    is_no_framework = framework == "no-framework"
+    selected_framework = None if is_no_framework else framework
 
-        preflight_result = run_openclaw_preflight_for_command("init")
-        if not preflight_result.ok:
-            raise ValueError(preflight_result.message)
-
-        result = subprocess.run(
-            ["openclaw", "agents", "add", name, "--workspace", str(workspace_dir)],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if result.returncode != 0:
-            detail = (result.stderr or result.stdout or "").strip()
-            suffix = f" ({detail})" if detail else ""
-            raise ValueError(
-                "OpenClaw agent registration failed: "
-                "`openclaw agents add` returned non-zero exit code"
-                f"{suffix}"
-            )
-
-        workspace_dir.mkdir(parents=True, exist_ok=True)
-        (workspace_dir / "kinnoo.yaml").write_text(
-            _build_openclaw_wrapper_manifest(name),
-            encoding="utf-8",
-        )
-
-        print("[kinnoo init][openclaw] registration complete")
-        print(f"[kinnoo init][openclaw] agent={name}")
-        print(f"[kinnoo init][openclaw] workspace={workspace_dir}")
-        print("[kinnoo init][openclaw] next: edit SOUL.md and configure your OpenClaw model/auth")
-        return
-    else:
-        agent_dir = target_dir / name
-        if agent_dir.exists():
-            raise FileExistsError(f"Directory {agent_dir} already exists.")
+    agent_dir = target_dir / name
+    if agent_dir.exists():
+        raise FileExistsError(f"Directory {agent_dir} already exists.")
 
     normalized_language = _normalize_language(language)
     if language is not None and normalized_language is None:
@@ -211,7 +358,7 @@ def init_agent(
 
     if framework is not None:
         allowed_languages = _FRAMEWORK_LANGUAGE_COMPATIBILITY.get(framework, {"python"})
-        chosen_language = normalized_language or ("javascript" if framework == "openclaw" else "python")
+        chosen_language = normalized_language or ("javascript" if selected_framework == "openclaw" else "python")
         if chosen_language not in allowed_languages:
             allowed_label = ", ".join(sorted(allowed_languages))
             raise ValueError(
@@ -219,21 +366,19 @@ def init_agent(
                 f"Allowed language(s) for {framework}: {allowed_label}."
             )
 
-    effective_language = normalized_language or ("javascript" if framework == "openclaw" else "python")
+    effective_language = normalized_language or ("javascript" if selected_framework == "openclaw" else "python")
     entrypoint_name = {
-        "python": "run.py",
-        "javascript": "run.js",
-        "typescript": "run.ts",
+        "python": "main.py",
+        "javascript": "index.js",
+        "typescript": "index.ts",
     }[effective_language]
 
     agent_dir.mkdir()
-    (agent_dir / "tools").mkdir()
-    (agent_dir / "prompts").mkdir()
 
     # OpenClaw uses a Node.js daemon manifest contract; MCP server uses a dedicated Python mcp-server manifest.
-    if framework == "openclaw":
+    if selected_framework == "openclaw":
         manifest_content = OPENCLAW_KINNOO_YAML_TEMPLATE.format(name=name)
-    elif framework == "mcp-server":
+    elif selected_framework == "mcp-server":
         manifest_content = MCP_SERVER_KINNOO_YAML_TEMPLATE.format(name=name)
     elif effective_language in {"javascript", "typescript"}:
         manifest_content = _build_node_manifest(
@@ -244,9 +389,9 @@ def init_agent(
     else:
         manifest_content = KINNOO_YAML_TEMPLATE.format(name=name)
 
-    if framework is not None and framework not in {"openclaw", "mcp-server"}:
-        manifest_content += f"framework: {framework}\n"
-        default_model = KNOWN_FRAMEWORK_DEFAULT_MODELS.get(framework)
+    if selected_framework is not None and selected_framework not in {"openclaw", "mcp-server"}:
+        manifest_content += f"framework: {selected_framework}\n"
+        default_model = KNOWN_FRAMEWORK_DEFAULT_MODELS.get(selected_framework)
         if default_model is not None:
             manifest_content += f"model: {default_model}\n"
 
@@ -263,59 +408,88 @@ def init_agent(
 
     # Write files
     (agent_dir / "kinnoo.yaml").write_text(manifest_content)
-    if framework in framework_templates:
-        run_template, requirements_template, readme_template = framework_templates[framework]
-        (agent_dir / "run.py").write_text(run_template)
-        (agent_dir / "requirements.txt").write_text(requirements_template)
-        (agent_dir / "README.md").write_text(readme_template.format(name=name))
-    elif effective_language == "javascript":
-        (agent_dir / "run.js").write_text(_JS_RUN_TEMPLATE)
-        (agent_dir / "package.json").write_text(
-            _NODE_PACKAGE_JSON_TEMPLATE.format(name=name, entrypoint="run.js")
+    if selected_framework == "openclaw":
+        (agent_dir / "AGENTS.md").write_text(OPENCLAW_AGENTS_MD_TEMPLATE)
+        (agent_dir / "IDENTITY.md").write_text(_OPENCLAW_IDENTITY_TEMPLATE)
+        (agent_dir / "SOUL.md").write_text(OPENCLAW_SOUL_MD_TEMPLATE)
+        (agent_dir / "USER.md").write_text(_OPENCLAW_USER_TEMPLATE)
+        readme_text = _standardize_readme(
+            OPENCLAW_README_TEMPLATE.format(name=name),
+            entrypoint="index.mjs",
+            include_folder_table=not minimal,
         )
-        (agent_dir / "requirements.txt").write_text("")
-        (agent_dir / "README.md").write_text(
+        (agent_dir / "README.md").write_text(readme_text)
+
+        if not minimal:
+            (agent_dir / ".gitignore").write_text(_GITIGNORE_OPENCLAW)
+            (agent_dir / "BOOTSTRAP.md").write_text(_OPENCLAW_BOOTSTRAP_TEMPLATE)
+            (agent_dir / "HEARTBEAT.md").write_text(_OPENCLAW_HEARTBEAT_TEMPLATE)
+            (agent_dir / "MEMORY.md").write_text(_OPENCLAW_MEMORY_TEMPLATE)
+            (agent_dir / "skills").mkdir()
+            (agent_dir / "memory").mkdir()
+        return
+
+    if selected_framework in framework_templates:
+        run_template, requirements_template, readme_template = framework_templates[selected_framework]
+        (agent_dir / "main.py").write_text(run_template)
+        (agent_dir / "requirements.txt").write_text(requirements_template)
+        readme_text = _standardize_readme(
+            readme_template.format(name=name),
+            entrypoint="main.py",
+            include_folder_table=not minimal,
+        )
+        (agent_dir / "README.md").write_text(readme_text)
+    elif effective_language == "javascript":
+        (agent_dir / "index.js").write_text(_JS_RUN_TEMPLATE)
+        (agent_dir / "package.json").write_text(
+            _NODE_PACKAGE_JSON_TEMPLATE.format(name=name, entrypoint="index.js")
+        )
+        readme_text = _standardize_readme(
             _NODE_README_TEMPLATE.format(
                 name=name,
                 language_flag="js",
-                entrypoint="run.js",
-            )
+                entrypoint="index.js",
+            ),
+            entrypoint="index.js",
+            include_folder_table=not minimal,
         )
+        (agent_dir / "README.md").write_text(readme_text)
     elif effective_language == "typescript":
-        (agent_dir / "run.ts").write_text(_TS_RUN_TEMPLATE)
+        (agent_dir / "index.ts").write_text(_TS_RUN_TEMPLATE)
         (agent_dir / "package.json").write_text(
-            _NODE_PACKAGE_JSON_TEMPLATE.format(name=name, entrypoint="run.ts")
+            _NODE_PACKAGE_JSON_TEMPLATE.format(name=name, entrypoint="index.ts")
         )
-        (agent_dir / "requirements.txt").write_text("")
-        (agent_dir / "README.md").write_text(
+        readme_text = _standardize_readme(
             _NODE_README_TEMPLATE.format(
                 name=name,
                 language_flag="ts",
-                entrypoint="run.ts",
-            )
+                entrypoint="index.ts",
+            ),
+            entrypoint="index.ts",
+            include_folder_table=not minimal,
         )
-    elif framework != "openclaw":
-        (agent_dir / "run.py").write_text(RUN_PY_TEMPLATE)
+        (agent_dir / "README.md").write_text(readme_text)
+    else:
+        (agent_dir / "main.py").write_text(RUN_PY_TEMPLATE)
         (agent_dir / "requirements.txt").write_text(REQUIREMENTS_TXT_TEMPLATE)
-        (agent_dir / "README.md").write_text(README_MD_TEMPLATE.format(name=name))
-
-    if framework == "openclaw":
-        # Keep OpenClaw scaffolding deterministic and offline-safe: template writes only, no shell-outs.
-        skills_default_dir = agent_dir / "skills" / "default"
-        skills_default_dir.mkdir(parents=True)
-        (agent_dir / "memory").mkdir()
-
-        (agent_dir / "package.json").write_text(
-            OPENCLAW_PACKAGE_JSON_TEMPLATE.format(name=name)
+        readme_text = _standardize_readme(
+            README_MD_TEMPLATE.format(name=name),
+            entrypoint="main.py",
+            include_folder_table=not minimal,
         )
-        (agent_dir / "openclaw.json").write_text(
-            OPENCLAW_JSON_TEMPLATE.format(name=name)
-        )
-        (agent_dir / "index.mjs").write_text(OPENCLAW_INDEX_MJS_TEMPLATE)
-        (skills_default_dir / "SKILL.md").write_text(OPENCLAW_DEFAULT_SKILL_TEMPLATE)
-        (agent_dir / "AGENTS.md").write_text(OPENCLAW_AGENTS_MD_TEMPLATE)
-        (agent_dir / "SOUL.md").write_text(OPENCLAW_SOUL_MD_TEMPLATE)
-        (agent_dir / "README.md").write_text(OPENCLAW_README_TEMPLATE.format(name=name))
+        (agent_dir / "README.md").write_text(readme_text)
+
+    if not minimal:
+        if effective_language == "python":
+            gitignore_template = _GITIGNORE_PYTHON
+        elif effective_language == "javascript":
+            gitignore_template = _GITIGNORE_JAVASCRIPT
+        else:
+            gitignore_template = _GITIGNORE_TYPESCRIPT
+
+        for folder_name in ("tools", "prompts", "evals", "tests", "data"):
+            (agent_dir / folder_name).mkdir()
+        (agent_dir / ".gitignore").write_text(gitignore_template)
 
 def main():
     parser = argparse.ArgumentParser(

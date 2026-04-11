@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from fastapi.testclient import TestClient
 
 from server.app import create_app
@@ -156,3 +157,69 @@ def test_list_and_detail(tmp_path):
     assert missing_auth_body["error"]["code"] == "unauthorized"
     assert missing_auth_body["error"]["message"]
     assert missing_auth_body["error"]["request_id"]
+
+
+def test_security_report_falls_back_to_lambda_report_json(tmp_path):
+    config = ServerConfig(
+        storage_backend="local",
+        local_storage_root=tmp_path / "storage",
+        s3_bucket="kinnoo-registry-dev",
+        s3_region="us-east-1",
+        s3_endpoint_url=None,
+        s3_access_key_id=None,
+        s3_secret_access_key=None,
+        presign_ttl_seconds=120,
+        max_upload_mb=5,
+    )
+    app = create_app(config=config)
+    client = TestClient(app)
+
+    token = app.state.token_service.issue_token(
+        subject="publisher-alpha",
+        tenant_slug="tenant-alpha",
+        scopes=["registry:read", "registry:publish"],
+    )
+
+    filename, archive_bytes = _archive(name="agent-sec", version="1.0.0", visibility="private")
+    result = publish_archive(
+        authorization_header=f"Bearer {token}",
+        filename=filename,
+        archive_bytes=archive_bytes,
+        token_service=app.state.token_service,
+        storage_backend=app.state.storage_backend,
+        metadata_manager=app.state.metadata_manager,
+        max_upload_mb=app.state.config.max_upload_mb,
+    )
+    assert result.status_code == 201
+
+    metadata = app.state.metadata_manager.get_version_metadata(
+        tenant_slug="tenant-alpha",
+        agent_slug="agent-sec",
+        version="1.0.0",
+    )
+    assert metadata is not None
+    app.state.metadata_manager.upsert_version_metadata(
+        replace(
+            metadata,
+            security_status="",
+            security_report=None,
+        )
+    )
+
+    app.state.storage_backend.put_object(
+        key="security-check/tenants/tenant-alpha/agents/agent-sec/versions/1.0.0/report.json",
+        data=(
+            '{"report":{"security_status":{"signature":"unsigned","archive":"pass","per_file":"pass"},'
+            '"checks":[{"check_name":"signature","status":"unsigned","detail":"missing"}]}}\n'
+        ).encode("utf-8"),
+        content_type="application/json",
+    )
+
+    response = client.get(
+        "/api/agents/tenant-alpha/agent-sec/1.0.0/security-report",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["security_status"]["signature"] == "unsigned"
+    assert payload["checks"][0]["status"] == "unsigned"

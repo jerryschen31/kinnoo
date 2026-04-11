@@ -88,6 +88,7 @@ _PACK_EXCLUDED_DIR_PARTS = {
     ".pytest_cache",
     "__pycache__",
 }
+_DEFAULT_EXCLUDED_TOP_LEVEL = {"data"}
 
 _STATE_SNAPSHOT_PREFIX = "state_snapshots"
 
@@ -208,6 +209,98 @@ def _filter_excluded_pack_entries(
             continue
         filtered.append((relative_path, absolute_path))
     return filtered
+
+
+def _normalize_override_paths(raw_paths: list[str] | None) -> list[str]:
+    normalized: list[str] = []
+    if not raw_paths:
+        return normalized
+
+    for raw in raw_paths:
+        candidate = raw.strip().replace("\\", "/").strip("/")
+        if candidate:
+            normalized.append(candidate)
+    return normalized
+
+
+def _relative_path_matches_override(relative_path: str, overrides: list[str]) -> bool:
+    normalized_relative = relative_path.replace("\\", "/").strip("/")
+    for override in overrides:
+        if normalized_relative == override:
+            return True
+        if normalized_relative.startswith(f"{override}/"):
+            return True
+    return False
+
+
+def _collect_explicit_include_files(
+    agent_root: Path,
+    include_paths: list[str],
+) -> list[tuple[str, Path]]:
+    collected: list[tuple[str, Path]] = []
+
+    for include_path in include_paths:
+        candidate = (agent_root / include_path).resolve(strict=False)
+        if not _path_within_root(candidate, agent_root):
+            raise ValueError(
+                f"Include path '{include_path}' escapes agent directory and is not allowed."
+            )
+        if not candidate.exists():
+            raise ValueError(f"Include path '{include_path}' was not found in agent directory.")
+
+        if candidate.is_file():
+            collected.append((candidate.relative_to(agent_root).as_posix(), candidate))
+            continue
+
+        for child in sorted(candidate.rglob("*")):
+            if child.is_file():
+                collected.append((child.relative_to(agent_root).as_posix(), child))
+
+    return collected
+
+
+def _apply_pack_include_exclude_rules(
+    entries: list[tuple[str, Path]],
+    include_paths: list[str],
+    exclude_paths: list[str],
+) -> list[tuple[str, Path]]:
+    filtered: list[tuple[str, Path]] = []
+
+    for relative_path, absolute_path in entries:
+        normalized_relative = relative_path.replace("\\", "/")
+        top_level = Path(normalized_relative).parts[0] if Path(normalized_relative).parts else ""
+
+        if _relative_path_matches_override(normalized_relative, exclude_paths):
+            continue
+
+        if top_level in _DEFAULT_EXCLUDED_TOP_LEVEL and not _relative_path_matches_override(
+            normalized_relative, include_paths
+        ):
+            continue
+
+        filtered.append((normalized_relative, absolute_path))
+
+    return filtered
+
+
+def _emit_pack_preflight_report(
+    *,
+    archive_destination: Path,
+    selected_entries: list[tuple[str, Path]],
+) -> None:
+    estimated_size = 0
+    print("[kinnoo pack] Preflight (dry-run)")
+    print(f"[kinnoo pack] Destination: {archive_destination}")
+    print("[kinnoo pack] Files that would be packaged:")
+    for relative_path, absolute_path in sorted(selected_entries, key=lambda item: item[0]):
+        file_size = absolute_path.stat().st_size
+        estimated_size += file_size
+        print(f"  - {relative_path} ({file_size} bytes)")
+
+    print(
+        "[kinnoo pack] Estimated archive payload size: "
+        f"{estimated_size} bytes ({format_size_human_readable(estimated_size)})"
+    )
 
 
 def _collect_asset_files(manifest: dict, agent_root: Path) -> tuple[list[tuple[str, Path]], bool]:
@@ -452,28 +545,51 @@ def pack_agent(
     sign: bool = False,
     signing_key_path: str | None = None,
     preflight: bool = False,
+    include: list[str] | None = None,
+    exclude: list[str] | None = None,
+    json_output: bool = False,
 ) -> int:
+    def _emit_json(payload: dict[str, object]) -> None:
+        print(json.dumps(payload, sort_keys=True))
+
+    def _fail(error_code: str, error_message: str, *, stderr: bool = True) -> int:
+        if stderr:
+            print(f"Error: {error_message}", file=sys.stderr)
+        if json_output:
+            _emit_json(
+                {
+                    "agent_dir": os.path.abspath(agent_dir),
+                    "visibility": "public" if make_public else "private",
+                    "archive_path": None,
+                    "checksum_sidecar_path": None,
+                    "archive_size_bytes": None,
+                    "agent_version": None,
+                    "error_code": error_code,
+                    "error_message": error_message,
+                }
+            )
+        return 1
+
     abs_agent_dir = os.path.abspath(agent_dir)
     cwd = os.path.abspath(os.getcwd())
     if abs_agent_dir == cwd or os.path.samefile(abs_agent_dir, cwd):
-        print("Do not run kinnoo pack from inside the agent directory. Please navigate outside and run: kinnoo pack <agent-dir>")
-        return 1
+        return _fail(
+            "PACK_INSIDE_AGENT_DIR",
+            "Do not run kinnoo pack from inside the agent directory. Please navigate outside and run: kinnoo pack <agent-dir>",
+            stderr=False,
+        )
     if not os.path.isdir(abs_agent_dir):
-        print(f"Error: Agent directory '{agent_dir}' does not exist.")
-        return 1
+        return _fail("AGENT_DIR_NOT_FOUND", f"Agent directory '{agent_dir}' does not exist.", stderr=False)
 
     if sign and not signing_key_path:
-        print("Error: --sign requires --signing-key <private-key.pem>", file=sys.stderr)
-        return 1
+        return _fail("SIGNING_KEY_REQUIRED", "--sign requires SIGNING_KEY")
 
     if not sign and signing_key_path:
-        print("Error: --signing-key can only be used together with --sign", file=sys.stderr)
-        return 1
+        return _fail("SIGNING_KEY_UNEXPECTED", "SIGNING_KEY can only be used together with --sign")
 
     kinnoo_yaml_path = os.path.join(abs_agent_dir, "kinnoo.yaml")
     if not os.path.isfile(kinnoo_yaml_path):
-        print(f"Error: kinnoo.yaml not found in {agent_dir}", file=sys.stderr)
-        return 1
+        return _fail("MANIFEST_NOT_FOUND", f"kinnoo.yaml not found in {agent_dir}")
 
     try:
         from kinnoo.validator import validate
@@ -483,21 +599,21 @@ def pack_agent(
     try:
         is_valid, errors = validate(kinnoo_yaml_path)
     except Exception as error:
-        print(f"Error: Failed to validate kinnoo.yaml: {error}", file=sys.stderr)
-        return 1
+        return _fail("MANIFEST_VALIDATE_ERROR", f"Failed to validate kinnoo.yaml: {error}")
 
     if not is_valid:
         print("Manifest validation failed:", file=sys.stderr)
         for error in errors:
             print(f"  - {error}", file=sys.stderr)
+        if json_output:
+            return _fail("MANIFEST_INVALID", "Manifest validation failed", stderr=False)
         return 1
 
     with open(kinnoo_yaml_path, "r", encoding="utf-8") as manifest_file:
         manifest = yaml.safe_load(manifest_file)
 
     if not isinstance(manifest, dict):
-        print("Error: kinnoo.yaml must parse to a mapping/object", file=sys.stderr)
-        return 1
+        return _fail("MANIFEST_SHAPE_INVALID", "kinnoo.yaml must parse to a mapping/object")
 
     if make_public:
         current_visibility = manifest.get("visibility")
@@ -535,65 +651,39 @@ def pack_agent(
 
     name = manifest.get("name")
     if not isinstance(name, str) or not name.strip():
-        print("Error: 'name' must be a non-empty string in kinnoo.yaml", file=sys.stderr)
-        return 1
+        return _fail("MANIFEST_NAME_INVALID", "'name' must be a non-empty string in kinnoo.yaml")
     name = name.strip()
 
     version = manifest.get("version")
     if not isinstance(version, str):
-        print("Error: 'version' must be a string in kinnoo.yaml", file=sys.stderr)
-        return 1
+        return _fail("MANIFEST_VERSION_INVALID", "'version' must be a string in kinnoo.yaml")
 
     if bump is not None:
         bumped_version = _bump_core_semver(version, bump)
         if bumped_version is None:
-            print(
-                "Error: --bump requires a core semver version in format x.y.z",
-                file=sys.stderr,
+            return _fail(
+                "BUMP_VERSION_INVALID",
+                "--bump requires a core semver version in format x.y.z",
             )
-            return 1
         manifest["version"] = bumped_version
         version = bumped_version
         with open(kinnoo_yaml_path, "w", encoding="utf-8") as manifest_file:
             yaml.safe_dump(manifest, manifest_file, sort_keys=False)
 
-    if preflight:
-        try:
-            from kinnoo.run_command import run_preflight
-        except ImportError:
-            from .run_command import run_preflight
-
-        preflight_exit_code = run_preflight(abs_agent_dir)
-        if preflight_exit_code == 0:
-            manifest["preflight_status"] = "PASS"
-            manifest["preflight_date"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-            with open(kinnoo_yaml_path, "w", encoding="utf-8") as manifest_file:
-                yaml.safe_dump(manifest, manifest_file, sort_keys=False)
-        else:
-            print(style_text("Warning: preflight checks failed before pack.", color="yellow"), file=sys.stderr)
-            try:
-                continue_response = input(style_text("Preflight failed. Continue packing anyway? [y/N]: ", color="yellow", bold=True))
-            except EOFError:
-                continue_response = ""
-
-            if continue_response.strip().lower() != "y":
-                print(style_text("[kinnoo pack] Aborted due to preflight failure.", color="red", bold=True))
-                return 1
-
     entrypoint = manifest.get("entrypoint")
     if not entrypoint:
-        print("Error: 'entrypoint' not specified in kinnoo.yaml", file=sys.stderr)
-        return 1
+        return _fail("MANIFEST_ENTRYPOINT_MISSING", "'entrypoint' not specified in kinnoo.yaml")
 
     entrypoint_path = os.path.join(abs_agent_dir, entrypoint)
     if not os.path.isfile(entrypoint_path):
-        print(f"Error: Entrypoint file '{entrypoint}' not found in {agent_dir}", file=sys.stderr)
-        return 1
+        return _fail("ENTRYPOINT_NOT_FOUND", f"Entrypoint file '{entrypoint}' not found in {agent_dir}")
 
     requirements_path = os.path.join(abs_agent_dir, "requirements.txt")
     if not os.path.isfile(requirements_path):
-        print(f"Error: requirements.txt not found in {agent_dir}", file=sys.stderr)
-        return 1
+        return _fail("REQUIREMENTS_NOT_FOUND", f"requirements.txt not found in {agent_dir}")
+
+    include_paths = _normalize_override_paths(include)
+    exclude_paths = _normalize_override_paths(exclude)
 
     additional_files = _collect_additional_files(manifest)
     safe_additional_paths: list[tuple[str, str]] = []
@@ -608,11 +698,12 @@ def pack_agent(
             continue
         candidate_path = os.path.abspath(os.path.join(abs_agent_dir, relative_path))
         if not candidate_path.startswith(abs_agent_dir + os.sep):
-            print(f"Error: Additional file path '{relative_path}' escapes agent directory.", file=sys.stderr)
-            return 1
+            return _fail(
+                "ADDITIONAL_FILE_OUTSIDE_ROOT",
+                f"Additional file path '{relative_path}' escapes agent directory.",
+            )
         if not os.path.isfile(candidate_path):
-            print(f"Error: Additional file '{relative_path}' not found in {agent_dir}", file=sys.stderr)
-            return 1
+            return _fail("ADDITIONAL_FILE_NOT_FOUND", f"Additional file '{relative_path}' not found in {agent_dir}")
         safe_additional_paths.append((relative_path, candidate_path))
 
     try:
@@ -655,11 +746,10 @@ def pack_agent(
         node_metadata_files = _collect_node_metadata_files(Path(abs_agent_dir))
         package_json_present = any(path == "package.json" for path, _ in node_metadata_files)
         if not package_json_present:
-            print(
-                "Error: Node.js agents must include package.json for reproducible install behavior.",
-                file=sys.stderr,
+            return _fail(
+                "NODE_PACKAGE_JSON_REQUIRED",
+                "Node.js agents must include package.json for reproducible install behavior.",
             )
-            return 1
 
     openclaw_workspace_files: list[tuple[str, Path]] = []
     if manifest_framework == "openclaw":
@@ -695,7 +785,56 @@ def pack_agent(
             file=sys.stderr,
         )
 
-    print(style_text(f"[kinnoo pack] Packaging agent directory: {agent_dir}", color="cyan", bold=True))
+    archive_root = os.environ.get("KINNOO_ARCHIVE_ROOT")
+    archive_backend = LocalArchiveBackend(
+        root=Path(archive_root).expanduser() if archive_root else None
+    )
+    archive_path = archive_backend.archive_path_for(name=name, version=version)
+    archive_name = archive_path.name
+
+    try:
+        explicit_include_files = _collect_explicit_include_files(
+            agent_root=Path(abs_agent_dir),
+            include_paths=include_paths,
+        )
+    except ValueError as error:
+        return _fail("INCLUDE_PATH_INVALID", str(error))
+
+    selected_entries: list[tuple[str, Path]] = []
+    selected_entries.append(("kinnoo.yaml", Path(kinnoo_yaml_path)))
+    selected_entries.append((os.path.basename(entrypoint_path), Path(entrypoint_path)))
+    selected_entries.append(("requirements.txt", Path(requirements_path)))
+    selected_entries.extend((relative_path, Path(absolute_path)) for relative_path, absolute_path in safe_additional_paths)
+    selected_entries.extend((arcname, Path(absolute_path)) for arcname, absolute_path in asset_files)
+    selected_entries.extend((arcname, Path(absolute_path)) for arcname, absolute_path in state_snapshot_files)
+    selected_entries.extend((relative_path, Path(absolute_path)) for relative_path, absolute_path in node_metadata_files)
+    selected_entries.extend((relative_path, Path(absolute_path)) for relative_path, absolute_path in openclaw_workspace_files)
+    selected_entries.extend(explicit_include_files)
+
+    selected_entries = _apply_pack_include_exclude_rules(
+        entries=selected_entries,
+        include_paths=include_paths,
+        exclude_paths=exclude_paths,
+    )
+
+    deduped_entries: list[tuple[str, Path]] = []
+    seen_entries: set[str] = set()
+    for relative_path, absolute_path in selected_entries:
+        if relative_path in seen_entries:
+            continue
+        seen_entries.add(relative_path)
+        deduped_entries.append((relative_path, absolute_path))
+    selected_entries = deduped_entries
+
+    if preflight:
+        _emit_pack_preflight_report(
+            archive_destination=archive_path,
+            selected_entries=selected_entries,
+        )
+        return 0
+
+    if not json_output:
+        print(style_text(f"[kinnoo pack] Packaging agent directory: {agent_dir}", color="cyan", bold=True))
     wheels_dir = tempfile.TemporaryDirectory(prefix="kinnoo_wheels_")
 
     wheel_files, failed_requirements = build_wheels(Path(requirements_path), Path(wheels_dir.name))
@@ -723,13 +862,6 @@ def pack_agent(
             file=sys.stderr,
         )
 
-    archive_root = os.environ.get("KINNOO_ARCHIVE_ROOT")
-    archive_backend = LocalArchiveBackend(
-        root=Path(archive_root).expanduser() if archive_root else None
-    )
-    archive_path = archive_backend.archive_path_for(name=name, version=version)
-    archive_name = archive_path.name
-
     if archive_path.exists():
         try:
             overwrite_response = input(
@@ -746,34 +878,7 @@ def pack_agent(
     staged_archive_path = Path(wheels_dir.name) / archive_name
     with zipfile.ZipFile(staged_archive_path, "w", zipfile.ZIP_DEFLATED) as archive_file:
         archived_entries: set[str] = set()
-
-        archive_file.write(kinnoo_yaml_path, arcname="kinnoo.yaml")
-        archived_entries.add("kinnoo.yaml")
-        archive_file.write(entrypoint_path, arcname=os.path.basename(entrypoint_path))
-        archived_entries.add(os.path.basename(entrypoint_path))
-        archive_file.write(requirements_path, arcname="requirements.txt")
-        archived_entries.add("requirements.txt")
-        for relative_path, absolute_path in safe_additional_paths:
-            if relative_path in archived_entries:
-                continue
-            archive_file.write(absolute_path, arcname=relative_path)
-            archived_entries.add(relative_path)
-        for arcname, absolute_path in asset_files:
-            if arcname in archived_entries:
-                continue
-            archive_file.write(absolute_path, arcname=arcname)
-            archived_entries.add(arcname)
-        for arcname, absolute_path in state_snapshot_files:
-            if arcname in archived_entries:
-                continue
-            archive_file.write(absolute_path, arcname=arcname)
-            archived_entries.add(arcname)
-        for relative_path, absolute_path in node_metadata_files:
-            if relative_path in archived_entries:
-                continue
-            archive_file.write(absolute_path, arcname=relative_path)
-            archived_entries.add(relative_path)
-        for relative_path, absolute_path in openclaw_workspace_files:
+        for relative_path, absolute_path in selected_entries:
             if relative_path in archived_entries:
                 continue
             archive_file.write(absolute_path, arcname=relative_path)
@@ -827,6 +932,8 @@ def pack_agent(
     except OSError as error:
         print(f"Error: Failed to write checksum sidecar: {error}", file=sys.stderr)
         wheels_dir.cleanup()
+        if json_output:
+            return _fail("CHECKSUM_WRITE_FAILED", f"Failed to write checksum sidecar: {error}", stderr=False)
         return 1
 
     signature_result = None
@@ -840,24 +947,28 @@ def pack_agent(
         except (OSError, ValueError) as error:
             print(f"Error: Failed to sign archive: {error}", file=sys.stderr)
             wheels_dir.cleanup()
+            if json_output:
+                return _fail("SIGNING_FAILED", f"Failed to sign archive: {error}", stderr=False)
             return 1
 
-    print(style_text(f"[kinnoo pack] Archive created: {stored_record.archive_path}", color="green", bold=True))
-    print(style_text(f"[kinnoo pack] Checksum sidecar written: {checksum_sidecar_path}", color="cyan"))
-    if signature_result is not None:
-        print(f"[kinnoo pack] Signature artifact written: {signature_result.signature_path}")
-        print(f"[kinnoo pack] Signature metadata written: {signature_result.metadata_path}")
-        print(
-            "[kinnoo pack] Signature key fingerprint (SHA256): "
-            f"{signature_result.public_key_fingerprint}"
-        )
-        print(
-            "[kinnoo pack] Verification hint: use publisher public key in signature metadata "
-            "or registry key association."
-        )
+    if not json_output:
+        print(style_text(f"[kinnoo pack] Archive created: {stored_record.archive_path}", color="green", bold=True))
+        print(style_text(f"[kinnoo pack] Checksum sidecar written: {checksum_sidecar_path}", color="cyan"))
+        if signature_result is not None:
+            print(f"[kinnoo pack] Signature artifact written: {signature_result.signature_path}")
+            print(f"[kinnoo pack] Signature metadata written: {signature_result.metadata_path}")
+            print(
+                "[kinnoo pack] Signature key fingerprint (SHA256): "
+                f"{signature_result.public_key_fingerprint}"
+            )
+            print(
+                "[kinnoo pack] Verification hint: use publisher public key in signature metadata "
+                "or registry key association."
+            )
     archive_size_bytes = stored_record.archive_path.stat().st_size
     archive_size_human = format_size_human_readable(archive_size_bytes)
-    print(f"[kinnoo pack] Archive size: {archive_size_human}")
+    if not json_output:
+        print(f"[kinnoo pack] Archive size: {archive_size_human}")
 
     warning_threshold_mb = _warning_threshold_mb_for_manifest(manifest)
     archive_size_mb = size_in_megabytes(archive_size_bytes)
@@ -868,6 +979,20 @@ def pack_agent(
             f"({archive_size_mb:.1f} MB). Consider whether all dependencies are necessary.",
             file=sys.stderr,
         )
-    print(f"[kinnoo pack] Agent version: {version}")
+    if not json_output:
+        print(f"[kinnoo pack] Agent version: {version}")
+    if json_output:
+        _emit_json(
+            {
+                "agent_dir": abs_agent_dir,
+                "visibility": "public" if str(manifest.get("visibility", "private")).strip().lower() == "public" else "private",
+                "archive_path": str(stored_record.archive_path),
+                "checksum_sidecar_path": str(checksum_sidecar_path),
+                "archive_size_bytes": archive_size_bytes,
+                "agent_version": version,
+                "error_code": None,
+                "error_message": None,
+            }
+        )
     wheels_dir.cleanup()
     return 0

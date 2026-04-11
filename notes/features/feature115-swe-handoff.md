@@ -3,7 +3,7 @@
 ## Overview
 
 Comprehensive CLI hardening based on User Acceptance Testing Part 1 findings.
-33 tasks (task453–task485), 44 tests (test628–test671).
+35 tasks (task453–task487), 49 tests (test628–test676).
 Source: `notes/phases/phase13-sat-uat-updates.md`
 
 ## SWE Handoff
@@ -125,11 +125,15 @@ dependencies and groups logically related work for efficient SWE sessions.
 | task478 | list — add --json option                               | test662            | none  |
 | task484 | new kinnoo fetch command                               | test668, test669   | none  |
 | task485 | new kinnoo uninstall command                           | test670, test671   | none  |
+| task486 | hotfix — hide traceback for remote registry failures   | test672, test673   | task484, task485 |
+| task487 | hotfix — init/run help + lambda retry/fallback         | test674, test675, test676 | task482, task486 |
 
 **Notes:**
 - task477: Remove `--openclaw-skills` from parser and search_command.py. Refactor `--json` for general structured output.
 - task484: New `fetch_command.py`. Download archive via remote_client. Integrity check. `--strict` for signature. Do NOT unpack.
 - task485: New `uninstall_command.py`. Parse target format (dir, dir==version, archive.kno==version). Confirmation prompt unless `-y`. `latest` as valid version alias.
+- task486: Catch `RemoteRegistryClientError` in list/search/fetch/publish dispatch and print concise `[kinnoo]` lines instead of uncaught traceback output.
+- task487: Remove legacy `init --framework`, remove `run --thinking`, add orange icon command descriptions in subcommand help, and codify task482 lambda invoke retry/fallback semantics.
 
 ---
 
@@ -137,14 +141,14 @@ dependencies and groups logically related work for efficient SWE sessions.
 
 | Task   | Title                                                   | Tests     | Deps         |
 |--------|---------------------------------------------------------|-----------|--------------|
-| task479 | Registry UI — security column icons                    | test663   | none         |
+| task479 | Registry UI — inline security icons in Name column     | test663   | none         |
 | task480 | Registry — server-side security check script           | test664   | none         |
 | task481 | Registry — security column update + report             | test665   | task480      |
 | task482 | Registry — containerized Lambda                        | test666   | task481      |
 | task483 | Registry UI — Security tab in modal                    | test667   | task481      |
 
 **Notes:**
-- task479: Add Security column to both My Agents and Search results tables. Icons: ✅ 📦 🧩 ❌.
+- task479: Render icons inline in Name cells for both My Agents and Search tables (two spaces before icons, for example: "s3-seed-agent  ✅📦"). Do not add a separate Security column. Icons: ✅ 📦 ❌ where 📦 represents integrity verification (archive and/or per-file).
 - task480: Create `server/services/security_check.py` with signature, archive integrity, and per-file integrity checks.
 - task481: Wire checks into publish route. Persist report. API endpoint for retrieving report.
 - task482: Lambda/container infra should be implemented via Terraform in `iac/` (function, IAM, wiring/config) when possible. Async invocation from publish. Write-back to metadata store.
