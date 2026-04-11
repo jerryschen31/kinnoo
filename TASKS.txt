@@ -9716,7 +9716,7 @@ tasks:
       - 'step6: Add tests for fetch download, integrity check, and strict verification.'
     dependencies: []
     tests: [test668, test669]
-    status: not-started
+    status: needs-review
 
   - id: task485
     title: "New kinnoo uninstall command"
@@ -9739,4 +9739,4 @@ tasks:
       - 'step5: Add tests for all three uninstall modes and confirmation bypass.'
     dependencies: []
     tests: [test670, test671]
-    status: not-started
+    status: needs-review

@@ -87,7 +87,7 @@ def _format_top_level_help_text() -> str:
     usage_help = style_text("-h", color="neon_green", stream=sys.stdout)
     usage_version = style_text("--version", color="light_blue", bold=True, stream=sys.stdout)
     usage_commands = style_text(
-        "{init,run,test,install,pack,keygen,inspect,publish,list,search,login,logout,import,check}",
+        "{init,run,test,install,pack,keygen,inspect,publish,list,search,fetch,uninstall,login,logout,import,check}",
         color="neon_green",
         bold=True,
         stream=sys.stdout,
@@ -103,7 +103,7 @@ def _format_top_level_help_text() -> str:
 
     all_agents_set = style_text("{init,run,test,install,pack,inspect, import,check}", color="neon_green", bold=True, stream=sys.stdout)
     daemon_set = style_text("{stop,attach,logs}", color="neon_green", bold=True, stream=sys.stdout)
-    registry_set = style_text("{publish,install,list,search,login,logout}", color="neon_green", bold=True, stream=sys.stdout)
+    registry_set = style_text("{publish,install,list,search,fetch,uninstall,login,logout}", color="neon_green", bold=True, stream=sys.stdout)
     other_set = style_text("{keygen}", color="neon_green", bold=True, stream=sys.stdout)
 
     init_cmd = style_text("init", color="neon_green", bold=True, stream=sys.stdout)
@@ -120,6 +120,8 @@ def _format_top_level_help_text() -> str:
     install_cmd = style_text("install", color="neon_green", bold=True, stream=sys.stdout)
     list_cmd = style_text("list", color="neon_green", bold=True, stream=sys.stdout)
     search_cmd = style_text("search", color="neon_green", bold=True, stream=sys.stdout)
+    fetch_cmd = style_text("fetch", color="neon_green", bold=True, stream=sys.stdout)
+    uninstall_cmd = style_text("uninstall", color="neon_green", bold=True, stream=sys.stdout)
     sync_cmd = style_text("sync", color="neon_green", bold=True, stream=sys.stdout)
     login_cmd = style_text("login", color="neon_green", bold=True, stream=sys.stdout)
     logout_cmd = style_text("logout", color="neon_green", bold=True, stream=sys.stdout)
@@ -148,6 +150,8 @@ def _format_top_level_help_text() -> str:
         f"        {install_cmd}             Install a kinnoo agent from archive (.kno) or registry\n"
         f"        {list_cmd}                List agents from remote registry (default if configured) or local archive\n"
         f"        {search_cmd}              Search agents from remote registry (default if configured) or local archive\n"
+        f"        {fetch_cmd}               Download an agent archive from registry into local archive storage\n"
+        f"        {uninstall_cmd}           Remove installed agent directory and/or archived versions\n"
         # [agent] sync command help intentionally commented out for task476.
         f"        {login_cmd}               Authenticate to a registry and persist auth state locally\n"
         f"        {logout_cmd}              Clear persisted registry auth state\n\n"
@@ -594,17 +598,47 @@ def main():
         help="Emit machine-readable diff payload",
     )
 
-    uninstall_parser = subparsers.add_parser(
-        "uninstall",
-        help="Remove an installed agent by name with confirmation",
+    fetch_parser = subparsers.add_parser(
+        "fetch",
+        help="Download an agent archive from registry into local archive storage",
         formatter_class=argparse.RawTextHelpFormatter,
-        description="Remove an installed agent by name with confirmation",
+        description="Download an agent archive from registry into local archive storage",
         epilog=(
             "Examples:\n"
-            "  kinnoo uninstall my-agent"
+            "  kinnoo fetch my-agent\n"
+            "  kinnoo fetch my-agent==1.2.3 --remote\n"
+            "  kinnoo fetch my-agent --strict\n"
         ),
     )
-    uninstall_parser.add_argument("agent_name", nargs="?", help="Installed agent name to remove")
+    fetch_parser.add_argument("target", nargs="?", help="Registry selector: <name> or <name>==<version>")
+    fetch_source_group = fetch_parser.add_mutually_exclusive_group()
+    fetch_source_group.add_argument("--local", action="store_true", help="Fetch from local registry")
+    fetch_source_group.add_argument("--remote", action="store_true", help="Fetch from remote registry")
+    fetch_parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Require embedded signature verification in addition to integrity checks.",
+    )
+    fetch_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit machine-readable JSON output.",
+    )
+
+    uninstall_parser = subparsers.add_parser(
+        "uninstall",
+        help="Remove installed agent and/or archived versions",
+        formatter_class=argparse.RawTextHelpFormatter,
+        description="Remove installed agent and/or archived versions",
+        epilog=(
+            "Examples:\n"
+            "  kinnoo uninstall my-agent -y\n"
+            "  kinnoo uninstall my-agent==1.2.3 -y\n"
+            "  kinnoo uninstall my-agent==latest -y"
+        ),
+    )
+    uninstall_parser.add_argument("target", nargs="?", help="Agent target: <name>, <name>==<version>, or <archive>.kno==<version>")
+    uninstall_parser.add_argument("-y", "--yes", action="store_true", help="Skip confirmation prompt")
 
     # Add 'keygen' subcommand
     keygen_parser = subparsers.add_parser(
@@ -1287,9 +1321,9 @@ def main():
     #     sys.exit(exit_code)
 
     elif args.command == "uninstall":
-        agent_name = getattr(args, "agent_name", None)
-        if agent_name is None:
-            print("Usage: kinnoo uninstall <agent-name>", file=sys.stderr)
+        target = getattr(args, "target", None)
+        if target is None:
+            print("Usage: kinnoo uninstall <target>", file=sys.stderr)
             sys.exit(1)
 
         try:
@@ -1297,7 +1331,27 @@ def main():
         except ImportError:
             from .uninstall_command import uninstall_agent
 
-        exit_code = uninstall_agent(agent_name=agent_name)
+        exit_code = uninstall_agent(target=target, assume_yes=bool(getattr(args, "yes", False)))
+        sys.exit(exit_code)
+
+    elif args.command == "fetch":
+        target = getattr(args, "target", None)
+        if target is None:
+            print("Usage: kinnoo fetch <name|name==version>", file=sys.stderr)
+            sys.exit(1)
+
+        try:
+            from kinnoo.fetch_command import fetch_agent
+        except ImportError:
+            from .fetch_command import fetch_agent
+
+        exit_code = fetch_agent(
+            target=target,
+            use_local=bool(getattr(args, "local", False)),
+            use_remote=bool(getattr(args, "remote", False)),
+            strict_mode=bool(getattr(args, "strict", False)),
+            json_output=bool(getattr(args, "json", False)),
+        )
         sys.exit(exit_code)
 
     elif args.command == "keygen":

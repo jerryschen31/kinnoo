@@ -11528,7 +11528,7 @@ tests:
       - feature: feature115
         ac: AC13
     automated: true
-    automation_path: tests/test_cli.py::test_uninstall_dir_and_all_archives
+    automation_path: tests/test_cli.py::test_uninstall_deletes_agent_directory_and_all_version_archives
 
   - id: test671
     title: "uninstall specific version archive only"
@@ -11545,4 +11545,4 @@ tests:
       - feature: feature115
         ac: AC13
     automated: true
-    automation_path: tests/test_cli.py::test_uninstall_specific_version
+    automation_path: tests/test_cli.py::test_uninstall_version_and_latest_alias
