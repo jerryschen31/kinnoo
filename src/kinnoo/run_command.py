@@ -465,27 +465,32 @@ def _manifest_declared_io_types(manifest: dict, section_name: str) -> list[str]:
 def _stream_and_capture_process_output(
     process: subprocess.Popen,
     timeout_seconds: float | None = None,
+    *,
+    echo_streams: bool = True,
 ) -> tuple[str, str, bool]:
     stdout_chunks: list[str] = []
     stderr_chunks: list[str] = []
 
-    def _pump(stream, target_stream, chunks: list[str]) -> None:
+    def _pump(stream, target_stream, chunks: list[str], *, echo: bool) -> None:
         if stream is None:
             return
         for line in iter(stream.readline, ""):
             chunks.append(line)
-            target_stream.write(line)
-            target_stream.flush()
+            if echo:
+                target_stream.write(line)
+                target_stream.flush()
         stream.close()
 
     stdout_thread = threading.Thread(
         target=_pump,
         args=(process.stdout, sys.stdout, stdout_chunks),
+        kwargs={"echo": echo_streams},
         daemon=True,
     )
     stderr_thread = threading.Thread(
         target=_pump,
         args=(process.stderr, sys.stderr, stderr_chunks),
+        kwargs={"echo": echo_streams},
         daemon=True,
     )
 
@@ -1195,6 +1200,7 @@ def run_agent(
     max_cpu_seconds: int | None = None,
     max_memory_mb: int | None = None,
 ) -> int:
+    run_started_at = datetime.now(timezone.utc)
     runtime_pass_through_args = list(pass_through_args or [])
     if preflight:
         return run_preflight(agent_dir_arg)
@@ -1203,6 +1209,8 @@ def run_agent(
     trace_manifest: dict | None = None
     trace_lifecycle: dict[str, object] | None = None
     trace_forbidden_values: list[str] = []
+    runtime_warnings: list[str] = []
+    policy_violations: list[dict[str, str]] = []
     runtime_monitor: RuntimeMonitor | None = None
     if input_arg is not None:
         trace_forbidden_values.append(input_arg)
@@ -1498,6 +1506,15 @@ def run_agent(
                 print(f"[kinnoo] violation event logged: '{violation_trace_path}'", file=sys.stderr)
 
             if enforcement_decision.action == "warn_continue":
+                policy_violations.append(
+                    {
+                        "classification": str(sandbox_decision.code),
+                        "capability": str(sandbox_decision.capability or "unspecified"),
+                        "action": str(sandbox_decision.action or "unspecified"),
+                        "reason_code": str(enforcement_decision.reason_code),
+                        "message": str(sandbox_decision.message),
+                    }
+                )
                 _print_safe_error(
                     "Warning: runtime policy violation allowed in warn mode "
                     f"(reason_code={enforcement_decision.reason_code}); execution continues.",
@@ -1521,7 +1538,8 @@ def run_agent(
                 )
                 return finalize(1)
 
-        print("[kinnoo] sandbox policy check passed", flush=True)
+        if not openclaw_json_output:
+            print("[kinnoo] sandbox policy check passed", flush=True)
 
     # Evaluate the user input before entrypoint execution; this is warning-based and never hard-rejects
     # when a user explicitly confirms in interactive mode.
@@ -1541,6 +1559,9 @@ def run_agent(
             aggregate_warnings.extend(guard_result.warnings)
 
         if aggregate_warnings:
+            for warning in aggregate_warnings:
+                param_suffix = f" (param: {warning.param_name})" if warning.param_name else ""
+                runtime_warnings.append(f"[{warning.threat_category}] {warning.description}{param_suffix}")
             print("[kinnoo] Input safety warning:", file=sys.stderr)
             for warning in aggregate_warnings:
                 param_suffix = f" (param: {warning.param_name})" if warning.param_name else ""
@@ -1604,11 +1625,12 @@ def run_agent(
         if openclaw_json_output:
             delegated_command.append("--json")
 
-        print(
-            "[kinnoo run][openclaw] delegated invocation: "
-            f"command={' '.join(delegated_command)}",
-            flush=True,
-        )
+        if not openclaw_json_output:
+            print(
+                "[kinnoo run][openclaw] delegated invocation: "
+                f"command={' '.join(delegated_command)}",
+                flush=True,
+            )
         try:
             delegated_process = subprocess.Popen(
                 delegated_command,
@@ -1697,15 +1719,21 @@ def run_agent(
         runtime_language=runtime_language,
         force_telemetry_limited=force_telemetry_limited,
     )
-    print(
-        "[kinnoo monitor] policy summary: "
-        f"network={'allowed' if monitor_policy_summary.network_allowed else 'denied'}, "
-        f"filesystem_scope={monitor_policy_summary.filesystem_scope}, "
-        f"shell={'allowed' if monitor_policy_summary.shell_allowed else 'denied'}, "
-        f"browser={'allowed' if monitor_policy_summary.browser_allowed else 'denied'}"
-    )
+    if not openclaw_json_output:
+        print(
+            "[kinnoo monitor] policy summary: "
+            f"network={'allowed' if monitor_policy_summary.network_allowed else 'denied'}, "
+            f"filesystem_scope={monitor_policy_summary.filesystem_scope}, "
+            f"shell={'allowed' if monitor_policy_summary.shell_allowed else 'denied'}, "
+            f"browser={'allowed' if monitor_policy_summary.browser_allowed else 'denied'}"
+        )
     if monitor_policy_summary.telemetry_limited:
         limited_caps = ", ".join(monitor_policy_summary.telemetry_limited_capabilities)
+        runtime_warnings.append(
+            "telemetry_limited: "
+            f"reason_code={monitor_policy_summary.telemetry_reason_code}; "
+            f"limited_capabilities=[{limited_caps}]"
+        )
         print(
             "[kinnoo monitor] graceful degradation: "
             f"reason_code={monitor_policy_summary.telemetry_reason_code} "
@@ -1881,6 +1909,76 @@ def run_agent(
             signal.signal(signal.SIGINT, previous_sigint_handler)
 
     try:
+        if openclaw_json_output:
+            process_kwargs = {
+                "cwd": agent_dir,
+                "stdout": subprocess.PIPE,
+                "stderr": subprocess.PIPE,
+                "env": subprocess_env,
+                "text": True,
+                "bufsize": 1,
+            }
+            if resource_preexec_fn is not None:
+                process_kwargs["preexec_fn"] = resource_preexec_fn
+            process = subprocess.Popen(
+                process_args,
+                **process_kwargs,
+            )
+            captured_stdout, captured_stderr, timed_out = _stream_and_capture_process_output(
+                process,
+                timeout_seconds=resource_controls.max_seconds,
+                echo_streams=False,
+            )
+
+            run_finished_at = datetime.now(timezone.utc)
+            payload: dict[str, object] = {
+                "output": captured_stdout,
+                "exit_code": 1 if timed_out else int(process.returncode),
+                "success": (not timed_out) and process.returncode == 0,
+                "start_time": run_started_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "end_time": run_finished_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "duration_seconds": (run_finished_at - run_started_at).total_seconds(),
+                "agent_dir": str(agent_dir),
+                "entrypoint": str(entrypoint),
+                "runtime_language": runtime_language,
+                "runtime_type": runtime_type,
+                "input": effective_input_arg,
+                "error": None,
+                "warnings": runtime_warnings,
+                "resource_usage": None,
+                "policy_enforced": sandbox,
+                "policy_violations": policy_violations,
+            }
+
+            if timed_out:
+                payload["error"] = "runtime resource control triggered kill switch (reason_code=wall_clock_timeout_exceeded)"
+                print(json.dumps(payload, sort_keys=True))
+                return finalize(1)
+
+            if process.returncode != 0:
+                if resource_controls.max_cpu_seconds is not None and process.returncode < 0:
+                    payload["error"] = "runtime resource control triggered kill switch (reason_code=cpu_limit_exceeded)"
+                else:
+                    payload["error"] = captured_stderr.strip() or "agent run failed"
+                print(json.dumps(payload, sort_keys=True))
+                return finalize(process.returncode)
+
+            if enforce_json_output_contract:
+                try:
+                    json.loads(captured_stdout)
+                except json.JSONDecodeError as error:
+                    payload["success"] = False
+                    payload["exit_code"] = 1
+                    payload["error"] = (
+                        "outputs.type=json contract violation: stdout is not valid JSON "
+                        f"(line {error.lineno}, column {error.colno}: {error.msg})"
+                    )
+                    print(json.dumps(payload, sort_keys=True))
+                    return finalize(1)
+
+            print(json.dumps(payload, sort_keys=True))
+            return finalize(process.returncode)
+
         if enforce_json_output_contract:
             process_kwargs = {
                 "cwd": agent_dir,

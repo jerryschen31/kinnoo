@@ -331,7 +331,7 @@ def main():
     run_parser.add_argument(
         "--json",
         action="store_true",
-        help="(OpenClaw run) Request machine-readable output passthrough",
+        help="Emit machine-readable JSON output (OpenClaw passthrough; non-OpenClaw structured envelope)",
     )
     run_parser.add_argument(
         "--max-seconds",
