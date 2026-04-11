@@ -663,9 +663,9 @@ def main():
     )
     inspect_parser.add_argument(
         "--update",
-        nargs=3,
-        metavar=("TARGET", "OLD_KEY", "NEW_VALUE"),
-        help="Update a manifest metadata field (for example: --update myagent runtime.language nodejs)",
+        nargs=2,
+        metavar=("KEY", "NEW_VALUE"),
+        help="Update a manifest metadata field (for example: --update runtime.language nodejs)",
     )
     inspect_parser.add_argument(
         "--skip-warnings",
@@ -1320,15 +1320,15 @@ def main():
             from .inspect_command import inspect_target, inspect_update_target
 
         if update_args is not None:
-            if target is not None:
-                print("Error: positional <target> cannot be combined with --update.", file=sys.stderr)
-                sys.exit(1)
             if full or raw:
                 print("Error: --full/--raw cannot be combined with --update.", file=sys.stderr)
                 sys.exit(1)
-            update_target, old_key, new_value = update_args
+            if target is None:
+                print("Usage: kinnoo inspect <target> --update <key> <new-value>", file=sys.stderr)
+                sys.exit(1)
+            old_key, new_value = update_args
             exit_code = inspect_update_target(
-                update_target,
+                target,
                 old_key,
                 new_value,
                 skip_warnings=skip_warnings,
