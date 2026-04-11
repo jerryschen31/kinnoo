@@ -242,6 +242,61 @@ def test_init_readme_content(tmp_path):
     assert "using Schema 0.1.0" in readme
 
 
+def test_init_python_gitignore(tmp_path):
+    agent_name = "task459-python-gitignore"
+    code, out, err = run_cli(["init", "chatgpt", "--language", "python", agent_name], cwd=tmp_path)
+    assert code == 0, err
+
+    gitignore = (tmp_path / agent_name / ".gitignore").read_text(encoding="utf-8")
+    assert "__pycache__/" in gitignore
+    assert ".venv/" in gitignore
+    assert "*.py[cod]" in gitignore
+    assert ".kinnoo/" in gitignore
+    assert ".env" in gitignore
+    assert "*.pem" in gitignore
+
+
+def test_init_javascript_gitignore(tmp_path):
+    agent_name = "task459-javascript-gitignore"
+    code, out, err = run_cli(["init", "chatgpt", "--language", "javascript", agent_name], cwd=tmp_path)
+    assert code == 0, err
+
+    gitignore = (tmp_path / agent_name / ".gitignore").read_text(encoding="utf-8")
+    assert "node_modules/" in gitignore
+    assert ".npm" in gitignore
+    assert "npm-debug.log*" in gitignore
+    assert "__pycache__/" not in gitignore
+    assert ".venv/" not in gitignore
+
+
+def test_init_typescript_gitignore(tmp_path):
+    agent_name = "task459-typescript-gitignore"
+    code, out, err = run_cli(["init", "chatgpt", "--language", "typescript", agent_name], cwd=tmp_path)
+    assert code == 0, err
+
+    gitignore = (tmp_path / agent_name / ".gitignore").read_text(encoding="utf-8")
+    assert "*.tsbuildinfo" in gitignore
+    assert "coverage/" in gitignore
+    assert ".vitest/" in gitignore
+    assert "__pycache__/" not in gitignore
+    assert ".venv/" not in gitignore
+
+
+def test_init_openclaw_gitignore(tmp_path):
+    agent_name = "task459-openclaw-gitignore"
+    code, out, err = run_cli(["init", "openclaw", agent_name], cwd=tmp_path)
+    assert code == 0, err
+
+    gitignore = (tmp_path / agent_name / ".gitignore").read_text(encoding="utf-8")
+    assert "memory/" in gitignore
+    assert ".dreams/" in gitignore
+    assert "scratch/" in gitignore
+    assert ".openclaw/" in gitignore
+    assert "credentials.json" in gitignore
+    assert "__pycache__/" not in gitignore
+    assert "node_modules/" not in gitignore
+
+
 def test_init_javascript_manifest_runtime_language(tmp_path):
     import yaml
 
