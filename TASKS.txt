@@ -9302,7 +9302,7 @@ tasks:
       - 'step3: Add test that using both --local and --remote produces an error.'
     dependencies: []
     tests: [test648]
-    status: not-started
+    status: needs-review
 
   - id: task466
     title: "publish - version history and Agent Versions tab"
