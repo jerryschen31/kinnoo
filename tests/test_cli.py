@@ -186,6 +186,28 @@ permissions:
     assert "--sandbox" not in help_output
 
 
+def test_disabled_commands_not_accessible() -> None:
+    for disabled_command in ("sync", "stop", "attach", "logs"):
+        result = subprocess.run(
+            [sys.executable, "src/kinnoo/cli.py", disabled_command],
+            capture_output=True,
+            text=True,
+        )
+        output = f"{result.stdout}\n{result.stderr}"
+        assert result.returncode != 0
+        assert "invalid choice" in output
+
+    help_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "-h"],
+        capture_output=True,
+        text=True,
+    )
+    help_output = f"{help_result.stdout}\n{help_result.stderr}"
+    assert help_result.returncode == 0
+    assert "daemon agents:" not in help_output
+    assert "{stop,attach,logs}" not in help_output
+
+
 def test_cli_direct_script_execution_prefers_local_src_over_pythonpath(tmp_path: Path) -> None:
     cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
     fake_site_root = tmp_path / "fake-site"
