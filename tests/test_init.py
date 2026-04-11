@@ -103,6 +103,7 @@ import subprocess
 import sys
 import re
 import os
+import io
 import pytest
 from pathlib import Path
 
@@ -147,6 +148,30 @@ def test_init_no_framework_barebones(tmp_path):
     manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
     assert "framework" not in manifest
     assert (agent_dir / "run.py").exists()
+
+
+def test_init_interactive_wizard(tmp_path, monkeypatch, capsys):
+    from kinnoo import cli as cli_module
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["kinnoo", "init"])
+    monkeypatch.setattr("builtins.input", lambda _prompt="": next(iter_inputs))
+
+    class _TTYStdin(io.StringIO):
+        def isatty(self):
+            return True
+
+    iter_inputs = iter(["1", "1"])
+    monkeypatch.setattr(sys, "stdin", _TTYStdin())
+
+    cli_module.main()
+    output = capsys.readouterr().out
+    assert "Select framework:" in output
+    assert "Select language:" in output
+
+    agent_dir = tmp_path / "gemini-agent"
+    assert agent_dir.exists()
+    assert (agent_dir / "kinnoo.yaml").exists()
 
 
 def test_init_javascript_manifest_runtime_language(tmp_path):

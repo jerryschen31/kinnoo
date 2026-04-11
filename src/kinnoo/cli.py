@@ -934,6 +934,7 @@ def main():
         legacy_framework = getattr(args, "framework_opt", None)
         agent_name = getattr(args, "agent_name", None)
         resolved_framework = None
+        resolved_language = getattr(args, "language", None)
 
         if positional_token in supported_frameworks:
             resolved_framework = positional_token
@@ -952,6 +953,18 @@ def main():
         if resolved_framework is None and legacy_framework is not None:
             resolved_framework = legacy_framework
 
+        if agent_name is None and resolved_framework is None:
+            if sys.stdin.isatty():
+                from kinnoo.init_command import interactive_init_wizard
+
+                resolved_framework, resolved_language, agent_name = interactive_init_wizard(Path.cwd())
+            else:
+                print(
+                    "Usage: kinnoo init [framework] [--language {python,javascript,typescript}] <agent-name>",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+
         if not agent_name:
             print("Usage: kinnoo init [framework] [--language {python,javascript,typescript}] <agent-name>", file=sys.stderr)
             sys.exit(1)
@@ -961,7 +974,7 @@ def main():
         from kinnoo.init_command import init_agent
         # from pathlib import Path
         try:
-            init_agent(agent_name, Path.cwd(), framework=resolved_framework, language=getattr(args, "language", None))
+            init_agent(agent_name, Path.cwd(), framework=resolved_framework, language=resolved_language)
             print(f"Initialized agent: {agent_name}")
         except FileExistsError as e:
             print(f"Error: {e}", file=sys.stderr)

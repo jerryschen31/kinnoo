@@ -9087,7 +9087,7 @@ tasks:
       - 'step4: Add test that wizard prompts appear and selections produce valid scaffolds (mock stdin).'
     dependencies: [task454]
     tests: [test631]
-    status: not-started
+    status: needs-review
 
   - id: task456
     title: "init - change default python entrypoint to main.py"
