@@ -295,10 +295,13 @@ def _security_icons_for_status(security_status: object) -> str:
         icons: list[str] = []
         if verdicts["signature"] == "pass":
             icons.append("✅")
-        if verdicts["archive"] == "pass" or verdicts["archive_integrity"] == "pass":
+        if (
+            verdicts["archive"] == "pass"
+            or verdicts["archive_integrity"] == "pass"
+            or verdicts["per_file"] == "pass"
+            or verdicts["per_file_integrity"] == "pass"
+        ):
             icons.append("📦")
-        if verdicts["per_file"] == "pass" or verdicts["per_file_integrity"] == "pass":
-            icons.append("🧩")
         return "".join(icons)
 
     if not isinstance(security_status, str):
@@ -315,8 +318,8 @@ def _security_icons_for_status(security_status: object) -> str:
         "signature_pass": "✅",
         "archive_verified": "📦",
         "archive_pass": "📦",
-        "file_integrity_verified": "🧩",
-        "per_file_pass": "🧩",
+        "file_integrity_verified": "📦",
+        "per_file_pass": "📦",
     }
     if normalized in aliases:
         return aliases[normalized]
@@ -326,8 +329,8 @@ def _security_icons_for_status(security_status: object) -> str:
         icons.append("✅")
     if "archive" in normalized:
         icons.append("📦")
-    if "file" in normalized or "per_file" in normalized:
-        icons.append("🧩")
+    if ("file" in normalized or "per_file" in normalized) and "📦" not in icons:
+        icons.append("📦")
     return "".join(icons)
 
 

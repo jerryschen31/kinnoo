@@ -144,7 +144,7 @@ dependencies and groups logically related work for efficient SWE sessions.
 | task483 | Registry UI — Security tab in modal                    | test667   | task481      |
 
 **Notes:**
-- task479: Render icons inline in Name cells for both My Agents and Search tables (two spaces before icons, for example: "s3-seed-agent  ✅📦"). Do not add a separate Security column. Icons: ✅ 📦 🧩 ❌.
+- task479: Render icons inline in Name cells for both My Agents and Search tables (two spaces before icons, for example: "s3-seed-agent  ✅📦"). Do not add a separate Security column. Icons: ✅ 📦 ❌ where 📦 represents integrity verification (archive and/or per-file).
 - task480: Create `server/services/security_check.py` with signature, archive integrity, and per-file integrity checks.
 - task481: Wire checks into publish route. Persist report. API endpoint for retrieving report.
 - task482: Lambda/container infra should be implemented via Terraform in `iac/` (function, IAM, wiring/config) when possible. Async invocation from publish. Write-back to metadata store.
