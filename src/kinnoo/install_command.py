@@ -57,6 +57,7 @@ try:
     )
     from kinnoo.integrity import verify_integrity_manifest
     from kinnoo.openclaw_preflight import run_openclaw_preflight_for_command
+    from kinnoo.runtime_language import is_nodejs_compatible_runtime
 except ImportError:
     from .checksum import (
         ChecksumParseError,
@@ -82,6 +83,7 @@ except ImportError:
     from .signing import load_ed25519_public_key_from_pem, public_key_fingerprint, verify_signature
     from .integrity import verify_integrity_manifest
     from .openclaw_preflight import run_openclaw_preflight_for_command
+    from .runtime_language import is_nodejs_compatible_runtime
 
 
 def _read_requirements(requirements_path: Path) -> list[str]:
@@ -1881,7 +1883,7 @@ def _install_from_archive_path(
         if isinstance(runtime_language_value, str) and runtime_language_value.strip():
             runtime_language = runtime_language_value.strip().lower()
 
-    if runtime_language == "nodejs":
+    if is_nodejs_compatible_runtime(runtime_language):
         node_exit_code = _install_node_dependencies(
             target_dir=target_dir,
             runtime=runtime if isinstance(runtime, dict) else {},

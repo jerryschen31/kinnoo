@@ -122,6 +122,32 @@ def run_cli(args, cwd=None):
     return proc.returncode, out, err
 
 
+def test_init_javascript_manifest_runtime_language(tmp_path):
+    import yaml
+
+    agent_name = "js-agent"
+    code, out, err = run_cli(["init", agent_name, "--language", "javascript"], cwd=tmp_path)
+    assert code == 0, err
+
+    manifest_path = tmp_path / agent_name / "kinnoo.yaml"
+    manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    assert manifest["runtime"]["language"] == "javascript"
+    assert (tmp_path / agent_name / "run.js").exists()
+
+
+def test_init_typescript_manifest_runtime_language(tmp_path):
+    import yaml
+
+    agent_name = "ts-agent"
+    code, out, err = run_cli(["init", agent_name, "--language", "typescript"], cwd=tmp_path)
+    assert code == 0, err
+
+    manifest_path = tmp_path / agent_name / "kinnoo.yaml"
+    manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    assert manifest["runtime"]["language"] == "typescript"
+    assert (tmp_path / agent_name / "run.ts").exists()
+
+
 import pytest
 
 @pytest.mark.parametrize("test_id,cli_args", [

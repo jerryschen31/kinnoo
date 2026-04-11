@@ -200,7 +200,7 @@ def _validate_archive_and_manifest(
         return None, (400, "kinnoo.yaml must be a mapping")
 
     missing_fields = []
-    for field_name in ("name", "version", "framework"):
+    for field_name in ("name", "version"):
         value = parsed.get(field_name)
         if not isinstance(value, str) or not value.strip():
             missing_fields.append(field_name)

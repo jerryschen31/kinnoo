@@ -134,7 +134,7 @@ def _normalize_language(language: Optional[str]) -> str | None:
     return _LANGUAGE_ALIASES.get(language.lower())
 
 
-def _build_node_manifest(name: str, *, entrypoint: str) -> str:
+def _build_node_manifest(name: str, *, entrypoint: str, language: str) -> str:
     return (
         f"name: {name}\n"
         "version: 0.1.0\n"
@@ -142,7 +142,7 @@ def _build_node_manifest(name: str, *, entrypoint: str) -> str:
         "author: \"TODO: Add author name\"\n"
         f"entrypoint: {entrypoint}\n"
         "runtime:\n"
-        "  language: nodejs\n"
+        f"  language: {language}\n"
         "  version: \">=20\"\n"
         "  type: one-shot\n"
         "dependencies: []\n"
@@ -236,7 +236,11 @@ def init_agent(
     elif framework == "mcp-server":
         manifest_content = MCP_SERVER_KINNOO_YAML_TEMPLATE.format(name=name)
     elif effective_language in {"javascript", "typescript"}:
-        manifest_content = _build_node_manifest(name, entrypoint=entrypoint_name)
+        manifest_content = _build_node_manifest(
+            name,
+            entrypoint=entrypoint_name,
+            language=effective_language,
+        )
     else:
         manifest_content = KINNOO_YAML_TEMPLATE.format(name=name)
 
