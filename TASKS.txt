@@ -9217,7 +9217,7 @@ tasks:
       - 'step4: Add test that --preflight lists files and does not create an archive.'
     dependencies: []
     tests: [test643]
-    status: not-started
+    status: needs-review
 
   - id: task462
     title: "pack - help text updates and default patch bump"
