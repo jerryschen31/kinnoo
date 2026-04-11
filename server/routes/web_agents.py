@@ -221,6 +221,15 @@ def _all_agent_rows(*, metadata_manager: MetadataManager, storage_backend: Stora
                         except FileNotFoundError:
                             size_bytes = 0
 
+            security_icons = _security_icons_for_status(
+                _security_status_for_latest_version(
+                    metadata_manager=metadata_manager,
+                    tenant_slug=tenant_slug,
+                    agent_slug=summary.agent_slug,
+                    version=latest_version,
+                )
+            )
+
             rows.append(
                 {
                     "tenant": tenant_slug,
@@ -232,6 +241,7 @@ def _all_agent_rows(*, metadata_manager: MetadataManager, storage_backend: Stora
                     "size_display": _format_size(size_bytes),
                     "description": description,
                     "visibility": summary.visibility,
+                    "security_icons": security_icons,
                 }
             )
 
@@ -245,6 +255,80 @@ def _format_size(size_bytes: int) -> str:
     if size_bytes < 1024 * 1024:
         return f"{size_bytes / 1024:.1f} KB"
     return f"{size_bytes / (1024 * 1024):.1f} MB"
+
+
+def _security_status_for_latest_version(
+    *,
+    metadata_manager: MetadataManager,
+    tenant_slug: str,
+    agent_slug: str,
+    version: str,
+) -> object:
+    if not version:
+        return ""
+    metadata = metadata_manager.get_version_metadata(
+        tenant_slug=tenant_slug,
+        agent_slug=agent_slug,
+        version=version,
+    )
+    if metadata is None:
+        return ""
+    if metadata.security_status not in (None, ""):
+        return metadata.security_status
+    if isinstance(metadata.manifest, dict):
+        return metadata.manifest.get("security_status", "")
+    return ""
+
+
+def _security_icons_for_status(security_status: object) -> str:
+    if isinstance(security_status, dict):
+        verdicts = {
+            "signature": str(security_status.get("signature", "")).strip().lower(),
+            "archive": str(security_status.get("archive", "")).strip().lower(),
+            "archive_integrity": str(security_status.get("archive_integrity", "")).strip().lower(),
+            "per_file": str(security_status.get("per_file", "")).strip().lower(),
+            "per_file_integrity": str(security_status.get("per_file_integrity", "")).strip().lower(),
+        }
+        if any(value == "fail" for value in verdicts.values() if value):
+            return "❌"
+
+        icons: list[str] = []
+        if verdicts["signature"] == "pass":
+            icons.append("✅")
+        if verdicts["archive"] == "pass" or verdicts["archive_integrity"] == "pass":
+            icons.append("📦")
+        if verdicts["per_file"] == "pass" or verdicts["per_file_integrity"] == "pass":
+            icons.append("🧩")
+        return "".join(icons)
+
+    if not isinstance(security_status, str):
+        return ""
+
+    normalized = security_status.strip().lower()
+    if not normalized:
+        return ""
+    if "fail" in normalized:
+        return "❌"
+
+    aliases = {
+        "signed_verified": "✅",
+        "signature_pass": "✅",
+        "archive_verified": "📦",
+        "archive_pass": "📦",
+        "file_integrity_verified": "🧩",
+        "per_file_pass": "🧩",
+    }
+    if normalized in aliases:
+        return aliases[normalized]
+
+    icons: list[str] = []
+    if "signed" in normalized or "signature" in normalized:
+        icons.append("✅")
+    if "archive" in normalized:
+        icons.append("📦")
+    if "file" in normalized or "per_file" in normalized:
+        icons.append("🧩")
+    return "".join(icons)
 
 
 def _resolve_manifest_path(manifest: dict[str, object], path: str) -> object | None:

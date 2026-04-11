@@ -29,7 +29,7 @@
             {% for agent in results %}
               <tr>
                 <td>{{ agent.tenant }}</td>
-                <td>{{ agent.name }}</td>
+                <td>{{ agent.name }}{% if agent.security_icons %}&nbsp;&nbsp;{{ agent.security_icons }}{% endif %}</td>
                 <td>{{ agent.version }}</td>
                 <td>{{ agent.author }}</td>
                 <td>{{ agent.size_display }}</td>

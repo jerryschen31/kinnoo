@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 import re
 from io import BytesIO
 import zipfile
@@ -367,3 +368,76 @@ def test_agents_table_framework_column_and_na_fallback(tmp_path):
         listing.text,
     )
     assert no_framework_row is not None
+
+
+def test_name_column_renders_inline_security_icons_without_security_column(tmp_path):
+    config = ServerConfig(
+        storage_backend="local",
+        local_storage_root=tmp_path / "storage",
+        s3_bucket="kinnoo-registry-dev",
+        s3_region="us-east-1",
+        s3_endpoint_url=None,
+        s3_access_key_id=None,
+        s3_secret_access_key=None,
+        presign_ttl_seconds=120,
+        max_upload_mb=5,
+    )
+    app = create_app(config=config)
+
+    app.state.user_store.create_user(
+        username="admin",
+        plaintext_password="admin-secret",
+        role="admin",
+    )
+
+    publisher_token = app.state.token_service.issue_token(
+        subject="publisher-alpha",
+        tenant_slug="tenant-alpha",
+        scopes=["registry:read", "registry:publish"],
+    )
+
+    filename, archive_bytes = _archive(
+        name="s3-seed-agent",
+        version="1.0.0",
+        visibility="public",
+        description="security status render",
+        author="alice",
+    )
+    result = publish_archive(
+        authorization_header=f"Bearer {publisher_token}",
+        filename=filename,
+        archive_bytes=archive_bytes,
+        token_service=app.state.token_service,
+        storage_backend=app.state.storage_backend,
+        metadata_manager=app.state.metadata_manager,
+        max_upload_mb=app.state.config.max_upload_mb,
+    )
+    assert result.status_code == 201
+
+    metadata = app.state.metadata_manager.get_version_metadata(
+        tenant_slug="tenant-alpha",
+        agent_slug="s3-seed-agent",
+        version="1.0.0",
+    )
+    assert metadata is not None
+
+    app.state.metadata_manager.upsert_version_metadata(
+        replace(
+            metadata,
+            updated_at=metadata.updated_at,
+            security_status={"signature": "pass", "archive": "pass"},
+        )
+    )
+
+    client = TestClient(app, base_url="https://testserver")
+    _login(client, username="admin", password="admin-secret")
+
+    listing = client.get("/agents?page=1&per_page=20")
+    assert listing.status_code == 200
+    assert "<th>Security</th>" not in listing.text
+    assert "s3-seed-agent&nbsp;&nbsp;✅📦" in listing.text
+
+    search = client.get("/search?q=s3-seed")
+    assert search.status_code == 200
+    assert "<th>Security</th>" not in search.text
+    assert "s3-seed-agent&nbsp;&nbsp;✅📦" in search.text

@@ -9576,26 +9576,28 @@ tasks:
     status: needs-review
 
   - id: task479
-    title: "Registry UI - security column icons in agent tables"
+    title: "Registry UI - inline security icons in Name column"
     type: task
     description: |
-      Add a "Security" column to the right of "Version" in the My Agents table
-      and Search results table in the registry UI. Icons:
+      Show security icons inline in the Name column for My Agents and Search
+      results tables in the registry UI. Icons:
       ✅ signed + verified, 📦 archive integrity verified, 🧩 per-file integrity verified,
-      ❌ any check failed. Green check replaces pen icon (no need for both).
-      Icon state is sourced from server-side security check results.
+      ❌ any check failed. Render with two spaces between name and icons
+      (example: "s3-seed-agent  ✅📦"). Icon state is sourced from
+      server-side security check results.
     files:
-      - server/templates/registry.html
-      - server/routes/registry.py
-      - server/metadata/manager.py
+      - server/templates/agents.html
+      - server/templates/search.html
+      - server/routes/web_agents.py
+      - server/metadata/models.py
     steps:
       - 'step1: Add security_status field to agent metadata schema.'
-      - 'step2: Add Security column to My Agents and Search results tables in registry.html.'
+      - 'step2: Render security icons inline next to Name in My Agents and Search results tables.'
       - 'step3: Render appropriate icons based on security_status data.'
-      - 'step4: Add test that security column renders correct icons for various states.'
+      - 'step4: Add test that Name column renders inline icons correctly for various states.'
     dependencies: []
     tests: [test663]
-    status: not-started
+    status: needs-review
 
   - id: task480
     title: "Registry - server-side security check script"
