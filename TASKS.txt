@@ -9671,7 +9671,7 @@ tasks:
       - 'step5: Add integration test for end-to-end publish → Lambda → report flow.'
     dependencies: [task481]
     tests: [test666]
-    status: not-started
+    status: needs-review
 
   - id: task483
     title: "Registry UI - Security tab in agent modal"

@@ -4,6 +4,8 @@ import hashlib
 from io import BytesIO
 import json
 from pathlib import Path
+import sys
+import types
 import zipfile
 
 from fastapi.testclient import TestClient
@@ -164,3 +166,58 @@ def test_publish_triggers_security_update(tmp_path: Path) -> None:
         "archive_integrity",
         "per_file_integrity",
     }
+
+
+def test_containerized_security_check(monkeypatch, tmp_path: Path) -> None:
+    config = ServerConfig(
+        storage_backend="local",
+        local_storage_root=tmp_path / "storage",
+        s3_bucket="kinnoo-registry-dev",
+        s3_region="us-east-1",
+        s3_endpoint_url=None,
+        s3_access_key_id=None,
+        s3_secret_access_key=None,
+        presign_ttl_seconds=120,
+        max_upload_mb=2,
+    )
+    app = create_app(config=config)
+    client = TestClient(app)
+
+    invoked: list[dict[str, object]] = []
+
+    class _FakeLambdaClient:
+        def invoke(self, **kwargs):
+            invoked.append(kwargs)
+            return {"StatusCode": 202}
+
+    fake_boto3 = types.SimpleNamespace(client=lambda service_name: _FakeLambdaClient())
+    monkeypatch.setitem(sys.modules, "boto3", fake_boto3)
+    monkeypatch.setenv("KINNOO_SECURITY_CHECK_EXECUTION_MODE", "lambda")
+    monkeypatch.setenv("KINNOO_SECURITY_CHECK_LAMBDA_NAME", "kinnoo-dev-security-check")
+
+    publish_token = app.state.token_service.issue_token(
+        subject="publisher-user",
+        tenant_slug="tenant-alpha",
+        scopes=["registry:publish", "registry:read"],
+    )
+
+    archive_bytes = _make_publishable_archive_bytes(name="agent-lambda", version="1.0.0")
+    publish_response = client.post(
+        "/api/publish",
+        files={"file": ("agent-lambda.kno", archive_bytes, "application/octet-stream")},
+        headers={"Authorization": f"Bearer {publish_token}"},
+    )
+    assert publish_response.status_code == 201
+
+    assert len(invoked) == 1
+    assert invoked[0]["InvocationType"] == "Event"
+    assert invoked[0]["FunctionName"] == "kinnoo-dev-security-check"
+
+    version_doc = app.state.metadata_manager.get_version_metadata(
+        tenant_slug="tenant-alpha",
+        agent_slug="agent-lambda",
+        version="1.0.0",
+    )
+    assert version_doc is not None
+    assert isinstance(version_doc.security_report, list)
+    assert len(version_doc.security_report) == 3

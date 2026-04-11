@@ -139,6 +139,14 @@ resource "aws_ecs_task_definition" "app" {
         {
           name  = "SNS_TOPIC_ARN"
           value = var.sns_topic_arn
+        },
+        {
+          name  = "KINNOO_SECURITY_CHECK_EXECUTION_MODE"
+          value = "lambda"
+        },
+        {
+          name  = "KINNOO_SECURITY_CHECK_LAMBDA_NAME"
+          value = var.security_check_lambda_name
         }
       ]
       secrets = local.container_secrets

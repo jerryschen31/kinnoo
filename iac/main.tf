@@ -29,6 +29,16 @@ module "iam" {
   tags                = local.common_tags
 }
 
+module "lambda_security_check" {
+  source = "./modules/lambda-security-check"
+
+  project_name    = var.project_name
+  environment     = var.environment
+  lambda_role_arn = module.iam.lambda_security_check_role_arn
+  image_uri       = var.lambda_security_check_image_uri
+  tags            = local.common_tags
+}
+
 module "secrets" {
   source = "./modules/secrets"
 
@@ -73,6 +83,7 @@ module "ecs_fargate" {
   secret_arns           = module.secrets.secret_arns
   registry_bucket_name  = module.s3_registry.bucket_name
   sns_topic_arn         = var.sns_topic_arn
+  security_check_lambda_name = module.lambda_security_check.function_name
   tags                  = local.common_tags
 }
 
