@@ -236,7 +236,7 @@ def main():
         "init",
         help="Scaffold a new kinnoo agent",
         formatter_class=argparse.RawTextHelpFormatter,
-        description="Scaffold a new kinnoo agent",
+        description="🍊 Scaffold a new kinnoo agent",
         epilog=(
             "Examples:\n"
             "  kinnoo init chatgpt my-agent\n"
@@ -250,7 +250,7 @@ def main():
         nargs="?",
         help=(
             "Framework template. Currently supported:\n"
-            "   gemini         - Google Gemini API agent\n"
+            "  gemini         - Google Gemini API agent\n"
             "  chatgpt        - OpenAI ChatGPT API agent\n"
             "  claude-chat    - Anthropic Claude API agent\n"
             "  pydantic-ai    - PydanticAI structured agent with tools\n"
@@ -893,7 +893,6 @@ def main():
             "  kinnoo import ./existing-project --force\n"
             "  kinnoo import https://github.com/org/repo\n"
             "  kinnoo import https://github.com/org/repo ./imported-agent\n"
-            "  kinnoo import --source clawhub weather/weather-skill"
         ),
     )
     import_parser.add_argument(
