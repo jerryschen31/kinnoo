@@ -3657,3 +3657,57 @@ features:
     owner: swe-agent
     dependencies: [feature69]
     status: in-progress
+
+  - id: feature115
+    title: "UAT Part 1 - CLI hardening"
+    description: |
+      Comprehensive CLI hardening based on User Acceptance Testing Part 1 findings.
+      Covers top-level help improvements, init refactoring (framework as positional arg,
+      interactive wizard, main.py entrypoint, complete/minimal templates, README improvements,
+      language-specific .gitignore templates), pack enhancements (data/ exclusion, --include/
+      --exclude, --preflight, help text, --bump default patch, --sign merge, --json), publish
+      improvements (--local|--remote mutual exclusion, version history, --json), install
+      cleanup (remove deprecated openclaw options, default openclaw path, --json), run
+      hardening (--json structured output, --enforce-policy flag rename), inspect improvements
+      (--json, --update simplification, confirmation prompt), command deprecation (sync/stop/
+      attach/logs comment-out), search/list --json options, registry UI security column and
+      tab, new fetch and uninstall commands.
+    tasks: [task453, task454, task455, task456, task457, task458, task459, task460, task461, task462, task463, task464, task465, task466, task467, task468, task469, task470, task471, task472, task473, task474, task475, task476, task477, task478, task479, task480, task481, task482, task483, task484, task485, task486, task487]
+    acceptance_criteria:
+      - id: AC1
+        description: "kinnoo -h displays 🍊 Kinnoo CLI v<version> (<commit-hash>) as the title line."
+      - id: AC2
+        description: "kinnoo init accepts framework as a required positional argument with no-framework option and interactive wizard when invoked with no arguments."
+      - id: AC3
+        description: "kinnoo init produces correct complete templates (with folders and .gitignore) by default, --minimal produces minimal templates, README.md includes entrypoint/manifest/folder-guide/footer, and language-specific .gitignore content is correct for python/js/ts/openclaw."
+      - id: AC4
+        description: "kinnoo pack excludes data/ by default, supports --include/--exclude, --preflight shows dry-run, --bump defaults to patch increment, --sign takes signing key directly, --json outputs structured JSON, and help text for --public notes default is private."
+      - id: AC5
+        description: "kinnoo publish enforces --local|--remote mutual exclusion, preserves all versions with latest shown in listings, and --json outputs structured JSON."
+      - id: AC6
+        description: "kinnoo install has deprecated openclaw options removed, defaults openclaw install path to ~/.openclaw/workspace-<name>, and --json (with -y) outputs structured JSON."
+      - id: AC7
+        description: "kinnoo run --json produces structured JSON output for non-openclaw agents and passes through for openclaw; --sandbox is renamed to --enforce-policy."
+      - id: AC8
+        description: "kinnoo inspect --json outputs structured JSON, --update accepts 2 arguments (KEY NEW_VALUE) with positional flexibility and confirmation prompt (bypassable with --skip-warnings)."
+      - id: AC9
+        description: "kinnoo sync, stop, attach, logs are commented out with [agent] notes; daemon help section is removed from kinnoo -h."
+      - id: AC10
+        description: "kinnoo search --openclaw-skills is removed; search and list both support --json for structured JSON output."
+      - id: AC11
+        description: "Registry UI shows Security column with ✅📦🧩❌ icons, server-side post-publish checks run in a containerized environment, and Security tab in agent modal shows per-check pass/fail results."
+      - id: AC12
+        description: "kinnoo fetch downloads archive to local archive with integrity verification (and signature verification in --strict mode) without unpacking."
+      - id: AC13
+        description: "kinnoo uninstall supports three modes: delete dir+all archives, delete dir+specific version archive, delete archive-only with version specifier."
+      - id: AC14
+        description: "kinnoo list/search/fetch/publish catch remote registry client errors and print concise [kinnoo] user-facing messages (including response payload when present) without Python traceback output."
+      - id: AC15
+        description: "kinnoo init help/path fully deprecates --framework in favor of positional framework, kinnoo run removes --thinking, command help descriptions are orange-prefixed, and task482 lambda invocation has explicit retry/fallback behavior with operator-visible diagnostics."
+    notes:
+      - "Based on UAT Part 1 findings documented in notes/phases/phase13-sat-uat-updates.md"
+      - "35 tasks (task453-task487), 49 tests (test628-test676)"
+      - "SWE handoff brief in notes/features/feature115-notes.md"
+    owner: swe-agent
+    dependencies: [feature114]
+    status: not-started

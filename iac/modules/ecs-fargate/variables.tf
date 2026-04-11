@@ -65,6 +65,12 @@ variable "sns_topic_arn" {
   default     = ""
 }
 
+variable "security_check_lambda_name" {
+  description = "Lambda function name used for async security checks"
+  type        = string
+  default     = ""
+}
+
 variable "cpu" {
   description = "Fargate task CPU units"
   type        = number
@@ -87,6 +93,12 @@ variable "container_port" {
   description = "Container listening port"
   type        = number
   default     = 8000
+}
+
+variable "enable_execute_command" {
+  description = "Whether ECS Exec is enabled for the service"
+  type        = bool
+  default     = true
 }
 
 variable "tags" {

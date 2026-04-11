@@ -68,6 +68,7 @@ def create_web_agents_router(
         per_page: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
         selected_tenant: str = Query(default=""),
         selected_agent: str = Query(default=""),
+        selected_tab: str = Query(default="manifest"),
     ) -> HTMLResponse:
         items = _all_agent_rows(
             metadata_manager=metadata_manager,
@@ -81,6 +82,18 @@ def create_web_agents_router(
         has_next = start + per_page < total
         selected_manifest = _build_selected_agent_manifest_view(
             metadata_manager=metadata_manager,
+            tenant_slug=selected_tenant,
+            agent_slug=selected_agent,
+        )
+        selected_versions = _build_selected_agent_versions_view(
+            metadata_manager=metadata_manager,
+            storage_backend=storage_backend,
+            tenant_slug=selected_tenant,
+            agent_slug=selected_agent,
+        )
+        selected_security = _build_selected_agent_security_view(
+            metadata_manager=metadata_manager,
+            storage_backend=storage_backend,
             tenant_slug=selected_tenant,
             agent_slug=selected_agent,
         )
@@ -99,7 +112,10 @@ def create_web_agents_router(
                 "next_page": page + 1,
                 "selected_tenant": selected_tenant,
                 "selected_agent": selected_agent,
+                "selected_tab": selected_tab,
                 "selected_manifest": selected_manifest,
+                "selected_versions": selected_versions,
+                "selected_security": selected_security,
             },
         )
 
@@ -221,6 +237,15 @@ def _all_agent_rows(*, metadata_manager: MetadataManager, storage_backend: Stora
                         except FileNotFoundError:
                             size_bytes = 0
 
+            security_snapshot = _resolve_security_snapshot_for_version(
+                metadata_manager=metadata_manager,
+                storage_backend=storage_backend,
+                tenant_slug=tenant_slug,
+                agent_slug=summary.agent_slug,
+                version=latest_version,
+            )
+            security_icons = _security_icons_for_status(security_snapshot.get("security_status"))
+
             rows.append(
                 {
                     "tenant": tenant_slug,
@@ -232,6 +257,7 @@ def _all_agent_rows(*, metadata_manager: MetadataManager, storage_backend: Stora
                     "size_display": _format_size(size_bytes),
                     "description": description,
                     "visibility": summary.visibility,
+                    "security_icons": security_icons,
                 }
             )
 
@@ -245,6 +271,148 @@ def _format_size(size_bytes: int) -> str:
     if size_bytes < 1024 * 1024:
         return f"{size_bytes / 1024:.1f} KB"
     return f"{size_bytes / (1024 * 1024):.1f} MB"
+
+
+def _security_status_for_latest_version(
+    *,
+    metadata_manager: MetadataManager,
+    storage_backend: StorageBackend,
+    tenant_slug: str,
+    agent_slug: str,
+    version: str,
+) -> object:
+    snapshot = _resolve_security_snapshot_for_version(
+        metadata_manager=metadata_manager,
+        storage_backend=storage_backend,
+        tenant_slug=tenant_slug,
+        agent_slug=agent_slug,
+        version=version,
+    )
+    return snapshot.get("security_status", "")
+
+
+def _security_icons_for_status(security_status: object) -> str:
+    if isinstance(security_status, dict):
+        verdicts = {
+            "signature": str(security_status.get("signature", "")).strip().lower(),
+            "archive": str(security_status.get("archive", "")).strip().lower(),
+            "archive_integrity": str(security_status.get("archive_integrity", "")).strip().lower(),
+            "per_file": str(security_status.get("per_file", "")).strip().lower(),
+            "per_file_integrity": str(security_status.get("per_file_integrity", "")).strip().lower(),
+        }
+        if any(value == "fail" for value in verdicts.values() if value):
+            return "❌"
+
+        icons: list[str] = []
+        if verdicts["signature"] == "pass":
+            icons.append("✅")
+        if verdicts["signature"] == "unsigned":
+            # Unsigned artifacts should not be rendered as failures.
+            pass
+        if (
+            verdicts["archive"] == "pass"
+            or verdicts["archive_integrity"] == "pass"
+        ):
+            icons.append("📦")
+        if (
+            verdicts["per_file"] == "pass"
+            or verdicts["per_file_integrity"] == "pass"
+        ):
+            icons.append("🧩")
+        return "".join(icons)
+
+    if not isinstance(security_status, str):
+        return ""
+
+    normalized = security_status.strip().lower()
+    if not normalized:
+        return ""
+    if "fail" in normalized:
+        return "❌"
+    if "unsigned" in normalized:
+        return ""
+
+    aliases = {
+        "signed_verified": "✅",
+        "signature_pass": "✅",
+        "archive_verified": "📦",
+        "archive_pass": "📦",
+        "file_integrity_verified": "🧩",
+        "per_file_pass": "🧩",
+    }
+    if normalized in aliases:
+        return aliases[normalized]
+
+    icons: list[str] = []
+    if "signed" in normalized or "signature" in normalized:
+        icons.append("✅")
+    if "archive" in normalized:
+        icons.append("📦")
+    if "file" in normalized or "per_file" in normalized:
+        icons.append("🧩")
+    return "".join(icons)
+
+
+def _default_lambda_report_key(*, tenant_slug: str, agent_slug: str, version: str) -> str:
+    return f"security-check/tenants/{tenant_slug}/agents/{agent_slug}/versions/{version}/report.json"
+
+
+def _resolve_security_snapshot_for_version(
+    *,
+    metadata_manager: MetadataManager,
+    storage_backend: StorageBackend,
+    tenant_slug: str,
+    agent_slug: str,
+    version: str,
+) -> dict[str, object]:
+    if not version:
+        return {"security_status": "", "checks": []}
+
+    report_key = _default_lambda_report_key(
+        tenant_slug=tenant_slug,
+        agent_slug=agent_slug,
+        version=version,
+    )
+
+    try:
+        report_bytes = storage_backend.get_object(key=report_key)
+    except FileNotFoundError:
+        return {"security_status": "", "checks": [], "report_key": report_key, "source": "none"}
+
+    try:
+        report_doc = json.loads(report_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return {"security_status": "", "checks": [], "report_key": report_key, "source": "invalid"}
+
+    report_payload = report_doc.get("report") if isinstance(report_doc, dict) else None
+    if not isinstance(report_payload, dict):
+        return {"security_status": "", "checks": [], "report_key": report_key, "source": "invalid"}
+
+    security_status = report_payload.get("security_status", "")
+    checks_raw = report_payload.get("checks", [])
+    checks: list[dict[str, str]] = []
+    if isinstance(checks_raw, list):
+        for item in checks_raw:
+            if not isinstance(item, dict):
+                continue
+            checks.append(
+                {
+                    "check_name": str(item.get("check_name", "")),
+                    "status": str(item.get("status", "")).lower(),
+                    "detail": str(item.get("detail", "")),
+                }
+            )
+
+    # Keep status shape stable for renderers even if upstream report is malformed.
+    if not isinstance(security_status, (dict, str)):
+        security_status = ""
+
+    return {
+        "security_status": security_status,
+        "checks": checks,
+        "report_key": report_key,
+        "source": "lambda-report",
+    }
 
 
 def _resolve_manifest_path(manifest: dict[str, object], path: str) -> object | None:
@@ -312,6 +480,77 @@ def _build_selected_agent_manifest_view(
         "name": normalized_agent,
         "version": latest_version,
         "rows": rows,
+    }
+
+
+def _build_selected_agent_security_view(
+    *,
+    metadata_manager: MetadataManager,
+    storage_backend: StorageBackend,
+    tenant_slug: str,
+    agent_slug: str,
+) -> dict[str, object] | None:
+    normalized_tenant = tenant_slug.strip()
+    normalized_agent = agent_slug.strip()
+    if not normalized_tenant or not normalized_agent:
+        return None
+
+    profile = _build_agent_profile(
+        metadata_manager=metadata_manager,
+        storage_backend=None,
+        tenant_slug=normalized_tenant,
+        agent_slug=normalized_agent,
+    )
+    if profile is None:
+        return None
+
+    latest_version = str(profile.get("latest_version", "")).strip()
+    if not latest_version:
+        return None
+
+    security_snapshot = _resolve_security_snapshot_for_version(
+        metadata_manager=metadata_manager,
+        storage_backend=storage_backend,
+        tenant_slug=normalized_tenant,
+        agent_slug=normalized_agent,
+        version=latest_version,
+    )
+
+    return {
+        "tenant": normalized_tenant,
+        "name": normalized_agent,
+        "version": latest_version,
+        "checks": security_snapshot.get("checks", []),
+        "source": security_snapshot.get("source", "none"),
+        "report_key": security_snapshot.get("report_key", ""),
+    }
+
+
+def _build_selected_agent_versions_view(
+    *,
+    metadata_manager: MetadataManager,
+    storage_backend: StorageBackend,
+    tenant_slug: str,
+    agent_slug: str,
+) -> dict[str, object] | None:
+    normalized_tenant = tenant_slug.strip()
+    normalized_agent = agent_slug.strip()
+    if not normalized_tenant or not normalized_agent:
+        return None
+
+    profile = _build_agent_profile(
+        metadata_manager=metadata_manager,
+        storage_backend=storage_backend,
+        tenant_slug=normalized_tenant,
+        agent_slug=normalized_agent,
+    )
+    if profile is None:
+        return None
+
+    return {
+        "tenant": normalized_tenant,
+        "name": normalized_agent,
+        "versions": profile.get("versions", []),
     }
 
 

@@ -3,80 +3,16 @@
 from __future__ import annotations
 
 import os
-import subprocess
 import sys
+import json
 from pathlib import Path
 
 from .config import load_registry_config
 from .archive import LocalArchiveBackend
 from .registry import RegistryService
 from .remote_client import RemoteRegistryClient
-from .openclaw_preflight import run_openclaw_preflight_for_command
 
-
-def search_openclaw_skills(*, query: str, json_output: bool = False) -> int:
-    query_text = query.strip()
-    if not query_text:
-        print("Error: Search query cannot be empty.")
-        return 1
-
-    preflight_result = run_openclaw_preflight_for_command("openclaw-skill-search")
-    if not preflight_result.ok:
-        print(
-            "Error: OpenClaw skill search preflight failed "
-            f"(category={preflight_result.category}). {preflight_result.message}",
-            file=sys.stderr,
-        )
-        return 1
-
-    command = ["openclaw", "skills", "search", query_text]
-    if json_output:
-        command.append("--json")
-
-    try:
-        result = subprocess.run(
-            command,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-    except OSError as error:
-        print(
-            "Error: OpenClaw skill search invocation failed "
-            f"(category=openclaw_skill_search_invocation_failed): {error}",
-            file=sys.stderr,
-        )
-        return 1
-
-    if result.stdout:
-        print(result.stdout, end="")
-    if result.stderr:
-        print(result.stderr, end="", file=sys.stderr)
-
-    stdout_text = (result.stdout or "").strip()
-    if result.returncode == 0:
-        if stdout_text in {"", "[]"}:
-            if json_output:
-                if stdout_text == "":
-                    print("[]")
-            else:
-                print(
-                    f"No OpenClaw skill results found for query: {query_text}. "
-                    "Try a broader query or verify skill naming.",
-                )
-        return 0
-
-    print(
-        "Error: OpenClaw skill search delegation failed "
-        "(category=openclaw_skill_search_nonzero_exit). "
-        "Review OpenClaw search output and retry.",
-        file=sys.stderr,
-    )
-
-    return int(result.returncode)
-
-
-def search_agents(query: str, source: str = "local") -> int:
+def search_agents(query: str, source: str = "local", json_output: bool = False) -> int:
     query_text = query.strip()
     if not query_text:
         print("Error: Search query cannot be empty.")
@@ -121,34 +57,68 @@ def search_agents(query: str, source: str = "local") -> int:
         ]
 
         if not results and not mirror_results:
-            print(f"No remote registry matches found for query: {query_text}")
+            if json_output:
+                print(json.dumps({"query": query_text, "source": "remote", "results": []}, sort_keys=True))
+            else:
+                print(f"No remote registry matches found for query: {query_text}")
             return 0
 
-        print(f"Remote registry search results for: {query_text}")
+        json_results: list[dict[str, str]] = []
         for summary in results:
-            description = _summary_text(summary=summary, field="description", default="(no description)")
-            name = _summary_text(summary=summary, field="name", default="(unknown)")
-            latest_version = _summary_text(summary=summary, field="latest_version", default="(unknown)")
-            print(f"- {name} | latest: {latest_version} | description: {description}")
+            json_results.append(
+                {
+                    "name": _summary_text(summary=summary, field="name", default="(unknown)"),
+                    "latest_version": _summary_text(summary=summary, field="latest_version", default="(unknown)"),
+                    "description": _summary_text(summary=summary, field="description", default="(no description)"),
+                    "source": "remote",
+                }
+            )
 
         for record in mirror_results:
             metadata_value = _mirror_value(record=record, field="metadata")
             description = "(no description)"
             if isinstance(metadata_value, dict):
                 description = str(metadata_value.get("description") or "(no description)")
+            json_results.append(
+                {
+                    "name": str(_mirror_value(record=record, field="name") or "(unknown)"),
+                    "latest_version": str(
+                        _mirror_value(record=record, field="source_version")
+                        or _mirror_value(record=record, field="version")
+                        or "(unknown)"
+                    ),
+                    "description": description,
+                    "source": "clawhub-mirror",
+                    "source_slug": str(
+                        _mirror_value(record=record, field="source_slug")
+                        or _mirror_value(record=record, field="agent_slug")
+                        or "(unknown)"
+                    ),
+                    "synced_at": str(_mirror_value(record=record, field="synced_at") or "(unknown)"),
+                }
+            )
 
-            source_slug = str(
-                _mirror_value(record=record, field="source_slug")
-                or _mirror_value(record=record, field="agent_slug")
-                or "(unknown)"
-            )
-            source_version = str(
-                _mirror_value(record=record, field="source_version")
-                or _mirror_value(record=record, field="version")
-                or "(unknown)"
-            )
-            synced_at = str(_mirror_value(record=record, field="synced_at") or "(unknown)")
-            mirror_name = str(_mirror_value(record=record, field="name") or "(unknown)")
+        if json_output:
+            print(json.dumps({"query": query_text, "source": "remote", "results": json_results}, sort_keys=True))
+            return 0
+
+        print(f"Remote registry search results for: {query_text}")
+        for summary in json_results:
+            if summary.get("source") != "remote":
+                continue
+            description = summary.get("description", "(no description)")
+            name = summary.get("name", "(unknown)")
+            latest_version = summary.get("latest_version", "(unknown)")
+            print(f"- {name} | latest: {latest_version} | description: {description}")
+
+        for summary in json_results:
+            if summary.get("source") != "clawhub-mirror":
+                continue
+            source_slug = summary.get("source_slug", "(unknown)")
+            source_version = summary.get("latest_version", "(unknown)")
+            synced_at = summary.get("synced_at", "(unknown)")
+            mirror_name = summary.get("name", "(unknown)")
+            description = summary.get("description", "(no description)")
             print(
                 "- "
                 f"{mirror_name} | latest: {source_version} | "
@@ -171,14 +141,31 @@ def search_agents(query: str, source: str = "local") -> int:
     ]
 
     if not results:
-        print(f"No local archive matches found for query: {query_text}")
+        if json_output:
+            print(json.dumps({"query": query_text, "source": "local", "results": []}, sort_keys=True))
+        else:
+            print(f"No local archive matches found for query: {query_text}")
+        return 0
+
+    json_results = [
+        {
+            "name": _summary_text(summary=summary, field="name", default="(unknown)"),
+            "latest_version": _summary_text(summary=summary, field="latest_version", default="(unknown)"),
+            "description": _summary_text(summary=summary, field="description", default="(no description)"),
+            "source": "local",
+        }
+        for summary in results
+    ]
+
+    if json_output:
+        print(json.dumps({"query": query_text, "source": "local", "results": json_results}, sort_keys=True))
         return 0
 
     print(f"Local archive search results for: {query_text}")
-    for summary in results:
-        description = _summary_text(summary=summary, field="description", default="(no description)")
-        name = _summary_text(summary=summary, field="name", default="(unknown)")
-        latest_version = _summary_text(summary=summary, field="latest_version", default="(unknown)")
+    for summary in json_results:
+        description = summary.get("description", "(no description)")
+        name = summary.get("name", "(unknown)")
+        latest_version = summary.get("latest_version", "(unknown)")
         print(f"- {name} | latest: {latest_version} | description: {description}")
 
     return 0

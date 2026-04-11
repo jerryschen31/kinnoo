@@ -19,6 +19,73 @@ All notable changes to this project will be documented in this file.
   - `tests/test_cli_import.py::test_feature62_import_openclaw_manifest_migration_guidance`
  - Bumped project version from `0.5.5` to `0.6.0` after Phase 7 final review closure.
 
+## [v0.7.5] - 2026-04-11
+### Added
+- Added dedicated Lambda security-check ECR repository management in Terraform, including lifecycle policy and root/module outputs for image publishing workflows.
+- Added automation script at scripts/ops/build_and_push_lambda_security_check_image.sh to build and push Lambda-compatible container images to the Terraform-managed ECR repository.
+
+### Changed
+- Completed task487 CLI UX hardening updates: removed legacy init --framework option, removed run --thinking option, and added orange-prefixed subcommand help description lines.
+- Hardened Terraform lambda_security_check_image_uri input by removing invalid public base-image default and requiring explicit private ECR image URI + tag.
+- Updated dev Terraform environment configuration to reference a valid private ECR Lambda image URI.
+- Added Lambda invoke retry/fallback semantics in server security-check dispatch flow with deterministic retry count and fallback marker reporting.
+
+### Notes
+- Task487 implementation includes infrastructure preparation and successful Lambda function creation using a pushed private ECR image.
+- Lambda execution path has not yet been fully validated end-to-end via publish-triggered invocation and full security-report writeback verification in the live environment.
+
+## [v0.7.4] - 2026-04-10
+### Added
+- Completed Feature115 UAT Part 1 CLI hardening delivery (tasks 453-486), including the new `kinnoo fetch` command and expanded uninstall target modes.
+- Added registry UI security signal surfaces for list/search/details views, including concise security status indicators and a selected-agent Security tab.
+- Added server-side post-publish security checks with persisted report metadata and containerized async execution wiring.
+
+### Changed
+- Hardened CLI command UX across init/pack/publish/install/run/inspect/list/search to align with UAT Part 1 behaviors and structured output expectations.
+- Updated CLI remote-registry error handling to avoid uncaught Python tracebacks for list/search/fetch/publish failures; commands now emit concise `[kinnoo]` error lines with response payload when available (task486).
+
+### Notes
+- Feature115 coverage now includes 34 tasks (task453-task486) and 46 mapped tests (test628-test673).
+
+## [v0.7.3] - 2026-04-10
+### Changed
+- Minor kinnoo init usage changes
+- Minor kinnoo help usage menu edits
+
+## [v0.7.2] - 2026-04-10
+### Added
+- Added runtime language normalization helper to treat `nodejs`, `javascript`, and `typescript` as Node-compatible runtime aliases across CLI execution and validation flows.
+- Added regression coverage for publish manifest acceptance without top-level `framework`, plus JS/TS init manifest runtime-language correctness.
+- Added task452 rollout notes documenting ECS rebuild/redeploy verification and digest match evidence.
+
+### Changed
+- Fixed remote publish validation so manifests are accepted with required `name` and `version` fields without enforcing a top-level `framework` field.
+- Updated JS/TS scaffold generation so generated manifests emit `runtime.language` as `javascript` or `typescript` (instead of `nodejs`).
+- Updated CLI help/list/search text to clarify remote-registry default behavior when configured, and aligned local/remote option descriptions.
+- Updated Phase 13 UAT planning notes with explicit task mapping annotations for task453 through task483.
+
+### Notes
+- Task452 implementation and verification commit: `9f74fba`.
+- CLI help + UAT documentation update commit: `c131381`.
+
+## [v0.7.1] - 2026-04-09
+### Added
+- Added remote install hardening for registry latest resolution so `kinnoo install --remote <agent>` resolves explicit `latest_version` before download resolution.
+- Added authenticated archive byte retrieval route for local-backend download responses (`/api/agents/{tenant}/{agent}/{version}/archive`) and route-level rewrite of non-client-reachable `file://` payloads.
+- Added S3 missing-key normalization in server and mock-server storage backends so missing objects map to `FileNotFoundError` instead of unhandled provider exceptions.
+- Added regression coverage for:
+  - remote latest resolution and authenticated same-host download fetch,
+  - local-backend download URL rewrite + archive endpoint behavior,
+  - S3 missing-key normalization for server/mock-server backends.
+
+### Changed
+- Updated ECS runtime registry configuration to explicit S3 backend env vars (`REGISTRY_STORAGE_BACKEND`, `REGISTRY_S3_BUCKET`, `REGISTRY_S3_REGION`) for archive/metadata persistence in object storage.
+- Switched deployment image build/push workflow to explicit `linux/amd64` manifests to satisfy ECS/Fargate pull requirements and avoid architecture mismatch rollout failures.
+- Seeded remote S3-backed registry with first published agent and validated end-to-end `kinnoo list` + `kinnoo install --remote` behavior.
+
+### Notes
+- Pre-cutover local/EFS-only registry artifacts are not automatically present in S3 and must be republished or migrated to restore installability.
+
 ## [v0.7.0] - 2026-04-06
 ### Added
 - Consolidated Phase 7+ delivery into a dev-ready platform release spanning CLI, backend API, and frontend operator flows.

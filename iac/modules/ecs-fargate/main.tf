@@ -113,6 +113,22 @@ resource "aws_ecs_task_definition" "app" {
           value = "production"
         },
         {
+          name  = "REGISTRY_STORAGE_BACKEND"
+          value = "s3"
+        },
+        {
+          name  = "REGISTRY_S3_BUCKET"
+          value = var.registry_bucket_name
+        },
+        {
+          name  = "REGISTRY_S3_REGION"
+          value = var.aws_region
+        },
+        {
+          name  = "REGISTRY_LOCAL_STORAGE_ROOT"
+          value = "/data/.registry-storage"
+        },
+        {
           name  = "S3_BUCKET"
           value = var.registry_bucket_name
         },
@@ -123,6 +139,14 @@ resource "aws_ecs_task_definition" "app" {
         {
           name  = "SNS_TOPIC_ARN"
           value = var.sns_topic_arn
+        },
+        {
+          name  = "KINNOO_SECURITY_CHECK_EXECUTION_MODE"
+          value = "lambda"
+        },
+        {
+          name  = "KINNOO_SECURITY_CHECK_LAMBDA_NAME"
+          value = var.security_check_lambda_name
         }
       ]
       secrets = local.container_secrets
@@ -159,6 +183,13 @@ resource "aws_ecs_task_definition" "app" {
     }
   }
 
+  lifecycle {
+    # Keep current live task-definition wiring stable for now.
+    # Manual runtime updates introduced out-of-band differences (including sensitive env wiring)
+    # that we intentionally do not push back via apply under the safe no-change strategy.
+    ignore_changes = [container_definitions, volume]
+  }
+
   tags = var.tags
 }
 
@@ -168,6 +199,7 @@ resource "aws_ecs_service" "app" {
   task_definition = aws_ecs_task_definition.app.arn
   desired_count   = var.desired_count
   launch_type     = "FARGATE"
+  enable_execute_command = var.enable_execute_command
 
   network_configuration {
     subnets          = var.subnet_ids
@@ -179,6 +211,12 @@ resource "aws_ecs_service" "app" {
     target_group_arn = var.target_group_arn
     container_name   = "kinnoo-server"
     container_port   = var.container_port
+  }
+
+  lifecycle {
+    # The live service task_definition may be advanced by manual rollouts.
+    # Ignore drift so apply remains no-op against currently running infrastructure.
+    ignore_changes = [task_definition]
   }
 
   tags = var.tags

@@ -35,7 +35,7 @@ This agent uses Google Gemini (Flash Lite) via the `google-genai` library.
 
 ## Run Example
 ```
-python run.py "Hello Gemini!"
+python main.py "Hello Gemini!"
 ```
 '''
 
@@ -73,7 +73,7 @@ This agent uses OpenAI ChatGPT via the `openai` library.
 
 ## Run Example
 ```
-python run.py "Hello ChatGPT!"
+python main.py "Hello ChatGPT!"
 ```
 '''
 
@@ -112,7 +112,7 @@ This agent uses Anthropic Claude via the `anthropic` library.
 
 ## Run Example
 ```
-python run.py "Hello Claude!"
+python main.py "Hello Claude!"
 ```
 '''
 
@@ -171,16 +171,16 @@ This agent scaffold targets the `pydantic-ai` framework.
 - Deterministic test-safe path: set `KINNOO_TEST_SAFE_MODE=1` to run without external API calls.
 
 ## Model Configuration
-- Update model/provider settings in `run.py` for your target backend.
+- Update model/provider settings in `main.py` for your target backend.
 
 ## Run Example
 ```
-python run.py "Hello PydanticAI!"
+python main.py "Hello PydanticAI!"
 ```
 
 ## Test-Safe Example
 ```
-KINNOO_TEST_SAFE_MODE=1 python run.py "Hello PydanticAI!"
+KINNOO_TEST_SAFE_MODE=1 python main.py "Hello PydanticAI!"
 ```
 '''
 
@@ -257,16 +257,16 @@ This agent scaffold targets the `langgraph` framework.
 - Deterministic test-safe path: set `KINNOO_TEST_SAFE_MODE=1` to run without external API calls.
 
 ## Graph Configuration
-- Define state schema and graph nodes/edges in `run.py`.
+- Define state schema and graph nodes/edges in `main.py`.
 
 ## Run Example
 ```
-python run.py "Hello LangGraph!"
+python main.py "Hello LangGraph!"
 ```
 
 ## Test-Safe Example
 ```
-KINNOO_TEST_SAFE_MODE=1 python run.py "Hello LangGraph!"
+KINNOO_TEST_SAFE_MODE=1 python main.py "Hello LangGraph!"
 ```
 '''
 
@@ -332,16 +332,16 @@ This agent scaffold targets the `openai-agents` SDK.
 - Deterministic test-safe path: set `KINNOO_TEST_SAFE_MODE=1` to run without external API calls.
 
 ## Agent Configuration
-- Define agent roles, handoffs, and guardrails in `run.py`.
+- Define agent roles, handoffs, and guardrails in `main.py`.
 
 ## Run Example
 ```
-python run.py "Hello OpenAI Agents!"
+python main.py "Hello OpenAI Agents!"
 ```
 
 ## Test-Safe Example
 ```
-KINNOO_TEST_SAFE_MODE=1 python run.py "Hello OpenAI Agents!"
+KINNOO_TEST_SAFE_MODE=1 python main.py "Hello OpenAI Agents!"
 ```
 '''
 
@@ -495,7 +495,7 @@ This scaffold demonstrates a Kinnoo-compatible MCP client template.
 4. (Optional) Provide extra server env vars as JSON:
   - `export MCP_SERVER_ENV='{{"API_KEY":"demo"}}'`
 5. Run this client template:
-  - `python run.py "list available files"`
+  - `python main.py "list available files"`
 
 ## Optional Environment Variables
 - `MCP_SERVER_CMD` command to launch an MCP stdio server process
@@ -626,17 +626,17 @@ This scaffold demonstrates a minimal MCP server implemented over stdio.
 
 ## Run Server
 ```
-python run.py
+python main.py
 ```
 
 ## Quick Handshake Smoke Test
 ```
-printf '{{"jsonrpc":"2.0","id":1,"method":"initialize","params":{{}}}}\n' | python run.py
+printf '{{"jsonrpc":"2.0","id":1,"method":"initialize","params":{{}}}}\n' | python main.py
 ```
 
 ## Tool Call Smoke Test
 ```
-printf '{{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{{"name":"echo","arguments":{{"text":"hello"}}}}}}\n' | python run.py
+printf '{{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{{"name":"echo","arguments":{{"text":"hello"}}}}}}\n' | python main.py
 ```
 '''
 
@@ -739,7 +739,7 @@ Templates for kinnoo agent scaffolding files.
 # fields whenever schema/template changes affect minimum valid kinnoo.yaml shape.
 INSPECT_MINIMAL_KINNOO_YAML_EXAMPLE = """name: my-agent
 version: 0.1.0
-entrypoint: run.py
+entrypoint: main.py
 runtime:
   language: python
   version: "3.10"
@@ -761,7 +761,7 @@ KINNOO_YAML_TEMPLATE = """name: {name}
 version: 0.1.0
 description: "TODO: Add a short agent description"
 author: "TODO: Add author name"
-entrypoint: run.py
+entrypoint: main.py
 runtime:
   language: python
   version: ">=3.10"
@@ -777,7 +777,7 @@ MCP_SERVER_KINNOO_YAML_TEMPLATE = """name: {name}
 version: 0.1.0
 description: "TODO: Add a short MCP server description"
 author: "TODO: Add author name"
-entrypoint: run.py
+entrypoint: main.py
 framework: mcp-server
 runtime:
   language: python
@@ -836,6 +836,6 @@ README_MD_TEMPLATE = """# {name}
 
 This is a Kinnoo agent scaffolded with `kinnoo init`.
 
-- Edit `run.py` to implement your agent logic.
+- Edit `main.py` to implement your agent logic.
 - See `kinnoo.yaml` for manifest fields.
 """

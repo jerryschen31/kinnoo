@@ -8944,3 +8944,867 @@ tasks:
     dependencies: [task348, task349]
     tests: [test610, test611, test612, test613, test614]
     status: needs-review
+
+  - id: task451
+    title: "Fix remote install latest resolution and download URL handling"
+    type: issue
+    description: |
+      Resolve a remote-install regression where `kinnoo list` succeeded but `kinnoo install`
+      failed for `latest` selectors and some remote download URL payloads. The CLI now resolves
+      latest version explicitly from remote summaries before calling download resolution and
+      supports authenticated byte download for relative API paths/root-relative paths with
+      actionable error messages when server payloads are invalid.
+    files:
+      - src/kinnoo/install_command.py
+      - src/kinnoo/remote_client.py
+      - tests/test_cli.py
+      - tests/test_remote_client.py
+      - notes/tasks/task451-notes.md
+      - TASKS.txt
+      - TESTS.txt
+    steps:
+      - 'step1: Diagnose mismatch between remote list success and remote install failures for latest selector and archive download path handling.'
+      - 'step2: Update install remote flow to resolve explicit latest_version from remote summaries before calling resolve/download endpoint.'
+      - 'step3: Add robust remote download URL handling for http(s), file, /api relative paths, and authenticated root-relative path fetch with clear fallback errors.'
+      - 'step4: Add RemoteRegistryClient.request_bytes() helper for authenticated raw-byte fetch requests used by install fallback path.'
+      - 'step5: Add regression tests for latest-version pre-resolution, root-relative download-url failure messaging, and request_bytes auth/error behavior.'
+      - 'step6: Execute targeted pytest validation for new regression coverage.'
+    dependencies: [task232]
+    tests: [test615, test616, test617, test618, test619, test620, test621, test622, test623]
+    status: needs-review
+
+  - id: task452
+    title: "Fix publish framework requirement and JS/TS runtime language handling"
+    type: issue
+    description: |
+      Back-port and deploy the fix for registry publish/install compatibility where remote
+      publish incorrectly required a top-level `framework` field and JS/TS manifests emitted
+      inconsistent runtime language values. Server publish validation now requires only
+      name/version, JS/TS init emits runtime.language as javascript/typescript, and Node-compatible
+      runtime paths accept nodejs/javascript/typescript aliases consistently.
+    files:
+      - server/routes/publish.py
+      - server/tests/test_publish.py
+      - src/kinnoo/init_command.py
+      - src/kinnoo/schema.py
+      - src/kinnoo/runtime_language.py
+      - src/kinnoo/pack_command.py
+      - src/kinnoo/install_command.py
+      - src/kinnoo/run_command.py
+      - src/kinnoo/test_command.py
+      - src/kinnoo/runtime_monitor.py
+      - src/kinnoo/sandbox.py
+      - tests/test_init.py
+      - notes/tasks/task452-notes.md
+      - TASKS.txt
+      - TESTS.txt
+    steps:
+      - 'step1: Remove framework from server-side required manifest fields in publish validation and keep error envelope behavior unchanged.'
+      - 'step2: Update init JS/TS manifests to emit runtime.language as javascript/typescript instead of nodejs.'
+      - 'step3: Add runtime-language alias helper and update run/pack/install/test/monitor/sandbox code paths to treat javascript/typescript as Node-compatible.'
+      - 'step4: Add regression tests for publish-without-framework and JS/TS init runtime.language manifest values.'
+      - 'step5: Rebuild and push ECS server image, force redeployment, wait for service stability, and verify running task digest equals pushed digest.'
+      - 'step6: Back-document deployment commands/results and important branch-note in task summary notes.'
+    dependencies: [task451]
+    tests: [test624, test625, test626, test627]
+    status: needs-review
+
+  # ────────────────────────────────────────────────────────────────
+  # feature115 — UAT Part 1: CLI Hardening (task453 – task487)
+  # ────────────────────────────────────────────────────────────────
+  # [agent] Terraform-first infra policy for this feature block:
+  # [agent] If a task introduces or changes infrastructure (AWS/Cloudflare/networking/compute),
+  # [agent] implement it via Terraform in iac/ (modules + env tfvars) when possible,
+  # [agent] instead of manual console-only changes.
+
+  - id: task453
+    title: "CLI top-level help - version, commit hash, and icon"
+    type: task
+    description: |
+      Update the top-level kinnoo --help output to show the version number,
+      the associated short commit hash, and the 🍊 icon. Output should read:
+      🍊 Kinnoo CLI v<version> (<short-commit-hash>)
+      The commit hash should be resolved at build/install time or at runtime
+      via git rev-parse --short HEAD with a graceful fallback if git is unavailable.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/__init__.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add git short-hash resolution helper (try git rev-parse --short HEAD, fallback to "unknown").'
+      - 'step2: Update _format_top_level_help_text() to emit 🍊 Kinnoo CLI v{version} ({hash}) as the title line.'
+      - 'step3: Update --version output format if desired for consistency.'
+      - 'step4: Add test that kinnoo -h output starts with 🍊 Kinnoo CLI v and contains a parenthesized hash.'
+    dependencies: []
+    tests: [test628]
+    status: needs-review
+
+  - id: task454
+    title: "init - framework as required positional argument"
+    type: task
+    description: |
+      Refactor kinnoo init so that framework is a required positional argument
+      (not an --option). Add "no-framework" as a valid choice producing a barebones
+      template. Usage becomes: kinnoo init [framework] [--language {python,javascript,typescript}].
+      Framework choices: gemini, chatgpt, claude-chat, pydantic-ai, langgraph,
+      openai-agents, mcp-client, mcp-server, openclaw, no-framework.
+      The no-framework help text: "Barebones agent template - language should be specified (default: python)".
+      Language help text: "(Optional) Scaffold language (if supported for the specified framework): python, javascript, typescript".
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/init_command.py
+      - tests/test_init.py
+    steps:
+      - 'step1: Change init_parser framework from --framework option to positional argument with nargs="?" for wizard fallback.'
+      - 'step2: Add no-framework to choices with appropriate help text.'
+      - 'step3: Update language help text as specified.'
+      - 'step4: Update init_command.py to handle framework as positional arg and no-framework scaffold.'
+      - 'step5: Add tests for framework positional argument and no-framework template output.'
+    dependencies: []
+    tests: [test629, test630]
+    status: needs-review
+
+  - id: task455
+    title: "init - interactive wizard when no arguments"
+    type: task
+    description: |
+      When kinnoo init is invoked with no arguments, launch an interactive wizard:
+      Step 1: Select framework (present numbered list of all framework choices).
+      Step 2: Select language (only if the chosen framework supports multiple languages).
+      After selection, proceed with scaffold as if arguments were provided.
+      Framework-language support matrix:
+        gemini, chatgpt, claude-chat, langgraph, mcp-client, mcp-server, no-framework: python + javascript + typescript
+        pydantic-ai, openai-agents: python only
+        openclaw: javascript + typescript only
+    files:
+      - src/kinnoo/init_command.py
+      - src/kinnoo/cli.py
+      - tests/test_init.py
+    steps:
+      - 'step1: Add framework-language support matrix constant.'
+      - 'step2: Implement interactive_init_wizard() that prompts for framework then language.'
+      - 'step3: Wire wizard into init dispatch when framework arg is None and stdin is a TTY.'
+      - 'step4: Add test that wizard prompts appear and selections produce valid scaffolds (mock stdin).'
+    dependencies: [task454]
+    tests: [test631]
+    status: needs-review
+
+  - id: task456
+    title: "init - change default python entrypoint to main.py"
+    type: task
+    description: |
+      Change the default entrypoint filename for all python-based agent templates
+      from run.py to main.py. Update the kinnoo.yaml template, README.md template,
+      and any code that generates or references the default python entrypoint.
+    files:
+      - src/kinnoo/init_command.py
+      - src/kinnoo/templates.py
+      - tests/test_init.py
+    steps:
+      - 'step1: Update python entrypoint filename constant from run.py to main.py in templates/init logic.'
+      - 'step2: Update kinnoo.yaml template to reference main.py as entrypoint.'
+      - 'step3: Verify all init framework templates for python emit main.py.'
+      - 'step4: Add test that python init produces main.py (not run.py).'
+    dependencies: []
+    tests: [test632]
+    status: needs-review
+
+  - id: task457
+    title: "init - complete template with folders and --minimal flag"
+    type: task
+    description: |
+      By default, kinnoo init creates a "complete" template including the scaffold
+      folders tools/, prompts/, evals/, tests/, data/ and a .gitignore file.
+      A new --minimal flag creates only the minimal template (manifest, README,
+      entrypoint, requirements/package file). Openclaw complete templates also
+      include BOOTSTRAP.md, HEARTBEAT.md, MEMORY.md, skills/, memory/ folders.
+      Openclaw minimal: kinnoo.yaml, AGENTS.md, IDENTITY.md, SOUL.md, USER.md, README.md.
+      Template matrix (see UAT spec for full details).
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/init_command.py
+      - src/kinnoo/templates.py
+      - tests/test_init.py
+    steps:
+      - 'step1: Add --minimal flag to init subparser.'
+      - 'step2: Define complete vs minimal file lists per language/framework in init_command.py.'
+      - 'step3: Implement folder creation for complete templates (tools/, prompts/, evals/, tests/, data/).'
+      - 'step4: Implement openclaw complete extras (BOOTSTRAP.md, HEARTBEAT.md, MEMORY.md, skills/, memory/).'
+      - 'step5: Add tests for complete template output and minimal template output for each language category.'
+    dependencies: [task454, task456]
+    tests: [test633, test634, test635]
+    status: needs-review
+
+  - id: task458
+    title: "init - README.md template improvements"
+    type: task
+    description: |
+      Improve generated README.md to: (1) correctly specify the entrypoint file,
+      (2) explain that kinnoo.yaml holds the agent manifest, (3) for complete
+      templates, include a brief two-column table explaining what goes in each
+      folder (tools/, prompts/, evals/, tests/, data/), (4) add a footer:
+      ---
+      🍊 *This agent was scaffolded with Kinnoo CLI vX.Y.Z using Schema <version>.*
+    files:
+      - src/kinnoo/init_command.py
+      - src/kinnoo/templates.py
+      - tests/test_init.py
+    steps:
+      - 'step1: Update README template strings to include entrypoint reference and manifest explanation.'
+      - 'step2: Add folder guide table for complete templates.'
+      - 'step3: Add footer with version and schema version interpolation.'
+      - 'step4: Add test that README contains expected sections and footer.'
+    dependencies: [task456, task457]
+    tests: [test636]
+    status: needs-review
+
+  - id: task459
+    title: "init - language-specific .gitignore templates"
+    type: task
+    description: |
+      Create four distinct .gitignore templates for python, javascript, typescript,
+      and openclaw agents. Each .gitignore should match the exact content specified
+      in the UAT (see phase13-sat-uat-updates.md items 8-11). Only emitted for
+      complete templates (not --minimal).
+    files:
+      - src/kinnoo/init_command.py
+      - src/kinnoo/templates.py
+      - tests/test_init.py
+    steps:
+      - 'step1: Add GITIGNORE_PYTHON, GITIGNORE_JAVASCRIPT, GITIGNORE_TYPESCRIPT, GITIGNORE_OPENCLAW template constants.'
+      - 'step2: Wire .gitignore emission into complete template scaffold path based on language/framework.'
+      - 'step3: Add tests verifying exact .gitignore content for each language category.'
+    dependencies: [task457]
+    tests: [test637, test638, test639, test640]
+    status: needs-review
+
+  - id: task460
+    title: "pack - ignore data/ by default and add --include/--exclude"
+    type: task
+    description: |
+      kinnoo pack should exclude the data/ folder by default. Add --include and
+      --exclude options that accept file/folder names to override defaults.
+      Example: --include data to pack the data/ folder. Multiple --include/--exclude
+      flags should be supported.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/pack_command.py
+      - tests/test_pack.py
+    steps:
+      - 'step1: Add data/ to default exclusion set in pack logic.'
+      - 'step2: Add --include and --exclude CLI arguments (action=append).'
+      - 'step3: Integrate include/exclude lists into pack file-collection logic.'
+      - 'step4: Add tests for data/ exclusion by default and --include data override.'
+    dependencies: []
+    tests: [test641, test642]
+    status: needs-review
+
+  - id: task461
+    title: "pack - --preflight dry-run"
+    type: task
+    description: |
+      Add --preflight flag to kinnoo pack that shows what files will be packed,
+      the estimated archive file size, and the destination path of the archive,
+      but does NOT actually create the archive.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/pack_command.py
+      - tests/test_pack.py
+    steps:
+      - 'step1: Add --preflight flag to pack subparser.'
+      - 'step2: Implement preflight logic that collects files, sums sizes, resolves output path, and prints report.'
+      - 'step3: Ensure preflight exits before archive creation.'
+      - 'step4: Add test that --preflight lists files and does not create an archive.'
+    dependencies: []
+    tests: [test643]
+    status: needs-review
+
+  - id: task462
+    title: "pack - help text updates and default patch bump"
+    type: task
+    description: |
+      Update pack help text: (1) --public description should note "(without the
+      --public flag, default is private)", (2) --bump description should read
+      "Increment manifest version before packaging. --bump without a version
+      specified will bump the patch version by default." Also implement the
+      default patch bump behavior when --bump is used without a version argument.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/pack_command.py
+      - tests/test_pack.py
+    steps:
+      - 'step1: Update --public help text to include default-private note.'
+      - 'step2: Update --bump help text and change nargs to "?" so version arg is optional.'
+      - 'step3: Implement default patch-version increment when --bump is used without a version.'
+      - 'step4: Add test that --bump without version increments patch; --public description is correct.'
+    dependencies: []
+    tests: [test644, test645]
+    status: needs-review
+
+  - id: task463
+    title: "pack - merge --signing-key into --sign"
+    type: task
+    description: |
+      Remove the separate --signing-key option and make the signing key path
+      a direct argument to --sign. Usage becomes: kinnoo pack --sign SIGNING_KEY <agent-dir>.
+      Help text for --sign should read: "Sign packaged archive and emit detached
+      signature artifacts. SIGNING_KEY is the path to an Ed25519 private key PEM
+      (new key can be created with 'kinnoo keygen')."
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/pack_command.py
+      - tests/test_pack.py
+    steps:
+      - 'step1: Remove --signing-key argument from pack subparser.'
+      - 'step2: Change --sign to accept a positional argument (metavar=SIGNING_KEY).'
+      - 'step3: Update pack_command.py to read signing key path from args.sign instead of args.signing_key.'
+      - 'step4: Update help text as specified.'
+      - 'step5: Add test that --sign SIGNING_KEY is accepted and --signing-key is rejected.'
+    dependencies: []
+    tests: [test646]
+    status: needs-review
+
+  - id: task464
+    title: "pack - --json flag for structured output"
+    type: task
+    description: |
+      Add --json flag to kinnoo pack that outputs results as JSON instead of
+      printing progress to stdout. JSON keys: agent_dir, visibility (public/private),
+      archive_path, checksum_sidecar_path, archive_size_bytes, agent_version,
+      error_code, error_message.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/pack_command.py
+      - tests/test_pack.py
+    steps:
+      - 'step1: Add --json flag to pack subparser.'
+      - 'step2: Collect pack results into a dict and emit via json.dumps when --json is set.'
+      - 'step3: Suppress progress output when --json is active.'
+      - 'step4: Add test that --json produces valid JSON with expected keys.'
+    dependencies: []
+    tests: [test647]
+    status: needs-review
+
+  - id: task465
+    title: "publish - --local | --remote mutual exclusion and help text"
+    type: task
+    description: |
+      Ensure kinnoo publish only allows --local OR --remote, not both.
+      Update help usage to show [--local | --remote]. Update descriptions:
+      --local: "Publish to local registry", --remote: "Publish to remote registry (default)".
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/publish_command.py
+      - tests/test_publish_refactor.py
+    steps:
+      - 'step1: Create mutually exclusive group for --local and --remote in publish subparser.'
+      - 'step2: Update help descriptions for --local and --remote.'
+      - 'step3: Add test that using both --local and --remote produces an error.'
+    dependencies: []
+    tests: [test648]
+    status: needs-review
+
+  - id: task466
+    title: "publish - version history and Agent Versions tab"
+    type: task
+    description: |
+      Ensure publish keeps all versions of an agent. The My Agents table and
+      Search results should show the latest version. Add a third tab "Agent Versions"
+      in the agent modal (alongside Registry Manifest and Agent Manifest) that
+      lists all versions with upload date.
+    files:
+      - server/routes/publish.py
+      - server/templates/registry.html
+      - server/metadata/manager.py
+      - tests/test_cli_registry.py
+    steps:
+      - 'step1: Ensure server-side publish stores all versions (not overwriting) and tracks upload timestamps.'
+      - 'step2: Ensure list/search API returns latest version per agent.'
+      - 'step3: Add Agent Versions tab to registry UI modal with version list and upload dates.'
+      - 'step4: Add test that multiple publishes of different versions are all retrievable.'
+    dependencies: []
+    tests: [test649]
+    status: needs-review
+
+  - id: task467
+    title: "publish - --json flag for structured output"
+    type: task
+    description: |
+      Add --json flag to kinnoo publish that outputs results as JSON. JSON keys:
+      agent_name, agent_version, registry (remote/local), source_archive_path,
+      publish_result (accepted/rejected), error_code, error_message.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/publish_command.py
+      - tests/test_publish_refactor.py
+    steps:
+      - 'step1: Add --json flag to publish subparser.'
+      - 'step2: Collect publish results into dict and emit JSON when --json is set.'
+      - 'step3: Suppress progress output when --json is active.'
+      - 'step4: Add test that --json produces valid JSON with expected keys.'
+    dependencies: []
+    tests: [test650]
+    status: needs-review
+
+  - id: task468
+    title: "install - remove deprecated openclaw options"
+    type: task
+    description: |
+      Remove deprecated install options related to openclaw skills:
+      --state-overwrite, --allow-vulnerable, --ignore-scripts,
+      --openclaw-min-version, --openclaw-skill. These are no longer relevant
+      since kinnoo now supports openclaw agents (not skills) as of Openclaw 2026.3.28.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/install_command.py
+      - tests/test_cli_install.py
+    steps:
+      - 'step1: Remove --state-overwrite, --allow-vulnerable, --ignore-scripts, --openclaw-min-version, --openclaw-skill from install subparser.'
+      - 'step2: Remove any handling logic for these args in install_command.py.'
+      - 'step3: Update any tests that reference these deprecated options.'
+      - 'step4: Add test that these options are rejected by the parser.'
+    dependencies: []
+    tests: [test651]
+    status: needs-review
+
+  - id: task469
+    title: "install - default openclaw install to ~/.openclaw/workspace-<name>"
+    type: task
+    description: |
+      For openclaw agents, kinnoo install [agent] should default to installing
+      the workspace at ~/.openclaw/workspace-<agent-name>. If a [target-dir] is
+      provided, install there instead.
+    files:
+      - src/kinnoo/install_command.py
+      - tests/test_cli_install.py
+    steps:
+      - 'step1: Detect openclaw agent type during install.'
+      - 'step2: Set default target to ~/.openclaw/workspace-<agent-name> when no target-dir is specified.'
+      - 'step3: Allow user-specified target-dir to override default.'
+      - 'step4: Add test for default openclaw install path and custom override.'
+    dependencies: [task468]
+    tests: [test652]
+    status: needs-review
+
+  - id: task470
+    title: "install - --json flag for structured output"
+    type: task
+    description: |
+      Add --json flag to kinnoo install that outputs results as JSON. --json
+      requires -y (non-interactive) mode. JSON keys should include all relevant
+      fields currently displayed to stdout during install (agent name, version,
+      source, install path, integrity check results, etc.).
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/install_command.py
+      - tests/test_cli_install.py
+    steps:
+      - 'step1: Add --json flag to install subparser.'
+      - 'step2: Validate that --json requires -y; error if interactive mode.'
+      - 'step3: Collect install results into dict and emit JSON when --json is set.'
+      - 'step4: Add test that --json with -y produces valid JSON; --json without -y errors.'
+    dependencies: []
+    tests: [test653]
+    status: needs-review
+
+  - id: task471
+    title: "run - --json structured output for all agent types"
+    type: task
+    description: |
+      For openclaw agents, --json should pass through to the openclaw runtime.
+      For non-openclaw agents, --json should output structured JSON with keys:
+      output, exit_code, success, start_time, end_time, duration_seconds,
+      agent_dir, entrypoint, runtime_language, runtime_type, input, error,
+      warnings, resource_usage (optional), policy_enforced, policy_violations.
+    files:
+      - src/kinnoo/run_command.py
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Detect agent type and branch --json behavior accordingly.'
+      - 'step2: For non-openclaw, wrap execution in timing/capture logic and emit JSON envelope on completion.'
+      - 'step3: Include policy enforcement state and violations in JSON output.'
+      - 'step4: Add tests for --json output structure for non-openclaw agents.'
+    dependencies: []
+    tests: [test654]
+    status: needs-review
+
+  - id: task472
+    title: "run - replace --sandbox with --enforce-policy"
+    type: task
+    description: |
+      Rename the --sandbox flag to --enforce-policy in kinnoo run. Update all
+      references in CLI parser, run_command.py, sandbox.py, help text, and tests.
+      --enforce-policy more clearly communicates that this flag enforces the
+      permission policies declared in kinnoo.yaml, not a true isolated sandbox.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/run_command.py
+      - src/kinnoo/sandbox.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Rename --sandbox to --enforce-policy in run subparser.'
+      - 'step2: Update args.sandbox references to args.enforce_policy throughout run_command.py and sandbox.py.'
+      - 'step3: Update help text description.'
+      - 'step4: Add test that --enforce-policy is accepted and --sandbox is rejected.'
+    dependencies: []
+    tests: [test655]
+    status: needs-review
+
+  - id: task473
+    title: "inspect - --json flag for structured output"
+    type: task
+    description: |
+      Add --json flag to kinnoo inspect that outputs all inspection results as
+      JSON instead of stdout. Must work with --full, --raw, --update, and
+      --skip-warnings options. JSON keys should map to all fields currently
+      displayed in stdout.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/inspect_command.py
+      - tests/test_cli_inspect.py
+    steps:
+      - 'step1: Add --json flag to inspect subparser.'
+      - 'step2: Collect all inspect output into a dict structure.'
+      - 'step3: Emit JSON when --json is set, suppressing stdout output.'
+      - 'step4: Ensure --json works with --full, --raw, --update, --skip-warnings.'
+      - 'step5: Add tests for --json output with various option combinations.'
+    dependencies: []
+    tests: [test656]
+    status: needs-review
+
+  - id: task474
+    title: "inspect - --update simplification to 2 arguments"
+    type: task
+    description: |
+      Change --update from 3 arguments (target, OLD_KEY, NEW_VALUE) to 2 arguments
+      (KEY, NEW_VALUE). The --update KEY NEW_VALUE option can come before or after
+      [target], so both syntaxes work:
+        kinnoo inspect --update runtime.language javascript test-agent
+        kinnoo inspect test-agent --update runtime.language javascript
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/inspect_command.py
+      - tests/test_cli_inspect.py
+    steps:
+      - 'step1: Change --update nargs from 3 to 2 in inspect subparser.'
+      - 'step2: Update inspect_command.py to handle KEY, NEW_VALUE (no OLD_KEY).'
+      - 'step3: Ensure positional target works before or after --update.'
+      - 'step4: Add test for --update before and after target argument.'
+    dependencies: []
+    tests: [test657]
+    status: needs-review
+
+  - id: task475
+    title: "inspect - --update confirmation prompt"
+    type: task
+    description: |
+      When --update is used, show a warning prompt before changing metadata:
+      "Changing <key> from <old_value> to <new_value>. Proceed? (y/N):"
+      Default is N (no change). If --skip-warnings is also provided, skip the
+      prompt and apply the change immediately.
+    files:
+      - src/kinnoo/inspect_command.py
+      - tests/test_cli_inspect.py
+    steps:
+      - 'step1: Read current value of the key before update.'
+      - 'step2: Display confirmation prompt with old and new values.'
+      - 'step3: Abort if user does not confirm (default N).'
+      - 'step4: Bypass prompt when --skip-warnings is present.'
+      - 'step5: Add tests for prompt behavior and --skip-warnings bypass.'
+    dependencies: [task474]
+    tests: [test658]
+    status: needs-review
+
+  - id: task476
+    title: "Comment out sync, stop, attach, logs commands and daemon help"
+    type: task
+    description: |
+      Comment out (do NOT delete) the CLI subparser registration and dispatch
+      code for kinnoo sync, stop, attach, and logs commands. Add [agent] comments
+      stating these will be implemented later. Also comment out the "daemon agents:"
+      section in the main help menu with an [agent] comment.
+    files:
+      - src/kinnoo/cli.py
+    steps:
+      - 'step1: Comment out sync subparser registration and dispatch with [agent] note.'
+      - 'step2: Comment out stop subparser registration and dispatch with [agent] note.'
+      - 'step3: Comment out attach subparser registration and dispatch with [agent] note.'
+      - 'step4: Comment out logs subparser registration and dispatch with [agent] note.'
+      - 'step5: Comment out daemon agents help section in _format_top_level_help_text() with [agent] note.'
+      - 'step6: Add test that sync/stop/attach/logs are not recognized as valid commands.'
+    dependencies: []
+    tests: [test659]
+    status: needs-review
+
+  - id: task477
+    title: "search - remove --openclaw-skills and refactor --json"
+    type: task
+    description: |
+      Remove --openclaw-skills option from kinnoo search. Refactor --json to be
+      a general option for outputting search results as structured JSON rather
+      than line-by-line stdout.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/search_command.py
+      - tests/test_cli_registry.py
+    steps:
+      - 'step1: Remove --openclaw-skills from search subparser.'
+      - 'step2: Add/refactor --json flag for general JSON output of search results.'
+      - 'step3: Remove any openclaw-skills handling logic in search_command.py.'
+      - 'step4: Add tests that --openclaw-skills is rejected and --json outputs valid JSON.'
+    dependencies: []
+    tests: [test660, test661]
+    status: needs-review
+
+  - id: task478
+    title: "list - add --json option"
+    type: task
+    description: |
+      Add --json flag to kinnoo list that outputs list results as structured
+      JSON rather than line-by-line stdout.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/list_command.py
+      - tests/test_cli_registry.py
+    steps:
+      - 'step1: Add --json flag to list subparser.'
+      - 'step2: Collect list results and emit JSON when --json is set.'
+      - 'step3: Add test that --json produces valid JSON output.'
+    dependencies: []
+    tests: [test662]
+    status: needs-review
+
+  - id: task479
+    title: "Registry UI - inline security icons in Name column"
+    type: task
+    description: |
+      Show security icons inline in the Name column for My Agents and Search
+      results tables in the registry UI. Icons:
+      ✅ signed + verified, 📦 integrity verified (archive and/or per-file),
+      ❌ any check failed. Render with two spaces between name and icons
+      (example: "s3-seed-agent  ✅📦"). Icon state is sourced from
+      server-side security check results.
+    files:
+      - server/templates/agents.html
+      - server/templates/search.html
+      - server/routes/web_agents.py
+      - server/metadata/models.py
+    steps:
+      - 'step1: Add security_status field to agent metadata schema.'
+      - 'step2: Render security icons inline next to Name in My Agents and Search results tables.'
+      - 'step3: Render appropriate icons based on security_status data.'
+      - 'step4: Add test that Name column renders inline icons correctly for various states.'
+    dependencies: []
+    tests: [test663]
+    status: needs-review
+
+  - id: task480
+    title: "Registry - server-side security check script"
+    type: task
+    description: |
+      Create a script that runs post-publish security checks on an agent archive:
+      (1) signature verification, (2) archive integrity/hash check,
+      (3) per-file integrity/hash check. This script is invoked server-side
+      after any kinnoo publish to the remote registry. Output is a structured
+      pass/fail report per check.
+    files:
+      - server/services/security_check.py
+      - server/tests/test_security_check.py
+    steps:
+      - 'step1: Implement signature verification check function.'
+      - 'step2: Implement archive integrity/hash verification function.'
+      - 'step3: Implement per-file integrity/hash verification function.'
+      - 'step4: Compose checks into run_post_publish_checks(archive_path) returning structured report.'
+      - 'step5: Add unit tests for each check function with pass/fail cases.'
+    dependencies: []
+    tests: [test664]
+    status: needs-review
+
+  - id: task481
+    title: "Registry - update security column and persist check report"
+    type: task
+    description: |
+      After server-side security checks run, update the agent's security_status
+      metadata with the check results (pass/fail per check) and persist a short
+      report accessible by the Security tab in the agent modal. The green check
+      icon (✅) can also be set when a first end-user installs with --strict and
+      sends back a verification success signal.
+    files:
+      - server/services/security_check.py
+      - server/metadata/manager.py
+      - server/routes/publish.py
+      - server/tests/test_security_check.py
+    steps:
+      - 'step1: Define security report schema (check_name, status, timestamp).'
+      - 'step2: Wire post-publish checks into publish route to run after successful publish.'
+      - 'step3: Persist security report and update agent security_status metadata.'
+      - 'step4: Add endpoint/API for retrieving security report for the Security tab.'
+      - 'step5: Add test that publish triggers checks and updates metadata.'
+    dependencies: [task480]
+    tests: [test665]
+    status: needs-review
+
+  - id: task482
+    title: "Registry - containerized Lambda for server-side checks"
+    type: task
+    description: |
+      Run server-side security checks in an isolated containerized environment
+      (Lambda function). The publish route should invoke the container
+      asynchronously after publish completes, and the container should execute
+      the security check script and write results back. Keep the security-check 
+      execution interface clean so I can swap to using ECS task later if scan complexity grows.
+      Any infrastructure changes for this flow (Lambda, IAM, invocation wiring,
+      env/config) must be implemented via Terraform under iac/ when possible.
+    files:
+      - server/services/security_check.py
+      - server/routes/publish.py
+      - iac/main.tf
+      - iac/variables.tf
+      - iac/modules/
+      - iac/environments/dev/terraform.tfvars
+    steps:
+      - 'step1: Add/extend Terraform resources in iac/ for Lambda security checks (function, IAM, and required wiring). Set Lambda timeout to 1 minute.'
+      - 'step2: Wire publish route to invoke Lambda after successful publish.'
+      - 'step3: Lambda writes results back to metadata store.'
+      - 'step3a: Define explicit retry policy for async Lambda invoke attempts (default 3 total attempts) and surface invocation failure detail.'
+      - 'step3b: Preserve inline publish-time checks as fail-safe fallback if Lambda invocation path fails.'
+      - 'step4: Run terraform plan/apply for target env and record the plan/apply summary in notes.'
+      - 'step5: Add integration test for end-to-end publish → Lambda → report flow.'
+    dependencies: [task481]
+    tests: [test666]
+    status: needs-review
+
+  - id: task483
+    title: "Registry UI - Security tab in selected-agent details"
+    type: task
+    description: |
+      Add a new "Security" tab to the selected-agent details panel in the
+      registry UI (alongside Registry Manifest). The Security tab shows
+      server-side check results: one line per check with [PASS] or [FAIL].
+      Keep it concise — no verbose details.
+    files:
+      - server/templates/agents.html
+      - server/routes/web_agents.py
+      - server/tests/test_web_agents.py
+    steps:
+      - 'step1: Add Security tab header to agent modal tab bar.'
+      - 'step2: Fetch security report data when Security tab is selected.'
+      - 'step3: Render check results as one-line-per-check with [PASS]/[FAIL] badge.'
+      - 'step4: Add test that Security tab renders correctly with sample check data.'
+    dependencies: [task481]
+    tests: [test667]
+    status: needs-review
+
+  - id: task484
+    title: "New kinnoo fetch command"
+    type: task
+    description: |
+      Add a new kinnoo fetch command that downloads a specified agent archive
+      from the remote registry to the user's local archive. Performs archive
+      signing verification (if --strict) and archive integrity verification,
+      but does NOT unpack the archive. Use cases: offline inspection, manual
+      review, deferred installation, CI/auditing, mirroring.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/fetch_command.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add fetch subparser with agent identifier and optional version arguments.'
+      - 'step2: Implement fetch_command.py: download archive via remote_client, save to local archive dir.'
+      - 'step3: Run archive integrity verification on downloaded file.'
+      - 'step4: If --strict, run signature verification.'
+      - 'step5: Print download path and verification status.'
+      - 'step6: Add tests for fetch download, integrity check, and strict verification.'
+    dependencies: []
+    tests: [test668, test669]
+    status: needs-review
+
+  - id: task485
+    title: "New kinnoo uninstall command"
+    type: task
+    description: |
+      Add a new kinnoo uninstall command with three modes:
+      (1) kinnoo uninstall [agent_dir] — delete agent directory AND all version archives.
+      (2) kinnoo uninstall [agent_dir==version] — delete agent directory AND only that version's archive. 'latest' is valid.
+      (3) kinnoo uninstall [agent_archive.kno==version] — delete only that version's archive file. Version is required. 'latest' is valid.
+      Should prompt for confirmation before deletion unless -y is specified.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/uninstall_command.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add uninstall subparser with target argument and -y flag.'
+      - 'step2: Parse target format to determine mode (dir, dir==version, archive.kno==version).'
+      - 'step3: Implement deletion logic for each mode with confirmation prompt.'
+      - 'step4: Handle latest version resolution.'
+      - 'step5: Add tests for all three uninstall modes and confirmation bypass.'
+    dependencies: []
+    tests: [test670, test671]
+    status: needs-review
+
+  - id: task486
+    title: "Hotfix - hide traceback for remote registry auth/conflict failures"
+    type: task
+    description: |
+      Prevent raw Python traceback output when remote registry operations fail
+      with actionable HTTP errors (for example 401 unauthorized and 409 conflict)
+      in list/fetch/search/publish flows. Instead, surface concise user-facing
+      messages and optional response payload lines on stdout.
+    files:
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add centralized formatter for RemoteRegistryClientError messages in CLI layer.'
+      - 'step2: Catch RemoteRegistryClientError in fetch/list/search/publish command dispatch paths.'
+      - 'step3: Print concise [kinnoo] error lines (headline and response payload) to stdout and exit non-zero.'
+      - 'step4: Add regression tests proving no traceback is emitted and user-facing lines are printed.'
+    dependencies: [task484, task485]
+    tests: [test672, test673]
+    status: needs-review
+
+  - id: task487
+    title: "Hotfix - init/run help cleanup + task482 retry/fallback diagnostics"
+    type: task
+    description: |
+      Apply UX and reliability hotfixes requested during feature115 validation:
+      remove legacy init --framework option in favor of positional framework,
+      remove run --thinking option, add orange-icon command descriptions in
+      subcommand help, and codify task482 retry/fallback behavior with concrete
+      diagnostics about Lambda deployment prerequisites.
+    files:
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+      - server/services/security_check.py
+      - server/tests/test_security_check.py
+      - iac/main.tf
+      - iac/modules/lambda-security-check/main.tf
+      - iac/modules/lambda-security-check/variables.tf
+      - iac/modules/ecr/main.tf
+      - iac/modules/ecr/outputs.tf
+      - iac/outputs.tf
+      - iac/variables.tf
+      - iac/environments/dev/terraform.tfvars
+      - scripts/ops/build_and_push_lambda_security_check_image.sh
+      - Dockerfile.lambda
+      - lambda_handler.py
+      - tests/test_lambda_handler.py
+      - TASKS.txt
+      - TESTS.txt
+      - FEATURES.txt
+      - notes/tasks/task482-notes.md
+      - notes/tasks/task487-notes.md
+    steps:
+      - 'step1: Remove init --framework parser/dispatch support and keep positional framework help authoritative.'
+      - 'step2: Remove run --thinking option from CLI parser/usage text and keep run execution deterministic.'
+      - 'step3: Add orange icon prefix to subcommand help descriptions.'
+      - 'step4: Add/verify tests for init help shape, framework-flag rejection, run help changes, and orange-prefixed descriptions.'
+      - 'step5: Add explicit Lambda invoke retry + fallback behavior and regression test coverage.'
+      - 'step6: Record task482 deployment diagnosis (terraform apply + ECS rollout prerequisites) in notes.'
+      - 'step7: Add dedicated Terraform-managed ECR repository outputs and policies for Lambda security-check image storage.'
+      - 'step8: Remove invalid lambda image default and enforce explicit private ECR image URI validation.'
+      - 'step9: Add automation script to build/push Lambda image and update dev tfvars to valid image tag.'
+      - 'step10: Validate Lambda creation with targeted Terraform apply using pushed account ECR image.'
+    dependencies: [task482, task486]
+    tests: [test674, test675, test676, test677]
+    status: needs-review

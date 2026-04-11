@@ -12,10 +12,11 @@ locals {
 }
 
 resource "cloudflare_record" "dev_pages" {
+  count   = var.manage_dev_record ? 1 : 0
   zone_id = var.zone_id
   name    = local.dev_host
-  type    = "CNAME"
-  content = var.pages_target
+  type    = var.dev_record_type
+  content = var.dev_record_content
   ttl     = 1
   proxied = true
 }
