@@ -9384,7 +9384,7 @@ tasks:
       - 'step4: Add test for default openclaw install path and custom override.'
     dependencies: [task468]
     tests: [test652]
-    status: not-started
+    status: needs-review
 
   - id: task470
     title: "install - --json flag for structured output"
