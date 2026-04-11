@@ -47,6 +47,7 @@
               <th>Tenant</th>
               <th>Name</th>
               <th>Version</th>
+              <th>Security</th>
               <th>Author</th>
               <th>Framework</th>
               <th>Size</th>
@@ -59,10 +60,11 @@
                 <td>{{ agent.tenant }}</td>
                 <td>
                   <a href="/agents?page={{ page }}&per_page={{ per_page }}&selected_tenant={{ agent.tenant }}&selected_agent={{ agent.name }}">
-                    {{ agent.name }}{% if agent.security_icons %}&nbsp;&nbsp;{{ agent.security_icons }}{% endif %}
+                    {{ agent.name }}
                   </a>
                 </td>
                 <td>{{ agent.version }}</td>
+                <td>{% if agent.security_icons %}{{ agent.security_icons }}{% endif %}</td>
                 <td>{{ agent.author }}</td>
                 <td>{{ agent.framework }}</td>
                 <td>{{ agent.size_display }}</td>
@@ -98,6 +100,8 @@
       <p>
         <a href="/agents?page={{ page }}&per_page={{ per_page }}&selected_tenant={{ selected_tenant }}&selected_agent={{ selected_agent }}&selected_tab=manifest">Registry Manifest</a>
         |
+        <a href="/agents?page={{ page }}&per_page={{ per_page }}&selected_tenant={{ selected_tenant }}&selected_agent={{ selected_agent }}&selected_tab=versions">Agent Versions</a>
+        |
         <a href="/agents?page={{ page }}&per_page={{ per_page }}&selected_tenant={{ selected_tenant }}&selected_agent={{ selected_agent }}&selected_tab=security">Security</a>
       </p>
 
@@ -120,7 +124,7 @@
                   <tr>
                     <td>{{ row.check_name }}</td>
                     <td>
-                      {% if row.status == "pass" %}[PASS]{% else %}[FAIL]{% endif %}
+                      {% if row.status == "pass" %}[PASS]{% elif row.status == "unsigned" %}[UNSIGNED]{% elif row.status == "fail" %}[FAIL]{% else %}[UNKNOWN]{% endif %}
                     </td>
                   </tr>
                 {% endfor %}
@@ -131,6 +135,38 @@
           {% endif %}
         {% else %}
           <p>Select an agent name from the table to view security check details.</p>
+        {% endif %}
+      {% elif selected_tab == "versions" %}
+        {% if selected_versions %}
+          <p><strong>Tenant:</strong> {{ selected_versions.tenant }}</p>
+          <p><strong>Name:</strong> {{ selected_versions.name }}</p>
+
+          {% if selected_versions.versions %}
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Version</th>
+                  <th>Created</th>
+                  <th>Updated</th>
+                  <th>Size</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in selected_versions.versions %}
+                  <tr>
+                    <td>{{ row.version }}</td>
+                    <td>{{ row.created_at }}</td>
+                    <td>{{ row.updated_at }}</td>
+                    <td>{{ row.size_display }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% else %}
+            <p>No version history available for this agent.</p>
+          {% endif %}
+        {% else %}
+          <p>Select an agent name from the table to view version history.</p>
         {% endif %}
       {% else %}
         {% if selected_manifest %}

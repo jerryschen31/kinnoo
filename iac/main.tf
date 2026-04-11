@@ -32,11 +32,13 @@ module "iam" {
 module "lambda_security_check" {
   source = "./modules/lambda-security-check"
 
-  project_name    = var.project_name
-  environment     = var.environment
-  lambda_role_arn = module.iam.lambda_security_check_role_arn
-  image_uri       = var.lambda_security_check_image_uri
-  tags            = local.common_tags
+  project_name        = var.project_name
+  environment         = var.environment
+  lambda_role_arn     = module.iam.lambda_security_check_role_arn
+  image_uri           = var.lambda_security_check_image_uri
+  registry_bucket_arn = module.s3_registry.bucket_arn
+  registry_bucket_id  = module.s3_registry.bucket_name
+  tags                = local.common_tags
 }
 
 module "secrets" {
@@ -58,43 +60,43 @@ module "ecr" {
 module "alb" {
   source = "./modules/alb"
 
-  project_name           = var.project_name
-  environment            = var.environment
-  vpc_id                 = module.vpc.vpc_id
-  public_subnet_ids      = module.vpc.public_subnet_ids
-  alb_security_group_id  = module.vpc.alb_security_group_id
-  api_domain             = "dev-api.kinnoo.ai"
-  tags                   = local.common_tags
+  project_name          = var.project_name
+  environment           = var.environment
+  vpc_id                = module.vpc.vpc_id
+  public_subnet_ids     = module.vpc.public_subnet_ids
+  alb_security_group_id = module.vpc.alb_security_group_id
+  api_domain            = "dev-api.kinnoo.ai"
+  tags                  = local.common_tags
 }
 
 module "ecs_fargate" {
   source = "./modules/ecs-fargate"
 
-  project_name          = var.project_name
-  environment           = var.environment
-  aws_region            = var.aws_region
-  vpc_id                = module.vpc.vpc_id
-  subnet_ids            = module.vpc.public_subnet_ids
-  ecs_security_group_id = module.vpc.ecs_security_group_id
-  target_group_arn      = module.alb.target_group_arn
-  execution_role_arn    = module.iam.ecs_execution_role_arn
-  task_role_arn         = module.iam.ecs_task_role_arn
-  image_url             = "${module.ecr.repository_url}:latest"
-  secret_arns           = module.secrets.secret_arns
-  registry_bucket_name  = module.s3_registry.bucket_name
-  sns_topic_arn         = var.sns_topic_arn
+  project_name               = var.project_name
+  environment                = var.environment
+  aws_region                 = var.aws_region
+  vpc_id                     = module.vpc.vpc_id
+  subnet_ids                 = module.vpc.public_subnet_ids
+  ecs_security_group_id      = module.vpc.ecs_security_group_id
+  target_group_arn           = module.alb.target_group_arn
+  execution_role_arn         = module.iam.ecs_execution_role_arn
+  task_role_arn              = module.iam.ecs_task_role_arn
+  image_url                  = "${module.ecr.repository_url}:latest"
+  secret_arns                = module.secrets.secret_arns
+  registry_bucket_name       = module.s3_registry.bucket_name
+  sns_topic_arn              = var.sns_topic_arn
   security_check_lambda_name = module.lambda_security_check.function_name
-  tags                  = local.common_tags
+  tags                       = local.common_tags
 }
 
 module "cloudflare" {
   source = "./modules/cloudflare"
 
-  zone_id                = var.zone_id
-  domain                 = "kinnoo.ai"
-  dev_record_type        = var.dev_record_type
-  dev_record_content     = var.dev_record_content
-  manage_dev_record      = var.manage_dev_record
-  alb_dns_name           = module.alb.alb_dns_name
-  acm_validation_record  = module.alb.acm_validation_record
+  zone_id               = var.zone_id
+  domain                = "kinnoo.ai"
+  dev_record_type       = var.dev_record_type
+  dev_record_content    = var.dev_record_content
+  manage_dev_record     = var.manage_dev_record
+  alb_dns_name          = module.alb.alb_dns_name
+  acm_validation_record = module.alb.acm_validation_record
 }

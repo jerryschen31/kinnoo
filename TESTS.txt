@@ -11626,3 +11626,19 @@ tests:
         ac: AC15
     automated: true
     automation_path: server/tests/test_security_check.py::test_containerized_security_check_lambda_retry_fallback
+
+  - id: test677
+    title: "lambda S3 trigger processes archive and writes security report artifacts"
+    type: integration
+    preconditions: Lambda handler receives S3 put event for tenant-scoped .kno object with metadata document present
+    steps:
+      - 'step1: Seed fake S3 objects with a valid .kno archive, checksum sidecar, and existing metadata JSON for one tenant/agent/version path.'
+      - 'step2: Execute lambda_handler.handler with an S3 event record pointing to the .kno object key.'
+      - 'step3: Verify handler writes security report output object and updates metadata security_status/security_report fields.'
+    expected: Archive-triggered lambda run persists pass/fail check rows and metadata updates for UI consumption
+    pass_criteria: processed_count=1, result object exists, metadata document contains dict security_status and report list
+    covers:
+      - feature: feature115
+        ac: AC15
+    automated: true
+    automation_path: tests/test_lambda_handler.py::test_lambda_handler_processes_kno_and_updates_metadata

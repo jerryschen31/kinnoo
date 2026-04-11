@@ -46,6 +46,27 @@
 - Diagnosed and fixed ECR lifecycle policy validation error (`tagStatus=tagged` requires a tag filter).
 - Validated Lambda creation with targeted Terraform apply after pushing Lambda-compatible image.
 
+## Additional Lambda pipeline completion (S3 trigger + result writeback)
+- Added Terraform event wiring so S3 uploads of tenant-scoped `.kno` objects now invoke Lambda automatically.
+- Added Lambda invoke permission allowing the registry bucket to call the function.
+- Replaced stub Lambda handler with real checks that:
+	- parse tenant/agent/version metadata from the S3 object path,
+	- load the archive and checksum sidecar,
+	- run signature/archive/per-file/checksum checks,
+	- write a structured security report object back to S3,
+	- update the existing per-version metadata document used by server/UI (`security_status`, `security_report`).
+- Added focused tests for Lambda handler behavior covering archive processing and non-archive skip behavior.
+
+### Files changed for this follow-up
+- `iac/main.tf`
+- `iac/modules/lambda-security-check/main.tf`
+- `iac/modules/lambda-security-check/variables.tf`
+- `Dockerfile.lambda`
+- `lambda_handler.py`
+- `tests/test_lambda_handler.py`
+- `TASKS.txt`
+- `TESTS.txt`
+
 ## Verbatim response (requested)
 Completed. I checked your files, created the Terraform-managed Lambda ECR repo, enforced safer Terraform validation, wrote the build/push automation script, and successfully created the Lambda with a valid image.
 

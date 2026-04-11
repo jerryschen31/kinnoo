@@ -9777,6 +9777,9 @@ tasks:
       - tests/test_cli.py
       - server/services/security_check.py
       - server/tests/test_security_check.py
+      - iac/main.tf
+      - iac/modules/lambda-security-check/main.tf
+      - iac/modules/lambda-security-check/variables.tf
       - iac/modules/ecr/main.tf
       - iac/modules/ecr/outputs.tf
       - iac/outputs.tf
@@ -9785,6 +9788,7 @@ tasks:
       - scripts/ops/build_and_push_lambda_security_check_image.sh
       - Dockerfile.lambda
       - lambda_handler.py
+      - tests/test_lambda_handler.py
       - TASKS.txt
       - TESTS.txt
       - FEATURES.txt
@@ -9802,5 +9806,5 @@ tasks:
       - 'step9: Add automation script to build/push Lambda image and update dev tfvars to valid image tag.'
       - 'step10: Validate Lambda creation with targeted Terraform apply using pushed account ECR image.'
     dependencies: [task482, task486]
-    tests: [test674, test675, test676]
+    tests: [test674, test675, test676, test677]
     status: needs-review

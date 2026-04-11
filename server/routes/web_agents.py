@@ -85,8 +85,15 @@ def create_web_agents_router(
             tenant_slug=selected_tenant,
             agent_slug=selected_agent,
         )
+        selected_versions = _build_selected_agent_versions_view(
+            metadata_manager=metadata_manager,
+            storage_backend=storage_backend,
+            tenant_slug=selected_tenant,
+            agent_slug=selected_agent,
+        )
         selected_security = _build_selected_agent_security_view(
             metadata_manager=metadata_manager,
+            storage_backend=storage_backend,
             tenant_slug=selected_tenant,
             agent_slug=selected_agent,
         )
@@ -107,6 +114,7 @@ def create_web_agents_router(
                 "selected_agent": selected_agent,
                 "selected_tab": selected_tab,
                 "selected_manifest": selected_manifest,
+                "selected_versions": selected_versions,
                 "selected_security": selected_security,
             },
         )
@@ -229,14 +237,14 @@ def _all_agent_rows(*, metadata_manager: MetadataManager, storage_backend: Stora
                         except FileNotFoundError:
                             size_bytes = 0
 
-            security_icons = _security_icons_for_status(
-                _security_status_for_latest_version(
-                    metadata_manager=metadata_manager,
-                    tenant_slug=tenant_slug,
-                    agent_slug=summary.agent_slug,
-                    version=latest_version,
-                )
+            security_snapshot = _resolve_security_snapshot_for_version(
+                metadata_manager=metadata_manager,
+                storage_backend=storage_backend,
+                tenant_slug=tenant_slug,
+                agent_slug=summary.agent_slug,
+                version=latest_version,
             )
+            security_icons = _security_icons_for_status(security_snapshot.get("security_status"))
 
             rows.append(
                 {
@@ -268,24 +276,19 @@ def _format_size(size_bytes: int) -> str:
 def _security_status_for_latest_version(
     *,
     metadata_manager: MetadataManager,
+    storage_backend: StorageBackend,
     tenant_slug: str,
     agent_slug: str,
     version: str,
 ) -> object:
-    if not version:
-        return ""
-    metadata = metadata_manager.get_version_metadata(
+    snapshot = _resolve_security_snapshot_for_version(
+        metadata_manager=metadata_manager,
+        storage_backend=storage_backend,
         tenant_slug=tenant_slug,
         agent_slug=agent_slug,
         version=version,
     )
-    if metadata is None:
-        return ""
-    if metadata.security_status not in (None, ""):
-        return metadata.security_status
-    if isinstance(metadata.manifest, dict):
-        return metadata.manifest.get("security_status", "")
-    return ""
+    return snapshot.get("security_status", "")
 
 
 def _security_icons_for_status(security_status: object) -> str:
@@ -303,13 +306,19 @@ def _security_icons_for_status(security_status: object) -> str:
         icons: list[str] = []
         if verdicts["signature"] == "pass":
             icons.append("✅")
+        if verdicts["signature"] == "unsigned":
+            # Unsigned artifacts should not be rendered as failures.
+            pass
         if (
             verdicts["archive"] == "pass"
             or verdicts["archive_integrity"] == "pass"
-            or verdicts["per_file"] == "pass"
-            or verdicts["per_file_integrity"] == "pass"
         ):
             icons.append("📦")
+        if (
+            verdicts["per_file"] == "pass"
+            or verdicts["per_file_integrity"] == "pass"
+        ):
+            icons.append("🧩")
         return "".join(icons)
 
     if not isinstance(security_status, str):
@@ -320,14 +329,16 @@ def _security_icons_for_status(security_status: object) -> str:
         return ""
     if "fail" in normalized:
         return "❌"
+    if "unsigned" in normalized:
+        return ""
 
     aliases = {
         "signed_verified": "✅",
         "signature_pass": "✅",
         "archive_verified": "📦",
         "archive_pass": "📦",
-        "file_integrity_verified": "📦",
-        "per_file_pass": "📦",
+        "file_integrity_verified": "🧩",
+        "per_file_pass": "🧩",
     }
     if normalized in aliases:
         return aliases[normalized]
@@ -337,9 +348,71 @@ def _security_icons_for_status(security_status: object) -> str:
         icons.append("✅")
     if "archive" in normalized:
         icons.append("📦")
-    if ("file" in normalized or "per_file" in normalized) and "📦" not in icons:
-        icons.append("📦")
+    if "file" in normalized or "per_file" in normalized:
+        icons.append("🧩")
     return "".join(icons)
+
+
+def _default_lambda_report_key(*, tenant_slug: str, agent_slug: str, version: str) -> str:
+    return f"security-check/tenants/{tenant_slug}/agents/{agent_slug}/versions/{version}/report.json"
+
+
+def _resolve_security_snapshot_for_version(
+    *,
+    metadata_manager: MetadataManager,
+    storage_backend: StorageBackend,
+    tenant_slug: str,
+    agent_slug: str,
+    version: str,
+) -> dict[str, object]:
+    if not version:
+        return {"security_status": "", "checks": []}
+
+    report_key = _default_lambda_report_key(
+        tenant_slug=tenant_slug,
+        agent_slug=agent_slug,
+        version=version,
+    )
+
+    try:
+        report_bytes = storage_backend.get_object(key=report_key)
+    except FileNotFoundError:
+        return {"security_status": "", "checks": [], "report_key": report_key, "source": "none"}
+
+    try:
+        report_doc = json.loads(report_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return {"security_status": "", "checks": [], "report_key": report_key, "source": "invalid"}
+
+    report_payload = report_doc.get("report") if isinstance(report_doc, dict) else None
+    if not isinstance(report_payload, dict):
+        return {"security_status": "", "checks": [], "report_key": report_key, "source": "invalid"}
+
+    security_status = report_payload.get("security_status", "")
+    checks_raw = report_payload.get("checks", [])
+    checks: list[dict[str, str]] = []
+    if isinstance(checks_raw, list):
+        for item in checks_raw:
+            if not isinstance(item, dict):
+                continue
+            checks.append(
+                {
+                    "check_name": str(item.get("check_name", "")),
+                    "status": str(item.get("status", "")).lower(),
+                    "detail": str(item.get("detail", "")),
+                }
+            )
+
+    # Keep status shape stable for renderers even if upstream report is malformed.
+    if not isinstance(security_status, (dict, str)):
+        security_status = ""
+
+    return {
+        "security_status": security_status,
+        "checks": checks,
+        "report_key": report_key,
+        "source": "lambda-report",
+    }
 
 
 def _resolve_manifest_path(manifest: dict[str, object], path: str) -> object | None:
@@ -413,6 +486,7 @@ def _build_selected_agent_manifest_view(
 def _build_selected_agent_security_view(
     *,
     metadata_manager: MetadataManager,
+    storage_backend: StorageBackend,
     tenant_slug: str,
     agent_slug: str,
 ) -> dict[str, object] | None:
@@ -434,37 +508,49 @@ def _build_selected_agent_security_view(
     if not latest_version:
         return None
 
-    metadata = metadata_manager.get_version_metadata(
+    security_snapshot = _resolve_security_snapshot_for_version(
+        metadata_manager=metadata_manager,
+        storage_backend=storage_backend,
         tenant_slug=normalized_tenant,
         agent_slug=normalized_agent,
         version=latest_version,
     )
-    if metadata is None:
-        return None
-
-    checks: list[dict[str, str]] = []
-    if isinstance(metadata.security_report, list):
-        for item in metadata.security_report:
-            if not isinstance(item, dict):
-                continue
-            checks.append(
-                {
-                    "check_name": str(item.get("check_name", "")),
-                    "status": str(item.get("status", "")).lower(),
-                }
-            )
-
-    if not checks and isinstance(metadata.security_status, dict):
-        for key in ("signature", "archive", "per_file"):
-            value = metadata.security_status.get(key)
-            if isinstance(value, str) and value:
-                checks.append({"check_name": key, "status": value.lower()})
 
     return {
         "tenant": normalized_tenant,
         "name": normalized_agent,
         "version": latest_version,
-        "checks": checks,
+        "checks": security_snapshot.get("checks", []),
+        "source": security_snapshot.get("source", "none"),
+        "report_key": security_snapshot.get("report_key", ""),
+    }
+
+
+def _build_selected_agent_versions_view(
+    *,
+    metadata_manager: MetadataManager,
+    storage_backend: StorageBackend,
+    tenant_slug: str,
+    agent_slug: str,
+) -> dict[str, object] | None:
+    normalized_tenant = tenant_slug.strip()
+    normalized_agent = agent_slug.strip()
+    if not normalized_tenant or not normalized_agent:
+        return None
+
+    profile = _build_agent_profile(
+        metadata_manager=metadata_manager,
+        storage_backend=storage_backend,
+        tenant_slug=normalized_tenant,
+        agent_slug=normalized_agent,
+    )
+    if profile is None:
+        return None
+
+    return {
+        "tenant": normalized_tenant,
+        "name": normalized_agent,
+        "versions": profile.get("versions", []),
     }
 
 

@@ -18,6 +18,16 @@ variable "image_uri" {
   type        = string
 }
 
+variable "registry_bucket_arn" {
+  description = "ARN of the registry S3 bucket that emits publish events"
+  type        = string
+}
+
+variable "registry_bucket_id" {
+  description = "Name/id of the registry S3 bucket that emits publish events"
+  type        = string
+}
+
 variable "tags" {
   description = "Common tags"
   type        = map(string)
