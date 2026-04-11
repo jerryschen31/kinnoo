@@ -11400,7 +11400,7 @@ tests:
       - 'step1: Open registry UI and navigate to My Agents.'
       - 'step2: Verify Name column renders security icons inline after the agent name with spacing.'
       - 'step3: Verify ✅ appears for signed+verified agents.'
-      - 'step4: Verify 📦 appears for archive-integrity-verified agents.'
+      - 'step4: Verify 📦 appears for integrity-verified agents (archive and/or per-file).'
       - 'step5: Verify ❌ appears for agents with failed checks.'
     expected: Name column shows correct inline icons per agent state
     pass_criteria: Icons match agent security status in all cases

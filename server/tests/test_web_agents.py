@@ -425,7 +425,7 @@ def test_name_column_renders_inline_security_icons_without_security_column(tmp_p
         replace(
             metadata,
             updated_at=metadata.updated_at,
-            security_status={"signature": "pass", "archive": "pass"},
+            security_status={"signature": "pass", "archive": "pass", "per_file": "pass"},
         )
     )
 

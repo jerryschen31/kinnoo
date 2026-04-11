@@ -20,6 +20,7 @@
 
 ## Design and reasoning
 - Rendering in Name cells uses `&nbsp;&nbsp;` before icons to preserve visible two-space separation in HTML.
+- Security icon mapping is simplified: 📦 now represents integrity verification for archive and per-file checks (no separate per-file icon).
 - Icon derivation is defensive and supports both:
   - structured status objects (for upcoming server-side check/report tasks)
   - simple string aliases (for backward compatibility and transition states)

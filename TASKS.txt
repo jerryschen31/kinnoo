@@ -9581,7 +9581,7 @@ tasks:
     description: |
       Show security icons inline in the Name column for My Agents and Search
       results tables in the registry UI. Icons:
-      ✅ signed + verified, 📦 archive integrity verified, 🧩 per-file integrity verified,
+      ✅ signed + verified, 📦 integrity verified (archive and/or per-file),
       ❌ any check failed. Render with two spaces between name and icons
       (example: "s3-seed-agent  ✅📦"). Icon state is sourced from
       server-side security check results.
