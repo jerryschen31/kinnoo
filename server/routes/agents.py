@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import json
 from typing import Any
 
 from starlette.requests import Request
@@ -242,6 +243,7 @@ def create_agents_router(
             authorization_header=authorization,
             token_service=token_service,
             metadata_manager=metadata_manager,
+            storage_backend=storage_backend,
             session_cookie_value=request.cookies.get(request.app.state.session_service.cookie_name),
             session_service=request.app.state.session_service,
             user_store=request.app.state.user_store,
@@ -268,6 +270,7 @@ def security_report_payload(
     authorization_header: str | None,
     token_service: TokenService,
     metadata_manager: MetadataManager,
+    storage_backend: StorageBackend,
     session_cookie_value: str | None,
     session_service,
     user_store,
@@ -307,11 +310,61 @@ def security_report_payload(
     if not isinstance(checks, list):
         checks = []
 
+    security_status = metadata.security_status
+    if security_status in (None, "") and isinstance(metadata.manifest, dict):
+        security_status = metadata.manifest.get("security_status", "")
+
+    if not checks and security_status in (None, ""):
+        fallback = _load_lambda_security_report(
+            storage_backend=storage_backend,
+            tenant_slug=tenant_slug,
+            agent_slug=agent_slug,
+            version=version,
+        )
+        if fallback is not None:
+            security_status = fallback.get("security_status", "")
+            checks = fallback.get("checks", [])
+
     return 200, {
         "tenant_slug": tenant_slug,
         "agent_slug": agent_slug,
         "version": version,
-        "security_status": metadata.security_status,
+        "security_status": security_status,
+        "checks": checks,
+    }
+
+
+def _load_lambda_security_report(
+    *,
+    storage_backend: StorageBackend,
+    tenant_slug: str,
+    agent_slug: str,
+    version: str,
+) -> dict[str, object] | None:
+    key = f"security-check/tenants/{tenant_slug}/agents/{agent_slug}/versions/{version}/report.json"
+    try:
+        payload = storage_backend.get_object(key=key)
+    except FileNotFoundError:
+        return None
+
+    try:
+        doc = json.loads(payload.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return None
+
+    report = doc.get("report") if isinstance(doc, dict) else None
+    if not isinstance(report, dict):
+        return None
+
+    checks_raw = report.get("checks")
+    checks: list[dict[str, object]] = []
+    if isinstance(checks_raw, list):
+        for item in checks_raw:
+            if isinstance(item, dict):
+                checks.append(item)
+
+    return {
+        "security_status": report.get("security_status", ""),
         "checks": checks,
     }
 

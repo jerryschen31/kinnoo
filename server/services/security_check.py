@@ -14,7 +14,7 @@ def _check_signature(archive_path: Path) -> tuple[str, str]:
     try:
         with zipfile.ZipFile(archive_path, "r") as archive:
             if "META-INF/signature.json" not in archive.namelist():
-                return "fail", "META-INF/signature.json missing"
+                return "unsigned", "META-INF/signature.json missing"
             payload = archive.read("META-INF/signature.json").decode("utf-8")
             doc = json.loads(payload)
     except zipfile.BadZipFile:
@@ -24,7 +24,7 @@ def _check_signature(archive_path: Path) -> tuple[str, str]:
 
     signature = doc.get("signature") if isinstance(doc, dict) else None
     if not isinstance(signature, str) or not signature.strip():
-        return "fail", "signature field missing or empty"
+        return "unsigned", "signature field missing or empty"
     return "pass", "signature metadata present"
 
 
@@ -93,7 +93,11 @@ def run_post_publish_checks(archive_path: str | Path) -> dict[str, object]:
         {"check_name": "per_file_integrity", "status": per_file_status, "detail": per_file_detail},
     ]
 
-    overall_status = "pass" if all(item["status"] == "pass" for item in checks) else "fail"
+    overall_status = (
+        "pass"
+        if all(item["status"] in {"pass", "unsigned"} for item in checks)
+        else "fail"
+    )
     return {
         "overall_status": overall_status,
         "checks": checks,

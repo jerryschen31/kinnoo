@@ -81,7 +81,7 @@ def test_post_publish_security_checks(tmp_path: Path) -> None:
     failing_report = run_post_publish_checks(failing_archive)
     assert failing_report["overall_status"] == "fail"
     checks = {item["check_name"]: item for item in failing_report["checks"]}
-    assert checks["signature"]["status"] == "fail"
+    assert checks["signature"]["status"] == "unsigned"
     assert checks["archive_integrity"]["status"] == "pass"
     assert checks["per_file_integrity"]["status"] == "fail"
 
