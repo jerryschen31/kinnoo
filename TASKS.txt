@@ -9555,7 +9555,7 @@ tasks:
       - 'step4: Add tests that --openclaw-skills is rejected and --json outputs valid JSON.'
     dependencies: []
     tests: [test660, test661]
-    status: not-started
+    status: needs-review
 
   - id: task478
     title: "list - add --json option"

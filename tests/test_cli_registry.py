@@ -894,6 +894,66 @@ def test_feature84_skill_search_preflight_empty_and_error_guidance(tmp_path: Pat
 	assert "category=openclaw_skill_search_nonzero_exit" in error_output
 
 
+def test_search_openclaw_skills_removed(tmp_path: Path) -> None:
+	result = subprocess.run(
+		[
+			sys.executable,
+			str(CLI_PATH),
+			"search",
+			"--openclaw-skills",
+			"weather",
+		],
+		capture_output=True,
+		text=True,
+	)
+	output = f"{result.stdout}\n{result.stderr}"
+	assert result.returncode != 0
+	assert "unrecognized arguments: --openclaw-skills" in output
+
+	help_result = subprocess.run(
+		[sys.executable, str(CLI_PATH), "search", "-h"],
+		capture_output=True,
+		text=True,
+	)
+	help_output = f"{help_result.stdout}\n{help_result.stderr}"
+	assert help_result.returncode == 0
+	assert "--openclaw-skills" not in help_output
+	assert "--openclaw-skill" not in help_output
+
+
+def test_search_json_output(tmp_path: Path) -> None:
+	archive_root = tmp_path / "archive"
+	_write_archive(archive_root, name="task477-json-agent", version="1.0.0")
+
+	env = {
+		**os.environ,
+		"KINNOO_ARCHIVE_ROOT": str(archive_root),
+	}
+
+	result = subprocess.run(
+		[
+			sys.executable,
+			str(CLI_PATH),
+			"search",
+			"--local",
+			"--json",
+			"task477",
+		],
+		capture_output=True,
+		text=True,
+		env=env,
+	)
+	output = f"{result.stdout}\n{result.stderr}"
+	assert result.returncode == 0, output
+
+	payload = json.loads(result.stdout.strip())
+	assert payload["source"] == "local"
+	assert payload["query"] == "task477"
+	assert isinstance(payload["results"], list)
+	assert payload["results"]
+	assert payload["results"][0]["name"] == "task477-json-agent"
+
+
 class _AuthTokenTestServer:
 	def __init__(self, *, accepted_credentials: dict[tuple[str, str], str]) -> None:
 		self._accepted_credentials = accepted_credentials

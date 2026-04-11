@@ -774,14 +774,9 @@ def main():
         help="Search query to match against agent name and description",
     )
     search_parser.add_argument(
-        "--openclaw-skill",
-        action="store_true",
-        help="Delegate search to OpenClaw skills search wrapper mode",
-    )
-    search_parser.add_argument(
         "--json",
         action="store_true",
-        help="(OpenClaw skill search) request machine-readable passthrough output",
+        help="Emit machine-readable JSON search results",
     )
 
     # [agent] task476: sync command intentionally disabled for now; keep block as reference.
@@ -1434,18 +1429,6 @@ def main():
             print("Usage: kinnoo search [--local | --remote] <query>", file=sys.stderr)
             sys.exit(1)
 
-        if bool(getattr(args, "openclaw_skill", False)):
-            try:
-                from kinnoo.search_command import search_openclaw_skills
-            except ImportError:
-                from .search_command import search_openclaw_skills
-
-            exit_code = search_openclaw_skills(
-                query=query,
-                json_output=bool(getattr(args, "json", False)),
-            )
-            sys.exit(exit_code)
-
         if bool(getattr(args, "local", False)):
             source = "local"
         elif bool(getattr(args, "remote", False)):
@@ -1458,7 +1441,7 @@ def main():
         except ImportError:
             from .search_command import search_agents
 
-        exit_code = search_agents(query=query, source=source)
+        exit_code = search_agents(query=query, source=source, json_output=bool(getattr(args, "json", False)))
         sys.exit(exit_code)
 
     elif args.command == "sync":
