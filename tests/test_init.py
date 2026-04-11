@@ -122,6 +122,33 @@ def run_cli(args, cwd=None):
     return proc.returncode, out, err
 
 
+def test_init_framework_positional_arg(tmp_path):
+    import yaml
+
+    agent_name = "task454-chatgpt-positional"
+    code, out, err = run_cli(["init", "chatgpt", "--language", "python", agent_name], cwd=tmp_path)
+    assert code == 0, err
+
+    manifest_path = tmp_path / agent_name / "kinnoo.yaml"
+    assert manifest_path.exists()
+    manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    assert manifest["framework"] == "chatgpt"
+
+
+def test_init_no_framework_barebones(tmp_path):
+    import yaml
+
+    agent_name = "task454-no-framework"
+    code, out, err = run_cli(["init", "no-framework", agent_name], cwd=tmp_path)
+    assert code == 0, err
+
+    agent_dir = tmp_path / agent_name
+    manifest_path = agent_dir / "kinnoo.yaml"
+    manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    assert "framework" not in manifest
+    assert (agent_dir / "run.py").exists()
+
+
 def test_init_javascript_manifest_runtime_language(tmp_path):
     import yaml
 

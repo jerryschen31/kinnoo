@@ -216,19 +216,28 @@ def main():
         description="Scaffold a new kinnoo agent",
         epilog=(
             "Examples:\n"
-            "  kinnoo init my-agent\n"
-            "  kinnoo init --framework claude-chat my-claude-agent\n"
-            "  kinnoo init --framework openclaw my-openclaw-agent \n"
-            "  kinnoo init --framework mcp-client  my-mcp-client\n"
-            "  kinnoo init my-mcp-server --framework mcp-server"
+            "  kinnoo init chatgpt my-agent\n"
+            "  kinnoo init no-framework --language python my-bare-agent\n"
+            "  kinnoo init openclaw --language typescript my-openclaw-agent\n"
+            "  kinnoo init mcp-client my-mcp-client"
+        ),
+    )
+    init_parser.add_argument(
+        "framework",
+        nargs="?",
+        help=(
+            "Framework template (recommended positional arg): "
+            "gemini, chatgpt, claude-chat, pydantic-ai, langgraph, openai-agents, "
+            "mcp-client, mcp-server, openclaw, no-framework"
         ),
     )
     init_parser.add_argument("agent_name", nargs="?", help="Name of the agent to create")
     init_parser.add_argument(
         "--framework",
-        choices=["gemini", "chatgpt", "claude-chat", "pydantic-ai", "langgraph", "openai-agents", "mcp-client", "mcp-server", "openclaw"],
+        dest="framework_opt",
+        choices=["gemini", "chatgpt", "claude-chat", "pydantic-ai", "langgraph", "openai-agents", "mcp-client", "mcp-server", "openclaw", "no-framework"],
         help=(
-            "(Optional) Pre-populate agent with LLM framework template:\n"
+            "[deprecated] Framework template (prefer positional argument):\n"
             "  gemini         - Google Gemini API agent\n"
             "  chatgpt        - OpenAI ChatGPT API agent\n"
             "  claude-chat    - Anthropic Claude API agent\n"
@@ -237,13 +246,14 @@ def main():
             "  openai-agents  - OpenAI Agents SDK with handoffs\n"
             "  mcp-client     - Model Context Protocol client\n"
             "  mcp-server     - Model Context Protocol server\n"
-            "  openclaw       - OpenClaw Node.js daemon agent"
+            "  openclaw       - OpenClaw Node.js daemon agent\n"
+            "  no-framework   - Barebones agent template - language should be specified (default: python)"
         ),
     )
     init_parser.add_argument(
         "--language",
-        choices=["python", "js", "javascript", "ts", "typescript"],
-        help="(Optional) Scaffold language: python, js/javascript, ts/typescript",
+        choices=["python", "javascript", "typescript"],
+        help="(Optional) Scaffold language (if supported for the specified framework): python, javascript, typescript",
     )
 
     # Add 'run' subcommand
@@ -907,17 +917,52 @@ def main():
         args = parser.parse_args()
 
     if args.command == "init":
-        if not args.agent_name:
-            print("Usage: kinnoo init <agent-name>", file=sys.stderr)
+        supported_frameworks = {
+            "gemini",
+            "chatgpt",
+            "claude-chat",
+            "pydantic-ai",
+            "langgraph",
+            "openai-agents",
+            "mcp-client",
+            "mcp-server",
+            "openclaw",
+            "no-framework",
+        }
+
+        positional_token = getattr(args, "framework", None)
+        legacy_framework = getattr(args, "framework_opt", None)
+        agent_name = getattr(args, "agent_name", None)
+        resolved_framework = None
+
+        if positional_token in supported_frameworks:
+            resolved_framework = positional_token
+        elif positional_token and agent_name is None:
+            # Backward-compatible path: `kinnoo init <agent-name>` without framework.
+            agent_name = positional_token
+        elif positional_token and agent_name is not None:
+            print(
+                "Unsupported framework. Supported frameworks: "
+                + ", ".join(sorted(supported_frameworks))
+                + ".",
+                file=sys.stderr,
+            )
             sys.exit(1)
-        if not re.match(NAME_PATTERN, args.agent_name):
-            print(f"Error: Invalid agent name '{args.agent_name}'. Must match pattern: {NAME_PATTERN}", file=sys.stderr)
+
+        if resolved_framework is None and legacy_framework is not None:
+            resolved_framework = legacy_framework
+
+        if not agent_name:
+            print("Usage: kinnoo init [framework] [--language {python,javascript,typescript}] <agent-name>", file=sys.stderr)
+            sys.exit(1)
+        if not re.match(NAME_PATTERN, agent_name):
+            print(f"Error: Invalid agent name '{agent_name}'. Must match pattern: {NAME_PATTERN}", file=sys.stderr)
             sys.exit(1)
         from kinnoo.init_command import init_agent
         # from pathlib import Path
         try:
-            init_agent(args.agent_name, Path.cwd(), framework=args.framework, language=getattr(args, "language", None))
-            print(f"Initialized agent: {args.agent_name}")
+            init_agent(agent_name, Path.cwd(), framework=resolved_framework, language=getattr(args, "language", None))
+            print(f"Initialized agent: {agent_name}")
         except FileExistsError as e:
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
