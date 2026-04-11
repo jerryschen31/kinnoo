@@ -9133,7 +9133,7 @@ tasks:
       - 'step5: Add tests for complete template output and minimal template output for each language category.'
     dependencies: [task454, task456]
     tests: [test633, test634, test635]
-    status: not-started
+    status: needs-review
 
   - id: task458
     title: "init - README.md template improvements"

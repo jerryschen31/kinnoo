@@ -255,6 +255,11 @@ def main():
         choices=["python", "javascript", "typescript"],
         help="(Optional) Scaffold language (if supported for the specified framework): python, javascript, typescript",
     )
+    init_parser.add_argument(
+        "--minimal",
+        action="store_true",
+        help="Create minimal scaffold only (no tools/prompts/evals/tests/data extras).",
+    )
 
     # Add 'run' subcommand
     run_parser = subparsers.add_parser(
@@ -974,7 +979,13 @@ def main():
         from kinnoo.init_command import init_agent
         # from pathlib import Path
         try:
-            init_agent(agent_name, Path.cwd(), framework=resolved_framework, language=resolved_language)
+            init_agent(
+                agent_name,
+                Path.cwd(),
+                framework=resolved_framework,
+                language=resolved_language,
+                minimal=bool(getattr(args, "minimal", False)),
+            )
             print(f"Initialized agent: {agent_name}")
         except FileExistsError as e:
             print(f"Error: {e}", file=sys.stderr)

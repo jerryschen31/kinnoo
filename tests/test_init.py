@@ -189,6 +189,46 @@ def test_init_python_entrypoint_main_py(tmp_path):
     assert manifest["entrypoint"] == "main.py"
 
 
+def test_init_complete_template_folders(tmp_path):
+    agent_name = "task457-complete"
+    code, out, err = run_cli(["init", "chatgpt", agent_name], cwd=tmp_path)
+    assert code == 0, err
+
+    agent_dir = tmp_path / agent_name
+    for folder in ("tools", "prompts", "evals", "tests", "data"):
+        assert (agent_dir / folder).is_dir()
+    assert (agent_dir / ".gitignore").exists()
+
+
+def test_init_minimal_template(tmp_path):
+    agent_name = "task457-minimal"
+    code, out, err = run_cli(["init", "chatgpt", "--minimal", agent_name], cwd=tmp_path)
+    assert code == 0, err
+
+    agent_dir = tmp_path / agent_name
+    assert (agent_dir / "kinnoo.yaml").exists()
+    assert (agent_dir / "README.md").exists()
+    assert (agent_dir / "main.py").exists()
+    assert (agent_dir / "requirements.txt").exists()
+    for folder in ("tools", "prompts", "evals", "tests", "data"):
+        assert not (agent_dir / folder).exists()
+    assert not (agent_dir / ".gitignore").exists()
+
+
+def test_init_openclaw_complete_template(tmp_path):
+    agent_name = "task457-openclaw-complete"
+    code, out, err = run_cli(["init", "openclaw", agent_name], cwd=tmp_path)
+    assert code == 0, err
+
+    agent_dir = tmp_path / agent_name
+    for file_name in ("MEMORY.md", "BOOTSTRAP.md", "HEARTBEAT.md"):
+        assert (agent_dir / file_name).exists()
+    for folder_name in ("skills", "memory"):
+        assert (agent_dir / folder_name).is_dir()
+    assert not (agent_dir / "requirements.txt").exists()
+    assert not (agent_dir / "main.py").exists()
+
+
 def test_init_javascript_manifest_runtime_language(tmp_path):
     import yaml
 
