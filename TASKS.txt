@@ -9493,7 +9493,7 @@ tasks:
       - 'step4: Add test for --update before and after target argument.'
     dependencies: []
     tests: [test657]
-    status: not-started
+    status: needs-review
 
   - id: task475
     title: "inspect - --update confirmation prompt"
