@@ -657,6 +657,11 @@ def main():
         help="Show metadata as raw dotted-path key/value fields",
     )
     inspect_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit machine-readable JSON inspect output",
+    )
+    inspect_parser.add_argument(
         "--update",
         nargs=3,
         metavar=("TARGET", "OLD_KEY", "NEW_VALUE"),
@@ -1306,6 +1311,7 @@ def main():
         target = getattr(args, "target", None)
         full = bool(getattr(args, "full", False))
         raw = bool(getattr(args, "raw", False))
+        json_output = bool(getattr(args, "json", False))
         skip_warnings = bool(getattr(args, "skip_warnings", False))
 
         try:
@@ -1326,6 +1332,7 @@ def main():
                 old_key,
                 new_value,
                 skip_warnings=skip_warnings,
+                json_output=json_output,
             )
             sys.exit(exit_code)
 
@@ -1333,7 +1340,7 @@ def main():
             print("Usage: kinnoo inspect <target>", file=sys.stderr)
             sys.exit(1)
 
-        exit_code = inspect_target(target, full=full, raw=raw)
+        exit_code = inspect_target(target, full=full, raw=raw, json_output=json_output)
         sys.exit(exit_code)
 
     elif args.command == "publish":
