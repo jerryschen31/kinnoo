@@ -9107,7 +9107,7 @@ tasks:
       - 'step4: Add test that python init produces main.py (not run.py).'
     dependencies: []
     tests: [test632]
-    status: not-started
+    status: needs-review
 
   - id: task457
     title: "init - complete template with folders and --minimal flag"

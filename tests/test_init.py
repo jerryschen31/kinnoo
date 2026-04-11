@@ -174,6 +174,21 @@ def test_init_interactive_wizard(tmp_path, monkeypatch, capsys):
     assert (agent_dir / "kinnoo.yaml").exists()
 
 
+def test_init_python_entrypoint_main_py(tmp_path):
+    import yaml
+
+    agent_name = "task456-main-py"
+    code, out, err = run_cli(["init", "chatgpt", agent_name], cwd=tmp_path)
+    assert code == 0, err
+
+    agent_dir = tmp_path / agent_name
+    assert (agent_dir / "main.py").exists()
+    assert not (agent_dir / "run.py").exists()
+
+    manifest = yaml.safe_load((agent_dir / "kinnoo.yaml").read_text(encoding="utf-8"))
+    assert manifest["entrypoint"] == "main.py"
+
+
 def test_init_javascript_manifest_runtime_language(tmp_path):
     import yaml
 
