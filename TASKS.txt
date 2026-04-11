@@ -9514,7 +9514,7 @@ tasks:
       - 'step5: Add tests for prompt behavior and --skip-warnings bypass.'
     dependencies: [task474]
     tests: [test658]
-    status: not-started
+    status: needs-review
 
   - id: task476
     title: "Comment out sync, stop, attach, logs commands and daemon help"

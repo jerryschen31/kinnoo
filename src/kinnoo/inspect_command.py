@@ -868,9 +868,10 @@ def inspect_update_target(
     parsed_new_value = _parse_update_value(new_value_raw)
 
     if not skip_warnings:
+        old_value_label = _render_raw_value(old_value) if old_value is not None else "N/A"
+        new_value_label = _render_raw_value(parsed_new_value)
         prompt = (
-            f"Warning: are you sure you want to modify {metadata_key} to have the new value "
-            f"{new_value_raw}? (y/N): "
+            f"Changing {metadata_key} from {old_value_label} to {new_value_label}. Proceed? (y/N): "
         )
         try:
             response = input(prompt)
