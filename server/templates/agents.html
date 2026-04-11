@@ -59,7 +59,7 @@
                 <td>{{ agent.tenant }}</td>
                 <td>
                   <a href="/agents?page={{ page }}&per_page={{ per_page }}&selected_tenant={{ agent.tenant }}&selected_agent={{ agent.name }}">
-                    {{ agent.name }}
+                    {{ agent.name }}{% if agent.security_icons %}&nbsp;&nbsp;{{ agent.security_icons }}{% endif %}
                   </a>
                 </td>
                 <td>{{ agent.version }}</td>

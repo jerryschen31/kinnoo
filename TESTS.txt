@@ -11393,16 +11393,16 @@ tests:
     automation_path: tests/test_cli_registry.py::test_list_json_output
 
   - id: test663
-    title: "Registry UI shows Security column with correct icons"
+    title: "Registry UI shows inline Name-column security icons"
     type: manual
     preconditions: Registry server running, agents with various security states published
     steps:
       - 'step1: Open registry UI and navigate to My Agents.'
-      - 'step2: Verify Security column appears to the right of Version.'
+      - 'step2: Verify Name column renders security icons inline after the agent name with spacing.'
       - 'step3: Verify ✅ appears for signed+verified agents.'
       - 'step4: Verify 📦 appears for archive-integrity-verified agents.'
       - 'step5: Verify ❌ appears for agents with failed checks.'
-    expected: Security column shows correct icons per agent state
+    expected: Name column shows correct inline icons per agent state
     pass_criteria: Icons match agent security status in all cases
     covers:
       - feature: feature115
