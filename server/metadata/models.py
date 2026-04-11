@@ -29,6 +29,7 @@ class VersionMetadata:
     created_at: str
     updated_at: str
     security_status: Any = ""
+    security_report: Any = None
     schema_version: str = SCHEMA_VERSION_V1
 
     def to_document(self) -> dict[str, Any]:
@@ -45,6 +46,7 @@ class VersionMetadata:
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "security_status": self.security_status,
+            "security_report": self.security_report,
         }
 
     @classmethod
@@ -62,6 +64,7 @@ class VersionMetadata:
             created_at=str(document.get("created_at", utc_now_iso())),
             updated_at=str(document.get("updated_at", utc_now_iso())),
             security_status=document.get("security_status", ""),
+            security_report=document.get("security_report"),
         )
 
 

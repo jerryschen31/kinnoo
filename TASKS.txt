@@ -9643,7 +9643,7 @@ tasks:
       - 'step5: Add test that publish triggers checks and updates metadata.'
     dependencies: [task480]
     tests: [test665]
-    status: not-started
+    status: needs-review
 
   - id: task482
     title: "Registry - containerized Lambda for server-side checks"

@@ -230,7 +230,90 @@ def create_agents_router(
             )
         return payload
 
+    @router.get("/api/agents/{tenant_slug}/{agent_slug}/{version}/security-report")
+    async def get_security_report(
+        request: Request,
+        tenant_slug: str,
+        agent_slug: str,
+        version: str,
+        authorization: str | None = Header(default=None),
+    ) -> dict[str, object]:
+        status, payload = security_report_payload(
+            authorization_header=authorization,
+            token_service=token_service,
+            metadata_manager=metadata_manager,
+            session_cookie_value=request.cookies.get(request.app.state.session_service.cookie_name),
+            session_service=request.app.state.session_service,
+            user_store=request.app.state.user_store,
+            tenant_slug=tenant_slug,
+            agent_slug=agent_slug,
+            version=version,
+        )
+        if status >= 400:
+            return JSONResponse(
+                status_code=status,
+                content=build_error_envelope(
+                    status_code=status,
+                    message=str(payload["error"]),
+                    request_id=resolve_request_id(request),
+                ),
+            )
+        return payload
+
     return router
+
+
+def security_report_payload(
+    *,
+    authorization_header: str | None,
+    token_service: TokenService,
+    metadata_manager: MetadataManager,
+    session_cookie_value: str | None,
+    session_service,
+    user_store,
+    tenant_slug: str,
+    agent_slug: str,
+    version: str,
+) -> tuple[int, dict[str, object]]:
+    try:
+        claims = authenticate_request(
+            authorization_header=authorization_header,
+            required_scope="registry:read",
+            token_service=token_service,
+            session_cookie_value=session_cookie_value,
+            session_service=session_service,
+            user_store=user_store,
+        )
+    except PermissionError as error:
+        status = 403 if "403" in str(error) else 401
+        return status, {"error": str(error)}
+
+    metadata = metadata_manager.get_version_metadata(
+        tenant_slug=tenant_slug,
+        agent_slug=agent_slug,
+        version=version,
+    )
+    if metadata is None:
+        return 404, {"error": f"Version not found: {tenant_slug}/{agent_slug}/{version}"}
+
+    if not _can_read_tenant(
+        claims=claims,
+        tenant_slug=tenant_slug,
+        visibility=metadata.visibility,
+    ):
+        return 403, {"error": "403 forbidden: private tenant access denied"}
+
+    checks = metadata.security_report
+    if not isinstance(checks, list):
+        checks = []
+
+    return 200, {
+        "tenant_slug": tenant_slug,
+        "agent_slug": agent_slug,
+        "version": version,
+        "security_status": metadata.security_status,
+        "checks": checks,
+    }
 
 
 def _can_read_tenant(*, claims: TokenClaims, tenant_slug: str, visibility: str) -> bool:
