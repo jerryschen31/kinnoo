@@ -87,7 +87,7 @@ def _format_top_level_help_text() -> str:
     usage_help = style_text("-h", color="neon_green", stream=sys.stdout)
     usage_version = style_text("--version", color="light_blue", bold=True, stream=sys.stdout)
     usage_commands = style_text(
-        "{init,run,test,stop,attach,logs,install,pack,keygen,inspect,publish,list,search,sync,login,logout,import,check}",
+        "{init,run,test,install,pack,keygen,inspect,publish,list,search,login,logout,import,check}",
         color="neon_green",
         bold=True,
         stream=sys.stdout,
@@ -95,6 +95,7 @@ def _format_top_level_help_text() -> str:
 
     positional_header = style_text("positional arguments:", color="purple", bold=True, stream=sys.stdout)
     all_agents_header = style_text("all agents:", color="purple", bold=True, stream=sys.stdout)
+    # [agent] daemon help section intentionally disabled for task476; commands will return later.
     daemon_header = style_text("daemon agents:", color="purple", bold=True, stream=sys.stdout)
     registry_header = style_text("registry:", color="purple", bold=True, stream=sys.stdout)
     other_header = style_text("other:", color="purple", bold=True, stream=sys.stdout)
@@ -102,7 +103,7 @@ def _format_top_level_help_text() -> str:
 
     all_agents_set = style_text("{init,run,test,install,pack,inspect, import,check}", color="neon_green", bold=True, stream=sys.stdout)
     daemon_set = style_text("{stop,attach,logs}", color="neon_green", bold=True, stream=sys.stdout)
-    registry_set = style_text("{publish,install,list,search,sync,login,logout}", color="neon_green", bold=True, stream=sys.stdout)
+    registry_set = style_text("{publish,install,list,search,login,logout}", color="neon_green", bold=True, stream=sys.stdout)
     other_set = style_text("{keygen}", color="neon_green", bold=True, stream=sys.stdout)
 
     init_cmd = style_text("init", color="neon_green", bold=True, stream=sys.stdout)
@@ -140,18 +141,14 @@ def _format_top_level_help_text() -> str:
         f"        {inspect_cmd}             Inspect metadata from an agent directory or .kno archive\n"
         f"        {import_cmd}              Import an existing agent project in-place and prepare kinnoo metadata\n"
         f"        {check_cmd}               Run combined import/inspect/preflight compatibility checks\n\n"
-        f"{daemon_header}\n"
-        f"    {daemon_set}\n"
-        f"        {stop_cmd}                Stop a running daemon agent\n"
-        f"        {attach_cmd}              Attach to a running daemon agent session\n"
-        f"        {logs_cmd}                Show daemon logs (tail or follow)\n\n"
+        # [agent] daemon agents section intentionally commented out for task476.
         f"{registry_header}\n"
         f"    {registry_set}\n"
         f"        {publish_cmd}             Publish latest archived agent artifact to the registry\n"
         f"        {install_cmd}             Install a kinnoo agent from archive (.kno) or registry\n"
         f"        {list_cmd}                List agents from remote registry (default if configured) or local archive\n"
         f"        {search_cmd}              Search agents from remote registry (default if configured) or local archive\n"
-        f"        {sync_cmd}                Sync source metadata into local registry mirror\n"
+        # [agent] sync command help intentionally commented out for task476.
         f"        {login_cmd}               Authenticate to a registry and persist auth state locally\n"
         f"        {logout_cmd}              Clear persisted registry auth state\n\n"
         f"{other_header}\n"
@@ -196,12 +193,8 @@ def main():
     parser = KinnooArgumentParser(
         prog="kinnoo",
         description="Kinnoo CLI",
-        epilog=(
-            "Daemon Commands:\n"
-            "  attach            Attach to a running daemon agent session\n"
-            "  stop              Stop a running daemon agent\n"
-            "  logs              Show daemon logs (tail or follow)\n"
-        ),
+        # [agent] daemon command epilog intentionally disabled for task476.
+        epilog=None,
         formatter_class=argparse.RawTextHelpFormatter,
     )
     parser.add_argument("--version", action="version", version=KINNOO_VERSION)
@@ -408,50 +401,50 @@ def main():
         help="Append interactive test cases to an existing tests YAML (requires --create)",
     )
 
-    # Add 'stop' subcommand
-    stop_parser = subparsers.add_parser(
-        "stop",
-        help="Stop a running daemon agent",
-        description="Stop a running daemon agent",
-    )
-    stop_parser.add_argument("agent_dir", nargs="?", help="Path to daemon agent directory")
+    # [agent] task476: stop command intentionally disabled for now; keep block as reference.
+    # stop_parser = subparsers.add_parser(
+    #     "stop",
+    #     help="Stop a running daemon agent",
+    #     description="Stop a running daemon agent",
+    # )
+    # stop_parser.add_argument("agent_dir", nargs="?", help="Path to daemon agent directory")
 
-    # Add 'attach' subcommand
-    attach_parser = subparsers.add_parser(
-        "attach",
-        help="Attach to a running daemon agent session",
-        description="Attach to a running daemon agent session",
-    )
-    attach_parser.add_argument("agent_dir", nargs="?", help="Path to daemon agent directory")
+    # [agent] task476: attach command intentionally disabled for now; keep block as reference.
+    # attach_parser = subparsers.add_parser(
+    #     "attach",
+    #     help="Attach to a running daemon agent session",
+    #     description="Attach to a running daemon agent session",
+    # )
+    # attach_parser.add_argument("agent_dir", nargs="?", help="Path to daemon agent directory")
 
-    # Add 'logs' subcommand
-    logs_parser = subparsers.add_parser(
-        "logs",
-        help="Show daemon logs (tail or follow)",
-        description="Show daemon logs (tail or follow)",
-    )
-    logs_parser.add_argument("agent_dir", nargs="?", help="Path to daemon agent directory")
-    logs_parser.add_argument(
-        "--daemon",
-        choices=["openclaw"],
-        help="Use delegated daemon logs backend (currently: openclaw)",
-    )
-    logs_parser.add_argument(
-        "--follow",
-        action="store_true",
-        help="Stream new log lines until daemon exits or operator interrupts",
-    )
-    logs_parser.add_argument(
-        "--json",
-        action="store_true",
-        help="(OpenClaw daemon logs) request machine-readable passthrough output",
-    )
-    logs_parser.add_argument(
-        "--tail",
-        type=int,
-        default=20,
-        help="Number of recent lines to show before follow/tail output (default: 20)",
-    )
+    # [agent] task476: logs command intentionally disabled for now; keep block as reference.
+    # logs_parser = subparsers.add_parser(
+    #     "logs",
+    #     help="Show daemon logs (tail or follow)",
+    #     description="Show daemon logs (tail or follow)",
+    # )
+    # logs_parser.add_argument("agent_dir", nargs="?", help="Path to daemon agent directory")
+    # logs_parser.add_argument(
+    #     "--daemon",
+    #     choices=["openclaw"],
+    #     help="Use delegated daemon logs backend (currently: openclaw)",
+    # )
+    # logs_parser.add_argument(
+    #     "--follow",
+    #     action="store_true",
+    #     help="Stream new log lines until daemon exits or operator interrupts",
+    # )
+    # logs_parser.add_argument(
+    #     "--json",
+    #     action="store_true",
+    #     help="(OpenClaw daemon logs) request machine-readable passthrough output",
+    # )
+    # logs_parser.add_argument(
+    #     "--tail",
+    #     type=int,
+    #     default=20,
+    #     help="Number of recent lines to show before follow/tail output (default: 20)",
+    # )
 
     # Add 'install' subcommand
     install_parser = subparsers.add_parser(
@@ -791,43 +784,44 @@ def main():
         help="(OpenClaw skill search) request machine-readable passthrough output",
     )
 
-    sync_parser = subparsers.add_parser(
-        "sync",
-        help="Sync source metadata into local registry mirror",
-        formatter_class=argparse.RawTextHelpFormatter,
-        description="Sync source metadata into local registry mirror",
-        epilog=(
-            "Examples:\n"
-            "  kinnoo sync clawhub\n"
-            "  kinnoo sync clawhub --full\n"
-            "  kinnoo sync clawhub --since 2026-03-01T00:00:00Z"
-        ),
-    )
-    sync_parser.add_argument(
-        "source",
-        choices=["clawhub"],
-        help="Source namespace to sync",
-    )
-    sync_parser.add_argument(
-        "--full",
-        action="store_true",
-        help="Run full sync mode instead of incremental sync",
-    )
-    sync_parser.add_argument(
-        "--since",
-        help="Incremental sync cursor timestamp (ISO8601), if supported by source",
-    )
-    sync_source_group = sync_parser.add_mutually_exclusive_group()
-    sync_source_group.add_argument(
-        "--local",
-        action="store_true",
-        help="Force local fixture-driven sync mode",
-    )
-    sync_source_group.add_argument(
-        "--remote",
-        action="store_true",
-        help="Force configured remote sync mode",
-    )
+    # [agent] task476: sync command intentionally disabled for now; keep block as reference.
+    # sync_parser = subparsers.add_parser(
+    #     "sync",
+    #     help="Sync source metadata into local registry mirror",
+    #     formatter_class=argparse.RawTextHelpFormatter,
+    #     description="Sync source metadata into local registry mirror",
+    #     epilog=(
+    #         "Examples:\n"
+    #         "  kinnoo sync clawhub\n"
+    #         "  kinnoo sync clawhub --full\n"
+    #         "  kinnoo sync clawhub --since 2026-03-01T00:00:00Z"
+    #     ),
+    # )
+    # sync_parser.add_argument(
+    #     "source",
+    #     choices=["clawhub"],
+    #     help="Source namespace to sync",
+    # )
+    # sync_parser.add_argument(
+    #     "--full",
+    #     action="store_true",
+    #     help="Run full sync mode instead of incremental sync",
+    # )
+    # sync_parser.add_argument(
+    #     "--since",
+    #     help="Incremental sync cursor timestamp (ISO8601), if supported by source",
+    # )
+    # sync_source_group = sync_parser.add_mutually_exclusive_group()
+    # sync_source_group.add_argument(
+    #     "--local",
+    #     action="store_true",
+    #     help="Force local fixture-driven sync mode",
+    # )
+    # sync_source_group.add_argument(
+    #     "--remote",
+    #     action="store_true",
+    #     help="Force configured remote sync mode",
+    # )
 
     login_parser = subparsers.add_parser(
         "login",
@@ -1163,64 +1157,65 @@ def main():
             print(json.dumps(json_payload, sort_keys=True))
         sys.exit(exit_code)
 
-    elif args.command == "stop":
-        agent_dir = getattr(args, "agent_dir", None)
-        if agent_dir is None:
-            print("Usage: kinnoo stop <agent-dir>", file=sys.stderr)
-            sys.exit(1)
-
-        try:
-            from kinnoo.run_command import stop_agent
-        except ImportError:
-            from .run_command import stop_agent
-
-        exit_code = stop_agent(agent_dir)
-        sys.exit(exit_code)
-
-    elif args.command == "attach":
-        agent_dir = getattr(args, "agent_dir", None)
-        if agent_dir is None:
-            print("Usage: kinnoo attach <agent-dir>", file=sys.stderr)
-            sys.exit(1)
-
-        try:
-            from kinnoo.run_command import attach_agent
-        except ImportError:
-            from .run_command import attach_agent
-
-        exit_code = attach_agent(agent_dir)
-        sys.exit(exit_code)
-
-    elif args.command == "logs":
-        daemon = getattr(args, "daemon", None)
-        if daemon == "openclaw":
-            try:
-                from kinnoo.logs_command import logs_openclaw
-            except ImportError:
-                from .logs_command import logs_openclaw
-
-            exit_code = logs_openclaw(
-                follow=bool(getattr(args, "follow", False)),
-                json_output=bool(getattr(args, "json", False)),
-            )
-            sys.exit(exit_code)
-
-        agent_dir = getattr(args, "agent_dir", None)
-        if agent_dir is None:
-            print("Usage: kinnoo logs <agent-dir> [--tail N] [--follow]", file=sys.stderr)
-            sys.exit(1)
-
-        try:
-            from kinnoo.run_command import logs_agent
-        except ImportError:
-            from .run_command import logs_agent
-
-        exit_code = logs_agent(
-            agent_dir_arg=agent_dir,
-            follow=bool(getattr(args, "follow", False)),
-            tail_lines=int(getattr(args, "tail", 20)),
-        )
-        sys.exit(exit_code)
+    # [agent] task476: stop/attach/logs dispatch intentionally disabled; keep implementation commented for later re-enable.
+    # elif args.command == "stop":
+    #     agent_dir = getattr(args, "agent_dir", None)
+    #     if agent_dir is None:
+    #         print("Usage: kinnoo stop <agent-dir>", file=sys.stderr)
+    #         sys.exit(1)
+    #
+    #     try:
+    #         from kinnoo.run_command import stop_agent
+    #     except ImportError:
+    #         from .run_command import stop_agent
+    #
+    #     exit_code = stop_agent(agent_dir)
+    #     sys.exit(exit_code)
+    #
+    # elif args.command == "attach":
+    #     agent_dir = getattr(args, "agent_dir", None)
+    #     if agent_dir is None:
+    #         print("Usage: kinnoo attach <agent-dir>", file=sys.stderr)
+    #         sys.exit(1)
+    #
+    #     try:
+    #         from kinnoo.run_command import attach_agent
+    #     except ImportError:
+    #         from .run_command import attach_agent
+    #
+    #     exit_code = attach_agent(agent_dir)
+    #     sys.exit(exit_code)
+    #
+    # elif args.command == "logs":
+    #     daemon = getattr(args, "daemon", None)
+    #     if daemon == "openclaw":
+    #         try:
+    #             from kinnoo.logs_command import logs_openclaw
+    #         except ImportError:
+    #             from .logs_command import logs_openclaw
+    #
+    #         exit_code = logs_openclaw(
+    #             follow=bool(getattr(args, "follow", False)),
+    #             json_output=bool(getattr(args, "json", False)),
+    #         )
+    #         sys.exit(exit_code)
+    #
+    #     agent_dir = getattr(args, "agent_dir", None)
+    #     if agent_dir is None:
+    #         print("Usage: kinnoo logs <agent-dir> [--tail N] [--follow]", file=sys.stderr)
+    #         sys.exit(1)
+    #
+    #     try:
+    #         from kinnoo.run_command import logs_agent
+    #     except ImportError:
+    #         from .run_command import logs_agent
+    #
+    #     exit_code = logs_agent(
+    #         agent_dir_arg=agent_dir,
+    #         follow=bool(getattr(args, "follow", False)),
+    #         tail_lines=int(getattr(args, "tail", 20)),
+    #     )
+    #     sys.exit(exit_code)
 
     elif args.command == "pack":
         agent_dir = args.agent_dir
@@ -1263,6 +1258,33 @@ def main():
             json_output=bool(getattr(args, "json", False)),
         )
         sys.exit(exit_code)
+
+    # [agent] task476: sync dispatch intentionally disabled; keep implementation commented for later re-enable.
+    # elif args.command == "sync":
+    #     source = getattr(args, "source", None)
+    #     if source is None:
+    #         print("Usage: kinnoo sync <source>", file=sys.stderr)
+    #         sys.exit(1)
+    #
+    #     if bool(getattr(args, "local", False)):
+    #         mode = "local"
+    #     elif bool(getattr(args, "remote", False)):
+    #         mode = "remote"
+    #     else:
+    #         mode = "auto"
+    #
+    #     try:
+    #         from kinnoo.sync_command import sync_source
+    #     except ImportError:
+    #         from .sync_command import sync_source
+    #
+    #     exit_code = sync_source(
+    #         source=source,
+    #         full=bool(getattr(args, "full", False)),
+    #         since=getattr(args, "since", None),
+    #         mode=mode,
+    #     )
+    #     sys.exit(exit_code)
 
     elif args.command == "uninstall":
         agent_name = getattr(args, "agent_name", None)

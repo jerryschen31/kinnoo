@@ -9535,7 +9535,7 @@ tasks:
       - 'step6: Add test that sync/stop/attach/logs are not recognized as valid commands.'
     dependencies: []
     tests: [test659]
-    status: not-started
+    status: needs-review
 
   - id: task477
     title: "search - remove --openclaw-skills and refactor --json"
