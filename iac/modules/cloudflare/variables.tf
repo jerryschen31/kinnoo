@@ -9,10 +9,22 @@ variable "domain" {
   default     = "kinnoo.ai"
 }
 
-variable "pages_target" {
-  description = "Cloudflare Pages hostname target"
+variable "dev_record_type" {
+  description = "DNS record type for dev.kinnoo.ai"
+  type        = string
+  default     = "CNAME"
+}
+
+variable "dev_record_content" {
+  description = "DNS record content/target for dev.kinnoo.ai"
   type        = string
   default     = "kinnoo.pages.dev"
+}
+
+variable "manage_dev_record" {
+  description = "Whether Terraform should manage the dev.kinnoo.ai DNS record"
+  type        = bool
+  default     = false
 }
 
 variable "alb_dns_name" {

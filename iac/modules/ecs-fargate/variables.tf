@@ -89,6 +89,12 @@ variable "container_port" {
   default     = 8000
 }
 
+variable "enable_execute_command" {
+  description = "Whether ECS Exec is enabled for the service"
+  type        = bool
+  default     = true
+}
+
 variable "tags" {
   description = "Common tags"
   type        = map(string)

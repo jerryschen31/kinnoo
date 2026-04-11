@@ -10805,6 +10805,9 @@ tests:
   # ────────────────────────────────────────────────────────────────
   # feature115 — UAT Part 1: CLI Hardening (test628 – test671)
   # ────────────────────────────────────────────────────────────────
+  # [agent] Terraform-first infra policy for this test block:
+  # [agent] For any task here that changes infrastructure, tests should verify
+  # [agent] Terraform definitions in iac/ were updated and used for rollout when possible.
 
   - id: test628
     title: "CLI help shows version, commit hash, and 🍊 icon"
@@ -11447,11 +11450,13 @@ tests:
     type: integration
     preconditions: Lambda/container infrastructure configured, test archive
     steps:
-      - 'step1: Trigger containerized security check via publish or direct invocation.'
-      - 'step2: Verify check executes in isolated container (not on main server process).'
-      - 'step3: Verify results are written back to metadata store.'
+      - 'step1: Run terraform plan in iac/ for the target env and verify Lambda security-check resources are managed via Terraform.'
+      - 'step2: Apply Terraform changes for the target env and confirm successful apply.'
+      - 'step3: Trigger containerized security check via publish or direct invocation.'
+      - 'step4: Verify check executes in isolated container (not on main server process).'
+      - 'step5: Verify results are written back to metadata store.'
     expected: Security checks run in isolated container and write results back
-    pass_criteria: Container invocation logged; results appear in metadata store
+    pass_criteria: Terraform plan/apply covers Lambda infra changes; container invocation logged; results appear in metadata store
     covers:
       - feature: feature115
         ac: AC11

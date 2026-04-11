@@ -147,7 +147,7 @@ dependencies and groups logically related work for efficient SWE sessions.
 - task479: Add Security column to both My Agents and Search results tables. Icons: ✅ 📦 🧩 ❌.
 - task480: Create `server/services/security_check.py` with signature, archive integrity, and per-file integrity checks.
 - task481: Wire checks into publish route. Persist report. API endpoint for retrieving report.
-- task482: Lambda/container definition. Async invocation from publish. Write-back to metadata store.
+- task482: Lambda/container infra should be implemented via Terraform in `iac/` (function, IAM, wiring/config) when possible. Async invocation from publish. Write-back to metadata store.
 - task483: New tab in agent modal. Fetch and render per-check [PASS]/[FAIL] lines.
 
 ---
@@ -160,6 +160,7 @@ dependencies and groups logically related work for efficient SWE sessions.
 4. **--json flags** — all `--json` implementations should suppress progress/interactive output and emit a single JSON blob to stdout on completion.
 5. **Manifest validator** — run `python3 src/validate_project_manifests.py` after all manifest file changes.
 6. **Template content** — .gitignore content for each language is specified verbatim in `notes/phases/phase13-sat-uat-updates.md` items 8–11. Use exact content.
+7. **Terraform-first infra workflow** — for any task in task453–task485 that changes infrastructure, update Terraform under `iac/` (root/module/env files) and validate with `terraform plan` (and apply in target env when authorized) instead of relying on manual console-only edits.
 
 ### Files Likely Modified
 
@@ -188,3 +189,7 @@ dependencies and groups logically related work for efficient SWE sessions.
 - `tests/test_cli_inspect.py` — task473–475
 - `tests/test_cli.py` — task453, task471–472, task476, task484–485
 - `server/tests/test_security_check.py` — task480–482 (new file)
+- `iac/main.tf` — task482 infra wiring (when implemented)
+- `iac/variables.tf` — task482 infra inputs (when implemented)
+- `iac/modules/*` — task482 infra modules/resources (when implemented)
+- `iac/environments/dev/terraform.tfvars` — env overrides for task482 infra (when implemented)
