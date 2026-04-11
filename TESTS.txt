@@ -11464,12 +11464,12 @@ tests:
     automation_path: server/tests/test_security_check.py::test_containerized_security_check
 
   - id: test667
-    title: "Registry UI Security tab shows check results"
+    title: "Registry UI selected-agent Security tab shows check results"
     type: manual
     preconditions: Registry server running, agent with completed security checks
     steps:
       - 'step1: Open registry UI and click on an agent name.'
-      - 'step2: Navigate to the Security tab in the modal.'
+      - 'step2: Navigate to the Security tab in selected-agent details.'
       - 'step3: Verify one-line-per-check results with [PASS] or [FAIL] are shown.'
     expected: Security tab displays concise per-check results
     pass_criteria: Each check listed with [PASS] or [FAIL] badge

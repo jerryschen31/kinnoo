@@ -441,3 +441,77 @@ def test_name_column_renders_inline_security_icons_without_security_column(tmp_p
     assert search.status_code == 200
     assert "<th>Security</th>" not in search.text
     assert "s3-seed-agent&nbsp;&nbsp;✅📦" in search.text
+
+
+def test_agents_security_tab_renders_pass_fail_rows(tmp_path):
+    config = ServerConfig(
+        storage_backend="local",
+        local_storage_root=tmp_path / "storage",
+        s3_bucket="kinnoo-registry-dev",
+        s3_region="us-east-1",
+        s3_endpoint_url=None,
+        s3_access_key_id=None,
+        s3_secret_access_key=None,
+        presign_ttl_seconds=120,
+        max_upload_mb=5,
+    )
+    app = create_app(config=config)
+
+    app.state.user_store.create_user(
+        username="admin",
+        plaintext_password="admin-secret",
+        role="admin",
+    )
+
+    publisher_token = app.state.token_service.issue_token(
+        subject="publisher-alpha",
+        tenant_slug="tenant-alpha",
+        scopes=["registry:read", "registry:publish"],
+    )
+
+    filename, archive_bytes = _archive(
+        name="tab-security-agent",
+        version="1.0.0",
+        visibility="public",
+        description="security tab details",
+        author="alice",
+    )
+    result = publish_archive(
+        authorization_header=f"Bearer {publisher_token}",
+        filename=filename,
+        archive_bytes=archive_bytes,
+        token_service=app.state.token_service,
+        storage_backend=app.state.storage_backend,
+        metadata_manager=app.state.metadata_manager,
+        max_upload_mb=app.state.config.max_upload_mb,
+    )
+    assert result.status_code == 201
+
+    metadata = app.state.metadata_manager.get_version_metadata(
+        tenant_slug="tenant-alpha",
+        agent_slug="tab-security-agent",
+        version="1.0.0",
+    )
+    assert metadata is not None
+
+    app.state.metadata_manager.upsert_version_metadata(
+        replace(
+            metadata,
+            security_report=[
+                {"check_name": "signature", "status": "pass", "detail": "ok", "timestamp": "2026-04-10T00:00:00Z"},
+                {"check_name": "archive_integrity", "status": "fail", "detail": "hash mismatch", "timestamp": "2026-04-10T00:00:00Z"},
+            ],
+            security_status={"signature": "pass", "archive": "fail", "per_file": "pass"},
+        )
+    )
+
+    client = TestClient(app, base_url="https://testserver")
+    _login(client, username="admin", password="admin-secret")
+
+    security_view = client.get(
+        "/agents?page=1&per_page=20&selected_tenant=tenant-alpha&selected_agent=tab-security-agent&selected_tab=security"
+    )
+    assert security_view.status_code == 200
+    assert "Security" in security_view.text
+    assert "[PASS]" in security_view.text
+    assert "[FAIL]" in security_view.text
