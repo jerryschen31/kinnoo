@@ -19,6 +19,21 @@ All notable changes to this project will be documented in this file.
   - `tests/test_cli_import.py::test_feature62_import_openclaw_manifest_migration_guidance`
  - Bumped project version from `0.5.5` to `0.6.0` after Phase 7 final review closure.
 
+## [v0.7.5] - 2026-04-11
+### Added
+- Added dedicated Lambda security-check ECR repository management in Terraform, including lifecycle policy and root/module outputs for image publishing workflows.
+- Added automation script at scripts/ops/build_and_push_lambda_security_check_image.sh to build and push Lambda-compatible container images to the Terraform-managed ECR repository.
+
+### Changed
+- Completed task487 CLI UX hardening updates: removed legacy init --framework option, removed run --thinking option, and added orange-prefixed subcommand help description lines.
+- Hardened Terraform lambda_security_check_image_uri input by removing invalid public base-image default and requiring explicit private ECR image URI + tag.
+- Updated dev Terraform environment configuration to reference a valid private ECR Lambda image URI.
+- Added Lambda invoke retry/fallback semantics in server security-check dispatch flow with deterministic retry count and fallback marker reporting.
+
+### Notes
+- Task487 implementation includes infrastructure preparation and successful Lambda function creation using a pushed private ECR image.
+- Lambda execution path has not yet been fully validated end-to-end via publish-triggered invocation and full security-report writeback verification in the live environment.
+
 ## [v0.7.4] - 2026-04-10
 ### Added
 - Completed Feature115 UAT Part 1 CLI hardening delivery (tasks 453-486), including the new `kinnoo fetch` command and expanded uninstall target modes.
