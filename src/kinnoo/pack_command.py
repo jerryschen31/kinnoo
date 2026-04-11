@@ -31,6 +31,7 @@ from .signing import (
 )
 from .size_format import format_size_human_readable, size_in_megabytes
 from .terminal_colors import style_text
+from .runtime_language import is_nodejs_compatible_runtime
 
 
 def _build_archive_integrity_manifest(archive_path: Path) -> dict:
@@ -599,9 +600,9 @@ def pack_agent(
     for relative_path in additional_files:
         if _is_runtime_artifact_path(relative_path):
             continue
-        if runtime_language == "nodejs" and _contains_node_modules(relative_path):
+        if is_nodejs_compatible_runtime(runtime_language) and _contains_node_modules(relative_path):
             print(
-                f"Warning: Skipping '{relative_path}' because node_modules must not be bundled for nodejs agents.",
+                f"Warning: Skipping '{relative_path}' because node_modules must not be bundled for node-compatible agents.",
                 file=sys.stderr,
             )
             continue
@@ -637,12 +638,12 @@ def pack_agent(
     if not assets_bundle_enabled:
         print("[kinnoo pack] Asset bundling disabled by assets.bundle=false")
 
-    if runtime_language == "nodejs":
+    if is_nodejs_compatible_runtime(runtime_language):
         filtered_asset_files: list[tuple[str, Path]] = []
         for arcname, absolute_path in asset_files:
             if _contains_node_modules(arcname):
                 print(
-                    f"Warning: Skipping asset '{arcname}' because node_modules must not be bundled for nodejs agents.",
+                    f"Warning: Skipping asset '{arcname}' because node_modules must not be bundled for node-compatible agents.",
                     file=sys.stderr,
                 )
                 continue
@@ -650,7 +651,7 @@ def pack_agent(
         asset_files = filtered_asset_files
 
     node_metadata_files: list[tuple[str, Path]] = []
-    if runtime_language == "nodejs":
+    if is_nodejs_compatible_runtime(runtime_language):
         node_metadata_files = _collect_node_metadata_files(Path(abs_agent_dir))
         package_json_present = any(path == "package.json" for path, _ in node_metadata_files)
         if not package_json_present:

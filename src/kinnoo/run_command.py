@@ -27,6 +27,7 @@ from .health_check import (
     run_service_health_check,
 )
 from .schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars
+from .runtime_language import is_nodejs_compatible_runtime
 from .sandbox import evaluate_sandbox_permissions
 from .install_trace import write_violation_event
 from .logging_utils import emit_violation_event_diagnostic
@@ -704,7 +705,7 @@ def run_preflight(agent_dir_arg: str) -> int:
     dependencies_message = "dependency readiness check failed: manifest validation prerequisite not met"
     if manifest_valid and manifest is not None:
         runtime_version_constraint = str(runtime_section.get("version", ""))
-        if runtime_language == "nodejs":
+        if is_nodejs_compatible_runtime(runtime_language):
             runtime_constraint_ok, runtime_message = check_node_runtime_constraint(runtime_version_constraint)
         else:
             runtime_constraint_ok, runtime_message = _check_runtime_version_constraint(runtime_version_constraint)
@@ -713,7 +714,7 @@ def run_preflight(agent_dir_arg: str) -> int:
 
         entrypoint_ok, entrypoint_message = _check_preflight_entrypoint(manifest, agent_dir)
 
-        if runtime_language == "nodejs":
+        if is_nodejs_compatible_runtime(runtime_language):
             package_manager_raw = runtime_section.get("package_manager")
             package_manager = "npm"
             if package_manager_raw is not None:
@@ -808,7 +809,7 @@ def run_preflight(agent_dir_arg: str) -> int:
 
     if manifest_valid and manifest is not None:
         if not runtime_constraint_ok:
-            if runtime_language == "nodejs":
+            if is_nodejs_compatible_runtime(runtime_language):
                 print("  - Action: install or upgrade Node.js so runtime.version in kinnoo.yaml is satisfied")
             else:
                 print("  - Action: use a Python interpreter that satisfies runtime.version in kinnoo.yaml")
@@ -817,7 +818,7 @@ def run_preflight(agent_dir_arg: str) -> int:
         if not entrypoint_ok:
             print("  - Action: ensure manifest entrypoint exists and is readable")
         if not dependencies_ok:
-            if runtime_language == "nodejs":
+            if is_nodejs_compatible_runtime(runtime_language):
                 print("  - Action: install the configured Node package manager and ensure it is on PATH")
             else:
                 print("  - Action: create agent .venv and install requirements (for example: kinnoo run <agent-dir> '<input>')")
@@ -847,7 +848,7 @@ def run_preflight(agent_dir_arg: str) -> int:
     print(style_text("Not ready to run", color="red", bold=True, stream=sys.stdout))
     print("Remediation summary:")
     if not runtime_constraint_ok:
-        if runtime_language == "nodejs":
+        if is_nodejs_compatible_runtime(runtime_language):
             print("- runtime version: install or upgrade Node.js to satisfy runtime.version")
         else:
             print("- runtime version: use a compatible Python interpreter per runtime.version")
@@ -856,7 +857,7 @@ def run_preflight(agent_dir_arg: str) -> int:
     if not entrypoint_ok:
         print("- entrypoint: ensure manifest entrypoint exists and is readable")
     if not dependencies_ok:
-        if runtime_language == "nodejs":
+        if is_nodejs_compatible_runtime(runtime_language):
             print("- dependencies: install the configured Node package manager and ensure it is on PATH")
         else:
             print("- dependencies: create .venv and install requirements")
@@ -1012,9 +1013,12 @@ def attach_agent(agent_dir_arg: str) -> int:
         return 1
 
     runtime_language = state_payload.get("runtime_language")
-    if runtime_language not in ("python", "nodejs"):
+    if runtime_language != "python" and not is_nodejs_compatible_runtime(runtime_language):
         _print_safe_error(
-            f"Error: attach is unsupported for runtime.language '{runtime_language}'. Supported values: python, nodejs"
+            (
+                f"Error: attach is unsupported for runtime.language '{runtime_language}'. "
+                "Supported values: python, nodejs, javascript, typescript"
+            )
         )
         return 1
 
@@ -1370,9 +1374,12 @@ def run_agent(
                     return finalize(1)
     elif runtime_language == "python":
         python_exe = Path(sys.executable)
-    elif runtime_language != "nodejs":
+    elif not is_nodejs_compatible_runtime(runtime_language):
         _print_safe_error(
-            f"Error: Unsupported runtime.language '{runtime_language}'. Supported values are: python, nodejs"
+            (
+                f"Error: Unsupported runtime.language '{runtime_language}'. "
+                "Supported values are: python, nodejs, javascript, typescript"
+            )
         )
         return finalize(1)
 
@@ -1638,7 +1645,7 @@ def run_agent(
             _print_safe_error(f"Error: Invalid runtime.run_command value: {error}")
             return finalize(1)
         process_args = [token.replace("{entrypoint}", str(entrypoint_path)) for token in process_args]
-    elif runtime_language == "nodejs":
+    elif is_nodejs_compatible_runtime(runtime_language):
         entrypoint_suffix = entrypoint_path.suffix.lower()
         if entrypoint_suffix in {".ts", ".tsx"}:
             process_args = ["npx", "tsx", str(entrypoint_path)]

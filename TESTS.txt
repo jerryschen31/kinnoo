@@ -10749,3 +10749,55 @@ tests:
         ac: AC8
     automated: true
     automation_path: mock-server/tests/test_storage.py::test_s3_get_object_missing_key_raises_file_not_found
+
+  - id: test624
+    title: "publish endpoint accepts kinnoo.yaml without framework"
+    type: integration
+    preconditions: Registry server publish route available with local storage backend and valid publish token
+    steps:
+      - 'step1: Create a .kno archive containing kinnoo.yaml with name/version only (no framework field).'
+      - 'step2: POST archive to /api/publish with a valid registry:publish token.'
+      - 'step3: Verify publish succeeds and returned payload includes expected agent slug/version.'
+    expected: Publish returns 201 for manifests that omit framework
+    pass_criteria: Response status is 201 and response body includes expected agent_slug/version values
+    automated: true
+    automation_path: server/tests/test_publish.py::test_publish_accepts_manifest_without_framework_field
+
+  - id: test625
+    title: "init javascript emits runtime.language javascript"
+    type: integration
+    preconditions: CLI init command available in test environment
+    steps:
+      - 'step1: Run kinnoo init <name> --language javascript in a temp directory.'
+      - 'step2: Read generated kinnoo.yaml.'
+      - 'step3: Validate runtime.language equals javascript and JS entrypoint exists.'
+    expected: Generated manifest language for JS template is javascript
+    pass_criteria: runtime.language is javascript and run.js exists
+    automated: true
+    automation_path: tests/test_init.py::test_init_javascript_manifest_runtime_language
+
+  - id: test626
+    title: "init typescript emits runtime.language typescript"
+    type: integration
+    preconditions: CLI init command available in test environment
+    steps:
+      - 'step1: Run kinnoo init <name> --language typescript in a temp directory.'
+      - 'step2: Read generated kinnoo.yaml.'
+      - 'step3: Validate runtime.language equals typescript and TS entrypoint exists.'
+    expected: Generated manifest language for TS template is typescript
+    pass_criteria: runtime.language is typescript and run.ts exists
+    automated: true
+    automation_path: tests/test_init.py::test_init_typescript_manifest_runtime_language
+
+  - id: test627
+    title: "ECS redeploy verification for framework-requirement hotfix"
+    type: manual
+    preconditions: AWS CLI access to kinnoo-dev ECS/ECR resources and deployment permissions
+    steps:
+      - 'step1: Build and push a new server image tag from patched code and record pushed image digest from ECR.'
+      - 'step2: Force ECS service deployment and wait for services-stable on kinnoo-dev-service.'
+      - 'step3: Describe running task containers and compare imageDigest to pushed digest.'
+    expected: Running ECS task image digest matches newly pushed digest after stable rollout
+    pass_criteria: Recorded DIGEST_MATCH equals YES and service converges to single primary deployment
+    automated: false
+    automation_path: null

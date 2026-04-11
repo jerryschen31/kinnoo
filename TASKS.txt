@@ -8972,3 +8972,39 @@ tasks:
     dependencies: [task232]
     tests: [test615, test616, test617, test618, test619, test620, test621, test622, test623]
     status: needs-review
+
+  - id: task452
+    title: "Fix publish framework requirement and JS/TS runtime language handling"
+    type: issue
+    description: |
+      Back-port and deploy the fix for registry publish/install compatibility where remote
+      publish incorrectly required a top-level `framework` field and JS/TS manifests emitted
+      inconsistent runtime language values. Server publish validation now requires only
+      name/version, JS/TS init emits runtime.language as javascript/typescript, and Node-compatible
+      runtime paths accept nodejs/javascript/typescript aliases consistently.
+    files:
+      - server/routes/publish.py
+      - server/tests/test_publish.py
+      - src/kinnoo/init_command.py
+      - src/kinnoo/schema.py
+      - src/kinnoo/runtime_language.py
+      - src/kinnoo/pack_command.py
+      - src/kinnoo/install_command.py
+      - src/kinnoo/run_command.py
+      - src/kinnoo/test_command.py
+      - src/kinnoo/runtime_monitor.py
+      - src/kinnoo/sandbox.py
+      - tests/test_init.py
+      - notes/tasks/task452-notes.md
+      - TASKS.txt
+      - TESTS.txt
+    steps:
+      - 'step1: Remove framework from server-side required manifest fields in publish validation and keep error envelope behavior unchanged.'
+      - 'step2: Update init JS/TS manifests to emit runtime.language as javascript/typescript instead of nodejs.'
+      - 'step3: Add runtime-language alias helper and update run/pack/install/test/monitor/sandbox code paths to treat javascript/typescript as Node-compatible.'
+      - 'step4: Add regression tests for publish-without-framework and JS/TS init runtime.language manifest values.'
+      - 'step5: Rebuild and push ECS server image, force redeployment, wait for service stability, and verify running task digest equals pushed digest.'
+      - 'step6: Back-document deployment commands/results and important branch-note in task summary notes.'
+    dependencies: [task451]
+    tests: [test624, test625, test626, test627]
+    status: needs-review

@@ -11,6 +11,8 @@ from typing import Any
 
 import yaml
 
+from .runtime_language import is_nodejs_compatible_runtime
+
 
 SUPPORTED_TEST_ASSERTION_TYPES: tuple[str, ...] = ("contains", "not_contains", "equals", "regex")
 
@@ -706,7 +708,7 @@ def _build_runtime_command(agent_dir: Path, manifest: dict[str, Any], input_text
         command.append(input_text)
         return command, runtime_type
 
-    if runtime_language == "nodejs":
+    if is_nodejs_compatible_runtime(runtime_language):
         executable = runtime_path or "node"
     else:
         executable = runtime_path or "python3"

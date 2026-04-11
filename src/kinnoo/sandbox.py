@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from .runtime_language import is_nodejs_compatible_runtime
+
 
 @dataclass(frozen=True)
 class SandboxDecision:
@@ -72,15 +74,17 @@ def evaluate_sandbox_permissions(
     runtime_language: str,
     pass_through_args: list[str],
 ) -> SandboxDecision:
-    if runtime_language not in {"python", "nodejs"}:
+    if runtime_language != "python" and not is_nodejs_compatible_runtime(runtime_language):
         return SandboxDecision(
             allowed=False,
             code="backend_unsupported_runtime_language",
             message=(
-                "sandbox mode supports runtime.language='python' and 'nodejs' only in this version"
+                "sandbox mode supports runtime.language='python' and node-compatible runtimes "
+                "('nodejs', 'javascript', 'typescript') only in this version"
             ),
             remediation=(
-                "Use runtime.language='python' or 'nodejs', or run without --sandbox"
+                "Use runtime.language='python', 'nodejs', 'javascript', or 'typescript', "
+                "or run without --sandbox"
             ),
         )
 
