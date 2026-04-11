@@ -19,6 +19,22 @@ All notable changes to this project will be documented in this file.
   - `tests/test_cli_import.py::test_feature62_import_openclaw_manifest_migration_guidance`
  - Bumped project version from `0.5.5` to `0.6.0` after Phase 7 final review closure.
 
+## [v0.7.2] - 2026-04-10
+### Added
+- Added runtime language normalization helper to treat `nodejs`, `javascript`, and `typescript` as Node-compatible runtime aliases across CLI execution and validation flows.
+- Added regression coverage for publish manifest acceptance without top-level `framework`, plus JS/TS init manifest runtime-language correctness.
+- Added task452 rollout notes documenting ECS rebuild/redeploy verification and digest match evidence.
+
+### Changed
+- Fixed remote publish validation so manifests are accepted with required `name` and `version` fields without enforcing a top-level `framework` field.
+- Updated JS/TS scaffold generation so generated manifests emit `runtime.language` as `javascript` or `typescript` (instead of `nodejs`).
+- Updated CLI help/list/search text to clarify remote-registry default behavior when configured, and aligned local/remote option descriptions.
+- Updated Phase 13 UAT planning notes with explicit task mapping annotations for task453 through task483.
+
+### Notes
+- Task452 implementation and verification commit: `9f74fba`.
+- CLI help + UAT documentation update commit: `c131381`.
+
 ## [v0.7.1] - 2026-04-09
 ### Added
 - Added remote install hardening for registry latest resolution so `kinnoo install --remote <agent>` resolves explicit `latest_version` before download resolution.
