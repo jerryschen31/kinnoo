@@ -554,32 +554,51 @@ def main():
         "  kinnoo pack ./my-agent\n"
         "  kinnoo pack ./my-agent --public\n"
         "  kinnoo pack ./my-agent --bump patch\n"
-        "  kinnoo pack ./my-agent --sign --signing-key ./keys/kinnoo-ed25519-private.pem"
+        "  kinnoo pack ./my-agent --sign ./keys/kinnoo-ed25519-private.pem\n"
+        "  kinnoo pack ./my-agent --preflight\n"
+        "  kinnoo pack ./my-agent --include data --exclude tools"
     )
     pack_parser.add_argument("agent_dir", nargs="?", help="Path to agent directory to package")
     pack_parser.add_argument(
         "--public",
         action="store_true",
-        help="Ensure kinnoo.yaml has visibility: public before packaging.",
+        help="Ensure kinnoo.yaml has visibility: public before packaging (without the --public flag, default is private).",
     )
     pack_parser.add_argument(
         "--bump",
+        nargs="?",
+        const="patch",
         choices=["patch", "minor", "major"],
-        help="(Optional) Increment manifest version before packaging",
+        help="Increment manifest version before packaging. --bump without a version specified will bump the patch version by default.",
     )
     pack_parser.add_argument(
         "--sign",
-        action="store_true",
-        help="Sign packaged archive and emit detached signature artifacts",
-    )
-    pack_parser.add_argument(
-        "--signing-key",
-        help="Path to Ed25519 private key PEM used with --sign",
+        metavar="SIGNING_KEY",
+        help=(
+            "Sign packaged archive and emit detached signature artifacts. "
+            "SIGNING_KEY is the path to a Ed25519 private key PEM "
+            "(new key can be created with 'kinnoo keygen')."
+        ),
     )
     pack_parser.add_argument(
         "--preflight",
         action="store_true",
-        help="Run preflight checks before packaging; on FAIL prompt to continue.",
+        help="Show dry-run preflight report (files, estimated size, destination) without creating archive.",
+    )
+    pack_parser.add_argument(
+        "--include",
+        action="append",
+        help="Include additional file/folder paths relative to agent root (can be specified multiple times).",
+    )
+    pack_parser.add_argument(
+        "--exclude",
+        action="append",
+        help="Exclude file/folder paths relative to agent root (can be specified multiple times).",
+    )
+    pack_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit machine-readable JSON output and suppress progress logs.",
     )
 
     # Add 'diff' subcommand
@@ -1176,7 +1195,7 @@ def main():
     elif args.command == "pack":
         agent_dir = args.agent_dir
         if agent_dir is None:
-            print("Usage: kinnoo pack <agent-dir> [--public]")
+            print("Usage: kinnoo pack <agent-dir> [--public] [--bump [patch|minor|major]]", file=sys.stderr)
             sys.exit(1)
         try:
             from kinnoo.pack_command import pack_agent
@@ -1187,9 +1206,12 @@ def main():
             agent_dir,
             make_public=bool(getattr(args, "public", False)),
             bump=getattr(args, "bump", None),
-            sign=bool(getattr(args, "sign", False)),
-            signing_key_path=getattr(args, "signing_key", None),
+            sign=bool(getattr(args, "sign", None)),
+            signing_key_path=getattr(args, "sign", None),
             preflight=bool(getattr(args, "preflight", False)),
+            include=getattr(args, "include", None),
+            exclude=getattr(args, "exclude", None),
+            json_output=bool(getattr(args, "json", False)),
         )
         sys.exit(exit_code)
 

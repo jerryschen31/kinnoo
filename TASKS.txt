@@ -9197,7 +9197,7 @@ tasks:
       - 'step4: Add tests for data/ exclusion by default and --include data override.'
     dependencies: []
     tests: [test641, test642]
-    status: not-started
+    status: needs-review
 
   - id: task461
     title: "pack - --preflight dry-run"
