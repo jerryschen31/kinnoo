@@ -52,3 +52,13 @@ output "efs_file_system_id" {
   description = "EFS file system ID"
   value       = module.ecs_fargate.efs_file_system_id
 }
+
+output "security_check_lambda_name" {
+  description = "Security-check Lambda function name"
+  value       = module.lambda_security_check.function_name
+}
+
+output "security_check_lambda_arn" {
+  description = "Security-check Lambda function ARN"
+  value       = module.lambda_security_check.function_arn
+}

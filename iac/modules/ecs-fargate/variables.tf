@@ -65,6 +65,12 @@ variable "sns_topic_arn" {
   default     = ""
 }
 
+variable "security_check_lambda_name" {
+  description = "Lambda function name used for async security checks"
+  type        = string
+  default     = ""
+}
+
 variable "cpu" {
   description = "Fargate task CPU units"
   type        = number

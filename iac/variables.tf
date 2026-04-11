@@ -69,3 +69,9 @@ variable "manage_dev_record" {
   type        = bool
   default     = false
 }
+
+variable "lambda_security_check_image_uri" {
+  description = "Container image URI for the security-check Lambda function"
+  type        = string
+  default     = "public.ecr.aws/lambda/python:3.12"
+}

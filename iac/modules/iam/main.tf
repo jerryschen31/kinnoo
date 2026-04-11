@@ -35,16 +35,86 @@ data "aws_iam_policy_document" "ecs_task_permissions" {
   }
 }
 
+data "aws_iam_policy_document" "ecs_task_lambda_invoke" {
+  statement {
+    sid = "InvokeSecurityCheckLambda"
+
+    actions = [
+      "lambda:InvokeFunction",
+    ]
+
+    resources = ["*"]
+  }
+}
+
 resource "aws_iam_role_policy" "ecs_task_s3" {
   name   = "${var.project_name}-${var.environment}-ecs-task-s3"
   role   = aws_iam_role.ecs_task.id
   policy = data.aws_iam_policy_document.ecs_task_permissions.json
 }
 
+resource "aws_iam_role_policy" "ecs_task_lambda_invoke" {
+  name   = "${var.project_name}-${var.environment}-ecs-task-lambda-invoke"
+  role   = aws_iam_role.ecs_task.id
+  policy = data.aws_iam_policy_document.ecs_task_lambda_invoke.json
+}
+
 resource "aws_iam_role" "ecs_execution" {
   name               = "${var.project_name}-${var.environment}-ecs-execution-role"
   assume_role_policy = data.aws_iam_policy_document.ecs_task_assume_role.json
   tags               = var.tags
+}
+
+data "aws_iam_policy_document" "lambda_assume_role" {
+  statement {
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["lambda.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "lambda_security_check" {
+  name               = "${var.project_name}-${var.environment}-lambda-security-check-role"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
+  tags               = var.tags
+}
+
+data "aws_iam_policy_document" "lambda_security_check_permissions" {
+  statement {
+    sid = "CloudWatchLogsWrite"
+
+    actions = [
+      "logs:CreateLogStream",
+      "logs:PutLogEvents",
+      "logs:CreateLogGroup",
+    ]
+
+    resources = ["*"]
+  }
+
+  statement {
+    sid = "RegistryBucketReadWrite"
+
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject",
+      "s3:ListBucket",
+    ]
+
+    resources = [
+      var.registry_bucket_arn,
+      "${var.registry_bucket_arn}/*",
+    ]
+  }
+}
+
+resource "aws_iam_role_policy" "lambda_security_check" {
+  name   = "${var.project_name}-${var.environment}-lambda-security-check-policy"
+  role   = aws_iam_role.lambda_security_check.id
+  policy = data.aws_iam_policy_document.lambda_security_check_permissions.json
 }
 
 resource "aws_iam_role_policy_attachment" "ecs_execution_default" {
@@ -200,4 +270,9 @@ output "ecs_execution_role_arn" {
 output "github_actions_role_arn" {
   description = "ARN for GitHub Actions OIDC role"
   value       = aws_iam_role.github_actions.arn
+}
+
+output "lambda_security_check_role_arn" {
+  description = "ARN for security-check Lambda execution role"
+  value       = aws_iam_role.lambda_security_check.arn
 }

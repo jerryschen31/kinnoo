@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 import tempfile
 import zipfile
@@ -112,3 +113,35 @@ def run_post_publish_checks_bytes(archive_bytes: bytes) -> dict[str, object]:
         return run_post_publish_checks(temp_path)
     finally:
         temp_path.unlink(missing_ok=True)
+
+
+def invoke_security_check_lambda_async(*, tenant_slug: str, agent_slug: str, version: str) -> dict[str, object]:
+    execution_mode = (os.getenv("KINNOO_SECURITY_CHECK_EXECUTION_MODE") or "").strip().lower()
+    if execution_mode != "lambda":
+        return {"mode": "local", "invoked": False, "detail": "lambda mode disabled"}
+
+    function_name = (os.getenv("KINNOO_SECURITY_CHECK_LAMBDA_NAME") or "").strip()
+    if not function_name:
+        return {"mode": "lambda", "invoked": False, "detail": "lambda name is not configured"}
+
+    try:
+        import boto3  # type: ignore
+    except Exception:
+        return {"mode": "lambda", "invoked": False, "detail": "boto3 is unavailable"}
+
+    payload = {
+        "tenant_slug": tenant_slug,
+        "agent_slug": agent_slug,
+        "version": version,
+    }
+
+    try:
+        boto3.client("lambda").invoke(
+            FunctionName=function_name,
+            InvocationType="Event",
+            Payload=json.dumps(payload).encode("utf-8"),
+        )
+    except Exception as error:
+        return {"mode": "lambda", "invoked": False, "detail": str(error)}
+
+    return {"mode": "lambda", "invoked": True, "detail": function_name}
