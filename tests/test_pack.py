@@ -550,11 +550,13 @@ outputs:
 
 
 def test_pack_public_help_default_private(tmp_path):
+    env = _pack_env(tmp_path)
     result = subprocess.run(
         KINNOO_CLI + ["pack", "-h"],
         cwd=tmp_path,
         capture_output=True,
         text=True,
+        env=env,
     )
     output = f"{result.stdout}\n{result.stderr}"
     assert result.returncode == 0
