@@ -9405,7 +9405,7 @@ tasks:
       - 'step4: Add test that --json with -y produces valid JSON; --json without -y errors.'
     dependencies: []
     tests: [test653]
-    status: not-started
+    status: needs-review
 
   - id: task471
     title: "run - --json structured output for all agent types"
