@@ -5540,3 +5540,196 @@ def test_feature73_diff_json_and_exit_codes(tmp_path):
     )
     assert missing_result.returncode == 1
     assert "does not exist or is not a file" in missing_result.stderr
+
+def _build_fetch_archive_bytes(*, name: str, version: str, include_signature_meta: bool = False) -> bytes:
+    import hashlib
+
+    manifest_bytes = (
+        f"name: {name}\n"
+        f"version: {version}\n"
+        "visibility: private\n"
+    ).encode("utf-8")
+    readme_bytes = b"fetch archive payload"
+    integrity = {
+        "files": {
+            "kinnoo.yaml": {
+                "sha256": hashlib.sha256(manifest_bytes).hexdigest(),
+                "size": len(manifest_bytes),
+            },
+            "README.md": {
+                "sha256": hashlib.sha256(readme_bytes).hexdigest(),
+                "size": len(readme_bytes),
+            },
+        }
+    }
+
+    with tempfile.NamedTemporaryFile(suffix=".kno", delete=False) as archive_file:
+        archive_path = Path(archive_file.name)
+
+    try:
+        with zipfile.ZipFile(archive_path, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("kinnoo.yaml", manifest_bytes)
+            archive.writestr("README.md", readme_bytes)
+            archive.writestr("META-INF/integrity.json", json.dumps(integrity))
+            if include_signature_meta:
+                archive.writestr("META-INF/signature.json", json.dumps({"signature": "dummy"}))
+        return archive_path.read_bytes()
+    finally:
+        archive_path.unlink(missing_ok=True)
+
+
+def test_fetch_downloads_archive(monkeypatch, tmp_path: Path) -> None:
+    from kinnoo import fetch_command
+
+    archive_payload = _build_fetch_archive_bytes(name="fetch-agent", version="1.2.3")
+
+    class _FakeRemoteBackend:
+        def __init__(self, *args, **kwargs):
+            del args, kwargs
+            self._base_url = "https://registry.example.test"
+
+        def list_latest_agents(self):
+            return [{"name": "fetch-agent", "latest_version": "1.2.3"}]
+
+        def resolve(self, *, name, version=None, tenant=None):
+            del name, version, tenant
+            return {"download_url": "/api/agents/acme/fetch-agent/1.2.3/archive"}
+
+        def request_bytes(self, *, path: str) -> bytes:
+            assert path == "/api/agents/acme/fetch-agent/1.2.3/archive"
+            return archive_payload
+
+    monkeypatch.setattr(fetch_command, "RemoteRegistryClient", _FakeRemoteBackend)
+    monkeypatch.setenv("KINNOO_REGISTRY_URL", "https://registry.example.test")
+    monkeypatch.setenv("KINNOO_REGISTRY_TOKEN", "token")
+    monkeypatch.setenv("KINNOO_TENANT_SLUG", "acme")
+    monkeypatch.setenv("KINNOO_ARCHIVE_ROOT", str(tmp_path / "archive"))
+
+    exit_code = fetch_command.fetch_agent("fetch-agent", use_remote=True)
+    assert exit_code == 0
+
+    expected_path = tmp_path / "archive" / "fetch-agent" / "1.2.3" / "fetch-agent.kno"
+    assert expected_path.exists()
+
+
+def test_fetch_strict_verification(monkeypatch, tmp_path: Path) -> None:
+    from kinnoo import fetch_command
+
+    signed_payload = _build_fetch_archive_bytes(
+        name="strict-agent",
+        version="1.0.0",
+        include_signature_meta=True,
+    )
+    unsigned_payload = _build_fetch_archive_bytes(
+        name="unsigned-agent",
+        version="1.0.0",
+        include_signature_meta=False,
+    )
+
+    class _FakeRemoteBackend:
+        def __init__(self, *args, **kwargs):
+            del args, kwargs
+            self._base_url = "https://registry.example.test"
+
+        def list_latest_agents(self):
+            return [
+                {"name": "strict-agent", "latest_version": "1.0.0"},
+                {"name": "unsigned-agent", "latest_version": "1.0.0"},
+            ]
+
+        def resolve(self, *, name, version=None, tenant=None):
+            del version, tenant
+            return {"download_url": f"/api/agents/acme/{name}/1.0.0/archive"}
+
+        def request_bytes(self, *, path: str) -> bytes:
+            if "strict-agent" in path:
+                return signed_payload
+            return unsigned_payload
+
+    def _fake_verify(*, extracted_dir, archive_path, strict_mode, expected_publisher_public_key):
+        del archive_path, expected_publisher_public_key
+        if not strict_mode:
+            return True, "ok"
+        signature_path = extracted_dir / "META-INF" / "signature.json"
+        if signature_path.exists():
+            return True, "strict signature metadata verified"
+        return False, "strict mode requires signature metadata"
+
+    monkeypatch.setattr(fetch_command, "RemoteRegistryClient", _FakeRemoteBackend)
+    monkeypatch.setattr(fetch_command, "_verify_embedded_integrity_and_signature", _fake_verify)
+    monkeypatch.setenv("KINNOO_REGISTRY_URL", "https://registry.example.test")
+    monkeypatch.setenv("KINNOO_REGISTRY_TOKEN", "token")
+    monkeypatch.setenv("KINNOO_TENANT_SLUG", "acme")
+    monkeypatch.setenv("KINNOO_ARCHIVE_ROOT", str(tmp_path / "archive"))
+
+    signed_exit = fetch_command.fetch_agent("strict-agent", use_remote=True, strict_mode=True)
+    assert signed_exit == 0
+
+    unsigned_exit = fetch_command.fetch_agent("unsigned-agent", use_remote=True, strict_mode=True)
+    assert unsigned_exit == 1
+
+
+def test_uninstall_deletes_agent_directory_and_all_version_archives(tmp_path: Path) -> None:
+    install_root = tmp_path / "agents"
+    archive_root = tmp_path / "archive"
+
+    (install_root / "demo-agent").mkdir(parents=True, exist_ok=True)
+    (archive_root / "demo-agent" / "1.0.0").mkdir(parents=True, exist_ok=True)
+    (archive_root / "demo-agent" / "2.0.0").mkdir(parents=True, exist_ok=True)
+    (archive_root / "demo-agent" / "1.0.0" / "demo-agent.kno").write_bytes(b"archive-v1")
+    (archive_root / "demo-agent" / "2.0.0" / "demo-agent.kno").write_bytes(b"archive-v2")
+
+    result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "uninstall", "demo-agent", "-y"],
+        capture_output=True,
+        text=True,
+        env={
+            **os.environ,
+            "KINNOO_AGENT_INSTALL_ROOT": str(install_root),
+            "KINNOO_ARCHIVE_ROOT": str(archive_root),
+        },
+    )
+
+    assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
+    assert not (install_root / "demo-agent").exists()
+    assert not (archive_root / "demo-agent").exists()
+
+
+def test_uninstall_version_and_latest_alias(tmp_path: Path) -> None:
+    install_root = tmp_path / "agents"
+    archive_root = tmp_path / "archive"
+
+    (install_root / "demo-agent").mkdir(parents=True, exist_ok=True)
+    (archive_root / "demo-agent" / "1.0.0").mkdir(parents=True, exist_ok=True)
+    (archive_root / "demo-agent" / "2.0.0").mkdir(parents=True, exist_ok=True)
+    (archive_root / "demo-agent" / "1.0.0" / "demo-agent.kno").write_bytes(b"archive-v1")
+    (archive_root / "demo-agent" / "2.0.0" / "demo-agent.kno").write_bytes(b"archive-v2")
+
+    latest_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "uninstall", "demo-agent.kno==latest", "-y"],
+        capture_output=True,
+        text=True,
+        env={
+            **os.environ,
+            "KINNOO_AGENT_INSTALL_ROOT": str(install_root),
+            "KINNOO_ARCHIVE_ROOT": str(archive_root),
+        },
+    )
+    assert latest_result.returncode == 0, f"{latest_result.stdout}\n{latest_result.stderr}"
+    assert (archive_root / "demo-agent" / "1.0.0").exists()
+    assert not (archive_root / "demo-agent" / "2.0.0").exists()
+    assert (install_root / "demo-agent").exists()
+
+    specific_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "uninstall", "demo-agent==1.0.0", "-y"],
+        capture_output=True,
+        text=True,
+        env={
+            **os.environ,
+            "KINNOO_AGENT_INSTALL_ROOT": str(install_root),
+            "KINNOO_ARCHIVE_ROOT": str(archive_root),
+        },
+    )
+    assert specific_result.returncode == 0, f"{specific_result.stdout}\n{specific_result.stderr}"
+    assert not (archive_root / "demo-agent").exists()
+    assert not (install_root / "demo-agent").exists()
