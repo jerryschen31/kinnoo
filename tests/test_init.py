@@ -229,6 +229,19 @@ def test_init_openclaw_complete_template(tmp_path):
     assert not (agent_dir / "main.py").exists()
 
 
+def test_init_readme_content(tmp_path):
+    agent_name = "task458-readme"
+    code, out, err = run_cli(["init", "chatgpt", agent_name], cwd=tmp_path)
+    assert code == 0, err
+
+    readme = (tmp_path / agent_name / "README.md").read_text(encoding="utf-8")
+    assert "main.py" in readme
+    assert "kinnoo.yaml" in readme
+    assert "| Folder | What goes here |" in readme
+    assert "This agent was scaffolded with Kinnoo CLI v" in readme
+    assert "using Schema 0.1.0" in readme
+
+
 def test_init_javascript_manifest_runtime_language(tmp_path):
     import yaml
 
