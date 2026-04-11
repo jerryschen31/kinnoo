@@ -20,3 +20,6 @@
 ## Teaching notes
 - Machine-readable modes should emit a single deterministic stdout payload to keep downstream parsers robust.
 - Preserve diagnostics on stderr while keeping stdout clean when automation mode is enabled.
+
+## Verification snapshot
+- Dedicated regression run completed during task464 step (`test_pack_json_output` passed).
