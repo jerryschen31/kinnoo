@@ -264,7 +264,7 @@ def init_agent(
 
     effective_language = normalized_language or ("javascript" if selected_framework == "openclaw" else "python")
     entrypoint_name = {
-        "python": "run.py",
+        "python": "main.py",
         "javascript": "run.js",
         "typescript": "run.ts",
     }[effective_language]
@@ -308,7 +308,7 @@ def init_agent(
     (agent_dir / "kinnoo.yaml").write_text(manifest_content)
     if selected_framework in framework_templates:
         run_template, requirements_template, readme_template = framework_templates[selected_framework]
-        (agent_dir / "run.py").write_text(run_template)
+        (agent_dir / "main.py").write_text(run_template)
         (agent_dir / "requirements.txt").write_text(requirements_template)
         (agent_dir / "README.md").write_text(readme_template.format(name=name))
     elif effective_language == "javascript":
@@ -338,7 +338,7 @@ def init_agent(
             )
         )
     elif selected_framework != "openclaw":
-        (agent_dir / "run.py").write_text(RUN_PY_TEMPLATE)
+        (agent_dir / "main.py").write_text(RUN_PY_TEMPLATE)
         (agent_dir / "requirements.txt").write_text(REQUIREMENTS_TXT_TEMPLATE)
         (agent_dir / "README.md").write_text(README_MD_TEMPLATE.format(name=name))
 
