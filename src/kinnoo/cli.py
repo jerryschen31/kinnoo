@@ -741,6 +741,11 @@ def main():
         action="store_true",
         help="Require strict signature/trust gates before publish upload.",
     )
+    publish_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit machine-readable JSON publish result.",
+    )
 
     # Add 'list' subcommand
     list_parser = subparsers.add_parser(
@@ -1099,6 +1104,7 @@ def main():
         accept_permissions = bool(getattr(args, "accept_permissions", False))
         allow_unverified_publisher = bool(getattr(args, "allow_unverified_publisher", False))
         strict_mode = bool(getattr(args, "strict", False))
+        json_output = bool(getattr(args, "json", False))
         skip_verify = bool(getattr(args, "skip_verify", False))
         frozen_mode = bool(getattr(args, "frozen", False))
         use_local = bool(getattr(args, "local", False))
@@ -1328,6 +1334,7 @@ def main():
         make_public = bool(getattr(args, "public", False))
         bump = getattr(args, "bump", None)
         strict_mode = bool(getattr(args, "strict", False))
+        json_output = bool(getattr(args, "json", False))
 
         if use_local and use_remote:
             print("Error: --local and --remote cannot be used together.", file=sys.stderr)
@@ -1354,6 +1361,7 @@ def main():
             make_public=make_public,
             bump=bump,
             strict_mode=strict_mode,
+            json_output=json_output,
         )
         sys.exit(exit_code)
 

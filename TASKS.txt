@@ -9324,7 +9324,7 @@ tasks:
       - 'step4: Add test that multiple publishes of different versions are all retrievable.'
     dependencies: []
     tests: [test649]
-    status: not-started
+    status: needs-review
 
   - id: task467
     title: "publish - --json flag for structured output"
@@ -9344,7 +9344,7 @@ tasks:
       - 'step4: Add test that --json produces valid JSON with expected keys.'
     dependencies: []
     tests: [test650]
-    status: not-started
+    status: needs-review
 
   - id: task468
     title: "install - remove deprecated openclaw options"

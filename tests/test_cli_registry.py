@@ -461,6 +461,99 @@ def test_feature61_hardened_login_logout_remote_auth_gating(tmp_path: Path) -> N
 		server.stop()
 
 
+def test_publish_preserves_all_versions(tmp_path: Path) -> None:
+	archive_root = tmp_path / "archive"
+	registry_root = tmp_path / "registry"
+
+	_write_archive(archive_root, name="feature115-versioned-agent", version="1.0.0")
+	publish_v1_env = {
+		**os.environ,
+		"KINNOO_ARCHIVE_ROOT": str(archive_root),
+		"KINNOO_REGISTRY_ROOT": str(registry_root),
+	}
+	publish_v1 = subprocess.run(
+		[
+			sys.executable,
+			str(CLI_PATH),
+			"publish",
+			"feature115-versioned-agent",
+			"--local",
+		],
+		capture_output=True,
+		text=True,
+		env=publish_v1_env,
+		cwd=tmp_path,
+	)
+	publish_v1_output = f"{publish_v1.stdout}\n{publish_v1.stderr}"
+	assert publish_v1.returncode == 0, publish_v1_output
+
+	_write_archive(archive_root, name="feature115-versioned-agent", version="1.1.0")
+	publish_v2 = subprocess.run(
+		[
+			sys.executable,
+			str(CLI_PATH),
+			"publish",
+			"feature115-versioned-agent",
+			"--local",
+		],
+		capture_output=True,
+		text=True,
+		env=publish_v1_env,
+		cwd=tmp_path,
+	)
+	publish_v2_output = f"{publish_v2.stdout}\n{publish_v2.stderr}"
+	assert publish_v2.returncode == 0, publish_v2_output
+
+	v1_target_line = next(
+		(line for line in publish_v1_output.splitlines() if line.startswith("Target registry path: ")),
+		None,
+	)
+	v2_target_line = next(
+		(line for line in publish_v2_output.splitlines() if line.startswith("Target registry path: ")),
+		None,
+	)
+	assert v1_target_line is not None, publish_v1_output
+	assert v2_target_line is not None, publish_v2_output
+
+	v1_registry_archive = Path(v1_target_line.replace("Target registry path: ", "", 1).strip())
+	v2_registry_archive = Path(v2_target_line.replace("Target registry path: ", "", 1).strip())
+	assert v1_registry_archive.exists()
+	assert v2_registry_archive.exists()
+
+	list_result = subprocess.run(
+		[
+			sys.executable,
+			str(CLI_PATH),
+			"list",
+			"--local",
+		],
+		capture_output=True,
+		text=True,
+		env=publish_v1_env,
+		cwd=tmp_path,
+	)
+	list_output = f"{list_result.stdout}\n{list_result.stderr}"
+	assert list_result.returncode == 0, list_output
+	assert "feature115-versioned-agent | latest: 1.1.0" in list_output
+
+	search_result = subprocess.run(
+		[
+			sys.executable,
+			str(CLI_PATH),
+			"search",
+			"--local",
+			"feature115-versioned-agent",
+		],
+		capture_output=True,
+		text=True,
+		env=publish_v1_env,
+		cwd=tmp_path,
+	)
+	search_output = f"{search_result.stdout}\n{search_result.stderr}"
+	assert search_result.returncode == 0, search_output
+	assert "feature115-versioned-agent | latest: 1.1.0" in search_output
+
+
 def test_feature63_mirror_attribution_and_idempotency(tmp_path: Path) -> None:
 	registry_root = tmp_path / "registry"
 	service = RegistryService(backend=MockFilesystemRegistryBackend(root=registry_root))
