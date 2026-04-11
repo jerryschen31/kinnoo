@@ -9239,7 +9239,7 @@ tasks:
       - 'step4: Add test that --bump without version increments patch; --public description is correct.'
     dependencies: []
     tests: [test644, test645]
-    status: not-started
+    status: needs-review
 
   - id: task463
     title: "pack - merge --signing-key into --sign"
@@ -9262,7 +9262,7 @@ tasks:
       - 'step5: Add test that --sign SIGNING_KEY is accepted and --signing-key is rejected.'
     dependencies: []
     tests: [test646]
-    status: not-started
+    status: needs-review
 
   - id: task464
     title: "pack - --json flag for structured output"
@@ -9283,7 +9283,7 @@ tasks:
       - 'step4: Add test that --json produces valid JSON with expected keys.'
     dependencies: []
     tests: [test647]
-    status: not-started
+    status: needs-review
 
   - id: task465
     title: "publish - --local | --remote mutual exclusion and help text"
