@@ -743,6 +743,11 @@ def main():
         action="store_true",
         help="List agents from user remote registry (default)",
     )
+    list_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit machine-readable JSON list results",
+    )
 
     # Add 'search' subcommand
     search_parser = subparsers.add_parser(
@@ -1420,7 +1425,7 @@ def main():
         except ImportError:
             from .list_command import list_agents
 
-        exit_code = list_agents(source=source)
+        exit_code = list_agents(source=source, json_output=bool(getattr(args, "json", False)))
         sys.exit(exit_code)
 
     elif args.command == "search":

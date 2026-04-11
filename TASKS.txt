@@ -9573,7 +9573,7 @@ tasks:
       - 'step3: Add test that --json produces valid JSON output.'
     dependencies: []
     tests: [test662]
-    status: not-started
+    status: needs-review
 
   - id: task479
     title: "Registry UI - security column icons in agent tables"

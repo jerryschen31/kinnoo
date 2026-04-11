@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import json
 from pathlib import Path
 
 from .config import load_registry_config
@@ -12,7 +13,7 @@ from .remote_client import RemoteRegistryClient
 from .size_format import format_size_human_readable
 
 
-def list_agents(source: str = "local") -> int:
+def list_agents(source: str = "local", json_output: bool = False) -> int:
     config = load_registry_config()
     effective_source = source
     if source == "auto":
@@ -45,15 +46,33 @@ def list_agents(source: str = "local") -> int:
         summaries = service.list_latest_agents()
 
         if not summaries:
-            print("No agents found in remote registry.")
+            if json_output:
+                print(json.dumps({"source": "remote", "results": []}, sort_keys=True))
+            else:
+                print("No agents found in remote registry.")
+            return 0
+
+        json_results = [
+            {
+                "name": _summary_text(summary=summary, field="name", default="(unknown)"),
+                "latest_version": _summary_text(summary=summary, field="latest_version", default="(unknown)"),
+                "description": _summary_text(summary=summary, field="description", default="(no description)"),
+                "archive_size": _format_archive_size(_summary_size_bytes(summary=summary)),
+                "source": "remote",
+            }
+            for summary in summaries
+        ]
+
+        if json_output:
+            print(json.dumps({"source": "remote", "results": json_results}, sort_keys=True))
             return 0
 
         print("Remote registry agents:")
-        for summary in summaries:
-            description = _summary_text(summary=summary, field="description", default="(no description)")
-            archive_size = _format_archive_size(_summary_size_bytes(summary=summary))
-            name = _summary_text(summary=summary, field="name", default="(unknown)")
-            latest_version = _summary_text(summary=summary, field="latest_version", default="(unknown)")
+        for summary in json_results:
+            description = summary.get("description", "(no description)")
+            archive_size = summary.get("archive_size", "unknown")
+            name = summary.get("name", "(unknown)")
+            latest_version = summary.get("latest_version", "(unknown)")
             print(
                 f"- {name} | latest: {latest_version} | "
                 f"description: {description} | size: {archive_size}"
@@ -68,15 +87,33 @@ def list_agents(source: str = "local") -> int:
     summaries = backend.list_latest_agents()
 
     if not summaries:
-        print("No agents found in local archive.")
+        if json_output:
+            print(json.dumps({"source": "local", "results": []}, sort_keys=True))
+        else:
+            print("No agents found in local archive.")
+        return 0
+
+    json_results = [
+        {
+            "name": _summary_text(summary=summary, field="name", default="(unknown)"),
+            "latest_version": _summary_text(summary=summary, field="latest_version", default="(unknown)"),
+            "description": _summary_text(summary=summary, field="description", default="(no description)"),
+            "archive_size": _format_archive_size(_summary_size_bytes(summary=summary)),
+            "source": "local",
+        }
+        for summary in summaries
+    ]
+
+    if json_output:
+        print(json.dumps({"source": "local", "results": json_results}, sort_keys=True))
         return 0
 
     print("Local archive agents:")
-    for summary in summaries:
-        description = _summary_text(summary=summary, field="description", default="(no description)")
-        archive_size = _format_archive_size(_summary_size_bytes(summary=summary))
-        name = _summary_text(summary=summary, field="name", default="(unknown)")
-        latest_version = _summary_text(summary=summary, field="latest_version", default="(unknown)")
+    for summary in json_results:
+        description = summary.get("description", "(no description)")
+        archive_size = summary.get("archive_size", "unknown")
+        name = summary.get("name", "(unknown)")
+        latest_version = summary.get("latest_version", "(unknown)")
         print(
             f"- {name} | latest: {latest_version} | "
             f"description: {description} | size: {archive_size}"

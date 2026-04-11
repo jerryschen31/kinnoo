@@ -954,6 +954,37 @@ def test_search_json_output(tmp_path: Path) -> None:
 	assert payload["results"][0]["name"] == "task477-json-agent"
 
 
+def test_list_json_output(tmp_path: Path) -> None:
+	archive_root = tmp_path / "archive"
+	_write_archive(archive_root, name="task478-json-agent", version="1.0.0")
+
+	env = {
+		**os.environ,
+		"KINNOO_ARCHIVE_ROOT": str(archive_root),
+	}
+
+	result = subprocess.run(
+		[
+			sys.executable,
+			str(CLI_PATH),
+			"list",
+			"--local",
+			"--json",
+		],
+		capture_output=True,
+		text=True,
+		env=env,
+	)
+	output = f"{result.stdout}\n{result.stderr}"
+	assert result.returncode == 0, output
+
+	payload = json.loads(result.stdout.strip())
+	assert payload["source"] == "local"
+	assert isinstance(payload["results"], list)
+	assert payload["results"]
+	assert payload["results"][0]["name"] == "task478-json-agent"
+
+
 class _AuthTokenTestServer:
 	def __init__(self, *, accepted_credentials: dict[tuple[str, str], str]) -> None:
 		self._accepted_credentials = accepted_credentials
