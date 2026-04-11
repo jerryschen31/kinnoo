@@ -9156,7 +9156,7 @@ tasks:
       - 'step4: Add test that README contains expected sections and footer.'
     dependencies: [task456, task457]
     tests: [test636]
-    status: not-started
+    status: needs-review
 
   - id: task459
     title: "init - language-specific .gitignore templates"

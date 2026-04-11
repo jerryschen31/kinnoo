@@ -26,6 +26,11 @@ from kinnoo.templates import (
     OPENCLAW_README_TEMPLATE,
 )
 
+try:
+    from kinnoo import __version__ as KINNOO_VERSION
+except ImportError:
+    from . import __version__ as KINNOO_VERSION
+
 SUPPORTED_FRAMEWORKS = [
     "gemini",
     "chatgpt",
@@ -126,6 +131,33 @@ _OPENCLAW_USER_TEMPLATE = """# USER
 
 Describe user preferences, interaction patterns, and constraints.
 """
+
+
+def _folder_guide_table() -> str:
+    return (
+        "\n## Folder Guide\n\n"
+        "| Folder | What goes here |\n"
+        "| --- | --- |\n"
+        "| tools/ | Tool wrappers and utility code the agent can call |\n"
+        "| prompts/ | Prompt snippets and reusable instructions |\n"
+        "| evals/ | Evaluation cases and scoring fixtures |\n"
+        "| tests/ | Regression and smoke tests for this agent |\n"
+        "| data/ | Local sample data and offline test fixtures |\n"
+    )
+
+
+def _standardize_readme(readme_text: str, *, entrypoint: str, include_folder_table: bool) -> str:
+    lines: list[str] = [readme_text.rstrip(), ""]
+    lines.append(f"- Edit `{entrypoint}` to implement your agent run logic.")
+    lines.append("- `kinnoo.yaml` holds the agent manifest and runtime metadata contract.")
+
+    if include_folder_table:
+        lines.append(_folder_guide_table().rstrip())
+
+    lines.append("")
+    lines.append("---")
+    lines.append(f"🍊 *This agent was scaffolded with Kinnoo CLI v{KINNOO_VERSION} using Schema 0.1.0.*")
+    return "\n".join(lines).rstrip() + "\n"
 
 
 def _build_openclaw_wrapper_manifest(name: str) -> str:
@@ -298,7 +330,12 @@ def init_agent(
         (agent_dir / "IDENTITY.md").write_text(_OPENCLAW_IDENTITY_TEMPLATE)
         (agent_dir / "SOUL.md").write_text(OPENCLAW_SOUL_MD_TEMPLATE)
         (agent_dir / "USER.md").write_text(_OPENCLAW_USER_TEMPLATE)
-        (agent_dir / "README.md").write_text(OPENCLAW_README_TEMPLATE.format(name=name))
+        readme_text = _standardize_readme(
+            OPENCLAW_README_TEMPLATE.format(name=name),
+            entrypoint="index.mjs",
+            include_folder_table=not minimal,
+        )
+        (agent_dir / "README.md").write_text(readme_text)
 
         if not minimal:
             (agent_dir / ".gitignore").write_text(_DEFAULT_GITIGNORE_TEMPLATE)
@@ -313,35 +350,51 @@ def init_agent(
         run_template, requirements_template, readme_template = framework_templates[selected_framework]
         (agent_dir / "main.py").write_text(run_template)
         (agent_dir / "requirements.txt").write_text(requirements_template)
-        (agent_dir / "README.md").write_text(readme_template.format(name=name))
+        readme_text = _standardize_readme(
+            readme_template.format(name=name),
+            entrypoint="main.py",
+            include_folder_table=not minimal,
+        )
+        (agent_dir / "README.md").write_text(readme_text)
     elif effective_language == "javascript":
         (agent_dir / "index.js").write_text(_JS_RUN_TEMPLATE)
         (agent_dir / "package.json").write_text(
             _NODE_PACKAGE_JSON_TEMPLATE.format(name=name, entrypoint="index.js")
         )
-        (agent_dir / "README.md").write_text(
+        readme_text = _standardize_readme(
             _NODE_README_TEMPLATE.format(
                 name=name,
                 language_flag="js",
                 entrypoint="index.js",
-            )
+            ),
+            entrypoint="index.js",
+            include_folder_table=not minimal,
         )
+        (agent_dir / "README.md").write_text(readme_text)
     elif effective_language == "typescript":
         (agent_dir / "index.ts").write_text(_TS_RUN_TEMPLATE)
         (agent_dir / "package.json").write_text(
             _NODE_PACKAGE_JSON_TEMPLATE.format(name=name, entrypoint="index.ts")
         )
-        (agent_dir / "README.md").write_text(
+        readme_text = _standardize_readme(
             _NODE_README_TEMPLATE.format(
                 name=name,
                 language_flag="ts",
                 entrypoint="index.ts",
-            )
+            ),
+            entrypoint="index.ts",
+            include_folder_table=not minimal,
         )
+        (agent_dir / "README.md").write_text(readme_text)
     else:
         (agent_dir / "main.py").write_text(RUN_PY_TEMPLATE)
         (agent_dir / "requirements.txt").write_text(REQUIREMENTS_TXT_TEMPLATE)
-        (agent_dir / "README.md").write_text(README_MD_TEMPLATE.format(name=name))
+        readme_text = _standardize_readme(
+            README_MD_TEMPLATE.format(name=name),
+            entrypoint="main.py",
+            include_folder_table=not minimal,
+        )
+        (agent_dir / "README.md").write_text(readme_text)
 
     if not minimal:
         for folder_name in ("tools", "prompts", "evals", "tests", "data"):
