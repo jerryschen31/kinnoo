@@ -3,7 +3,7 @@
 ## Overview
 
 Comprehensive CLI hardening based on User Acceptance Testing Part 1 findings.
-33 tasks (task453–task485), 44 tests (test628–test671).
+34 tasks (task453–task486), 46 tests (test628–test673).
 Source: `notes/phases/phase13-sat-uat-updates.md`
 
 ## SWE Handoff
@@ -125,11 +125,13 @@ dependencies and groups logically related work for efficient SWE sessions.
 | task478 | list — add --json option                               | test662            | none  |
 | task484 | new kinnoo fetch command                               | test668, test669   | none  |
 | task485 | new kinnoo uninstall command                           | test670, test671   | none  |
+| task486 | hotfix — hide traceback for remote registry failures   | test672, test673   | task484, task485 |
 
 **Notes:**
 - task477: Remove `--openclaw-skills` from parser and search_command.py. Refactor `--json` for general structured output.
 - task484: New `fetch_command.py`. Download archive via remote_client. Integrity check. `--strict` for signature. Do NOT unpack.
 - task485: New `uninstall_command.py`. Parse target format (dir, dir==version, archive.kno==version). Confirmation prompt unless `-y`. `latest` as valid version alias.
+- task486: Catch `RemoteRegistryClientError` in list/search/fetch/publish dispatch and print concise `[kinnoo]` lines instead of uncaught traceback output.
 
 ---
 

@@ -5669,6 +5669,96 @@ def test_fetch_strict_verification(monkeypatch, tmp_path: Path) -> None:
     assert unsigned_exit == 1
 
 
+@pytest.mark.parametrize(
+    ("argv", "module_name", "function_name", "headline"),
+    [
+        (
+            ["kinnoo", "fetch", "demo-agent"],
+            "kinnoo.fetch_command",
+            "fetch_agent",
+            "Remote registry unauthorized (401). Check your token and sign in again.",
+        ),
+        (
+            ["kinnoo", "publish", "demo-agent"],
+            "kinnoo.publish_command",
+            "publish_agent",
+            "Remote registry conflict (409). This version may already be published.",
+        ),
+    ],
+)
+def test_remote_registry_errors_render_without_traceback_for_fetch_and_publish(
+    monkeypatch,
+    capsys,
+    argv,
+    module_name,
+    function_name,
+    headline,
+) -> None:
+    from kinnoo.cli import main
+    from kinnoo.remote_client import RemoteRegistryClientError
+
+    response_json = (
+        '{"error":{"code":"unauthorized","message":"token expired","request_id":"abc123"}}'
+        if "unauthorized" in headline
+        else '{"error":{"code":"conflict","message":"Version already published","request_id":"abc123"}}'
+    )
+
+    def _raise_remote_error(*_args, **_kwargs):
+        raise RemoteRegistryClientError(f"{headline} Response: {response_json}")
+
+    fake_module = types.SimpleNamespace(**{function_name: _raise_remote_error})
+    monkeypatch.setitem(sys.modules, module_name, fake_module)
+    monkeypatch.setattr(sys, "argv", argv)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == 1
+    captured = capsys.readouterr()
+    combined = f"{captured.out}\n{captured.err}"
+    assert "Traceback" not in combined
+    assert f"[kinnoo] ERROR: {headline}" in captured.out
+    assert f"[kinnoo] Response: {response_json}" in captured.out
+
+
+@pytest.mark.parametrize(
+    ("argv", "module_name", "function_name"),
+    [
+        (["kinnoo", "list", "--remote"], "kinnoo.list_command", "list_agents"),
+        (["kinnoo", "search", "--remote", "demo"], "kinnoo.search_command", "search_agents"),
+    ],
+)
+def test_remote_registry_errors_render_without_traceback_for_list_and_search(
+    monkeypatch,
+    capsys,
+    argv,
+    module_name,
+    function_name,
+) -> None:
+    from kinnoo.cli import main
+    from kinnoo.remote_client import RemoteRegistryClientError
+
+    headline = "Remote registry unauthorized (401). Check your token and sign in again."
+    response_json = '{"error":{"code":"unauthorized","message":"401 unauthorized: token expired","request_id":"abc123"}}'
+
+    def _raise_remote_error(*_args, **_kwargs):
+        raise RemoteRegistryClientError(f"{headline} Response: {response_json}")
+
+    fake_module = types.SimpleNamespace(**{function_name: _raise_remote_error})
+    monkeypatch.setitem(sys.modules, module_name, fake_module)
+    monkeypatch.setattr(sys, "argv", argv)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == 1
+    captured = capsys.readouterr()
+    combined = f"{captured.out}\n{captured.err}"
+    assert "Traceback" not in combined
+    assert f"[kinnoo] ERROR: {headline}" in captured.out
+    assert f"[kinnoo] Response: {response_json}" in captured.out
+
+
 def test_uninstall_deletes_agent_directory_and_all_version_archives(tmp_path: Path) -> None:
     install_root = tmp_path / "agents"
     archive_root = tmp_path / "archive"

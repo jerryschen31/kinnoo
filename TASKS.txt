@@ -9010,7 +9010,7 @@ tasks:
     status: needs-review
 
   # ────────────────────────────────────────────────────────────────
-  # feature115 — UAT Part 1: CLI Hardening (task453 – task485)
+  # feature115 — UAT Part 1: CLI Hardening (task453 – task486)
   # ────────────────────────────────────────────────────────────────
   # [agent] Terraform-first infra policy for this feature block:
   # [agent] If a task introduces or changes infrastructure (AWS/Cloudflare/networking/compute),
@@ -9739,4 +9739,24 @@ tasks:
       - 'step5: Add tests for all three uninstall modes and confirmation bypass.'
     dependencies: []
     tests: [test670, test671]
+    status: needs-review
+
+  - id: task486
+    title: "Hotfix - hide traceback for remote registry auth/conflict failures"
+    type: task
+    description: |
+      Prevent raw Python traceback output when remote registry operations fail
+      with actionable HTTP errors (for example 401 unauthorized and 409 conflict)
+      in list/fetch/search/publish flows. Instead, surface concise user-facing
+      messages and optional response payload lines on stdout.
+    files:
+      - src/kinnoo/cli.py
+      - tests/test_cli.py
+    steps:
+      - 'step1: Add centralized formatter for RemoteRegistryClientError messages in CLI layer.'
+      - 'step2: Catch RemoteRegistryClientError in fetch/list/search/publish command dispatch paths.'
+      - 'step3: Print concise [kinnoo] error lines (headline and response payload) to stdout and exit non-zero.'
+      - 'step4: Add regression tests proving no traceback is emitted and user-facing lines are printed.'
+    dependencies: [task484, task485]
+    tests: [test672, test673]
     status: needs-review
