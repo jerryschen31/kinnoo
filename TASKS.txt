@@ -9012,6 +9012,10 @@ tasks:
   # ────────────────────────────────────────────────────────────────
   # feature115 — UAT Part 1: CLI Hardening (task453 – task485)
   # ────────────────────────────────────────────────────────────────
+  # [agent] Terraform-first infra policy for this feature block:
+  # [agent] If a task introduces or changes infrastructure (AWS/Cloudflare/networking/compute),
+  # [agent] implement it via Terraform in iac/ (modules + env tfvars) when possible,
+  # [agent] instead of manual console-only changes.
 
   - id: task453
     title: "CLI top-level help - version, commit hash, and icon"
@@ -9647,16 +9651,22 @@ tasks:
       (Lambda function). The publish route should invoke the container
       asynchronously after publish completes, and the container should execute
       the security check script and write results back. Keep the security-check 
-      execution interface clean so I can swap to using ECS task later if scan complexity grows
+      execution interface clean so I can swap to using ECS task later if scan complexity grows.
+      Any infrastructure changes for this flow (Lambda, IAM, invocation wiring,
+      env/config) must be implemented via Terraform under iac/ when possible.
     files:
       - server/services/security_check.py
       - server/routes/publish.py
-      - infra/security-check-lambda/
+      - iac/main.tf
+      - iac/variables.tf
+      - iac/modules/
+      - iac/environments/dev/terraform.tfvars
     steps:
-      - 'step1: Create Lambda function for security checks. Set Lambda timeout to 1 minute.'
+      - 'step1: Add/extend Terraform resources in iac/ for Lambda security checks (function, IAM, and required wiring). Set Lambda timeout to 1 minute.'
       - 'step2: Wire publish route to invoke Lambda after successful publish.'
       - 'step3: Lambda writes results back to metadata store.'
-      - 'step4: Add integration test for end-to-end publish → Lambda → report flow.'
+      - 'step4: Run terraform plan/apply for target env and record the plan/apply summary in notes.'
+      - 'step5: Add integration test for end-to-end publish → Lambda → report flow.'
     dependencies: [task481]
     tests: [test666]
     status: not-started

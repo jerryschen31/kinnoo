@@ -51,3 +51,21 @@ variable "zone_id" {
   description = "Cloudflare zone ID for kinnoo.ai"
   type        = string
 }
+
+variable "dev_record_type" {
+  description = "DNS record type for dev.kinnoo.ai (for example CNAME for Pages, AAAA for Worker custom-domain setup)"
+  type        = string
+  default     = "CNAME"
+}
+
+variable "dev_record_content" {
+  description = "DNS record content/target for dev.kinnoo.ai"
+  type        = string
+  default     = "kinnoo.pages.dev"
+}
+
+variable "manage_dev_record" {
+  description = "Whether Terraform should manage the dev.kinnoo.ai DNS record"
+  type        = bool
+  default     = false
+}
