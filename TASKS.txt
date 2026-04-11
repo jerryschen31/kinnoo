@@ -9449,7 +9449,7 @@ tasks:
       - 'step4: Add test that --enforce-policy is accepted and --sandbox is rejected.'
     dependencies: []
     tests: [test655]
-    status: not-started
+    status: needs-review
 
   - id: task473
     title: "inspect - --json flag for structured output"
