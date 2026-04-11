@@ -309,9 +309,10 @@ def main():
         help="Path to a JSON file payload for agents expecting structured input",
     )
     run_parser.add_argument(
-        "--sandbox",
+        "--enforce-policy",
+        dest="enforce_policy",
         action="store_true",
-        help="Run agent with manifest permission policy enforcement",
+        help="Enforce manifest-declared runtime permission policy checks",
     )
     run_parser.add_argument(
         "--dry-run",
@@ -1026,7 +1027,7 @@ def main():
             preflight=preflight_mode,
             no_guard=bool(getattr(args, "no_guard", False)),
             pass_through_args=pass_through_args,
-            sandbox=bool(getattr(args, "sandbox", False)),
+            sandbox=bool(getattr(args, "enforce_policy", False)),
             dry_run=bool(getattr(args, "dry_run", False)),
             experimental_openclaw_adapter=bool(getattr(args, "experimental_openclaw_adapter", False)),
             openclaw_thinking=getattr(args, "thinking", None),

@@ -84,7 +84,7 @@ def evaluate_sandbox_permissions(
             ),
             remediation=(
                 "Use runtime.language='python', 'nodejs', 'javascript', or 'typescript', "
-                "or run without --sandbox"
+                    "or run without --enforce-policy"
             ),
         )
 
@@ -96,7 +96,7 @@ def evaluate_sandbox_permissions(
                 "sandbox mode supports runtime.type='one-shot' only in this version"
             ),
             remediation=(
-                "Use runtime.type='one-shot' for sandbox execution or run without --sandbox"
+                    "Use runtime.type='one-shot' for policy enforcement or run without --enforce-policy"
             ),
         )
 
@@ -107,7 +107,7 @@ def evaluate_sandbox_permissions(
             code="missing_permissions_policy",
             message="sandbox mode requires manifest permissions declaration",
             remediation=(
-                "Declare a permissions section in kinnoo.yaml or run without --sandbox"
+                    "Declare a permissions section in kinnoo.yaml or run without --enforce-policy"
             ),
         )
 
@@ -121,7 +121,7 @@ def evaluate_sandbox_permissions(
                     "sandbox violation: capability=network action=network_access"
                 ),
                 remediation=(
-                    "Set permissions.network=true or remove network actions before running with --sandbox"
+                        "Set permissions.network=true or remove network actions before running with --enforce-policy"
                 ),
                 capability="network",
                 action="network_access",
@@ -135,7 +135,7 @@ def evaluate_sandbox_permissions(
                     "sandbox violation: capability=shell action=shell_execution"
                 ),
                 remediation=(
-                    "Set permissions.shell=true or remove shell actions before running with --sandbox"
+                        "Set permissions.shell=true or remove shell actions before running with --enforce-policy"
                 ),
                 capability="shell",
                 action="shell_execution",
@@ -152,7 +152,7 @@ def evaluate_sandbox_permissions(
                 ),
                 remediation=(
                     "Set permissions.filesystem_scope to 'workspace-write' or 'full', "
-                    "or remove write actions before running with --sandbox"
+                        "or remove write actions before running with --enforce-policy"
                 ),
                 capability="filesystem",
                 action="filesystem_write",

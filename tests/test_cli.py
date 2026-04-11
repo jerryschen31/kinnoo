@@ -114,6 +114,78 @@ outputs:
     assert required_keys.issubset(payload.keys())
 
 
+def test_run_enforce_policy_replaces_sandbox(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "task472-enforce-policy-agent"
+    agent_dir.mkdir(parents=True, exist_ok=True)
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    (agent_dir / "run.py").write_text("print('task472-ok')\n", encoding="utf-8")
+    (agent_dir / "kinnoo.yaml").write_text(
+        """
+name: task472-enforce-policy-agent
+version: 1.0.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+permissions:
+    network: true
+    filesystem_scope: read-only
+    shell: false
+    browser: false
+    env_access: []
+""",
+        encoding="utf-8",
+    )
+
+    accepted_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(agent_dir),
+            "hello",
+            "--enforce-policy",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    accepted_output = f"{accepted_result.stdout}\n{accepted_result.stderr}"
+    assert accepted_result.returncode == 0, accepted_output
+    assert "task472-ok" in accepted_output
+
+    rejected_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(agent_dir),
+            "hello",
+            "--sandbox",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    rejected_output = f"{rejected_result.stdout}\n{rejected_result.stderr}"
+    assert rejected_result.returncode != 0
+    assert "unrecognized arguments: --sandbox" in rejected_output
+
+    help_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "run", "-h"],
+        capture_output=True,
+        text=True,
+    )
+    help_output = f"{help_result.stdout}\n{help_result.stderr}"
+    assert help_result.returncode == 0, help_output
+    assert "--enforce-policy" in help_output
+    assert "--sandbox" not in help_output
+
+
 def test_cli_direct_script_execution_prefers_local_src_over_pythonpath(tmp_path: Path) -> None:
     cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
     fake_site_root = tmp_path / "fake-site"
@@ -3752,7 +3824,7 @@ permissions:
             "run",
             str(allowed_agent_dir),
             "hello",
-            "--sandbox",
+            "--enforce-policy",
             "--",
             "--url",
             "https://example.com",
@@ -3803,7 +3875,7 @@ permissions:
             "run",
             str(denied_agent_dir),
             "hello",
-            "--sandbox",
+            "--enforce-policy",
             "--",
             "--exec",
             "echo denied",
@@ -3842,7 +3914,7 @@ def test_feature39_sandbox_backend_failure_shapes() -> None:
     assert unsupported_runtime.allowed is False
     assert unsupported_runtime.code == "backend_unsupported_runtime"
     assert "runtime.type='one-shot'" in unsupported_runtime.message
-    assert "run without --sandbox" in unsupported_runtime.remediation
+    assert "run without --enforce-policy" in unsupported_runtime.remediation
 
     unsupported_runtime_language = evaluate_sandbox_permissions(
         manifest=base_manifest,
@@ -3853,7 +3925,7 @@ def test_feature39_sandbox_backend_failure_shapes() -> None:
     assert unsupported_runtime_language.allowed is False
     assert unsupported_runtime_language.code == "backend_unsupported_runtime_language"
     assert "runtime.language='python' and 'nodejs'" in unsupported_runtime_language.message
-    assert "run without --sandbox" in unsupported_runtime_language.remediation
+    assert "run without --enforce-policy" in unsupported_runtime_language.remediation
 
     missing_permissions = evaluate_sandbox_permissions(
         manifest={},
@@ -3907,7 +3979,7 @@ permissions:
             "run",
             str(warn_agent_dir),
             "hello",
-            "--sandbox",
+            "--enforce-policy",
             "--",
             "--url",
             "https://example.com",
@@ -3970,7 +4042,7 @@ permissions:
             "run",
             str(kill_agent_dir),
             "hello",
-            "--sandbox",
+            "--enforce-policy",
             "--",
             "--exec",
             "echo denied",
