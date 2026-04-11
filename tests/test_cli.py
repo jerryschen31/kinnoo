@@ -29,6 +29,17 @@ def test_cli_version_flag():
     assert re.search(r"\b\d+\.\d+\.\d+\b", output), f"Expected semantic version in output, got: {output!r}"
 
 
+def test_help_shows_version_hash_icon():
+    result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "-h"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    first_line = result.stdout.splitlines()[0].strip()
+    assert re.match(r"^🍊 Kinnoo CLI v\d+\.\d+\.\d+ \(([a-f0-9]+|unknown)\)$", first_line), first_line
+
+
 def test_cli_direct_script_execution_prefers_local_src_over_pythonpath(tmp_path: Path) -> None:
     cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
     fake_site_root = tmp_path / "fake-site"
