@@ -19,6 +19,11 @@ All notable changes to this project will be documented in this file.
   - `tests/test_cli_import.py::test_feature62_import_openclaw_manifest_migration_guidance`
  - Bumped project version from `0.5.5` to `0.6.0` after Phase 7 final review closure.
 
+## [v0.7.3] - 2026-04-10
+### Changed
+- Minor kinnoo init usage changes
+- Minor kinnoo help usage menu edits
+
 ## [v0.7.2] - 2026-04-10
 ### Added
 - Added runtime language normalization helper to treat `nodejs`, `javascript`, and `typescript` as Node-compatible runtime aliases across CLI execution and validation flows.
