@@ -10801,3 +10801,743 @@ tests:
     pass_criteria: Recorded DIGEST_MATCH equals YES and service converges to single primary deployment
     automated: false
     automation_path: null
+
+  # ────────────────────────────────────────────────────────────────
+  # feature115 — UAT Part 1: CLI Hardening (test628 – test671)
+  # ────────────────────────────────────────────────────────────────
+
+  - id: test628
+    title: "CLI help shows version, commit hash, and 🍊 icon"
+    type: integration
+    preconditions: CLI available in test environment
+    steps:
+      - 'step1: Run kinnoo -h and capture stdout.'
+      - 'step2: Verify output starts with 🍊 Kinnoo CLI v followed by a version string.'
+      - 'step3: Verify a parenthesized short hash is present (e.g., (abc1234) or (unknown)).'
+    expected: Top-level help displays version, commit hash, and orange icon
+    pass_criteria: Output matches pattern "🍊 Kinnoo CLI v\d+\.\d+\.\d+ \([a-f0-9]+\)" or "(unknown)"
+    covers:
+      - feature: feature115
+        ac: AC1
+    automated: true
+    automation_path: tests/test_cli.py::test_help_shows_version_hash_icon
+
+  - id: test629
+    title: "init accepts framework as positional argument"
+    type: integration
+    preconditions: CLI available in test environment, temp directory
+    steps:
+      - 'step1: Run kinnoo init chatgpt --language python test-agent in a temp directory.'
+      - 'step2: Verify agent directory is created with kinnoo.yaml.'
+      - 'step3: Verify kinnoo.yaml framework field matches chatgpt.'
+    expected: Framework positional argument is accepted and produces valid scaffold
+    pass_criteria: kinnoo.yaml exists and contains framework chatgpt
+    covers:
+      - feature: feature115
+        ac: AC2
+    automated: true
+    automation_path: tests/test_init.py::test_init_framework_positional_arg
+
+  - id: test630
+    title: "init no-framework creates barebones template"
+    type: integration
+    preconditions: CLI available in test environment, temp directory
+    steps:
+      - 'step1: Run kinnoo init no-framework test-agent in a temp directory.'
+      - 'step2: Verify agent directory is created with kinnoo.yaml and main.py.'
+      - 'step3: Verify no framework-specific files are present.'
+    expected: no-framework produces a barebones agent template
+    pass_criteria: kinnoo.yaml exists, main.py exists, no framework-specific template files
+    covers:
+      - feature: feature115
+        ac: AC2
+    automated: true
+    automation_path: tests/test_init.py::test_init_no_framework_barebones
+
+  - id: test631
+    title: "init interactive wizard launches without arguments"
+    type: integration
+    preconditions: CLI available, stdin mockable
+    steps:
+      - 'step1: Run kinnoo init with no arguments and mock stdin with framework selection "1" and language "1".'
+      - 'step2: Verify the wizard prompts for framework selection.'
+      - 'step3: Verify a valid agent scaffold is created.'
+    expected: Interactive wizard launches and creates scaffold from selections
+    pass_criteria: Wizard prompts appear in stdout and agent directory is created with kinnoo.yaml
+    covers:
+      - feature: feature115
+        ac: AC2
+    automated: true
+    automation_path: tests/test_init.py::test_init_interactive_wizard
+
+  - id: test632
+    title: "init python entrypoint is main.py"
+    type: integration
+    preconditions: CLI available, temp directory
+    steps:
+      - 'step1: Run kinnoo init chatgpt test-agent (python default) in temp dir.'
+      - 'step2: Verify main.py exists in agent directory.'
+      - 'step3: Verify run.py does NOT exist.'
+      - 'step4: Verify kinnoo.yaml entrypoint references main.py.'
+    expected: Python agents use main.py as default entrypoint
+    pass_criteria: main.py exists, run.py does not, kinnoo.yaml references main.py
+    covers:
+      - feature: feature115
+        ac: AC2
+    automated: true
+    automation_path: tests/test_init.py::test_init_python_entrypoint_main_py
+
+  - id: test633
+    title: "init complete template includes expected folders"
+    type: integration
+    preconditions: CLI available, temp directory
+    steps:
+      - 'step1: Run kinnoo init chatgpt test-agent (no --minimal) in temp dir.'
+      - 'step2: Verify tools/, prompts/, evals/, tests/, data/ folders exist.'
+      - 'step3: Verify .gitignore exists.'
+    expected: Complete template includes all scaffold folders and .gitignore
+    pass_criteria: All five folders and .gitignore are present
+    covers:
+      - feature: feature115
+        ac: AC3
+    automated: true
+    automation_path: tests/test_init.py::test_init_complete_template_folders
+
+  - id: test634
+    title: "init --minimal creates only minimal files"
+    type: integration
+    preconditions: CLI available, temp directory
+    steps:
+      - 'step1: Run kinnoo init chatgpt --minimal test-agent in temp dir.'
+      - 'step2: Verify kinnoo.yaml, README.md, main.py, requirements.txt exist.'
+      - 'step3: Verify tools/, prompts/, evals/, tests/, data/ folders do NOT exist.'
+      - 'step4: Verify .gitignore does NOT exist.'
+    expected: Minimal template contains only essential files
+    pass_criteria: Only kinnoo.yaml, README.md, entrypoint, and requirements exist; no extra folders
+    covers:
+      - feature: feature115
+        ac: AC3
+    automated: true
+    automation_path: tests/test_init.py::test_init_minimal_template
+
+  - id: test635
+    title: "init openclaw complete template includes MEMORY.md"
+    type: integration
+    preconditions: CLI available, temp directory
+    steps:
+      - 'step1: Run kinnoo init openclaw test-agent (no --minimal) in temp dir.'
+      - 'step2: Verify MEMORY.md, BOOTSTRAP.md, HEARTBEAT.md exist.'
+      - 'step3: Verify skills/ and memory/ folders exist.'
+      - 'step4: Verify python-specific files (requirements.txt, main.py) do NOT exist.'
+    expected: Openclaw complete template includes all openclaw-specific files
+    pass_criteria: MEMORY.md, BOOTSTRAP.md, HEARTBEAT.md, skills/, memory/ present; no python files
+    covers:
+      - feature: feature115
+        ac: AC3
+    automated: true
+    automation_path: tests/test_init.py::test_init_openclaw_complete_template
+
+  - id: test636
+    title: "init README.md contains entrypoint, manifest, folder guide, footer"
+    type: integration
+    preconditions: CLI available, temp directory
+    steps:
+      - 'step1: Run kinnoo init chatgpt test-agent (complete) in temp dir.'
+      - 'step2: Read generated README.md.'
+      - 'step3: Verify it references main.py as entrypoint.'
+      - 'step4: Verify it mentions kinnoo.yaml as agent manifest.'
+      - 'step5: Verify it contains a folder guide table.'
+      - 'step6: Verify it contains the 🍊 footer with version and schema info.'
+    expected: README.md includes all required sections
+    pass_criteria: README contains entrypoint ref, manifest note, folder guide, and 🍊 footer
+    covers:
+      - feature: feature115
+        ac: AC3
+    automated: true
+    automation_path: tests/test_init.py::test_init_readme_content
+
+  - id: test637
+    title: "init python .gitignore matches expected content"
+    type: integration
+    preconditions: CLI available, temp directory
+    steps:
+      - 'step1: Run kinnoo init chatgpt test-agent (python, complete) in temp dir.'
+      - 'step2: Read generated .gitignore.'
+      - 'step3: Verify it contains python-specific entries (__pycache__/, .venv/, *.py[cod]).'
+      - 'step4: Verify it contains kinnoo entries (.kinnoo/, .env, *.pem).'
+    expected: Python .gitignore matches UAT specification
+    pass_criteria: .gitignore contains all expected python-specific and kinnoo entries
+    covers:
+      - feature: feature115
+        ac: AC3
+    automated: true
+    automation_path: tests/test_init.py::test_init_python_gitignore
+
+  - id: test638
+    title: "init javascript .gitignore matches expected content"
+    type: integration
+    preconditions: CLI available, temp directory
+    steps:
+      - 'step1: Run kinnoo init chatgpt --language javascript test-agent (complete) in temp dir.'
+      - 'step2: Read generated .gitignore.'
+      - 'step3: Verify it contains node_modules/, .npm, npm-debug.log*.'
+      - 'step4: Verify it does NOT contain __pycache__/ or .venv/.'
+    expected: JavaScript .gitignore matches UAT specification
+    pass_criteria: .gitignore contains JS-specific entries and no python entries
+    covers:
+      - feature: feature115
+        ac: AC3
+    automated: true
+    automation_path: tests/test_init.py::test_init_javascript_gitignore
+
+  - id: test639
+    title: "init typescript .gitignore matches expected content"
+    type: integration
+    preconditions: CLI available, temp directory
+    steps:
+      - 'step1: Run kinnoo init chatgpt --language typescript test-agent (complete) in temp dir.'
+      - 'step2: Read generated .gitignore.'
+      - 'step3: Verify it contains *.tsbuildinfo, coverage/, .vitest/.'
+      - 'step4: Verify it does NOT contain __pycache__/ or .venv/.'
+    expected: TypeScript .gitignore matches UAT specification
+    pass_criteria: .gitignore contains TS-specific entries and no python entries
+    covers:
+      - feature: feature115
+        ac: AC3
+    automated: true
+    automation_path: tests/test_init.py::test_init_typescript_gitignore
+
+  - id: test640
+    title: "init openclaw .gitignore matches expected content"
+    type: integration
+    preconditions: CLI available, temp directory
+    steps:
+      - 'step1: Run kinnoo init openclaw test-agent (complete) in temp dir.'
+      - 'step2: Read generated .gitignore.'
+      - 'step3: Verify it contains memory/, .dreams/, scratch/, .openclaw/, credentials.json.'
+      - 'step4: Verify it does NOT contain __pycache__/ or node_modules/.'
+    expected: OpenClaw .gitignore matches UAT specification
+    pass_criteria: .gitignore contains openclaw-specific entries and no python/node entries
+    covers:
+      - feature: feature115
+        ac: AC3
+    automated: true
+    automation_path: tests/test_init.py::test_init_openclaw_gitignore
+
+  - id: test641
+    title: "pack excludes data/ folder by default"
+    type: integration
+    preconditions: CLI available, agent directory with data/ folder containing files
+    steps:
+      - 'step1: Create agent directory with data/ folder containing a test file.'
+      - 'step2: Run kinnoo pack on the agent directory.'
+      - 'step3: Inspect resulting archive contents.'
+      - 'step4: Verify data/ folder is NOT included in the archive.'
+    expected: data/ folder is excluded from pack by default
+    pass_criteria: Archive does not contain any files from data/
+    covers:
+      - feature: feature115
+        ac: AC4
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_excludes_data_by_default
+
+  - id: test642
+    title: "pack --include and --exclude options work"
+    type: integration
+    preconditions: CLI available, agent directory with data/ folder
+    steps:
+      - 'step1: Run kinnoo pack --include data on agent with data/ folder.'
+      - 'step2: Verify data/ IS included in the archive.'
+      - 'step3: Run kinnoo pack --exclude tools on same agent.'
+      - 'step4: Verify tools/ is NOT included in the archive.'
+    expected: --include and --exclude correctly override defaults
+    pass_criteria: --include data includes data/; --exclude tools excludes tools/
+    covers:
+      - feature: feature115
+        ac: AC4
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_include_exclude_options
+
+  - id: test643
+    title: "pack --preflight shows files and does not create archive"
+    type: integration
+    preconditions: CLI available, valid agent directory
+    steps:
+      - 'step1: Run kinnoo pack --preflight on agent directory.'
+      - 'step2: Verify output lists files that would be packed.'
+      - 'step3: Verify output shows estimated size and destination path.'
+      - 'step4: Verify no .kno archive file was created.'
+    expected: --preflight shows dry-run info without creating archive
+    pass_criteria: Output contains file list, size, destination; no archive file created
+    covers:
+      - feature: feature115
+        ac: AC4
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_preflight_dry_run
+
+  - id: test644
+    title: "pack --bump without version increments patch"
+    type: integration
+    preconditions: CLI available, agent with version 1.0.0
+    steps:
+      - 'step1: Create agent with kinnoo.yaml version 1.0.0.'
+      - 'step2: Run kinnoo pack --bump on the agent.'
+      - 'step3: Verify kinnoo.yaml now shows version 1.0.1.'
+      - 'step4: Verify archive is created with version 1.0.1.'
+    expected: --bump without explicit version bumps patch by default
+    pass_criteria: Version incremented from 1.0.0 to 1.0.1
+    covers:
+      - feature: feature115
+        ac: AC4
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_bump_default_patch
+
+  - id: test645
+    title: "pack --public help says default is private"
+    type: integration
+    preconditions: CLI available
+    steps:
+      - 'step1: Run kinnoo pack -h and capture output.'
+      - 'step2: Verify --public description contains "default is private" or equivalent.'
+    expected: --public help text clarifies that default is private
+    pass_criteria: Help output for --public includes "default is private"
+    covers:
+      - feature: feature115
+        ac: AC4
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_public_help_default_private
+
+  - id: test646
+    title: "pack --sign accepts signing key as argument"
+    type: integration
+    preconditions: CLI available, Ed25519 key pair generated
+    steps:
+      - 'step1: Generate Ed25519 keypair with kinnoo keygen.'
+      - 'step2: Run kinnoo pack --sign <key.pem> <agent-dir>.'
+      - 'step3: Verify pack succeeds and signature artifact is created.'
+      - 'step4: Verify --signing-key option is no longer accepted.'
+    expected: --sign takes signing key path directly; --signing-key is removed
+    pass_criteria: --sign SIGNING_KEY works; --signing-key is rejected
+    covers:
+      - feature: feature115
+        ac: AC4
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_sign_merged_argument
+
+  - id: test647
+    title: "pack --json outputs structured JSON"
+    type: integration
+    preconditions: CLI available, valid agent directory
+    steps:
+      - 'step1: Run kinnoo pack --json on a valid agent.'
+      - 'step2: Parse stdout as JSON.'
+      - 'step3: Verify JSON contains keys: agent_dir, visibility, archive_path, checksum_sidecar_path, archive_size_bytes, agent_version.'
+    expected: --json produces valid JSON with expected keys
+    pass_criteria: Output parses as JSON and contains all required keys
+    covers:
+      - feature: feature115
+        ac: AC4
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_json_output
+
+  - id: test648
+    title: "publish --local and --remote are mutually exclusive"
+    type: integration
+    preconditions: CLI available
+    steps:
+      - 'step1: Run kinnoo publish --local --remote test.kno.'
+      - 'step2: Verify command exits with error about mutually exclusive options.'
+    expected: Using both --local and --remote produces an error
+    pass_criteria: Exit code non-zero and error message mentions mutual exclusion
+    covers:
+      - feature: feature115
+        ac: AC5
+    automated: true
+    automation_path: tests/test_publish_refactor.py::test_publish_local_remote_mutually_exclusive
+
+  - id: test649
+    title: "publish preserves all versions"
+    type: integration
+    preconditions: Registry server running, valid agent archives with different versions
+    steps:
+      - 'step1: Publish agent v1.0.0 to remote registry.'
+      - 'step2: Publish agent v1.1.0 to remote registry.'
+      - 'step3: Verify both versions are stored and retrievable.'
+      - 'step4: Verify list/search shows latest version.'
+    expected: All published versions are preserved; latest shown in listings
+    pass_criteria: Both versions exist in registry; list shows v1.1.0
+    covers:
+      - feature: feature115
+        ac: AC5
+    automated: true
+    automation_path: tests/test_cli_registry.py::test_publish_preserves_all_versions
+
+  - id: test650
+    title: "publish --json outputs structured JSON"
+    type: integration
+    preconditions: CLI available, valid agent archive
+    steps:
+      - 'step1: Run kinnoo publish --json --local test.kno.'
+      - 'step2: Parse stdout as JSON.'
+      - 'step3: Verify JSON contains keys: agent_name, agent_version, registry, source_archive_path, publish_result.'
+    expected: --json produces valid JSON with expected keys
+    pass_criteria: Output parses as JSON and contains all required keys
+    covers:
+      - feature: feature115
+        ac: AC5
+    automated: true
+    automation_path: tests/test_publish_refactor.py::test_publish_json_output
+
+  - id: test651
+    title: "install deprecated openclaw options removed"
+    type: integration
+    preconditions: CLI available
+    steps:
+      - 'step1: Run kinnoo install --state-overwrite test and verify error.'
+      - 'step2: Run kinnoo install --allow-vulnerable test and verify error.'
+      - 'step3: Run kinnoo install --ignore-scripts test and verify error.'
+      - 'step4: Run kinnoo install --openclaw-min-version 1.0 test and verify error.'
+      - 'step5: Run kinnoo install --openclaw-skill test-skill and verify error.'
+    expected: All deprecated options are rejected by the parser
+    pass_criteria: Each deprecated option produces unrecognized argument error
+    covers:
+      - feature: feature115
+        ac: AC6
+    automated: true
+    automation_path: tests/test_cli_install.py::test_install_deprecated_options_removed
+
+  - id: test652
+    title: "install openclaw default path is ~/.openclaw/workspace-<name>"
+    type: integration
+    preconditions: CLI available, openclaw agent archive
+    steps:
+      - 'step1: Install an openclaw agent without specifying target-dir.'
+      - 'step2: Verify agent is installed to ~/.openclaw/workspace-<agent-name>.'
+      - 'step3: Install same agent with explicit target-dir.'
+      - 'step4: Verify agent is installed to the specified target-dir instead.'
+    expected: Openclaw agents default to ~/.openclaw/workspace-<name>
+    pass_criteria: Default path is ~/.openclaw/workspace-<name>; explicit path overrides
+    covers:
+      - feature: feature115
+        ac: AC6
+    automated: true
+    automation_path: tests/test_cli_install.py::test_install_openclaw_default_path
+
+  - id: test653
+    title: "install --json with -y outputs structured JSON"
+    type: integration
+    preconditions: CLI available, valid agent archive
+    steps:
+      - 'step1: Run kinnoo install --json -y test.kno.'
+      - 'step2: Parse stdout as JSON.'
+      - 'step3: Verify JSON contains expected install result keys.'
+      - 'step4: Run kinnoo install --json test.kno (without -y) and verify it errors.'
+    expected: --json requires -y and produces valid JSON
+    pass_criteria: --json with -y parses as JSON; --json without -y errors
+    covers:
+      - feature: feature115
+        ac: AC6
+    automated: true
+    automation_path: tests/test_cli_install.py::test_install_json_output
+
+  - id: test654
+    title: "run --json outputs structured JSON for non-openclaw agents"
+    type: integration
+    preconditions: CLI available, simple python agent that prints output
+    steps:
+      - 'step1: Create a simple python agent that prints "hello".'
+      - 'step2: Run kinnoo run --json <agent-dir> "test input".'
+      - 'step3: Parse stdout as JSON.'
+      - 'step4: Verify JSON contains keys: output, exit_code, success, start_time, end_time, duration_seconds, agent_dir, entrypoint.'
+    expected: --json produces structured JSON envelope for non-openclaw agents
+    pass_criteria: Output parses as JSON with all required keys; success is true
+    covers:
+      - feature: feature115
+        ac: AC7
+    automated: true
+    automation_path: tests/test_cli.py::test_run_json_structured_output
+
+  - id: test655
+    title: "run --enforce-policy replaces --sandbox"
+    type: integration
+    preconditions: CLI available
+    steps:
+      - 'step1: Run kinnoo run --enforce-policy <agent-dir> and verify it is accepted.'
+      - 'step2: Run kinnoo run --sandbox <agent-dir> and verify it is rejected.'
+      - 'step3: Run kinnoo run -h and verify --enforce-policy appears and --sandbox does not.'
+    expected: --enforce-policy is the new flag; --sandbox is removed
+    pass_criteria: --enforce-policy accepted; --sandbox rejected; help text updated
+    covers:
+      - feature: feature115
+        ac: AC7
+    automated: true
+    automation_path: tests/test_cli.py::test_run_enforce_policy_replaces_sandbox
+
+  - id: test656
+    title: "inspect --json outputs structured JSON"
+    type: integration
+    preconditions: CLI available, valid agent directory
+    steps:
+      - 'step1: Run kinnoo inspect --json <agent-dir>.'
+      - 'step2: Parse stdout as JSON.'
+      - 'step3: Verify JSON contains agent metadata fields.'
+      - 'step4: Run kinnoo inspect --json --full <agent-dir> and verify extended fields.'
+    expected: --json outputs valid JSON with all inspect fields
+    pass_criteria: Output parses as JSON with metadata fields; --full adds extended fields
+    covers:
+      - feature: feature115
+        ac: AC8
+    automated: true
+    automation_path: tests/test_cli_inspect.py::test_inspect_json_output
+
+  - id: test657
+    title: "inspect --update accepts KEY NEW_VALUE (2 args)"
+    type: integration
+    preconditions: CLI available, agent directory with kinnoo.yaml
+    steps:
+      - 'step1: Run kinnoo inspect --update runtime.language javascript <agent-dir> --skip-warnings.'
+      - 'step2: Verify kinnoo.yaml runtime.language is now javascript.'
+      - 'step3: Run kinnoo inspect <agent-dir> --update name new-name --skip-warnings.'
+      - 'step4: Verify kinnoo.yaml name is now new-name.'
+    expected: --update with 2 args works before or after target
+    pass_criteria: Metadata updated correctly in both argument orderings
+    covers:
+      - feature: feature115
+        ac: AC8
+    automated: true
+    automation_path: tests/test_cli_inspect.py::test_inspect_update_two_args
+
+  - id: test658
+    title: "inspect --update shows confirmation prompt"
+    type: integration
+    preconditions: CLI available, agent directory, stdin mockable
+    steps:
+      - 'step1: Run kinnoo inspect --update name new-name <agent-dir> with stdin "N".'
+      - 'step2: Verify change is NOT applied.'
+      - 'step3: Run same command with stdin "y" and verify change IS applied.'
+      - 'step4: Run same command with --skip-warnings and verify change applied without prompt.'
+    expected: --update prompts for confirmation; --skip-warnings bypasses
+    pass_criteria: Prompt appears, N aborts, y applies, --skip-warnings skips prompt
+    covers:
+      - feature: feature115
+        ac: AC8
+    automated: true
+    automation_path: tests/test_cli_inspect.py::test_inspect_update_confirmation_prompt
+
+  - id: test659
+    title: "sync, stop, attach, logs commands are disabled"
+    type: integration
+    preconditions: CLI available
+    steps:
+      - 'step1: Run kinnoo sync and verify it is not recognized or errors gracefully.'
+      - 'step2: Run kinnoo stop and verify same.'
+      - 'step3: Run kinnoo attach and verify same.'
+      - 'step4: Run kinnoo logs and verify same.'
+      - 'step5: Run kinnoo -h and verify daemon agents section is not shown.'
+    expected: Commented-out commands are not accessible via CLI
+    pass_criteria: All four commands fail or are unrecognized; daemon section absent from help
+    covers:
+      - feature: feature115
+        ac: AC9
+    automated: true
+    automation_path: tests/test_cli.py::test_disabled_commands_not_accessible
+
+  - id: test660
+    title: "search --openclaw-skills option removed"
+    type: integration
+    preconditions: CLI available
+    steps:
+      - 'step1: Run kinnoo search --openclaw-skills test and verify unrecognized argument error.'
+      - 'step2: Run kinnoo search -h and verify --openclaw-skills is not listed.'
+    expected: --openclaw-skills is no longer a valid search option
+    pass_criteria: --openclaw-skills produces unrecognized argument error
+    covers:
+      - feature: feature115
+        ac: AC10
+    automated: true
+    automation_path: tests/test_cli_registry.py::test_search_openclaw_skills_removed
+
+  - id: test661
+    title: "search --json outputs structured JSON"
+    type: integration
+    preconditions: CLI available, local registry with at least one agent
+    steps:
+      - 'step1: Run kinnoo search --json --local test.'
+      - 'step2: Parse stdout as JSON.'
+      - 'step3: Verify JSON contains search results as a structured array.'
+    expected: --json outputs search results as valid JSON
+    pass_criteria: Output parses as JSON array of agent results
+    covers:
+      - feature: feature115
+        ac: AC10
+    automated: true
+    automation_path: tests/test_cli_registry.py::test_search_json_output
+
+  - id: test662
+    title: "list --json outputs structured JSON"
+    type: integration
+    preconditions: CLI available, local registry with at least one agent
+    steps:
+      - 'step1: Run kinnoo list --json --local.'
+      - 'step2: Parse stdout as JSON.'
+      - 'step3: Verify JSON contains list results as a structured array.'
+    expected: --json outputs list results as valid JSON
+    pass_criteria: Output parses as JSON array of agent entries
+    covers:
+      - feature: feature115
+        ac: AC10
+    automated: true
+    automation_path: tests/test_cli_registry.py::test_list_json_output
+
+  - id: test663
+    title: "Registry UI shows Security column with correct icons"
+    type: manual
+    preconditions: Registry server running, agents with various security states published
+    steps:
+      - 'step1: Open registry UI and navigate to My Agents.'
+      - 'step2: Verify Security column appears to the right of Version.'
+      - 'step3: Verify ✅ appears for signed+verified agents.'
+      - 'step4: Verify 📦 appears for archive-integrity-verified agents.'
+      - 'step5: Verify ❌ appears for agents with failed checks.'
+    expected: Security column shows correct icons per agent state
+    pass_criteria: Icons match agent security status in all cases
+    covers:
+      - feature: feature115
+        ac: AC11
+    automated: false
+    automation_path: null
+
+  - id: test664
+    title: "Server-side security check script passes/fails correctly"
+    type: unit
+    preconditions: Security check script available, test archives with known states
+    steps:
+      - 'step1: Run security check on signed archive with valid signature.'
+      - 'step2: Verify signature check returns PASS.'
+      - 'step3: Run security check on archive with tampered content.'
+      - 'step4: Verify integrity check returns FAIL.'
+      - 'step5: Verify structured report contains per-check pass/fail status.'
+    expected: Security check script correctly identifies pass/fail states
+    pass_criteria: All checks return expected pass/fail for known-good and known-bad archives
+    covers:
+      - feature: feature115
+        ac: AC11
+    automated: true
+    automation_path: server/tests/test_security_check.py::test_post_publish_security_checks
+
+  - id: test665
+    title: "Server-side checks update security column and persist report"
+    type: integration
+    preconditions: Registry server running, security check script functional
+    steps:
+      - 'step1: Publish a signed agent to remote registry.'
+      - 'step2: Wait for server-side checks to complete.'
+      - 'step3: Verify agent metadata security_status is updated.'
+      - 'step4: Verify security report is retrievable via API.'
+    expected: Post-publish checks update metadata and persist accessible report
+    pass_criteria: security_status updated; report endpoint returns per-check results
+    covers:
+      - feature: feature115
+        ac: AC11
+    automated: true
+    automation_path: server/tests/test_security_check.py::test_publish_triggers_security_update
+
+  - id: test666
+    title: "Server-side checks run in containerized environment"
+    type: integration
+    preconditions: Lambda/container infrastructure configured, test archive
+    steps:
+      - 'step1: Trigger containerized security check via publish or direct invocation.'
+      - 'step2: Verify check executes in isolated container (not on main server process).'
+      - 'step3: Verify results are written back to metadata store.'
+    expected: Security checks run in isolated container and write results back
+    pass_criteria: Container invocation logged; results appear in metadata store
+    covers:
+      - feature: feature115
+        ac: AC11
+    automated: true
+    automation_path: server/tests/test_security_check.py::test_containerized_security_check
+
+  - id: test667
+    title: "Registry UI Security tab shows check results"
+    type: manual
+    preconditions: Registry server running, agent with completed security checks
+    steps:
+      - 'step1: Open registry UI and click on an agent name.'
+      - 'step2: Navigate to the Security tab in the modal.'
+      - 'step3: Verify one-line-per-check results with [PASS] or [FAIL] are shown.'
+    expected: Security tab displays concise per-check results
+    pass_criteria: Each check listed with [PASS] or [FAIL] badge
+    covers:
+      - feature: feature115
+        ac: AC11
+    automated: false
+    automation_path: null
+
+  - id: test668
+    title: "fetch downloads archive to local archive"
+    type: integration
+    preconditions: CLI available, agent published to remote/local registry
+    steps:
+      - 'step1: Run kinnoo fetch <agent-name> from registry.'
+      - 'step2: Verify .kno archive file appears in local archive directory.'
+      - 'step3: Verify archive integrity check passes.'
+      - 'step4: Verify archive is NOT unpacked.'
+    expected: fetch downloads and stores archive without unpacking
+    pass_criteria: Archive file in local archive dir; integrity verified; no unpacked directory
+    covers:
+      - feature: feature115
+        ac: AC12
+    automated: true
+    automation_path: tests/test_cli.py::test_fetch_downloads_archive
+
+  - id: test669
+    title: "fetch --strict verifies signature"
+    type: integration
+    preconditions: CLI available, signed agent in registry
+    steps:
+      - 'step1: Run kinnoo fetch --strict <signed-agent>.'
+      - 'step2: Verify signature verification runs and passes.'
+      - 'step3: Run kinnoo fetch --strict <unsigned-agent>.'
+      - 'step4: Verify signature verification fails or warns.'
+    expected: --strict mode triggers signature verification on fetch
+    pass_criteria: Signed agent passes strict; unsigned agent fails/warns
+    covers:
+      - feature: feature115
+        ac: AC12
+    automated: true
+    automation_path: tests/test_cli.py::test_fetch_strict_verification
+
+  - id: test670
+    title: "uninstall deletes agent directory and all version archives"
+    type: integration
+    preconditions: CLI available, installed agent with multiple version archives
+    steps:
+      - 'step1: Install agent and verify directory and archives exist.'
+      - 'step2: Run kinnoo uninstall <agent-dir> -y.'
+      - 'step3: Verify agent directory is deleted.'
+      - 'step4: Verify all version archive files are deleted.'
+    expected: Uninstall removes both directory and all archives
+    pass_criteria: Agent directory and all version archives no longer exist
+    covers:
+      - feature: feature115
+        ac: AC13
+    automated: true
+    automation_path: tests/test_cli.py::test_uninstall_dir_and_all_archives
+
+  - id: test671
+    title: "uninstall specific version archive only"
+    type: integration
+    preconditions: CLI available, agent with multiple version archives
+    steps:
+      - 'step1: Verify two version archives exist for agent.'
+      - 'step2: Run kinnoo uninstall <agent.kno==1.0.0> -y.'
+      - 'step3: Verify v1.0.0 archive is deleted.'
+      - 'step4: Verify other version archives still exist.'
+    expected: Version-specific uninstall removes only that version
+    pass_criteria: Targeted version archive deleted; other versions untouched
+    covers:
+      - feature: feature115
+        ac: AC13
+    automated: true
+    automation_path: tests/test_cli.py::test_uninstall_specific_version

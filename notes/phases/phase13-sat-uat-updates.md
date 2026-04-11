@@ -3,7 +3,7 @@
 # -----------------------
 
 ```kinnoo --help``` changes:
-1. I want the kinnoo CLI help to show the version number and associated commit hash, and an orange icon 🍊 at the top, with some quick text. So if the current version is 0.7.1 and the associated commit hash for this version is bdc5308, for example, instead of
+1. I want the kinnoo CLI help to show the version number and associated commit hash, and an orange icon 🍊 at the top, with some quick text. So if the current version is 0.7.1 and the associated commit hash for this version is bdc5308, for example, instead of [task453]
 
 ```
 % kinnoo -h
@@ -18,7 +18,7 @@ I want to see
 
 
 ```kinnoo init``` changes:
-1. Remove framework option and instead REQUIRE user to choose a framework as an argument:
+1. Remove framework option and instead REQUIRE user to choose a framework as an argument: [task454]
 usage: kinnoo init [-h] [framework] [--language {python,javascript,typescript}]
 
 Framework argument possibilities stay the same with the addition of “none”: {gemini,chatgpt,claude-chat,pydantic-ai,langgraph,openai-agents,mcp-client,mcp-server,openclaw,no-framework}
@@ -27,7 +27,7 @@ Text on no-framework is:no-framework    - Barebones agent template - language sh
 
 Language text should read “(Optional) Scaffold language (if supported for the specified framework): python, javascript, typescript”
 
-2. ```kinnoo init``` without arguments should launch an interactive wizard:
+2. ```kinnoo init``` without arguments should launch an interactive wizard: [task455]
 Step 1: Select framework
 Step 2: Select language (If there is an option for the framework).
 
@@ -36,13 +36,13 @@ gemini,chatgpt,claude-chat,langgraph,mcp-client,mcp-server,no-framework : both P
 pydantic-ai,openai-agents : Python-only
 openclaw: javascript / typescript
 
-3. openclaw init template needs a very basic MEMORY.md as well (for complete templates - see "Summarizing 5 and 6" section below)
+3. openclaw init template needs a very basic MEMORY.md as well (for complete templates - see "Summarizing 5 and 6" section below) [task457]
 
-4. change default entrypoint for python-based agents to main.py (not run.py)
+4. change default entrypoint for python-based agents to main.py (not run.py) [task456]
 
-5. by default, kinnoo init should create a "complete" template with tools/, prompts/, evals/, tests/, data/ folders and a .gitignore.
+5. by default, kinnoo init should create a "complete" template with tools/, prompts/, evals/, tests/, data/ folders and a .gitignore. [task457]
 
-6. add a --minimal flag that creates only a minimal agent template (kinnoo.yaml, README.md, entrypoint, requirements file)
+6. add a --minimal flag that creates only a minimal agent template (kinnoo.yaml, README.md, entrypoint, requirements file) [task457]
 
 Summarizing 5 and 6, we should have:
  - for python-based agent templates (--minimal option): kinnoo.yaml, README.md, requirements.txt, main.py (entrypoint)
@@ -54,12 +54,12 @@ Summarizing 5 and 6, we should have:
  - for openclaw agent templates (--minimal option): kinnoo.yaml, AGENTS.md, IDENTITY.md, SOUL.md, USER.md, README.md
  - for openclaw agent templates (default complete option): everything in minimal PLUS: .gitignore, BOOTSTRAP.md, HEARTBEAT.md, MEMORY.md, skills/, memory/ folders.
 
-7. README.md should (1) correctly specify the entrypoint file to edit for agent run logic, (2) explain that kinnoo.yaml holds the agent manifest, (3) IF a complete agent template is created, explain very briefly (simple two column format) best practices for WHAT kinds of files should go in each folder (tools/, prompts/, evals/, tests/, data/), (4) at the bottom of the README.md file, add a little footer:
+7. README.md should (1) correctly specify the entrypoint file to edit for agent run logic, (2) explain that kinnoo.yaml holds the agent manifest, (3) IF a complete agent template is created, explain very briefly (simple two column format) best practices for WHAT kinds of files should go in each folder (tools/, prompts/, evals/, tests/, data/), (4) at the bottom of the README.md file, add a little footer: [task458]
 
 ---
 🍊 *This agent was scaffolded with Kinnoo CLI vX.Y.Z using Schema <kinnoo.yaml version number>.*
 
-8. .gitignore should look like this for python-based agents:
+8. .gitignore should look like this for python-based agents: [task459]
 
 # --- Kinnoo & Agent Ops ---
 .kinnoo/             # Local PID files and CLI state
@@ -85,7 +85,7 @@ dist/
 build/
 *.egg-info/
 
-9. .gitignore should look like this for javascript-based agents:
+9. .gitignore should look like this for javascript-based agents: [task459]
 
 # --- Kinnoo & Agent Ops ---
 .kinnoo/
@@ -107,7 +107,7 @@ dist/
 out/
 .cache/
 
-10. .gitignore should look like this for typescript-based agents:
+10. .gitignore should look like this for typescript-based agents: [task459]
 
 # --- Kinnoo & Agent Ops ---
 .kinnoo/
@@ -135,7 +135,7 @@ coverage/
 .env.local
 .env.development.local
 
-11. .gitignore should look like this for openclaw agents:
+11. .gitignore should look like this for openclaw agents: [task459]
 
 --- OpenClaw Core Privacy ---
 memory/              # 🛡️ CRITICAL: Ignores all daily YYYY-MM-DD.md logs
@@ -155,43 +155,43 @@ credentials.json
 
 
 ```kinnoo pack```
-1. kinnoo pack by default should ignore the data/ folder.
-2. kinnoo pack should have an option "--include" and "--exclude" that can be flexibly used to include or exclude specific files and folders - e.g., "--include data" can be used to include data.
-3. ```kinnoo pack --preflight``` should show WHAT files will be packed and the (estimated) file size of the pack and the destination of the archive, but not actually pack.
-4. Pack always writes the checksum sidecar after archive creation (pack_command.py:831) and install verifies the archive against the sidecar before extraction (install_command.py:1421 and install_command.py:1443) BUT in strict mode, missing sidecar is an install error today: install_command.py:1456
-5. In the kinnoo pack help usage, the --public flag description should add (without the --public flag, default is private)
-6. In the kinnoo pack help usage, the --bump flag description should be: "Increment manifest version before packaging. --bump without a version specified will bump the patch version by default.
-7. Implement this functionality: "--bump without a version specified will bump the patch version by default"
-8. Since --sign requires --signing-key anyway, I would suggest to remove the --signing-key option and just have the SIGNING_KEY as the argument to --sign. So it would be ```kinnoo pack --sign SIGNING_KEY <my-agent-dir>``` and the help description should say: 
+1. kinnoo pack by default should ignore the data/ folder. [task460]
+2. kinnoo pack should have an option "--include" and "--exclude" that can be flexibly used to include or exclude specific files and folders - e.g., "--include data" can be used to include data. [task460]
+3. ```kinnoo pack --preflight``` should show WHAT files will be packed and the (estimated) file size of the pack and the destination of the archive, but not actually pack. [task461]
+4. Pack always writes the checksum sidecar after archive creation (pack_command.py:831) and install verifies the archive against the sidecar before extraction (install_command.py:1421 and install_command.py:1443) BUT in strict mode, missing sidecar is an install error today: install_command.py:1456 [observation — current behavior noted]
+5. In the kinnoo pack help usage, the --public flag description should add (without the --public flag, default is private) [task462]
+6. In the kinnoo pack help usage, the --bump flag description should be: "Increment manifest version before packaging. --bump without a version specified will bump the patch version by default. [task462]
+7. Implement this functionality: "--bump without a version specified will bump the patch version by default" [task462]
+8. Since --sign requires --signing-key anyway, I would suggest to remove the --signing-key option and just have the SIGNING_KEY as the argument to --sign. So it would be ```kinnoo pack --sign SIGNING_KEY <my-agent-dir>``` and the help description should say: [task463] 
 ```
 Sign packaged archive and emit detached signature artifacts. 
 SIGNING_KEY is the path to a Ed25519 private key PEM (new key can be created with 'kinnoo keygen')
 ```
-9. Add a --json flag that returns pack results as a JSON instead of reporting progress and results to stdout. JSON should have key:value pairs for the agent directory, public or private, archive creation file path, checksum sidecar file path, archive size, and agent version, as well as any error codes and messages if the pack errored out.
+9. Add a --json flag that returns pack results as a JSON instead of reporting progress and results to stdout. JSON should have key:value pairs for the agent directory, public or private, archive creation file path, checksum sidecar file path, archive size, and agent version, as well as any error codes and messages if the pack errored out. [task464]
 
 ```kinnoo publish```
-1. publish should only allow --local OR --remote, but not both.
+1. publish should only allow --local OR --remote, but not both. [task465]
 
-2. help usage option should read [--local | --remote] to reflect that only one can be chosen and --local and --remote descriptions should be clear.
+2. help usage option should read [--local | --remote] to reflect that only one can be chosen and --local and --remote descriptions should be clear. [task465]
 
-3. publish should keep all versions but should show the latest version in the My Agents table or as a table returned with an agent Search. AND to see all versions in the Registry UI, there should be a third tab "Agent Versions" in the modal that appears when a user clicks on an agent name (the other two tabs are "Registry Manifest" and "Agent Manifest"). The "Agent Versions" should show a list of all of the versions along with other relevant info (at this point, not sure what info should be shown other than maybe date uploaded?).
+3. publish should keep all versions but should show the latest version in the My Agents table or as a table returned with an agent Search. AND to see all versions in the Registry UI, there should be a third tab "Agent Versions" in the modal that appears when a user clicks on an agent name (the other two tabs are "Registry Manifest" and "Agent Manifest"). The "Agent Versions" should show a list of all of the versions along with other relevant info (at this point, not sure what info should be shown other than maybe date uploaded?). [task466]
 
-4. Add a --json flag that returns publish results as a JSON instead of reporting progress and results to stdout. JSON should have key:value pairs for the published agent name, published agent version, published registry (remote or local), source archive file path, and remote publish result (accepted or rejected), and any error codes and messages if the publish errored.
+4. Add a --json flag that returns publish results as a JSON instead of reporting progress and results to stdout. JSON should have key:value pairs for the published agent name, published agent version, published registry (remote or local), source archive file path, and remote publish result (accepted or rejected), and any error codes and messages if the publish errored. [task467]
 
 ```kinnoo install```
-1. some of the options and the help menu are deprecated in relation to Openclaw install. With the release of Openclaw 2026.3.28, kinnoo supports Openclaw packing, publishing, installing and running of Openclaw AGENTS, not Openclaw skills themselves - since Openclaw as of at least 2026.3.28 now has the concept of an agent, with the agent files by default saved in ~/.openclaw/workspace-<agent-name>.
-2. specifically, these options I think are deprecated, so remove these as options from kinnoo install
+1. some of the options and the help menu are deprecated in relation to Openclaw install. With the release of Openclaw 2026.3.28, kinnoo supports Openclaw packing, publishing, installing and running of Openclaw AGENTS, not Openclaw skills themselves - since Openclaw as of at least 2026.3.28 now has the concept of an agent, with the agent files by default saved in ~/.openclaw/workspace-<agent-name>. [task468]
+2. specifically, these options I think are deprecated, so remove these as options from kinnoo install [task468]
   - [--state-overwrite]
   - [--allow-vulnerable] - THIS IS PARTICULAR GOES AGAINST kinnoo's security-first approach
   - [--ignore-scripts]
   - [--openclaw-min-version OPENCLAW_MIN_VERSION]
   - [--openclaw-skill OPENCLAW_SKILL]
-3. for openclaw, make sure ```kinnoo install [openclaw-agent]``` defaults to installing the workspace to ~/.openclaw/workspace-<agent-name> BUT with ```kinnoo install [openclaw-agent] [target-dir]``` the user can specify to install the workspace in [target-dir] instead.
-4. Add a --json flag that returns publish results as a JSON instead of reporting progress and results to stdout. For now for install, the --json flag can ONLY be used if a non-interactive install (-y) is used. JSON should have key:value pairs for relevant fields and information that are displayed to stdout to the user when a user installs an archive.
+3. for openclaw, make sure ```kinnoo install [openclaw-agent]``` defaults to installing the workspace to ~/.openclaw/workspace-<agent-name> BUT with ```kinnoo install [openclaw-agent] [target-dir]``` the user can specify to install the workspace in [target-dir] instead. [task469]
+4. Add a --json flag that returns publish results as a JSON instead of reporting progress and results to stdout. For now for install, the --json flag can ONLY be used if a non-interactive install (-y) is used. JSON should have key:value pairs for relevant fields and information that are displayed to stdout to the user when a user installs an archive. [task470]
 
 
 ```kinnoo run```
-1. --json should correctly pass through the --json flag to openclaw agent. For non-openclaw agents, ```kinnoo run --json``` should output a structured JSON output that is useful for automation, logging, and downstream tools. Here are recommended key-value pairs to include:
+1. --json should correctly pass through the --json flag to openclaw agent. For non-openclaw agents, ```kinnoo run --json``` should output a structured JSON output that is useful for automation, logging, and downstream tools. Here are recommended key-value pairs to include: [task471]
 
 | Key                | Type      | Description                                                                                   |
 |--------------------|-----------|-----------------------------------------------------------------------------------------------|
@@ -212,38 +212,38 @@ SIGNING_KEY is the path to a Ed25519 private key PEM (new key can be created wit
 | `policy_enforced`  | boolean   | True if sandbox/policy enforcement was active                                                 |
 | `policy_violations`| array     | List of any policy violations detected                                                        |
 
-2. Replace --sandbox (confusing) with --enforce-policy (more clear). Sandbox suggests a true isolated sandbox environment, but this flag is really just enforcing the policies specified in kinnoo.yaml.
+2. Replace --sandbox (confusing) with --enforce-policy (more clear). Sandbox suggests a true isolated sandbox environment, but this flag is really just enforcing the policies specified in kinnoo.yaml. [task472]
 
 ```kinnoo inspect```
-1. Add a --json flag that returns inspect results as a JSON instead of stdout. JSON should have key:value pairs with keys that are named appropriately and show all of the relevant information that stdout shows. JSON should work with --full, --raw, or --update options (adding --skip-warnings should work as well).
+1. Add a --json flag that returns inspect results as a JSON instead of stdout. JSON should have key:value pairs with keys that are named appropriately and show all of the relevant information that stdout shows. JSON should work with --full, --raw, or --update options (adding --skip-warnings should work as well). [task473]
 
-2. --update currently expects 3 arguments: agent-target, OLD_KEY, NEW_VALUE. This is a bit unintuitive. Change the behavior of --update to just take 2 arguments: KEY and NEW_VALUE. The --update KEY NEW_VALUE option can come before or after [target], so both ```kinnoo inspect --update runtime.language javascript test-agent-phase13-ts``` and ```kinnoo inspect test-agent-phase13-ts --update runtime.language javascript ``` should work.
+2. --update currently expects 3 arguments: agent-target, OLD_KEY, NEW_VALUE. This is a bit unintuitive. Change the behavior of --update to just take 2 arguments: KEY and NEW_VALUE. The --update KEY NEW_VALUE option can come before or after [target], so both ```kinnoo inspect --update runtime.language javascript test-agent-phase13-ts``` and ```kinnoo inspect test-agent-phase13-ts --update runtime.language javascript ``` should work. [task474]
 
-3. --update should also warn before actually changing metadata in kinnoo.yaml, and require user to prompt "y" UNLESS --skip-warnings is also present. So if the old value is node.js, for example, ```kinnoo inspect --update runtime.language javascript test-agent-phase13-ts test-agent-phase13-ts``` should show a warning prompt: ```Changing runtime.language from node.js to javascript. Proceed? (y/N):``` with N (no) as default, again unless --skip-warnings is also added.
+3. --update should also warn before actually changing metadata in kinnoo.yaml, and require user to prompt "y" UNLESS --skip-warnings is also present. So if the old value is node.js, for example, ```kinnoo inspect --update runtime.language javascript test-agent-phase13-ts test-agent-phase13-ts``` should show a warning prompt: ```Changing runtime.language from node.js to javascript. Proceed? (y/N):``` with N (no) as default, again unless --skip-warnings is also added. [task475]
 
 ```kinnoo sync```
-Let's comment out this command in the CLI code for now. Make an [agent] comment in the code stating that sync will be implemented later. DO NOT DELETE THE CODE - just comment it out
+Let's comment out this command in the CLI code for now. Make an [agent] comment in the code stating that sync will be implemented later. DO NOT DELETE THE CODE - just comment it out [task476]
 
 ```kinnoo stop```
-Let's comment out this command in the CLI code for now. Make an [agent] comment in the code stating that stop will be implemented later. DO NOT DELETE THE CODE - just comment it out
+Let's comment out this command in the CLI code for now. Make an [agent] comment in the code stating that stop will be implemented later. DO NOT DELETE THE CODE - just comment it out [task476]
 
 ```kinnoo attach```
-Let's comment out this command in the CLI code for now. Make an [agent] comment in the code stating that attach will be implemented later. DO NOT DELETE THE CODE - just comment it out
+Let's comment out this command in the CLI code for now. Make an [agent] comment in the code stating that attach will be implemented later. DO NOT DELETE THE CODE - just comment it out [task476]
 
 ```kinnoo logs```
-Let's comment out this command in the CLI code for now. Make an [agent] comment in the code stating that logs will be implemented later. DO NOT DELETE THE CODE - just comment it out
+Let's comment out this command in the CLI code for now. Make an [agent] comment in the code stating that logs will be implemented later. DO NOT DELETE THE CODE - just comment it out [task476]
 
-In the main help menu (kinnoo --help), completely remove the "daemon agents:" section for now by commenting this section out in the code. DO NOT DELETE THE CODE - just comment it out and make an [agent] comment in the code stating that this section will be implemented later.
+In the main help menu (kinnoo --help), completely remove the "daemon agents:" section for now by commenting this section out in the code. DO NOT DELETE THE CODE - just comment it out and make an [agent] comment in the code stating that this section will be implemented later. [task476]
 
 ```kinnoo search```
-1. Remove --openclaw-skills as an option. We are not supporting openclaw skills individually anymore.
-2. Refactor --json option to be a general option for outputting search results as JSON rather than line-by-line stdout.
+1. Remove --openclaw-skills as an option. We are not supporting openclaw skills individually anymore. [task477]
+2. Refactor --json option to be a general option for outputting search results as JSON rather than line-by-line stdout. [task477]
 
 ```kinnoo list```
-1. Add a JSON option that outputs list results as JSON rather than line-by-line stdout.
+1. Add a JSON option that outputs list results as JSON rather than line-by-line stdout. [task478]
 
 Registry UI
-1. In the My Agents table of agents (and also the agents table shown when Search returns agents), I want to show an additional column "Security" to the right of "Version" column, that holds icons that give security / verifiable information.
+1. In the My Agents table of agents (and also the agents table shown when Search returns agents), I want to show an additional column "Security" to the right of "Version" column, that holds icons that give security / verifiable information. [task479]
 
 I would like the following icons:
 ✅ (green check): latest agent version is signed, AND the signature has been verified. The signature is verified automatically by the first end-user that installs the agent. When the first end-user of an agent version runs ```kinnoo install``` with --strict mode, kinnoo should send back a request to the server indicating that this agent has been verified. Note that a green check replaces the pen (no need for both).
@@ -251,21 +251,21 @@ I would like the following icons:
 🧩 (puzzle piece): latest agent version per-file integrity / hash has been verified.
 ❌ (red x): agent either has an INVALID signature OR did NOT pass archive integrity / hash check OR did NOT pass per-file integrity / hash check. Clicking on the agent name and navigating to the "Security" tab in the modal should give details on what failed (and what passed) - see more on this in point 3 below.
 
-2. Related to this, I would like to run these checks server-side after ANY kinnoo publish of an agent to the remote registry, with these checks then updating that agent's "Security" column with the appropriate icons. Note that these checks should be run server-side in an isolated (containerized) environment. Implement this as three tasks - one task for creating, running and testing the script for doing these checks; one task for updating the "Security" column for that agent in the registry with the appropriate icons as well as writing a short pass/fail report somewhere that can be accessed by the Security tab in the agent modal; and one task for doing and testing all of this within a containerized environment server-side (so the server-side needs to run a quick Lambda function to do this).
+2. Related to this, I would like to run these checks server-side after ANY kinnoo publish of an agent to the remote registry, with these checks then updating that agent's "Security" column with the appropriate icons. Note that these checks should be run server-side in an isolated (containerized) environment. Implement this as three tasks - one task for creating, running and testing the script for doing these checks; one task for updating the "Security" column for that agent in the registry with the appropriate icons as well as writing a short pass/fail report somewhere that can be accessed by the Security tab in the agent modal; and one task for doing and testing all of this within a containerized environment server-side (so the server-side needs to run a quick Lambda function to do this). [task480, task481, task482]
 
-3. Clicking on an agent name should show a new tab "Security" in the modal, which should give details on the server-side check runs - what checks were run, which ones passed and which ones failed. Not TOO many details - just one-line per check with a [PASS] or [FAIL] indicated.
+3. Clicking on an agent name should show a new tab "Security" in the modal, which should give details on the server-side check runs - what checks were run, which ones passed and which ones failed. Not TOO many details - just one-line per check with a [PASS] or [FAIL] indicated. [task483]
 
 ```kinnoo fetch```
-Add a new fetch command that fetches a specified agent archive and downloads it to the user's local archive and does necessary archive signing verification (if --strict mode is ON) and archive integrity verification but DOES NOT unpack the archive.
+Add a new fetch command that fetches a specified agent archive and downloads it to the user's local archive and does necessary archive signing verification (if --strict mode is ON) and archive integrity verification but DOES NOT unpack the archive. [task484]
 
-Use cases: Enables offline inspection, manual review, or deferred installation. Useful for CI, auditing, or mirroring agents.
+Use cases: Enables offline inspection, manual review, or deferred installation. Useful for CI, auditing, or mirroring agents. [task484]
 
 ```kinnoo uninstall```
-Add a new uninstall command that uninstalls (deletes) an agent off of the local machine and/or the associated local agent archive. I am thinking the following primary commands, but as an expert with CLI and AI agent development, feel free to push back, give feedback and suggest additions and improvement - whatever would make this command easy-to-use but also robust and comprehensive.
+Add a new uninstall command that uninstalls (deletes) an agent off of the local machine and/or the associated local agent archive. I am thinking the following primary commands, but as an expert with CLI and AI agent development, feel free to push back, give feedback and suggest additions and improvement - whatever would make this command easy-to-use but also robust and comprehensive. [task485]
 
-1. ```kinnoo uninstall [agent_dir]``` will delete the specified agent directory AND remove the associated local archive file(s), if they exist, for ALL versions of that agent.
-2. ```kinnoo uninstall [agent_dir==version]``` will delete the specified agent directory AND remove ONLY the associated local archive file for that version. 'latest' can be specified as the version, and will only delete the latest version archive.
-3. ```kinnoo uninstall [agent_archive.kno==version]``` will delete ONLY the specific version of the local archive file for that agent. 'latest' can be specified, and will then delete the latest version archive. With this, the version MUST be specified.
+1. ```kinnoo uninstall [agent_dir]``` will delete the specified agent directory AND remove the associated local archive file(s), if they exist, for ALL versions of that agent. [task485]
+2. ```kinnoo uninstall [agent_dir==version]``` will delete the specified agent directory AND remove ONLY the associated local archive file for that version. 'latest' can be specified as the version, and will only delete the latest version archive. [task485]
+3. ```kinnoo uninstall [agent_archive.kno==version]``` will delete ONLY the specific version of the local archive file for that agent. 'latest' can be specified, and will then delete the latest version archive. With this, the version MUST be specified. [task485]
 
 
 # -------------------------------------
