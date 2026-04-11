@@ -1,5 +1,5 @@
 # -----------------------
-# UAT
+# UAT - Part 1
 # -----------------------
 
 ```kinnoo --help``` changes:
@@ -235,6 +235,13 @@ Let's comment out this command in the CLI code for now. Make an [agent] comment 
 
 In the main help menu (kinnoo --help), completely remove the "daemon agents:" section for now by commenting this section out in the code. DO NOT DELETE THE CODE - just comment it out and make an [agent] comment in the code stating that this section will be implemented later.
 
+```kinnoo search```
+1. Remove --openclaw-skills as an option. We are not supporting openclaw skills individually anymore.
+2. Refactor --json option to be a general option for outputting search results as JSON rather than line-by-line stdout.
+
+```kinnoo list```
+1. Add a JSON option that outputs list results as JSON rather than line-by-line stdout.
+
 Registry UI
 1. In the My Agents table of agents (and also the agents table shown when Search returns agents), I want to show an additional column "Security" to the right of "Version" column, that holds icons that give security / verifiable information.
 
@@ -247,6 +254,19 @@ I would like the following icons:
 2. Related to this, I would like to run these checks server-side after ANY kinnoo publish of an agent to the remote registry, with these checks then updating that agent's "Security" column with the appropriate icons. Note that these checks should be run server-side in an isolated (containerized) environment. Implement this as three tasks - one task for creating, running and testing the script for doing these checks; one task for updating the "Security" column for that agent in the registry with the appropriate icons as well as writing a short pass/fail report somewhere that can be accessed by the Security tab in the agent modal; and one task for doing and testing all of this within a containerized environment server-side (so the server-side needs to run a quick Lambda function to do this).
 
 3. Clicking on an agent name should show a new tab "Security" in the modal, which should give details on the server-side check runs - what checks were run, which ones passed and which ones failed. Not TOO many details - just one-line per check with a [PASS] or [FAIL] indicated.
+
+```kinnoo fetch```
+Add a new fetch command that fetches a specified agent archive and downloads it to the user's local archive and does necessary archive signing verification (if --strict mode is ON) and archive integrity verification but DOES NOT unpack the archive.
+
+Use cases: Enables offline inspection, manual review, or deferred installation. Useful for CI, auditing, or mirroring agents.
+
+```kinnoo uninstall```
+Add a new uninstall command that uninstalls (deletes) an agent off of the local machine and/or the associated local agent archive. I am thinking the following primary commands, but as an expert with CLI and AI agent development, feel free to push back, give feedback and suggest additions and improvement - whatever would make this command easy-to-use but also robust and comprehensive.
+
+1. ```kinnoo uninstall [agent_dir]``` will delete the specified agent directory AND remove the associated local archive file(s), if they exist, for ALL versions of that agent.
+2. ```kinnoo uninstall [agent_dir==version]``` will delete the specified agent directory AND remove ONLY the associated local archive file for that version. 'latest' can be specified as the version, and will only delete the latest version archive.
+3. ```kinnoo uninstall [agent_archive.kno==version]``` will delete ONLY the specific version of the local archive file for that agent. 'latest' can be specified, and will then delete the latest version archive. With this, the version MUST be specified.
+
 
 # -------------------------------------
 # SAT: SWE agent to run

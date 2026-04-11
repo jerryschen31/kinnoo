@@ -119,8 +119,8 @@ def _format_top_level_help_text() -> str:
         f"    {registry_set}\n"
         f"        {publish_cmd}             Publish latest archived agent artifact to the registry\n"
         f"        {install_cmd}             Install a kinnoo agent from archive (.kno) or registry\n"
-        f"        {list_cmd}                List agents from local archive (default) or remote registry\n"
-        f"        {search_cmd}              Search agents from local archive (default) or remote registry\n"
+        f"        {list_cmd}                List agents from remote registry (default if configured) or local archive\n"
+        f"        {search_cmd}              Search agents from remote registry (default if configured) or local archive\n"
         f"        {sync_cmd}                Sync source metadata into local registry mirror\n"
         f"        {login_cmd}               Authenticate to a registry and persist auth state locally\n"
         f"        {logout_cmd}              Clear persisted registry auth state\n\n"
@@ -683,27 +683,27 @@ def main():
     # Add 'list' subcommand
     list_parser = subparsers.add_parser(
         "list",
-        help="List agents from local archive (default) or remote registry",
-        description="List agents from local archive (default) or remote registry",
+        help="List agents from remote registry (default if configured) or local archive",
+        description="List agents from remote registry (default if configured) or local archive",
     )
     list_source_group = list_parser.add_mutually_exclusive_group()
     list_source_group.add_argument(
         "--local",
         action="store_true",
-        help="List agents from local archive source (default)",
+        help="List agents from local archive",
     )
     list_source_group.add_argument(
         "--remote",
         action="store_true",
-        help="List agents from remote mock registry source",
+        help="List agents from user remote registry (default)",
     )
 
     # Add 'search' subcommand
     search_parser = subparsers.add_parser(
         "search",
-        help="Search agents from local archive (default) or remote registry",
+        help="Search agents from remote registry (default if configured) or local archive",
         formatter_class=argparse.RawTextHelpFormatter,
-        description="Search agents from local archive (default) or remote registry",
+        description="Search agents from remote registry (default if configured) or local archive",
         epilog=(
             "Examples:\n"
             "  kinnoo search writer\n"
@@ -715,12 +715,12 @@ def main():
     search_source_group.add_argument(
         "--local",
         action="store_true",
-        help="Search agents from local archive source (default)",
+        help="Search agents from local archive",
     )
     search_source_group.add_argument(
         "--remote",
         action="store_true",
-        help="Search agents from remote mock registry source",
+        help="Search agents from global remote registry (default)",
     )
     search_parser.add_argument(
         "query",
