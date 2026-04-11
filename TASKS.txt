@@ -9427,7 +9427,7 @@ tasks:
       - 'step4: Add tests for --json output structure for non-openclaw agents.'
     dependencies: []
     tests: [test654]
-    status: not-started
+    status: needs-review
 
   - id: task472
     title: "run - replace --sandbox with --enforce-policy"

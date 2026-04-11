@@ -40,6 +40,80 @@ def test_help_shows_version_hash_icon():
     assert re.match(r"^🍊 Kinnoo CLI v\d+\.\d+\.\d+ \(([a-f0-9]+|unknown)\)$", first_line), first_line
 
 
+def test_run_json_structured_output(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "task471-json-agent"
+    agent_dir.mkdir(parents=True, exist_ok=True)
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    (agent_dir / "run.py").write_text(
+        "import sys\n"
+        "print(f'agent-json-output:{sys.argv[1] if len(sys.argv) > 1 else \"\"}')\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "kinnoo.yaml").write_text(
+        """
+name: task471-json-agent
+version: 1.0.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+""",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(agent_dir),
+            "hello-json",
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
+    payload = json.loads(result.stdout.strip())
+    assert payload["success"] is True
+    assert payload["exit_code"] == 0
+    assert payload["error"] is None
+    assert payload["input"] == "hello-json"
+    assert payload["runtime_type"] == "one-shot"
+    assert payload["runtime_language"] == "python"
+    assert payload["entrypoint"] == "run.py"
+    assert payload["policy_enforced"] is False
+    assert payload["policy_violations"] == []
+    assert "agent-json-output:hello-json" in payload["output"]
+
+    required_keys = {
+        "output",
+        "exit_code",
+        "success",
+        "start_time",
+        "end_time",
+        "duration_seconds",
+        "agent_dir",
+        "entrypoint",
+        "runtime_language",
+        "runtime_type",
+        "input",
+        "error",
+        "warnings",
+        "resource_usage",
+        "policy_enforced",
+        "policy_violations",
+    }
+    assert required_keys.issubset(payload.keys())
+
+
 def test_cli_direct_script_execution_prefers_local_src_over_pythonpath(tmp_path: Path) -> None:
     cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
     fake_site_root = tmp_path / "fake-site"
