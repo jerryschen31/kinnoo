@@ -23,6 +23,11 @@ output "ecr_repository_url" {
   value       = module.ecr.repository_url
 }
 
+output "lambda_security_check_ecr_repository_url" {
+  description = "ECR repository URL for security-check Lambda image"
+  value       = module.ecr.lambda_security_check_repository_url
+}
+
 output "alb_dns_name" {
   description = "ALB DNS name"
   value       = module.alb.alb_dns_name

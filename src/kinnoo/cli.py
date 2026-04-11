@@ -37,7 +37,6 @@ except ImportError:
 RUN_USAGE_TEXT = (
     "Usage: kinnoo run <agent-dir> '<input>'\n"
     "       kinnoo run <agent-dir>\n"
-    "       kinnoo run <agent-dir> '<input>' --thinking <low|medium|high>\n"
     "       kinnoo run <agent-dir> '<input>' --json\n"
     "       kinnoo run <agent-dir> --json-input '<json>'\n"
     "       kinnoo run <agent-dir> --json-file <json-file>\n"
@@ -188,6 +187,10 @@ def _print_top_level_help() -> None:
     print(_format_top_level_help_text())
 
 
+def _orange_description(text: str) -> str:
+    return text if text.startswith("🍊 ") else f"🍊 {text}"
+
+
 class KinnooArgumentParser(argparse.ArgumentParser):
     """ArgumentParser variant that prints description before usage in help output."""
 
@@ -246,19 +249,8 @@ def main():
         "framework",
         nargs="?",
         help=(
-            "Framework template (recommended positional arg): "
-            "gemini, chatgpt, claude-chat, pydantic-ai, langgraph, openai-agents, "
-            "mcp-client, mcp-server, openclaw, no-framework"
-        ),
-    )
-    init_parser.add_argument("agent_name", nargs="?", help="Name of the agent to create")
-    init_parser.add_argument(
-        "--framework",
-        dest="framework_opt",
-        choices=["gemini", "chatgpt", "claude-chat", "pydantic-ai", "langgraph", "openai-agents", "mcp-client", "mcp-server", "openclaw", "no-framework"],
-        help=(
-            "[deprecated] Framework template (prefer positional argument):\n"
-            "  gemini         - Google Gemini API agent\n"
+            "Framework template. Currently supported:\n"
+            "   gemini         - Google Gemini API agent\n"
             "  chatgpt        - OpenAI ChatGPT API agent\n"
             "  claude-chat    - Anthropic Claude API agent\n"
             "  pydantic-ai    - PydanticAI structured agent with tools\n"
@@ -270,9 +262,10 @@ def main():
             "  no-framework   - Barebones agent template - language should be specified (default: python)"
         ),
     )
+    init_parser.add_argument("agent_name", nargs="?", help="Name of the agent to create")
     init_parser.add_argument(
         "--language",
-        choices=["python", "javascript", "typescript"],
+        metavar="LANGUAGE",
         help="(Optional) Scaffold language (if supported for the specified framework): python, javascript, typescript",
     )
     init_parser.add_argument(
@@ -286,7 +279,7 @@ def main():
         "run",
         help="Run a kinnoo agent",
         formatter_class=argparse.RawTextHelpFormatter,
-        description="Run a kinnoo agent",
+        description=_orange_description("Run a kinnoo agent"),
         epilog=(
             "Examples:\n"
             "  kinnoo run <agent-dir> '<input>'\n"
@@ -342,11 +335,6 @@ def main():
         help=argparse.SUPPRESS,
     )
     run_parser.add_argument(
-        "--thinking",
-        choices=["low", "medium", "high"],
-        help="(OpenClaw run) Optional thinking level passthrough",
-    )
-    run_parser.add_argument(
         "--json",
         action="store_true",
         help="Emit machine-readable JSON output (OpenClaw passthrough; non-OpenClaw structured envelope)",
@@ -380,7 +368,7 @@ def main():
         "test",
         help="Execute standardized declarative tests for an agent",
         formatter_class=argparse.RawTextHelpFormatter,
-        description="Execute standardized declarative tests for an agent",
+        description=_orange_description("Execute standardized declarative tests for an agent"),
         epilog=(
             "Examples:\n"
             "  kinnoo test ./my-agent\n"
@@ -475,7 +463,7 @@ def main():
         "install",
         help="Install a kinnoo agent from archive (.kno) or registry",
         formatter_class=argparse.RawTextHelpFormatter,
-        description="Install a kinnoo agent from archive (.kno) or registry",
+        description=_orange_description("Install a kinnoo agent from archive (.kno) or registry"),
         epilog=(
             "Examples:\n"
             "  kinnoo install ./dist/my-agent-0.1.0.kno\n"
@@ -545,7 +533,7 @@ def main():
 
     # Add 'pack' subcommand
     pack_parser = subparsers.add_parser("pack", help="Package an agent directory into a .kno archive")
-    pack_parser.description = "Package an agent directory into a .kno archive"
+    pack_parser.description = _orange_description("Package an agent directory into a .kno archive")
     pack_parser.formatter_class = argparse.RawTextHelpFormatter
     pack_parser.epilog = (
         "Examples:\n"
@@ -604,7 +592,7 @@ def main():
         "diff",
         help="Compare two .kno archives and report manifest/file changes",
         formatter_class=argparse.RawTextHelpFormatter,
-        description="Compare two .kno archives and report manifest/file changes",
+        description=_orange_description("Compare two .kno archives and report manifest/file changes"),
         epilog=(
             "Examples:\n"
             "  kinnoo diff ./dist/agent-1.0.0.kno ./dist/agent-1.1.0.kno"
@@ -622,7 +610,7 @@ def main():
         "fetch",
         help="Download an agent archive from registry into local archive storage",
         formatter_class=argparse.RawTextHelpFormatter,
-        description="Download an agent archive from registry into local archive storage",
+        description=_orange_description("Download an agent archive from registry into local archive storage"),
         epilog=(
             "Examples:\n"
             "  kinnoo fetch my-agent\n"
@@ -649,7 +637,7 @@ def main():
         "uninstall",
         help="Remove installed agent and/or archived versions",
         formatter_class=argparse.RawTextHelpFormatter,
-        description="Remove installed agent and/or archived versions",
+        description=_orange_description("Remove installed agent and/or archived versions"),
         epilog=(
             "Examples:\n"
             "  kinnoo uninstall my-agent -y\n"
@@ -664,7 +652,7 @@ def main():
     keygen_parser = subparsers.add_parser(
         "keygen",
         help="Generate an Ed25519 keypair for archive signing",
-        description="Generate an Ed25519 keypair for archive signing",
+        description=_orange_description("Generate an Ed25519 keypair for archive signing"),
     )
     keygen_parser.add_argument(
         "--private-key",
@@ -682,7 +670,7 @@ def main():
         "inspect",
         help="Inspect metadata from an agent directory or .kno archive",
         formatter_class=argparse.RawTextHelpFormatter,
-        description="Inspect metadata from an agent directory or .kno archive",
+        description=_orange_description("Inspect metadata from an agent directory or .kno archive"),
         epilog=(
             "Reference:\n"
             "  docs/kinnoo-yaml-spec.md"
@@ -725,7 +713,7 @@ def main():
         "publish",
         help="Publish latest archived agent artifact to the registry",
         formatter_class=argparse.RawTextHelpFormatter,
-        description="Publish latest archived agent artifact to the registry",
+        description=_orange_description("Publish latest archived agent artifact to the registry"),
         epilog=(
             "Examples:\n"
             "  kinnoo publish my-agent --local\n"
@@ -784,7 +772,7 @@ def main():
     list_parser = subparsers.add_parser(
         "list",
         help="List agents from remote registry (default if configured) or local archive",
-        description="List agents from remote registry (default if configured) or local archive",
+        description=_orange_description("List agents from remote registry (default if configured) or local archive"),
     )
     list_source_group = list_parser.add_mutually_exclusive_group()
     list_source_group.add_argument(
@@ -808,7 +796,7 @@ def main():
         "search",
         help="Search agents from remote registry (default if configured) or local archive",
         formatter_class=argparse.RawTextHelpFormatter,
-        description="Search agents from remote registry (default if configured) or local archive",
+        description=_orange_description("Search agents from remote registry (default if configured) or local archive"),
         epilog=(
             "Examples:\n"
             "  kinnoo search writer\n"
@@ -881,7 +869,7 @@ def main():
         "login",
         help="Authenticate to a registry and persist auth state locally",
         formatter_class=argparse.RawTextHelpFormatter,
-        description="Authenticate to a registry and persist auth state locally",
+        description=_orange_description("Authenticate to a registry and persist auth state locally"),
     )
     login_parser.add_argument("--email", help="Registry account email/username")
     login_parser.add_argument("--password", help="Registry account password")
@@ -889,7 +877,7 @@ def main():
     logout_parser = subparsers.add_parser(
         "logout",
         help="Clear persisted registry auth state",
-        description="Clear persisted registry auth state",
+        description=_orange_description("Clear persisted registry auth state"),
     )
     del logout_parser
 
@@ -898,7 +886,7 @@ def main():
         "import",
         help="Import an existing project in-place and prepare kinnoo metadata",
         formatter_class=argparse.RawTextHelpFormatter,
-        description="Import an existing project in-place and prepare kinnoo metadata",
+        description=_orange_description("Import an existing project in-place and prepare kinnoo metadata"),
         epilog=(
             "Examples:\n"
             "  kinnoo import\n"
@@ -947,7 +935,7 @@ def main():
         "check",
         help="Run import/inspect/preflight compatibility checks",
         formatter_class=argparse.RawTextHelpFormatter,
-        description="Run import + inspect + preflight checks for a local project or GitHub URL",
+        description=_orange_description("Run import + inspect + preflight checks for a local project or GitHub URL"),
         epilog=(
             "Examples:\n"
             "  kinnoo check ./my-agent\n"
@@ -995,7 +983,6 @@ def main():
         }
 
         positional_token = getattr(args, "framework", None)
-        legacy_framework = getattr(args, "framework_opt", None)
         agent_name = getattr(args, "agent_name", None)
         resolved_framework = None
         resolved_language = getattr(args, "language", None)
@@ -1014,8 +1001,12 @@ def main():
             )
             sys.exit(1)
 
-        if resolved_framework is None and legacy_framework is not None:
-            resolved_framework = legacy_framework
+        if resolved_language is not None and resolved_language not in {"python", "javascript", "typescript"}:
+            print(
+                "Error: --language must be one of: python, javascript, typescript.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
         if agent_name is None and resolved_framework is None:
             if sys.stdin.isatty():
@@ -1058,7 +1049,7 @@ def main():
         if bool(getattr(args, "experimental_openclaw_adapter", False)):
             _emit_bridge_path_deprecation_warning(
                 path="run_experimental_openclaw_adapter",
-                replacement="kinnoo run <agent-dir> '<prompt>' [--thinking <level>] [--json]",
+                replacement="kinnoo run <agent-dir> '<prompt>' [--json]",
             )
         if not hasattr(args, "agent_dir") or args.agent_dir is None:
             if preflight_mode:
@@ -1083,7 +1074,7 @@ def main():
             sandbox=bool(getattr(args, "enforce_policy", False)),
             dry_run=bool(getattr(args, "dry_run", False)),
             experimental_openclaw_adapter=bool(getattr(args, "experimental_openclaw_adapter", False)),
-            openclaw_thinking=getattr(args, "thinking", None),
+            openclaw_thinking=None,
             openclaw_json_output=bool(getattr(args, "json", False)),
             max_seconds=getattr(args, "max_seconds", None),
             max_cpu_seconds=getattr(args, "max_cpu_seconds", None),

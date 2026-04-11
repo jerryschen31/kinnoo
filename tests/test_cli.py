@@ -40,6 +40,63 @@ def test_help_shows_version_hash_icon():
     assert re.match(r"^🍊 Kinnoo CLI v\d+\.\d+\.\d+ \(([a-f0-9]+|unknown)\)$", first_line), first_line
 
 
+def test_init_help_deprecates_framework_flag_and_uses_language_metavar() -> None:
+    result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "init", "-h"],
+        capture_output=True,
+        text=True,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, output
+    assert "--framework" not in output
+    assert "--language LANGUAGE" in output
+    assert "Framework template. Currently supported:" in output
+
+
+def test_run_help_removes_thinking_option_and_has_orange_title() -> None:
+    result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "run", "-h"],
+        capture_output=True,
+        text=True,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, output
+    first_line = result.stdout.splitlines()[0].strip()
+    assert first_line == "🍊 Run a kinnoo agent"
+    assert "--thinking" not in output
+
+
+@pytest.mark.parametrize(
+    "command,expected_first_line",
+    [
+        ("fetch", "🍊 Download an agent archive from registry into local archive storage"),
+        ("publish", "🍊 Publish latest archived agent artifact to the registry"),
+        ("search", "🍊 Search agents from remote registry (default if configured) or local archive"),
+    ],
+)
+def test_subcommand_help_title_is_orange_prefixed(command: str, expected_first_line: str) -> None:
+    result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", command, "-h"],
+        capture_output=True,
+        text=True,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, output
+    first_line = result.stdout.splitlines()[0].strip()
+    assert first_line == expected_first_line
+
+
+def test_framework_flag_rejected_for_init() -> None:
+    result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "init", "--framework", "gemini", "demo-agent"],
+        capture_output=True,
+        text=True,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode != 0
+    assert "unrecognized arguments: --framework" in output
+
+
 def test_run_json_structured_output(tmp_path: Path) -> None:
     agent_dir = tmp_path / "task471-json-agent"
     agent_dir.mkdir(parents=True, exist_ok=True)
@@ -4944,7 +5001,7 @@ def _make_feature81_fake_openclaw_cli(bin_dir: Path) -> None:
     openclaw_script.chmod(0o755)
 
 
-def test_feature81_run_mapping_thinking_and_exit_propagation(tmp_path):
+def test_feature81_run_mapping_and_exit_propagation(tmp_path):
     agent_dir = _create_feature81_openclaw_agent_dir(tmp_path)
     fake_bin = tmp_path / "feature81-openclaw-bin"
     _make_feature81_fake_openclaw_cli(fake_bin)
@@ -4961,8 +5018,6 @@ def test_feature81_run_mapping_thinking_and_exit_propagation(tmp_path):
             "run",
             str(agent_dir),
             "hello-openclaw",
-            "--thinking",
-            "high",
         ],
         capture_output=True,
         text=True,
@@ -4973,7 +5028,7 @@ def test_feature81_run_mapping_thinking_and_exit_propagation(tmp_path):
     assert "delegated invocation" in success_output
 
     logged_invocations = invocation_log.read_text(encoding="utf-8")
-    assert "agent --agent feature81-openclaw-agent --message hello-openclaw --thinking high" in logged_invocations
+    assert "agent --agent feature81-openclaw-agent --message hello-openclaw" in logged_invocations
 
     failing_env = dict(env)
     failing_env["KINNOO_TEST_OPENCLAW_FAIL_RUN"] = "1"

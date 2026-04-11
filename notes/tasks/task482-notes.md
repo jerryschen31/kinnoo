@@ -7,6 +7,9 @@
   - uses `InvocationType=Event` for async invoke
   - safe local fallback when lambda mode is disabled/unavailable
 - Added integration test that mocks boto3 Lambda invocation and verifies async dispatch path.
+- Added explicit retry/fallback behavior for lambda async invoke path:
+  - default retries: `KINNOO_SECURITY_CHECK_LAMBDA_RETRIES=2` (3 total attempts)
+  - on repeated failure, invocation result reports fallback marker while inline publish checks remain authoritative
 
 ## Terraform changes
 - Added new module: `iac/modules/lambda-security-check`
@@ -35,6 +38,11 @@
 
 ## Apply note
 - Terraform apply was intentionally not executed in this SWE run because it would perform real cloud changes requiring environment-specific operator authorization.
+
+## Operator diagnosis note
+- If you do not see the Lambda function in AWS console after publish, the most likely cause is that Terraform changes were only planned/validated and not applied yet.
+- Even after Terraform apply, Lambda async dispatch will not run from publish until the server ECS task is redeployed with updated environment variables and image containing task482+ code.
+- Security icons in the UI are driven by publish-time inline checks persisted in metadata; if icons are absent, verify you are hitting the updated server deployment and publishing through that deployment (not an older stack).
 
 ## Test run
 - `python3 -m pytest server/tests/test_security_check.py --testmon -k "containerized_security_check or publish_triggers_security_update or post_publish_security_checks"`

@@ -73,5 +73,13 @@ variable "manage_dev_record" {
 variable "lambda_security_check_image_uri" {
   description = "Container image URI for the security-check Lambda function"
   type        = string
-  default     = "public.ecr.aws/lambda/python:3.12"
+  nullable    = false
+
+  validation {
+    condition = (
+      length(trimspace(var.lambda_security_check_image_uri)) > 0
+      && can(regex("^[0-9]{12}\\.dkr\\.ecr\\.[a-z0-9-]+\\.amazonaws\\.com\\/.+:.+$", var.lambda_security_check_image_uri))
+    )
+    error_message = "Set lambda_security_check_image_uri to a full private ECR image URI with tag (example: 123456789012.dkr.ecr.us-west-2.amazonaws.com/kinnoo-dev-lambda-security-check:v1). Do not use a public Lambda base image URI."
+  }
 }
