@@ -20,6 +20,7 @@
               <th>Tenant</th>
               <th>Name</th>
               <th>Version</th>
+              <th>Security</th>
               <th>Author</th>
               <th>Size</th>
               <th>Description</th>
@@ -31,6 +32,7 @@
                 <td>{{ agent.tenant }}</td>
                 <td>{{ agent.name }}</td>
                 <td>{{ agent.version }}</td>
+                <td>{% if agent.security_icons %}{{ agent.security_icons }}{% endif %}</td>
                 <td>{{ agent.author }}</td>
                 <td>{{ agent.size_display }}</td>
                 <td>{{ agent.description }}</td>

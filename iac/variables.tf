@@ -51,3 +51,35 @@ variable "zone_id" {
   description = "Cloudflare zone ID for kinnoo.ai"
   type        = string
 }
+
+variable "dev_record_type" {
+  description = "DNS record type for dev.kinnoo.ai (for example CNAME for Pages, AAAA for Worker custom-domain setup)"
+  type        = string
+  default     = "CNAME"
+}
+
+variable "dev_record_content" {
+  description = "DNS record content/target for dev.kinnoo.ai"
+  type        = string
+  default     = "kinnoo.pages.dev"
+}
+
+variable "manage_dev_record" {
+  description = "Whether Terraform should manage the dev.kinnoo.ai DNS record"
+  type        = bool
+  default     = false
+}
+
+variable "lambda_security_check_image_uri" {
+  description = "Container image URI for the security-check Lambda function"
+  type        = string
+  nullable    = false
+
+  validation {
+    condition = (
+      length(trimspace(var.lambda_security_check_image_uri)) > 0
+      && can(regex("^[0-9]{12}\\.dkr\\.ecr\\.[a-z0-9-]+\\.amazonaws\\.com\\/.+:.+$", var.lambda_security_check_image_uri))
+    )
+    error_message = "Set lambda_security_check_image_uri to a full private ECR image URI with tag (example: 123456789012.dkr.ecr.us-west-2.amazonaws.com/kinnoo-dev-lambda-security-check:v1). Do not use a public Lambda base image URI."
+  }
+}

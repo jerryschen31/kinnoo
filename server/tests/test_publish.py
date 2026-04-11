@@ -143,3 +143,38 @@ def test_publish_endpoint(tmp_path):
     assert too_large_body["error"]["code"] == "bad_request"
     assert too_large_body["error"]["message"]
     assert too_large_body["error"]["request_id"]
+
+
+def test_publish_accepts_manifest_without_framework_field(tmp_path):
+    config = ServerConfig(
+        storage_backend="local",
+        local_storage_root=tmp_path / "storage",
+        s3_bucket="kinnoo-registry-dev",
+        s3_region="us-east-1",
+        s3_endpoint_url=None,
+        s3_access_key_id=None,
+        s3_secret_access_key=None,
+        presign_ttl_seconds=120,
+        max_upload_mb=1,
+    )
+
+    app = create_app(config=config)
+    client = TestClient(app)
+
+    publish_token = app.state.token_service.issue_token(
+        subject="publisher-user",
+        tenant_slug="tenant-alpha",
+        scopes=["registry:publish", "registry:read"],
+    )
+
+    archive_bytes = _make_archive_bytes(name="agent-no-framework", version="1.0.0")
+    response = client.post(
+        "/api/publish",
+        files={"file": ("agent-no-framework.kno", archive_bytes, "application/octet-stream")},
+        headers={"Authorization": f"Bearer {publish_token}"},
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["agent_slug"] == "agent-no-framework"
+    assert body["version"] == "1.0.0"

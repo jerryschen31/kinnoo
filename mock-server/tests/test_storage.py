@@ -41,6 +41,15 @@ class _FakeS3Client:
         )
 
 
+class _MissingKeyS3Client:
+    class NoSuchKey(Exception):
+        pass
+
+    def get_object(self, *, Bucket: str, Key: str):
+        del Bucket, Key
+        raise self.NoSuchKey("missing")
+
+
 def _exercise_protocol(backend, key_prefix: str) -> None:
     key = f"{key_prefix}/object.txt"
     payload = b"storage-protocol-check"
@@ -119,3 +128,18 @@ def test_storage_protocol(tmp_path, monkeypatch):
     monkeypatch.setenv("REGISTRY_STORAGE_BACKEND", "s3")
     selected_s3 = ServerConfig.from_env()
     assert selected_s3.storage_backend == "s3"
+
+
+def test_s3_get_object_missing_key_raises_file_not_found() -> None:
+    backend = S3StorageBackend(
+        bucket="kinnoo-registry-dev",
+        region="us-east-1",
+        s3_client=_MissingKeyS3Client(),
+    )
+
+    try:
+        backend.get_object(key="missing/object.txt")
+    except FileNotFoundError:
+        pass
+    else:
+        raise AssertionError("Expected FileNotFoundError for missing S3 key")

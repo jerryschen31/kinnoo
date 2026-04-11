@@ -57,6 +57,7 @@ try:
     )
     from kinnoo.integrity import verify_integrity_manifest
     from kinnoo.openclaw_preflight import run_openclaw_preflight_for_command
+    from kinnoo.runtime_language import is_nodejs_compatible_runtime
 except ImportError:
     from .checksum import (
         ChecksumParseError,
@@ -82,6 +83,7 @@ except ImportError:
     from .signing import load_ed25519_public_key_from_pem, public_key_fingerprint, verify_signature
     from .integrity import verify_integrity_manifest
     from .openclaw_preflight import run_openclaw_preflight_for_command
+    from .runtime_language import is_nodejs_compatible_runtime
 
 
 def _read_requirements(requirements_path: Path) -> list[str]:
@@ -764,6 +766,63 @@ def _install_node_dependencies(
 DEFAULT_OPENCLAW_MINIMUM_VERSION = "0.1.0"
 
 
+def _resolve_remote_latest_version(*, backend: RemoteRegistryClient, agent_name: str) -> str | None:
+    """Resolve explicit latest version from remote registry list metadata."""
+    summaries = backend.list_latest_agents()
+    for summary in summaries:
+        if isinstance(summary, dict):
+            candidate_name = summary.get("name")
+            latest_version = summary.get("latest_version")
+        else:
+            candidate_name = getattr(summary, "name", None)
+            latest_version = getattr(summary, "latest_version", None)
+
+        if candidate_name == agent_name and isinstance(latest_version, str) and latest_version.strip():
+            return latest_version.strip()
+
+    return None
+
+
+def _download_remote_archive_payload(*, backend: RemoteRegistryClient, download_url: str) -> bytes:
+    """Download archive bytes from remote resolve payload URL."""
+    parsed = urlparse(download_url)
+    backend_base = urlparse(getattr(backend, "_base_url", ""))
+
+    # Presigned URLs commonly use http/https; local test backends may emit file URLs.
+    if parsed.scheme in {"http", "https", "file"}:
+        # If URL points back to the registry host, fetch with bearer auth.
+        if (
+            parsed.scheme in {"http", "https"}
+            and backend_base.scheme in {"http", "https"}
+            and parsed.netloc == backend_base.netloc
+        ):
+            path_with_query = parsed.path + (f"?{parsed.query}" if parsed.query else "")
+            return backend.request_bytes(path=path_with_query)
+        with urllib_request.urlopen(download_url, timeout=30) as response:
+            return response.read()
+
+    # Some servers return relative API download paths instead of fully-qualified URLs.
+    if not parsed.scheme and download_url.startswith("/api/"):
+        return backend.request_bytes(path=download_url)
+
+    # Some legacy servers return root-relative paths; attempt authenticated fetch first.
+    if not parsed.scheme and download_url.startswith("/"):
+        try:
+            return backend.request_bytes(path=download_url)
+        except Exception as error:
+            raise RuntimeError(
+                "Remote registry returned a root-relative path that could not be downloaded. "
+                "Server should return a presigned http(s) URL or an /api/... download path. "
+                f"Details: {error}"
+            ) from error
+
+    if not parsed.scheme:
+        normalized_path = "/" + download_url.lstrip("/")
+        return backend.request_bytes(path=normalized_path)
+
+    raise RuntimeError(f"Unsupported remote download URL scheme '{parsed.scheme}'.")
+
+
 def _write_openclaw_install_trace(
     target_dir: Path,
     *,
@@ -1103,8 +1162,27 @@ def install_agent(
         expected_publisher_key: str | None = None
 
         if backend_label == "remote":
+            resolved_version = version
+            if resolved_version is None:
+                try:
+                    resolved_version = _resolve_remote_latest_version(
+                        backend=backend,
+                        agent_name=str(target_spec.name),
+                    )
+                except Exception as error:
+                    print(f"Error: Failed to resolve latest remote version: {error}", file=sys.stderr)
+                    return 1
+
+                if resolved_version is None:
+                    print(
+                        "Error: Failed to resolve remote latest version from registry listing. "
+                        "Try installing with an explicit version (for example: agent==1.2.3).",
+                        file=sys.stderr,
+                    )
+                    return 1
+
             try:
-                resolved_payload = backend.resolve(name=str(target_spec.name), version=version)
+                resolved_payload = backend.resolve(name=str(target_spec.name), version=resolved_version)
             except Exception as error:
                 print(f"Error: Failed to resolve remote registry target: {error}", file=sys.stderr)
                 return 1
@@ -1123,8 +1201,10 @@ def install_agent(
                 return 1
 
             try:
-                with urllib_request.urlopen(download_url, timeout=30) as response:
-                    payload = response.read()
+                payload = _download_remote_archive_payload(
+                    backend=backend,
+                    download_url=download_url,
+                )
             except Exception as error:
                 print(f"Error: Failed to download archive from remote registry: {error}", file=sys.stderr)
                 return 1
@@ -1574,10 +1654,15 @@ def _install_from_archive_path(
 
     agent_name = str(manifest_data.get("name", "unknown"))
     agent_version = str(manifest_data.get("version", "unknown"))
+    manifest_framework = ""
+    manifest_framework_value = manifest_data.get("framework")
+    if isinstance(manifest_framework_value, str) and manifest_framework_value.strip():
+        manifest_framework = manifest_framework_value.strip().lower()
     manifest_type = "agent"
     manifest_type_value = manifest_data.get("type")
     if isinstance(manifest_type_value, str) and manifest_type_value.strip():
         manifest_type = manifest_type_value.strip().lower()
+    is_openclaw_agent = manifest_framework == "openclaw" or manifest_type == "openclaw-skill"
 
     if frozen_mode:
         frozen_validation_exit_code = _enforce_frozen_install_lock(
@@ -1692,10 +1777,10 @@ def _install_from_archive_path(
             print(f"Error: {preflight_result.message}", file=sys.stderr)
             return 1
 
-    if manifest_type == "openclaw-skill":
-        target_dir = Path.home() / ".openclaw" / f"workspace-{agent_name}"
-    elif target_dir_arg:
+    if target_dir_arg:
         target_dir = Path(target_dir_arg).resolve()
+    elif is_openclaw_agent:
+        target_dir = Path.home() / ".openclaw" / f"workspace-{agent_name}"
     else:
         target_dir = archive.with_suffix("")
 
@@ -1704,7 +1789,7 @@ def _install_from_archive_path(
         return 1
 
     if target_dir.exists() and not force:
-        if manifest_type == "openclaw-skill":
+        if is_openclaw_agent:
             print(
                 f"Error: OpenClaw workspace already exists at '{target_dir}'.",
                 file=sys.stderr,
@@ -1803,7 +1888,7 @@ def _install_from_archive_path(
         if isinstance(runtime_language_value, str) and runtime_language_value.strip():
             runtime_language = runtime_language_value.strip().lower()
 
-    if runtime_language == "nodejs":
+    if is_nodejs_compatible_runtime(runtime_language):
         node_exit_code = _install_node_dependencies(
             target_dir=target_dir,
             runtime=runtime if isinstance(runtime, dict) else {},

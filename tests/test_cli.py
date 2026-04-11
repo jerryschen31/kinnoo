@@ -1,5 +1,6 @@
 import subprocess
 import sys
+import os
 import pytest
 import re
 import types
@@ -26,6 +27,267 @@ def test_cli_version_flag():
     assert result.returncode == 0
     output = result.stdout.strip()
     assert re.search(r"\b\d+\.\d+\.\d+\b", output), f"Expected semantic version in output, got: {output!r}"
+
+
+def test_help_shows_version_hash_icon():
+    result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "-h"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    first_line = result.stdout.splitlines()[0].strip()
+    assert re.match(r"^🍊 Kinnoo CLI v\d+\.\d+\.\d+ \(([a-f0-9]+|unknown)\)$", first_line), first_line
+
+
+def test_init_help_deprecates_framework_flag_and_uses_language_metavar() -> None:
+    result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "init", "-h"],
+        capture_output=True,
+        text=True,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, output
+    assert "--framework" not in output
+    assert "--language LANGUAGE" in output
+    assert "Framework template. Currently supported:" in output
+
+
+def test_run_help_removes_thinking_option_and_has_orange_title() -> None:
+    result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "run", "-h"],
+        capture_output=True,
+        text=True,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, output
+    first_line = result.stdout.splitlines()[0].strip()
+    assert first_line == "🍊 Run a kinnoo agent"
+    assert "--thinking" not in output
+
+
+@pytest.mark.parametrize(
+    "command,expected_first_line",
+    [
+        ("fetch", "🍊 Download an agent archive from registry into local archive storage"),
+        ("publish", "🍊 Publish latest archived agent artifact to the registry"),
+        ("search", "🍊 Search agents from remote registry (default if configured) or local archive"),
+    ],
+)
+def test_subcommand_help_title_is_orange_prefixed(command: str, expected_first_line: str) -> None:
+    result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", command, "-h"],
+        capture_output=True,
+        text=True,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, output
+    first_line = result.stdout.splitlines()[0].strip()
+    assert first_line == expected_first_line
+
+
+def test_framework_flag_rejected_for_init() -> None:
+    result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "init", "--framework", "gemini", "demo-agent"],
+        capture_output=True,
+        text=True,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode != 0
+    assert "unrecognized arguments: --framework" in output
+
+
+def test_run_json_structured_output(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "task471-json-agent"
+    agent_dir.mkdir(parents=True, exist_ok=True)
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    (agent_dir / "run.py").write_text(
+        "import sys\n"
+        "print(f'agent-json-output:{sys.argv[1] if len(sys.argv) > 1 else \"\"}')\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "kinnoo.yaml").write_text(
+        """
+name: task471-json-agent
+version: 1.0.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+""",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(agent_dir),
+            "hello-json",
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
+    payload = json.loads(result.stdout.strip())
+    assert payload["success"] is True
+    assert payload["exit_code"] == 0
+    assert payload["error"] is None
+    assert payload["input"] == "hello-json"
+    assert payload["runtime_type"] == "one-shot"
+    assert payload["runtime_language"] == "python"
+    assert payload["entrypoint"] == "run.py"
+    assert payload["policy_enforced"] is False
+    assert payload["policy_violations"] == []
+    assert "agent-json-output:hello-json" in payload["output"]
+
+    required_keys = {
+        "output",
+        "exit_code",
+        "success",
+        "start_time",
+        "end_time",
+        "duration_seconds",
+        "agent_dir",
+        "entrypoint",
+        "runtime_language",
+        "runtime_type",
+        "input",
+        "error",
+        "warnings",
+        "resource_usage",
+        "policy_enforced",
+        "policy_violations",
+    }
+    assert required_keys.issubset(payload.keys())
+
+
+def test_run_enforce_policy_replaces_sandbox(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "task472-enforce-policy-agent"
+    agent_dir.mkdir(parents=True, exist_ok=True)
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    (agent_dir / "run.py").write_text("print('task472-ok')\n", encoding="utf-8")
+    (agent_dir / "kinnoo.yaml").write_text(
+        """
+name: task472-enforce-policy-agent
+version: 1.0.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+permissions:
+    network: true
+    filesystem_scope: read-only
+    shell: false
+    browser: false
+    env_access: []
+""",
+        encoding="utf-8",
+    )
+
+    accepted_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(agent_dir),
+            "hello",
+            "--enforce-policy",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    accepted_output = f"{accepted_result.stdout}\n{accepted_result.stderr}"
+    assert accepted_result.returncode == 0, accepted_output
+    assert "task472-ok" in accepted_output
+
+    rejected_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(agent_dir),
+            "hello",
+            "--sandbox",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    rejected_output = f"{rejected_result.stdout}\n{rejected_result.stderr}"
+    assert rejected_result.returncode != 0
+    assert "unrecognized arguments: --sandbox" in rejected_output
+
+    help_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "run", "-h"],
+        capture_output=True,
+        text=True,
+    )
+    help_output = f"{help_result.stdout}\n{help_result.stderr}"
+    assert help_result.returncode == 0, help_output
+    assert "--enforce-policy" in help_output
+    assert "--sandbox" not in help_output
+
+
+def test_disabled_commands_not_accessible() -> None:
+    for disabled_command in ("sync", "stop", "attach", "logs"):
+        result = subprocess.run(
+            [sys.executable, "src/kinnoo/cli.py", disabled_command],
+            capture_output=True,
+            text=True,
+        )
+        output = f"{result.stdout}\n{result.stderr}"
+        assert result.returncode != 0
+        assert "invalid choice" in output
+
+    help_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "-h"],
+        capture_output=True,
+        text=True,
+    )
+    help_output = f"{help_result.stdout}\n{help_result.stderr}"
+    assert help_result.returncode == 0
+    assert "daemon agents:" not in help_output
+    assert "{stop,attach,logs}" not in help_output
+
+
+def test_cli_direct_script_execution_prefers_local_src_over_pythonpath(tmp_path: Path) -> None:
+    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    fake_site_root = tmp_path / "fake-site"
+    fake_kinnoo_pkg = fake_site_root / "kinnoo"
+    fake_kinnoo_pkg.mkdir(parents=True, exist_ok=True)
+
+    (fake_kinnoo_pkg / "__init__.py").write_text("__version__ = '9.9.9-fake'\n", encoding="utf-8")
+    (fake_kinnoo_pkg / "schema.py").write_text("NAME_PATTERN = r'^[a-z0-9-]+$'\n", encoding="utf-8")
+    (fake_kinnoo_pkg / "terminal_colors.py").write_text(
+        "def style_text(text, **kwargs):\n    return text\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(cli_path), "--version"],
+        capture_output=True,
+        text=True,
+        env={**os.environ, "PYTHONPATH": str(fake_site_root)},
+        cwd=tmp_path,
+    )
+
+    assert result.returncode == 0, f"Unexpected stderr: {result.stderr}"
+    assert result.stdout.strip() != "9.9.9-fake"
 
 
 def test_top_level_help_grouped_menu_exact_text():
@@ -154,6 +416,9 @@ def test_backend_selection(monkeypatch, tmp_path):
     class _FakeRemoteBackend:
         def __init__(self, *args, **kwargs):
             del args, kwargs
+
+        def list_latest_agents(self):
+            return [{"name": "demo-agent", "latest_version": "1.0.0"}]
 
         def resolve(self, *, name, version=None, tenant=None):
             del name, version, tenant
@@ -373,6 +638,160 @@ def test_feature69_standardized_tests_file_parser(tmp_path):
     assert inline_payload["valid"] is True
     assert inline_payload["total"] == 1
     assert inline_payload["source"].endswith("kinnoo.yaml")
+
+
+def test_install_remote_latest_resolves_explicit_version_before_download(monkeypatch, tmp_path) -> None:
+    from kinnoo import install_command
+
+    called_versions: list[str | None] = []
+
+    class _FakeRemoteBackend:
+        def __init__(self, *args, **kwargs):
+            del args, kwargs
+
+        def list_latest_agents(self):
+            return [{"name": "demo-agent", "latest_version": "2.4.1"}]
+
+        def resolve(self, *, name, version=None, tenant=None):
+            del name, tenant
+            called_versions.append(version)
+            return {"download_url": "/api/download/demo-agent/2.4.1"}
+
+        def request_bytes(self, *, path: str) -> bytes:
+            assert path == "/api/download/demo-agent/2.4.1"
+            return b"fake-kno-bytes"
+
+    def _fake_parse_install_target_spec(_target: str):
+        return type(
+            "_Spec",
+            (),
+            {
+                "kind": "registry-latest",
+                "raw_target": "demo-agent",
+                "name": "demo-agent",
+                "version": None,
+                "archive_path": None,
+                "error": None,
+            },
+        )()
+
+    monkeypatch.setattr(install_command, "RemoteRegistryClient", _FakeRemoteBackend)
+    monkeypatch.setattr(install_command, "parse_install_target_spec", _fake_parse_install_target_spec)
+    monkeypatch.setattr(install_command, "_install_from_archive_path", lambda **kwargs: 0)
+    monkeypatch.setenv("KINNOO_REGISTRY_URL", "https://registry.example.test")
+    monkeypatch.setenv("KINNOO_REGISTRY_TOKEN", "token")
+    monkeypatch.setenv("KINNOO_TENANT_SLUG", "acme")
+
+    exit_code = install_command.install_agent(
+        archive_path="demo-agent",
+        target_dir_arg=str(tmp_path / "installed-remote"),
+        assume_yes=True,
+        use_remote=True,
+    )
+
+    assert exit_code == 0
+    assert called_versions == ["2.4.1"]
+
+
+def test_install_remote_reports_filesystem_download_url_as_server_error(monkeypatch, capsys) -> None:
+    from kinnoo import install_command
+
+    class _FakeRemoteBackend:
+        def __init__(self, *args, **kwargs):
+            del args, kwargs
+
+        def list_latest_agents(self):
+            return [{"name": "demo-agent", "latest_version": "1.0.0"}]
+
+        def resolve(self, *, name, version=None, tenant=None):
+            del name, version, tenant
+            return {
+                "download_url": "/data/.registry-storage/archives/tenants/acme/agents/demo-agent/versions/1.0.0/demo-agent.kno"
+            }
+
+        def request_bytes(self, *, path: str) -> bytes:
+            del path
+            raise RuntimeError("404 from backend path fetch")
+
+    def _fake_parse_install_target_spec(_target: str):
+        return type(
+            "_Spec",
+            (),
+            {
+                "kind": "registry-latest",
+                "raw_target": "demo-agent",
+                "name": "demo-agent",
+                "version": None,
+                "archive_path": None,
+                "error": None,
+            },
+        )()
+
+    monkeypatch.setattr(install_command, "RemoteRegistryClient", _FakeRemoteBackend)
+    monkeypatch.setattr(install_command, "parse_install_target_spec", _fake_parse_install_target_spec)
+    monkeypatch.setenv("KINNOO_REGISTRY_URL", "https://registry.example.test")
+    monkeypatch.setenv("KINNOO_REGISTRY_TOKEN", "token")
+    monkeypatch.setenv("KINNOO_TENANT_SLUG", "acme")
+
+    exit_code = install_command.install_agent(
+        archive_path="demo-agent",
+        assume_yes=True,
+        use_remote=True,
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert "root-relative path that could not be downloaded" in captured.err
+
+
+def test_install_remote_uses_authenticated_fetch_for_same_host_http_download_url(monkeypatch, tmp_path) -> None:
+    from kinnoo import install_command
+
+    class _FakeRemoteBackend:
+        def __init__(self, *args, **kwargs):
+            del args, kwargs
+            self._base_url = "https://registry.example.test"
+
+        def list_latest_agents(self):
+            return [{"name": "demo-agent", "latest_version": "1.0.0"}]
+
+        def resolve(self, *, name, version=None, tenant=None):
+            del name, version, tenant
+            return {"download_url": "https://registry.example.test/api/agents/acme/demo-agent/1.0.0/archive"}
+
+        def request_bytes(self, *, path: str) -> bytes:
+            assert path == "/api/agents/acme/demo-agent/1.0.0/archive"
+            return b"PK\x03\x04fake"
+
+    def _fake_parse_install_target_spec(_target: str):
+        return type(
+            "_Spec",
+            (),
+            {
+                "kind": "registry-latest",
+                "raw_target": "demo-agent",
+                "name": "demo-agent",
+                "version": None,
+                "archive_path": None,
+                "error": None,
+            },
+        )()
+
+    monkeypatch.setattr(install_command, "RemoteRegistryClient", _FakeRemoteBackend)
+    monkeypatch.setattr(install_command, "parse_install_target_spec", _fake_parse_install_target_spec)
+    monkeypatch.setattr(install_command, "_install_from_archive_path", lambda **kwargs: 0)
+    monkeypatch.setenv("KINNOO_REGISTRY_URL", "https://registry.example.test")
+    monkeypatch.setenv("KINNOO_REGISTRY_TOKEN", "token")
+    monkeypatch.setenv("KINNOO_TENANT_SLUG", "acme")
+
+    exit_code = install_command.install_agent(
+        archive_path="demo-agent",
+        target_dir_arg=str(tmp_path / "installed-remote"),
+        assume_yes=True,
+        use_remote=True,
+    )
+
+    assert exit_code == 0
 
 
 def test_feature69_execution_engine_and_docs_examples(tmp_path):
@@ -3484,7 +3903,7 @@ permissions:
             "run",
             str(allowed_agent_dir),
             "hello",
-            "--sandbox",
+            "--enforce-policy",
             "--",
             "--url",
             "https://example.com",
@@ -3535,7 +3954,7 @@ permissions:
             "run",
             str(denied_agent_dir),
             "hello",
-            "--sandbox",
+            "--enforce-policy",
             "--",
             "--exec",
             "echo denied",
@@ -3574,7 +3993,7 @@ def test_feature39_sandbox_backend_failure_shapes() -> None:
     assert unsupported_runtime.allowed is False
     assert unsupported_runtime.code == "backend_unsupported_runtime"
     assert "runtime.type='one-shot'" in unsupported_runtime.message
-    assert "run without --sandbox" in unsupported_runtime.remediation
+    assert "run without --enforce-policy" in unsupported_runtime.remediation
 
     unsupported_runtime_language = evaluate_sandbox_permissions(
         manifest=base_manifest,
@@ -3585,7 +4004,7 @@ def test_feature39_sandbox_backend_failure_shapes() -> None:
     assert unsupported_runtime_language.allowed is False
     assert unsupported_runtime_language.code == "backend_unsupported_runtime_language"
     assert "runtime.language='python' and 'nodejs'" in unsupported_runtime_language.message
-    assert "run without --sandbox" in unsupported_runtime_language.remediation
+    assert "run without --enforce-policy" in unsupported_runtime_language.remediation
 
     missing_permissions = evaluate_sandbox_permissions(
         manifest={},
@@ -3639,7 +4058,7 @@ permissions:
             "run",
             str(warn_agent_dir),
             "hello",
-            "--sandbox",
+            "--enforce-policy",
             "--",
             "--url",
             "https://example.com",
@@ -3702,7 +4121,7 @@ permissions:
             "run",
             str(kill_agent_dir),
             "hello",
-            "--sandbox",
+            "--enforce-policy",
             "--",
             "--exec",
             "echo denied",
@@ -4582,7 +5001,7 @@ def _make_feature81_fake_openclaw_cli(bin_dir: Path) -> None:
     openclaw_script.chmod(0o755)
 
 
-def test_feature81_run_mapping_thinking_and_exit_propagation(tmp_path):
+def test_feature81_run_mapping_and_exit_propagation(tmp_path):
     agent_dir = _create_feature81_openclaw_agent_dir(tmp_path)
     fake_bin = tmp_path / "feature81-openclaw-bin"
     _make_feature81_fake_openclaw_cli(fake_bin)
@@ -4599,8 +5018,6 @@ def test_feature81_run_mapping_thinking_and_exit_propagation(tmp_path):
             "run",
             str(agent_dir),
             "hello-openclaw",
-            "--thinking",
-            "high",
         ],
         capture_output=True,
         text=True,
@@ -4611,7 +5028,7 @@ def test_feature81_run_mapping_thinking_and_exit_propagation(tmp_path):
     assert "delegated invocation" in success_output
 
     logged_invocations = invocation_log.read_text(encoding="utf-8")
-    assert "agent --agent feature81-openclaw-agent --message hello-openclaw --thinking high" in logged_invocations
+    assert "agent --agent feature81-openclaw-agent --message hello-openclaw" in logged_invocations
 
     failing_env = dict(env)
     failing_env["KINNOO_TEST_OPENCLAW_FAIL_RUN"] = "1"
@@ -5178,3 +5595,286 @@ def test_feature73_diff_json_and_exit_codes(tmp_path):
     )
     assert missing_result.returncode == 1
     assert "does not exist or is not a file" in missing_result.stderr
+
+def _build_fetch_archive_bytes(*, name: str, version: str, include_signature_meta: bool = False) -> bytes:
+    import hashlib
+
+    manifest_bytes = (
+        f"name: {name}\n"
+        f"version: {version}\n"
+        "visibility: private\n"
+    ).encode("utf-8")
+    readme_bytes = b"fetch archive payload"
+    integrity = {
+        "files": {
+            "kinnoo.yaml": {
+                "sha256": hashlib.sha256(manifest_bytes).hexdigest(),
+                "size": len(manifest_bytes),
+            },
+            "README.md": {
+                "sha256": hashlib.sha256(readme_bytes).hexdigest(),
+                "size": len(readme_bytes),
+            },
+        }
+    }
+
+    with tempfile.NamedTemporaryFile(suffix=".kno", delete=False) as archive_file:
+        archive_path = Path(archive_file.name)
+
+    try:
+        with zipfile.ZipFile(archive_path, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("kinnoo.yaml", manifest_bytes)
+            archive.writestr("README.md", readme_bytes)
+            archive.writestr("META-INF/integrity.json", json.dumps(integrity))
+            if include_signature_meta:
+                archive.writestr("META-INF/signature.json", json.dumps({"signature": "dummy"}))
+        return archive_path.read_bytes()
+    finally:
+        archive_path.unlink(missing_ok=True)
+
+
+def test_fetch_downloads_archive(monkeypatch, tmp_path: Path) -> None:
+    from kinnoo import fetch_command
+
+    archive_payload = _build_fetch_archive_bytes(name="fetch-agent", version="1.2.3")
+
+    class _FakeRemoteBackend:
+        def __init__(self, *args, **kwargs):
+            del args, kwargs
+            self._base_url = "https://registry.example.test"
+
+        def list_latest_agents(self):
+            return [{"name": "fetch-agent", "latest_version": "1.2.3"}]
+
+        def resolve(self, *, name, version=None, tenant=None):
+            del name, version, tenant
+            return {"download_url": "/api/agents/acme/fetch-agent/1.2.3/archive"}
+
+        def request_bytes(self, *, path: str) -> bytes:
+            assert path == "/api/agents/acme/fetch-agent/1.2.3/archive"
+            return archive_payload
+
+    monkeypatch.setattr(fetch_command, "RemoteRegistryClient", _FakeRemoteBackend)
+    monkeypatch.setenv("KINNOO_REGISTRY_URL", "https://registry.example.test")
+    monkeypatch.setenv("KINNOO_REGISTRY_TOKEN", "token")
+    monkeypatch.setenv("KINNOO_TENANT_SLUG", "acme")
+    monkeypatch.setenv("KINNOO_ARCHIVE_ROOT", str(tmp_path / "archive"))
+
+    exit_code = fetch_command.fetch_agent("fetch-agent", use_remote=True)
+    assert exit_code == 0
+
+    expected_path = tmp_path / "archive" / "fetch-agent" / "1.2.3" / "fetch-agent.kno"
+    assert expected_path.exists()
+
+
+def test_fetch_strict_verification(monkeypatch, tmp_path: Path) -> None:
+    from kinnoo import fetch_command
+
+    signed_payload = _build_fetch_archive_bytes(
+        name="strict-agent",
+        version="1.0.0",
+        include_signature_meta=True,
+    )
+    unsigned_payload = _build_fetch_archive_bytes(
+        name="unsigned-agent",
+        version="1.0.0",
+        include_signature_meta=False,
+    )
+
+    class _FakeRemoteBackend:
+        def __init__(self, *args, **kwargs):
+            del args, kwargs
+            self._base_url = "https://registry.example.test"
+
+        def list_latest_agents(self):
+            return [
+                {"name": "strict-agent", "latest_version": "1.0.0"},
+                {"name": "unsigned-agent", "latest_version": "1.0.0"},
+            ]
+
+        def resolve(self, *, name, version=None, tenant=None):
+            del version, tenant
+            return {"download_url": f"/api/agents/acme/{name}/1.0.0/archive"}
+
+        def request_bytes(self, *, path: str) -> bytes:
+            if "strict-agent" in path:
+                return signed_payload
+            return unsigned_payload
+
+    def _fake_verify(*, extracted_dir, archive_path, strict_mode, expected_publisher_public_key):
+        del archive_path, expected_publisher_public_key
+        if not strict_mode:
+            return True, "ok"
+        signature_path = extracted_dir / "META-INF" / "signature.json"
+        if signature_path.exists():
+            return True, "strict signature metadata verified"
+        return False, "strict mode requires signature metadata"
+
+    monkeypatch.setattr(fetch_command, "RemoteRegistryClient", _FakeRemoteBackend)
+    monkeypatch.setattr(fetch_command, "_verify_embedded_integrity_and_signature", _fake_verify)
+    monkeypatch.setenv("KINNOO_REGISTRY_URL", "https://registry.example.test")
+    monkeypatch.setenv("KINNOO_REGISTRY_TOKEN", "token")
+    monkeypatch.setenv("KINNOO_TENANT_SLUG", "acme")
+    monkeypatch.setenv("KINNOO_ARCHIVE_ROOT", str(tmp_path / "archive"))
+
+    signed_exit = fetch_command.fetch_agent("strict-agent", use_remote=True, strict_mode=True)
+    assert signed_exit == 0
+
+    unsigned_exit = fetch_command.fetch_agent("unsigned-agent", use_remote=True, strict_mode=True)
+    assert unsigned_exit == 1
+
+
+@pytest.mark.parametrize(
+    ("argv", "module_name", "function_name", "headline"),
+    [
+        (
+            ["kinnoo", "fetch", "demo-agent"],
+            "kinnoo.fetch_command",
+            "fetch_agent",
+            "Remote registry unauthorized (401). Check your token and sign in again.",
+        ),
+        (
+            ["kinnoo", "publish", "demo-agent"],
+            "kinnoo.publish_command",
+            "publish_agent",
+            "Remote registry conflict (409). This version may already be published.",
+        ),
+    ],
+)
+def test_remote_registry_errors_render_without_traceback_for_fetch_and_publish(
+    monkeypatch,
+    capsys,
+    argv,
+    module_name,
+    function_name,
+    headline,
+) -> None:
+    from kinnoo.cli import main
+    from kinnoo.remote_client import RemoteRegistryClientError
+
+    response_json = (
+        '{"error":{"code":"unauthorized","message":"token expired","request_id":"abc123"}}'
+        if "unauthorized" in headline
+        else '{"error":{"code":"conflict","message":"Version already published","request_id":"abc123"}}'
+    )
+
+    def _raise_remote_error(*_args, **_kwargs):
+        raise RemoteRegistryClientError(f"{headline} Response: {response_json}")
+
+    fake_module = types.SimpleNamespace(**{function_name: _raise_remote_error})
+    monkeypatch.setitem(sys.modules, module_name, fake_module)
+    monkeypatch.setattr(sys, "argv", argv)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == 1
+    captured = capsys.readouterr()
+    combined = f"{captured.out}\n{captured.err}"
+    assert "Traceback" not in combined
+    assert f"[kinnoo] ERROR: {headline}" in captured.out
+    assert f"[kinnoo] Response: {response_json}" in captured.out
+
+
+@pytest.mark.parametrize(
+    ("argv", "module_name", "function_name"),
+    [
+        (["kinnoo", "list", "--remote"], "kinnoo.list_command", "list_agents"),
+        (["kinnoo", "search", "--remote", "demo"], "kinnoo.search_command", "search_agents"),
+    ],
+)
+def test_remote_registry_errors_render_without_traceback_for_list_and_search(
+    monkeypatch,
+    capsys,
+    argv,
+    module_name,
+    function_name,
+) -> None:
+    from kinnoo.cli import main
+    from kinnoo.remote_client import RemoteRegistryClientError
+
+    headline = "Remote registry unauthorized (401). Check your token and sign in again."
+    response_json = '{"error":{"code":"unauthorized","message":"401 unauthorized: token expired","request_id":"abc123"}}'
+
+    def _raise_remote_error(*_args, **_kwargs):
+        raise RemoteRegistryClientError(f"{headline} Response: {response_json}")
+
+    fake_module = types.SimpleNamespace(**{function_name: _raise_remote_error})
+    monkeypatch.setitem(sys.modules, module_name, fake_module)
+    monkeypatch.setattr(sys, "argv", argv)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == 1
+    captured = capsys.readouterr()
+    combined = f"{captured.out}\n{captured.err}"
+    assert "Traceback" not in combined
+    assert f"[kinnoo] ERROR: {headline}" in captured.out
+    assert f"[kinnoo] Response: {response_json}" in captured.out
+
+
+def test_uninstall_deletes_agent_directory_and_all_version_archives(tmp_path: Path) -> None:
+    install_root = tmp_path / "agents"
+    archive_root = tmp_path / "archive"
+
+    (install_root / "demo-agent").mkdir(parents=True, exist_ok=True)
+    (archive_root / "demo-agent" / "1.0.0").mkdir(parents=True, exist_ok=True)
+    (archive_root / "demo-agent" / "2.0.0").mkdir(parents=True, exist_ok=True)
+    (archive_root / "demo-agent" / "1.0.0" / "demo-agent.kno").write_bytes(b"archive-v1")
+    (archive_root / "demo-agent" / "2.0.0" / "demo-agent.kno").write_bytes(b"archive-v2")
+
+    result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "uninstall", "demo-agent", "-y"],
+        capture_output=True,
+        text=True,
+        env={
+            **os.environ,
+            "KINNOO_AGENT_INSTALL_ROOT": str(install_root),
+            "KINNOO_ARCHIVE_ROOT": str(archive_root),
+        },
+    )
+
+    assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
+    assert not (install_root / "demo-agent").exists()
+    assert not (archive_root / "demo-agent").exists()
+
+
+def test_uninstall_version_and_latest_alias(tmp_path: Path) -> None:
+    install_root = tmp_path / "agents"
+    archive_root = tmp_path / "archive"
+
+    (install_root / "demo-agent").mkdir(parents=True, exist_ok=True)
+    (archive_root / "demo-agent" / "1.0.0").mkdir(parents=True, exist_ok=True)
+    (archive_root / "demo-agent" / "2.0.0").mkdir(parents=True, exist_ok=True)
+    (archive_root / "demo-agent" / "1.0.0" / "demo-agent.kno").write_bytes(b"archive-v1")
+    (archive_root / "demo-agent" / "2.0.0" / "demo-agent.kno").write_bytes(b"archive-v2")
+
+    latest_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "uninstall", "demo-agent.kno==latest", "-y"],
+        capture_output=True,
+        text=True,
+        env={
+            **os.environ,
+            "KINNOO_AGENT_INSTALL_ROOT": str(install_root),
+            "KINNOO_ARCHIVE_ROOT": str(archive_root),
+        },
+    )
+    assert latest_result.returncode == 0, f"{latest_result.stdout}\n{latest_result.stderr}"
+    assert (archive_root / "demo-agent" / "1.0.0").exists()
+    assert not (archive_root / "demo-agent" / "2.0.0").exists()
+    assert (install_root / "demo-agent").exists()
+
+    specific_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "uninstall", "demo-agent==1.0.0", "-y"],
+        capture_output=True,
+        text=True,
+        env={
+            **os.environ,
+            "KINNOO_AGENT_INSTALL_ROOT": str(install_root),
+            "KINNOO_ARCHIVE_ROOT": str(archive_root),
+        },
+    )
+    assert specific_result.returncode == 0, f"{specific_result.stdout}\n{specific_result.stderr}"
+    assert not (archive_root / "demo-agent").exists()
+    assert not (install_root / "demo-agent").exists()

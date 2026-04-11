@@ -41,6 +41,141 @@ def _create_valid_archive(tmp_path: Path) -> tuple[Path, Path]:
     return archive_path, expected_dir
 
 
+def _create_openclaw_agent_archive(tmp_path: Path, agent_name: str = "test-openclaw-agent") -> Path:
+    archive_path = tmp_path / f"{agent_name}.kno"
+    manifest = (
+        f"name: {agent_name}\n"
+        "version: 1.0.0\n"
+        "entrypoint: run.py\n"
+        "framework: openclaw\n"
+        "runtime:\n"
+        "  type: daemon\n"
+        "  language: nodejs\n"
+        "  version: \">=18\"\n"
+        "dependencies: []\n"
+        "inputs:\n"
+        "  type: string\n"
+        "outputs:\n"
+        "  type: string\n"
+    )
+    with zipfile.ZipFile(archive_path, "w") as archive:
+        archive.writestr("kinnoo.yaml", manifest)
+        archive.writestr("run.py", "print('openclaw-agent')\n")
+        archive.writestr("package.json", '{"name":"feature115-openclaw","version":"1.0.0"}\n')
+        archive.writestr("requirements.txt", "")
+    return archive_path
+
+
+def test_install_deprecated_options_removed(tmp_path: Path) -> None:
+    deprecated_invocations = [
+        ["--state-overwrite"],
+        ["--allow-vulnerable"],
+        ["--ignore-scripts"],
+        ["--openclaw-min-version", "1.0"],
+        ["--openclaw-skill", "test-skill"],
+    ]
+
+    for extra_args in deprecated_invocations:
+        result = subprocess.run(
+            [sys.executable, "src/kinnoo/cli.py", "install", "dummy.kno", *extra_args],
+            capture_output=True,
+            text=True,
+        )
+        output = f"{result.stdout}\n{result.stderr}"
+        assert result.returncode != 0
+        assert "unrecognized arguments" in output
+
+
+def test_install_openclaw_default_path(tmp_path: Path) -> None:
+    archive = _create_openclaw_agent_archive(tmp_path, agent_name="feature115-openclaw")
+    home_dir = tmp_path / "home"
+
+    default_env = {**os.environ, "HOME": str(home_dir)}
+    default_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            str(archive),
+            "--yes",
+        ],
+        capture_output=True,
+        text=True,
+        env=default_env,
+    )
+    default_output = f"{default_result.stdout}\n{default_result.stderr}"
+    assert default_result.returncode == 0, default_output
+
+    default_workspace = home_dir / ".openclaw" / "workspace-feature115-openclaw"
+    assert default_workspace.exists(), default_output
+    assert (default_workspace / "kinnoo.yaml").exists(), default_output
+
+    custom_target = tmp_path / "custom-openclaw-workspace"
+    custom_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            str(archive),
+            str(custom_target),
+            "--yes",
+        ],
+        capture_output=True,
+        text=True,
+        env=default_env,
+    )
+    custom_output = f"{custom_result.stdout}\n{custom_result.stderr}"
+    assert custom_result.returncode == 0, custom_output
+    assert custom_target.exists(), custom_output
+    assert (custom_target / "kinnoo.yaml").exists(), custom_output
+
+
+def test_install_json_output(tmp_path: Path) -> None:
+    archive, _ = _create_valid_archive(tmp_path)
+    target_dir = tmp_path / "json-install-target"
+
+    json_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            str(archive),
+            str(target_dir),
+            "--json",
+            "-y",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    output = f"{json_result.stdout}\n{json_result.stderr}"
+    assert json_result.returncode == 0, output
+
+    payload = json.loads(json_result.stdout.strip())
+    assert payload["agent_name"] == "test-agent"
+    assert payload["agent_version"] == "1.0.0"
+    assert payload["source_archive_path"] == str(archive)
+    assert payload["install_path"] == str(target_dir.resolve())
+    assert payload["success"] is True
+    assert payload["exit_code"] == 0
+    assert payload["error_code"] is None
+    assert payload["error_message"] is None
+
+    missing_yes_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "install",
+            str(archive),
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    missing_yes_output = f"{missing_yes_result.stdout}\n{missing_yes_result.stderr}"
+    assert missing_yes_result.returncode != 0
+    assert "--json requires -y" in missing_yes_output
+
+
 def test_import_class_only_wrapper(tmp_path: Path) -> None:
     """Feature47 test385: class-only import flow can generate run.py wrapper."""
     agent_dir = tmp_path / "class-only-import-agent"

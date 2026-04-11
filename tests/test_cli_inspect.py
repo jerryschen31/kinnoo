@@ -486,8 +486,8 @@ def test_feature48_inspect_update_prompts_and_applies_on_yes(tmp_path: Path) -> 
             sys.executable,
             "src/kinnoo/cli.py",
             "inspect",
-            "--update",
             str(agent_dir),
+            "--update",
             "runtime.language",
             "nodejs",
         ],
@@ -497,7 +497,7 @@ def test_feature48_inspect_update_prompts_and_applies_on_yes(tmp_path: Path) -> 
     )
 
     assert result.returncode == 0
-    assert "Warning: are you sure you want to modify runtime.language to have the new value nodejs?" in result.stdout
+    assert "Changing runtime.language from python to nodejs. Proceed? (y/N):" in result.stdout
     assert "Manifest metadata updated." in result.stdout
 
     manifest_data = yaml.safe_load((agent_dir / "kinnoo.yaml").read_text(encoding="utf-8"))
@@ -514,8 +514,8 @@ def test_feature48_inspect_update_aborts_on_default_no(tmp_path: Path) -> None:
             sys.executable,
             "src/kinnoo/cli.py",
             "inspect",
-            "--update",
             str(agent_dir),
+            "--update",
             "runtime.language",
             "nodejs",
         ],
@@ -539,9 +539,9 @@ def test_feature48_inspect_update_skip_warnings_bypasses_prompt(tmp_path: Path) 
             sys.executable,
             "src/kinnoo/cli.py",
             "inspect",
+            str(agent_dir),
             "--skip-warnings",
             "--update",
-            str(agent_dir),
             "runtime.language",
             "nodejs",
         ],
@@ -565,9 +565,9 @@ def test_feature48_inspect_update_rejects_invalid_manifest_value(tmp_path: Path)
             sys.executable,
             "src/kinnoo/cli.py",
             "inspect",
+            str(agent_dir),
             "--skip-warnings",
             "--update",
-            str(agent_dir),
             "runtime.language",
             "javascript",
         ],
@@ -581,3 +581,155 @@ def test_feature48_inspect_update_rejects_invalid_manifest_value(tmp_path: Path)
     assert "runtime.language" in combined
     after_manifest = (agent_dir / "kinnoo.yaml").read_text(encoding="utf-8")
     assert after_manifest == before_manifest
+
+
+def test_inspect_json_output(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "task473-inspect-json-agent"
+    agent_dir.mkdir(parents=True, exist_ok=True)
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    (agent_dir / "run.py").write_text("print('ok')\n", encoding="utf-8")
+    (agent_dir / "kinnoo.yaml").write_text(
+        """
+name: task473-inspect-json-agent
+version: 1.0.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+""",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "inspect", "--json", str(agent_dir)],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
+    payload = yaml.safe_load(result.stdout)
+    assert payload["target_type"] == "directory"
+    assert payload["raw"] is False
+    assert payload["full"] is False
+    assert payload["manifest"]["name"] == "task473-inspect-json-agent"
+    assert payload["manifest"]["runtime"]["type"] == "one-shot"
+
+    full_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "inspect", "--json", "--full", str(agent_dir)],
+        capture_output=True,
+        text=True,
+    )
+    assert full_result.returncode == 0, f"{full_result.stdout}\n{full_result.stderr}"
+    full_payload = yaml.safe_load(full_result.stdout)
+    assert full_payload["full"] is True
+    assert "all_metadata_fields" in full_payload
+
+
+def test_inspect_update_two_args(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "task474-update-agent"
+    _create_feature48_agent(agent_dir)
+
+    before_order = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "inspect",
+            "--skip-warnings",
+            "--update",
+            "runtime.language",
+            "nodejs",
+            str(agent_dir),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert before_order.returncode == 0, f"{before_order.stdout}\n{before_order.stderr}"
+
+    manifest_after_first = yaml.safe_load((agent_dir / "kinnoo.yaml").read_text(encoding="utf-8"))
+    assert manifest_after_first["runtime"]["language"] == "nodejs"
+
+    after_order = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "inspect",
+            str(agent_dir),
+            "--skip-warnings",
+            "--update",
+            "runtime.language",
+            "python",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert after_order.returncode == 0, f"{after_order.stdout}\n{after_order.stderr}"
+
+    manifest_after_second = yaml.safe_load((agent_dir / "kinnoo.yaml").read_text(encoding="utf-8"))
+    assert manifest_after_second["runtime"]["language"] == "python"
+
+
+def test_inspect_update_confirmation_prompt(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "task475-confirm-agent"
+    _create_feature48_agent(agent_dir)
+
+    reject_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "inspect",
+            str(agent_dir),
+            "--update",
+            "runtime.language",
+            "nodejs",
+        ],
+        input="N\n",
+        capture_output=True,
+        text=True,
+    )
+    assert reject_result.returncode != 0
+    assert "Changing runtime.language from python to nodejs. Proceed? (y/N):" in reject_result.stdout
+    assert "Update aborted." in reject_result.stdout
+    manifest_after_reject = yaml.safe_load((agent_dir / "kinnoo.yaml").read_text(encoding="utf-8"))
+    assert manifest_after_reject["runtime"]["language"] == "python"
+
+    accept_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "inspect",
+            str(agent_dir),
+            "--update",
+            "runtime.language",
+            "nodejs",
+        ],
+        input="y\n",
+        capture_output=True,
+        text=True,
+    )
+    assert accept_result.returncode == 0, f"{accept_result.stdout}\n{accept_result.stderr}"
+    manifest_after_accept = yaml.safe_load((agent_dir / "kinnoo.yaml").read_text(encoding="utf-8"))
+    assert manifest_after_accept["runtime"]["language"] == "nodejs"
+
+    bypass_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "inspect",
+            str(agent_dir),
+            "--skip-warnings",
+            "--update",
+            "runtime.language",
+            "python",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert bypass_result.returncode == 0, f"{bypass_result.stdout}\n{bypass_result.stderr}"
+    assert "Changing runtime.language" not in bypass_result.stdout
+    manifest_after_bypass = yaml.safe_load((agent_dir / "kinnoo.yaml").read_text(encoding="utf-8"))
+    assert manifest_after_bypass["runtime"]["language"] == "python"

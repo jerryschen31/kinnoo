@@ -18,6 +18,21 @@ export type AgentDetail = {
   [key: string]: unknown;
 };
 
+export type SecurityCheckRow = {
+  check_name: string;
+  status: string;
+  detail?: string;
+  timestamp?: string;
+};
+
+export type AgentSecurityReport = {
+  tenant_slug: string;
+  agent_slug: string;
+  version: string;
+  security_status?: unknown;
+  checks: SecurityCheckRow[];
+};
+
 type SearchAgentsParams = {
   query: string;
   showOnlyMine: boolean;
@@ -124,4 +139,14 @@ export async function fetchAgentDetail(
   agentSlug: string,
 ): Promise<AgentDetail> {
   return getJson<AgentDetail>(`/api/agents/${tenantSlug}/${agentSlug}`);
+}
+
+export async function fetchAgentSecurityReport(
+  tenantSlug: string,
+  agentSlug: string,
+  version: string,
+): Promise<AgentSecurityReport> {
+  return getJson<AgentSecurityReport>(
+    `/api/agents/${tenantSlug}/${agentSlug}/${version}/security-report`,
+  );
 }

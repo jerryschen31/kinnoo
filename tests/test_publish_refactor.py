@@ -2,6 +2,7 @@ import os
 import subprocess
 import sys
 import zipfile
+import json
 from pathlib import Path
 
 
@@ -267,3 +268,74 @@ def test_publish_uses_home_absolute_mock_registry_path(tmp_path: Path) -> None:
     assert expected_target.read_bytes() == source_archive.read_bytes()
     assert f"Target registry path: {expected_target}" in combined_output
     assert "Target registry path: registry-scratch/jerry/" not in combined_output
+
+
+def test_publish_local_remote_mutually_exclusive(tmp_path: Path) -> None:
+    archive_root = tmp_path / "archive-sandbox"
+    registry_root = tmp_path / "registry-sandbox"
+    _write_archive(archive_root, name="mutual-exclusion-agent", version="1.0.0")
+
+    env = dict(
+        **os.environ,
+        KINNOO_ARCHIVE_ROOT=str(archive_root),
+        KINNOO_REGISTRY_ROOT=str(registry_root),
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(CLI_PATH),
+            "publish",
+            "mutual-exclusion-agent",
+            "--local",
+            "--remote",
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode != 0
+    assert "not allowed with argument" in output
+
+
+def test_publish_json_output(tmp_path: Path) -> None:
+    archive_root = tmp_path / "archive-sandbox"
+    registry_root = tmp_path / "registry-sandbox"
+    source_archive = _write_archive(
+        archive_root,
+        name="json-publish-agent",
+        version="1.0.0",
+    )
+
+    env = dict(
+        **os.environ,
+        KINNOO_ARCHIVE_ROOT=str(archive_root),
+        KINNOO_REGISTRY_ROOT=str(registry_root),
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(CLI_PATH),
+            "publish",
+            "json-publish-agent",
+            "--local",
+            "--json",
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
+
+    payload = json.loads(result.stdout.strip())
+    assert payload["agent_name"] == "json-publish-agent"
+    assert payload["agent_version"] == "1.0.0"
+    assert payload["registry"] == "local"
+    assert payload["source_archive_path"] == str(source_archive)
+    assert payload["publish_result"] == "accepted"
+    assert payload["error_code"] is None
+    assert payload["error_message"] is None

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+from urllib.parse import urlparse
 from typing import Any
 
 from starlette.requests import Request
@@ -76,6 +77,7 @@ def create_download_router(
 
     responses_module = importlib.import_module("fastapi.responses")
     JSONResponse = getattr(responses_module, "JSONResponse")
+    Response = getattr(responses_module, "Response")
 
     router = APIRouter()
 
@@ -106,7 +108,90 @@ def create_download_router(
                     request_id=resolve_request_id(request),
                 ),
             )
+
+        raw_download_url = payload.get("download_url") if isinstance(payload, dict) else None
+        if isinstance(raw_download_url, str) and raw_download_url.strip():
+            parsed = urlparse(raw_download_url.strip())
+            if parsed.scheme == "file":
+                direct_path = f"/api/agents/{tenant_slug}/{agent_slug}/{version}/archive"
+                payload = dict(payload)
+                payload["download_url"] = str(request.base_url).rstrip("/") + direct_path
+
         return payload
+
+    @router.get("/api/agents/{tenant_slug}/{agent_slug}/{version}/archive")
+    async def download_archive_bytes(
+        request: Request,
+        tenant_slug: str,
+        agent_slug: str,
+        version: str,
+        authorization: str | None = Header(default=None),
+    ) -> Any:
+        status, payload = download_payload(
+            authorization_header=authorization,
+            token_service=token_service,
+            metadata_manager=metadata_manager,
+            storage_backend=storage_backend,
+            tenant_slug=tenant_slug,
+            agent_slug=agent_slug,
+            version=version,
+            presign_ttl_seconds=presign_ttl_seconds,
+        )
+        if status >= 400:
+            return JSONResponse(
+                status_code=status,
+                content=build_error_envelope(
+                    status_code=status,
+                    message=str(payload["error"]),
+                    request_id=resolve_request_id(request),
+                ),
+            )
+
+        metadata = metadata_manager.get_version_metadata(
+            tenant_slug=tenant_slug,
+            agent_slug=agent_slug,
+            version=version,
+        )
+        if metadata is None:
+            return JSONResponse(
+                status_code=404,
+                content=build_error_envelope(
+                    status_code=404,
+                    message=f"Version not found: {tenant_slug}/{agent_slug}/{version}",
+                    request_id=resolve_request_id(request),
+                ),
+            )
+
+        archive_key = metadata.storage_keys.get("archive")
+        if not archive_key:
+            return JSONResponse(
+                status_code=404,
+                content=build_error_envelope(
+                    status_code=404,
+                    message="Archive object missing for requested version.",
+                    request_id=resolve_request_id(request),
+                ),
+            )
+
+        try:
+            archive_bytes = storage_backend.get_object(key=str(archive_key))
+        except FileNotFoundError:
+            return JSONResponse(
+                status_code=404,
+                content=build_error_envelope(
+                    status_code=404,
+                    message="Archive object missing for requested version.",
+                    request_id=resolve_request_id(request),
+                ),
+            )
+
+        return Response(
+            content=archive_bytes,
+            media_type="application/octet-stream",
+            headers={
+                "Content-Disposition": f'attachment; filename="{agent_slug}.kno"',
+            },
+        )
 
     return router
 

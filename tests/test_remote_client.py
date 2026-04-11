@@ -139,6 +139,24 @@ def test_error_handling(monkeypatch, tmp_path: Path) -> None:
         assert expected_message_part in str(exc_info.value).lower()
 
 
+def test_resolve_normalizes_relative_download_url(monkeypatch) -> None:
+    def fake_urlopen(request: urllib_request.Request, timeout: float = 0):
+        del timeout
+        assert request.full_url == "https://registry.example.test/api/agents/acme/demo/1.0.0/download"
+        return _FakeHTTPResponse({"download_url": "/data/archives/demo.kno"})
+
+    monkeypatch.setattr(urllib_request, "urlopen", fake_urlopen)
+
+    client = RemoteRegistryClient(
+        base_url="https://registry.example.test",
+        token="secret-token",
+        tenant_slug="acme",
+    )
+
+    resolved = client.resolve(name="demo", version="1.0.0")
+    assert resolved["download_url"] == "https://registry.example.test/data/archives/demo.kno"
+
+
 def test_forbidden_error_includes_response_body(monkeypatch, tmp_path: Path) -> None:
     archive_path = tmp_path / "demo.kno"
     archive_path.write_text("archive-bytes", encoding="utf-8")
@@ -194,3 +212,65 @@ def test_remote_client_user_agent_honors_env_override(monkeypatch, tmp_path: Pat
     result = client.publish(name="demo", version="1.0.0", archive_path=archive_path)
     assert result["ok"] is True
     assert captured_requests[0].get_header("User-agent") == "Mozilla/5.0 TestAgent"
+
+
+def test_remote_client_request_bytes_uses_auth(monkeypatch) -> None:
+    captured_requests: list[urllib_request.Request] = []
+
+    class _BytesResponse:
+        def read(self) -> bytes:
+            return b"archive-bytes"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            del exc_type, exc_val, exc_tb
+            return None
+
+    def fake_urlopen(request: urllib_request.Request, timeout: float = 0):
+        del timeout
+        captured_requests.append(request)
+        return _BytesResponse()
+
+    monkeypatch.setattr(urllib_request, "urlopen", fake_urlopen)
+
+    client = RemoteRegistryClient(
+        base_url="https://registry.example.test",
+        token="secret-token",
+        tenant_slug="acme",
+    )
+
+    payload = client.request_bytes(path="/api/download/demo")
+    assert payload == b"archive-bytes"
+    assert captured_requests[0].full_url == "https://registry.example.test/api/download/demo"
+    assert captured_requests[0].get_header("Authorization") == "Bearer secret-token"
+
+
+def test_remote_client_request_bytes_http_error(monkeypatch) -> None:
+    raised_error = urllib_error.HTTPError(
+        url="https://registry.example.test/api/download/demo",
+        code=404,
+        msg="HTTP 404",
+        hdrs=None,
+        fp=io.BytesIO(b'{"error":{"message":"missing"}}'),
+    )
+
+    def _raise_error(_request, timeout: float = 0):
+        del timeout
+        raise raised_error
+
+    monkeypatch.setattr(urllib_request, "urlopen", _raise_error)
+
+    client = RemoteRegistryClient(
+        base_url="https://registry.example.test",
+        token="secret-token",
+        tenant_slug="acme",
+    )
+
+    with pytest.raises(RemoteRegistryClientError) as exc_info:
+        client.request_bytes(path="/api/download/demo")
+
+    rendered = str(exc_info.value).lower()
+    assert "not found" in rendered
+    assert "missing" in rendered
