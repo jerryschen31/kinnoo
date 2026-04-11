@@ -9365,7 +9365,7 @@ tasks:
       - 'step4: Add test that these options are rejected by the parser.'
     dependencies: []
     tests: [test651]
-    status: not-started
+    status: needs-review
 
   - id: task469
     title: "install - default openclaw install to ~/.openclaw/workspace-<name>"

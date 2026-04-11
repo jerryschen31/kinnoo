@@ -4,6 +4,9 @@ Handles argument parsing and dispatches subcommands.
 """
 
 import argparse
+import contextlib
+import io
+import json
 import subprocess
 import sys
 import re
@@ -460,7 +463,8 @@ def main():
             "  kinnoo install ./dist/my-agent-0.1.0.kno\n"
             "  kinnoo install ./dist/my-agent-0.1.0.kno ./agents/my-agent\n"
             "  kinnoo install my-agent==1.2.0 --remote\n"
-            "  kinnoo install ./dist/my-openclaw-agent-0.3.0.kno --ignore-scripts --allow-vulnerable"
+            "  kinnoo install ./dist/my-openclaw-agent-0.3.0.kno\n"
+            "  kinnoo install ./dist/my-agent-0.1.0.kno --json -y"
         ),
     )
     install_parser.add_argument(
@@ -478,35 +482,6 @@ def main():
         "-y",
         action="store_true",
         help="Skip install confirmation prompt (shows summary and proceeds)",
-    )
-    install_parser.add_argument(
-        "--state-overwrite",
-        action="store_true",
-        help="Allow state snapshot restore to overwrite existing extracted state directories (commonly used by OpenClaw/stateful agents)",
-    )
-
-    openclaw_install_group = install_parser.add_argument_group(
-        "OpenClaw/Node-focused install options"
-    )
-    openclaw_install_group.add_argument(
-        "--allow-vulnerable",
-        action="store_true",
-        help="(OpenClaw/Node-focused) Allow install to continue when Node audit reports critical vulnerabilities (security risk)",
-    )
-    openclaw_install_group.add_argument(
-        "--ignore-scripts",
-        action="store_true",
-        help="(OpenClaw/Node-focused) Disable Node package lifecycle scripts during dependency installation",
-    )
-    openclaw_install_group.add_argument(
-        "--openclaw-min-version",
-        default="0.1.0",
-        help="(OpenClaw-skill) Minimum OpenClaw CLI version required for delegated install (default: 0.1.0)",
-    )
-    openclaw_install_group.add_argument(
-        "--openclaw-skill",
-        dest="openclaw_skill",
-        help="Install an OpenClaw skill into an existing OpenClaw agent workspace",
     )
     install_parser.add_argument(
         "--accept-permissions",
@@ -532,6 +507,11 @@ def main():
         "--frozen",
         action="store_true",
         help="Require lockfile-only reproducible install; fail on lock drift or missing entries",
+    )
+    install_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit machine-readable JSON install result (requires -y).",
     )
     install_source_group = install_parser.add_mutually_exclusive_group()
     install_source_group.add_argument(
@@ -1098,9 +1078,6 @@ def main():
         if "--force" in sys.argv:
             force = True
         assume_yes = bool(getattr(args, "yes", False))
-        overwrite_state = bool(getattr(args, "state_overwrite", False))
-        allow_vulnerable = bool(getattr(args, "allow_vulnerable", False))
-        ignore_scripts = bool(getattr(args, "ignore_scripts", False))
         accept_permissions = bool(getattr(args, "accept_permissions", False))
         allow_unverified_publisher = bool(getattr(args, "allow_unverified_publisher", False))
         strict_mode = bool(getattr(args, "strict", False))
@@ -1109,25 +1086,21 @@ def main():
         frozen_mode = bool(getattr(args, "frozen", False))
         use_local = bool(getattr(args, "local", False))
         use_remote = bool(getattr(args, "remote", False))
-        minimum_openclaw_version = str(getattr(args, "openclaw_min_version", "0.1.0"))
-        openclaw_skill = getattr(args, "openclaw_skill", None)
         try:
             from kinnoo.install_command import install_agent
         except ImportError:
             from .install_command import install_agent
 
-        if openclaw_skill and archive_path is None:
-            print("Usage: kinnoo install <agent-name> --openclaw-skill <skill-slug-or-url>", file=sys.stderr)
+        if json_output and not assume_yes:
+            print("Error: --json requires -y for non-interactive install mode.", file=sys.stderr)
             sys.exit(1)
 
-        exit_code = install_agent(
+        install_stdout = io.StringIO()
+        install_kwargs = dict(
             archive_path=archive_path,
             target_dir_arg=target_dir_arg,
             force=force,
             assume_yes=assume_yes,
-            overwrite_state=overwrite_state,
-            allow_vulnerable=allow_vulnerable,
-            ignore_scripts=ignore_scripts,
             accept_permissions=accept_permissions,
             allow_unverified_publisher=allow_unverified_publisher,
             strict_mode=strict_mode,
@@ -1135,9 +1108,53 @@ def main():
             frozen_mode=frozen_mode,
             use_local=use_local,
             use_remote=use_remote,
-            minimum_openclaw_version=minimum_openclaw_version,
-            openclaw_skill_identifier=openclaw_skill,
         )
+
+        if json_output:
+            with contextlib.redirect_stdout(install_stdout):
+                exit_code = install_agent(**install_kwargs)
+        else:
+            exit_code = install_agent(**install_kwargs)
+
+        if json_output:
+            manifest_name = None
+            manifest_version = None
+            resolved_install_path = None
+            archive_candidate = Path(archive_path).expanduser()
+            if archive_candidate.exists() and archive_candidate.is_file() and archive_candidate.suffix == ".kno":
+                try:
+                    from kinnoo.inspect_command import read_manifest_from_kno_archive
+                except ImportError:
+                    from .inspect_command import read_manifest_from_kno_archive
+
+                manifest_data = read_manifest_from_kno_archive(archive_candidate)
+                if isinstance(manifest_data, dict):
+                    raw_name = manifest_data.get("name")
+                    raw_version = manifest_data.get("version")
+                    if isinstance(raw_name, str) and raw_name.strip():
+                        manifest_name = raw_name.strip()
+                    if isinstance(raw_version, str) and raw_version.strip():
+                        manifest_version = raw_version.strip()
+
+                    if target_dir_arg:
+                        resolved_install_path = str(Path(target_dir_arg).expanduser().resolve())
+                    elif str(manifest_data.get("framework", "")).strip().lower() == "openclaw" and manifest_name:
+                        resolved_install_path = str((Path.home() / ".openclaw" / f"workspace-{manifest_name}").resolve())
+                    else:
+                        resolved_install_path = str(archive_candidate.with_suffix("").resolve())
+
+            json_payload = {
+                "agent_name": manifest_name,
+                "agent_version": manifest_version,
+                "source_archive_path": str(archive_path),
+                "install_path": resolved_install_path,
+                "registry_source": "remote" if use_remote else ("local" if use_local else "auto"),
+                "success": exit_code == 0,
+                "exit_code": exit_code,
+                "error_code": None if exit_code == 0 else "INSTALL_FAILED",
+                "error_message": None if exit_code == 0 else "Install command failed",
+            }
+            print(json.dumps(json_payload, sort_keys=True))
         sys.exit(exit_code)
 
     elif args.command == "stop":
