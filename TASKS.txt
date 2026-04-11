@@ -9674,16 +9674,17 @@ tasks:
     status: needs-review
 
   - id: task483
-    title: "Registry UI - Security tab in agent modal"
+    title: "Registry UI - Security tab in selected-agent details"
     type: task
     description: |
-      Add a new "Security" tab to the agent detail modal in the registry UI
-      (alongside Registry Manifest and Agent Manifest). The Security tab shows
+      Add a new "Security" tab to the selected-agent details panel in the
+      registry UI (alongside Registry Manifest). The Security tab shows
       server-side check results: one line per check with [PASS] or [FAIL].
       Keep it concise — no verbose details.
     files:
-      - server/templates/registry.html
-      - server/routes/registry.py
+      - server/templates/agents.html
+      - server/routes/web_agents.py
+      - server/tests/test_web_agents.py
     steps:
       - 'step1: Add Security tab header to agent modal tab bar.'
       - 'step2: Fetch security report data when Security tab is selected.'
@@ -9691,7 +9692,7 @@ tasks:
       - 'step4: Add test that Security tab renders correctly with sample check data.'
     dependencies: [task481]
     tests: [test667]
-    status: not-started
+    status: needs-review
 
   - id: task484
     title: "New kinnoo fetch command"

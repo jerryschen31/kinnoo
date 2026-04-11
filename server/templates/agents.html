@@ -93,31 +93,70 @@
     </div>
 
     <aside class="agents-detail">
-      {% if selected_manifest %}
-        <h3>Selected Agent Manifest</h3>
-        <p><strong>Tenant:</strong> {{ selected_manifest.tenant }}</p>
-        <p><strong>Name:</strong> {{ selected_manifest.name }}</p>
-        <p><strong>Version:</strong> {{ selected_manifest.version }}</p>
+      <h3>Selected Agent Details</h3>
 
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Field</th>
-              <th>Value</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for row in selected_manifest.rows %}
-              <tr>
-                <td>{{ row.field }}</td>
-                <td>{{ row.value }}</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+      <p>
+        <a href="/agents?page={{ page }}&per_page={{ per_page }}&selected_tenant={{ selected_tenant }}&selected_agent={{ selected_agent }}&selected_tab=manifest">Registry Manifest</a>
+        |
+        <a href="/agents?page={{ page }}&per_page={{ per_page }}&selected_tenant={{ selected_tenant }}&selected_agent={{ selected_agent }}&selected_tab=security">Security</a>
+      </p>
+
+      {% if selected_tab == "security" %}
+        {% if selected_security %}
+          <p><strong>Tenant:</strong> {{ selected_security.tenant }}</p>
+          <p><strong>Name:</strong> {{ selected_security.name }}</p>
+          <p><strong>Version:</strong> {{ selected_security.version }}</p>
+
+          {% if selected_security.checks %}
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Check</th>
+                  <th>Result</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in selected_security.checks %}
+                  <tr>
+                    <td>{{ row.check_name }}</td>
+                    <td>
+                      {% if row.status == "pass" %}[PASS]{% else %}[FAIL]{% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% else %}
+            <p>No security check report available yet.</p>
+          {% endif %}
+        {% else %}
+          <p>Select an agent name from the table to view security check details.</p>
+        {% endif %}
       {% else %}
-        <h3>Selected Agent Manifest</h3>
-        <p>Select an agent name from the table to view full schema details.</p>
+        {% if selected_manifest %}
+          <p><strong>Tenant:</strong> {{ selected_manifest.tenant }}</p>
+          <p><strong>Name:</strong> {{ selected_manifest.name }}</p>
+          <p><strong>Version:</strong> {{ selected_manifest.version }}</p>
+
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Field</th>
+                <th>Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in selected_manifest.rows %}
+                <tr>
+                  <td>{{ row.field }}</td>
+                  <td>{{ row.value }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p>Select an agent name from the table to view full schema details.</p>
+        {% endif %}
       {% endif %}
     </aside>
   </section>

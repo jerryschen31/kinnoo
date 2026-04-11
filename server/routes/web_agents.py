@@ -68,6 +68,7 @@ def create_web_agents_router(
         per_page: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
         selected_tenant: str = Query(default=""),
         selected_agent: str = Query(default=""),
+        selected_tab: str = Query(default="manifest"),
     ) -> HTMLResponse:
         items = _all_agent_rows(
             metadata_manager=metadata_manager,
@@ -80,6 +81,11 @@ def create_web_agents_router(
         has_prev = page > 1
         has_next = start + per_page < total
         selected_manifest = _build_selected_agent_manifest_view(
+            metadata_manager=metadata_manager,
+            tenant_slug=selected_tenant,
+            agent_slug=selected_agent,
+        )
+        selected_security = _build_selected_agent_security_view(
             metadata_manager=metadata_manager,
             tenant_slug=selected_tenant,
             agent_slug=selected_agent,
@@ -99,7 +105,9 @@ def create_web_agents_router(
                 "next_page": page + 1,
                 "selected_tenant": selected_tenant,
                 "selected_agent": selected_agent,
+                "selected_tab": selected_tab,
                 "selected_manifest": selected_manifest,
+                "selected_security": selected_security,
             },
         )
 
@@ -399,6 +407,64 @@ def _build_selected_agent_manifest_view(
         "name": normalized_agent,
         "version": latest_version,
         "rows": rows,
+    }
+
+
+def _build_selected_agent_security_view(
+    *,
+    metadata_manager: MetadataManager,
+    tenant_slug: str,
+    agent_slug: str,
+) -> dict[str, object] | None:
+    normalized_tenant = tenant_slug.strip()
+    normalized_agent = agent_slug.strip()
+    if not normalized_tenant or not normalized_agent:
+        return None
+
+    profile = _build_agent_profile(
+        metadata_manager=metadata_manager,
+        storage_backend=None,
+        tenant_slug=normalized_tenant,
+        agent_slug=normalized_agent,
+    )
+    if profile is None:
+        return None
+
+    latest_version = str(profile.get("latest_version", "")).strip()
+    if not latest_version:
+        return None
+
+    metadata = metadata_manager.get_version_metadata(
+        tenant_slug=normalized_tenant,
+        agent_slug=normalized_agent,
+        version=latest_version,
+    )
+    if metadata is None:
+        return None
+
+    checks: list[dict[str, str]] = []
+    if isinstance(metadata.security_report, list):
+        for item in metadata.security_report:
+            if not isinstance(item, dict):
+                continue
+            checks.append(
+                {
+                    "check_name": str(item.get("check_name", "")),
+                    "status": str(item.get("status", "")).lower(),
+                }
+            )
+
+    if not checks and isinstance(metadata.security_status, dict):
+        for key in ("signature", "archive", "per_file"):
+            value = metadata.security_status.get(key)
+            if isinstance(value, str) and value:
+                checks.append({"check_name": key, "status": value.lower()})
+
+    return {
+        "tenant": normalized_tenant,
+        "name": normalized_agent,
+        "version": latest_version,
+        "checks": checks,
     }
 
 
