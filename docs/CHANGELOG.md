@@ -19,6 +19,19 @@ All notable changes to this project will be documented in this file.
   - `tests/test_cli_import.py::test_feature62_import_openclaw_manifest_migration_guidance`
  - Bumped project version from `0.5.5` to `0.6.0` after Phase 7 final review closure.
 
+## [v0.7.4] - 2026-04-10
+### Added
+- Completed Feature115 UAT Part 1 CLI hardening delivery (tasks 453-486), including the new `kinnoo fetch` command and expanded uninstall target modes.
+- Added registry UI security signal surfaces for list/search/details views, including concise security status indicators and a selected-agent Security tab.
+- Added server-side post-publish security checks with persisted report metadata and containerized async execution wiring.
+
+### Changed
+- Hardened CLI command UX across init/pack/publish/install/run/inspect/list/search to align with UAT Part 1 behaviors and structured output expectations.
+- Updated CLI remote-registry error handling to avoid uncaught Python tracebacks for list/search/fetch/publish failures; commands now emit concise `[kinnoo]` error lines with response payload when available (task486).
+
+### Notes
+- Feature115 coverage now includes 34 tasks (task453-task486) and 46 mapped tests (test628-test673).
+
 ## [v0.7.3] - 2026-04-10
 ### Changed
 - Minor kinnoo init usage changes
