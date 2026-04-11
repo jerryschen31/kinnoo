@@ -20,3 +20,6 @@
 ## Teaching notes
 - Automation modes are most reliable when stdout is reserved for a single parseable JSON document and all operator diagnostics are handled separately.
 - Introduce JSON output as an additive path that does not change default operator UX; this minimizes migration risk for existing users.
+
+## Verification snapshot
+- Dedicated regression run completed during task467 step (`test_publish_json_output` passed).
