@@ -20,3 +20,6 @@
 ## Teaching notes
 - Consolidating tightly coupled flags reduces invalid combinations and simplifies both parser constraints and user mental model.
 - Migration-safe testing should verify both the new success path and explicit rejection of removed legacy flags.
+
+## Verification snapshot
+- Dedicated regression run completed during task463 step (`test_pack_sign_merged_argument` passed).
