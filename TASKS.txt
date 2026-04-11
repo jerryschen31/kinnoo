@@ -9471,7 +9471,7 @@ tasks:
       - 'step5: Add tests for --json output with various option combinations.'
     dependencies: []
     tests: [test656]
-    status: not-started
+    status: needs-review
 
   - id: task474
     title: "inspect - --update simplification to 2 arguments"

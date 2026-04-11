@@ -581,3 +581,50 @@ def test_feature48_inspect_update_rejects_invalid_manifest_value(tmp_path: Path)
     assert "runtime.language" in combined
     after_manifest = (agent_dir / "kinnoo.yaml").read_text(encoding="utf-8")
     assert after_manifest == before_manifest
+
+
+def test_inspect_json_output(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "task473-inspect-json-agent"
+    agent_dir.mkdir(parents=True, exist_ok=True)
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    (agent_dir / "run.py").write_text("print('ok')\n", encoding="utf-8")
+    (agent_dir / "kinnoo.yaml").write_text(
+        """
+name: task473-inspect-json-agent
+version: 1.0.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+""",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "inspect", "--json", str(agent_dir)],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
+    payload = yaml.safe_load(result.stdout)
+    assert payload["target_type"] == "directory"
+    assert payload["raw"] is False
+    assert payload["full"] is False
+    assert payload["manifest"]["name"] == "task473-inspect-json-agent"
+    assert payload["manifest"]["runtime"]["type"] == "one-shot"
+
+    full_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "inspect", "--json", "--full", str(agent_dir)],
+        capture_output=True,
+        text=True,
+    )
+    assert full_result.returncode == 0, f"{full_result.stdout}\n{full_result.stderr}"
+    full_payload = yaml.safe_load(full_result.stdout)
+    assert full_payload["full"] is True
+    assert "all_metadata_fields" in full_payload
