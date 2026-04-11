@@ -42,6 +42,7 @@ SUPPORTED_FRAMEWORKS = [
     "mcp-client",
     "mcp-server",
     "openclaw",
+    "no-framework",
 ]
 
 SUPPORTED_LANGUAGES = [
@@ -70,6 +71,7 @@ _FRAMEWORK_LANGUAGE_COMPATIBILITY = {
     "mcp-client": {"python"},
     "mcp-server": {"python"},
     "openclaw": {"javascript", "typescript"},
+    "no-framework": {"python", "javascript", "typescript"},
 }
 
 _JS_RUN_TEMPLATE = """const inputText = process.argv[2] || '';
@@ -159,7 +161,10 @@ def init_agent(
     framework: Optional[str] = None,
     language: Optional[str] = None,
 ):
-    if framework == "openclaw":
+    is_no_framework = framework == "no-framework"
+    selected_framework = None if is_no_framework else framework
+
+    if selected_framework == "openclaw":
         # Feature77: OpenClaw init delegates lifecycle registration to OpenClaw CLI.
         # Workspace convention is explicit for deterministic install/import/run flows.
         workspace_dir = Path.home() / ".openclaw" / f"workspace-{name}"
@@ -211,7 +216,7 @@ def init_agent(
 
     if framework is not None:
         allowed_languages = _FRAMEWORK_LANGUAGE_COMPATIBILITY.get(framework, {"python"})
-        chosen_language = normalized_language or ("javascript" if framework == "openclaw" else "python")
+        chosen_language = normalized_language or ("javascript" if selected_framework == "openclaw" else "python")
         if chosen_language not in allowed_languages:
             allowed_label = ", ".join(sorted(allowed_languages))
             raise ValueError(
@@ -219,7 +224,7 @@ def init_agent(
                 f"Allowed language(s) for {framework}: {allowed_label}."
             )
 
-    effective_language = normalized_language or ("javascript" if framework == "openclaw" else "python")
+    effective_language = normalized_language or ("javascript" if selected_framework == "openclaw" else "python")
     entrypoint_name = {
         "python": "run.py",
         "javascript": "run.js",
@@ -231,9 +236,9 @@ def init_agent(
     (agent_dir / "prompts").mkdir()
 
     # OpenClaw uses a Node.js daemon manifest contract; MCP server uses a dedicated Python mcp-server manifest.
-    if framework == "openclaw":
+    if selected_framework == "openclaw":
         manifest_content = OPENCLAW_KINNOO_YAML_TEMPLATE.format(name=name)
-    elif framework == "mcp-server":
+    elif selected_framework == "mcp-server":
         manifest_content = MCP_SERVER_KINNOO_YAML_TEMPLATE.format(name=name)
     elif effective_language in {"javascript", "typescript"}:
         manifest_content = _build_node_manifest(
@@ -244,9 +249,9 @@ def init_agent(
     else:
         manifest_content = KINNOO_YAML_TEMPLATE.format(name=name)
 
-    if framework is not None and framework not in {"openclaw", "mcp-server"}:
-        manifest_content += f"framework: {framework}\n"
-        default_model = KNOWN_FRAMEWORK_DEFAULT_MODELS.get(framework)
+    if selected_framework is not None and selected_framework not in {"openclaw", "mcp-server"}:
+        manifest_content += f"framework: {selected_framework}\n"
+        default_model = KNOWN_FRAMEWORK_DEFAULT_MODELS.get(selected_framework)
         if default_model is not None:
             manifest_content += f"model: {default_model}\n"
 
@@ -263,8 +268,8 @@ def init_agent(
 
     # Write files
     (agent_dir / "kinnoo.yaml").write_text(manifest_content)
-    if framework in framework_templates:
-        run_template, requirements_template, readme_template = framework_templates[framework]
+    if selected_framework in framework_templates:
+        run_template, requirements_template, readme_template = framework_templates[selected_framework]
         (agent_dir / "run.py").write_text(run_template)
         (agent_dir / "requirements.txt").write_text(requirements_template)
         (agent_dir / "README.md").write_text(readme_template.format(name=name))
@@ -294,12 +299,12 @@ def init_agent(
                 entrypoint="run.ts",
             )
         )
-    elif framework != "openclaw":
+    elif selected_framework != "openclaw":
         (agent_dir / "run.py").write_text(RUN_PY_TEMPLATE)
         (agent_dir / "requirements.txt").write_text(REQUIREMENTS_TXT_TEMPLATE)
         (agent_dir / "README.md").write_text(README_MD_TEMPLATE.format(name=name))
 
-    if framework == "openclaw":
+    if selected_framework == "openclaw":
         # Keep OpenClaw scaffolding deterministic and offline-safe: template writes only, no shell-outs.
         skills_default_dir = agent_dir / "skills" / "default"
         skills_default_dir.mkdir(parents=True)
