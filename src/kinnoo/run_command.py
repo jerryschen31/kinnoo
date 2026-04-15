@@ -54,7 +54,7 @@ from .supervisor import (
     wait_until_ready,
     write_daemon_state,
 )
-from .validator import validate
+from .validator import resolve_entrypoint_selection, validate
 
 
 def _redact_secrets(text: str, secret_values: Iterable[str]) -> str:
@@ -330,10 +330,19 @@ def _extract_dependency_names(requirements_path: Path) -> list[str]:
     return unique_dependency_names
 
 
-def _check_preflight_entrypoint(manifest: dict, agent_dir: Path) -> tuple[bool, str]:
-    entrypoint = manifest.get("entrypoint")
-    if not isinstance(entrypoint, str) or not entrypoint.strip():
-        return False, "entrypoint check failed: manifest entrypoint is missing or empty"
+def _check_preflight_entrypoint(
+    manifest: dict,
+    agent_dir: Path,
+    entrypoint_arg: str | None = None,
+) -> tuple[bool, str]:
+    selection, selection_errors = resolve_entrypoint_selection(
+        manifest,
+        requested_entrypoint=entrypoint_arg,
+    )
+    if selection is None:
+        return False, f"entrypoint check failed: {selection_errors[0]}"
+
+    entrypoint = selection["selected_entrypoint"]
 
     entrypoint_path = agent_dir / entrypoint
     if not entrypoint_path.exists():
@@ -640,7 +649,7 @@ def _build_pass_through_guard_inputs(pass_through_args: list[str]) -> list[tuple
     return inputs
 
 
-def run_preflight(agent_dir_arg: str) -> int:
+def run_preflight(agent_dir_arg: str, entrypoint_arg: str | None = None) -> int:
     """Run preflight-only checks without executing the agent entrypoint."""
     agent_dir = Path(agent_dir_arg).resolve()
     kinnoo_yaml = agent_dir / "kinnoo.yaml"
@@ -717,7 +726,11 @@ def run_preflight(agent_dir_arg: str) -> int:
 
         env_vars_ok, env_vars_message = _check_preflight_env_vars(manifest, agent_dir)
 
-        entrypoint_ok, entrypoint_message = _check_preflight_entrypoint(manifest, agent_dir)
+        entrypoint_ok, entrypoint_message = _check_preflight_entrypoint(
+            manifest,
+            agent_dir,
+            entrypoint_arg=entrypoint_arg,
+        )
 
         if is_nodejs_compatible_runtime(runtime_language):
             package_manager_raw = runtime_section.get("package_manager")
@@ -1186,6 +1199,7 @@ def logs_agent(agent_dir_arg: str, follow: bool = False, tail_lines: int = 20) -
 def run_agent(
     agent_dir_arg: str,
     input_arg: str | None,
+    entrypoint_arg: str | None = None,
     json_input_arg: str | None = None,
     json_file_arg: str | None = None,
     preflight: bool = False,
@@ -1203,7 +1217,7 @@ def run_agent(
     run_started_at = datetime.now(timezone.utc)
     runtime_pass_through_args = list(pass_through_args or [])
     if preflight:
-        return run_preflight(agent_dir_arg)
+        return run_preflight(agent_dir_arg, entrypoint_arg=entrypoint_arg)
 
     agent_dir = Path(agent_dir_arg).resolve()
     trace_manifest: dict | None = None
@@ -1396,10 +1410,14 @@ def run_agent(
         _print_safe_error("Error: input is required for kinnoo run unless --preflight is used")
         return finalize(1)
 
-    entrypoint = manifest.get("entrypoint")
-    if not entrypoint:
-        _print_safe_error("Error: 'entrypoint' not specified in kinnoo.yaml")
+    entrypoint_selection, entrypoint_selection_errors = resolve_entrypoint_selection(
+        manifest,
+        requested_entrypoint=entrypoint_arg,
+    )
+    if entrypoint_selection is None:
+        _print_safe_error(f"Error: {entrypoint_selection_errors[0]}")
         return finalize(1)
+    entrypoint = entrypoint_selection["selected_entrypoint"]
 
     declared_env_vars = normalize_env_vars(manifest.get("env_vars"))
     dotenv_values = _load_agent_dotenv(agent_dir / ".env")
@@ -1940,6 +1958,9 @@ def run_agent(
                 "duration_seconds": (run_finished_at - run_started_at).total_seconds(),
                 "agent_dir": str(agent_dir),
                 "entrypoint": str(entrypoint),
+                "entrypoint_selection_source": str(entrypoint_selection["selection_source"]),
+                "entrypoint_contract_mode": str(entrypoint_selection["contract_mode"]),
+                "declared_entrypoints": list(entrypoint_selection["declared_entrypoints"]),
                 "runtime_language": runtime_language,
                 "runtime_type": runtime_type,
                 "input": effective_input_arg,

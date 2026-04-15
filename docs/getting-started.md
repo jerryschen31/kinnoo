@@ -39,7 +39,14 @@ Open `my-agent/kinnoo.yaml` and verify key fields:
 - `name`
 - `version`
 - `entrypoint`
+- `entrypoints` (optional alternative to `entrypoint` for multi-script agents)
 - `runtime`
+
+Entrypoint contract rules:
+
+- Use either `entrypoint` or `entrypoints`.
+- Do not declare both fields together.
+- When using `entrypoints`, Kinnoo runs the first item by default unless `--entrypoint` is provided.
 
 If your framework requires provider credentials, export them in your shell before running.
 
@@ -60,6 +67,12 @@ For readiness checks without full execution:
 
 ```bash
 kinnoo run ./my-agent --preflight
+```
+
+For multi-entrypoint agents, explicitly select a declared script:
+
+```bash
+kinnoo run ./my-agent --entrypoint scripts/main.py "hello"
 ```
 
 ## 5) Package for Distribution

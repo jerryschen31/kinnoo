@@ -566,6 +566,20 @@ def test_feature70_landing_and_readme_phase6_messaging() -> None:
     assert "clawhub mirror attribution model" in readme_lower
 
 
+def test_task489_docs_cover_entrypoints_and_run_entrypoint_flag() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    cli_reference = (repo_root / "docs" / "cli-reference.md").read_text(encoding="utf-8")
+    getting_started = (repo_root / "docs" / "getting-started.md").read_text(encoding="utf-8")
+    schema_reference = (repo_root / "notes" / "manifest-schema-reference.md").read_text(encoding="utf-8")
+    combined = f"{cli_reference}\n{getting_started}\n{schema_reference}"
+
+    assert "entrypoints" in combined
+    assert "--entrypoint" in combined
+    assert "mutually exclusive" in combined
+    assert "first item" in combined or "first list item" in combined
+    assert "scripts/main.py" in combined
+
+
 def test_feature70_provenance_docs_and_regression() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     readme_path = repo_root / "README.md"

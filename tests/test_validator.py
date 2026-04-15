@@ -954,6 +954,41 @@ def test_feature9_env_vars_items_must_be_non_empty_strings(tmp_path: Path) -> No
     )
 
 
+def test_task489_entrypoints_union_contract_validation(tmp_path: Path) -> None:
+    data = dict(_VALID_MANIFEST)
+    data.pop("entrypoint", None)
+    data["entrypoints"] = ["scripts/main.py", "run.py"]
+
+    (tmp_path / "scripts").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "scripts" / "main.py").write_text("print('ok')\n", encoding="utf-8")
+    (tmp_path / "run.py").write_text("print('ok')\n", encoding="utf-8")
+
+    manifest_path = _write_manifest(data, tmp_path)
+    is_valid, errors = validate(str(manifest_path))
+    assert is_valid is True, f"Expected entrypoints manifest to validate; errors: {errors}"
+
+    data_with_both = dict(data)
+    data_with_both["entrypoint"] = "run.py"
+    manifest_path = _write_manifest(data_with_both, tmp_path)
+    is_valid, errors = validate(str(manifest_path))
+    assert is_valid is False
+    assert any("mutually exclusive" in error for error in errors), errors
+
+
+def test_task489_entrypoint_path_missing_reports_deterministic_error(tmp_path: Path) -> None:
+    data = dict(_VALID_MANIFEST)
+    data.pop("entrypoint", None)
+    data["entrypoints"] = ["scripts/main.py", "scripts/missing.py"]
+
+    (tmp_path / "scripts").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "scripts" / "main.py").write_text("print('ok')\n", encoding="utf-8")
+
+    manifest_path = _write_manifest(data, tmp_path)
+    is_valid, errors = validate(str(manifest_path))
+    assert is_valid is False
+    assert any("Declared entrypoint path not found: 'scripts/missing.py'." in error for error in errors), errors
+
+
 def test_inputs_required_boolean_values_accepted(tmp_path: Path) -> None:
     data_true = dict(_VALID_MANIFEST)
     data_true["inputs"] = {"type": "text", "required": True}
