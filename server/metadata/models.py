@@ -56,7 +56,7 @@ class VersionMetadata:
             tenant_slug=str(document["tenant_slug"]),
             agent_slug=str(document["agent_slug"]),
             version=str(document["version"]),
-            visibility=str(document.get("visibility", "private")),
+            visibility=str(document.get("visibility", "public")),
             manifest=dict(document.get("manifest", {})),
             storage_keys=dict(document.get("storage_keys", {})),
             integrity=dict(document.get("integrity", {})),
@@ -119,7 +119,7 @@ class AgentIndex:
             schema_version=str(document.get("schema_version", SCHEMA_VERSION_V1)),
             tenant_slug=str(document["tenant_slug"]),
             agent_slug=str(document["agent_slug"]),
-            visibility=str(document.get("visibility", "private")),
+            visibility=str(document.get("visibility", "public")),
             versions=tuple(AgentVersionSummary.from_document(item) for item in raw_versions),
         )
 
@@ -143,7 +143,7 @@ class GlobalAgentSummary:
     def from_document(cls, document: dict[str, Any]) -> "GlobalAgentSummary":
         return cls(
             agent_slug=str(document["agent_slug"]),
-            visibility=str(document.get("visibility", "private")),
+            visibility=str(document.get("visibility", "public")),
             latest_version=str(document.get("latest_version", "")),
             latest_updated_at=str(document.get("latest_updated_at", "")),
         )

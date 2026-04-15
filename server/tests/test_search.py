@@ -165,3 +165,70 @@ def test_search_endpoint(tmp_path):
     assert empty_query_body["error"]["code"] == "bad_request"
     assert empty_query_body["error"]["message"]
     assert empty_query_body["error"]["request_id"]
+
+
+def test_search_show_only_mine_filters_public_cross_tenant_results(tmp_path):
+    config = ServerConfig(
+        storage_backend="local",
+        local_storage_root=tmp_path / "storage",
+        s3_bucket="kinnoo-registry-dev",
+        s3_region="us-east-1",
+        s3_endpoint_url=None,
+        s3_access_key_id=None,
+        s3_secret_access_key=None,
+        presign_ttl_seconds=300,
+        max_upload_mb=5,
+    )
+    app = create_app(config=config)
+    client = TestClient(app)
+
+    alpha_publisher = app.state.token_service.issue_token(
+        subject="publisher-alpha",
+        tenant_slug="tenant-alpha",
+        scopes=["registry:read", "registry:publish"],
+    )
+    beta_publisher = app.state.token_service.issue_token(
+        subject="publisher-beta",
+        tenant_slug="tenant-beta",
+        scopes=["registry:read", "registry:publish"],
+    )
+    alpha_reader = app.state.token_service.issue_token(
+        subject="reader-alpha",
+        tenant_slug="tenant-alpha",
+        scopes=["registry:read"],
+    )
+
+    _publish(
+        app=app,
+        token=alpha_publisher,
+        name="alpha-shared-agent",
+        version="1.0.0",
+        visibility="public",
+        description="shared utility",
+    )
+    _publish(
+        app=app,
+        token=beta_publisher,
+        name="beta-shared-agent",
+        version="1.0.0",
+        visibility="public",
+        description="shared utility",
+    )
+
+    all_visible = client.get(
+        "/api/search?q=shared",
+        headers={"Authorization": f"Bearer {alpha_reader}"},
+    )
+    assert all_visible.status_code == 200
+    all_items = all_visible.json()["items"]
+    assert {item["agent_slug"] for item in all_items} == {"alpha-shared-agent", "beta-shared-agent"}
+
+    mine_only = client.get(
+        "/api/search?q=shared&show_only_mine=true",
+        headers={"Authorization": f"Bearer {alpha_reader}"},
+    )
+    assert mine_only.status_code == 200
+    mine_payload = mine_only.json()
+    assert mine_payload["total"] == 1
+    assert mine_payload["items"][0]["tenant_slug"] == "tenant-alpha"
+    assert mine_payload["items"][0]["agent_slug"] == "alpha-shared-agent"

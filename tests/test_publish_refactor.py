@@ -48,6 +48,35 @@ def _write_archive(
     return archive_path
 
 
+def _write_agent_dir(agent_root: Path, *, name: str, version: str) -> Path:
+    agent_dir = agent_root / name
+    agent_dir.mkdir(parents=True, exist_ok=True)
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                f"name: {name}",
+                f"version: {version}",
+                "framework: generic",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.10\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "run.py").write_text("print('hello')\n", encoding="utf-8")
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    return agent_dir
+
+
 def test_publish_name_resolves_latest_local_archive(tmp_path: Path) -> None:
     archive_root = tmp_path / "archive-sandbox"
     registry_root = tmp_path / "registry-sandbox"
@@ -339,3 +368,75 @@ def test_publish_json_output(tmp_path: Path) -> None:
     assert payload["publish_result"] == "accepted"
     assert payload["error_code"] is None
     assert payload["error_message"] is None
+
+
+def test_publish_pack_private_sets_private_visibility(tmp_path: Path) -> None:
+    archive_root = tmp_path / "archive-sandbox"
+    registry_root = tmp_path / "registry-sandbox"
+    work_root = tmp_path / "work"
+    work_root.mkdir(parents=True, exist_ok=True)
+
+    agent_dir = _write_agent_dir(work_root, name="private-pack-publish-agent", version="1.0.0")
+    env = dict(
+        **os.environ,
+        KINNOO_ARCHIVE_ROOT=str(archive_root),
+        KINNOO_REGISTRY_ROOT=str(registry_root),
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(CLI_PATH),
+            "publish",
+            str(agent_dir),
+            "--pack",
+            "--private",
+            "--local",
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, output
+    assert "Updated visibility to private" in output
+    assert "Published private-pack-publish-agent==1.0.0" in output
+
+    manifest_text = (agent_dir / "kinnoo.yaml").read_text(encoding="utf-8")
+    assert "visibility: private" in manifest_text
+
+
+def test_publish_public_flag_removed_and_private_flag_documented(tmp_path: Path) -> None:
+    archive_root = tmp_path / "archive-sandbox"
+    registry_root = tmp_path / "registry-sandbox"
+    env = dict(
+        **os.environ,
+        KINNOO_ARCHIVE_ROOT=str(archive_root),
+        KINNOO_REGISTRY_ROOT=str(registry_root),
+    )
+
+    public_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "publish", "legacy-agent", "--public"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    public_output = f"{public_result.stdout}\n{public_result.stderr}"
+    assert public_result.returncode != 0
+    assert "unrecognized arguments: --public" in public_output
+
+    help_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "publish", "-h"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    help_output = f"{help_result.stdout}\n{help_result.stderr}"
+    assert help_result.returncode == 0
+    assert "--public" not in help_output
+    assert "--private" in help_output
+    assert "With --pack, force private packaging behavior" in help_output

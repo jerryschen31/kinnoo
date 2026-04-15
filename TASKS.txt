@@ -9808,3 +9808,47 @@ tasks:
     dependencies: [task482, task486]
     tests: [test674, test675, test676, test677]
     status: needs-review
+
+  - id: task488
+    title: "pack/publish visibility default switch to public + deprecation/doc cleanup"
+    type: task
+    description: |
+      Switch packaging visibility policy so kinnoo pack defaults to public archives
+      unless an agent manifest explicitly sets visibility: private or the operator
+      passes --private. Keep --public in kinnoo pack as an explicit normalization
+      flag that removes visibility: private from kinnoo.yaml when present.
+
+      Add publish --private (pack-coupled) behavior and remove publish --public.
+      Update deprecated task/test metadata and code-level deprecated test annotations
+      for superseded private-default assumptions. Refresh docs so examples match
+      public-by-default behavior.
+    files:
+      - src/kinnoo/cli.py
+      - src/kinnoo/pack_command.py
+      - src/kinnoo/publish_command.py
+      - tests/test_pack.py
+      - tests/test_publish_refactor.py
+      - tests/test_publish_command.py
+      - README.md
+      - docs/cli-reference.md
+      - docs/getting-started.md
+      - docs/registry-guide.md
+      - docs/security-model.md
+      - TASKS.txt
+      - TESTS.txt
+      - FEATURES.txt
+      - notes/tasks/task488-swe-handoff.md
+    steps:
+      - 'step1: Add --private to kinnoo pack and make default pack visibility public when kinnoo.yaml has no visibility or when visibility: public is explicitly specified.'
+      - 'step2: Keep --public in kinnoo pack and implement normalization semantics: if kinnoo.yaml contains visibility: private, remove that key (or set to public-normalized state) before packaging.'
+      - 'step3: Ensure pack honors manifest visibility: private by default when present and no overriding visibility flag is passed.'
+      - 'step4: Add --private to kinnoo publish and enforce it is valid only with --pack; this updates kinnoo.yaml visibility to private before pack-publish flow.'
+      - 'step5: Remove publish --public flag support from parser, command handling, and help text; fail fast with clear parser guidance if legacy usage is attempted.'
+      - 'step6: Deprecate superseded manifest items tied to private-default assumptions (task462 default-private wording scope and test645), keeping non-overlapping behavior coverage active.'
+      - 'step7: In code tests superseded by policy change, comment out deprecated test functions and add an "[agent] test deprecated" comment at the top of each deprecated function.'
+      - 'step8: Update README/docs command examples and flag explanations to reflect public-by-default behavior, pack --private/publish --private usage, and removal of publish --public.'
+      - 'step9: Ensure JSON output visibility fields reflect the new default-public behavior consistently across pack/publish flows.'
+      - 'step10: Run manifest validator and targeted pytest modules covering pack/publish/docs-linked behavior; update notes/tasks/task488-swe-handoff.md with completion evidence.'
+    dependencies: [task462, task465, task467, task487]
+    tests: [test678, test679, test680, test681, test682, test683, test684]
+    status: needs-review

@@ -11096,8 +11096,10 @@ tests:
     automation_path: tests/test_pack.py::test_pack_bump_default_patch
 
   - id: test645
-    title: "pack --public help says default is private"
-    type: integration
+    title: "DEPRECATED — pack --public help says default is private"
+    status: deprecated
+    deprecation_note: "[agent] test deprecated: superseded by task488 default-public visibility policy and replacement coverage in test681/test683."
+    type: deprecated
     preconditions: CLI available
     steps:
       - 'step1: Run kinnoo pack -h and capture output.'
@@ -11642,3 +11644,119 @@ tests:
         ac: AC15
     automated: true
     automation_path: tests/test_lambda_handler.py::test_lambda_handler_processes_kno_and_updates_metadata
+
+  - id: test678
+    title: "pack defaults to public visibility when manifest does not declare private"
+    type: integration
+    preconditions: CLI available, valid agent directory with no visibility field in kinnoo.yaml
+    steps:
+      - 'step1: Create/init agent with kinnoo.yaml that omits visibility.'
+      - 'step2: Run kinnoo pack on the agent without --public/--private flags.'
+      - 'step3: Verify pack output/metadata reports public visibility.'
+      - 'step4: Verify resulting archive manifest visibility resolves as public behavior.'
+    expected: Pack defaults to public when private is not explicitly declared
+    pass_criteria: Archive visibility is public by default and no private default text appears
+    covers:
+      - feature: feature115
+        ac: AC4
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_default_visibility_public_when_unspecified
+
+  - id: test679
+    title: "pack preserves explicit manifest visibility private unless overridden"
+    type: integration
+    preconditions: "CLI available, valid agent directory with visibility: private in kinnoo.yaml"
+    steps:
+      - 'step1: Set visibility: private in kinnoo.yaml.'
+      - 'step2: Run kinnoo pack without --public/--private flags.'
+      - 'step3: Verify packed archive remains private.'
+    expected: Explicit private manifest setting is honored by default pack flow
+    pass_criteria: Archive visibility is private when manifest declares private and no override flag is used
+    covers:
+      - feature: feature115
+        ac: AC4
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_respects_manifest_private_visibility
+
+  - id: test680
+    title: "pack --private enforces private visibility and updates manifest"
+    type: integration
+    preconditions: "CLI available, valid agent directory with no visibility or visibility: public"
+    steps:
+      - 'step1: Run kinnoo pack --private <agent-dir>.'
+      - 'step2: Verify kinnoo.yaml contains visibility: private after command.'
+      - 'step3: Verify packed archive visibility is private.'
+    expected: --private explicitly forces private packaging behavior
+    pass_criteria: Manifest and archive both resolve to private visibility when --private is used
+    covers:
+      - feature: feature115
+        ac: AC4
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_private_flag_sets_private_visibility
+
+  - id: test681
+    title: "pack --public remains supported and removes visibility private override"
+    type: integration
+    preconditions: "CLI available, valid agent directory with visibility: private in kinnoo.yaml"
+    steps:
+      - 'step1: Run kinnoo pack --public <agent-dir>.'
+      - 'step2: Verify visibility: private is removed/normalized in kinnoo.yaml.'
+      - 'step3: Verify packed archive resolves to public visibility.'
+      - 'step4: Verify help text states --public is the default behavior.'
+    expected: --public remains as explicit default-public normalization path
+    pass_criteria: Private override is removed and archive visibility is public; help text reflects default-public semantics
+    covers:
+      - feature: feature115
+        ac: AC4
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_public_flag_normalizes_manifest_to_default_public
+
+  - id: test682
+    title: "publish --pack --private forces private archive publish"
+    type: integration
+    preconditions: CLI available, pack/publish local or mocked remote backend available
+    steps:
+      - 'step1: Run kinnoo publish <agent-dir> --pack --private --local (or mocked remote equivalent).'
+      - 'step2: Verify pack stage writes visibility: private into kinnoo.yaml for packaged output.'
+      - 'step3: Verify publish result metadata reports private visibility.'
+    expected: Publish private flag exists and works only in pack-coupled publish flow
+    pass_criteria: Publish succeeds with private visibility when --pack --private is used
+    covers:
+      - feature: feature115
+        ac: AC5
+    automated: true
+    automation_path: tests/test_publish_refactor.py::test_publish_pack_private_sets_private_visibility
+
+  - id: test683
+    title: "publish --public removed and legacy usage is rejected"
+    type: integration
+    preconditions: CLI available
+    steps:
+      - 'step1: Run kinnoo publish --public <target>.'
+      - 'step2: Verify parser rejects the option with unrecognized/deprecated argument guidance.'
+      - 'step3: Verify publish -h does not list --public and does list --private usage constraints.'
+    expected: publish --public is removed from CLI surface
+    pass_criteria: Legacy --public path fails fast and help text no longer advertises --public
+    covers:
+      - feature: feature115
+        ac: AC5
+      - feature: feature115
+        ac: AC16
+    automated: true
+    automation_path: tests/test_publish_refactor.py::test_publish_public_flag_removed_and_private_flag_documented
+
+  - id: test684
+    title: "docs reflect public-by-default pack/publish visibility policy"
+    type: integration
+    preconditions: Docs files updated in workspace
+    steps:
+      - 'step1: Review README.md and docs/cli-reference.md pack/publish sections for default-public wording.'
+      - 'step2: Review docs/getting-started.md and docs/registry-guide.md examples for pack --private and publish --pack --private usage where applicable.'
+      - 'step3: Verify docs/security-model.md trust examples remain accurate with updated flag set.'
+    expected: Developer-facing docs are consistent with default-public visibility behavior
+    pass_criteria: No docs examples or help references claim pack defaults to private or advertise publish --public
+    covers:
+      - feature: feature115
+        ac: AC16
+    automated: true
+    automation_path: tests/test_docs.py::test_docs_visibility_defaults_public_and_publish_public_removed
