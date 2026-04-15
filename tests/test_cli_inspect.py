@@ -733,3 +733,73 @@ def test_inspect_update_confirmation_prompt(tmp_path: Path) -> None:
     assert "Changing runtime.language" not in bypass_result.stdout
     manifest_after_bypass = yaml.safe_load((agent_dir / "kinnoo.yaml").read_text(encoding="utf-8"))
     assert manifest_after_bypass["runtime"]["language"] == "python"
+
+
+def test_task489_inspect_supports_entrypoints_manifest(tmp_path: Path) -> None:
+        agent_dir = tmp_path / "task489-inspect-entrypoints"
+        (agent_dir / "scripts").mkdir(parents=True, exist_ok=True)
+        (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+        (agent_dir / "scripts" / "main.py").write_text("print('ok')\n", encoding="utf-8")
+        (agent_dir / "scripts" / "alt.py").write_text("print('ok')\n", encoding="utf-8")
+        (agent_dir / "kinnoo.yaml").write_text(
+                """
+name: task489-inspect-entrypoints
+version: 1.0.0
+entrypoints:
+    - scripts/main.py
+    - scripts/alt.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+""",
+                encoding="utf-8",
+        )
+
+        result = subprocess.run(
+                [sys.executable, "src/kinnoo/cli.py", "inspect", str(agent_dir), "--json"],
+                capture_output=True,
+                text=True,
+        )
+
+        assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
+        payload = yaml.safe_load(result.stdout)
+        assert payload["manifest"]["entrypoints"] == ["scripts/main.py", "scripts/alt.py"]
+
+
+def test_task489_inspect_rejects_missing_entrypoints_path(tmp_path: Path) -> None:
+        agent_dir = tmp_path / "task489-inspect-missing-path"
+        agent_dir.mkdir(parents=True, exist_ok=True)
+        (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+        (agent_dir / "kinnoo.yaml").write_text(
+                """
+name: task489-inspect-missing-path
+version: 1.0.0
+entrypoints:
+    - scripts/main.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+""",
+                encoding="utf-8",
+        )
+
+        result = subprocess.run(
+                [sys.executable, "src/kinnoo/cli.py", "inspect", str(agent_dir)],
+                capture_output=True,
+                text=True,
+        )
+
+        assert result.returncode != 0
+        assert "Declared entrypoint path not found: 'scripts/main.py'." in result.stderr

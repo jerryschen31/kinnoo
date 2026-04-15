@@ -70,6 +70,7 @@ kinnoo run ./my-agent --preflight
   - `agent_dir`: path to agent directory.
   - `input` (optional): input string.
 - Options:
+  - `--entrypoint`: select a specific declared script when manifest uses `entrypoints`; for legacy `entrypoint` manifests, value must match declared script.
   - `--preflight`: validate readiness only; do not execute entrypoint.
   - `--no-guard`: disable input guard checks for CI/automation.
   - `--json-input`: provide inline JSON payload.
@@ -87,6 +88,19 @@ If you want a normal local run with string input:
 ```bash
 kinnoo run ./my-agent "hello"
 ```
+
+If your manifest declares multiple scripts and you need a non-default script:
+
+```bash
+kinnoo run ./my-agent --entrypoint scripts/alt.py "hello"
+```
+
+Entrypoint selection contract:
+
+- Legacy mode: `entrypoint: run.py`
+- Multi-entrypoint mode: `entrypoints: [scripts/main.py, scripts/alt.py]`
+- `entrypoint` and `entrypoints` are mutually exclusive.
+- In `entrypoints` mode, default selection is the first list item when `--entrypoint` is omitted.
 
 If you want to validate runtime readiness in CI without executing business logic:
 

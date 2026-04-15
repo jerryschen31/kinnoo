@@ -37,6 +37,7 @@ except ImportError:
 RUN_USAGE_TEXT = (
     "Usage: kinnoo run <agent-dir> '<input>'\n"
     "       kinnoo run <agent-dir>\n"
+    "       kinnoo run <agent-dir> --entrypoint <script> '<input>'\n"
     "       kinnoo run <agent-dir> '<input>' --json\n"
     "       kinnoo run <agent-dir> --json-input '<json>'\n"
     "       kinnoo run <agent-dir> --json-file <json-file>\n"
@@ -284,6 +285,7 @@ def main():
             "Examples:\n"
             "  kinnoo run <agent-dir> '<input>'\n"
             "  kinnoo run <agent-dir>\n"
+            "  kinnoo run <agent-dir> --entrypoint scripts/src/main.py '<input>'\n"
             "  kinnoo run <agent-dir> --json-input '{\"task\":\"ping\"}'\n"
             "  kinnoo run <agent-dir> --json-file ./payload.json\n"
             "  kinnoo run <agent-dir> -- -e <some-string> -p <some-file-path> -u <some-url>"
@@ -296,6 +298,14 @@ def main():
         help=(
             "Optional input string to pass to the agent entrypoint. "
             "May be omitted for agents that accept no input, and is not required when --json-input or --json-file is used."
+        ),
+    )
+    run_parser.add_argument(
+        "--entrypoint",
+        dest="entrypoint",
+        help=(
+            "Override manifest default entrypoint selection. Must match manifest entrypoint "
+            "or one of manifest entrypoints values."
         ),
     )
     run_parser.add_argument(
@@ -1070,6 +1080,7 @@ def main():
         exit_code = run_agent(
             agent_dir_arg=args.agent_dir,
             input_arg=input_arg,
+            entrypoint_arg=getattr(args, "entrypoint", None),
             json_input_arg=getattr(args, "json_input", None),
             json_file_arg=getattr(args, "json_file", None),
             preflight=preflight_mode,

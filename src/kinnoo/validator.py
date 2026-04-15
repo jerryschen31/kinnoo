@@ -368,6 +368,132 @@ def _collect_io_type_errors(data: dict[str, Any]) -> list[str]:
     return errors
 
 
+def resolve_entrypoint_selection(
+    manifest_data: dict[str, Any],
+    *,
+    requested_entrypoint: str | None = None,
+) -> tuple[dict[str, Any] | None, list[str]]:
+    """Resolve effective entrypoint selection for legacy and multi-entrypoint manifests.
+
+    Returns:
+        (selection, errors) where selection contains:
+            - contract_mode: "entrypoint" | "entrypoints"
+            - declared_entrypoints: list[str]
+            - selected_entrypoint: str
+            - selection_source: "default" | "flag"
+    """
+    errors: list[str] = []
+
+    entrypoint_value = manifest_data.get("entrypoint")
+    entrypoints_value = manifest_data.get("entrypoints")
+
+    has_entrypoint = "entrypoint" in manifest_data
+    has_entrypoints = "entrypoints" in manifest_data
+
+    if has_entrypoint and has_entrypoints:
+        errors.append("Fields 'entrypoint' and 'entrypoints' are mutually exclusive.")
+        return None, errors
+
+    declared_entrypoints: list[str] = []
+    contract_mode = "entrypoint"
+
+    if has_entrypoint:
+        if not isinstance(entrypoint_value, str):
+            actual = type(entrypoint_value).__name__
+            errors.append(
+                f"Field 'entrypoint' must be of type str, got {actual}."
+            )
+        elif entrypoint_value.strip() == "":
+            errors.append("Field 'entrypoint' must be a non-empty string.")
+        else:
+            declared_entrypoints = [entrypoint_value.strip()]
+            contract_mode = "entrypoint"
+    elif has_entrypoints:
+        contract_mode = "entrypoints"
+        if not isinstance(entrypoints_value, list):
+            actual = type(entrypoints_value).__name__
+            errors.append(
+                f"Field 'entrypoints' must be of type list, got {actual}."
+            )
+        else:
+            if len(entrypoints_value) == 0:
+                errors.append("Field 'entrypoints' must be a non-empty list.")
+            for index, raw_item in enumerate(entrypoints_value):
+                if not isinstance(raw_item, str):
+                    actual = type(raw_item).__name__
+                    errors.append(
+                        f"Field 'entrypoints[{index}]' must be of type str, got {actual}."
+                    )
+                    continue
+                item = raw_item.strip()
+                if item == "":
+                    errors.append(
+                        f"Field 'entrypoints[{index}]' must be a non-empty string."
+                    )
+                    continue
+                declared_entrypoints.append(item)
+    else:
+        errors.append("Missing required field: 'entrypoint' (or provide 'entrypoints').")
+        return None, errors
+
+    if errors:
+        return None, errors
+
+    selected_entrypoint = declared_entrypoints[0]
+    selection_source = "default"
+    if requested_entrypoint is not None:
+        normalized_requested = requested_entrypoint.strip()
+        if normalized_requested == "":
+            errors.append("Flag '--entrypoint' requires a non-empty value.")
+            return None, errors
+
+        if contract_mode == "entrypoint":
+            if normalized_requested != declared_entrypoints[0]:
+                errors.append(
+                    "Flag '--entrypoint' does not match manifest 'entrypoint'. "
+                    f"Expected '{declared_entrypoints[0]}', got '{normalized_requested}'."
+                )
+                return None, errors
+        else:
+            if normalized_requested not in declared_entrypoints:
+                allowed = ", ".join(f"'{value}'" for value in declared_entrypoints)
+                errors.append(
+                    "Flag '--entrypoint' is not declared in manifest 'entrypoints'. "
+                    f"Allowed values: {allowed}."
+                )
+                return None, errors
+
+        selected_entrypoint = normalized_requested
+        selection_source = "flag"
+
+    return {
+        "contract_mode": contract_mode,
+        "declared_entrypoints": declared_entrypoints,
+        "selected_entrypoint": selected_entrypoint,
+        "selection_source": selection_source,
+    }, errors
+
+
+def collect_entrypoint_path_errors(
+    manifest_data: dict[str, Any],
+    *,
+    manifest_root: Path,
+) -> list[str]:
+    """Validate that declared entrypoint paths exist under the manifest root directory."""
+    selection, selection_errors = resolve_entrypoint_selection(manifest_data)
+    if selection is None:
+        return list(selection_errors)
+
+    errors: list[str] = []
+    for entrypoint_value in selection["declared_entrypoints"]:
+        entrypoint_path = (manifest_root / entrypoint_value).resolve(strict=False)
+        if not entrypoint_path.exists() or not entrypoint_path.is_file():
+            errors.append(
+                f"Declared entrypoint path not found: '{entrypoint_value}'."
+            )
+    return errors
+
+
 def _is_safe_relative_manifest_path(path_value: str) -> bool:
     """Return True when a manifest path is relative and traversal-safe."""
     candidate = PurePosixPath(path_value)
@@ -499,7 +625,11 @@ def _collect_openclaw_framework_errors(data: dict[str, Any]) -> list[str]:
 # Public API
 # ---------------------------------------------------------------------------
 
-def _collect_validation_errors(data: dict[str, Any]) -> list[str]:
+def _collect_validation_errors(
+    data: dict[str, Any],
+    *,
+    manifest_root: Path | None = None,
+) -> list[str]:
     """Collect schema/type/semantic validation errors for a manifest mapping."""
     errors: list[str] = []
 
@@ -507,6 +637,9 @@ def _collect_validation_errors(data: dict[str, Any]) -> list[str]:
     data = normalize_manifest_defaults(data)
     # Normalize type fields in inputs/outputs to always be lists
     data = _normalize_types(data)
+
+    entrypoint_selection, entrypoint_selection_errors = resolve_entrypoint_selection(data)
+    errors.extend(entrypoint_selection_errors)
 
     # ------------------------------------------------------------------
     # 2. Required fields — presence check
@@ -534,6 +667,13 @@ def _collect_validation_errors(data: dict[str, Any]) -> list[str]:
     # ------------------------------------------------------------------
     # 4. Semantic validations (only when the field is present + correct type)
     # ------------------------------------------------------------------
+    if manifest_root is not None and entrypoint_selection is not None:
+        errors.extend(
+            collect_entrypoint_path_errors(
+                data,
+                manifest_root=manifest_root,
+            )
+        )
 
     # 4a. version — must be valid semver
     version_found, version_value = _get_nested(data, "version")
@@ -590,6 +730,9 @@ def _collect_validation_errors(data: dict[str, Any]) -> list[str]:
     # 4e. Optional V2 fields (feature9).
     # Validate optional metadata when present while preserving V1 compatibility.
     for optional_field, expected_type in OPTIONAL_FIELD_TYPES.items():
+        if optional_field in {"entrypoint", "entrypoints"}:
+            continue
+
         found, value = _get_nested(data, optional_field)
         if not found:
             continue
@@ -671,7 +814,11 @@ def _collect_validation_errors(data: dict[str, Any]) -> list[str]:
     return errors
 
 
-def validate_manifest_data(manifest_data: dict[str, Any]) -> tuple[bool, list[str]]:
+def validate_manifest_data(
+    manifest_data: dict[str, Any],
+    *,
+    manifest_root: Path | None = None,
+) -> tuple[bool, list[str]]:
     """Validate an in-memory kinnoo manifest mapping.
 
     Parameters
@@ -687,7 +834,7 @@ def validate_manifest_data(manifest_data: dict[str, Any]) -> tuple[bool, list[st
     if not isinstance(manifest_data, dict):
         return False, ["Manifest must be a YAML mapping (dict) at the top level."]
 
-    errors = _collect_validation_errors(manifest_data)
+    errors = _collect_validation_errors(manifest_data, manifest_root=manifest_root)
     return len(errors) == 0, errors
 
 
@@ -722,4 +869,5 @@ def validate(manifest_path: str) -> tuple[bool, list[str]]:
     if not isinstance(data, dict):
         return False, ["Manifest must be a YAML mapping (dict) at the top level."]
 
-    return validate_manifest_data(data)
+    errors = _collect_validation_errors(data, manifest_root=path.parent)
+    return len(errors) == 0, errors

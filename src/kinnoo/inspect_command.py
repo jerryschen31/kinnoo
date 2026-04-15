@@ -639,7 +639,7 @@ def _inspect_directory_target(directory_path: Path, *, full: bool, raw: bool, js
     if manifest_data is None:
         return 1
 
-    is_valid, errors = validate_manifest_data(manifest_data)
+    is_valid, errors = validate_manifest_data(manifest_data, manifest_root=directory_path)
     if not is_valid:
         _print_manifest_validation_errors(errors)
         return 1
@@ -896,7 +896,7 @@ def inspect_update_target(
     updated_manifest = deepcopy(manifest_data)
     _manifest_set_path(updated_manifest, metadata_key, parsed_new_value)
 
-    is_valid, errors = validate_manifest_data(updated_manifest)
+    is_valid, errors = validate_manifest_data(updated_manifest, manifest_root=target)
     if not is_valid:
         _print_manifest_validation_errors(errors)
         print("No changes were written.", file=sys.stderr)

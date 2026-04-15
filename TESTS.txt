@@ -11760,3 +11760,131 @@ tests:
         ac: AC16
     automated: true
     automation_path: tests/test_docs.py::test_docs_visibility_defaults_public_and_publish_public_removed
+
+  - id: test685
+    title: "manifest rejects simultaneous entrypoint and entrypoints"
+    type: integration
+    preconditions: Valid agent fixture where kinnoo.yaml defines both entrypoint and entrypoints
+    steps:
+      - 'step1: Create agent manifest with both `entrypoint` and `entrypoints` defined.'
+      - 'step2: Run kinnoo check (and inspect path) against that agent.'
+      - 'step3: Capture exit code and message contract.'
+    expected: Validation fails fast with intelligent message explaining only one form is allowed
+    pass_criteria: Non-zero exit and deterministic error text indicates mutual exclusivity violation
+    covers:
+      - feature: feature115
+        ac: AC17
+    automated: true
+    automation_path: tests/test_cli.py::test_manifest_rejects_both_entrypoint_and_entrypoints
+
+  - id: test686
+    title: "run defaults to first declared script in entrypoints list"
+    type: integration
+    preconditions: Agent manifest uses entrypoints list with at least two scripts; first script is runnable
+    steps:
+      - 'step1: Define `entrypoints: [run_A.py, run_B.py]` in kinnoo.yaml.'
+      - 'step2: Run kinnoo run without --entrypoint.'
+      - 'step3: Verify execution selects the first script in list.'
+    expected: Default execution uses first listed entrypoints item when explicit --entrypoint is absent
+    pass_criteria: Runtime output proves first list script executed; command exits 0
+    covers:
+      - feature: feature115
+        ac: AC17
+    automated: true
+    automation_path: tests/test_cli.py::test_run_defaults_to_first_entrypoints_item
+
+  - id: test687
+    title: "run --entrypoint must match declared manifest script"
+    type: integration
+    preconditions: Agent manifest defines entrypoint contract (single or list)
+    steps:
+      - 'step1: Invoke kinnoo run with --entrypoint for a script not declared in manifest.'
+      - 'step2: Capture stderr/stdout and exit code.'
+      - 'step3: Verify no fallback execution occurs.'
+    expected: Run fails with intelligent message listing allowed manifest entrypoint values
+    pass_criteria: Non-zero exit and deterministic mismatch guidance message
+    covers:
+      - feature: feature115
+        ac: AC17
+    automated: true
+    automation_path: tests/test_cli.py::test_run_entrypoint_flag_requires_declared_script
+
+  - id: test688
+    title: "run --entrypoint supports nested subfolder script paths"
+    type: integration
+    preconditions: Agent manifest declares nested script paths under entrypoints list or single entrypoint
+    steps:
+      - 'step1: Set declared script path such as scripts/src/main.py.'
+      - 'step2: Run kinnoo run --entrypoint scripts/src/main.py.'
+      - 'step3: Verify selected nested script executes correctly.'
+    expected: Subfolder entrypoint paths resolve and execute when declared and present
+    pass_criteria: Command exits 0 and runtime output confirms nested script entrypoint execution
+    covers:
+      - feature: feature115
+        ac: AC17
+    automated: true
+    automation_path: tests/test_cli.py::test_run_entrypoint_supports_subfolder_script_paths
+
+  - id: test689
+    title: "inspect/check validate declared entrypoint script existence"
+    type: integration
+    preconditions: Manifest declares one or more entrypoint script paths where at least one file is missing
+    steps:
+      - 'step1: Configure kinnoo.yaml with missing script path(s) in entrypoint or entrypoints.'
+      - 'step2: Run kinnoo inspect and kinnoo check against the agent directory.'
+      - 'step3: Verify error references missing path and validation context.'
+    expected: Both inspect/check surfaces reject manifests with nonexistent declared entrypoint scripts
+    pass_criteria: Non-zero exits and deterministic missing-file guidance in outputs
+    covers:
+      - feature: feature115
+        ac: AC17
+    automated: true
+    automation_path: tests/test_cli_inspect.py::test_inspect_and_check_fail_when_declared_entrypoint_script_missing
+
+  - id: test690
+    title: "run --json includes selected entrypoint metadata"
+    type: integration
+    preconditions: Agent supports single or multi-entrypoint manifest contract
+    steps:
+      - 'step1: Run kinnoo run --json with explicit --entrypoint selection.'
+      - 'step2: Parse JSON envelope.'
+      - 'step3: Verify selected/declared/default entrypoint fields are present and accurate.'
+    expected: JSON run envelope exposes relevant entrypoint-selection metadata
+    pass_criteria: JSON response includes deterministic entrypoint selection fields and values
+    covers:
+      - feature: feature115
+        ac: AC17
+    automated: true
+    automation_path: tests/test_cli.py::test_run_json_includes_selected_entrypoint_metadata
+
+  - id: test691
+    title: "single-entrypoint backward compatibility remains intact"
+    type: integration
+    preconditions: Legacy manifest uses only entrypoint field
+    steps:
+      - 'step1: Run kinnoo check/inspect/run with legacy entrypoint-only manifest.'
+      - 'step2: Verify command behavior remains unchanged.'
+      - 'step3: Verify invalid --entrypoint override still fails with clear mismatch guidance.'
+    expected: Existing single-entrypoint agents continue to run without regression
+    pass_criteria: Baseline flows pass and invalid overrides fail deterministically
+    covers:
+      - feature: feature115
+        ac: AC17
+    automated: true
+    automation_path: tests/test_cli.py::test_single_entrypoint_backward_compatibility_with_override_validation
+
+  - id: test692
+    title: "docs describe entrypoints contract, run --entrypoint, and exclusivity rules"
+    type: integration
+    preconditions: CLI and schema docs updated
+    steps:
+      - 'step1: Review manifest schema and CLI docs for entrypoints list + run --entrypoint usage.'
+      - 'step2: Verify docs state that entrypoint and entrypoints cannot coexist.'
+      - 'step3: Verify docs explain first-list-item default and nested path support.'
+    expected: Docs provide complete operator guidance for multi-entrypoint behavior and compatibility
+    pass_criteria: Required wording/examples are present and consistent across docs surfaces
+    covers:
+      - feature: feature115
+        ac: AC17
+    automated: true
+    automation_path: tests/test_docs.py::test_docs_cover_multi_entrypoint_contract_and_run_flag

@@ -4610,6 +4610,131 @@ outputs:
     assert "Guidance" in combined
 
 
+def test_task489_run_entrypoint_flag_selects_declared_script(tmp_path: Path) -> None:
+        agent_dir = tmp_path / "task489-run-entrypoint"
+        (agent_dir / "scripts").mkdir(parents=True, exist_ok=True)
+        (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+        (agent_dir / "scripts" / "main.py").write_text("import sys\nprint(f'main:{sys.argv[1]}')\n", encoding="utf-8")
+        (agent_dir / "scripts" / "alt.py").write_text("import sys\nprint(f'alt:{sys.argv[1]}')\n", encoding="utf-8")
+        (agent_dir / "kinnoo.yaml").write_text(
+                """
+name: task489-run-entrypoint
+version: 1.0.0
+entrypoints:
+    - scripts/main.py
+    - scripts/alt.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+""",
+                encoding="utf-8",
+        )
+
+        result = subprocess.run(
+                [
+                        sys.executable,
+                        "src/kinnoo/cli.py",
+                        "run",
+                        str(agent_dir),
+                        "hello",
+                        "--entrypoint",
+                        "scripts/alt.py",
+                        "--json",
+                ],
+                capture_output=True,
+                text=True,
+        )
+
+        assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
+        payload = json.loads(result.stdout)
+        assert payload["entrypoint"] == "scripts/alt.py"
+        assert payload["entrypoint_selection_source"] == "flag"
+        assert payload["entrypoint_contract_mode"] == "entrypoints"
+        assert payload["declared_entrypoints"] == ["scripts/main.py", "scripts/alt.py"]
+        assert "alt:hello" in payload["output"]
+
+
+def test_task489_run_entrypoint_flag_rejects_undeclared_script(tmp_path: Path) -> None:
+        agent_dir = tmp_path / "task489-run-entrypoint-invalid"
+        agent_dir.mkdir(parents=True, exist_ok=True)
+        (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+        (agent_dir / "run.py").write_text("print('ok')\n", encoding="utf-8")
+        (agent_dir / "kinnoo.yaml").write_text(
+                """
+name: task489-run-entrypoint-invalid
+version: 1.0.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+""",
+                encoding="utf-8",
+        )
+
+        result = subprocess.run(
+                [
+                        sys.executable,
+                        "src/kinnoo/cli.py",
+                        "run",
+                        str(agent_dir),
+                        "hello",
+                        "--entrypoint",
+                        "scripts/other.py",
+                ],
+                capture_output=True,
+                text=True,
+        )
+
+        assert result.returncode != 0
+        combined = f"{result.stdout}\n{result.stderr}"
+        assert "does not match manifest 'entrypoint'" in combined
+
+
+def test_task489_check_rejects_missing_declared_entrypoint_path(tmp_path: Path) -> None:
+        agent_dir = tmp_path / "task489-check-missing-entrypoint"
+        agent_dir.mkdir(parents=True, exist_ok=True)
+        (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+        (agent_dir / "kinnoo.yaml").write_text(
+                """
+name: task489-check-missing-entrypoint
+version: 1.0.0
+entrypoints:
+    - scripts/main.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+""",
+                encoding="utf-8",
+        )
+
+        result = subprocess.run(
+                [sys.executable, "src/kinnoo/cli.py", "check", str(agent_dir)],
+                capture_output=True,
+                text=True,
+        )
+        combined = f"{result.stdout}\n{result.stderr}"
+        assert result.returncode != 0
+        assert "Declared entrypoint path not found: 'scripts/main.py'." in combined
+
+
 def test_colored_output_tty(tmp_path):
     agent_dir = tmp_path / "feature46-color-pass"
     agent_dir.mkdir()

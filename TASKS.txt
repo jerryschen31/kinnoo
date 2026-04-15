@@ -8108,7 +8108,7 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: []
     tests: [test563, test564]
-    status: not-started
+    status: needs-review
 
   - id: task405
     title: "Create issue/PR templates and verify .gitignore coverage"
@@ -9851,4 +9851,55 @@ tasks:
       - 'step10: Run manifest validator and targeted pytest modules covering pack/publish/docs-linked behavior; update notes/tasks/task488-swe-handoff.md with completion evidence.'
     dependencies: [task462, task465, task467, task487]
     tests: [test678, test679, test680, test681, test682, test683, test684]
+    status: needs-review
+
+  - id: task489
+    title: "multi-entrypoint manifest + run/inspect/check validation"
+    type: task
+    description: |
+      Add explicit support for agents that define multiple runnable scripts using
+      `entrypoints: [<list>]` while preserving backward compatibility with
+      `entrypoint: <script>`. Introduce `kinnoo run --entrypoint <script>` and
+      enforce strict manifest/runtime validation so users get deterministic,
+      intelligent errors when entrypoint configuration is invalid.
+
+      Contract highlights:
+      - Manifest may use either `entrypoint` OR `entrypoints`, never both.
+      - With `entrypoints`, the first listed script is default for run when
+        `--entrypoint` is not provided.
+      - `--entrypoint` must match a declared script from manifest and declared
+        script paths must exist relative to agent root (subfolder paths allowed).
+      - `kinnoo inspect` and `kinnoo check` must validate these invariants.
+      - `kinnoo run --json` must include relevant selected-entrypoint metadata.
+    files:
+      - src/kinnoo/schema.py
+      - src/kinnoo/validator.py
+      - src/kinnoo/cli.py
+      - src/kinnoo/run_command.py
+      - src/kinnoo/inspect_command.py
+      - src/kinnoo/check_command.py
+      - tests/test_run_preflight.py
+      - tests/test_cli.py
+      - tests/test_cli_inspect.py
+      - tests/test_docs.py
+      - docs/manifest-schema-reference.md
+      - docs/cli-reference.md
+      - docs/getting-started.md
+      - TASKS.txt
+      - TESTS.txt
+      - FEATURES.txt
+      - notes/tasks/task489-swe-handoff.md
+    steps:
+      - 'step1: Extend manifest schema/validator to allow `entrypoints: [list[string]]` and keep backward compatibility with `entrypoint: string`.'
+      - 'step2: Enforce mutual exclusivity: manifest validation fails with clear message if both `entrypoint` and `entrypoints` are specified.'
+      - 'step3: Add path existence checks for declared entrypoint script(s), including nested subfolder paths, in validator/check/inspect flows.'
+      - 'step4: Add `kinnoo run --entrypoint <script>` parser/help wiring and ensure selected script must be declared in manifest contract.'
+      - 'step5: For `entrypoints` manifests, implement first-list-item default run behavior when `--entrypoint` is omitted.'
+      - 'step6: Keep single-entrypoint manifests working unchanged; reject `--entrypoint` when it does not match declared single entrypoint.'
+      - 'step7: Include selected entrypoint in `kinnoo run --json` payload and keep text-mode output deterministic.'
+      - 'step8: Add comprehensive tests for run/inspect/check validation and error contracts, including subfolder script path coverage.'
+      - 'step9: Update docs for manifest syntax, CLI usage, and migration guidance between single and multi-entrypoint forms.'
+      - 'step10: Run targeted pytest coverage for new tests and manifest validator before marking task ready for review.'
+    dependencies: [task471, task473, task487]
+    tests: [test685, test686, test687, test688, test689, test690, test691, test692]
     status: needs-review

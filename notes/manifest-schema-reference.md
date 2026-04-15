@@ -26,6 +26,42 @@ So if `entrypoint: run.py`, the CLI executes:
 python run.py "Help me refund an order"
 ```
 
+### `entrypoints`
+
+Use `entrypoints` when your agent exposes multiple runnable scripts and you want deterministic runtime selection.
+
+Rules:
+- `entrypoint` and `entrypoints` are mutually exclusive.
+- `entrypoints` must be a non-empty list of non-empty strings.
+- Each declared script path must exist under the agent directory.
+- If `kinnoo run` is called without `--entrypoint`, Kinnoo selects the first value in `entrypoints`.
+- `kinnoo run --entrypoint <script>` must reference one of the declared values.
+
+Example:
+
+```yaml
+name: multi-script-agent
+version: 1.0.0
+entrypoints:
+  - scripts/main.py
+  - scripts/alt.py
+runtime:
+  language: python
+  version: ">=3.10"
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+```
+
+Run a specific script:
+
+```bash
+kinnoo run ./my-agent --entrypoint scripts/alt.py "hello"
+```
+
 ---
 
 ### `dependencies`

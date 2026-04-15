@@ -3672,7 +3672,7 @@ features:
       (--json, --update simplification, confirmation prompt), command deprecation (sync/stop/
       attach/logs comment-out), search/list --json options, registry UI security column and
       tab, new fetch and uninstall commands.
-    tasks: [task453, task454, task455, task456, task457, task458, task459, task460, task461, task462, task463, task464, task465, task466, task467, task468, task469, task470, task471, task472, task473, task474, task475, task476, task477, task478, task479, task480, task481, task482, task483, task484, task485, task486, task487, task488]
+    tasks: [task453, task454, task455, task456, task457, task458, task459, task460, task461, task462, task463, task464, task465, task466, task467, task468, task469, task470, task471, task472, task473, task474, task475, task476, task477, task478, task479, task480, task481, task482, task483, task484, task485, task486, task487, task488, task489]
     acceptance_criteria:
       - id: AC1
         description: "kinnoo -h displays 🍊 Kinnoo CLI v<version> (<commit-hash>) as the title line."
@@ -3706,9 +3706,11 @@ features:
         description: "kinnoo init help/path fully deprecates --framework in favor of positional framework, kinnoo run removes --thinking, command help descriptions are orange-prefixed, and task482 lambda invocation has explicit retry/fallback behavior with operator-visible diagnostics."
       - id: AC16
         description: "Manifest/task/test/docs deprecation hygiene is updated for the default-public visibility switch, including deprecated test annotations ([agent] test deprecated), and docs examples consistently reflect public-by-default pack/publish behavior."
+      - id: AC17
+        description: "Manifest supports either entrypoint (single script) or entrypoints (list of scripts) but not both; kinnoo run adds --entrypoint selection constrained to declared script(s), defaults to first list item for entrypoints mode, validates nested script-path existence, and surfaces deterministic validation/errors in run/inspect/check (including run --json entrypoint metadata)."
     notes:
       - "Based on UAT Part 1 findings documented in notes/phases/phase13-sat-uat-updates.md"
-      - "36 tasks (task453-task488), test coverage extended through test684 for default-public visibility policy and deprecation hygiene"
+      - "37 tasks (task453-task489), test coverage extended through test692 for multi-entrypoint manifest/run validation and docs guidance"
       - "SWE handoff brief in notes/features/feature115-notes.md"
     owner: swe-agent
     dependencies: [feature114]
