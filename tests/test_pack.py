@@ -169,6 +169,8 @@ outputs:
 
     env = _pack_env(tmp_path)
 
+    # [agent] task488 behavior: --public normalizes default-public semantics.
+    # For manifests that already omit private visibility, this is a no-op.
     result = subprocess.run(
         KINNOO_CLI + ["pack", str(d), "--public"],
         cwd=tmp_path,
@@ -178,10 +180,10 @@ outputs:
     )
     output = f"{result.stdout}\n{result.stderr}"
     assert result.returncode == 0, f"pack failed: {output}"
-    assert "Updated visibility to public" in output
+    assert "default public visibility behavior" in output
 
     manifest_text = (d / "kinnoo.yaml").read_text(encoding="utf-8")
-    assert "visibility: public" in manifest_text
+    assert "visibility:" not in manifest_text
 
 def test_pack_inside_agent_dir_prints_error(agent_dir):
     # Run kinnoo pack . from inside agent dir
@@ -550,17 +552,8 @@ outputs:
 
 
 def test_pack_public_help_default_private(tmp_path):
-    env = _pack_env(tmp_path)
-    result = subprocess.run(
-        KINNOO_CLI + ["pack", "-h"],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-        env=env,
-    )
-    output = f"{result.stdout}\n{result.stderr}"
-    assert result.returncode == 0
-    assert "default is private" in output
+  # [agent] test deprecated: superseded by default-public visibility policy.
+  pytest.skip("[agent] test deprecated: replaced by test_pack_public_flag_normalizes_manifest_to_default_public")
 
 
 def test_feature22_pack_includes_assets_recursively_when_enabled(tmp_path):
@@ -851,13 +844,179 @@ outputs:
     assert result.returncode == 0, result.stdout + result.stderr
     payload = json.loads(result.stdout.strip())
     assert payload["agent_dir"] == str(agent.resolve())
-    assert payload["visibility"] == "private"
+    assert payload["visibility"] == "public"
     assert payload["archive_path"].endswith("pack-json-output.kno")
     assert payload["checksum_sidecar_path"].endswith("pack-json-output.kno.sha256")
     assert isinstance(payload["archive_size_bytes"], int)
     assert payload["agent_version"] == "1.0.0"
     assert payload["error_code"] is None
     assert payload["error_message"] is None
+
+
+def test_pack_default_visibility_public_when_unspecified(tmp_path):
+    agent = tmp_path / "pack-default-public"
+    agent.mkdir()
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: pack-default-public
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.py").write_text("print('ok')\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    result = subprocess.run(
+        KINNOO_CLI + ["pack", str(agent), "--json"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    payload = json.loads(result.stdout.strip())
+    assert payload["visibility"] == "public"
+
+
+def test_pack_respects_manifest_private_visibility(tmp_path):
+    agent = tmp_path / "pack-manifest-private"
+    agent.mkdir()
+    (agent / "kinnoo.yaml").write_text(
+        """
+name: pack-manifest-private
+version: 1.0.0
+visibility: private
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.py").write_text("print('ok')\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    result = subprocess.run(
+        KINNOO_CLI + ["pack", str(agent), "--json"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    payload = json.loads(result.stdout.strip())
+    assert payload["visibility"] == "private"
+
+
+def test_pack_private_flag_sets_private_visibility(tmp_path):
+    agent = tmp_path / "pack-private-flag"
+    agent.mkdir()
+    manifest_path = agent / "kinnoo.yaml"
+    manifest_path.write_text(
+        """
+name: pack-private-flag
+version: 1.0.0
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.py").write_text("print('ok')\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    result = subprocess.run(
+        KINNOO_CLI + ["pack", str(agent), "--private", "--json"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    payload = json.loads(result.stdout.strip())
+    assert payload["visibility"] == "private"
+    assert "visibility: private" in manifest_path.read_text(encoding="utf-8")
+
+
+def test_pack_public_flag_normalizes_manifest_to_default_public(tmp_path):
+    agent = tmp_path / "pack-public-normalize"
+    agent.mkdir()
+    manifest_path = agent / "kinnoo.yaml"
+    manifest_path.write_text(
+        """
+name: pack-public-normalize
+version: 1.0.0
+visibility: private
+entrypoint: run.py
+runtime:
+  language: python
+  version: '>=3.10'
+  type: one-shot
+dependencies: []
+inputs:
+  type: text
+outputs:
+  type: text
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent / "run.py").write_text("print('ok')\n", encoding="utf-8")
+    (agent / "requirements.txt").write_text("", encoding="utf-8")
+
+    env = _pack_env(tmp_path)
+    result = subprocess.run(
+        KINNOO_CLI + ["pack", str(agent), "--public", "--json"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    payload = json.loads(result.stdout.strip())
+    assert payload["visibility"] == "public"
+    manifest_text = manifest_path.read_text(encoding="utf-8")
+    assert "visibility: private" not in manifest_text
+
+    help_result = subprocess.run(
+        KINNOO_CLI + ["pack", "-h"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    help_output = f"{help_result.stdout}\n{help_result.stderr}"
+    assert help_result.returncode == 0
+    assert "default behavior is public" in help_output
 
 
 def test_feature22_pack_skips_assets_when_bundle_false(tmp_path):

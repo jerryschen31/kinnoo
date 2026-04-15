@@ -24,6 +24,19 @@ def _make_archive_bytes(*, name: str, version: str, extra_bytes: bytes = b"") ->
     return payload.getvalue()
 
 
+def _make_archive_bytes_without_visibility(*, name: str, version: str, extra_bytes: bytes = b"") -> bytes:
+    payload = BytesIO()
+    with zipfile.ZipFile(payload, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr(
+            "kinnoo.yaml",
+            f"name: {name}\nversion: {version}\n",
+        )
+        archive.writestr("README.md", "test archive")
+        if extra_bytes:
+            archive.writestr("payload.bin", extra_bytes)
+    return payload.getvalue()
+
+
 def test_publish_endpoint(tmp_path):
     config = ServerConfig(
         storage_backend="local",
@@ -178,3 +191,56 @@ def test_publish_accepts_manifest_without_framework_field(tmp_path):
     body = response.json()
     assert body["agent_slug"] == "agent-no-framework"
     assert body["version"] == "1.0.0"
+
+
+def test_publish_defaults_visibility_to_public_when_manifest_omits_visibility(tmp_path):
+    config = ServerConfig(
+        storage_backend="local",
+        local_storage_root=tmp_path / "storage",
+        s3_bucket="kinnoo-registry-dev",
+        s3_region="us-east-1",
+        s3_endpoint_url=None,
+        s3_access_key_id=None,
+        s3_secret_access_key=None,
+        presign_ttl_seconds=120,
+        max_upload_mb=1,
+    )
+
+    app = create_app(config=config)
+    client = TestClient(app)
+
+    publish_token = app.state.token_service.issue_token(
+        subject="publisher-user",
+        tenant_slug="tenant-alpha",
+        scopes=["registry:publish", "registry:read"],
+    )
+
+    archive_bytes = _make_archive_bytes_without_visibility(name="agent-default-public", version="1.0.0")
+    response = client.post(
+        "/api/publish",
+        files={"file": ("agent-default-public.kno", archive_bytes, "application/octet-stream")},
+        headers={"Authorization": f"Bearer {publish_token}"},
+    )
+    assert response.status_code == 201
+
+    version_doc = app.state.metadata_manager.get_version_metadata(
+        tenant_slug="tenant-alpha",
+        agent_slug="agent-default-public",
+        version="1.0.0",
+    )
+    assert version_doc is not None
+    assert version_doc.visibility == "public"
+
+    agent_index = app.state.metadata_manager.get_agent_index(
+        tenant_slug="tenant-alpha",
+        agent_slug="agent-default-public",
+    )
+    assert agent_index is not None
+    assert agent_index.visibility == "public"
+
+    global_index = app.state.metadata_manager.get_global_index()
+    assert global_index is not None
+    alpha_summaries = global_index.tenants.get("tenant-alpha", ())
+    published = [item for item in alpha_summaries if item.agent_slug == "agent-default-public"]
+    assert len(published) == 1
+    assert published[0].visibility == "public"

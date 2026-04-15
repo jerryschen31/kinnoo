@@ -22,6 +22,7 @@ def search_payload(
     query: str,
     offset: int,
     limit: int,
+    show_only_mine: bool,
 ) -> tuple[int, dict[str, object]]:
     try:
         claims = validate_and_inject_user_context(
@@ -51,6 +52,8 @@ def search_payload(
 
     matches: list[dict[str, object]] = []
     for tenant_slug, summaries in sorted(global_index.tenants.items(), key=lambda item: item[0]):
+        if show_only_mine and tenant_slug != claims.tenant_slug:
+            continue
         for summary in summaries:
             if summary.visibility == "private" and claims.tenant_slug != tenant_slug:
                 continue
@@ -107,6 +110,7 @@ def create_search_router(*, token_service: TokenService, metadata_manager: Metad
         q: str = Query(default=""),
         offset: int = Query(default=0, ge=0),
         limit: int = Query(default=50, ge=1, le=100),
+        show_only_mine: bool = Query(default=False),
         authorization: str | None = Header(default=None),
     ) -> dict[str, object]:
         status, payload = search_payload(
@@ -117,6 +121,7 @@ def create_search_router(*, token_service: TokenService, metadata_manager: Metad
             query=q,
             offset=offset,
             limit=limit,
+            show_only_mine=show_only_mine,
         )
         if status >= 400:
             return JSONResponse(

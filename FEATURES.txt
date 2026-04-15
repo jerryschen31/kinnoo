@@ -3672,7 +3672,7 @@ features:
       (--json, --update simplification, confirmation prompt), command deprecation (sync/stop/
       attach/logs comment-out), search/list --json options, registry UI security column and
       tab, new fetch and uninstall commands.
-    tasks: [task453, task454, task455, task456, task457, task458, task459, task460, task461, task462, task463, task464, task465, task466, task467, task468, task469, task470, task471, task472, task473, task474, task475, task476, task477, task478, task479, task480, task481, task482, task483, task484, task485, task486, task487]
+    tasks: [task453, task454, task455, task456, task457, task458, task459, task460, task461, task462, task463, task464, task465, task466, task467, task468, task469, task470, task471, task472, task473, task474, task475, task476, task477, task478, task479, task480, task481, task482, task483, task484, task485, task486, task487, task488]
     acceptance_criteria:
       - id: AC1
         description: "kinnoo -h displays 🍊 Kinnoo CLI v<version> (<commit-hash>) as the title line."
@@ -3681,9 +3681,9 @@ features:
       - id: AC3
         description: "kinnoo init produces correct complete templates (with folders and .gitignore) by default, --minimal produces minimal templates, README.md includes entrypoint/manifest/folder-guide/footer, and language-specific .gitignore content is correct for python/js/ts/openclaw."
       - id: AC4
-        description: "kinnoo pack excludes data/ by default, supports --include/--exclude, --preflight shows dry-run, --bump defaults to patch increment, --sign takes signing key directly, --json outputs structured JSON, and help text for --public notes default is private."
+        description: "kinnoo pack excludes data/ by default, supports --include/--exclude, --preflight shows dry-run, --bump defaults to patch increment, --sign takes signing key directly, --json outputs structured JSON, defaults package visibility to public, supports --private to force visibility: private, and keeps --public as explicit default-public normalization that removes visibility: private when present."
       - id: AC5
-        description: "kinnoo publish enforces --local|--remote mutual exclusion, preserves all versions with latest shown in listings, and --json outputs structured JSON."
+        description: "kinnoo publish enforces --local|--remote mutual exclusion, preserves all versions with latest shown in listings, supports --private (with --pack) to force private packaging behavior, removes --public support, and --json outputs structured JSON."
       - id: AC6
         description: "kinnoo install has deprecated openclaw options removed, defaults openclaw install path to ~/.openclaw/workspace-<name>, and --json (with -y) outputs structured JSON."
       - id: AC7
@@ -3704,9 +3704,11 @@ features:
         description: "kinnoo list/search/fetch/publish catch remote registry client errors and print concise [kinnoo] user-facing messages (including response payload when present) without Python traceback output."
       - id: AC15
         description: "kinnoo init help/path fully deprecates --framework in favor of positional framework, kinnoo run removes --thinking, command help descriptions are orange-prefixed, and task482 lambda invocation has explicit retry/fallback behavior with operator-visible diagnostics."
+      - id: AC16
+        description: "Manifest/task/test/docs deprecation hygiene is updated for the default-public visibility switch, including deprecated test annotations ([agent] test deprecated), and docs examples consistently reflect public-by-default pack/publish behavior."
     notes:
       - "Based on UAT Part 1 findings documented in notes/phases/phase13-sat-uat-updates.md"
-      - "35 tasks (task453-task487), 49 tests (test628-test676)"
+      - "36 tasks (task453-task488), test coverage extended through test684 for default-public visibility policy and deprecation hygiene"
       - "SWE handoff brief in notes/features/feature115-notes.md"
     owner: swe-agent
     dependencies: [feature114]

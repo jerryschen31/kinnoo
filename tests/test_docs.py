@@ -611,3 +611,34 @@ def test_feature114_cli_reference_covers_test_yaml_and_assertions() -> None:
     assert "expected_exit_code" in cli_reference_text
     assert "hello|hi" in cli_reference_text
     assert "(?i)hello|hi" in cli_reference_text
+
+
+def test_docs_visibility_defaults_public_and_publish_public_removed() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    readme_path = repo_root / "README.md"
+    getting_started_path = repo_root / "docs" / "getting-started.md"
+    registry_guide_path = repo_root / "docs" / "registry-guide.md"
+    security_model_path = repo_root / "docs" / "security-model.md"
+    cli_reference_path = repo_root / "docs" / "cli-reference.md"
+    yaml_spec_path = repo_root / "docs" / "kinnoo-yaml-spec.md"
+
+    readme_text = readme_path.read_text(encoding="utf-8")
+    getting_started_text = getting_started_path.read_text(encoding="utf-8")
+    registry_guide_text = registry_guide_path.read_text(encoding="utf-8")
+    security_model_text = security_model_path.read_text(encoding="utf-8")
+    cli_reference_text = cli_reference_path.read_text(encoding="utf-8")
+    yaml_spec_text = yaml_spec_path.read_text(encoding="utf-8")
+    combined_text = (
+        f"{readme_text}\n{getting_started_text}\n{registry_guide_text}\n"
+        f"{security_model_text}\n{cli_reference_text}\n{yaml_spec_text}"
+    )
+
+    assert "default public package artifact" in cli_reference_text
+    assert "kinnoo pack ./my-agent --private" in cli_reference_text
+    assert "kinnoo publish [--local | --remote] [--pack] [--private]" in cli_reference_text
+    assert "By default, packaged visibility is public" in getting_started_text
+    assert "kinnoo publish ./my-agent --pack --private --remote" in getting_started_text
+    assert "Force private visibility during pack/publish" in registry_guide_text
+    assert "kinnoo publish ./my-agent --pack --private --remote" in registry_guide_text
+    assert "publish --public" not in combined_text
+    assert "publish --private --pack" in combined_text

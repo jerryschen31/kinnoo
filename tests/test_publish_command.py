@@ -147,16 +147,16 @@ def test_publish_pack_bump_guardrail_errors(tmp_path: Path) -> None:
     assert bump_without_pack.returncode != 0
     assert "--bump can only be used together with --pack" in bump_without_pack_output
 
-    public_without_pack = subprocess.run(
-        [sys.executable, str(CLI_PATH), "publish", "guardrail-agent", "--public"],
+    private_without_pack = subprocess.run(
+        [sys.executable, str(CLI_PATH), "publish", "guardrail-agent", "--private"],
         capture_output=True,
         text=True,
         env=env,
         cwd=tmp_path,
     )
-    public_without_pack_output = f"{public_without_pack.stdout}\n{public_without_pack.stderr}"
-    assert public_without_pack.returncode != 0
-    assert "--public can only be used together with --pack" in public_without_pack_output
+    private_without_pack_output = f"{private_without_pack.stdout}\n{private_without_pack.stderr}"
+    assert private_without_pack.returncode != 0
+    assert "--private can only be used together with --pack" in private_without_pack_output
 
     missing_archive_no_pack = subprocess.run(
         [sys.executable, str(CLI_PATH), "publish", "missing-agent", "--local"],
@@ -190,17 +190,23 @@ def test_publish_pack_bump_guardrail_errors(tmp_path: Path) -> None:
 
 
 def test_publish_with_pack_public_sets_manifest_visibility(tmp_path: Path) -> None:
+    # [agent] test deprecated: task488 replaces publish --public with publish --private.
+    import pytest
+    pytest.skip("[agent] test deprecated: replaced by test_publish_with_pack_private_sets_manifest_visibility")
+
+
+def test_publish_with_pack_private_sets_manifest_visibility(tmp_path: Path) -> None:
     archive_root = tmp_path / "archive-sandbox"
     registry_root = tmp_path / "registry-sandbox"
     work_root = tmp_path / "work"
     work_root.mkdir(parents=True, exist_ok=True)
 
-    agent_dir = _write_agent_dir(work_root, name="public-publish-agent", version="1.0.0")
+    agent_dir = _write_agent_dir(work_root, name="private-publish-agent", version="1.0.0")
 
     env = _cli_env(archive_root=archive_root, registry_root=registry_root)
 
     result = subprocess.run(
-        [sys.executable, str(CLI_PATH), "publish", str(agent_dir), "--pack", "--public", "--local"],
+        [sys.executable, str(CLI_PATH), "publish", str(agent_dir), "--pack", "--private", "--local"],
         capture_output=True,
         text=True,
         env=env,
@@ -209,7 +215,7 @@ def test_publish_with_pack_public_sets_manifest_visibility(tmp_path: Path) -> No
 
     output = f"{result.stdout}\n{result.stderr}"
     assert result.returncode == 0
-    assert "Updated visibility to public" in output
+    assert "Updated visibility to private" in output
 
     manifest_text = (agent_dir / "kinnoo.yaml").read_text(encoding="utf-8")
-    assert "visibility: public" in manifest_text
+    assert "visibility: private" in manifest_text

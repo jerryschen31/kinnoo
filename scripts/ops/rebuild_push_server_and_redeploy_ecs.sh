@@ -65,7 +65,7 @@ echo "Using ECS cluster: $ECS_CLUSTER"
 echo "Using ECS service: $ECS_SERVICE"
 
 echo "Building server image..."
-DOCKER_BUILDKIT=1 docker build -t "$ECR_REPO_URI:latest" "$ROOT_DIR"
+DOCKER_BUILDKIT=1 docker build --platform linux/amd64 -t "$ECR_REPO_URI:latest" "$ROOT_DIR"
 
 echo "Logging in to ECR..."
 aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REPO_URI"
