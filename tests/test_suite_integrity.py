@@ -113,12 +113,14 @@ def test_feature116_marker_docs_and_test_agent_contracts_present() -> None:
     agent_text = test_agent_path.read_text(encoding="utf-8")
 
     for marker in [
-        "regression",
-        "smoke",
-        "contract",
+        "regression_unit",
+        "regression_integration",
+        "regression_smoke",
+        "schema_contract",
         "schema_unit",
         "integration",
-        "cli",
+        "client_cli",
+        "client_cli_registry",
         "e2e",
         "registry_remote",
         "security_checks",
