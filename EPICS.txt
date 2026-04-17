@@ -1,102 +1,59 @@
 # This file contains a list of epics for the project - numbered E1, E2, E3, etc.
-# An epic represents a large body of work that will be implemented through one or more features.
-# These epics are for reference / planning only. 
-# There is no formal linkage of epics to features or tasks, although features CAN reference an epic if desired.
+# An epic is a main category that represents a large, continuous body of work. 
+# Each feature should be linked to one or more epics. If there is no appropriate epic, then it is possible a new epic needs to be created.
+# Need to emphasize here - a feature CAN belong to more than one epic, when appropriate.
+# By analogy, all tasks and tests are also linked to an epic. This helps with organization and compartmentalization of tasks and tests.
 # A project manager (human or agent) can use this file for planning and management.
 #
 epics:
   - id: E1
-    title: Define the manifest schema (kinnoo.yaml)
+    title: Kinnoo Manifest Schema
     description: |
-      The foundation everything else depends on. Define the YAML schema with the required fields: 
-      name, version, entrypoint, runtime (language, version), dependencies, framework (optional), 
-      inputs.type, outputs.type. Build a schema validator.
-    steps: []
-    priority: P0
+      The manifest YAML definition - required and optional fields that describe an agent.
 
   - id: E2
-    title: kinnoo init — Project scaffolding
+    title: Kinnoo Client CLI
     description: |
-      Generates a template agent directory with the canonical structure:
-      my-agent/ with kinnoo.yaml (pre-filled template), run.py (hello-world entrypoint), 
-      requirements.txt, tools/, prompts/, README.md
-    steps: []
-    priority: P0
+      End-user command-line interface - all of the commands a developer or end-user uses to work with agents.
 
   - id: E3
-    title: kinnoo pack — Package creation
+    title: Kinnoo Server CLI
     description: |
-      Validates the manifest and directory structure, then compresses the directory into a .kno 
-      archive (tar.gz with renamed extension). Must fail fast with clear errors on invalid 
-      manifests or missing entrypoints.
-    steps: []
-    priority: P0
+      DevOps command-line interface - the commands a codebase admin (human or agent) or DevOps uses to manage server-side platform and operations.
+      This includes CLI for the registry server, backend infrastructure, database, logging and monitoring, backend user management, secrets rotation, storage.
 
   - id: E4
-    title: kinnoo inspect — Package metadata viewer
+    title: Kinnoo Web Frontend
     description: |
-      Reads a .kno archive (or local agent directory) and displays the manifest metadata 
-      (name, version, dependencies, entrypoint, etc.) in a human-readable format. 
-      Low complexity, high utility for debugging the pack step.
-    steps: []
-    priority: P1
+      The web interface - includes landing pages, registry UI.
 
   - id: E5
-    title: kinnoo run (local) — Agent execution from source directory
+    title: Kinnoo Documentation
     description: |
-      Runs an agent from a local directory: auto-creates a Python virtual environment, 
-      installs dependencies from requirements.txt, then executes the entrypoint with 
-      user-provided input. This is the core runtime contract: python run.py "<input>". 
-      Includes the MVP security warning for untrusted agents.
-    steps: []
-    priority: P0
+      Documentation and reference guides for Kinnoo.
 
   - id: E6
-    title: kinnoo run (from installed package) — Agent execution from kinnoo archive
+    title: Security, Trust, and Compliance
     description: |
-      Extends the run command to unpack and execute a kinnoo archive, not just a local directory. 
-      Reuses the same venv/dependency/execution logic from E5.
-    steps: []
-    priority: P0
+      Covers signing, integrity, permission model, sandboxing, runtime monitoring, encryption, input guard, security scanning, auth hardening, and secret-handling policy.
 
   - id: E7
-    title: Local registry storage
+    title: Infrastructure, Deployment, and Operations
     description: |
-      A simple local directory-based registry (e.g., ~/.kinnoo/registry/) that stores 
-      installed kinnoo packages and their extracted contents. This is the backend for 
-      install/publish-local operations. Tracks installed package versions.
-    steps: []
-    priority: P1
+      IaC, environment bootstrapping, cloud resources, CI/CD, production hardening, release operations, observability.
 
   - id: E8
-    title: kinnoo install — Install from local kinnoo file or registry
+    title: Identity and Access Management
     description: |
-      Installs a kinnoo package into the local registry. Displays dependencies and requires 
-      explicit confirmation (MVP security model). Sets up the environment so 
-      kinnoo run <agent-name> works by name without specifying a path.
-    steps: []
-    priority: P1
+      Tenant/user lifecycle, auth flows, session/token handling, auth integrations and tooling.
 
   - id: E9
-    title: kinnoo publish (local) — Publish to local registry
+    title: Quality Engineering, Testing and Release Management
     description: |
-      Copies a packed kinnoo artifact into the local registry with version metadata. 
-      This completes the full local loop: init → pack → publish → install → run.
-    steps: []
-    priority: P1
+      Regression strategy, coverage gates, manifest validation policy, UAT / SAT, test organization, release-readiness and checklists.
 
   - id: E10
-    title: kinnoo publish (remote) — Publish to remote registry
+    title: Frameworks, Ecosystem, and Third-Party Tooling Support
     description: |
-      Extends publish to push packages to a remote registry (simple HTTP-based storage — 
-      could be a lightweight server or S3-backed). This enables sharing between machines/developers.
-    steps: []
-    priority: P2
-
-  - id: E11
-    title: kinnoo install (remote) — Install from remote registry
-    description: |
-      Extends install to fetch packages by name from the remote registry. 
-      This completes the cross-machine sharing loop.
-    steps: []
-    priority: P2
+      Includes improving support for frameworks like OpenClaw, PydanticAI, etc and supporting new frameworks and AI protocols / standards such as MCP and A2A.
+      Also includes general AI ecosystem and third-party tooling support.
