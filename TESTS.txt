@@ -11096,8 +11096,10 @@ tests:
     automation_path: tests/test_pack.py::test_pack_bump_default_patch
 
   - id: test645
-    title: "pack --public help says default is private"
-    type: integration
+    title: "DEPRECATED — pack --public help says default is private"
+    status: deprecated
+    deprecation_note: "[agent] test deprecated: superseded by task488 default-public visibility policy and replacement coverage in test681/test683."
+    type: deprecated
     preconditions: CLI available
     steps:
       - 'step1: Run kinnoo pack -h and capture output.'
@@ -11642,3 +11644,301 @@ tests:
         ac: AC15
     automated: true
     automation_path: tests/test_lambda_handler.py::test_lambda_handler_processes_kno_and_updates_metadata
+
+  - id: test678
+    title: "pack defaults to public visibility when manifest does not declare private"
+    type: integration
+    preconditions: CLI available, valid agent directory with no visibility field in kinnoo.yaml
+    steps:
+      - 'step1: Create/init agent with kinnoo.yaml that omits visibility.'
+      - 'step2: Run kinnoo pack on the agent without --public/--private flags.'
+      - 'step3: Verify pack output/metadata reports public visibility.'
+      - 'step4: Verify resulting archive manifest visibility resolves as public behavior.'
+    expected: Pack defaults to public when private is not explicitly declared
+    pass_criteria: Archive visibility is public by default and no private default text appears
+    covers:
+      - feature: feature115
+        ac: AC4
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_default_visibility_public_when_unspecified
+
+  - id: test679
+    title: "pack preserves explicit manifest visibility private unless overridden"
+    type: integration
+    preconditions: "CLI available, valid agent directory with visibility: private in kinnoo.yaml"
+    steps:
+      - 'step1: Set visibility: private in kinnoo.yaml.'
+      - 'step2: Run kinnoo pack without --public/--private flags.'
+      - 'step3: Verify packed archive remains private.'
+    expected: Explicit private manifest setting is honored by default pack flow
+    pass_criteria: Archive visibility is private when manifest declares private and no override flag is used
+    covers:
+      - feature: feature115
+        ac: AC4
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_respects_manifest_private_visibility
+
+  - id: test680
+    title: "pack --private enforces private visibility and updates manifest"
+    type: integration
+    preconditions: "CLI available, valid agent directory with no visibility or visibility: public"
+    steps:
+      - 'step1: Run kinnoo pack --private <agent-dir>.'
+      - 'step2: Verify kinnoo.yaml contains visibility: private after command.'
+      - 'step3: Verify packed archive visibility is private.'
+    expected: --private explicitly forces private packaging behavior
+    pass_criteria: Manifest and archive both resolve to private visibility when --private is used
+    covers:
+      - feature: feature115
+        ac: AC4
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_private_flag_sets_private_visibility
+
+  - id: test681
+    title: "pack --public remains supported and removes visibility private override"
+    type: integration
+    preconditions: "CLI available, valid agent directory with visibility: private in kinnoo.yaml"
+    steps:
+      - 'step1: Run kinnoo pack --public <agent-dir>.'
+      - 'step2: Verify visibility: private is removed/normalized in kinnoo.yaml.'
+      - 'step3: Verify packed archive resolves to public visibility.'
+      - 'step4: Verify help text states --public is the default behavior.'
+    expected: --public remains as explicit default-public normalization path
+    pass_criteria: Private override is removed and archive visibility is public; help text reflects default-public semantics
+    covers:
+      - feature: feature115
+        ac: AC4
+    automated: true
+    automation_path: tests/test_pack.py::test_pack_public_flag_normalizes_manifest_to_default_public
+
+  - id: test682
+    title: "publish --pack --private forces private archive publish"
+    type: integration
+    preconditions: CLI available, pack/publish local or mocked remote backend available
+    steps:
+      - 'step1: Run kinnoo publish <agent-dir> --pack --private --local (or mocked remote equivalent).'
+      - 'step2: Verify pack stage writes visibility: private into kinnoo.yaml for packaged output.'
+      - 'step3: Verify publish result metadata reports private visibility.'
+    expected: Publish private flag exists and works only in pack-coupled publish flow
+    pass_criteria: Publish succeeds with private visibility when --pack --private is used
+    covers:
+      - feature: feature115
+        ac: AC5
+    automated: true
+    automation_path: tests/test_publish_refactor.py::test_publish_pack_private_sets_private_visibility
+
+  - id: test683
+    title: "publish --public removed and legacy usage is rejected"
+    type: integration
+    preconditions: CLI available
+    steps:
+      - 'step1: Run kinnoo publish --public <target>.'
+      - 'step2: Verify parser rejects the option with unrecognized/deprecated argument guidance.'
+      - 'step3: Verify publish -h does not list --public and does list --private usage constraints.'
+    expected: publish --public is removed from CLI surface
+    pass_criteria: Legacy --public path fails fast and help text no longer advertises --public
+    covers:
+      - feature: feature115
+        ac: AC5
+      - feature: feature115
+        ac: AC16
+    automated: true
+    automation_path: tests/test_publish_refactor.py::test_publish_public_flag_removed_and_private_flag_documented
+
+  - id: test684
+    title: "docs reflect public-by-default pack/publish visibility policy"
+    type: integration
+    preconditions: Docs files updated in workspace
+    steps:
+      - 'step1: Review README.md and docs/cli-reference.md pack/publish sections for default-public wording.'
+      - 'step2: Review docs/getting-started.md and docs/registry-guide.md examples for pack --private and publish --pack --private usage where applicable.'
+      - 'step3: Verify docs/security-model.md trust examples remain accurate with updated flag set.'
+    expected: Developer-facing docs are consistent with default-public visibility behavior
+    pass_criteria: No docs examples or help references claim pack defaults to private or advertise publish --public
+    covers:
+      - feature: feature115
+        ac: AC16
+    automated: true
+    automation_path: tests/test_docs.py::test_docs_visibility_defaults_public_and_publish_public_removed
+
+  - id: test685
+    title: "manifest rejects simultaneous entrypoint and entrypoints"
+    type: integration
+    preconditions: Valid agent fixture where kinnoo.yaml defines both entrypoint and entrypoints
+    steps:
+      - 'step1: Create agent manifest with both `entrypoint` and `entrypoints` defined.'
+      - 'step2: Run kinnoo check (and inspect path) against that agent.'
+      - 'step3: Capture exit code and message contract.'
+    expected: Validation fails fast with intelligent message explaining only one form is allowed
+    pass_criteria: Non-zero exit and deterministic error text indicates mutual exclusivity violation
+    covers:
+      - feature: feature115
+        ac: AC17
+    automated: true
+    automation_path: tests/test_validator.py::test_task489_entrypoints_union_contract_validation
+
+  - id: test686
+    title: "run defaults to first declared script in entrypoints list"
+    type: integration
+    preconditions: Agent manifest uses entrypoints list with at least two scripts; first script is runnable
+    steps:
+      - 'step1: Define `entrypoints: [run_A.py, run_B.py]` in kinnoo.yaml.'
+      - 'step2: Run kinnoo run without --entrypoint.'
+      - 'step3: Verify execution selects the first script in list.'
+    expected: Default execution uses first listed entrypoints item when explicit --entrypoint is absent
+    pass_criteria: Runtime output proves first list script executed; command exits 0
+    covers:
+      - feature: feature115
+        ac: AC17
+    automated: true
+    automation_path: tests/test_run_preflight.py::test_task489_preflight_supports_entrypoints_default_selection
+
+  - id: test687
+    title: "run --entrypoint must match declared manifest script"
+    type: integration
+    preconditions: Agent manifest defines entrypoint contract (single or list)
+    steps:
+      - 'step1: Invoke kinnoo run with --entrypoint for a script not declared in manifest.'
+      - 'step2: Capture stderr/stdout and exit code.'
+      - 'step3: Verify no fallback execution occurs.'
+    expected: Run fails with intelligent message listing allowed manifest entrypoint values
+    pass_criteria: Non-zero exit and deterministic mismatch guidance message
+    covers:
+      - feature: feature115
+        ac: AC17
+    automated: true
+    automation_path: tests/test_cli.py::test_task489_run_entrypoint_flag_rejects_undeclared_script
+
+  - id: test688
+    title: "run --entrypoint supports nested subfolder script paths"
+    type: integration
+    preconditions: Agent manifest declares nested script paths under entrypoints list or single entrypoint
+    steps:
+      - 'step1: Set declared script path such as scripts/src/main.py.'
+      - 'step2: Run kinnoo run --entrypoint scripts/src/main.py.'
+      - 'step3: Verify selected nested script executes correctly.'
+    expected: Subfolder entrypoint paths resolve and execute when declared and present
+    pass_criteria: Command exits 0 and runtime output confirms nested script entrypoint execution
+    covers:
+      - feature: feature115
+        ac: AC17
+    automated: true
+    automation_path: tests/test_cli.py::test_task489_run_entrypoint_flag_selects_declared_script
+
+  - id: test689
+    title: "inspect/check validate declared entrypoint script existence"
+    type: integration
+    preconditions: Manifest declares one or more entrypoint script paths where at least one file is missing
+    steps:
+      - 'step1: Configure kinnoo.yaml with missing script path(s) in entrypoint or entrypoints.'
+      - 'step2: Run kinnoo inspect and kinnoo check against the agent directory.'
+      - 'step3: Verify error references missing path and validation context.'
+    expected: Both inspect/check surfaces reject manifests with nonexistent declared entrypoint scripts
+    pass_criteria: Non-zero exits and deterministic missing-file guidance in outputs
+    covers:
+      - feature: feature115
+        ac: AC17
+    automated: true
+    automation_path: tests/test_cli.py::test_task489_check_rejects_missing_declared_entrypoint_path
+
+  - id: test690
+    title: "run --json includes selected entrypoint metadata"
+    type: integration
+    preconditions: Agent supports single or multi-entrypoint manifest contract
+    steps:
+      - 'step1: Run kinnoo run --json with explicit --entrypoint selection.'
+      - 'step2: Parse JSON envelope.'
+      - 'step3: Verify selected/declared/default entrypoint fields are present and accurate.'
+    expected: JSON run envelope exposes relevant entrypoint-selection metadata
+    pass_criteria: JSON response includes deterministic entrypoint selection fields and values
+    covers:
+      - feature: feature115
+        ac: AC17
+    automated: true
+    automation_path: tests/test_cli.py::test_task489_run_entrypoint_flag_selects_declared_script
+
+  - id: test691
+    title: "single-entrypoint backward compatibility remains intact"
+    type: integration
+    preconditions: Legacy manifest uses only entrypoint field
+    steps:
+      - 'step1: Run kinnoo check/inspect/run with legacy entrypoint-only manifest.'
+      - 'step2: Verify command behavior remains unchanged.'
+      - 'step3: Verify invalid --entrypoint override still fails with clear mismatch guidance.'
+    expected: Existing single-entrypoint agents continue to run without regression
+    pass_criteria: Baseline flows pass and invalid overrides fail deterministically
+    covers:
+      - feature: feature115
+        ac: AC17
+    automated: true
+    automation_path: tests/test_cli.py::test_task489_run_entrypoint_flag_rejects_undeclared_script
+
+  - id: test692
+    title: "docs describe entrypoints contract, run --entrypoint, and exclusivity rules"
+    type: integration
+    preconditions: CLI and schema docs updated
+    steps:
+      - 'step1: Review manifest schema and CLI docs for entrypoints list + run --entrypoint usage.'
+      - 'step2: Verify docs state that entrypoint and entrypoints cannot coexist.'
+      - 'step3: Verify docs explain first-list-item default and nested path support.'
+    expected: Docs provide complete operator guidance for multi-entrypoint behavior and compatibility
+    pass_criteria: Required wording/examples are present and consistent across docs surfaces
+    covers:
+      - feature: feature115
+        ac: AC17
+    automated: true
+    automation_path: tests/test_docs.py::test_task489_docs_cover_entrypoints_and_run_entrypoint_flag
+
+  - id: test693
+    title: "shared CLI helper layer covers active command surface"
+    type: integration
+    preconditions: tests/helpers.py and CLI parser command registrations are present
+    steps:
+      - 'step1: Enumerate active command registrations from src/kinnoo/cli.py.'
+      - 'step2: Verify tests/helpers.py includes matching command entries and run_<command> helper wrappers.'
+      - 'step3: Fail fast on missing helper coverage for any active command.'
+    expected: Shared helper layer remains complete as command surface evolves
+    pass_criteria: Integrity test fails on helper drift and passes when helper coverage is complete
+    covers:
+      - feature: feature116
+        ac: AC1
+      - feature: feature116
+        ac: AC5
+    automated: true
+    automation_path: tests/test_suite_integrity.py::test_feature116_cli_helpers_cover_all_active_commands
+
+  - id: test694
+    title: "marker taxonomy and test-agent policy contracts stay in sync"
+    type: integration
+    preconditions: marker declarations exist in pyproject.toml and tests/README.md; .github/test.agent.md exists
+    steps:
+      - 'step1: Verify key marker labels are present in pyproject marker configuration.'
+      - 'step2: Verify tests/README.md documents the same marker dimensions for operators.'
+      - 'step3: Verify .github/test.agent.md includes deprecation and validate_manifest_data guidance.'
+    expected: Marker policy and test-agent guidance remain documented and enforceable
+    pass_criteria: Integrity test catches missing marker/policy docs and passes when policy surfaces are aligned
+    covers:
+      - feature: feature116
+        ac: AC4
+      - feature: feature116
+        ac: AC5
+    automated: true
+    automation_path: tests/test_suite_integrity.py::test_feature116_marker_docs_and_test_agent_contracts_present
+
+  - id: test695
+    title: "validator schema-only tests use in-memory validation API"
+    type: integration
+    preconditions: tests/test_validator.py contains schema-focused runtime validation test coverage
+    steps:
+      - 'step1: Run targeted validator tests for runtime.type and runtime.language contracts.'
+      - 'step2: Confirm schema-only tests execute against validate_manifest_data(data) paths without temporary file dependency.'
+      - 'step3: Confirm error semantics remain deterministic for supported/unsupported values.'
+    expected: Schema-focused validator regressions remain decoupled from file/path fixtures
+    pass_criteria: Targeted validator subset passes and preserves runtime contract assertions via validate_manifest_data(data)
+    covers:
+      - feature: feature116
+        ac: AC2
+      - feature: feature116
+        ac: AC3
+    automated: true
+    automation_path: tests/test_validator.py::test_invalid_runtime_type

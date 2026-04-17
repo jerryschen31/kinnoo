@@ -124,7 +124,7 @@ This gives high confidence in warning behavior while keeping test suite fast and
 - [ ] Implement tasks `task112`..`task115` in order.
 - [ ] Implement tests `test144`..`test148`.
 - [ ] Run focused tests: `python3 -m pytest tests/test_pack_size_reporting.py tests/test_docs.py -q`.
-- [ ] Run manifest validator: `python3 src/validate_project_manifests.py`.
+- [ ] Run manifest validator: `python3 scripts/validate_project_manifests.py`.
 - [ ] Move task statuses to `in-progress` then `needs-review` when complete.
 
 ## TechLead Addendum: Full-Suite Failures To Address Before Merge

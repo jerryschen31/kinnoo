@@ -70,6 +70,7 @@ kinnoo run ./my-agent --preflight
   - `agent_dir`: path to agent directory.
   - `input` (optional): input string.
 - Options:
+  - `--entrypoint`: select a specific declared script when manifest uses `entrypoints`; for legacy `entrypoint` manifests, value must match declared script.
   - `--preflight`: validate readiness only; do not execute entrypoint.
   - `--no-guard`: disable input guard checks for CI/automation.
   - `--json-input`: provide inline JSON payload.
@@ -87,6 +88,19 @@ If you want a normal local run with string input:
 ```bash
 kinnoo run ./my-agent "hello"
 ```
+
+If your manifest declares multiple scripts and you need a non-default script:
+
+```bash
+kinnoo run ./my-agent --entrypoint scripts/alt.py "hello"
+```
+
+Entrypoint selection contract:
+
+- Legacy mode: `entrypoint: run.py`
+- Multi-entrypoint mode: `entrypoints: [scripts/main.py, scripts/alt.py]`
+- `entrypoint` and `entrypoints` are mutually exclusive.
+- In `entrypoints` mode, default selection is the first list item when `--entrypoint` is omitted.
 
 If you want to validate runtime readiness in CI without executing business logic:
 
@@ -195,7 +209,8 @@ kinnoo import https://github.com/org/repo ./imported-agent
 - Usage: `kinnoo pack [options] <agent_dir>`
 - Description: Package an agent directory into a `.kno` archive.
 - Options:
-  - `--public`: ensure `visibility: public` before packaging.
+  - `--public`: normalize to default-public semantics by removing `visibility: private` override when present.
+  - `--private`: force `visibility: private` before packaging.
   - `--bump [patch|minor|major]`: bump version before packaging. `--bump` with no value defaults to `patch`.
   - `--sign SIGNING_KEY`: sign archive with Ed25519 private key PEM.
   - `--preflight`: show files/estimated size/destination without creating archive.
@@ -207,10 +222,16 @@ kinnoo import https://github.com/org/repo ./imported-agent
 
 Examples:
 
-If you want the default private package artifact:
+If you want the default public package artifact:
 
 ```bash
 kinnoo pack ./my-agent
+```
+
+If you want to force private visibility for this packaged artifact:
+
+```bash
+kinnoo pack ./my-agent --private
 ```
 
 If you want to bump patch version and sign before publishing:
@@ -249,7 +270,7 @@ kinnoo diff ./dist/agent-1.0.0.kno ./dist/agent-1.1.0.kno
 
 ### publish
 
-- Usage: `kinnoo publish [--local | --remote] [--pack] [--public] [--bump {major,minor,patch}] [--strict] [--json] <target>`
+- Usage: `kinnoo publish [--local | --remote] [--pack] [--private] [--bump {major,minor,patch}] [--strict] [--json] <target>`
 - Description: Publish an archive, an archive source by agent name, or pack-then-publish from an agent directory.
 - Target behavior:
   - Without `--pack`: target is agent name or `.kno` path.
@@ -257,7 +278,7 @@ kinnoo diff ./dist/agent-1.0.0.kno ./dist/agent-1.1.0.kno
 - Options:
   - `--local` / `--remote`: choose registry backend (mutually exclusive).
   - `--pack`: package first, then publish.
-  - `--public`: with `--pack`, enforce `visibility: public` before packaging.
+  - `--private`: with `--pack`, enforce `visibility: private` before packaging.
   - `--bump`: with `--pack`, apply version bump before publish.
   - `--strict`: require strict trust/signature gates before upload.
   - `--json`: machine-readable publish result.

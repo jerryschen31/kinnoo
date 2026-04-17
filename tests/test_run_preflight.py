@@ -279,7 +279,7 @@ def test_preflight_entrypoint_and_dependency_checks(tmp_path: Path) -> None:
     assert missing_entrypoint_result.returncode != 0
     assert "[FAIL] entrypoint check failed" in missing_entrypoint_output
     assert "does-not-exist.py" in missing_entrypoint_output
-    assert "Action: ensure manifest entrypoint exists and is readable" in missing_entrypoint_output
+    assert "entrypoint exists and is readable" in missing_entrypoint_output
 
     dependency_fail_agent = tmp_path / "dependency-fail-agent"
     _create_agent_fixture(dependency_fail_agent, with_manifest=True)
@@ -942,3 +942,91 @@ def test_feature41_runtime_event_monitoring_baseline(tmp_path: Path) -> None:
     finally:
         stop_accept.set()
         listener.close()
+
+
+def test_task489_preflight_supports_entrypoints_default_selection(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "task489-preflight-entrypoints"
+    (agent_dir / "scripts").mkdir(parents=True, exist_ok=True)
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    (agent_dir / "scripts" / "main.py").write_text("print('main')\n", encoding="utf-8")
+    (agent_dir / "scripts" / "alt.py").write_text("print('alt')\n", encoding="utf-8")
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: task489-preflight-entrypoints",
+                "version: 1.0.0",
+                "entrypoints:",
+                "  - scripts/main.py",
+                "  - scripts/alt.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.10\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "run", str(agent_dir), "--preflight"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, output
+    assert "[PASS] entrypoint check passed" in output
+
+
+def test_task489_run_rejects_undeclared_entrypoint_flag_for_entrypoints_contract(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "task489-run-entrypoints-invalid-flag"
+    (agent_dir / "scripts").mkdir(parents=True, exist_ok=True)
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    (agent_dir / "scripts" / "main.py").write_text("print('main')\n", encoding="utf-8")
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: task489-run-entrypoints-invalid-flag",
+                "version: 1.0.0",
+                "entrypoints:",
+                "  - scripts/main.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.10\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(CLI_PATH),
+            "run",
+            str(agent_dir),
+            "hello",
+            "--entrypoint",
+            "scripts/alt.py",
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode != 0
+    assert "is not declared in manifest 'entrypoints'" in output

@@ -34,7 +34,7 @@
 - `tests/test_validator.py::test_feature22_assets_schema_rejects_invalid_structure` (test203)
 
 ## Validation and task-related test results
-- `python3 src/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
+- `python3 scripts/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
 - `python3 -m pytest tests/test_validator.py::test_feature22_assets_schema_accepts_valid_and_defaults tests/test_validator.py::test_feature22_assets_schema_rejects_invalid_structure -q` -> `2 passed`
 - `python3 -m pytest tests/test_validator.py -k "feature22 or assets"` -> `2 passed, 23 deselected`
 

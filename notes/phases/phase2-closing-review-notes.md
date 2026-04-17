@@ -8,7 +8,7 @@ Reviewer: techlead-agent (final closeout pass)
 - Related task notes in `notes/tasks/` where needed for clarification (notably feature18 follow-up precision task).
 - Manifest state across `FEATURES.txt`, `TASKS.txt`, and `TESTS.txt`.
 - Current repository health checks:
-  - `python3 src/validate_project_manifests.py`
+  - `python3 scripts/validate_project_manifests.py`
   - `python3 -m pytest`
 
 ## Validation Results (Current)

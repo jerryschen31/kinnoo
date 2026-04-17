@@ -114,7 +114,7 @@ def publish_archive(
         tenant_slug=tenant_slug,
         agent_slug=agent_slug,
         version=version,
-        visibility=str(manifest.get("visibility", "private")),
+        visibility=str(manifest.get("visibility", "public")),
         manifest=manifest,
         storage_keys={
             "archive": archive_key,

@@ -18,7 +18,7 @@
   - `feature29`: Remote Registry Server
   - `feature30`: Registry Web UI
 - Sequencing update (explicit): implement feature23-feature26 first, then feature27, then feature19.
-- Manifest updates validated with `python3 src/validate_project_manifests.py` (pass).
+- Manifest updates validated with `python3 scripts/validate_project_manifests.py` (pass).
 
 ### Feature19 import model refinement (2026-03-16)
 
@@ -108,7 +108,7 @@ The 6 high-level features from `notes/phases/phase3-notes-opus-4-6.md` were deco
 - Split MCP into runtime type + packages to avoid a monolithic feature
 - Split Service Declarations into schema + runtime for cleaner separation of concerns
 - All features have explicit regression notes in YAML so SWE agents know which test suites to run
-- Manifest validator passes after all additions (confirmed via `python3 src/validate_project_manifests.py`)
+- Manifest validator passes after all additions (confirmed via `python3 scripts/validate_project_manifests.py`)
 
 ---
 
@@ -189,7 +189,7 @@ This fallback approach allows packaging and installation to proceed even if some
 ### Manifest fixes made during setup
 1. **FEATURES.txt**: was missing top-level `features:` key; content was not indented under it; AC5 description had an unquoted colon sequence `(is_valid: bool, ...)`.
 2. **TASKS.txt**: task0 step3 had an unquoted colon sequence `validate(manifest_path: str)`.
-Both files now pass `python3 src/validate_project_manifests.py`.
+Both files now pass `python3 scripts/validate_project_manifests.py`.
 
 ---
 
@@ -1739,7 +1739,7 @@ User installed OpenClaw v2026.3.28, tested the CLI directly, and determined that
   - Added Vitest automation path for JS/TS-specific workspace fixture contract in `test528`:
     - `web/__tests__/openclaw-pack-fixtures.test.ts::it_preserves_openclaw_workspace_pack_contract`
 - Validation:
-  - `python src/validate_project_manifests.py` -> pass
+  - `python scripts/validate_project_manifests.py` -> pass
 - Full `python -m pytest` run from repo root currently fails due unrelated workspace test-collection conflicts (example-scratch and server/mock-server module collisions); no failures tied to the manifest edits above.
 
 ## Phase 8 Tech Lead Review 1 (2026-04-04)
@@ -1762,7 +1762,7 @@ User installed OpenClaw v2026.3.28, tested the CLI directly, and determined that
 - Full regression executed and passing:
   - `/Users/jerry/.pyenv/versions/3.11.12/bin/python -m pytest tests` -> `516 passed, 10 skipped`
 - Manifest validation executed and passing:
-  - `/Users/jerry/.pyenv/versions/3.11.12/bin/python src/validate_project_manifests.py` -> pass
+  - `/Users/jerry/.pyenv/versions/3.11.12/bin/python scripts/validate_project_manifests.py` -> pass
 - Key decision notes:
   - feature100 is still partial (task410 done; task411/task412 not started), so it should not be treated as complete.
   - feature101 and feature102 are implemented but have AC-depth gaps in current tests.

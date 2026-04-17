@@ -541,6 +541,7 @@ def build_wheels(requirements_path: Path, wheels_dir: Path):
 def pack_agent(
     agent_dir: str,
     make_public: bool = False,
+    make_private: bool = False,
     bump: str | None = None,
     sign: bool = False,
     signing_key_path: str | None = None,
@@ -559,7 +560,7 @@ def pack_agent(
             _emit_json(
                 {
                     "agent_dir": os.path.abspath(agent_dir),
-                    "visibility": "public" if make_public else "private",
+                    "visibility": "private" if make_private else "public",
                     "archive_path": None,
                     "checksum_sidecar_path": None,
                     "archive_size_bytes": None,
@@ -615,15 +616,48 @@ def pack_agent(
     if not isinstance(manifest, dict):
         return _fail("MANIFEST_SHAPE_INVALID", "kinnoo.yaml must parse to a mapping/object")
 
-    if make_public:
-        current_visibility = manifest.get("visibility")
-        if isinstance(current_visibility, str) and current_visibility.strip().lower() == "public":
-            print("[kinnoo pack] Manifest visibility already public")
+    if make_public and make_private:
+        return _fail(
+            "PACK_VISIBILITY_FLAGS_CONFLICT",
+            "--public and --private cannot be used together.",
+            stderr=False,
+        )
+
+    current_visibility = manifest.get("visibility")
+    current_visibility_normalized = (
+        current_visibility.strip().lower()
+        if isinstance(current_visibility, str) and current_visibility.strip()
+        else None
+    )
+
+    if make_private:
+        if current_visibility_normalized == "private":
+            if not json_output:
+                print("[kinnoo pack] Manifest visibility already private")
         else:
-            manifest["visibility"] = "public"
+            manifest["visibility"] = "private"
             with open(kinnoo_yaml_path, "w", encoding="utf-8") as manifest_file:
                 yaml.safe_dump(manifest, manifest_file, sort_keys=False)
-            print(f"[kinnoo pack] Updated visibility to public in {kinnoo_yaml_path}")
+            if not json_output:
+                print(f"[kinnoo pack] Updated visibility to private in {kinnoo_yaml_path}")
+    elif make_public:
+        if current_visibility_normalized == "private":
+            manifest.pop("visibility", None)
+            with open(kinnoo_yaml_path, "w", encoding="utf-8") as manifest_file:
+                yaml.safe_dump(manifest, manifest_file, sort_keys=False)
+            if not json_output:
+                print(
+                    f"[kinnoo pack] Removed visibility: private override to normalize default public behavior in {kinnoo_yaml_path}"
+                )
+        else:
+            if not json_output:
+                print("[kinnoo pack] Manifest already matches default public visibility behavior")
+
+    effective_visibility = (
+        "private"
+        if str(manifest.get("visibility", "")).strip().lower() == "private"
+        else "public"
+    )
 
     runtime_language = "python"
     runtime_section = manifest.get("runtime") if isinstance(manifest, dict) else None
@@ -985,7 +1019,7 @@ def pack_agent(
         _emit_json(
             {
                 "agent_dir": abs_agent_dir,
-                "visibility": "public" if str(manifest.get("visibility", "private")).strip().lower() == "public" else "private",
+                "visibility": effective_visibility,
                 "archive_path": str(stored_record.archive_path),
                 "checksum_sidecar_path": str(checksum_sidecar_path),
                 "archive_size_bytes": archive_size_bytes,

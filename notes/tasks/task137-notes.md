@@ -16,7 +16,7 @@
 - test210: tests/test_cli_inspect.py::test_feature22_inspect_displays_asset_paths_and_sizes
 
 ## Test runs and results
-- python3 src/validate_project_manifests.py -> Validation passed: manifests are consistent
+- python3 scripts/validate_project_manifests.py -> Validation passed: manifests are consistent
 - python3 -m pytest tests/test_cli_install_extract.py -k "feature22 or assets" -> 1 passed, 1 deselected
 - python3 -m pytest tests/test_cli_inspect.py -k "feature22 or assets" -> 1 passed, 6 deselected
 

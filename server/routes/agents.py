@@ -27,6 +27,7 @@ def list_agents_payload(
     offset: int,
     limit: int,
     tenant_filter: str | None,
+    show_only_mine: bool,
 ) -> tuple[int, dict[str, object]]:
     try:
         claims = authenticate_request(
@@ -46,6 +47,11 @@ def list_agents_payload(
     if limit <= 0:
         return 400, {"error": "limit must be > 0"}
 
+    # Web UI session-authenticated calls to /api/agents back the "My Agents" tab.
+    # Keep that flow tenant-scoped by default unless caller explicitly overrides filters.
+    if authorization_header is None and tenant_filter is None and not show_only_mine:
+        show_only_mine = True
+
     global_index = metadata_manager.get_global_index()
     if global_index is None:
         return 200, {
@@ -57,6 +63,8 @@ def list_agents_payload(
 
     items: list[dict[str, object]] = []
     for tenant_slug, summaries in sorted(global_index.tenants.items(), key=lambda item: item[0]):
+        if show_only_mine and tenant_slug != claims.tenant_slug:
+            continue
         if tenant_filter is not None and tenant_slug != tenant_filter:
             continue
 
@@ -179,6 +187,7 @@ def create_agents_router(
         offset: int = Query(default=0, ge=0),
         limit: int = Query(default=20, ge=1, le=100),
         tenant: str | None = Query(default=None),
+        show_only_mine: bool = Query(default=False),
     ) -> dict[str, object]:
         status, payload = list_agents_payload(
             authorization_header=authorization,
@@ -191,6 +200,7 @@ def create_agents_router(
             offset=offset,
             limit=limit,
             tenant_filter=tenant,
+            show_only_mine=show_only_mine,
         )
         if status >= 400:
             return JSONResponse(

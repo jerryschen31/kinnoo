@@ -90,7 +90,7 @@ A single SWE agent can implement all tasks in one sequence. Group 1 should land 
 - [ ] Implement `task105`..`task111` in dependency order.
 - [ ] Implement `test135`..`test143` with deterministic fixtures.
 - [ ] Run focused tests: `python3 -m pytest tests/test_archive_integrity.py tests/test_docs.py -q`.
-- [ ] Run manifest validation: `python3 src/validate_project_manifests.py`.
+- [ ] Run manifest validation: `python3 scripts/validate_project_manifests.py`.
 - [ ] Update task statuses `not-started -> in-progress -> needs-review`.
 - [ ] Add implementation notes for each task under `notes/tasks/task105-notes.md` .. `notes/tasks/task111-notes.md`.
 
@@ -222,7 +222,7 @@ Executed in repo root:
 1. `python3 -m pytest tests/test_archive_integrity.py tests/test_docs.py -k "feature16 or checksum"`
    - Result: **9 passed, 6 deselected**
 
-2. `python3 src/validate_project_manifests.py`
+2. `python3 scripts/validate_project_manifests.py`
    - Result: **Validation passed: manifests are consistent**
 
 ## AC Coverage Assessment

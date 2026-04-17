@@ -289,6 +289,7 @@ def test_publish_copies_checksum_sidecar_when_present(tmp_path: Path) -> None:
             str(cli_script),
             "publish",
             "publish-checksum-agent",
+            "--local",
         ],
         cwd=tmp_path,
         capture_output=True,
@@ -299,11 +300,10 @@ def test_publish_copies_checksum_sidecar_when_present(tmp_path: Path) -> None:
     output = f"{result.stdout}\n{result.stderr}"
     assert result.returncode == 0, output
 
-    published_archive = (
-        registry_root / "publish-checksum-agent" / "1.0.0" / "publish-checksum-agent.kno"
-    )
+    published_archives = list(registry_root.rglob("publish-checksum-agent.kno"))
+    assert published_archives, "expected published archive under registry root"
+    published_archive = published_archives[0]
     published_sidecar = published_archive.with_name(f"{published_archive.name}.sha256")
-    assert published_archive.exists()
     assert published_sidecar.exists()
     assert published_sidecar.read_text(encoding="utf-8") == source_sidecar_path.read_text(
         encoding="utf-8"

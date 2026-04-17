@@ -16,4 +16,4 @@
 ### Validation runs
 - `python3 -m pytest tests/test_pack_robustness.py::test_pack_includes_transitive_wheels_for_pinned_deps` → `1 passed`
 - `python3 -m pytest tests/test_pack.py tests/test_pack_robustness.py` → `8 passed`
-- `python3 src/validate_project_manifests.py` → `Validation passed: manifests are consistent`
+- `python3 scripts/validate_project_manifests.py` → `Validation passed: manifests are consistent`

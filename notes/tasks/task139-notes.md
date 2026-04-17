@@ -18,7 +18,7 @@
 - test213: tests/test_pack.py::test_feature22_pack_text_secret_scan_warning_only_with_binary_skip
 
 ## Test runs and results
-- python3 src/validate_project_manifests.py -> Validation passed: manifests are consistent
+- python3 scripts/validate_project_manifests.py -> Validation passed: manifests are consistent
 - python3 -m pytest tests/test_pack.py -k "feature22 or assets" -> 7 passed, 9 deselected
 
 ## Bug/error notes

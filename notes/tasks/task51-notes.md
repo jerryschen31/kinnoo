@@ -14,4 +14,4 @@
 - Verification:
 	- `python3 -m pytest tests/test_init.py -k "feature9_init_manifest_includes_description_and_author"` → pass
 	- `python3 -m pytest tests/test_init.py tests/test_validator.py` → pass
-	- `python3 src/validate_project_manifests.py` → pass
+	- `python3 scripts/validate_project_manifests.py` → pass

@@ -196,7 +196,7 @@ def test_feature74_uninstall_metadata_and_errors(tmp_path, monkeypatch, capsys):
 
     monkeypatch.setattr("builtins.input", lambda _prompt: "y")
     uninstall_exit_code = uninstall_command.uninstall_agent(
-        agent_name="feature74-agent",
+        target="feature74-agent",
         install_root_arg=str(install_root),
     )
     assert uninstall_exit_code == 0
@@ -220,13 +220,13 @@ def test_feature74_uninstall_metadata_and_errors(tmp_path, monkeypatch, capsys):
     assert latest_trace.get("removed_from_lockfile") is True
 
     missing_exit_code = uninstall_command.uninstall_agent(
-        agent_name="feature74-agent",
+        target="feature74-agent",
         install_root_arg=str(install_root),
     )
     captured = capsys.readouterr()
     combined_output = f"{captured.out}\n{captured.err}"
     assert missing_exit_code == 1
-    assert "Installed agent 'feature74-agent' was not found" in combined_output
+    assert "Nothing to uninstall for target 'feature74-agent'" in combined_output
 
 
 def _node_manifest_yaml(package_manager: str | None = None) -> str:

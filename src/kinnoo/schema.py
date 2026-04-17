@@ -72,7 +72,6 @@ notation (e.g., ``runtime.language``).
 REQUIRED_FIELDS: list[str] = [
     "name",
     "version",
-    "entrypoint",
     "runtime.language",
     "runtime.version",
     "runtime.type",
@@ -86,7 +85,6 @@ REQUIRED_FIELDS: list[str] = [
 FIELD_TYPES: dict[str, type] = {
     "name": str,
     "version": str,
-    "entrypoint": str,
     "runtime.language": str,
     "runtime.version": str,
     "runtime.type": str,
@@ -188,6 +186,8 @@ OPTIONAL_FIELDS: list[str] = [
     "description",
     "author",
     "license",
+    "entrypoint",
+    "entrypoints",
     "env_vars",
     "provenance",
     "provenance.source_registry",
@@ -217,6 +217,8 @@ OPTIONAL_FIELD_TYPES: dict[str, object] = {
     "description": str,
     "author": str,
     "license": str,
+    "entrypoint": str,
+    "entrypoints": list,
     "env_vars": list,
     "provenance": dict,
     "provenance.source_registry": str,

@@ -133,6 +133,23 @@ def _requirement_display_name(requirement_line: str) -> str:
     return base.strip()
 
 
+def _safe_extract_zip(archive_zip: zipfile.ZipFile, target_dir: Path) -> None:
+    """Extract zip entries only if all members stay within target_dir."""
+    target_root = target_dir.resolve()
+    for member in archive_zip.infolist():
+        member_name = member.filename
+        # Block absolute paths and drive-letter style paths before extraction.
+        if member_name.startswith(("/", "\\")) or re.match(r"^[A-Za-z]:[\\/]", member_name):
+            raise ValueError(f"Archive member uses absolute path: {member_name}")
+        resolved_member_path = (target_root / member_name).resolve()
+        try:
+            resolved_member_path.relative_to(target_root)
+        except ValueError as error:
+            raise ValueError(f"Archive member escapes target directory: {member_name}") from error
+
+    archive_zip.extractall(target_dir)
+
+
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -1810,9 +1827,12 @@ def _install_from_archive_path(
 
     try:
         with zipfile.ZipFile(archive, "r") as archive_zip:
-            archive_zip.extractall(target_dir)
+            _safe_extract_zip(archive_zip, target_dir)
     except zipfile.BadZipFile:
         print(f"Error: Archive '{archive}' is not a valid .kno (zip) archive.", file=sys.stderr)
+        return 1
+    except ValueError as error:
+        print(f"Error: Refusing to extract unsafe archive entries: {error}", file=sys.stderr)
         return 1
     except Exception as error:
         print(f"Error: Failed to extract archive: {error}", file=sys.stderr)

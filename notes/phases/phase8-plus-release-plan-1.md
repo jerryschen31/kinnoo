@@ -572,7 +572,7 @@ jobs:
       - setup-python
       - pip install -e ".[dev]"
       - python -m pytest tests/ -v --tb=short
-      - python src/validate_project_manifests.py
+      - python scripts/validate_project_manifests.py
 
   lint:
     runs-on: ubuntu-latest
@@ -651,7 +651,7 @@ jobs:
 | Step | Action | Effort |
 |------|--------|--------|
 | 1 | Run full test suite against latest code on CI (all Python versions) | 0.5 day |
-| 2 | Run `python src/validate_project_manifests.py` — zero errors | 0.5 hour |
+| 2 | Run `python scripts/validate_project_manifests.py` — zero errors | 0.5 hour |
 | 3 | Verify all must-have features for beta are status `completed` | 0.5 hour |
 | 4 | Verify production registry is operational (health check, publish, install round-trip) | 0.5 day |
 | 5 | Verify seed agents are discoverable and installable from production registry | 0.5 hour |

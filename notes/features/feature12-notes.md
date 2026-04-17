@@ -42,7 +42,7 @@
 - `test104` -> `test117`
 
 ### Validation performed
-- `python3 src/validate_project_manifests.py` -> passed.
+- `python3 scripts/validate_project_manifests.py` -> passed.
 - Targeted tests after deprecation edits:
   - `pytest -q tests/test_registry.py tests/test_cli_registry.py tests/test_docs.py` -> passed.
 

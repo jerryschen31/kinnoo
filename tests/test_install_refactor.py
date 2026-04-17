@@ -9,6 +9,12 @@ from pathlib import Path
 CLI_PATH = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
 
 
+def _test_home(root: Path) -> Path:
+    home_root = root / ".test-home"
+    home_root.mkdir(parents=True, exist_ok=True)
+    return home_root
+
+
 def _write_archive(
     archive_root: Path,
     *,
@@ -91,13 +97,15 @@ def _publish_from_local_archive(
     registry_root: Path,
     cwd: Path,
 ) -> subprocess.CompletedProcess[str]:
+    home_root = _test_home(cwd)
     env = {
         **os.environ,
         "KINNOO_ARCHIVE_ROOT": str(archive_root),
         "KINNOO_REGISTRY_ROOT": str(registry_root),
+        "HOME": str(home_root),
     }
     return subprocess.run(
-        [sys.executable, str(CLI_PATH), "publish", agent_name],
+        [sys.executable, str(CLI_PATH), "publish", agent_name, "--local"],
         cwd=cwd,
         capture_output=True,
         text=True,
@@ -133,10 +141,11 @@ def test_install_name_resolves_latest_from_mock_registry(tmp_path: Path) -> None
     env = {
         **os.environ,
         "KINNOO_REGISTRY_ROOT": str(registry_root),
+        "HOME": str(_test_home(tmp_path)),
     }
 
     install_result = subprocess.run(
-        [sys.executable, str(CLI_PATH), "install", "install-agent", "--yes"],
+        [sys.executable, str(CLI_PATH), "install", "install-agent", "--yes", "--local"],
         cwd=tmp_path,
         capture_output=True,
         text=True,
@@ -214,10 +223,11 @@ def test_install_name_equals_version_from_mock_registry(tmp_path: Path) -> None:
     env = {
         **os.environ,
         "KINNOO_REGISTRY_ROOT": str(registry_root),
+        "HOME": str(_test_home(tmp_path)),
     }
 
     install_exact = subprocess.run(
-        [sys.executable, str(CLI_PATH), "install", "versioned-install==1.0.0", "--yes"],
+        [sys.executable, str(CLI_PATH), "install", "versioned-install==1.0.0", "--yes", "--local"],
         cwd=tmp_path,
         capture_output=True,
         text=True,
@@ -246,7 +256,7 @@ def test_install_name_equals_version_from_mock_registry(tmp_path: Path) -> None:
     assert "versioned-install-v1-refresh:hello" in run_exact_output
 
     missing_exact = subprocess.run(
-        [sys.executable, str(CLI_PATH), "install", "versioned-install==9.9.9"],
+        [sys.executable, str(CLI_PATH), "install", "versioned-install==9.9.9", "--local"],
         cwd=tmp_path,
         capture_output=True,
         text=True,
@@ -277,6 +287,7 @@ def test_install_file_path_mode_preserved(tmp_path: Path) -> None:
     env = {
         **os.environ,
         "KINNOO_REGISTRY_ROOT": str(registry_root),
+        "HOME": str(_test_home(tmp_path)),
     }
 
     install_result = subprocess.run(

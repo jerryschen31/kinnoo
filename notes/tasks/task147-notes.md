@@ -31,7 +31,7 @@
 
 ## Test runs and results
 - python3 -m pytest tests/test_validator.py::test_feature24_service_required_fields_and_type_validation tests/test_validator.py::test_feature24_health_check_method_specific_validation tests/test_validator.py::test_feature24_duplicate_service_names_rejected -> 3 passed
-- python3 src/validate_project_manifests.py -> Validation passed: manifests are consistent
+- python3 scripts/validate_project_manifests.py -> Validation passed: manifests are consistent
 
 ## Bug/error notes
 - No repeated bug/error class encountered during task147 implementation.

@@ -25,7 +25,7 @@
 
 ## Tests and results
 - `python3 -m pytest tests/test_cli.py::test_feature40_keygen_generates_ed25519_keypair` -> `1 passed`
-- `python3 src/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
+- `python3 scripts/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
 
 ## Bug/error notes
 - No implementation bugs encountered after integration.

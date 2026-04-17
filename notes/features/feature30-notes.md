@@ -63,7 +63,7 @@ Feature30 adds an authenticated web UI for browsing and downloading registry con
 - Verified feature/task/test linkage for `feature30` -> `task245`-`task248` -> `test343`-`test346`.
 - Reviewed web UI implementation and routes in server app and template stack.
 - Executed required gates:
-  - `python3 src/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
+  - `python3 scripts/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
   - `python3 -m pytest --testmon` -> `1 failed, 351 passed, 1 skipped`
   - Sensitive-data scan across `server/` for credential/token patterns
   - Large tracked-file scan (>10 MB) via git index

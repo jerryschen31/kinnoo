@@ -508,31 +508,31 @@ def _manifest_name_from_agent_dir(agent_dir: Path) -> str | None:
     return name.strip()
 
 
-def _ensure_manifest_visibility_public(agent_dir: Path) -> tuple[bool, str | None]:
+def _ensure_manifest_visibility_private(agent_dir: Path) -> tuple[bool, str | None]:
     manifest_path = agent_dir / "kinnoo.yaml"
     if not manifest_path.exists() or not manifest_path.is_file():
-        return False, "Error: --public requires a kinnoo.yaml file in the target agent directory."
+        return False, "Error: --private requires a kinnoo.yaml file in the target agent directory."
 
     try:
         manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
     except Exception as error:
-        return False, f"Error: Failed to read kinnoo.yaml for --public: {error}"
+        return False, f"Error: Failed to read kinnoo.yaml for --private: {error}"
 
     if not isinstance(manifest, dict):
-        return False, "Error: kinnoo.yaml must parse to a mapping/object for --public."
+        return False, "Error: kinnoo.yaml must parse to a mapping/object for --private."
 
     current_visibility = manifest.get("visibility")
-    if isinstance(current_visibility, str) and current_visibility.strip().lower() == "public":
+    if isinstance(current_visibility, str) and current_visibility.strip().lower() == "private":
         return False, None
 
-    manifest["visibility"] = "public"
+    manifest["visibility"] = "private"
     try:
         manifest_path.write_text(
             yaml.safe_dump(manifest, sort_keys=False),
             encoding="utf-8",
         )
     except Exception as error:
-        return False, f"Error: Failed to update kinnoo.yaml visibility for --public: {error}"
+        return False, f"Error: Failed to update kinnoo.yaml visibility for --private: {error}"
 
     return True, None
 
@@ -543,7 +543,7 @@ def publish_agent(
     use_local: bool = False,
     use_remote: bool = False,
     pack: bool = False,
-    make_public: bool = False,
+    make_private: bool = False,
     bump: str | None = None,
     strict_mode: bool = False,
     json_output: bool = False,
@@ -578,8 +578,8 @@ def publish_agent(
         print("Error: --bump can only be used together with --pack.")
         return 1
 
-    if make_public and not pack:
-        print("Error: --public can only be used together with --pack.")
+    if make_private and not pack:
+        print("Error: --private can only be used together with --pack.")
         return 1
 
     normalized_name = resolved_target.strip()
@@ -592,15 +592,15 @@ def publish_agent(
             )
             return 1
 
-        if make_public:
-            updated_visibility, visibility_error = _ensure_manifest_visibility_public(agent_dir)
+        if make_private:
+            updated_visibility, visibility_error = _ensure_manifest_visibility_private(agent_dir)
             if visibility_error is not None:
                 print(visibility_error)
                 return 1
             if updated_visibility:
-                print(f"[kinnoo publish] Updated visibility to public in {agent_dir / 'kinnoo.yaml'}")
+                print(f"[kinnoo publish] Updated visibility to private in {agent_dir / 'kinnoo.yaml'}")
             else:
-                print("[kinnoo publish] Manifest visibility already public")
+                print("[kinnoo publish] Manifest visibility already private")
 
         try:
             from kinnoo.pack_command import pack_agent

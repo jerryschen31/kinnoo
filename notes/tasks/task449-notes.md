@@ -34,7 +34,7 @@ Implemented CLI auth hardening for feature61: login now uses server-resolved ten
 - `python3 -m pytest tests/test_cli_registry.py --testmon -k "feature61"` -> passed (3 selected)
 - `python3 -m pytest tests/test_cli_registry_modes.py --testmon -k "list_default_local_and_remote_modes or search_default_local_and_remote_modes or source_mode_argument_validation_errors"` -> passed (3 selected)
 - `python3 -m pytest tests/test_pack_size_reporting.py --testmon -k "list_includes_archive_size"` -> passed (1 selected)
-- `python3 src/validate_project_manifests.py` -> passed
+- `python3 scripts/validate_project_manifests.py` -> passed
 
 ## Teaching notes
 - Auth should be fail-closed at trust boundaries. In CLI registry flows, explicit remote intent (`--remote`) should never silently degrade into local behavior.

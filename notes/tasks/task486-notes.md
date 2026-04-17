@@ -18,7 +18,7 @@
 
 ## Test run
 - `python3 -m pytest tests/test_cli.py --testmon -k "remote_registry_errors_render_without_traceback_for_fetch_and_publish or remote_registry_errors_render_without_traceback_for_list_and_search"`
-- `python3 src/validate_project_manifests.py`
+- `python3 scripts/validate_project_manifests.py`
 
 ## Teaching notes
 - Catching transport/client exceptions at the CLI boundary keeps command modules focused on domain behavior while preserving a stable UX contract for human operators.
