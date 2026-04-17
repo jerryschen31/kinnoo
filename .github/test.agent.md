@@ -20,11 +20,11 @@ Build robust tests that detect true behavioral regressions and security defects,
 
 When adding or updating tests, assign marker labels across these dimensions:
 
-- Regression dimension: `regression`, `smoke`, `contract`
-- Surface dimension: `kinnoo_init`, `kinnoo_run`, `kinnoo_test`, `kinnoo_install`, `kinnoo_pack`, `kinnoo_diff`, `kinnoo_fetch`, `kinnoo_uninstall`, `kinnoo_keygen`, `kinnoo_inspect`, `kinnoo_publish`, `kinnoo_list`, `kinnoo_search`, `kinnoo_login`, `kinnoo_logout`, `kinnoo_import`, `kinnoo_check`
-- Layer dimension: `schema_unit`, `integration`, `cli`, `e2e`
+- Regression dimension: `regression_unit`, `regression_integration`, `regression_smoke`, `regression_uat`, `regression_sat`
+- Surface dimension: `client_cli_init`, `client_cli_run`, `client_cli_test`, `client_cli_install`, `client_cli_pack`, `client_cli_diff`, `client_cli_fetch`, `client_cli_uninstall`, `client_cli_keygen`, `client_cli_inspect`, `client_cli_publish`, `client_cli_list`, `client_cli_search`, `client_cli_login`, `client_cli_logout`, `client_cli_import`, `client_cli_check`, `client_cli_registry`
+- Layer dimension: `schema_unit`, `integration`, `client_cli`, `e2e`
 - Component dimension: `validator`, `analyzer`, `registry_client`, `registry_remote`, `server_api`, `web_ui`
-- Additional sets: `docs_contract`, `security_checks`
+- Additional sets: `schema_contract`, `docs_contract`, `security_checks`
 
 Always select at least one layer marker and one surface/component marker when relevant.
 
