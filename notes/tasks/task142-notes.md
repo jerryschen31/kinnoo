@@ -27,7 +27,7 @@
 ## Test runs and results
 - python3 -m pytest tests/test_cli.py::test_feature23_readiness_probe_tcp_and_stdout_marker -> 1 passed
 - python3 -m pytest tests/test_cli.py::test_feature23_default_readiness_fallback_behavior -> 1 passed
-- python3 src/validate_project_manifests.py -> Validation passed: manifests are consistent
+- python3 scripts/validate_project_manifests.py -> Validation passed: manifests are consistent
 
 ## Bug/error notes
 - No repeated bug/error class encountered during task142 implementation.

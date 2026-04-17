@@ -12,7 +12,7 @@ Primary scope:
 - Added tests `test327` through `test346`
 
 Validation status:
-- `python3 src/validate_project_manifests.py` passes
+- `python3 scripts/validate_project_manifests.py` passes
 - Merge conflict markers removed from `TASKS.txt`
 - Feature43 duplicate status formatting fixed
 
@@ -226,7 +226,7 @@ Use this section as a quick approval gate per feature.
 - [ ] Approval decision: `APPROVE` / `BLOCK` / `NEEDS-CHANGES`
 
 ### Global Merge Gate
-- [ ] Manifest check: `python3 src/validate_project_manifests.py` passes.
+- [ ] Manifest check: `python3 scripts/validate_project_manifests.py` passes.
 - [ ] Regression check: existing non-registry baseline tests still pass.
 - [ ] Docs check: feature notes and phase notes reflect final decisions/policies.
 - [ ] Security check: no secrets/tokens/passwords are logged in code paths or docs.

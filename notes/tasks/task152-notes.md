@@ -13,7 +13,7 @@
 
 ## Tests and results
 - `python3 -m pytest tests/test_cli.py::test_feature25_non_interactive_aborts_on_unhealthy_service tests/test_cli.py::test_feature25_interactive_prompt_allows_proceed_or_abort` -> `2 passed`
-- `python3 src/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
+- `python3 scripts/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
 
 ## Bug/error notes
 - First approach to the interactive test patched `subprocess.Popen` globally via the module object and unintentionally affected other subprocess usage (`subprocess.run` in health-check paths), causing context-manager-related failures.

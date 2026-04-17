@@ -18,4 +18,4 @@
 - Verification:
 	- `python3 -m pytest tests/test_cli_env_vars.py -k "feature10 or env_vars or secret"` → pass
 	- `python3 -m pytest tests/test_cli.py -k "run_missing_args or run_missing_entrypoint"` → pass
-	- `python3 src/validate_project_manifests.py` → pass
+	- `python3 scripts/validate_project_manifests.py` → pass

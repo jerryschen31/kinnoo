@@ -1,3 +1,10 @@
+import pytest
+
+
+LEGACY_INIT_FRAMEWORK_REASON = "deprecated: legacy init --framework contract replaced by positional framework flow"
+
+
+@pytest.mark.skip(reason=LEGACY_INIT_FRAMEWORK_REASON)
 def test_gemini_template_uses_genai_and_flash_lite(tmp_path):
     """Test that Gemini template uses google-genai and gemini-2.5-flash-lite (test39).
     This covers test39 in TESTS.txt."""
@@ -16,8 +23,7 @@ def test_gemini_template_uses_genai_and_flash_lite(tmp_path):
     readme = (agent_dir / "README.md").read_text()
     assert "GOOGLE_API_KEY" in readme, "README.md should mention GOOGLE_API_KEY"
     assert "python run.py" in readme, "README.md should show run.py usage"
-import pytest
-
+@pytest.mark.skip(reason=LEGACY_INIT_FRAMEWORK_REASON)
 @pytest.mark.parametrize("framework,dep,envvar,run_example,model_hint,test_id", [
     ("gemini", "google-genai", "GOOGLE_API_KEY", "Hello Gemini!", "gemini-2.5-flash-lite", "test29"),
     ("chatgpt", "openai", "OPENAI_API_KEY", "Hello ChatGPT!", "gpt-5-nano", "test30"),
@@ -67,6 +73,7 @@ def run_kinnoo_init(args):
     result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return result
 
+@pytest.mark.skip(reason=LEGACY_INIT_FRAMEWORK_REASON)
 def test_framework_valid():
     # Should not error for supported frameworks (no file creation yet)
     import tempfile
@@ -79,6 +86,7 @@ def test_framework_valid():
             os.chdir(cwd)
             assert result.returncode == 0, f"Valid framework {fw} should not error"
 
+@pytest.mark.skip(reason=LEGACY_INIT_FRAMEWORK_REASON)
 def test_framework_invalid():
     # Should error for unsupported frameworks
     import tempfile
@@ -94,6 +102,7 @@ def test_framework_invalid():
         assert b"Unsupported framework" in result.stderr, f"Error message missing for {fw}"
         assert b"Usage: kinnoo init" in result.stderr, f"Usage message missing for {fw}"
 
+@pytest.mark.skip(reason=LEGACY_INIT_FRAMEWORK_REASON)
 def test_missing_agent_name():
     # Should error and print usage if agent_name is missing
     result = run_kinnoo_init(["--framework", "gemini"])
@@ -108,12 +117,13 @@ import pytest
 from pathlib import Path
 
 KINNOO_CLI = [sys.executable, "-m", "kinnoo.cli"]
+CLI_PATH = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
 
 
 def run_cli(args, cwd=None):
     """Run kinnoo CLI with args, return (exit_code, stdout, stderr)"""
     proc = subprocess.Popen(
-        [sys.executable, "-m", "kinnoo.cli"] + args,
+        [sys.executable, str(CLI_PATH)] + args,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         cwd=cwd,

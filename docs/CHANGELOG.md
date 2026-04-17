@@ -187,7 +187,7 @@ All notable changes to this project will be documented in this file.
   - `/Users/jerry/.pyenv/versions/3.11.12/bin/python -m pytest tests/test_cli.py::test_feature23_mcp_server_streams_stdout_stderr -q`
   - Result: `1 passed`
 - Manifest validation gate passed:
-  - `python3 src/validate_project_manifests.py`
+  - `python3 scripts/validate_project_manifests.py`
   - Result: `Validation passed: manifests are consistent`
 - Security and repository hygiene checks reported no hardcoded real secrets and no git-tracked files over 10 MB.
 - Merge commit: TBD (populate after merge to `phase3/main`).
@@ -211,7 +211,7 @@ All notable changes to this project will be documented in this file.
   - `python3 -m pytest --testmon`
   - Result: `348 passed, 1 skipped`
 - Manifest validation gate passed:
-  - `python3 src/validate_project_manifests.py`
+  - `python3 scripts/validate_project_manifests.py`
   - Result: `Validation passed: manifests are consistent`
 - Security and repository hygiene checks reported no hardcoded real secrets and no git-tracked files over 10 MB.
 - Merge commit: TBD (populate after merge to `phase3/main`).
@@ -565,7 +565,7 @@ All notable changes to this project will be documented in this file.
 
 ### Quality
 - Phase 2 closeout validation completed:
-  - Manifest validation: `python3 src/validate_project_manifests.py` passed
+  - Manifest validation: `python3 scripts/validate_project_manifests.py` passed
   - Full test suite: `158 passed, 1 skipped`
 
 

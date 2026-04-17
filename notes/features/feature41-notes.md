@@ -50,7 +50,7 @@ Add runtime behavioral telemetry, deterministic permission-violation enforcement
 - Run full regression before handoff completion:
 	- python3 -m pytest
 - Validate manifests after task/test updates:
-	- python3 src/validate_project_manifests.py
+	- python3 scripts/validate_project_manifests.py
 
 ### Status Workflow Guidance
 - Move tasks task224-task228 from not-started -> in-progress when implementation begins.

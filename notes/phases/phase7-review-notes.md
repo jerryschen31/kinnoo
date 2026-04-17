@@ -194,7 +194,7 @@ Verification:
 - `cd web && npm test -- __tests__/landing-page.test.tsx` -> file skipped, all 5 tests skipped (expected)
 
 ### Manifest Validation
-- Ran: `python3 src/validate_project_manifests.py`
+- Ran: `python3 scripts/validate_project_manifests.py`
 - Result: `Validation passed: manifests are consistent`
 
 ## Tech Lead Review 2

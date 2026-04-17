@@ -316,7 +316,7 @@ if not no_guard and input_arg is not None:
 5. **`from __future__ import annotations`** at top of `input_guard.py` for Python 3.10+ compatibility with `str | None` syntax.
 6. **Use `re.IGNORECASE`** for all patterns by default — attackers use mixed case to bypass regex guards.
 7. **Run `python3 -m pytest -q` after each task** to verify nothing is broken.
-8. **Run `python3 src/validate_project_manifests.py`** after any TASKS.txt/TESTS.txt changes.
+8. **Run `python3 scripts/validate_project_manifests.py`** after any TASKS.txt/TESTS.txt changes.
 
 ---
 

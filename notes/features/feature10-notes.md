@@ -40,7 +40,7 @@ This addendum covers only feature10 security testing for tasks `task53`–`task5
 ## Minimum SWE validation commands
 - `python3 -m pytest tests/test_cli_env_vars.py -k "feature10 or env_vars or secret"`
 - `python3 -m pytest tests/test_docs.py -k "feature10"`
-- `python3 src/validate_project_manifests.py`
+- `python3 scripts/validate_project_manifests.py`
 
 ## Feature10 docs contract checklist (task58)
 - README and schema docs must state resolution order: environment -> .env -> masked prompt.
@@ -87,7 +87,7 @@ Scope: Pre-merge implementation and coverage review for `feature10` before merge
 	- Result: `7 passed`
 - `python3 -m pytest tests/test_cli_env_vars.py tests/test_docs.py -k "feature10 or env_vars or secret"`
 	- Result: `8 passed, 1 deselected`
-- `python3 src/validate_project_manifests.py`
+- `python3 scripts/validate_project_manifests.py`
 	- Result: `Validation passed: manifests are consistent`
 
 ## AC Coverage Check

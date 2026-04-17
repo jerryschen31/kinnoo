@@ -103,7 +103,7 @@ Use a small readiness strategy model:
 Run these after implementation:
 
 ```bash
-python3 src/validate_project_manifests.py
+python3 scripts/validate_project_manifests.py
 python3 -m pytest tests/test_validator.py -k feature23
 python3 -m pytest tests/test_cli.py -k feature23
 python3 -m pytest tests/test_trust_baseline.py -k feature23

@@ -21,5 +21,5 @@
   - cd web && npm run build
   - Result: success
 - Manifest validation:
-  - python src/validate_project_manifests.py
+  - python scripts/validate_project_manifests.py
   - Result: validation passed

@@ -22,7 +22,7 @@
 
 ## Tests and results
 - `python3 -m pytest tests/test_regression_v1.py::test_feature32_daemon_health_state_regression_gate` -> `1 passed`
-- `python3 src/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
+- `python3 scripts/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
 
 ## Bug/error notes
 - One implementation issue encountered during test authoring:

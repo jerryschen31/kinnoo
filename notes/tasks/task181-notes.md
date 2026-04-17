@@ -23,7 +23,7 @@
 
 ## Tests and results
 - `python3 -m pytest tests/test_cli.py::test_feature32_attach_daemon_session_controls` -> `1 passed`
-- `python3 src/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
+- `python3 scripts/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
 
 ## Bug/error notes
 - No implementation or test bugs encountered during task181.

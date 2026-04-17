@@ -29,7 +29,7 @@ Scope: Pre-merge review for feature9 before merge back to `phase2/main`
 ## Validation / Test Results
 - Command: `python3 -m pytest tests/test_validator.py tests/test_init.py tests/test_docs.py -k "feature9"`
   - Result: `7 passed, 38 deselected`
-- Command: `python3 src/validate_project_manifests.py`
+- Command: `python3 scripts/validate_project_manifests.py`
   - Result: `Validation passed: manifests are consistent`
 
 ## AC Coverage Check

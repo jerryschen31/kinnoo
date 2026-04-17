@@ -15,7 +15,7 @@ Scope: feature89-feature91, feature100-feature102
 
 ### Validation executed
 - Manifest validator:
-  - `/Users/jerry/.pyenv/versions/3.11.12/bin/python src/validate_project_manifests.py`
+  - `/Users/jerry/.pyenv/versions/3.11.12/bin/python scripts/validate_project_manifests.py`
   - Result: PASS
 - Full regression:
   - `/Users/jerry/.pyenv/versions/3.11.12/bin/python -m pytest tests`

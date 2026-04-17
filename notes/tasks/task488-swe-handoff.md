@@ -93,7 +93,7 @@ Then run targeted integration/regression for touched paths as needed.
 1. Keep `task488` status progression: `not-started -> in-progress -> needs-review`.
 2. Keep new tests active and mapped to `feature115` ACs.
 3. Validate manifests:
-   - `python3 src/validate_project_manifests.py`
+   - `python3 scripts/validate_project_manifests.py`
 4. Record final SWE notes/evidence in this handoff file and `notes/tasks/` as appropriate.
 
 ## Risks and Pitfalls
@@ -157,7 +157,7 @@ Then run targeted integration/regression for touched paths as needed.
 
 ### Validation evidence
 - Manifest validation:
-  - `/Users/jerry/.pyenv/versions/3.11.12/bin/python src/validate_project_manifests.py`
+  - `/Users/jerry/.pyenv/versions/3.11.12/bin/python scripts/validate_project_manifests.py`
   - Result: `Validation passed: manifests are consistent`
 - Focused task488 test run:
   - `/Users/jerry/.pyenv/versions/3.11.12/bin/python -m pytest --testmon tests/test_pack.py::test_pack_json_output tests/test_pack.py::test_pack_default_visibility_public_when_unspecified tests/test_pack.py::test_pack_respects_manifest_private_visibility tests/test_pack.py::test_pack_private_flag_sets_private_visibility tests/test_pack.py::test_pack_public_flag_normalizes_manifest_to_default_public tests/test_publish_refactor.py::test_publish_pack_private_sets_private_visibility tests/test_publish_refactor.py::test_publish_public_flag_removed_and_private_flag_documented tests/test_docs.py::test_docs_visibility_defaults_public_and_publish_public_removed tests/test_publish_command.py::test_publish_with_pack_private_sets_manifest_visibility tests/test_publish_command.py::test_publish_pack_bump_guardrail_errors`

@@ -46,7 +46,7 @@ Extend analyzer-backed `kinnoo import` to detect existing OpenClaw projects via 
 - Run full regression before handoff completion:
 	- python3 -m pytest
 - Validate manifests after task/test updates:
-	- python3 src/validate_project_manifests.py
+	- python3 scripts/validate_project_manifests.py
 
 ### Status Workflow Guidance
 - Move tasks task199-task203 from not-started -> in-progress when implementation begins.

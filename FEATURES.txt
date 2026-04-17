@@ -8,7 +8,7 @@
 # This file contains the project features as YAML entries. Each feature should
 # be represented as an item in the top-level `features` list. Use the template
 # below and the example to add new features. The validator script
-# `src/validate_project_manifests.py` enforces unique IDs and cross-file links.
+# `scripts/validate_project_manifests.py` enforces unique IDs and cross-file links.
 #
 # Template (YAML):
 # features:

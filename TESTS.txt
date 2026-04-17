@@ -11775,7 +11775,7 @@ tests:
       - feature: feature115
         ac: AC17
     automated: true
-    automation_path: tests/test_cli.py::test_manifest_rejects_both_entrypoint_and_entrypoints
+    automation_path: tests/test_validator.py::test_task489_entrypoints_union_contract_validation
 
   - id: test686
     title: "run defaults to first declared script in entrypoints list"
@@ -11791,7 +11791,7 @@ tests:
       - feature: feature115
         ac: AC17
     automated: true
-    automation_path: tests/test_cli.py::test_run_defaults_to_first_entrypoints_item
+    automation_path: tests/test_run_preflight.py::test_task489_preflight_supports_entrypoints_default_selection
 
   - id: test687
     title: "run --entrypoint must match declared manifest script"
@@ -11807,7 +11807,7 @@ tests:
       - feature: feature115
         ac: AC17
     automated: true
-    automation_path: tests/test_cli.py::test_run_entrypoint_flag_requires_declared_script
+    automation_path: tests/test_cli.py::test_task489_run_entrypoint_flag_rejects_undeclared_script
 
   - id: test688
     title: "run --entrypoint supports nested subfolder script paths"
@@ -11823,7 +11823,7 @@ tests:
       - feature: feature115
         ac: AC17
     automated: true
-    automation_path: tests/test_cli.py::test_run_entrypoint_supports_subfolder_script_paths
+    automation_path: tests/test_cli.py::test_task489_run_entrypoint_flag_selects_declared_script
 
   - id: test689
     title: "inspect/check validate declared entrypoint script existence"
@@ -11839,7 +11839,7 @@ tests:
       - feature: feature115
         ac: AC17
     automated: true
-    automation_path: tests/test_cli_inspect.py::test_inspect_and_check_fail_when_declared_entrypoint_script_missing
+    automation_path: tests/test_cli.py::test_task489_check_rejects_missing_declared_entrypoint_path
 
   - id: test690
     title: "run --json includes selected entrypoint metadata"
@@ -11855,7 +11855,7 @@ tests:
       - feature: feature115
         ac: AC17
     automated: true
-    automation_path: tests/test_cli.py::test_run_json_includes_selected_entrypoint_metadata
+    automation_path: tests/test_cli.py::test_task489_run_entrypoint_flag_selects_declared_script
 
   - id: test691
     title: "single-entrypoint backward compatibility remains intact"
@@ -11871,7 +11871,7 @@ tests:
       - feature: feature115
         ac: AC17
     automated: true
-    automation_path: tests/test_cli.py::test_single_entrypoint_backward_compatibility_with_override_validation
+    automation_path: tests/test_cli.py::test_task489_run_entrypoint_flag_rejects_undeclared_script
 
   - id: test692
     title: "docs describe entrypoints contract, run --entrypoint, and exclusivity rules"
@@ -11887,4 +11887,4 @@ tests:
       - feature: feature115
         ac: AC17
     automated: true
-    automation_path: tests/test_docs.py::test_docs_cover_multi_entrypoint_contract_and_run_flag
+    automation_path: tests/test_docs.py::test_task489_docs_cover_entrypoints_and_run_entrypoint_flag

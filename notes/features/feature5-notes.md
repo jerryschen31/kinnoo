@@ -75,7 +75,7 @@ python3 -m pytest tests/test_pack.py -v
 ## Manifest Validation
 Ran:
 ```
-python3 src/validate_project_manifests.py
+python3 scripts/validate_project_manifests.py
 ```
 - All manifest/test/feature/task links for task24 and its tests are now correct.
 

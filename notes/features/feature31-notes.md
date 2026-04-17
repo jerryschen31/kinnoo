@@ -47,7 +47,7 @@ Add first-class Node.js runtime support across validation, run, install, and pac
 - Run targeted tests for test263-test269.
 - Run regression slices for existing Python runtime behavior.
 - Run manifest validator:
-  - python3 src/validate_project_manifests.py
+  - python3 scripts/validate_project_manifests.py
 
 ### Status Workflow Guidance
 - Move tasks task168-task173 from not-started -> in-progress when implementation begins.
