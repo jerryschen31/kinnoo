@@ -37,6 +37,7 @@ except ImportError:
 RUN_USAGE_TEXT = (
     "Usage: kinnoo run <agent-dir> '<input>'\n"
     "       kinnoo run <agent-dir>\n"
+    "       kinnoo run <agent-dir> --entrypoint <script> '<input>'\n"
     "       kinnoo run <agent-dir> '<input>' --json\n"
     "       kinnoo run <agent-dir> --json-input '<json>'\n"
     "       kinnoo run <agent-dir> --json-file <json-file>\n"
@@ -284,6 +285,7 @@ def main():
             "Examples:\n"
             "  kinnoo run <agent-dir> '<input>'\n"
             "  kinnoo run <agent-dir>\n"
+            "  kinnoo run <agent-dir> --entrypoint scripts/src/main.py '<input>'\n"
             "  kinnoo run <agent-dir> --json-input '{\"task\":\"ping\"}'\n"
             "  kinnoo run <agent-dir> --json-file ./payload.json\n"
             "  kinnoo run <agent-dir> -- -e <some-string> -p <some-file-path> -u <some-url>"
@@ -296,6 +298,14 @@ def main():
         help=(
             "Optional input string to pass to the agent entrypoint. "
             "May be omitted for agents that accept no input, and is not required when --json-input or --json-file is used."
+        ),
+    )
+    run_parser.add_argument(
+        "--entrypoint",
+        dest="entrypoint",
+        help=(
+            "Override manifest default entrypoint selection. Must match manifest entrypoint "
+            "or one of manifest entrypoints values."
         ),
     )
     run_parser.add_argument(
@@ -548,7 +558,12 @@ def main():
     pack_parser.add_argument(
         "--public",
         action="store_true",
-        help="Ensure kinnoo.yaml has visibility: public before packaging (without the --public flag, default is private).",
+        help="Normalize kinnoo.yaml to default public packaging behavior by removing visibility: private when present (default behavior is public).",
+    )
+    pack_parser.add_argument(
+        "--private",
+        action="store_true",
+        help="Force private packaging behavior and ensure kinnoo.yaml contains visibility: private.",
     )
     pack_parser.add_argument(
         "--bump",
@@ -720,7 +735,7 @@ def main():
             "  kinnoo publish my-agent --remote\n"
             "  kinnoo publish ./dist/my-agent-1.0.0.kno --remote\n"
             "  kinnoo publish ./my-agent --pack --bump minor --remote\n"
-            "  kinnoo publish ./my-agent --pack --public --remote"
+            "  kinnoo publish ./my-agent --pack --private --remote"
         ),
     )
     publish_parser.add_argument(
@@ -748,9 +763,9 @@ def main():
         help="Pack first, then publish. With --pack, <target> must be a file path to an agent directory.",
     )
     publish_parser.add_argument(
-        "--public",
+        "--private",
         action="store_true",
-        help="With --pack, ensure kinnoo.yaml has visibility: public before packaging.",
+        help="With --pack, force private packaging behavior by setting visibility: private before packaging.",
     )
     publish_parser.add_argument(
         "--bump",
@@ -1065,6 +1080,7 @@ def main():
         exit_code = run_agent(
             agent_dir_arg=args.agent_dir,
             input_arg=input_arg,
+            entrypoint_arg=getattr(args, "entrypoint", None),
             json_input_arg=getattr(args, "json_input", None),
             json_file_arg=getattr(args, "json_file", None),
             preflight=preflight_mode,
@@ -1264,7 +1280,7 @@ def main():
     elif args.command == "pack":
         agent_dir = args.agent_dir
         if agent_dir is None:
-            print("Usage: kinnoo pack <agent-dir> [--public] [--bump [patch|minor|major]]", file=sys.stderr)
+            print("Usage: kinnoo pack <agent-dir> [--public|--private] [--bump [patch|minor|major]]", file=sys.stderr)
             sys.exit(1)
         try:
             from kinnoo.pack_command import pack_agent
@@ -1274,6 +1290,7 @@ def main():
         exit_code = pack_agent(
             agent_dir,
             make_public=bool(getattr(args, "public", False)),
+            make_private=bool(getattr(args, "private", False)),
             bump=getattr(args, "bump", None),
             sign=bool(getattr(args, "sign", None)),
             signing_key_path=getattr(args, "sign", None),
@@ -1438,7 +1455,7 @@ def main():
         if target is None:
             print(
                 "Usage: kinnoo publish <agent-name|archive.kno|agent-dir-path> "
-                "[--pack] [--public] [--bump {major,minor,patch}] [--local|--remote]",
+                "[--pack] [--private] [--bump {major,minor,patch}] [--local|--remote]",
                 file=sys.stderr,
             )
             sys.exit(1)
@@ -1446,7 +1463,7 @@ def main():
         use_local = bool(getattr(args, "local", False))
         use_remote = bool(getattr(args, "remote", False))
         use_pack = bool(getattr(args, "pack", False))
-        make_public = bool(getattr(args, "public", False))
+        make_private = bool(getattr(args, "private", False))
         bump = getattr(args, "bump", None)
         strict_mode = bool(getattr(args, "strict", False))
         json_output = bool(getattr(args, "json", False))
@@ -1459,8 +1476,8 @@ def main():
             print("Error: --bump can only be used together with --pack.", file=sys.stderr)
             sys.exit(1)
 
-        if make_public and not use_pack:
-            print("Error: --public can only be used together with --pack.", file=sys.stderr)
+        if make_private and not use_pack:
+            print("Error: --private can only be used together with --pack.", file=sys.stderr)
             sys.exit(1)
 
         try:
@@ -1474,7 +1491,7 @@ def main():
                 use_local=use_local,
                 use_remote=use_remote,
                 pack=use_pack,
-                make_public=make_public,
+                make_private=make_private,
                 bump=bump,
                 strict_mode=strict_mode,
                 json_output=json_output,

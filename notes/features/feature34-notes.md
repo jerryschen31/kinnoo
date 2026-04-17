@@ -48,7 +48,7 @@ Add `kinnoo init --framework openclaw` generation for a runnable standalone Open
 - Run full regression before handoff completion:
 	- python3 -m pytest
 - Validate manifests after task/test updates:
-	- python3 src/validate_project_manifests.py
+	- python3 scripts/validate_project_manifests.py
 
 ### Status Workflow Guidance
 - Move tasks task189-task193 from not-started -> in-progress when implementation begins.

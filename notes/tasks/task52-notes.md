@@ -15,4 +15,4 @@
 - Verification:
 	- `python3 -m pytest tests/test_docs.py -k "feature9_schema_docs_cover_optional_fields_and_constraints"` → pass
 	- `python3 -m pytest tests/test_validator.py tests/test_init.py tests/test_docs.py` → pass
-	- `python3 src/validate_project_manifests.py` → pass
+	- `python3 scripts/validate_project_manifests.py` → pass

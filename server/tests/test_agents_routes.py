@@ -223,3 +223,162 @@ def test_security_report_falls_back_to_lambda_report_json(tmp_path):
     payload = response.json()
     assert payload["security_status"]["signature"] == "unsigned"
     assert payload["checks"][0]["status"] == "unsigned"
+
+
+def test_list_agents_show_only_mine_filters_out_other_tenant_public_agents(tmp_path):
+    config = ServerConfig(
+        storage_backend="local",
+        local_storage_root=tmp_path / "storage",
+        s3_bucket="kinnoo-registry-dev",
+        s3_region="us-east-1",
+        s3_endpoint_url=None,
+        s3_access_key_id=None,
+        s3_secret_access_key=None,
+        presign_ttl_seconds=120,
+        max_upload_mb=5,
+    )
+    app = create_app(config=config)
+    client = TestClient(app)
+
+    alpha_reader_token = app.state.token_service.issue_token(
+        subject="reader-alpha",
+        tenant_slug="tenant-alpha",
+        scopes=["registry:read"],
+    )
+    alpha_publisher_token = app.state.token_service.issue_token(
+        subject="publisher-alpha",
+        tenant_slug="tenant-alpha",
+        scopes=["registry:read", "registry:publish"],
+    )
+    beta_publisher_token = app.state.token_service.issue_token(
+        subject="publisher-beta",
+        tenant_slug="tenant-beta",
+        scopes=["registry:read", "registry:publish"],
+    )
+
+    alpha_filename, alpha_archive = _archive(
+        name="agent-alpha-public",
+        version="1.0.0",
+        visibility="public",
+    )
+    alpha_result = publish_archive(
+        authorization_header=f"Bearer {alpha_publisher_token}",
+        filename=alpha_filename,
+        archive_bytes=alpha_archive,
+        token_service=app.state.token_service,
+        storage_backend=app.state.storage_backend,
+        metadata_manager=app.state.metadata_manager,
+        max_upload_mb=app.state.config.max_upload_mb,
+    )
+    assert alpha_result.status_code == 201
+
+    beta_filename, beta_archive = _archive(
+        name="agent-beta-public",
+        version="1.0.0",
+        visibility="public",
+    )
+    beta_result = publish_archive(
+        authorization_header=f"Bearer {beta_publisher_token}",
+        filename=beta_filename,
+        archive_bytes=beta_archive,
+        token_service=app.state.token_service,
+        storage_backend=app.state.storage_backend,
+        metadata_manager=app.state.metadata_manager,
+        max_upload_mb=app.state.config.max_upload_mb,
+    )
+    assert beta_result.status_code == 201
+
+    all_visible = client.get(
+        "/api/agents",
+        headers={"Authorization": f"Bearer {alpha_reader_token}"},
+    )
+    assert all_visible.status_code == 200
+    all_names = {item["agent_slug"] for item in all_visible.json()["items"]}
+    assert all_names == {"agent-alpha-public", "agent-beta-public"}
+
+    mine_only = client.get(
+        "/api/agents?show_only_mine=true",
+        headers={"Authorization": f"Bearer {alpha_reader_token}"},
+    )
+    assert mine_only.status_code == 200
+    mine_payload = mine_only.json()
+    assert mine_payload["total"] == 1
+    assert mine_payload["items"][0]["tenant_slug"] == "tenant-alpha"
+    assert mine_payload["items"][0]["agent_slug"] == "agent-alpha-public"
+
+
+def test_list_agents_session_auth_defaults_to_mine_only(tmp_path):
+    config = ServerConfig(
+        storage_backend="local",
+        local_storage_root=tmp_path / "storage",
+        s3_bucket="kinnoo-registry-dev",
+        s3_region="us-east-1",
+        s3_endpoint_url=None,
+        s3_access_key_id=None,
+        s3_secret_access_key=None,
+        presign_ttl_seconds=120,
+        max_upload_mb=5,
+    )
+    app = create_app(config=config)
+    client = TestClient(app)
+
+    footheman_user = app.state.user_store.create_user(
+        username="footheman@example.com",
+        plaintext_password="test-pass-123",
+        role="user",
+    )
+    session_record, session_cookie = app.state.session_service.create_session(user_id=footheman_user.id)
+    assert session_record.user_id == footheman_user.id
+
+    footheman_publish_token = app.state.token_service.issue_token(
+        subject="publisher-foo",
+        tenant_slug="footheman",
+        scopes=["registry:read", "registry:publish"],
+    )
+    jerryschen_publish_token = app.state.token_service.issue_token(
+        subject="publisher-jerry",
+        tenant_slug="jerryschen",
+        scopes=["registry:read", "registry:publish"],
+    )
+
+    foo_filename, foo_archive = _archive(
+        name="footheman-public-agent",
+        version="1.0.0",
+        visibility="public",
+    )
+    foo_result = publish_archive(
+        authorization_header=f"Bearer {footheman_publish_token}",
+        filename=foo_filename,
+        archive_bytes=foo_archive,
+        token_service=app.state.token_service,
+        storage_backend=app.state.storage_backend,
+        metadata_manager=app.state.metadata_manager,
+        max_upload_mb=app.state.config.max_upload_mb,
+    )
+    assert foo_result.status_code == 201
+
+    jerry_filename, jerry_archive = _archive(
+        name="jerryschen-public-agent",
+        version="1.0.0",
+        visibility="public",
+    )
+    jerry_result = publish_archive(
+        authorization_header=f"Bearer {jerryschen_publish_token}",
+        filename=jerry_filename,
+        archive_bytes=jerry_archive,
+        token_service=app.state.token_service,
+        storage_backend=app.state.storage_backend,
+        metadata_manager=app.state.metadata_manager,
+        max_upload_mb=app.state.config.max_upload_mb,
+    )
+    assert jerry_result.status_code == 201
+
+    response = client.get(
+        "/api/agents",
+        cookies={session_cookie.name: session_cookie.value},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total"] == 1
+    assert payload["items"][0]["tenant_slug"] == "footheman"
+    assert payload["items"][0]["agent_slug"] == "footheman-public-agent"

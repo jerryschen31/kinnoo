@@ -116,7 +116,7 @@ function normalizeAgentSummaryList(payload: unknown): AgentSummary[] {
 }
 
 export async function fetchMyAgents(): Promise<AgentSummary[]> {
-  const payload = await getJson<unknown>("/api/agents");
+  const payload = await getJson<unknown>("/api/agents?show_only_mine=true");
   return normalizeAgentSummaryList(payload);
 }
 

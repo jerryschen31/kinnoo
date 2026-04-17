@@ -91,7 +91,7 @@ describe("Registry dashboard", () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
       const url = String(input);
 
-      if (url === "/api/agents") {
+      if (url === "/api/agents?show_only_mine=true") {
         return new Promise<Response>((resolve) => {
           resolveAgentsFetch = resolve;
         });
@@ -131,7 +131,7 @@ describe("Registry dashboard", () => {
     });
 
     const calledUrls = fetchSpy.mock.calls.map(([url]) => String(url));
-    expect(calledUrls.some((url) => url === "/api/agents")).toBe(true);
+    expect(calledUrls.some((url) => url === "/api/agents?show_only_mine=true")).toBe(true);
     expect(calledUrls.some((url) => url.startsWith("/api/search"))).toBe(true);
   });
 });

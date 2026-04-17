@@ -7,7 +7,7 @@
 - `15 passed in 5.32s`
 
 ## Final manifest checkpoint
-- `python3 src/validate_project_manifests.py`
+- `python3 scripts/validate_project_manifests.py`
 	- Result: `Validation passed: manifests are consistent`
 
 ## TechLead pre-merge review (2026-03-05)
@@ -15,7 +15,7 @@
 ### Independent verification
 	- `python3 -m pytest tests/test_pack_refactor.py tests/test_publish_refactor.py tests/test_install_refactor.py tests/test_cli_registry_modes.py tests/test_docs.py -q`
 	- Result: `15 passed in 5.26s`
-	- `python3 src/validate_project_manifests.py`
+	- `python3 scripts/validate_project_manifests.py`
 	- Result: `Validation passed: manifests are consistent`
 
 ---

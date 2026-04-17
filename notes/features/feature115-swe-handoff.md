@@ -162,7 +162,7 @@ dependencies and groups logically related work for efficient SWE sessions.
 2. **Do not delete commented-out code** (task476) — use Python `#` comments with `[agent]` markers.
 3. **Entrypoint rename** (task456) — must update templates.py constants, init_command.py, and kinnoo.yaml template. Existing agents are not migrated.
 4. **--json flags** — all `--json` implementations should suppress progress/interactive output and emit a single JSON blob to stdout on completion.
-5. **Manifest validator** — run `python3 src/validate_project_manifests.py` after all manifest file changes.
+5. **Manifest validator** — run `python3 scripts/validate_project_manifests.py` after all manifest file changes.
 6. **Template content** — .gitignore content for each language is specified verbatim in `notes/phases/phase13-sat-uat-updates.md` items 8–11. Use exact content.
 7. **Terraform-first infra workflow** — for any task in task453–task485 that changes infrastructure, update Terraform under `iac/` (root/module/env files) and validate with `terraform plan` (and apply in target env when authorized) instead of relying on manual console-only edits.
 

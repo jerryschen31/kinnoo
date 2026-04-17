@@ -17,7 +17,7 @@
 
 ## Tests and results
 - `python3 -m pytest tests/test_registry.py::test_feature26_filesystem_permissions_runtime_enforcement` -> `1 passed`
-- `python3 src/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
+- `python3 scripts/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
 
 ## Bug/error notes
 - Encountered a dynamic-module loading issue while importing the scratch fixture in the test (dataclass processing expected the module to be present in `sys.modules`).

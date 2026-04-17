@@ -26,7 +26,7 @@
 - `tests/test_init.py::test_feature21_dependency_policy_alignment` (test193)
 
 ## Validation and regression results
-- `python3 src/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
+- `python3 scripts/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
 - `python3 -m pytest tests/test_init.py -k "framework or feature21"` -> `19 passed, 16 deselected`
 - `python3 -m pytest tests/test_cli.py -k "feature21"` -> `3 passed, 19 deselected`
 - `python3 -m pytest tests/test_regression_v1.py -k "framework or feature21"` -> `1 passed, 2 deselected`

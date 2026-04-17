@@ -56,7 +56,7 @@
 
 ## Focused Test Results
 - `python3 -m pytest tests/test_validator.py::test_feature24_services_optional_list_is_accepted tests/test_validator.py::test_feature24_service_required_fields_and_type_validation tests/test_validator.py::test_feature24_health_check_method_specific_validation tests/test_validator.py::test_feature24_no_services_regression_unchanged tests/test_validator.py::test_feature24_duplicate_service_names_rejected tests/test_cli_inspect.py::test_feature24_inspect_displays_services tests/test_regression_v1.py::test_feature24_ac_coverage_and_no_services_regression_gate` -> `7 passed`
-- `python3 src/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
+- `python3 scripts/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
 
 ## Teaching notes
 - Canonical enums with compatibility aliases are a robust way to evolve schema contracts without forcing immediate breaking changes on users.

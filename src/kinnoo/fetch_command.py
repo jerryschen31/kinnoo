@@ -13,6 +13,7 @@ from .config import load_registry_config
 from .install_command import (
     _download_remote_archive_payload,
     _resolve_remote_latest_version,
+    _safe_extract_zip,
     _verify_embedded_integrity_and_signature,
 )
 from .inspect_command import read_manifest_from_kno_archive
@@ -133,8 +134,12 @@ def fetch_agent(
         temp_extract_root = Path(tempfile.mkdtemp(prefix="kinnoo-fetch-"))
         try:
             with zipfile.ZipFile(resolved_archive_path, "r") as archive:
-                archive.extractall(temp_extract_root)
+                _safe_extract_zip(archive, temp_extract_root)
         except (OSError, zipfile.BadZipFile) as error:
+            shutil.rmtree(temp_extract_root, ignore_errors=True)
+            print(f"Error: Invalid archive payload: {error}", file=sys.stderr)
+            return 1
+        except ValueError as error:
             shutil.rmtree(temp_extract_root, ignore_errors=True)
             print(f"Error: Invalid archive payload: {error}", file=sys.stderr)
             return 1

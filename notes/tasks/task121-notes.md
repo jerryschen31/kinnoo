@@ -24,7 +24,7 @@
 - `tests/test_cli.py::test_run_without_input_defaults_to_required` (test169)
 
 ## Validation results
-- `python3 src/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
+- `python3 scripts/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
 - `python3 -m pytest tests/test_validator.py -k "inputs_required" -q` -> `2 passed, 20 deselected`
 - `python3 -m pytest tests/test_cli.py -k "run_without_input_defaults_to_required or run" -q` -> `10 passed, 1 deselected`
 - `python3 -m pytest -q` -> `161 passed, 1 skipped`

@@ -7,7 +7,7 @@ Checks performed:
 - Each task.tests item exists in TESTS.txt
 - Each test.covers entry references an existing feature and AC id
 
-Usage: python3 src/validate_project_manifests.py
+Usage: python3 scripts/validate_project_manifests.py
 Requires: PyYAML (`pip install pyyaml`) or will instruct how to install.
 """
 import sys
@@ -49,18 +49,45 @@ def get_tests_for_ac(tests, feature_id, ac_id):
         if cover.get('feature') == feature_id and cover.get('ac') == ac_id
     ]
 
+
+def build_test_to_tasks_map(tasks):
+    """Build mapping from test ID -> list of task IDs that own the test."""
+    test_to_tasks = {}
+    for task in tasks:
+        task_id = task.get('id')
+        if not task_id:
+            continue
+        for test_id in task.get('tests', []) or []:
+            test_to_tasks.setdefault(test_id, []).append(task_id)
+    return test_to_tasks
+
+
+def get_epics_for_test(test_id, tasks_by_id, test_to_tasks):
+    """Return sorted epic IDs for a given test by looking up associated task(s)."""
+    epics = set()
+    for task_id in test_to_tasks.get(test_id, []):
+        task = tasks_by_id.get(task_id) or {}
+        for epic_id in task.get('epic', []) or []:
+            epics.add(epic_id)
+    return sorted(epics)
+
 def main():
+    epics = load_yaml(ROOT / 'EPICS.txt').get('epics', [])
     features = load_yaml(ROOT / 'FEATURES.txt').get('features', [])
     tasks = load_yaml(ROOT / 'TASKS.txt').get('tasks', [])
     tests = load_yaml(ROOT / 'TESTS.txt').get('tests', [])
 
+    epics_by_id = {e['id']: e for e in epics if 'id' in e}
     features_by_id = {f['id']: f for f in features if 'id' in f}
     tasks_by_id = {t['id']: t for t in tasks if 'id' in t}
     tests_by_id = {tt['id']: tt for tt in tests if 'id' in tt}
+    test_to_tasks = build_test_to_tasks_map(tasks)
 
     errors = []
 
     # Unique ID checks
+    if len(epics_by_id) != len(epics):
+        errors.append('Duplicate epic IDs found')
     if len(features_by_id) != len(features):
         errors.append('Duplicate feature IDs found')
     if len(tasks_by_id) != len(tasks):
@@ -85,9 +112,22 @@ def main():
 
     # Task -> tests
     for tid, t in tasks_by_id.items():
+        task_epics = t.get('epic')
+        if not isinstance(task_epics, list) or not task_epics:
+            errors.append(f'Task {tid} must define epic as a non-empty list (e.g. epic: [E2])')
+        else:
+            for epic_id in task_epics:
+                if epic_id not in epics_by_id:
+                    errors.append(f'Task {tid} references unknown epic {epic_id}')
+
         for testid in t.get('tests', []) or []:
             if testid not in tests_by_id:
                 errors.append(f'Task {tid} references unknown test {testid}')
+
+    # Every test must be owned by at least one task
+    for test_id in tests_by_id:
+        if not test_to_tasks.get(test_id):
+            errors.append(f'Test {test_id} is not associated with any task via TASKS.txt tests list')
 
     # Test covers -> feature:AC
     for testid, tt in tests_by_id.items():

@@ -20,7 +20,7 @@
 
 ## Test results
 - `python3 -m pytest tests/test_pack_size_reporting.py tests/test_docs.py -q` -> `12 passed`
-- `python3 src/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
+- `python3 scripts/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
 
 ## Teaching notes
 - Docs-as-contract is a practical reliability technique: when output strings are externally consumed (humans, scripts, support runbooks), tests should lock key phrasing to prevent silent regressions.

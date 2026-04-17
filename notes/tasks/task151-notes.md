@@ -23,7 +23,7 @@
 
 ## Tests and results
 - `python3 -m pytest tests/test_cli.py::test_feature25_run_checks_all_declared_services_before_entrypoint tests/test_run_preflight.py::test_feature25_preflight_includes_service_health_results` -> `2 passed`
-- `python3 src/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
+- `python3 scripts/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
 
 ## Bug/error notes
 - Encountered one repeated issue class: stream-order assertion instability due stdout buffering when parent and child process outputs are captured.

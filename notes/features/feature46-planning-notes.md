@@ -109,7 +109,7 @@ A single SWE agent can execute them in sequence while minimizing churn in shared
 - Run broader regression before handoff completion:
 	- `python3 -m pytest`
 - Validate manifests after any manifest edits:
-	- `python3 src/validate_project_manifests.py`
+	- `python3 scripts/validate_project_manifests.py`
 
 ### Status Workflow
 - Move tasks to `in-progress` at implementation start.

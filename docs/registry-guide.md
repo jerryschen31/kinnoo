@@ -61,10 +61,12 @@ Pack and publish with strict trust gates (recommended for team/shared registries
 kinnoo publish ./my-agent --pack --strict --remote
 ```
 
-Make visibility public during pack/publish:
+By default, pack/publish uses public visibility unless your manifest explicitly sets `visibility: private`.
+
+Force private visibility during pack/publish:
 
 ```bash
-kinnoo publish ./my-agent --pack --public --remote
+kinnoo publish ./my-agent --pack --private --remote
 ```
 
 ## 5) Search and List

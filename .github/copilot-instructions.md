@@ -5,7 +5,11 @@
 - See vision.md for the project vision and high level overview.
 
 ## Project Technical Details
-- to be filled
+- All private documents should go in notes/. This includes scratch work, design docs, meeting notes, handoff briefs, and any other internal documentation that should not be exposed publicly.
+- All public documents should go in docs/. This includes user-facing documentation, CLI docs, design docs that are meant to be shared.
+- All code should go in src/. This includes all implementation code for the project, organized into logical modules or components as described in the Project Structure section below.
+- All tests should go in tests/. This includes all unit tests for regression. Any CLI-related tests should be organized in a way that mirrors the structure of the src/ folder for easy navigation and maintenance.
+
 
 ## Project Steps
 - to be filled
@@ -74,5 +78,5 @@
 1. Create test entry in TESTS.txt (increment ID).
 2. Create/update task entry in TASKS.txt; add test ID to `tests` list.
 3. Create/update feature entry in FEATURES.txt; add task ID to `tasks`.
-4. Run `python3 src/validate_project_manifests.py` — fix any errors before committing.
+4. Run `python3 scripts/validate_project_manifests.py` — fix any errors before committing.
 5. Commit manifest changes in the same branch/PR as the code.

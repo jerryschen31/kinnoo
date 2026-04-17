@@ -28,7 +28,7 @@
 ## Test run
 - `python3 -m pytest tests/test_cli.py --testmon -k "init_help_deprecates_framework_flag_and_uses_language_metavar or run_help_removes_thinking_option_and_has_orange_title or framework_flag_rejected_for_init or feature81_run_mapping_and_exit_propagation"`
 - `python3 -m pytest server/tests/test_security_check.py --testmon -k "containerized_security_check_lambda_retry_fallback"`
-- `python3 src/validate_project_manifests.py`
+- `python3 scripts/validate_project_manifests.py`
 
 ## Teaching notes
 - Deprecation completion is strongest when parser support is removed, help output is updated, and explicit rejection tests lock behavior.

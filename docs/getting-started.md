@@ -39,7 +39,14 @@ Open `my-agent/kinnoo.yaml` and verify key fields:
 - `name`
 - `version`
 - `entrypoint`
+- `entrypoints` (optional alternative to `entrypoint` for multi-script agents)
 - `runtime`
+
+Entrypoint contract rules:
+
+- Use either `entrypoint` or `entrypoints`.
+- Do not declare both fields together.
+- When using `entrypoints`, Kinnoo runs the first item by default unless `--entrypoint` is provided.
 
 If your framework requires provider credentials, export them in your shell before running.
 
@@ -62,10 +69,24 @@ For readiness checks without full execution:
 kinnoo run ./my-agent --preflight
 ```
 
+For multi-entrypoint agents, explicitly select a declared script:
+
+```bash
+kinnoo run ./my-agent --entrypoint scripts/main.py "hello"
+```
+
 ## 5) Package for Distribution
 
 ```bash
 kinnoo pack ./my-agent
+```
+
+By default, packaged visibility is public unless your manifest explicitly sets `visibility: private`.
+
+If you need to force private visibility for this package:
+
+```bash
+kinnoo pack ./my-agent --private
 ```
 
 Expected output (example):
@@ -86,6 +107,12 @@ Strict publish flow (recommended for shared registries):
 
 ```bash
 kinnoo publish ./my-agent --pack --strict --remote
+```
+
+Private publish flow (pack + enforce private visibility):
+
+```bash
+kinnoo publish ./my-agent --pack --private --remote
 ```
 
 ## 6) Next Step: Registry Workflows

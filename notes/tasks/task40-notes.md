@@ -22,5 +22,5 @@
   - `python3 -m pytest tests/test_cli.py::test_cli_version_flag tests/test_cli_install.py::test_install_delegates_to_install_command tests/test_cli.py`
   - Result: `11 passed`.
 - Manifest validation after task status updates:
-  - `python3 src/validate_project_manifests.py`
+  - `python3 scripts/validate_project_manifests.py`
   - Result: `Validation passed: manifests are consistent`.

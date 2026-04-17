@@ -30,7 +30,7 @@
 - `tests/test_init.py::test_feature21_templates_emit_optional_model_metadata_when_known` (test201)
 
 ## Validation and regression results
-- `python3 src/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
+- `python3 scripts/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
 - `python3 -m pytest tests/test_validator.py::test_feature21_optional_model_metadata_field tests/test_init.py::test_feature21_templates_emit_optional_model_metadata_when_known -q` -> `2 passed`
 - `python3 -m pytest tests/test_init.py -k "framework or feature21"` -> `23 passed, 16 deselected`
 - `python3 -m pytest tests/test_cli.py -k "feature21"` -> `6 passed, 19 deselected`

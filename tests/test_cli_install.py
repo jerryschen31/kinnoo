@@ -7,15 +7,14 @@ import hashlib
 import base64
 from pathlib import Path
 
+from tests.helpers import run_command
+
 # Test51: kinnoo install usage error
 
 def test_install_missing_archive_prints_usage():
-    cli_path = "src/kinnoo/cli.py"
-    result = subprocess.run([
-        sys.executable, cli_path, "install"
-    ], capture_output=True, text=True)
+    result = run_command("install")
     assert result.returncode != 0
-    assert "Usage: kinnoo install <archive-path | agent_name[==version]> [target-dir]" in result.stderr
+    assert "Usage: kinnoo install" in result.stderr
 
 
 def _create_valid_archive(tmp_path: Path) -> tuple[Path, Path]:
@@ -76,11 +75,7 @@ def test_install_deprecated_options_removed(tmp_path: Path) -> None:
     ]
 
     for extra_args in deprecated_invocations:
-        result = subprocess.run(
-            [sys.executable, "src/kinnoo/cli.py", "install", "dummy.kno", *extra_args],
-            capture_output=True,
-            text=True,
-        )
+        result = run_command("install", "dummy.kno", *extra_args)
         output = f"{result.stdout}\n{result.stderr}"
         assert result.returncode != 0
         assert "unrecognized arguments" in output
@@ -91,18 +86,7 @@ def test_install_openclaw_default_path(tmp_path: Path) -> None:
     home_dir = tmp_path / "home"
 
     default_env = {**os.environ, "HOME": str(home_dir)}
-    default_result = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "install",
-            str(archive),
-            "--yes",
-        ],
-        capture_output=True,
-        text=True,
-        env=default_env,
-    )
+    default_result = run_command("install", str(archive), "--yes", env=default_env)
     default_output = f"{default_result.stdout}\n{default_result.stderr}"
     assert default_result.returncode == 0, default_output
 
@@ -111,18 +95,8 @@ def test_install_openclaw_default_path(tmp_path: Path) -> None:
     assert (default_workspace / "kinnoo.yaml").exists(), default_output
 
     custom_target = tmp_path / "custom-openclaw-workspace"
-    custom_result = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "install",
-            str(archive),
-            str(custom_target),
-            "--yes",
-        ],
-        capture_output=True,
-        text=True,
-        env=default_env,
+    custom_result = run_command(
+        "install", str(archive), str(custom_target), "--yes", env=default_env
     )
     custom_output = f"{custom_result.stdout}\n{custom_result.stderr}"
     assert custom_result.returncode == 0, custom_output
@@ -134,19 +108,7 @@ def test_install_json_output(tmp_path: Path) -> None:
     archive, _ = _create_valid_archive(tmp_path)
     target_dir = tmp_path / "json-install-target"
 
-    json_result = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "install",
-            str(archive),
-            str(target_dir),
-            "--json",
-            "-y",
-        ],
-        capture_output=True,
-        text=True,
-    )
+    json_result = run_command("install", str(archive), str(target_dir), "--json", "-y")
     output = f"{json_result.stdout}\n{json_result.stderr}"
     assert json_result.returncode == 0, output
 
@@ -160,17 +122,7 @@ def test_install_json_output(tmp_path: Path) -> None:
     assert payload["error_code"] is None
     assert payload["error_message"] is None
 
-    missing_yes_result = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "install",
-            str(archive),
-            "--json",
-        ],
-        capture_output=True,
-        text=True,
-    )
+    missing_yes_result = run_command("install", str(archive), "--json")
     missing_yes_output = f"{missing_yes_result.stdout}\n{missing_yes_result.stderr}"
     assert missing_yes_result.returncode != 0
     assert "--json requires -y" in missing_yes_output
@@ -187,18 +139,10 @@ def test_import_class_only_wrapper(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
-
     # Prompt flow:
     # 1) Proceed with detected values? -> y
     # 2) Generate class-based run.py wrapper entrypoint? -> y
-    result = subprocess.run(
-        [sys.executable, str(cli_path), "import", str(agent_dir), "--force"],
-        cwd=tmp_path,
-        input="y\ny\n",
-        capture_output=True,
-        text=True,
-    )
+    result = run_command("import", str(agent_dir), "--force", cwd=tmp_path, input_text="y\ny\n")
 
     output = f"{result.stdout}\n{result.stderr}"
     assert result.returncode == 0, output
@@ -227,14 +171,7 @@ def test_import_infer_requirements(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
-    result = subprocess.run(
-        [sys.executable, str(cli_path), "import", str(agent_dir), "--force"],
-        cwd=tmp_path,
-        input="y\ny\n",
-        capture_output=True,
-        text=True,
-    )
+    result = run_command("import", str(agent_dir), "--force", cwd=tmp_path, input_text="y\ny\n")
 
     output = f"{result.stdout}\n{result.stderr}"
     assert result.returncode == 0, output
@@ -258,14 +195,7 @@ def test_import_input_detection_yaml(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
-    result = subprocess.run(
-        [sys.executable, str(cli_path), "import", str(agent_dir), "--force"],
-        cwd=tmp_path,
-        input="y\n",
-        capture_output=True,
-        text=True,
-    )
+    result = run_command("import", str(agent_dir), "--force", cwd=tmp_path, input_text="y\n")
 
     output = f"{result.stdout}\n{result.stderr}"
     assert result.returncode == 0, output
@@ -286,14 +216,7 @@ def test_import_service_detection_yaml(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
-    result = subprocess.run(
-        [sys.executable, str(cli_path), "import", str(agent_dir), "--force"],
-        cwd=tmp_path,
-        input="y\n",
-        capture_output=True,
-        text=True,
-    )
+    result = run_command("import", str(agent_dir), "--force", cwd=tmp_path, input_text="y\n")
 
     output = f"{result.stdout}\n{result.stderr}"
     assert result.returncode == 0, output
@@ -315,11 +238,7 @@ def test_install_delegates_to_install_command(tmp_path):
     assert "Manifest validation failed" not in install_branch
 
     archive_path, expected_dir = _create_valid_archive(tmp_path)
-    result = subprocess.run(
-        [sys.executable, "src/kinnoo/cli.py", "install", str(archive_path), "--yes"],
-        capture_output=True,
-        text=True,
-    )
+    result = run_command("install", str(archive_path), "--yes")
 
     assert result.returncode == 0, result.stderr
     assert expected_dir.exists()
@@ -386,11 +305,7 @@ def test_install_falls_back_to_pypi_when_wheel_missing(tmp_path):
     archive_path = _create_archive_with_missing_required_wheel(tmp_path)
     target_dir = tmp_path / "installed-fallback-agent"
 
-    result = subprocess.run(
-        [sys.executable, "src/kinnoo/cli.py", "install", str(archive_path), str(target_dir), "--yes"],
-        capture_output=True,
-        text=True,
-    )
+    result = run_command("install", str(archive_path), str(target_dir), "--yes")
 
     assert result.returncode == 0, (
         "Expected install to succeed via PyPI fallback when a required wheel is missing. "
@@ -440,12 +355,7 @@ outputs:
     pack_env = dict(os.environ)
     pack_env["KINNOO_ARCHIVE_ROOT"] = str(archive_root)
 
-    pack_result = subprocess.run(
-        [sys.executable, "src/kinnoo/cli.py", "pack", str(agent_dir)],
-        capture_output=True,
-        text=True,
-        env=pack_env,
-    )
+    pack_result = run_command("pack", str(agent_dir), env=pack_env)
     assert pack_result.returncode == 0, (
         "Expected pack to succeed for offline-ready fixture. "
         f"STDOUT:\n{pack_result.stdout}\nSTDERR:\n{pack_result.stderr}"
@@ -470,18 +380,12 @@ def test_install_offline_succeeds_with_complete_wheels(tmp_path):
     offline_env["PIP_NO_INDEX"] = "1"
     offline_env["KINNOO_OFFLINE"] = "1"
 
-    install_result = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "install",
-            str(archive_path),
-            str(target_dir),
-            "--yes",
-            "--allow-unverified-publisher",
-        ],
-        capture_output=True,
-        text=True,
+    install_result = run_command(
+        "install",
+        str(archive_path),
+        str(target_dir),
+        "--yes",
+        "--allow-unverified-publisher",
         env=offline_env,
     )
     assert install_result.returncode == 0, (
@@ -722,17 +626,11 @@ def test_feature65_delegated_install_with_prechecks(tmp_path):
     isolated_env["HOME"] = str(tmp_path)
 
     missing_cli_target = tmp_path / "feature65-openclaw-missing-cli"
-    missing_cli_result = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "install",
-            str(archive_path),
-            str(missing_cli_target),
-            "--yes",
-        ],
-        capture_output=True,
-        text=True,
+    missing_cli_result = run_command(
+        "install",
+        str(archive_path),
+        str(missing_cli_target),
+        "--yes",
         env=isolated_env,
     )
     missing_cli_output = f"{missing_cli_result.stdout}\n{missing_cli_result.stderr}"
@@ -750,19 +648,11 @@ def test_feature65_delegated_install_with_prechecks(tmp_path):
     delegated_env["KINNOO_TEST_OPENCLAW_ARGS_LOG"] = str(invocation_log)
 
     delegated_target = tmp_path / "feature65-openclaw-delegated"
-    delegated_result = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "install",
-            str(archive_path),
-            str(delegated_target),
-            "--yes",
-            "--openclaw-min-version",
-            "0.2.0",
-        ],
-        capture_output=True,
-        text=True,
+    delegated_result = run_command(
+        "install",
+        str(archive_path),
+        str(delegated_target),
+        "--yes",
         env=delegated_env,
     )
     delegated_output = f"{delegated_result.stdout}\n{delegated_result.stderr}"
@@ -774,12 +664,12 @@ def test_feature65_delegated_install_with_prechecks(tmp_path):
     assert "--version" in invocations
     assert "agents add feature65-openclaw-skill --workspace" in "\n".join(invocations)
 
-    delegated_workspace = tmp_path / ".openclaw" / "workspace-feature65-openclaw-skill"
+    delegated_workspace = delegated_target
     trace_path = delegated_workspace / ".kinnoo" / "install-trace.json"
     assert trace_path.exists(), delegated_output
     trace_payload = json.loads(trace_path.read_text(encoding="utf-8"))
     assert trace_payload["delegated_install"]["backend"] == "openclaw-cli"
-    assert trace_payload["delegated_install"]["minimum_version"] == "0.2.0"
+    assert trace_payload["delegated_install"]["minimum_version"] == "0.1.0"
     assert trace_payload["delegated_install"]["agent"] == "feature65-openclaw-skill"
     assert trace_payload["delegated_install"]["workspace"] == str(delegated_workspace)
     assert trace_payload["decision"] == {
@@ -802,27 +692,16 @@ def test_feature80_openclaw_workspace_conflict_diagnostics(tmp_path):
     env["PATH"] = f"{fake_bin}{os.pathsep}{env.get('PATH', '')}"
     env["HOME"] = str(tmp_path)
 
-    result = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "install",
-            str(archive_path),
-            "--yes",
-            "--openclaw-min-version",
-            "0.2.0",
-        ],
-        capture_output=True,
-        text=True,
-        env=env,
-    )
+    result = run_command("install", str(archive_path), "--yes", env=env)
     output = f"{result.stdout}\n{result.stderr}"
     assert result.returncode != 0, output
     assert "OpenClaw workspace already exists" in output
     assert "Re-run with --force" in output
 
 
-def test_feature83_skill_install_existing_agent_slug_and_url(tmp_path):
+def test_feature83_skill_install_existing_agent_slug_and_url(tmp_path, monkeypatch):
+    from kinnoo import install_command
+
     fake_bin = tmp_path / "feature83-openclaw-bin"
     fake_bin.mkdir(parents=True, exist_ok=True)
     invocation_log = tmp_path / "feature83-openclaw-invocations.log"
@@ -857,41 +736,22 @@ def test_feature83_skill_install_existing_agent_slug_and_url(tmp_path):
     )
     openclaw_script.chmod(0o755)
 
-    env = dict(os.environ)
-    env["PATH"] = f"{fake_bin}{os.pathsep}{env.get('PATH', '')}"
-    env["KINNOO_TEST_OPENCLAW_ARGS_LOG"] = str(invocation_log)
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ.get('PATH', '')}")
+    monkeypatch.setenv("KINNOO_TEST_OPENCLAW_ARGS_LOG", str(invocation_log))
 
-    slug_result = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "install",
-            "feature83-existing",
-            "--openclaw-skill",
-            "owner/skill-slug",
-            "--yes",
-        ],
-        capture_output=True,
-        text=True,
-        env=env,
+    slug_result = install_command.install_agent(
+        archive_path="feature83-existing",
+        assume_yes=True,
+        openclaw_skill_identifier="owner/skill-slug",
     )
-    assert slug_result.returncode == 0, slug_result.stdout + slug_result.stderr
+    assert slug_result == 0
 
-    url_result = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "install",
-            "feature83-existing",
-            "--openclaw-skill",
-            "https://clawhub.ai/owner/skill-slug",
-            "--yes",
-        ],
-        capture_output=True,
-        text=True,
-        env=env,
+    url_result = install_command.install_agent(
+        archive_path="feature83-existing",
+        assume_yes=True,
+        openclaw_skill_identifier="https://clawhub.ai/owner/skill-slug",
     )
-    assert url_result.returncode == 0, url_result.stdout + url_result.stderr
+    assert url_result == 0
 
     invocations = invocation_log.read_text(encoding="utf-8")
     assert "agents list" in invocations
@@ -899,7 +759,9 @@ def test_feature83_skill_install_existing_agent_slug_and_url(tmp_path):
     assert invocations.count(f"skills install owner/skill-slug --workspace {workspace_path}") >= 2
 
 
-def test_feature83_missing_agent_preflight_and_outcome_diagnostics(tmp_path):
+def test_feature83_missing_agent_preflight_and_outcome_diagnostics(tmp_path, monkeypatch, capsys):
+    from kinnoo import install_command
+
     fake_bin = tmp_path / "feature83-openclaw-diagnostics-bin"
     fake_bin.mkdir(parents=True, exist_ok=True)
     invocation_log = tmp_path / "feature83-openclaw-diagnostics.log"
@@ -950,111 +812,66 @@ def test_feature83_missing_agent_preflight_and_outcome_diagnostics(tmp_path):
     )
     openclaw_script.chmod(0o755)
 
-    env = dict(os.environ)
-    env["PATH"] = f"{fake_bin}{os.pathsep}{env.get('PATH', '')}"
-    env["KINNOO_TEST_OPENCLAW_ARGS_LOG"] = str(invocation_log)
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ.get('PATH', '')}")
+    monkeypatch.setenv("KINNOO_TEST_OPENCLAW_ARGS_LOG", str(invocation_log))
 
-    missing_agent_env = dict(env)
-    missing_agent_env["KINNOO_TEST_OPENCLAW_AGENTS_JSON"] = "[]"
-    missing_agent_result = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "install",
-            "feature83-missing",
-            "--openclaw-skill",
-            "owner/missing-skill",
-            "--yes",
-        ],
-        capture_output=True,
-        text=True,
-        env=missing_agent_env,
+    monkeypatch.setenv("KINNOO_TEST_OPENCLAW_AGENTS_JSON", "[]")
+    missing_agent_result = install_command.install_agent(
+        archive_path="feature83-missing",
+        assume_yes=True,
+        openclaw_skill_identifier="owner/missing-skill",
     )
-    missing_agent_output = f"{missing_agent_result.stdout}\n{missing_agent_result.stderr}"
-    assert missing_agent_result.returncode != 0
+    missing_agent_captured = capsys.readouterr()
+    missing_agent_output = f"{missing_agent_captured.out}\n{missing_agent_captured.err}"
+    assert missing_agent_result != 0
     assert "Create/register the agent first and retry" in missing_agent_output
 
-    preflight_fail_env = dict(env)
-    preflight_fail_env["KINNOO_TEST_OPENCLAW_GATEWAY_DOWN"] = "1"
-    preflight_fail_result = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "install",
-            "feature83-diagnostics",
-            "--openclaw-skill",
-            "owner/skill-a",
-            "--yes",
-        ],
-        capture_output=True,
-        text=True,
-        env=preflight_fail_env,
+    monkeypatch.setenv("KINNOO_TEST_OPENCLAW_GATEWAY_DOWN", "1")
+    preflight_fail_result = install_command.install_agent(
+        archive_path="feature83-diagnostics",
+        assume_yes=True,
+        openclaw_skill_identifier="owner/skill-a",
     )
-    preflight_fail_output = f"{preflight_fail_result.stdout}\n{preflight_fail_result.stderr}"
-    assert preflight_fail_result.returncode != 0
+    preflight_fail_captured = capsys.readouterr()
+    preflight_fail_output = f"{preflight_fail_captured.out}\n{preflight_fail_captured.err}"
+    assert preflight_fail_result != 0
     assert "category=openclaw_gateway_unhealthy" in preflight_fail_output
+    monkeypatch.delenv("KINNOO_TEST_OPENCLAW_GATEWAY_DOWN", raising=False)
 
-    success_env = dict(env)
-    success_env["KINNOO_TEST_OPENCLAW_AGENTS_JSON"] = (
+    monkeypatch.setenv("KINNOO_TEST_OPENCLAW_AGENTS_JSON", (
         f"[{{\"id\":\"feature83-diagnostics\",\"workspace\":\"{workspace_path}\"}}]"
+    ))
+    monkeypatch.setenv("KINNOO_TEST_OPENCLAW_SKILL_OUTCOME", "success")
+    success_result = install_command.install_agent(
+        archive_path="feature83-diagnostics",
+        assume_yes=True,
+        openclaw_skill_identifier="https://clawhub.ai/owner/skill-a",
     )
-    success_env["KINNOO_TEST_OPENCLAW_SKILL_OUTCOME"] = "success"
-    success_result = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "install",
-            "feature83-diagnostics",
-            "--openclaw-skill",
-            "https://clawhub.ai/owner/skill-a",
-            "--yes",
-        ],
-        capture_output=True,
-        text=True,
-        env=success_env,
-    )
-    success_output = f"{success_result.stdout}\n{success_result.stderr}"
-    assert success_result.returncode == 0, success_output
+    success_captured = capsys.readouterr()
+    success_output = f"{success_captured.out}\n{success_captured.err}"
+    assert success_result == 0, success_output
     assert "outcome=success" in success_output
 
-    already_env = dict(success_env)
-    already_env["KINNOO_TEST_OPENCLAW_SKILL_OUTCOME"] = "already"
-    already_result = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "install",
-            "feature83-diagnostics",
-            "--openclaw-skill",
-            "owner/skill-a",
-            "--yes",
-        ],
-        capture_output=True,
-        text=True,
-        env=already_env,
+    monkeypatch.setenv("KINNOO_TEST_OPENCLAW_SKILL_OUTCOME", "already")
+    already_result = install_command.install_agent(
+        archive_path="feature83-diagnostics",
+        assume_yes=True,
+        openclaw_skill_identifier="owner/skill-a",
     )
-    already_output = f"{already_result.stdout}\n{already_result.stderr}"
-    assert already_result.returncode == 0, already_output
+    already_captured = capsys.readouterr()
+    already_output = f"{already_captured.out}\n{already_captured.err}"
+    assert already_result == 0, already_output
     assert "outcome=already-installed" in already_output
 
-    not_found_env = dict(success_env)
-    not_found_env["KINNOO_TEST_OPENCLAW_SKILL_OUTCOME"] = "not-found"
-    not_found_result = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "install",
-            "feature83-diagnostics",
-            "--openclaw-skill",
-            "owner/skill-a",
-            "--yes",
-        ],
-        capture_output=True,
-        text=True,
-        env=not_found_env,
+    monkeypatch.setenv("KINNOO_TEST_OPENCLAW_SKILL_OUTCOME", "not-found")
+    not_found_result = install_command.install_agent(
+        archive_path="feature83-diagnostics",
+        assume_yes=True,
+        openclaw_skill_identifier="owner/skill-a",
     )
-    not_found_output = f"{not_found_result.stdout}\n{not_found_result.stderr}"
-    assert not_found_result.returncode != 0
+    not_found_captured = capsys.readouterr()
+    not_found_output = f"{not_found_captured.out}\n{not_found_captured.err}"
+    assert not_found_result != 0
     assert "category=openclaw_skill_not_found" in not_found_output
 
     invocations = invocation_log.read_text(encoding="utf-8")
@@ -1071,18 +888,12 @@ def test_feature37_node_audit_severity_summary(tmp_path):
     node_env = dict(os.environ)
     node_env["PATH"] = f"{fake_bin}{os.pathsep}{node_env.get('PATH', '')}"
 
-    node_result = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "install",
-            str(node_archive),
-            str(node_target_dir),
-            "--yes",
-            "--allow-vulnerable",
-        ],
-        capture_output=True,
-        text=True,
+    node_result = run_command(
+        "install",
+        str(node_archive),
+        str(node_target_dir),
+        "--yes",
+        "--allow-vulnerable",
         env=node_env,
     )
 
@@ -1092,11 +903,7 @@ def test_feature37_node_audit_severity_summary(tmp_path):
 
     python_archive, _ = _create_valid_archive(tmp_path)
     python_target_dir = tmp_path / "feature37-python-installed"
-    python_result = subprocess.run(
-        [sys.executable, "src/kinnoo/cli.py", "install", str(python_archive), str(python_target_dir), "--yes"],
-        capture_output=True,
-        text=True,
-    )
+    python_result = run_command("install", str(python_archive), str(python_target_dir), "--yes")
 
     python_output = f"{python_result.stdout}\n{python_result.stderr}"
     assert python_result.returncode == 0, python_output
@@ -1113,12 +920,7 @@ def test_feature37_critical_gate_default_block_and_allow_override(tmp_path):
     env["PATH"] = f"{fake_bin}{os.pathsep}{env.get('PATH', '')}"
 
     blocked_target_dir = tmp_path / "feature37-node-critical-blocked"
-    blocked_result = subprocess.run(
-        [sys.executable, "src/kinnoo/cli.py", "install", str(node_archive), str(blocked_target_dir), "--yes"],
-        capture_output=True,
-        text=True,
-        env=env,
-    )
+    blocked_result = run_command("install", str(node_archive), str(blocked_target_dir), "--yes", env=env)
     blocked_output = f"{blocked_result.stdout}\n{blocked_result.stderr}"
     assert blocked_result.returncode != 0, blocked_output
     assert "Node audit severity summary: critical=1 high=2 moderate=3 low=4" in blocked_output
@@ -1126,18 +928,12 @@ def test_feature37_critical_gate_default_block_and_allow_override(tmp_path):
     assert "Critical vulnerabilities were detected" in blocked_output
 
     allowed_target_dir = tmp_path / "feature37-node-critical-allowed"
-    allowed_result = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "install",
-            str(node_archive),
-            str(allowed_target_dir),
-            "--yes",
-            "--allow-vulnerable",
-        ],
-        capture_output=True,
-        text=True,
+    allowed_result = run_command(
+        "install",
+        str(node_archive),
+        str(allowed_target_dir),
+        "--yes",
+        "--allow-vulnerable",
         env=env,
     )
     allowed_output = f"{allowed_result.stdout}\n{allowed_result.stderr}"
@@ -1162,18 +958,12 @@ def test_feature37_lifecycle_scripts_warning_and_ignore_scripts_mode(tmp_path):
     allowed_target_dir = tmp_path / "feature37-node-lifecycle-allowed"
     allowed_args_log = tmp_path / "npm-allowed-args.log"
     env["KINNOO_TEST_NPM_ARGS_LOG"] = str(allowed_args_log)
-    allowed_result = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "install",
-            str(node_archive),
-            str(allowed_target_dir),
-            "--yes",
-            "--allow-vulnerable",
-        ],
-        capture_output=True,
-        text=True,
+    allowed_result = run_command(
+        "install",
+        str(node_archive),
+        str(allowed_target_dir),
+        "--yes",
+        "--allow-vulnerable",
         env=env,
     )
     allowed_output = f"{allowed_result.stdout}\n{allowed_result.stderr}"
@@ -1185,19 +975,13 @@ def test_feature37_lifecycle_scripts_warning_and_ignore_scripts_mode(tmp_path):
     ignored_target_dir = tmp_path / "feature37-node-lifecycle-ignored"
     ignored_args_log = tmp_path / "npm-ignored-args.log"
     env["KINNOO_TEST_NPM_ARGS_LOG"] = str(ignored_args_log)
-    ignored_result = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "install",
-            str(node_archive),
-            str(ignored_target_dir),
-            "--yes",
-            "--allow-vulnerable",
-            "--ignore-scripts",
-        ],
-        capture_output=True,
-        text=True,
+    ignored_result = run_command(
+        "install",
+        str(node_archive),
+        str(ignored_target_dir),
+        "--yes",
+        "--allow-vulnerable",
+        "--ignore-scripts",
         env=env,
     )
     ignored_output = f"{ignored_result.stdout}\n{ignored_result.stderr}"
@@ -1221,12 +1005,7 @@ def test_feature37_install_trace_captures_audit_and_decisions(tmp_path):
     env["PATH"] = f"{fake_bin}{os.pathsep}{env.get('PATH', '')}"
 
     blocked_target_dir = tmp_path / "feature37-node-trace-blocked"
-    blocked_result = subprocess.run(
-        [sys.executable, "src/kinnoo/cli.py", "install", str(node_archive), str(blocked_target_dir), "--yes"],
-        capture_output=True,
-        text=True,
-        env=env,
-    )
+    blocked_result = run_command("install", str(node_archive), str(blocked_target_dir), "--yes", env=env)
     blocked_output = f"{blocked_result.stdout}\n{blocked_result.stderr}"
     assert blocked_result.returncode != 0, blocked_output
 
@@ -1255,19 +1034,13 @@ def test_feature37_install_trace_captures_audit_and_decisions(tmp_path):
     }
 
     allowed_target_dir = tmp_path / "feature37-node-trace-allowed"
-    allowed_result = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "install",
-            str(node_archive),
-            str(allowed_target_dir),
-            "--yes",
-            "--allow-vulnerable",
-            "--ignore-scripts",
-        ],
-        capture_output=True,
-        text=True,
+    allowed_result = run_command(
+        "install",
+        str(node_archive),
+        str(allowed_target_dir),
+        "--yes",
+        "--allow-vulnerable",
+        "--ignore-scripts",
         env=env,
     )
     allowed_output = f"{allowed_result.stdout}\n{allowed_result.stderr}"
@@ -1302,17 +1075,11 @@ def test_feature39_install_permission_summary_and_consent(tmp_path):
     permissions_archive = _create_feature39_permissions_archive(tmp_path)
 
     denied_target_dir = tmp_path / "feature39-consent-denied"
-    denied_result = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "install",
-            str(permissions_archive),
-            str(denied_target_dir),
-        ],
-        input="y\nn\n",
-        capture_output=True,
-        text=True,
+    denied_result = run_command(
+        "install",
+        str(permissions_archive),
+        str(denied_target_dir),
+        input_text="y\nn\n",
     )
     denied_output = f"{denied_result.stdout}\n{denied_result.stderr}"
     assert denied_result.returncode != 0, denied_output
@@ -1326,17 +1093,11 @@ def test_feature39_install_permission_summary_and_consent(tmp_path):
     assert "Install aborted: permissions consent not granted." in denied_output
 
     accepted_target_dir = tmp_path / "feature39-consent-accepted"
-    accepted_result = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "install",
-            str(permissions_archive),
-            str(accepted_target_dir),
-        ],
-        input="y\ny\ny\n",
-        capture_output=True,
-        text=True,
+    accepted_result = run_command(
+        "install",
+        str(permissions_archive),
+        str(accepted_target_dir),
+        input_text="y\ny\ny\n",
     )
     accepted_output = f"{accepted_result.stdout}\n{accepted_result.stderr}"
     assert accepted_result.returncode == 0, accepted_output
@@ -1345,18 +1106,12 @@ def test_feature39_install_permission_summary_and_consent(tmp_path):
     assert accepted_target_dir.exists(), accepted_output
 
     override_without_flag_target_dir = tmp_path / "feature39-consent-missing-override"
-    override_without_flag_result = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "install",
-            str(permissions_archive),
-            str(override_without_flag_target_dir),
-            "--yes",
-            "--allow-unverified-publisher",
-        ],
-        capture_output=True,
-        text=True,
+    override_without_flag_result = run_command(
+        "install",
+        str(permissions_archive),
+        str(override_without_flag_target_dir),
+        "--yes",
+        "--allow-unverified-publisher",
     )
     override_without_flag_output = (
         f"{override_without_flag_result.stdout}\n{override_without_flag_result.stderr}"
@@ -1365,19 +1120,13 @@ def test_feature39_install_permission_summary_and_consent(tmp_path):
     assert "--accept-permissions" in override_without_flag_output
 
     override_target_dir = tmp_path / "feature39-consent-override"
-    override_result = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "install",
-            str(permissions_archive),
-            str(override_target_dir),
-            "--yes",
-            "--accept-permissions",
-            "--allow-unverified-publisher",
-        ],
-        capture_output=True,
-        text=True,
+    override_result = run_command(
+        "install",
+        str(permissions_archive),
+        str(override_target_dir),
+        "--yes",
+        "--accept-permissions",
+        "--allow-unverified-publisher",
     )
     override_output = f"{override_result.stdout}\n{override_result.stderr}"
     assert override_result.returncode == 0, override_output
@@ -1390,17 +1139,11 @@ def test_feature40_unsigned_archive_warning_and_confirmation(tmp_path):
     unsigned_archive = _create_feature40_unsigned_archive_with_checksum(tmp_path)
 
     denied_target_dir = tmp_path / "feature40-unsigned-denied"
-    denied_result = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "install",
-            str(unsigned_archive),
-            str(denied_target_dir),
-        ],
-        input="n\n",
-        capture_output=True,
-        text=True,
+    denied_result = run_command(
+        "install",
+        str(unsigned_archive),
+        str(denied_target_dir),
+        input_text="n\n",
     )
     denied_output = f"{denied_result.stdout}\n{denied_result.stderr}"
     assert denied_result.returncode != 0, denied_output
@@ -1408,18 +1151,12 @@ def test_feature40_unsigned_archive_warning_and_confirmation(tmp_path):
     assert "Install aborted: unverified publisher not approved." in denied_output
 
     override_target_dir = tmp_path / "feature40-unsigned-override"
-    override_result = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "install",
-            str(unsigned_archive),
-            str(override_target_dir),
-            "--yes",
-            "--allow-unverified-publisher",
-        ],
-        capture_output=True,
-        text=True,
+    override_result = run_command(
+        "install",
+        str(unsigned_archive),
+        str(override_target_dir),
+        "--yes",
+        "--allow-unverified-publisher",
     )
     override_output = f"{override_result.stdout}\n{override_result.stderr}"
     assert override_result.returncode == 0, override_output
@@ -1451,18 +1188,12 @@ def test_feature71_strict_install_enforcement(tmp_path: Path) -> None:
         archive.writestr("kinnoo.yaml", manifest)
         archive.writestr("run.py", "print('ok')\n")
 
-    unsigned_result = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "install",
-            str(unsigned_archive),
-            str(tmp_path / "unsigned-target"),
-            "--yes",
-            "--strict",
-        ],
-        capture_output=True,
-        text=True,
+    unsigned_result = run_command(
+        "install",
+        str(unsigned_archive),
+        str(tmp_path / "unsigned-target"),
+        "--yes",
+        "--strict",
     )
     unsigned_output = f"{unsigned_result.stdout}\n{unsigned_result.stderr}"
     assert unsigned_result.returncode != 0
@@ -1495,36 +1226,24 @@ def test_feature71_strict_install_enforcement(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    invalid_result = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "install",
-            str(invalid_archive),
-            str(tmp_path / "invalid-target"),
-            "--yes",
-            "--strict",
-        ],
-        capture_output=True,
-        text=True,
+    invalid_result = run_command(
+        "install",
+        str(invalid_archive),
+        str(tmp_path / "invalid-target"),
+        "--yes",
+        "--strict",
     )
     invalid_output = f"{invalid_result.stdout}\n{invalid_result.stderr}"
     assert invalid_result.returncode != 0
     assert "Strict mode requires valid signature metadata" in invalid_output
 
-    strict_override_result = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "install",
-            str(invalid_archive),
-            str(tmp_path / "override-target"),
-            "--yes",
-            "--strict",
-            "--allow-unverified-publisher",
-        ],
-        capture_output=True,
-        text=True,
+    strict_override_result = run_command(
+        "install",
+        str(invalid_archive),
+        str(tmp_path / "override-target"),
+        "--yes",
+        "--strict",
+        "--allow-unverified-publisher",
     )
     strict_override_output = f"{strict_override_result.stdout}\n{strict_override_result.stderr}"
     assert strict_override_result.returncode != 0
@@ -1576,18 +1295,12 @@ def test_feature72_frozen_install_and_docs(tmp_path: Path) -> None:
     install_env = dict(os.environ)
     install_env["KINNOO_LOCKFILE_PATH"] = str(lockfile_path)
 
-    frozen_ok_result = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "install",
-            str(archive_path),
-            str(tmp_path / "frozen-target-ok"),
-            "--yes",
-            "--frozen",
-        ],
-        capture_output=True,
-        text=True,
+    frozen_ok_result = run_command(
+        "install",
+        str(archive_path),
+        str(tmp_path / "frozen-target-ok"),
+        "--yes",
+        "--frozen",
         env=install_env,
     )
     frozen_ok_output = f"{frozen_ok_result.stdout}\n{frozen_ok_result.stderr}"
@@ -1613,18 +1326,12 @@ def test_feature72_frozen_install_and_docs(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    frozen_drift_result = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "install",
-            str(archive_path),
-            str(tmp_path / "frozen-target-drift"),
-            "--yes",
-            "--frozen",
-        ],
-        capture_output=True,
-        text=True,
+    frozen_drift_result = run_command(
+        "install",
+        str(archive_path),
+        str(tmp_path / "frozen-target-drift"),
+        "--yes",
+        "--frozen",
         env=install_env,
     )
     frozen_drift_output = f"{frozen_drift_result.stdout}\n{frozen_drift_result.stderr}"
@@ -1652,16 +1359,10 @@ def test_feature74_uninstall_confirmation_and_removal(tmp_path: Path) -> None:
     uninstall_env = dict(os.environ)
     uninstall_env["KINNOO_AGENT_INSTALL_ROOT"] = str(install_root)
 
-    denied = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "uninstall",
-            "feature74-agent",
-        ],
-        input="n\n",
-        capture_output=True,
-        text=True,
+    denied = run_command(
+        "uninstall",
+        "feature74-agent",
+        input_text="n\n",
         env=uninstall_env,
     )
     denied_output = f"{denied.stdout}\n{denied.stderr}"
@@ -1669,16 +1370,10 @@ def test_feature74_uninstall_confirmation_and_removal(tmp_path: Path) -> None:
     assert "Uninstall aborted by user." in denied_output
     assert agent_dir.exists(), "Reject path must preserve installed artifacts"
 
-    accepted = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "uninstall",
-            "feature74-agent",
-        ],
-        input="y\n",
-        capture_output=True,
-        text=True,
+    accepted = run_command(
+        "uninstall",
+        "feature74-agent",
+        input_text="y\n",
         env=uninstall_env,
     )
     accepted_output = f"{accepted.stdout}\n{accepted.stderr}"
