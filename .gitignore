@@ -21,6 +21,10 @@ scripts/archive/
 *.pem
 .registry*
 .specstory/
+.coverage
+tests/coverage/
+
+# Config and Plan files
 kinnoo-config.txt
 iac/tfplan*
 
