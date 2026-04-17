@@ -3715,3 +3715,30 @@ features:
     owner: swe-agent
     dependencies: [feature114]
     status: not-started
+
+  - id: feature116
+    title: "UAT Part 2 - Regression test hardening"
+    description: |
+      Harden regression stability for the CLI and manifest validation surfaces by
+      reducing brittle assertion contracts, centralizing CLI invocation helpers,
+      separating schema-only validator tests from file/path integration tests,
+      and introducing explicit marker-driven test-set governance for selective
+      execution and deprecation hygiene.
+    tasks: [task490]
+    acceptance_criteria:
+      - id: AC1
+        description: "All active kinnoo CLI commands have shared invocation helpers in tests/helpers.py, and refactored tests consume these helpers instead of ad-hoc subprocess command construction."
+      - id: AC2
+        description: "High-fragility regression tests migrate from exact free-form output pinning to behavior/contract assertions (exit code, machine-readable JSON keys, invariant guidance fragments)."
+      - id: AC3
+        description: "Validator tests apply Option 3 layering: schema-only checks use validate_manifest_data(data) while path/file behavior remains in validate(path)-based integration tests."
+      - id: AC4
+        description: "Pytest marker taxonomy is documented and enforced through project config and test collection helpers, enabling deterministic subset execution by regression/layer/surface dimensions."
+      - id: AC5
+        description: "A dedicated test-agent guidance file codifies anti-brittleness and deprecation-on-removal workflows, and related suite integrity checks protect these contracts from drift."
+    notes:
+      - "Derived from UAT Part 2 regression failure analysis and hardening recommendations A-F."
+      - "Focus is test architecture resilience and contract clarity, not product surface expansion."
+    owner: swe-agent
+    dependencies: [feature115]
+    status: in-progress

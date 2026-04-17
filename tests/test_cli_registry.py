@@ -31,17 +31,23 @@ import base64
 import json
 import os
 from pathlib import Path
-import subprocess
-import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import zipfile
 
 from kinnoo.registry import RegistryService
 from kinnoo.registry_backends import MockFilesystemRegistryBackend
+from tests.helpers import run_command
 
 
-CLI_PATH = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+def _run_registry_command(
+	command: str,
+	*args: object,
+	cwd: Path | str | None = None,
+	env: dict[str, str] | None = None,
+	input_text: str | None = None,
+):
+	return run_command(command, *args, cwd=cwd, env=env, input_text=input_text)
 
 
 def _write_archive(
@@ -93,12 +99,7 @@ def test_feature56_local_publish_tenant_path(tmp_path: Path) -> None:
 		"KINNOO_TENANT_SLUG": "tenant-alpha",
 	}
 
-	publish = subprocess.run(
-		[sys.executable, str(CLI_PATH), "publish", "tenant-path-agent", "--local"],
-		capture_output=True,
-		text=True,
-		env=env,
-	)
+	publish = _run_registry_command("publish", "tenant-path-agent", "--local", env=env)
 	output = f"{publish.stdout}\n{publish.stderr}"
 	assert publish.returncode == 0, output
 
@@ -131,15 +132,9 @@ def test_feature61_login_interactive_and_noninteractive(tmp_path: Path) -> None:
 			"KINNOO_REGISTRY_URL": server.base_url,
 		}
 
-		interactive = subprocess.run(
-			[
-				sys.executable,
-				str(CLI_PATH),
-				"login",
-			],
-			input="interactive@example.com\ninteractive-pass\n",
-			capture_output=True,
-			text=True,
+		interactive = _run_registry_command(
+			"login",
+			input_text="interactive@example.com\ninteractive-pass\n",
 			env=env,
 		)
 		interactive_output = f"{interactive.stdout}\n{interactive.stderr}"
@@ -153,18 +148,12 @@ def test_feature61_login_interactive_and_noninteractive(tmp_path: Path) -> None:
 		assert "tenant_slug: 'team-interactive'" in first_config
 		assert "tenant_slug: 'interactive'" not in first_config
 
-		noninteractive = subprocess.run(
-			[
-				sys.executable,
-				str(CLI_PATH),
-				"login",
-				"--email",
-				"cli@example.com",
-				"--password",
-				"cli-pass",
-			],
-			capture_output=True,
-			text=True,
+		noninteractive = _run_registry_command(
+			"login",
+			"--email",
+			"cli@example.com",
+			"--password",
+			"cli-pass",
 			env=env,
 		)
 		noninteractive_output = f"{noninteractive.stdout}\n{noninteractive.stderr}"
@@ -207,13 +196,7 @@ def test_feature61_logout_and_auth_precedence(tmp_path: Path) -> None:
 			"KINNOO_ARCHIVE_ROOT": str(archive_root),
 		}
 
-		logout = subprocess.run(
-			[sys.executable, str(CLI_PATH), "logout"],
-			capture_output=True,
-			text=True,
-			env=base_env,
-			cwd=tmp_path,
-		)
+		logout = _run_registry_command("logout", env=base_env, cwd=tmp_path)
 		logout_output = f"{logout.stdout}\n{logout.stderr}"
 		assert logout.returncode == 0, logout_output
 		assert "Logout successful." in logout_output
@@ -226,10 +209,10 @@ def test_feature61_logout_and_auth_precedence(tmp_path: Path) -> None:
 			**base_env,
 			"KINNOO_REGISTRY_URL": server.base_url,
 		}
-		publish_without_auth = subprocess.run(
-			[sys.executable, str(CLI_PATH), "publish", "feature61-agent", "--remote"],
-			capture_output=True,
-			text=True,
+		publish_without_auth = _run_registry_command(
+			"publish",
+			"feature61-agent",
+			"--remote",
 			env=env_without_auth,
 			cwd=tmp_path,
 		)
@@ -242,10 +225,10 @@ def test_feature61_logout_and_auth_precedence(tmp_path: Path) -> None:
 			"KINNOO_REGISTRY_TOKEN": "env-token",
 			"KINNOO_TENANT_SLUG": "env-tenant",
 		}
-		publish_with_overrides = subprocess.run(
-			[sys.executable, str(CLI_PATH), "publish", "feature61-agent", "--remote"],
-			capture_output=True,
-			text=True,
+		publish_with_overrides = _run_registry_command(
+			"publish",
+			"feature61-agent",
+			"--remote",
 			env=env_with_overrides,
 			cwd=tmp_path,
 		)
@@ -290,10 +273,10 @@ def test_feature61_publish_toggle_prefers_logged_in_auth_state(tmp_path: Path) -
 			"KINNOO_ARCHIVE_ROOT": str(archive_root),
 		}
 
-		publish_result = subprocess.run(
-			[sys.executable, str(CLI_PATH), "publish", "feature61-agent", "--remote"],
-			capture_output=True,
-			text=True,
+		publish_result = _run_registry_command(
+			"publish",
+			"feature61-agent",
+			"--remote",
 			env=env,
 			cwd=tmp_path,
 		)
@@ -324,18 +307,12 @@ def test_feature61_hardened_login_logout_remote_auth_gating(tmp_path: Path) -> N
 			"KINNOO_ARCHIVE_ROOT": str(archive_root),
 		}
 
-		login = subprocess.run(
-			[
-				sys.executable,
-				str(CLI_PATH),
-				"login",
-				"--email",
-				"kinnooteam@gmail.com",
-				"--password",
-				"kinnooteam-pass",
-			],
-			capture_output=True,
-			text=True,
+		login = _run_registry_command(
+			"login",
+			"--email",
+			"kinnooteam@gmail.com",
+			"--password",
+			"kinnooteam-pass",
 			env=env,
 			cwd=tmp_path,
 		)
@@ -348,35 +325,19 @@ def test_feature61_hardened_login_logout_remote_auth_gating(tmp_path: Path) -> N
 		assert "tenant_slug: 'team-kinnoo'" in config_after_login
 		assert "tenant_slug: 'kinnooteam'" not in config_after_login
 
-		list_remote = subprocess.run(
-			[sys.executable, str(CLI_PATH), "list", "--remote"],
-			capture_output=True,
-			text=True,
-			env=env,
-			cwd=tmp_path,
-		)
+		list_remote = _run_registry_command("list", "--remote", env=env, cwd=tmp_path)
 		list_output = f"{list_remote.stdout}\n{list_remote.stderr}"
 		assert list_remote.returncode == 0, list_output
 		assert "Remote registry agents:" in list_output
 
-		search_remote = subprocess.run(
-			[sys.executable, str(CLI_PATH), "search", "--remote", "feature61"],
-			capture_output=True,
-			text=True,
-			env=env,
-			cwd=tmp_path,
+		search_remote = _run_registry_command(
+			"search", "--remote", "feature61", env=env, cwd=tmp_path
 		)
 		search_output = f"{search_remote.stdout}\n{search_remote.stderr}"
 		assert search_remote.returncode == 0, search_output
 		assert "Remote registry search results for: feature61" in search_output
 
-		logout = subprocess.run(
-			[sys.executable, str(CLI_PATH), "logout"],
-			capture_output=True,
-			text=True,
-			env=env,
-			cwd=tmp_path,
-		)
+		logout = _run_registry_command("logout", env=env, cwd=tmp_path)
 		logout_output = f"{logout.stdout}\n{logout.stderr}"
 		assert logout.returncode == 0, logout_output
 		assert "Logout successful." in logout_output
@@ -385,23 +346,13 @@ def test_feature61_hardened_login_logout_remote_auth_gating(tmp_path: Path) -> N
 		assert "registry_token" not in config_after_logout
 		assert "tenant_slug" not in config_after_logout
 
-		list_after_logout = subprocess.run(
-			[sys.executable, str(CLI_PATH), "list", "--remote"],
-			capture_output=True,
-			text=True,
-			env=env,
-			cwd=tmp_path,
-		)
+		list_after_logout = _run_registry_command("list", "--remote", env=env, cwd=tmp_path)
 		list_after_logout_output = f"{list_after_logout.stdout}\n{list_after_logout.stderr}"
 		assert list_after_logout.returncode != 0
 		assert "Remote registry authentication is missing" in list_after_logout_output
 
-		search_after_logout = subprocess.run(
-			[sys.executable, str(CLI_PATH), "search", "--remote", "feature61"],
-			capture_output=True,
-			text=True,
-			env=env,
-			cwd=tmp_path,
+		search_after_logout = _run_registry_command(
+			"search", "--remote", "feature61", env=env, cwd=tmp_path
 		)
 		search_after_logout_output = f"{search_after_logout.stdout}\n{search_after_logout.stderr}"
 		assert search_after_logout.returncode != 0
@@ -414,24 +365,16 @@ def test_feature61_hardened_login_logout_remote_auth_gating(tmp_path: Path) -> N
 			"KINNOO_ARCHIVE_ROOT": str(archive_root),
 		}
 
-		list_no_registry = subprocess.run(
-			[sys.executable, str(CLI_PATH), "list", "--remote"],
-			capture_output=True,
-			text=True,
-			env=no_registry_env,
-			cwd=tmp_path,
+		list_no_registry = _run_registry_command(
+			"list", "--remote", env=no_registry_env, cwd=tmp_path
 		)
 		list_no_registry_output = f"{list_no_registry.stdout}\n{list_no_registry.stderr}"
 		assert list_no_registry.returncode != 0
 		assert "Remote mode requires a registry URL" in list_no_registry_output
 		assert "does not fall back to local mock storage" in list_no_registry_output
 
-		search_no_registry = subprocess.run(
-			[sys.executable, str(CLI_PATH), "search", "--remote", "feature61"],
-			capture_output=True,
-			text=True,
-			env=no_registry_env,
-			cwd=tmp_path,
+		search_no_registry = _run_registry_command(
+			"search", "--remote", "feature61", env=no_registry_env, cwd=tmp_path
 		)
 		search_no_registry_output = f"{search_no_registry.stdout}\n{search_no_registry.stderr}"
 		assert search_no_registry.returncode != 0
@@ -447,10 +390,10 @@ def test_feature61_hardened_login_logout_remote_auth_gating(tmp_path: Path) -> N
 			"REGISTRY_ADMIN_EMAIL": "admin@example.com",
 			"REGISTRY_ADMIN_PASSWORD": "admin-secret",
 		}
-		publish_with_admin_bypass = subprocess.run(
-			[sys.executable, str(CLI_PATH), "publish", "feature61-agent", "--remote"],
-			capture_output=True,
-			text=True,
+		publish_with_admin_bypass = _run_registry_command(
+			"publish",
+			"feature61-agent",
+			"--remote",
 			env=publish_env,
 			cwd=tmp_path,
 		)
@@ -471,16 +414,10 @@ def test_publish_preserves_all_versions(tmp_path: Path) -> None:
 		"KINNOO_ARCHIVE_ROOT": str(archive_root),
 		"KINNOO_REGISTRY_ROOT": str(registry_root),
 	}
-	publish_v1 = subprocess.run(
-		[
-			sys.executable,
-			str(CLI_PATH),
-			"publish",
-			"feature115-versioned-agent",
-			"--local",
-		],
-		capture_output=True,
-		text=True,
+	publish_v1 = _run_registry_command(
+		"publish",
+		"feature115-versioned-agent",
+		"--local",
 		env=publish_v1_env,
 		cwd=tmp_path,
 	)
@@ -488,16 +425,10 @@ def test_publish_preserves_all_versions(tmp_path: Path) -> None:
 	assert publish_v1.returncode == 0, publish_v1_output
 
 	_write_archive(archive_root, name="feature115-versioned-agent", version="1.1.0")
-	publish_v2 = subprocess.run(
-		[
-			sys.executable,
-			str(CLI_PATH),
-			"publish",
-			"feature115-versioned-agent",
-			"--local",
-		],
-		capture_output=True,
-		text=True,
+	publish_v2 = _run_registry_command(
+		"publish",
+		"feature115-versioned-agent",
+		"--local",
 		env=publish_v1_env,
 		cwd=tmp_path,
 	)
@@ -520,32 +451,15 @@ def test_publish_preserves_all_versions(tmp_path: Path) -> None:
 	assert v1_registry_archive.exists()
 	assert v2_registry_archive.exists()
 
-	list_result = subprocess.run(
-		[
-			sys.executable,
-			str(CLI_PATH),
-			"list",
-			"--local",
-		],
-		capture_output=True,
-		text=True,
-		env=publish_v1_env,
-		cwd=tmp_path,
-	)
+	list_result = _run_registry_command("list", "--local", env=publish_v1_env, cwd=tmp_path)
 	list_output = f"{list_result.stdout}\n{list_result.stderr}"
 	assert list_result.returncode == 0, list_output
 	assert "feature115-versioned-agent | latest: 1.1.0" in list_output
 
-	search_result = subprocess.run(
-		[
-			sys.executable,
-			str(CLI_PATH),
-			"search",
-			"--local",
-			"feature115-versioned-agent",
-		],
-		capture_output=True,
-		text=True,
+	search_result = _run_registry_command(
+		"search",
+		"--local",
+		"feature115-versioned-agent",
 		env=publish_v1_env,
 		cwd=tmp_path,
 	)
@@ -675,11 +589,8 @@ def test_feature71_strict_publish_and_docs(tmp_path: Path) -> None:
 		"KINNOO_TENANT_SLUG": "tenant-strict",
 	}
 
-	unsigned_publish = subprocess.run(
-		[sys.executable, str(CLI_PATH), "publish", "strict-publish-agent", "--local", "--strict"],
-		capture_output=True,
-		text=True,
-		env=env,
+	unsigned_publish = _run_registry_command(
+		"publish", "strict-publish-agent", "--local", "--strict", env=env
 	)
 	unsigned_output = f"{unsigned_publish.stdout}\n{unsigned_publish.stderr}"
 	assert unsigned_publish.returncode != 0
@@ -693,11 +604,8 @@ def test_feature71_strict_publish_and_docs(tmp_path: Path) -> None:
 		private_key_path=private_key_path,
 	)
 
-	signed_publish = subprocess.run(
-		[sys.executable, str(CLI_PATH), "publish", "strict-publish-agent", "--local", "--strict"],
-		capture_output=True,
-		text=True,
-		env=env,
+	signed_publish = _run_registry_command(
+		"publish", "strict-publish-agent", "--local", "--strict", env=env
 	)
 	signed_output = f"{signed_publish.stdout}\n{signed_publish.stderr}"
 	assert signed_publish.returncode == 0, signed_output
@@ -750,34 +658,13 @@ def test_feature84_skill_search_delegation_and_json_passthrough(tmp_path: Path) 
 		"KINNOO_TEST_OPENCLAW_SEARCH_LOG": str(invocation_log),
 	}
 
-	default_result = subprocess.run(
-		[
-			sys.executable,
-			str(CLI_PATH),
-			"search",
-			"--openclaw-skill",
-			"weather",
-		],
-		capture_output=True,
-		text=True,
-		env=env,
-	)
+	default_result = _run_registry_command("search", "--openclaw-skill", "weather", env=env)
 	default_output = f"{default_result.stdout}\n{default_result.stderr}"
 	assert default_result.returncode == 0, default_output
 	assert "owner/skill" in default_output
 
-	json_result = subprocess.run(
-		[
-			sys.executable,
-			str(CLI_PATH),
-			"search",
-			"--openclaw-skill",
-			"--json",
-			"weather",
-		],
-		capture_output=True,
-		text=True,
-		env=env,
+	json_result = _run_registry_command(
+		"search", "--openclaw-skill", "--json", "weather", env=env
 	)
 	json_output = f"{json_result.stdout}\n{json_result.stderr}"
 	assert json_result.returncode == 0, json_output
@@ -790,17 +677,8 @@ def test_feature84_skill_search_delegation_and_json_passthrough(tmp_path: Path) 
 
 def test_feature84_skill_search_preflight_empty_and_error_guidance(tmp_path: Path) -> None:
 	missing_cli_env = {**os.environ, "PATH": ""}
-	missing_cli_result = subprocess.run(
-		[
-			sys.executable,
-			str(CLI_PATH),
-			"search",
-			"--openclaw-skill",
-			"weather",
-		],
-		capture_output=True,
-		text=True,
-		env=missing_cli_env,
+	missing_cli_result = _run_registry_command(
+		"search", "--openclaw-skill", "weather", env=missing_cli_env
 	)
 	missing_cli_output = f"{missing_cli_result.stdout}\n{missing_cli_result.stderr}"
 	assert missing_cli_result.returncode != 0
@@ -842,34 +720,13 @@ def test_feature84_skill_search_preflight_empty_and_error_guidance(tmp_path: Pat
 		"PATH": f"{fake_bin}{os.pathsep}{os.environ.get('PATH', '')}",
 		"KINNOO_TEST_OPENCLAW_SEARCH_MODE": "empty",
 	}
-	empty_result = subprocess.run(
-		[
-			sys.executable,
-			str(CLI_PATH),
-			"search",
-			"--openclaw-skill",
-			"weather",
-		],
-		capture_output=True,
-		text=True,
-		env=empty_env,
-	)
+	empty_result = _run_registry_command("search", "--openclaw-skill", "weather", env=empty_env)
 	empty_output = f"{empty_result.stdout}\n{empty_result.stderr}"
 	assert empty_result.returncode == 0, empty_output
 	assert "No OpenClaw skill results found for query: weather" in empty_output
 
-	empty_json_result = subprocess.run(
-		[
-			sys.executable,
-			str(CLI_PATH),
-			"search",
-			"--openclaw-skill",
-			"--json",
-			"weather",
-		],
-		capture_output=True,
-		text=True,
-		env=empty_env,
+	empty_json_result = _run_registry_command(
+		"search", "--openclaw-skill", "--json", "weather", env=empty_env
 	)
 	empty_json_output = f"{empty_json_result.stdout}\n{empty_json_result.stderr}"
 	assert empty_json_result.returncode == 0, empty_json_output
@@ -877,44 +734,20 @@ def test_feature84_skill_search_preflight_empty_and_error_guidance(tmp_path: Pat
 
 	error_env = dict(empty_env)
 	error_env["KINNOO_TEST_OPENCLAW_SEARCH_MODE"] = "error"
-	error_result = subprocess.run(
-		[
-			sys.executable,
-			str(CLI_PATH),
-			"search",
-			"--openclaw-skill",
-			"weather",
-		],
-		capture_output=True,
-		text=True,
-		env=error_env,
-	)
+	error_result = _run_registry_command("search", "--openclaw-skill", "weather", env=error_env)
 	error_output = f"{error_result.stdout}\n{error_result.stderr}"
 	assert error_result.returncode != 0
 	assert "category=openclaw_skill_search_nonzero_exit" in error_output
 
 
 def test_search_openclaw_skills_removed(tmp_path: Path) -> None:
-	result = subprocess.run(
-		[
-			sys.executable,
-			str(CLI_PATH),
-			"search",
-			"--openclaw-skills",
-			"weather",
-		],
-		capture_output=True,
-		text=True,
-	)
+	result = _run_registry_command("search", "--openclaw-skills", "weather")
 	output = f"{result.stdout}\n{result.stderr}"
 	assert result.returncode != 0
-	assert "unrecognized arguments: --openclaw-skills" in output
+	assert "unrecognized arguments" in output
+	assert "--openclaw-skills" in output
 
-	help_result = subprocess.run(
-		[sys.executable, str(CLI_PATH), "search", "-h"],
-		capture_output=True,
-		text=True,
-	)
+	help_result = _run_registry_command("search", "-h")
 	help_output = f"{help_result.stdout}\n{help_result.stderr}"
 	assert help_result.returncode == 0
 	assert "--openclaw-skills" not in help_output
@@ -930,19 +763,7 @@ def test_search_json_output(tmp_path: Path) -> None:
 		"KINNOO_ARCHIVE_ROOT": str(archive_root),
 	}
 
-	result = subprocess.run(
-		[
-			sys.executable,
-			str(CLI_PATH),
-			"search",
-			"--local",
-			"--json",
-			"task477",
-		],
-		capture_output=True,
-		text=True,
-		env=env,
-	)
+	result = _run_registry_command("search", "--local", "--json", "task477", env=env)
 	output = f"{result.stdout}\n{result.stderr}"
 	assert result.returncode == 0, output
 
@@ -963,18 +784,7 @@ def test_list_json_output(tmp_path: Path) -> None:
 		"KINNOO_ARCHIVE_ROOT": str(archive_root),
 	}
 
-	result = subprocess.run(
-		[
-			sys.executable,
-			str(CLI_PATH),
-			"list",
-			"--local",
-			"--json",
-		],
-		capture_output=True,
-		text=True,
-		env=env,
-	)
+	result = _run_registry_command("list", "--local", "--json", env=env)
 	output = f"{result.stdout}\n{result.stderr}"
 	assert result.returncode == 0, output
 
