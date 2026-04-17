@@ -188,3 +188,139 @@ Copy the above into `notes/phase13-uat-2-regression-test-hardening.md`. Here's t
 4. **Kill meta-gate tests** — use pytest markers instead
 5. **Enforce deprecation-on-removal** as a workflow rule for PR reviews
 6. **Layer tests** by abstraction level so each layer only breaks when its specific contract changes
+
+## Prompt 2 (Human)
+> For Recommendation F. Separate schema/unit tests from integration/CLI tests - can you give me a few examples from the existing tests - which tests are schema unit tests and which tests should be integration tests.
+>
+> For B. Decouple test fixtures from production validation - explain how Option 3: Use validate_manifest_data(data) (which already exists) for schema-only tests, and reserve validate(path) for integration tests that test the full on-disk validation - will look in each case - i.e., a schema-only test that uses validate_manifest_data(data) and an integration test that uses validate(path)
+>
+> And if fixing F and B, walk me through what the actual refactoring - what will change in the tests/ codebase.
+>
+> For C. Stop writing regression gate meta-tests - will running ```python3 -m pytest``` still run these marked regression tests? Or do you need to explicitly call the marker like you show in your example.
+>
+> For E. Adopt a deprecation-on-removal workflow - in conjunction with C, I might suggest to use Python markers to specifically indicate which command this is testing (e.g., @pytest.mark.kinnoo_init) so that, when a feature updates kinnoo init, for example, the agent knows to check if these marked tests are still valid. If this is the case, perhaps we need to create "regression test set" categories and save this somewhere, maybe in tests/ base folder. Each CLI subcommand would definitely be its own test set. I'd need to think about what the other test sets would be.
+>
+> Don't refactor any test code yet. Respond to my comments above first, and again copy-paste this prompt and your response and append to notes/phases/phase13-uat-2-regression-test-hardening.md.
+
+## Response 2 (Agent)
+
+Excellent direction. Your instincts are right: this is mostly a test architecture problem, not a product-quality problem.
+
+For Recommendation F, here are concrete examples from current tests.
+
+Schema unit tests (should validate manifest rules in memory, with no filesystem contract):
+- [tests/test_validator.py](tests/test_validator.py#L146) test_invalid_field_type
+- [tests/test_validator.py](tests/test_validator.py#L177) test_invalid_semver_format
+- [tests/test_validator.py](tests/test_validator.py#L213) test_framework_optional
+- [tests/test_validator.py](tests/test_validator.py#L260) test_feature23_runtime_type_mcp_server_supported
+
+These are schema rule assertions. They are not trying to verify files exist on disk.
+
+Integration validation tests (should use file-backed validation and real paths):
+- [tests/test_validator.py](tests/test_validator.py#L48) test_valid_manifest_passes
+- [tests/test_validator.py](tests/test_validator.py#L959) test_task489_entrypoints_union_contract_validation
+- [tests/test_validator.py](tests/test_validator.py#L981) test_task489_entrypoint_path_missing_reports_deterministic_error
+
+These are explicitly about path-aware behavior and should keep using validate(path).
+
+CLI integration tests (separate from validator schema tests):
+- [tests/test_cli_inspect.py](tests/test_cli_inspect.py#L332) test_feature24_inspect_displays_services
+- [tests/test_init.py](tests/test_init.py#L210) test_init_minimal_template
+
+These test subprocess invocation, parser behavior, output wiring, and file generation from commands.
+
+For Recommendation B Option 3, here is what each case looks like.
+
+Schema-only test style (validate_manifest_data):
+
+    def test_invalid_semver_schema_only() -> None:
+        data = {
+            "name": "my-agent",
+            "version": "1.0",
+            "entrypoint": "run.py",
+            "runtime": {"language": "python", "version": ">=3.10", "type": "one-shot"},
+            "dependencies": [],
+            "inputs": {"type": "text"},
+            "outputs": {"type": "text"},
+        }
+        is_valid, errors = validate_manifest_data(data)
+        assert not is_valid
+        assert any("semver" in e.lower() for e in errors)
+
+Integration test style (validate(path)):
+
+    def test_entrypoint_path_must_exist(tmp_path: Path) -> None:
+        manifest = {
+            "name": "my-agent",
+            "version": "0.1.0",
+            "entrypoint": "run.py",
+            "runtime": {"language": "python", "version": ">=3.10", "type": "one-shot"},
+            "dependencies": [],
+            "inputs": {"type": "text"},
+            "outputs": {"type": "text"},
+        }
+        p = tmp_path / "kinnoo.yaml"
+        p.write_text(yaml.dump(manifest), encoding="utf-8")
+        # Note: run.py intentionally not created
+        is_valid, errors = validate(str(p))
+        assert not is_valid
+        assert any("Declared entrypoint path not found" in e for e in errors)
+
+Key distinction:
+- validate_manifest_data(data) is for schema semantics
+- validate(path) is for on-disk semantics (file existence, relative path resolution)
+
+If we fix F and B, this is what will actually change in tests.
+
+1. Split validator tests into layered files:
+- tests/test_validator_schema.py for dict-based schema tests
+- tests/test_validator_integration.py for file/path behavior
+
+2. Add helper fixtures for intent clarity:
+- build_valid_manifest_dict() for schema unit tests
+- write_manifest_and_files(tmp_path, manifest, files={...}) for integration tests
+
+3. Migrate existing tests by intent:
+- tests that only assert field type/value rules move to validate_manifest_data(data)
+- tests that assert entrypoint or entrypoints path behavior remain on validate(path)
+
+4. Keep CLI tests separate:
+- no validator internals in CLI subprocess tests
+- CLI tests assert command contract and user-facing behavior
+
+This refactor should reduce ghost-breakage because schema tests stop depending on incidental filesystem conditions.
+
+For C (meta-tests and markers), behavior with python3 -m pytest is:
+- Yes, python3 -m pytest runs marked tests by default.
+- Marker annotations do nothing unless you filter with -m.
+
+So:
+- python3 -m pytest runs everything except skipped/xfail rules
+- python3 -m pytest -m regression runs only regression-marked tests
+- python3 -m pytest -m "not regression" excludes regression-marked tests
+
+For E, your idea to use command-specific markers is exactly right.
+
+I recommend a marker taxonomy like:
+- regression dimension: regression, smoke, contract
+- surface dimension: kinnoo_init, kinnoo_run, kinnoo_install, kinnoo_pack, kinnoo_inspect, kinnoo_publish, kinnoo_search, kinnoo_login, kinnoo_logout
+- layer dimension: schema_unit, integration, cli, e2e
+- component dimension: validator, analyzer, registry_client, server_api, web_ui
+
+Then a changed command can drive targeted regression execution. Example:
+- if init changes: python3 -m pytest -m "kinnoo_init and (contract or regression)"
+
+Where to store these test-set categories:
+- define and document markers in [pyproject.toml](pyproject.toml)
+- add practical usage docs in [tests/README.md](tests/README.md)
+- optionally add [tests/conftest.py](tests/conftest.py) with shared marker helpers/fixtures
+
+I agree each CLI subcommand should be a first-class test set. Other good sets:
+- manifest schema contracts
+- filesystem/archive contracts
+- remote registry protocol contracts
+- auth/session/tenant contracts
+- docs contract checks
+- migration/deprecation compatibility checks
+
+No refactor has been done yet in this step. This is design guidance only, as requested.

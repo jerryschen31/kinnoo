@@ -101,7 +101,7 @@ Notes:
 2. Run broader regression as needed for confidence:
 	- `python3 -m pytest`
 3. Validate manifests after any TASKS/TESTS edits:
-	- `python3 src/validate_project_manifests.py`
+	- `python3 scripts/validate_project_manifests.py`
 
 Expected result:
 - Feature7 tests pass.
@@ -173,7 +173,7 @@ However, there are manifest/process inconsistencies that should be corrected bef
 
 ## Validation Performed
 
-- `python3 src/validate_project_manifests.py` → pass
+- `python3 scripts/validate_project_manifests.py` → pass
 - `python3 -m pytest tests/test_cli_install.py tests/test_cli.py::test_cli_version_flag tests/test_suite_integrity.py tests/test_regression_v1.py` → pass (5/5)
 
 ## AC Coverage Check (feature7)

@@ -15,7 +15,7 @@
 ## Tests and results
 - `python3 -m pytest tests/test_pack.py::test_feature26_github_mcp_fixture_valid_and_packable` -> `1 passed`
 - `python3 -m pytest tests/test_init.py::test_feature26_mcp_client_template_generation tests/test_init.py::test_feature26_mcp_client_template_contract_and_validation` -> `2 passed`
-- `python3 src/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
+- `python3 scripts/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
 
 ## Bug/error notes
 - Encountered two related issues during first test run:

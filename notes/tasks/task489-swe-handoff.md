@@ -90,7 +90,7 @@ At minimum run:
 - `python3 -m pytest tests/test_cli_inspect.py -k "entrypoint or entrypoints"`
 - `python3 -m pytest tests/test_run_preflight.py -k "entrypoint or entrypoints"`
 - `python3 -m pytest tests/test_docs.py -k "entrypoint or entrypoints"`
-- `python3 src/validate_project_manifests.py`
+- `python3 scripts/validate_project_manifests.py`
 
 ## Risks and Pitfalls
 - Ambiguous precedence if both fields are accidentally accepted.

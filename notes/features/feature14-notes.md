@@ -45,7 +45,7 @@ Feature14 AC coverage mapping:
 - Implement tests `test120`..`test125` and ensure they pass.
 - Run `python3 -m pytest` (or targeted preflight/doc tests first, then full suite as needed).
 - Update task statuses to `needs-review` when complete.
-- Run `python3 src/validate_project_manifests.py` before handoff.
+- Run `python3 scripts/validate_project_manifests.py` before handoff.
 
 
 # Feature14 TechLead Review — Preflight Checks (`kinnoo run --preflight`)
@@ -69,7 +69,7 @@ Verdict: **Approved for merge to `phase2/main` with non-blocking follow-ups**
 ## Evidence executed
 - `python3 -m pytest tests/test_run_preflight.py tests/test_docs.py -q`
   - Result: `10 passed`
-- `python3 src/validate_project_manifests.py`
+- `python3 scripts/validate_project_manifests.py`
   - Result: `Validation passed: manifests are consistent`
 
 ## Task-by-task review

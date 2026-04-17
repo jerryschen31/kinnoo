@@ -25,7 +25,7 @@
 - `tests/test_cli.py::test_run_single_input_backward_compatible` (test172)
 
 ## Validation and regression results
-- `python3 src/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
+- `python3 scripts/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
 - `python3 -m pytest tests/test_validator.py -k "inputs_required" -q` -> `2 passed`
 - `python3 -m pytest tests/test_cli.py -k "run" -q` -> `13 passed, 1 deselected`
 - `python3 -m pytest tests/test_input_guard_integration.py -q` -> `4 passed`

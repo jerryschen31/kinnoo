@@ -17,4 +17,4 @@
 	- `task54` moved `not-started -> in-progress -> needs-review` in `TASKS.txt`.
 - Verification:
 	- `python3 -m pytest tests/test_cli_env_vars.py -k "feature10 or env_vars or secret"` → pass
-	- `python3 src/validate_project_manifests.py` → pass
+	- `python3 scripts/validate_project_manifests.py` → pass

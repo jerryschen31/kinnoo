@@ -9,6 +9,12 @@ from pathlib import Path
 CLI_PATH = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
 
 
+def _test_home(root: Path) -> Path:
+    home_root = root / ".test-home"
+    home_root.mkdir(parents=True, exist_ok=True)
+    return home_root
+
+
 def _write_archive(
     archive_root: Path,
     *,
@@ -94,14 +100,15 @@ def test_publish_name_resolves_latest_local_archive(tmp_path: Path) -> None:
         run_content="print('version-2.0.0')\n",
     )
 
-    env = dict(
+    env = {
         **os.environ,
-        KINNOO_ARCHIVE_ROOT=str(archive_root),
-        KINNOO_REGISTRY_ROOT=str(registry_root),
-    )
+        "KINNOO_ARCHIVE_ROOT": str(archive_root),
+        "KINNOO_REGISTRY_ROOT": str(registry_root),
+        "HOME": str(_test_home(tmp_path)),
+    }
 
     result = subprocess.run(
-        [sys.executable, str(CLI_PATH), "publish", "demo-agent"],
+        [sys.executable, str(CLI_PATH), "publish", "demo-agent", "--local"],
         cwd=tmp_path,
         capture_output=True,
         text=True,
@@ -123,14 +130,15 @@ def test_publish_name_resolves_latest_local_archive(tmp_path: Path) -> None:
 def test_publish_errors_for_missing_or_invalid_archive_source(tmp_path: Path) -> None:
     archive_root = tmp_path / "archive-sandbox"
     registry_root = tmp_path / "registry-sandbox"
-    env = dict(
+    env = {
         **os.environ,
-        KINNOO_ARCHIVE_ROOT=str(archive_root),
-        KINNOO_REGISTRY_ROOT=str(registry_root),
-    )
+        "KINNOO_ARCHIVE_ROOT": str(archive_root),
+        "KINNOO_REGISTRY_ROOT": str(registry_root),
+        "HOME": str(_test_home(tmp_path)),
+    }
 
     missing_agent_result = subprocess.run(
-        [sys.executable, str(CLI_PATH), "publish", "missing-agent"],
+        [sys.executable, str(CLI_PATH), "publish", "missing-agent", "--local"],
         cwd=tmp_path,
         capture_output=True,
         text=True,
@@ -143,7 +151,7 @@ def test_publish_errors_for_missing_or_invalid_archive_source(tmp_path: Path) ->
     empty_agent_dir = archive_root / "empty-agent"
     empty_agent_dir.mkdir(parents=True, exist_ok=True)
     no_versions_result = subprocess.run(
-        [sys.executable, str(CLI_PATH), "publish", "empty-agent"],
+        [sys.executable, str(CLI_PATH), "publish", "empty-agent", "--local"],
         cwd=tmp_path,
         capture_output=True,
         text=True,
@@ -179,7 +187,7 @@ def test_publish_errors_for_missing_or_invalid_archive_source(tmp_path: Path) ->
     )
 
     invalid_metadata_result = subprocess.run(
-        [sys.executable, str(CLI_PATH), "publish", "broken-agent"],
+        [sys.executable, str(CLI_PATH), "publish", "broken-agent", "--local"],
         cwd=tmp_path,
         capture_output=True,
         text=True,
@@ -194,11 +202,12 @@ def test_publish_errors_for_missing_or_invalid_archive_source(tmp_path: Path) ->
 def test_publish_rolls_existing_tagged_to_untagged(tmp_path: Path) -> None:
     archive_root = tmp_path / "archive-sandbox"
     registry_root = tmp_path / "registry-sandbox"
-    env = dict(
+    env = {
         **os.environ,
-        KINNOO_ARCHIVE_ROOT=str(archive_root),
-        KINNOO_REGISTRY_ROOT=str(registry_root),
-    )
+        "KINNOO_ARCHIVE_ROOT": str(archive_root),
+        "KINNOO_REGISTRY_ROOT": str(registry_root),
+        "HOME": str(_test_home(tmp_path)),
+    }
 
     source_archive_v1 = _write_archive(
         archive_root,
@@ -207,7 +216,7 @@ def test_publish_rolls_existing_tagged_to_untagged(tmp_path: Path) -> None:
         run_content="print('payload-v1')\n",
     )
     first_publish = subprocess.run(
-        [sys.executable, str(CLI_PATH), "publish", "rollover-agent"],
+        [sys.executable, str(CLI_PATH), "publish", "rollover-agent", "--local"],
         cwd=tmp_path,
         capture_output=True,
         text=True,
@@ -227,7 +236,7 @@ def test_publish_rolls_existing_tagged_to_untagged(tmp_path: Path) -> None:
         run_content="print('payload-v2')\n",
     )
     second_publish = subprocess.run(
-        [sys.executable, str(CLI_PATH), "publish", "rollover-agent"],
+        [sys.executable, str(CLI_PATH), "publish", "rollover-agent", "--local"],
         cwd=tmp_path,
         capture_output=True,
         text=True,
@@ -274,7 +283,7 @@ def test_publish_uses_home_absolute_mock_registry_path(tmp_path: Path) -> None:
     env.pop("KINNOO_REGISTRY_ROOT", None)
 
     result = subprocess.run(
-        [sys.executable, str(cli_path), "publish", "absolute-path-agent"],
+        [sys.executable, str(cli_path), "publish", "absolute-path-agent", "--local"],
         cwd=publish_cwd,
         capture_output=True,
         text=True,
@@ -304,11 +313,12 @@ def test_publish_local_remote_mutually_exclusive(tmp_path: Path) -> None:
     registry_root = tmp_path / "registry-sandbox"
     _write_archive(archive_root, name="mutual-exclusion-agent", version="1.0.0")
 
-    env = dict(
+    env = {
         **os.environ,
-        KINNOO_ARCHIVE_ROOT=str(archive_root),
-        KINNOO_REGISTRY_ROOT=str(registry_root),
-    )
+        "KINNOO_ARCHIVE_ROOT": str(archive_root),
+        "KINNOO_REGISTRY_ROOT": str(registry_root),
+        "HOME": str(_test_home(tmp_path)),
+    }
 
     result = subprocess.run(
         [
@@ -338,11 +348,12 @@ def test_publish_json_output(tmp_path: Path) -> None:
         version="1.0.0",
     )
 
-    env = dict(
+    env = {
         **os.environ,
-        KINNOO_ARCHIVE_ROOT=str(archive_root),
-        KINNOO_REGISTRY_ROOT=str(registry_root),
-    )
+        "KINNOO_ARCHIVE_ROOT": str(archive_root),
+        "KINNOO_REGISTRY_ROOT": str(registry_root),
+        "HOME": str(_test_home(tmp_path)),
+    }
 
     result = subprocess.run(
         [
@@ -377,11 +388,12 @@ def test_publish_pack_private_sets_private_visibility(tmp_path: Path) -> None:
     work_root.mkdir(parents=True, exist_ok=True)
 
     agent_dir = _write_agent_dir(work_root, name="private-pack-publish-agent", version="1.0.0")
-    env = dict(
+    env = {
         **os.environ,
-        KINNOO_ARCHIVE_ROOT=str(archive_root),
-        KINNOO_REGISTRY_ROOT=str(registry_root),
-    )
+        "KINNOO_ARCHIVE_ROOT": str(archive_root),
+        "KINNOO_REGISTRY_ROOT": str(registry_root),
+        "HOME": str(_test_home(tmp_path)),
+    }
 
     result = subprocess.run(
         [
@@ -411,14 +423,15 @@ def test_publish_pack_private_sets_private_visibility(tmp_path: Path) -> None:
 def test_publish_public_flag_removed_and_private_flag_documented(tmp_path: Path) -> None:
     archive_root = tmp_path / "archive-sandbox"
     registry_root = tmp_path / "registry-sandbox"
-    env = dict(
+    env = {
         **os.environ,
-        KINNOO_ARCHIVE_ROOT=str(archive_root),
-        KINNOO_REGISTRY_ROOT=str(registry_root),
-    )
+        "KINNOO_ARCHIVE_ROOT": str(archive_root),
+        "KINNOO_REGISTRY_ROOT": str(registry_root),
+        "HOME": str(_test_home(tmp_path)),
+    }
 
     public_result = subprocess.run(
-        [sys.executable, str(CLI_PATH), "publish", "legacy-agent", "--public"],
+        [sys.executable, str(CLI_PATH), "publish", "legacy-agent", "--public", "--local"],
         cwd=tmp_path,
         capture_output=True,
         text=True,

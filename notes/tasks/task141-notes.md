@@ -18,7 +18,7 @@
 ## Test runs and results
 - python3 -m pytest tests/test_validator.py::test_feature23_runtime_type_mcp_server_supported -> 1 passed
 - python3 -m pytest tests/test_validator.py::test_invalid_runtime_type -> 1 passed
-- python3 src/validate_project_manifests.py -> Validation passed: manifests are consistent
+- python3 scripts/validate_project_manifests.py -> Validation passed: manifests are consistent
 
 ## Bug/error notes
 - No repeated bug/error class encountered during task141 implementation.

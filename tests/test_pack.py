@@ -4,12 +4,14 @@ import tempfile
 import zipfile
 import json
 import pytest
+import sys
 from pathlib import Path  # <-- Add this import
 import shutil
 
 from src.kinnoo.validator import validate
 
-KINNOO_CLI = ["python3", "-m", "src.kinnoo.cli"]
+CLI_PATH = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+KINNOO_CLI = [sys.executable, str(CLI_PATH)]
 
 
 def _pack_env(tmp_path: Path) -> dict[str, str]:

@@ -22,7 +22,7 @@
 ### Validation results
 
 - `/Users/jerry/gh/kinnoo/.venv/bin/python -m pytest tests/test_cli_registry.py tests/test_registry.py` → passed (`3 passed`)
-- `/Users/jerry/gh/kinnoo/.venv/bin/python src/validate_project_manifests.py` → Validation passed
+- `/Users/jerry/gh/kinnoo/.venv/bin/python scripts/validate_project_manifests.py` → Validation passed
 
 ### Bug/Error handling note
 

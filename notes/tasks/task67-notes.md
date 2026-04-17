@@ -21,7 +21,7 @@
 ### Validation results
 
 - `python3 -m pytest tests/test_docs.py` → passed (`3 passed`)
-- `python3 src/validate_project_manifests.py` → Validation passed
+- `python3 scripts/validate_project_manifests.py` → Validation passed
 
 ### Bookkeeping
 

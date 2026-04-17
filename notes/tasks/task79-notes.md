@@ -22,7 +22,7 @@
 ### Validation results
 
 - `python3 -m pytest tests/test_pack.py::test_pack_bump_flag_and_version_output_line tests/test_pack.py::test_pack_prompts_before_overwrite_existing_archive` → passed (`2 passed`)
-- `python3 src/validate_project_manifests.py` → Validation passed
+- `python3 scripts/validate_project_manifests.py` → Validation passed
 
 ### Bookkeeping
 

@@ -94,7 +94,7 @@ Run full suite before final handoff:
 - python3 -m pytest
 
 Validate manifests after any task/test manifest updates:
-- python3 src/validate_project_manifests.py
+- python3 scripts/validate_project_manifests.py
 
 ### Status Workflow
 - Move task255: not-started -> in-progress at implementation start.

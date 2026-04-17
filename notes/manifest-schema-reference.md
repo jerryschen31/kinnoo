@@ -807,7 +807,7 @@ For project manifest consistency:
 - Do not place `task: taskX` entries inside `TESTS.txt` `covers`.
 - Task-to-test linkage belongs in `TASKS.txt` via each task's `tests: [testA, testB]` list.
 
-This matches the manifest validator behavior in `src/validate_project_manifests.py`.
+This matches the manifest validator behavior in `scripts/validate_project_manifests.py`.
 
 ---
 

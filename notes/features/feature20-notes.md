@@ -150,7 +150,7 @@ Tasks are intentionally sequential because each later task depends on earlier sc
 
 Run these after implementation before marking tasks `needs-review`:
 
-1. `python3 src/validate_project_manifests.py`
+1. `python3 scripts/validate_project_manifests.py`
 2. `python3 -m pytest tests/test_validator.py -k "inputs_required"`
 3. `python3 -m pytest tests/test_cli.py -k "run"`
 4. `python3 -m pytest tests/test_input_guard_integration.py`
@@ -186,7 +186,7 @@ Run these after implementation before marking tasks `needs-review`:
 
 ### Evidence Run
 
-- `python3 src/validate_project_manifests.py` -> pass
+- `python3 scripts/validate_project_manifests.py` -> pass
 - `python3 -m pytest tests/test_validator.py -k "inputs_required"` -> 2 passed
 - `python3 -m pytest tests/test_cli.py -k "feature20 or run_without_input or pass_through"` -> 5 passed
 - `python3 -m pytest tests/test_input_guard_integration.py -k "pass_through or no_guard"` -> 3 passed

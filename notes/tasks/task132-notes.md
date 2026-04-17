@@ -27,7 +27,7 @@
 - `tests/test_cli.py::test_feature21_langgraph_basic_run` (test197)
 
 ## Validation and regression results
-- `python3 src/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
+- `python3 scripts/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
 - `python3 -m pytest tests/test_init.py::test_feature21_langgraph_framework_native_template tests/test_cli.py::test_feature21_langgraph_basic_run -q` -> `2 passed`
 - `python3 -m pytest tests/test_init.py -k "framework or feature21"` -> `21 passed, 16 deselected`
 - `python3 -m pytest tests/test_cli.py -k "feature21"` -> `5 passed, 19 deselected`

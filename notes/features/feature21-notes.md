@@ -165,7 +165,7 @@ Tasks are ordered from parser acceptance -> template generation -> runnable smok
 
 Run these before marking tasks `needs-review`:
 
-1. `python3 src/validate_project_manifests.py`
+1. `python3 scripts/validate_project_manifests.py`
 2. `python3 -m pytest tests/test_init.py -k "framework or feature21"`
 3. `python3 -m pytest tests/test_cli.py -k "feature21"`
 4. `python3 -m pytest tests/test_regression_v1.py -k "framework or feature21"`
@@ -263,7 +263,7 @@ In the same pass, run-path UX was reviewed and confirmed:
 
 ### Validation evidence for this review batch
 
-- `python3 src/validate_project_manifests.py` -> passed after adding `task130`-`task134` and `test192`-`test201`.
+- `python3 scripts/validate_project_manifests.py` -> passed after adding `task130`-`task134` and `test192`-`test201`.
 - Focused CLI verification:
 	- `python3 -m pytest tests/test_cli.py -k "run_pass_through_args_forwarded_verbatim or run_help_includes_pass_through_separator_usage or run_usage_includes_feature20_modes"`
 	- Result: selected tests passed.
@@ -313,7 +313,7 @@ In the same pass, run-path UX was reviewed and confirmed:
 ### Execution evidence (this review)
 
 - Manifest consistency:
-	- `python3 src/validate_project_manifests.py` -> pass
+	- `python3 scripts/validate_project_manifests.py` -> pass
 - Feature21 focused suites:
 	- `python3 -m pytest tests/test_init.py tests/test_cli.py -k feature21` -> 21 passed
 	- `python3 -m pytest tests/test_regression_v1.py -k "framework or feature21"` -> 1 passed

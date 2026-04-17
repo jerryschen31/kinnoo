@@ -54,7 +54,7 @@ Implemented task450 to harden `kinnoo test` across CLI UX, diagnostics, and docs
 - Added feature entry: `feature114` (kinnoo test hardening)
 - Added task entry: `task450` (status: `needs-review`)
 - Added test entries: `test610`..`test614`
-- Ran validator: `python src/validate_project_manifests.py` -> passed
+- Ran validator: `python scripts/validate_project_manifests.py` -> passed
 
 ## Automated test runs
 
