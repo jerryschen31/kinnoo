@@ -8,10 +8,10 @@ import sys
 from pathlib import Path  # <-- Add this import
 import shutil
 
+from tests.helpers import cli_base_cmd
 from src.kinnoo.validator import validate
 
-CLI_PATH = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
-KINNOO_CLI = [sys.executable, str(CLI_PATH)]
+KINNOO_CLI = cli_base_cmd()
 
 
 def _pack_env(tmp_path: Path) -> dict[str, str]:

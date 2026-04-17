@@ -12,6 +12,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from kinnoo.validator import validate  # noqa: E402
+from kinnoo.validator import validate_manifest_data  # noqa: E402
 from kinnoo.schema import normalize_manifest_defaults  # noqa: E402
 from kinnoo.analyzer import analyze_project  # noqa: E402
 
@@ -61,8 +62,7 @@ def test_missing_required_field(tmp_path: Path) -> None:
     """Omitting 'entrypoint' produces an error that names the field."""
     data = dict(_VALID_MANIFEST)
     del data["entrypoint"]
-    p = _write_manifest(data, tmp_path)
-    is_valid, errors = validate(str(p))
+    is_valid, errors = validate_manifest_data(data)
     assert is_valid is False, "Expected validation to fail for missing field"
     assert any("entrypoint" in msg for msg in errors), (
         f"Expected error mentioning 'entrypoint'; got: {errors}"
@@ -94,8 +94,7 @@ def test_missing_required_field_all(tmp_path: Path) -> None:
         if "outputs" in data:
             data["outputs"] = dict(data["outputs"])
 
-        p = _write_manifest(data, tmp_path)
-        is_valid, errors = validate(str(p))
+        is_valid, errors = validate_manifest_data(data)
         assert is_valid is False, f"Should fail when '{field}' is missing"
         assert any(field in msg for msg in errors), (
             f"Error should mention '{field}'; got: {errors}"
@@ -109,11 +108,9 @@ def test_missing_required_field_all(tmp_path: Path) -> None:
     ]:
         data = dict(_VALID_MANIFEST)
         del data[field]
-        p = _write_manifest(data, tmp_path)
-        is_valid, errors = validate(str(p))
+        is_valid, errors = validate_manifest_data(data)
         assert is_valid, f"Manifest missing '{field}' should pass due to default injection; errors: {errors}"
         import yaml
-        loaded = yaml.safe_load(p.read_text())
         # The validator injects defaults at runtime, not in the file, so check via validate logic
 
     for parent, subfields in nested_required.items():
@@ -124,8 +121,7 @@ def test_missing_required_field_all(tmp_path: Path) -> None:
                 for k, v in data[parent].items()
                 if k != subfield
             }
-            p = _write_manifest(data, tmp_path)
-            is_valid, errors = validate(str(p))
+            is_valid, errors = validate_manifest_data(data)
             dotted = f"{parent}.{subfield}"
             # For inputs.type and outputs.type, expect default injection, not error
             if (parent, subfield) in [("inputs", "type"), ("outputs", "type")]:
@@ -147,8 +143,7 @@ def test_invalid_field_type(tmp_path: Path) -> None:
     """'dependencies' set to a string (not a list) produces a type error."""
     data = dict(_VALID_MANIFEST)
     data["dependencies"] = "openai"  # should be a list
-    p = _write_manifest(data, tmp_path)
-    is_valid, errors = validate(str(p))
+    is_valid, errors = validate_manifest_data(data)
     assert is_valid is False, "Expected validation to fail for wrong type"
     assert any("dependencies" in msg for msg in errors), (
         f"Error should mention 'dependencies'; got: {errors}"
@@ -162,8 +157,7 @@ def test_invalid_field_type_version_as_number(tmp_path: Path) -> None:
     """'version' set to a number produces a type error mentioning 'version'."""
     data = dict(_VALID_MANIFEST)
     data["version"] = 1  # should be a string
-    p = _write_manifest(data, tmp_path)
-    is_valid, errors = validate(str(p))
+    is_valid, errors = validate_manifest_data(data)
     assert is_valid is False
     assert any("version" in msg for msg in errors), (
         f"Error should mention 'version'; got: {errors}"
@@ -178,8 +172,7 @@ def test_invalid_semver_format(tmp_path: Path) -> None:
     """version='1.0' (missing patch segment) produces a semver error."""
     data = dict(_VALID_MANIFEST)
     data["version"] = "1.0"  # invalid — missing patch
-    p = _write_manifest(data, tmp_path)
-    is_valid, errors = validate(str(p))
+    is_valid, errors = validate_manifest_data(data)
     assert is_valid is False, "Expected validation to fail for bad semver"
     assert any("version" in msg for msg in errors), (
         f"Error should mention 'version'; got: {errors}"
@@ -214,18 +207,14 @@ def test_framework_optional(tmp_path: Path) -> None:
     """Manifest without 'framework' and with 'framework' both pass."""
     # Without framework
     data_no_fw = dict(_VALID_MANIFEST)
-    p_no_fw = tmp_path / "no_fw.yaml"
-    p_no_fw.write_text(yaml.dump(data_no_fw), encoding="utf-8")
-    is_valid, errors = validate(str(p_no_fw))
+    is_valid, errors = validate_manifest_data(data_no_fw)
     assert is_valid is True, f"Manifest without 'framework' should pass; errors: {errors}"
     assert errors == []
 
     # With framework
     data_with_fw = dict(_VALID_MANIFEST)
     data_with_fw["framework"] = "langchain"
-    p_with_fw = tmp_path / "with_fw.yaml"
-    p_with_fw.write_text(yaml.dump(data_with_fw), encoding="utf-8")
-    is_valid, errors = validate(str(p_with_fw))
+    is_valid, errors = validate_manifest_data(data_with_fw)
     assert is_valid is True, f"Manifest with 'framework' should pass; errors: {errors}"
     assert errors == []
 
@@ -239,8 +228,7 @@ def test_invalid_runtime_type(tmp_path: Path) -> None:
     data = dict(_VALID_MANIFEST)
     data["runtime"] = dict(data["runtime"])
     data["runtime"]["type"] = "server"  # not supported in MVP
-    p = _write_manifest(data, tmp_path)
-    is_valid, errors = validate(str(p))
+    is_valid, errors = validate_manifest_data(data)
     assert is_valid is False, "Expected validation to fail for unsupported runtime.type"
     assert any("runtime.type" in msg for msg in errors), (
         f"Error should mention 'runtime.type'; got: {errors}"
@@ -256,8 +244,7 @@ def test_feature23_runtime_type_mcp_server_supported(tmp_path: Path) -> None:
     valid_data["runtime"] = dict(valid_data["runtime"])
     valid_data["runtime"]["type"] = "mcp-server"
 
-    valid_manifest_path = _write_manifest(valid_data, tmp_path)
-    is_valid, errors = validate(str(valid_manifest_path))
+    is_valid, errors = validate_manifest_data(valid_data)
     assert is_valid is True, f"Expected mcp-server runtime.type to be valid; errors: {errors}"
     assert errors == []
 
@@ -265,9 +252,7 @@ def test_feature23_runtime_type_mcp_server_supported(tmp_path: Path) -> None:
     invalid_data["runtime"] = dict(invalid_data["runtime"])
     invalid_data["runtime"]["type"] = "not-a-runtime"
 
-    invalid_manifest_path = tmp_path / "feature23_invalid_runtime.yaml"
-    invalid_manifest_path.write_text(yaml.dump(invalid_data), encoding="utf-8")
-    is_valid, errors = validate(str(invalid_manifest_path))
+    is_valid, errors = validate_manifest_data(invalid_data)
     assert is_valid is False, "Expected unsupported runtime.type to fail validation"
     assert any("runtime.type" in msg for msg in errors), (
         f"Expected runtime.type guidance in validation errors; got: {errors}"
@@ -283,8 +268,7 @@ def test_feature31_runtime_language_nodejs_is_valid(tmp_path: Path) -> None:
     data["runtime"] = dict(data["runtime"])
     data["runtime"]["language"] = "nodejs"
 
-    manifest_path = _write_manifest(data, tmp_path)
-    is_valid, errors = validate(str(manifest_path))
+    is_valid, errors = validate_manifest_data(data)
 
     assert is_valid is True, f"Expected runtime.language=nodejs to be valid; errors: {errors}"
     assert not any("runtime.language" in message for message in errors)
@@ -296,8 +280,7 @@ def test_feature31_runtime_language_rejects_unsupported_values(tmp_path: Path) -
     data["runtime"] = dict(data["runtime"])
     data["runtime"]["language"] = "ruby"
 
-    manifest_path = _write_manifest(data, tmp_path)
-    is_valid, errors = validate(str(manifest_path))
+    is_valid, errors = validate_manifest_data(data)
 
     assert is_valid is False, "Expected unsupported runtime.language value to fail validation"
     assert any("runtime.language" in message for message in errors), (

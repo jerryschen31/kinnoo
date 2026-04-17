@@ -10401,3 +10401,42 @@ tasks:
     dependencies: [task471, task473, task487]
     tests: [test685, test686, test687, test688, test689, test690, test691, test692]
     status: needs-review
+
+  - id: task490
+    title: "regression hardening foundation for CLI and validator tests"
+    type: task
+    epic: [E2, E9]
+    description: |
+      Implement foundational regression hardening across the test suite by
+      consolidating CLI command invocations into shared helpers, reducing brittle
+      presentation-level assertions, applying schema-vs-integration validator test
+      layering, and formalizing marker-driven test-set execution guidance.
+    files:
+      - tests/helpers.py
+      - tests/test_cli.py
+      - tests/test_cli_inspect.py
+      - tests/test_pack.py
+      - tests/test_init.py
+      - tests/test_validator.py
+      - tests/marker_tools.py
+      - tests/conftest.py
+      - server/tests/conftest.py
+      - tests/README.md
+      - tests/test_suite_integrity.py
+      - pyproject.toml
+      - .github/test.agent.md
+      - notes/phases/phase13-uat-2-regression-test-hardening.md
+      - TASKS.txt
+      - TESTS.txt
+      - FEATURES.txt
+    steps:
+      - 'step1: Ensure tests/helpers.py exposes command-safe run helpers for every active CLI command and canonical argument handling.'
+      - 'step2: Refactor high-churn CLI test modules to use shared helpers and remove repeated direct subprocess command assembly.'
+      - 'step3: Convert brittle exact-output assertions to stable behavioral contracts (exit code, invariant fragments, structured JSON keys) where appropriate.'
+      - 'step4: Continue validator Option 3 migration by routing schema-only cases to validate_manifest_data(data) and preserving validate(path) for integration/path tests.'
+      - 'step5: Implement and document marker taxonomy across regression/layer/surface dimensions with centralized registration and auto-labeling support.'
+      - 'step6: Add/maintain suite integrity checks that guard helper coverage, marker docs/config consistency, and test-agent policy drift.'
+      - 'step7: Run manifest validator and focused pytest subsets that cover migrated CLI and validator paths before handoff.'
+    dependencies: [task489]
+    tests: [test693, test694, test695]
+    status: in-progress

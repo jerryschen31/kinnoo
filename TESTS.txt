@@ -11888,3 +11888,57 @@ tests:
         ac: AC17
     automated: true
     automation_path: tests/test_docs.py::test_task489_docs_cover_entrypoints_and_run_entrypoint_flag
+
+  - id: test693
+    title: "shared CLI helper layer covers active command surface"
+    type: integration
+    preconditions: tests/helpers.py and CLI parser command registrations are present
+    steps:
+      - 'step1: Enumerate active command registrations from src/kinnoo/cli.py.'
+      - 'step2: Verify tests/helpers.py includes matching command entries and run_<command> helper wrappers.'
+      - 'step3: Fail fast on missing helper coverage for any active command.'
+    expected: Shared helper layer remains complete as command surface evolves
+    pass_criteria: Integrity test fails on helper drift and passes when helper coverage is complete
+    covers:
+      - feature: feature116
+        ac: AC1
+      - feature: feature116
+        ac: AC5
+    automated: true
+    automation_path: tests/test_suite_integrity.py::test_feature116_cli_helpers_cover_all_active_commands
+
+  - id: test694
+    title: "marker taxonomy and test-agent policy contracts stay in sync"
+    type: integration
+    preconditions: marker declarations exist in pyproject.toml and tests/README.md; .github/test.agent.md exists
+    steps:
+      - 'step1: Verify key marker labels are present in pyproject marker configuration.'
+      - 'step2: Verify tests/README.md documents the same marker dimensions for operators.'
+      - 'step3: Verify .github/test.agent.md includes deprecation and validate_manifest_data guidance.'
+    expected: Marker policy and test-agent guidance remain documented and enforceable
+    pass_criteria: Integrity test catches missing marker/policy docs and passes when policy surfaces are aligned
+    covers:
+      - feature: feature116
+        ac: AC4
+      - feature: feature116
+        ac: AC5
+    automated: true
+    automation_path: tests/test_suite_integrity.py::test_feature116_marker_docs_and_test_agent_contracts_present
+
+  - id: test695
+    title: "validator schema-only tests use in-memory validation API"
+    type: integration
+    preconditions: tests/test_validator.py contains schema-focused runtime validation test coverage
+    steps:
+      - 'step1: Run targeted validator tests for runtime.type and runtime.language contracts.'
+      - 'step2: Confirm schema-only tests execute against validate_manifest_data(data) paths without temporary file dependency.'
+      - 'step3: Confirm error semantics remain deterministic for supported/unsupported values.'
+    expected: Schema-focused validator regressions remain decoupled from file/path fixtures
+    pass_criteria: Targeted validator subset passes and preserves runtime contract assertions via validate_manifest_data(data)
+    covers:
+      - feature: feature116
+        ac: AC2
+      - feature: feature116
+        ac: AC3
+    automated: true
+    automation_path: tests/test_validator.py::test_invalid_runtime_type

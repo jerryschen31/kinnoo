@@ -20,16 +20,17 @@ get formal Postgres database setup on the server-side - will replace current EFS
 
 **PRE-RELEASE FEATURE 4**
 [todo]
-create larger-scope epics - e.g. client CLI - for EPICS.md. Each feature and test(s) should then be classified into these epics. This helps with code and test organization.
-also ensure that each task gets assigned to at least one feature
+remove mock-server/. For any tests that previously used this mock server, have the tests use corresponding components in server/ instead.
+Some tests that previously used mock-server/ may need to be deprecated as a result of deleting mock-server/. Intelligent determine which tests should be deprecated and which tests need to be migrated to use server/ instead.
 
 [definition of done]
-all tasks are assigned to features
-all features belong to at least one epic
-all tests belong to at least one epic
+mock-server/ is deleted
+relevant tests are migrated to server/ or deprecated
 
 **PRE-RELEASE FEATURE 5**
 [todo]
+organization of tests by test-sets. Create a subfolder structure within tests/ to better separate tests by test set.
+
 [definition of done]
 
 **PRE-RELEASE FEATURE 6**

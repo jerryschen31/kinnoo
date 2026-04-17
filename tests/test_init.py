@@ -116,21 +116,16 @@ import io
 import pytest
 from pathlib import Path
 
+from tests.helpers import run_cli as run_kinnoo_cli
+
 KINNOO_CLI = [sys.executable, "-m", "kinnoo.cli"]
 CLI_PATH = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
 
 
 def run_cli(args, cwd=None):
     """Run kinnoo CLI with args, return (exit_code, stdout, stderr)"""
-    proc = subprocess.Popen(
-        [sys.executable, str(CLI_PATH)] + args,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        cwd=cwd,
-        text=True,
-    )
-    out, err = proc.communicate()
-    return proc.returncode, out, err
+    result = run_kinnoo_cli(args, cwd=cwd)
+    return result.returncode, result.stdout, result.stderr
 
 
 def test_init_framework_positional_arg(tmp_path):

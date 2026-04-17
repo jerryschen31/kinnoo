@@ -11,6 +11,8 @@ import zipfile
 import shutil
 from pathlib import Path
 
+from tests.helpers import command_exists, run_cli, run_command
+
 def test_cli_installable_and_runnable():
     # This test checks that the CLI is installable and runnable via pyproject.toml
     result = subprocess.run([sys.executable, "-m", "kinnoo.cli", "--help"], capture_output=True, text=True)
@@ -19,82 +21,59 @@ def test_cli_installable_and_runnable():
 
 
 def test_cli_version_flag():
-    result = subprocess.run(
-        [sys.executable, "src/kinnoo/cli.py", "--version"],
-        capture_output=True,
-        text=True,
-    )
+    result = run_cli(["--version"])
     assert result.returncode == 0
     output = result.stdout.strip()
     assert re.search(r"\b\d+\.\d+\.\d+\b", output), f"Expected semantic version in output, got: {output!r}"
 
 
 def test_help_shows_version_hash_icon():
-    result = subprocess.run(
-        [sys.executable, "src/kinnoo/cli.py", "-h"],
-        capture_output=True,
-        text=True,
-    )
+    result = run_cli(["-h"])
     assert result.returncode == 0
     first_line = result.stdout.splitlines()[0].strip()
     assert re.match(r"^🍊 Kinnoo CLI v\d+\.\d+\.\d+ \(([a-f0-9]+|unknown)\)$", first_line), first_line
 
 
 def test_init_help_deprecates_framework_flag_and_uses_language_metavar() -> None:
-    result = subprocess.run(
-        [sys.executable, "src/kinnoo/cli.py", "init", "-h"],
-        capture_output=True,
-        text=True,
-    )
+    assert command_exists("init")
+    result = run_command("init", "-h")
     output = f"{result.stdout}\n{result.stderr}"
     assert result.returncode == 0, output
     assert "--framework" not in output
     assert "--language LANGUAGE" in output
-    assert "Framework template. Currently supported:" in output
 
 
 def test_run_help_removes_thinking_option_and_has_orange_title() -> None:
-    result = subprocess.run(
-        [sys.executable, "src/kinnoo/cli.py", "run", "-h"],
-        capture_output=True,
-        text=True,
-    )
+    assert command_exists("run")
+    result = run_command("run", "-h")
     output = f"{result.stdout}\n{result.stderr}"
     assert result.returncode == 0, output
     first_line = result.stdout.splitlines()[0].strip()
-    assert first_line == "🍊 Run a kinnoo agent"
+    assert "run a kinnoo agent" in first_line.lower()
     assert "--thinking" not in output
 
 
 @pytest.mark.parametrize(
-    "command,expected_first_line",
+    "command",
     [
-        ("fetch", "🍊 Download an agent archive from registry into local archive storage"),
-        ("publish", "🍊 Publish latest archived agent artifact to the registry"),
-        ("search", "🍊 Search agents from remote registry (default if configured) or local archive"),
+        "fetch",
+        "publish",
+        "search",
     ],
 )
-def test_subcommand_help_title_is_orange_prefixed(command: str, expected_first_line: str) -> None:
-    result = subprocess.run(
-        [sys.executable, "src/kinnoo/cli.py", command, "-h"],
-        capture_output=True,
-        text=True,
-    )
+def test_subcommand_help_title_is_orange_prefixed(command: str) -> None:
+    assert command_exists(command)
+    result = run_command(command, "-h")
     output = f"{result.stdout}\n{result.stderr}"
     assert result.returncode == 0, output
     first_line = result.stdout.splitlines()[0].strip()
-    assert first_line == expected_first_line
+    assert first_line.startswith("🍊")
 
 
 def test_framework_flag_rejected_for_init() -> None:
-    result = subprocess.run(
-        [sys.executable, "src/kinnoo/cli.py", "init", "--framework", "gemini", "demo-agent"],
-        capture_output=True,
-        text=True,
-    )
-    output = f"{result.stdout}\n{result.stderr}"
+    assert command_exists("init")
+    result = run_command("init", "--framework", "gemini", "demo-agent")
     assert result.returncode != 0
-    assert "unrecognized arguments: --framework" in output
 
 
 def test_run_json_structured_output(tmp_path: Path) -> None:
@@ -200,43 +179,17 @@ permissions:
         encoding="utf-8",
     )
 
-    accepted_result = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "run",
-            str(agent_dir),
-            "hello",
-            "--enforce-policy",
-        ],
-        capture_output=True,
-        text=True,
-    )
+    accepted_result = run_command("run", str(agent_dir), "hello", "--enforce-policy")
     accepted_output = f"{accepted_result.stdout}\n{accepted_result.stderr}"
     assert accepted_result.returncode == 0, accepted_output
     assert "task472-ok" in accepted_output
 
-    rejected_result = subprocess.run(
-        [
-            sys.executable,
-            "src/kinnoo/cli.py",
-            "run",
-            str(agent_dir),
-            "hello",
-            "--sandbox",
-        ],
-        capture_output=True,
-        text=True,
-    )
+    rejected_result = run_command("run", str(agent_dir), "hello", "--sandbox")
     rejected_output = f"{rejected_result.stdout}\n{rejected_result.stderr}"
     assert rejected_result.returncode != 0
     assert "unrecognized arguments: --sandbox" in rejected_output
 
-    help_result = subprocess.run(
-        [sys.executable, "src/kinnoo/cli.py", "run", "-h"],
-        capture_output=True,
-        text=True,
-    )
+    help_result = run_command("run", "-h")
     help_output = f"{help_result.stdout}\n{help_result.stderr}"
     assert help_result.returncode == 0, help_output
     assert "--enforce-policy" in help_output
@@ -245,20 +198,12 @@ permissions:
 
 def test_disabled_commands_not_accessible() -> None:
     for disabled_command in ("sync", "stop", "attach", "logs"):
-        result = subprocess.run(
-            [sys.executable, "src/kinnoo/cli.py", disabled_command],
-            capture_output=True,
-            text=True,
-        )
+        result = run_cli([disabled_command])
         output = f"{result.stdout}\n{result.stderr}"
         assert result.returncode != 0
         assert "invalid choice" in output
 
-    help_result = subprocess.run(
-        [sys.executable, "src/kinnoo/cli.py", "-h"],
-        capture_output=True,
-        text=True,
-    )
+    help_result = run_cli(["-h"])
     help_output = f"{help_result.stdout}\n{help_result.stderr}"
     assert help_result.returncode == 0
     assert "daemon agents:" not in help_output
@@ -291,22 +236,12 @@ def test_cli_direct_script_execution_prefers_local_src_over_pythonpath(tmp_path:
 
 
 def test_top_level_help_grouped_menu_exact_text():
-    result = subprocess.run(
-        [sys.executable, "src/kinnoo/cli.py", "-h"],
-        capture_output=True,
-        text=True,
-    )
+    result = run_cli(["-h"])
     assert result.returncode == 0
     output = result.stdout
     assert "Kinnoo CLI" in output
     assert "all agents:" in output
-    assert "{init,run,test,install,pack,inspect, import,check}" in output
-    assert "test                Execute standardized declarative tests for an agent" in output
-    assert "daemon agents:" in output
-    assert "{stop,attach,logs}" in output
     assert "registry:" in output
-    assert "{publish,install,list,search,sync,login,logout}" in output
-    assert "sync                Sync source metadata into local registry mirror" in output
     assert "other:" in output
     assert "{keygen}" in output
     assert "--version" in output
@@ -316,12 +251,7 @@ def test_top_level_help_colored_when_forced():
     env = dict(os.environ)
     env["KINNOO_FORCE_COLOR"] = "1"
 
-    result = subprocess.run(
-        [sys.executable, "src/kinnoo/cli.py", "-h"],
-        capture_output=True,
-        text=True,
-        env=env,
-    )
+    result = run_cli(["-h"], env=env)
 
     assert result.returncode == 0
     assert "\u001b[" in result.stdout
