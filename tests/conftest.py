@@ -101,7 +101,7 @@ def _ensure_marker_coverage(item: pytest.Item) -> None:
     if not (names & _LAYER_MARKERS):
         if "test_validator.py" in path:
             item.add_marker(pytest.mark.schema_unit)
-        elif path.startswith("server/tests/"):
+        elif "server/tests" in path:
             item.add_marker(pytest.mark.integration)
         elif any(token in path for token in ["test_cli", "test_init", "test_pack", "test_install", "test_publish", "test_run"]):
             item.add_marker(pytest.mark.client_cli)
@@ -110,7 +110,7 @@ def _ensure_marker_coverage(item: pytest.Item) -> None:
         names = {marker.name for marker in item.iter_markers()}
 
     if not (names & _SURFACE_COMPONENT_MARKERS):
-        if path.startswith("server/tests/"):
+        if "server/tests" in path:
             item.add_marker(pytest.mark.server_api)
         elif "test_validator.py" in path:
             item.add_marker(pytest.mark.validator)
