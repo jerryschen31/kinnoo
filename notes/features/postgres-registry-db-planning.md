@@ -1849,7 +1849,7 @@ need to be guessed.
 
 1. **Adopted from both subagents**
    - Add a dedicated IaC Postgres module under `iac/modules/` (not ad-hoc root resources).
-   - Add private/database subnets and DB security group; do not run DB in public subnets.
+   - Deploy DB into existing VPC private subnets and enforce DB security group ingress only from ECS; do not run DB in public subnets.
    - Roll out with explicit cutover gates and a rollback kill switch via metadata backend flag.
    - Require migration parity/drift checks before production cutover.
    - Define operational safeguards (backups, alarms, health checks, restore drill).
@@ -1892,9 +1892,7 @@ Create/modify the following Terraform files:
   - `iac/modules/rds-postgres/outputs.tf`
 
 - **Update**
-  - `iac/modules/vpc/main.tf` (add private/db subnets + route associations)
-  - `iac/modules/vpc/variables.tf` (subnet CIDRs and toggles)
-  - `iac/modules/vpc/outputs.tf` (private subnet IDs, db subnet IDs)
+  - `iac/modules/vpc/outputs.tf` (ensure existing private subnet IDs are exposed for DB module consumption)
   - `iac/main.tf` (instantiate `rds-postgres` module and wire deps)
   - `iac/variables.tf` (DB config vars: class, storage, backup retention, multi-AZ, etc.)
   - `iac/outputs.tf` (DB endpoint, port, secret ARN, DB identifier)
