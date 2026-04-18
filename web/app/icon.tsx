@@ -21,7 +21,7 @@ export default function Icon() {
           background: "#0f0f0f",
         }}
       >
-        🍊
+        K
       </div>
     ),
     {
