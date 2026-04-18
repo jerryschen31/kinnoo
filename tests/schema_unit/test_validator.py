@@ -9,7 +9,7 @@ import pytest
 import yaml
 
 # Allow importing from src/kinnoo without installing the package.
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
 from kinnoo.validator import validate  # noqa: E402
 from kinnoo.schema import normalize_manifest_defaults  # noqa: E402

@@ -90,7 +90,7 @@ def test_pack_generates_checksum_sidecar(tmp_path: Path) -> None:
     env = os.environ.copy()
     env["KINNOO_ARCHIVE_ROOT"] = str(archive_root)
 
-    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_script = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     result = subprocess.run(
         [sys.executable, str(cli_script), "pack", str(agent_dir)],
         cwd=tmp_path,
@@ -124,7 +124,7 @@ def test_pack_stores_checksum_with_local_archive(tmp_path: Path) -> None:
     env = os.environ.copy()
     env["KINNOO_ARCHIVE_ROOT"] = str(archive_root)
 
-    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_script = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     result = subprocess.run(
         [sys.executable, str(cli_script), "pack", str(agent_dir)],
         cwd=tmp_path,
@@ -157,7 +157,7 @@ def test_install_verifies_checksum_when_present(tmp_path: Path) -> None:
     write_checksum_sidecar_for_archive(archive_path)
 
     target_dir = tmp_path / "installed-verified-agent"
-    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_script = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     result = subprocess.run(
         [
             sys.executable,
@@ -192,7 +192,7 @@ def test_install_aborts_on_checksum_mismatch(tmp_path: Path) -> None:
     )
 
     target_dir = tmp_path / "installed-tampered-agent"
-    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_script = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     result = subprocess.run(
         [
             sys.executable,
@@ -221,7 +221,7 @@ def test_install_warns_when_checksum_missing(tmp_path: Path) -> None:
     _create_minimal_archive(archive_path, name="missing-checksum-agent", version="1.0.0")
 
     target_dir = tmp_path / "installed-missing-checksum-agent"
-    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_script = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     result = subprocess.run(
         [
             sys.executable,
@@ -250,7 +250,7 @@ def test_inspect_displays_checksum_for_archive_with_sidecar(tmp_path: Path) -> N
 
     expected_digest = compute_file_sha256(archive_path)
 
-    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_script = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     result = subprocess.run(
         [
             sys.executable,
@@ -278,7 +278,7 @@ def test_publish_copies_checksum_sidecar_when_present(tmp_path: Path) -> None:
     _create_minimal_archive(archive_path, name="publish-checksum-agent", version="1.0.0")
     source_sidecar_path = write_checksum_sidecar_for_archive(archive_path)
 
-    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_script = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     env = os.environ.copy()
     env["KINNOO_ARCHIVE_ROOT"] = str(archive_root)
     env["KINNOO_REGISTRY_ROOT"] = str(registry_root)

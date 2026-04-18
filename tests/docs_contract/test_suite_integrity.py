@@ -8,7 +8,7 @@ from collections import Counter
 # collection and flaky suite behavior.
 def _collect_test_function_definitions() -> list[tuple[str, str, int]]:
     test_defs: list[tuple[str, str, int]] = []
-    for path in sorted(Path("tests").glob("test_*.py")):
+    for path in sorted(Path("tests").rglob("test_*.py")):
         tree = ast.parse(path.read_text())
         for node in ast.walk(tree):
             if isinstance(node, ast.FunctionDef) and node.name.startswith("test_"):

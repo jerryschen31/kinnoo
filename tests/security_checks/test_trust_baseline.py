@@ -355,7 +355,7 @@ def _assert_anchor_has_invariant_comment(file_path: Path, anchor_text: str) -> N
 
 
 def test_trust_code_has_security_invariant_comments() -> None:
-    root_dir = Path(__file__).resolve().parents[1]
+    root_dir = Path(__file__).resolve().parents[2]
 
     install_file = root_dir / "src" / "kinnoo" / "install_command.py"
     run_file = root_dir / "src" / "kinnoo" / "run_command.py"
@@ -736,7 +736,7 @@ def test_feature23_trace_log_server_lifecycle_fields(tmp_path: Path) -> None:
     agent_dir = _create_mcp_trace_agent(tmp_path, "trace-mcp-agent")
     env = os.environ.copy()
     env["HOME"] = str(tmp_path)
-    env["PYTHONPATH"] = str(Path(__file__).resolve().parents[1] / "src")
+    env["PYTHONPATH"] = str(Path(__file__).resolve().parents[2] / "src")
 
     result = subprocess.run(
         [sys.executable, "src/kinnoo/cli.py", "run", str(agent_dir)],
