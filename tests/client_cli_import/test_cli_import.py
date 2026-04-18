@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 
 
-CLI_PATH = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+CLI_PATH = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
 
 
 def test_feature19_import_defaults_to_current_directory(tmp_path):
