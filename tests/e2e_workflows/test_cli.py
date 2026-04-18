@@ -215,7 +215,7 @@ def test_disabled_commands_not_accessible() -> None:
 
 
 def test_cli_direct_script_execution_prefers_local_src_over_pythonpath(tmp_path: Path) -> None:
-    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_path = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     fake_site_root = tmp_path / "fake-site"
     fake_kinnoo_pkg = fake_site_root / "kinnoo"
     fake_kinnoo_pkg.mkdir(parents=True, exist_ok=True)
@@ -844,7 +844,7 @@ def test_feature69_execution_engine_and_docs_examples(tmp_path):
     assert daemon_payload["results"][0]["runtime_type"] == "daemon"
     assert daemon_payload["results"][0]["status"] == "passed"
 
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     cli_reference_text = (repo_root / "docs" / "cli-reference.md").read_text(encoding="utf-8")
     schema_text = (repo_root / "docs" / "kinnoo-yaml-spec.md").read_text(encoding="utf-8")
 
@@ -1116,7 +1116,7 @@ def test_feature114_test_help_lists_new_flags():
 
 
 def test_feature114_create_and_append_without_agent_dir(tmp_path):
-    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_path = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
 
     create_answers = "\n".join(
         [
@@ -1183,7 +1183,7 @@ def test_feature114_create_and_append_without_agent_dir(tmp_path):
 
 
 def test_feature114_create_prompt_displays_assertion_options(tmp_path):
-    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_path = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
 
     answers = "\n".join(
         [
@@ -1286,7 +1286,7 @@ from pathlib import Path
 from kinnoo.registry import InstallTargetSpec, RegistryRecord
 
 
-CLI_SCRIPT_PATH = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+CLI_SCRIPT_PATH = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
 
 def test_run_installs_requirements(tmp_path):
         """Test that kinnoo run installs requirements.txt packages into .venv/"""
@@ -2826,7 +2826,7 @@ def test_feature32_logs_daemon_tail_and_follow(monkeypatch, tmp_path, capsys):
 def test_feature34_openclaw_template_smoke_run(tmp_path):
     """test289: generated OpenClaw scaffold runs via kinnoo run with required env vars configured."""
     agent_name = "kinnoo_tmp_test_feature34-openclaw-smoke"
-    cli_script = str((Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"))
+    cli_script = str((Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"))
     init_env = os.environ.copy()
     init_env["HOME"] = str(tmp_path)
 
@@ -3060,7 +3060,7 @@ def test_feature21_openai_agents_smoke_run(tmp_path):
 
 
 def test_feature21_pydantic_ai_basic_run(tmp_path):
-    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_path = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     agent_name = "feature21-pydantic-ai-basic-run"
     init_result = subprocess.run(
         [sys.executable, str(cli_path), "init", "pydantic-ai", agent_name],
@@ -3091,7 +3091,7 @@ def test_feature21_pydantic_ai_basic_run(tmp_path):
 
 
 def test_feature21_langgraph_basic_run(tmp_path):
-    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_path = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     agent_name = "feature21-langgraph-basic-run"
     init_result = subprocess.run(
         [sys.executable, str(cli_path), "init", "langgraph", agent_name],
@@ -3122,7 +3122,7 @@ def test_feature21_langgraph_basic_run(tmp_path):
 
 
 def test_feature21_openai_agents_basic_run(tmp_path):
-    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_path = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     agent_name = "feature21-openai-agents-basic-run"
     init_result = subprocess.run(
         [sys.executable, str(cli_path), "init", "openai-agents", agent_name],
@@ -3358,7 +3358,7 @@ outputs:
 
 
 def test_feature23_run_mcp_server_long_running_mode(tmp_path):
-    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_path = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     agent_dir = _feature23_write_mcp_agent_fixture(tmp_path)
 
     process = subprocess.Popen(
@@ -3377,7 +3377,7 @@ def test_feature23_run_mcp_server_long_running_mode(tmp_path):
 
 
 def test_feature23_mcp_server_streams_stdout_stderr(tmp_path):
-    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_path = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     agent_dir = _feature23_write_mcp_agent_fixture(tmp_path)
 
     process = subprocess.Popen(
@@ -3477,10 +3477,10 @@ outputs:
 def test_feature23_sigint_graceful_shutdown_with_escalation(tmp_path):
     agent_dir, marker_file = _feature23_write_stubborn_mcp_agent_fixture(tmp_path)
 
-    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_path = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     env = os.environ.copy()
     env["HOME"] = str(tmp_path)
-    env["PYTHONPATH"] = str(Path(__file__).resolve().parents[1] / "src")
+    env["PYTHONPATH"] = str(Path(__file__).resolve().parents[2] / "src")
 
     process = subprocess.Popen(
         [sys.executable, str(cli_path), "run", str(agent_dir)],
@@ -3612,7 +3612,7 @@ def test_feature25_run_checks_all_declared_services_before_entrypoint(tmp_path):
         encoding="utf-8",
     )
 
-    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_path = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     fixture_process = subprocess.Popen(
         [
             sys.executable,
