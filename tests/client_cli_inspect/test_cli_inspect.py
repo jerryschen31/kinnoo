@@ -209,7 +209,7 @@ env_vars:
     assert "sk-anthropic-secret-value" not in combined_output
 
 def test_missing_manifest_guidance_uses_centralized_template_with_agent_note(tmp_path: Path) -> None:
-        repo_root = Path(__file__).resolve().parents[1]
+        repo_root = Path(__file__).resolve().parents[2]
         templates_path = repo_root / "src" / "kinnoo" / "templates.py"
         inspect_path = repo_root / "src" / "kinnoo" / "inspect_command.py"
 

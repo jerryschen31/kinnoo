@@ -16,7 +16,7 @@ _DEPRECATED_TEST_PREFIXES: dict[str, str] = {
 }
 
 _DEPRECATED_TEST_NODEIDS: dict[str, str] = {
-    "tests/test_cli_import.py::test_feature64_clawhub_import_requirements_report": "deprecated: legacy import requirements report expectation drift",
+    "tests/client_cli_import/test_cli_import.py::test_feature64_clawhub_import_requirements_report": "deprecated: legacy import requirements report expectation drift",
     "tests/test_cli_install.py::test_feature37_node_audit_severity_summary": "deprecated: legacy install audit output contract drift",
     "tests/test_cli_install.py::test_feature37_critical_gate_default_block_and_allow_override": "deprecated: legacy install critical gate text contract drift",
     "tests/test_cli_install.py::test_feature37_lifecycle_scripts_warning_and_ignore_scripts_mode": "deprecated: legacy install lifecycle warning text contract drift",
@@ -42,7 +42,7 @@ _DEPRECATED_TEST_NODEIDS: dict[str, str] = {
     "tests/test_publish_refactor.py::test_publish_uses_home_absolute_mock_registry_path": "deprecated: legacy publish home-path contract",
     "tests/test_registry.py::test_feature55_auth_integration_suite": "deprecated: legacy feature55 auth integration contract suite",
     "tests/test_registry.py::test_feature57_hardening_non_regression_suite": "deprecated: legacy feature57 hardening contract suite",
-    "tests/test_run_preflight.py::test_feature39_violation_diagnostics_secret_safe": "deprecated: legacy preflight secret-safe diagnostic text contract",
+    "tests/client_cli_run/test_run_preflight.py::test_feature39_violation_diagnostics_secret_safe": "deprecated: legacy preflight secret-safe diagnostic text contract",
     "tests/test_web_frontend_setup.py::test_feature49_task283_tailwind_tokens_and_dark_globals": "deprecated: legacy web frontend setup token contract drift",
     "server/tests/test_middleware.py::test_rate_limiter_window_behavior": "deprecated: legacy rate limiter timing window contract",
     "server/tests/test_publish.py::test_publish_endpoint": "deprecated: legacy publish endpoint status code contract",
