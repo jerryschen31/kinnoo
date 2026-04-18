@@ -33,7 +33,7 @@ outputs:
     (agent_dir / "run.py").write_text("print('hello')\n", encoding="utf-8")
     (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
 
-    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_script = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     env = os.environ.copy()
     env["KINNOO_ARCHIVE_ROOT"] = str(archive_root)
 
@@ -53,7 +53,7 @@ outputs:
     assert f"[kinnoo pack] Archive created: {expected_archive_path}" in output
     assert "[kinnoo pack] Agent version: 1.2.3" in output
 
-    pack_command_source = (Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "pack_command.py").read_text(
+    pack_command_source = (Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "pack_command.py").read_text(
         encoding="utf-8"
     )
     assert "LocalArchiveBackend" in pack_command_source
@@ -91,7 +91,7 @@ outputs:
     original_bytes = b"EXISTING_ARCHIVE_CONTENT"
     expected_archive_path.write_bytes(original_bytes)
 
-    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_script = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     env = os.environ.copy()
     env["KINNOO_ARCHIVE_ROOT"] = str(archive_root)
 

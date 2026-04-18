@@ -6,7 +6,7 @@ import zipfile
 from pathlib import Path
 
 
-CLI_PATH = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+CLI_PATH = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
 
 
 def _test_home(root: Path) -> Path:
@@ -173,7 +173,7 @@ def test_install_name_resolves_latest_from_mock_registry(tmp_path: Path) -> None
     assert run_result.returncode == 0
     assert "install-agent-v2:hello" in run_output
 
-    install_command_source = (Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "install_command.py").read_text(
+    install_command_source = (Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "install_command.py").read_text(
         encoding="utf-8"
     )
     assert "MockFilesystemRegistryBackend" in install_command_source
