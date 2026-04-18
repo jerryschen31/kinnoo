@@ -6,7 +6,7 @@ import sys
 import pytest
 import yaml
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
 from kinnoo.validator import validate_manifest_data  # noqa: E402
 
@@ -14,7 +14,7 @@ from kinnoo.validator import validate_manifest_data  # noqa: E402
 # [agent] ignore docs tests
 @pytest.mark.skip(reason="[agent] ignore docs tests")
 def test_feature9_schema_docs_cover_optional_fields_and_constraints() -> None:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     schema_doc = repo_root / "docs" / "manifest-schema-reference.md"
     readme_doc = repo_root / "README.md"
 
@@ -38,7 +38,7 @@ def test_feature9_schema_docs_cover_optional_fields_and_constraints() -> None:
 # [agent] ignore docs tests
 @pytest.mark.skip(reason="[agent] ignore docs tests")
 def test_feature10_docs_cover_env_vars_security_contract() -> None:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     schema_doc = repo_root / "docs" / "manifest-schema-reference.md"
     readme_doc = repo_root / "README.md"
 
@@ -64,7 +64,7 @@ def test_feature10_docs_cover_env_vars_security_contract() -> None:
 # [agent] ignore docs tests
 @pytest.mark.skip(reason="[agent] ignore docs tests")
 def test_feature11_docs_cover_inspect_usage_and_missing_file_guidance() -> None:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     schema_doc = repo_root / "docs" / "manifest-schema-reference.md"
     readme_doc = repo_root / "README.md"
 
@@ -101,7 +101,7 @@ def test_feature11_docs_cover_inspect_usage_and_missing_file_guidance() -> None:
 # [agent] ignore docs tests
 @pytest.mark.skip(reason="[agent] ignore docs tests")
 def test_feature13_docs_cover_archive_registry_refactor() -> None:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     schema_doc = repo_root / "docs" / "manifest-schema-reference.md"
     readme_doc = repo_root / "README.md"
 
@@ -135,7 +135,7 @@ def test_feature13_docs_cover_archive_registry_refactor() -> None:
 # [agent] ignore docs tests
 @pytest.mark.skip(reason="[agent] ignore docs tests")
 def test_feature14_docs_cover_preflight_contract() -> None:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     schema_doc = repo_root / "docs" / "manifest-schema-reference.md"
     readme_doc = repo_root / "README.md"
 
@@ -167,7 +167,7 @@ def test_feature14_docs_cover_preflight_contract() -> None:
 # [agent] ignore docs tests
 @pytest.mark.skip(reason="[agent] ignore docs tests")
 def test_feature15_docs_cover_trust_baseline() -> None:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     schema_doc = repo_root / "docs" / "manifest-schema-reference.md"
     readme_doc = repo_root / "README.md"
 
@@ -203,7 +203,7 @@ def test_feature15_docs_cover_trust_baseline() -> None:
 # [agent] ignore docs tests
 @pytest.mark.skip(reason="[agent] ignore docs tests")
 def test_feature16_docs_cover_checksum_lifecycle() -> None:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     schema_doc = repo_root / "docs" / "manifest-schema-reference.md"
     readme_doc = repo_root / "README.md"
 
@@ -234,7 +234,7 @@ def test_feature16_docs_cover_checksum_lifecycle() -> None:
 # [agent] ignore docs tests
 @pytest.mark.skip(reason="[agent] ignore docs tests")
 def test_feature17_docs_cover_pack_size_reporting() -> None:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     schema_doc = repo_root / "docs" / "manifest-schema-reference.md"
     readme_doc = repo_root / "README.md"
 
@@ -267,7 +267,7 @@ def test_feature17_docs_cover_pack_size_reporting() -> None:
 # [agent] ignore docs tests
 @pytest.mark.skip(reason="[agent] ignore docs tests")
 def test_feature18_docs_cover_input_safety_guard() -> None:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     schema_doc = repo_root / "docs" / "manifest-schema-reference.md"
     readme_doc = repo_root / "README.md"
 
@@ -294,7 +294,7 @@ def test_feature18_docs_cover_input_safety_guard() -> None:
 # [agent] ignore docs tests
 @pytest.mark.skip(reason="[agent] ignore docs tests")
 def test_feature42_docs_cover_json_contract_guidance() -> None:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     schema_doc = repo_root / "docs" / "manifest-schema-reference.md"
     readme_doc = repo_root / "README.md"
 
@@ -324,7 +324,7 @@ def test_feature42_docs_cover_json_contract_guidance() -> None:
 # [agent] ignore docs tests
 @pytest.mark.skip(reason="[agent] ignore docs tests")
 def test_feature33_manifest_extension_docs_examples() -> None:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     schema_doc = repo_root / "docs" / "manifest-schema-reference.md"
     readme_doc = repo_root / "README.md"
 
@@ -355,7 +355,7 @@ def test_feature33_manifest_extension_docs_examples() -> None:
 # [agent] ignore docs tests
 @pytest.mark.skip(reason="[agent] ignore docs tests")
 def test_feature35_docs_cover_mutable_state_semantics() -> None:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     schema_doc = repo_root / "docs" / "manifest-schema-reference.md"
     readme_doc = repo_root / "README.md"
 
@@ -387,7 +387,7 @@ def test_feature35_docs_cover_mutable_state_semantics() -> None:
 # [agent] ignore docs tests
 @pytest.mark.skip(reason="[agent] ignore docs tests")
 def test_feature35_docs_cover_mutable_state_semantics_and_assets_compatibility() -> None:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     schema_doc = repo_root / "docs" / "manifest-schema-reference.md"
     readme_doc = repo_root / "README.md"
 
@@ -418,7 +418,7 @@ def test_feature35_docs_cover_mutable_state_semantics_and_assets_compatibility()
 # [agent] ignore docs tests
 @pytest.mark.skip(reason="[agent] ignore docs tests")
 def test_feature62_openclaw_schema_docs_consistency() -> None:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     schema_doc = repo_root / "docs" / "manifest-schema-reference.md"
 
     schema_text = schema_doc.read_text(encoding="utf-8")
@@ -455,7 +455,7 @@ def test_feature62_openclaw_schema_docs_consistency() -> None:
 # [agent] ignore docs tests
 @pytest.mark.skip(reason="[agent] ignore docs tests")
 def test_feature85_deprecation_metadata_and_help_cleanup() -> None:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     features_text = (repo_root / "FEATURES.txt").read_text(encoding="utf-8")
     readme_text = (repo_root / "README.md").read_text(encoding="utf-8")
 
@@ -484,7 +484,7 @@ def test_feature85_deprecation_metadata_and_help_cleanup() -> None:
 # [agent] ignore docs tests
 @pytest.mark.skip(reason="[agent] ignore docs tests")
 def test_feature68_workflow_contract_and_envs() -> None:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     workflow_path = repo_root / ".github" / "workflows" / "kinnoo-publish.yml"
     readme_path = repo_root / "README.md"
     schema_path = repo_root / "docs" / "manifest-schema-reference.md"
@@ -533,7 +533,7 @@ def test_feature68_workflow_contract_and_envs() -> None:
 # [agent] ignore docs tests
 @pytest.mark.skip(reason="[agent] ignore docs tests")
 def test_feature68_ci_failure_and_troubleshooting_docs() -> None:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     workflow_path = repo_root / ".github" / "workflows" / "kinnoo-publish.yml"
     readme_path = repo_root / "README.md"
     schema_path = repo_root / "docs" / "manifest-schema-reference.md"
@@ -571,7 +571,7 @@ def test_feature68_ci_failure_and_troubleshooting_docs() -> None:
 # [agent] ignore docs tests
 @pytest.mark.skip(reason="[agent] ignore docs tests")
 def test_feature70_landing_and_readme_phase6_messaging() -> None:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     landing_path = repo_root / "web" / "app" / "(public)" / "page.tsx"
     feature_grid_path = repo_root / "web" / "components" / "blocks" / "FeatureGrid.tsx"
     readme_path = repo_root / "README.md"
@@ -606,7 +606,7 @@ def test_feature70_landing_and_readme_phase6_messaging() -> None:
 # [agent] ignore docs tests
 @pytest.mark.skip(reason="[agent] ignore docs tests")
 def test_task489_docs_cover_entrypoints_and_run_entrypoint_flag() -> None:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     cli_reference = (repo_root / "docs" / "cli-reference.md").read_text(encoding="utf-8")
     getting_started = (repo_root / "docs" / "getting-started.md").read_text(encoding="utf-8")
     schema_reference = (repo_root / "notes" / "manifest-schema-reference.md").read_text(encoding="utf-8")
@@ -622,7 +622,7 @@ def test_task489_docs_cover_entrypoints_and_run_entrypoint_flag() -> None:
 # [agent] ignore docs tests
 @pytest.mark.skip(reason="[agent] ignore docs tests")
 def test_feature70_provenance_docs_and_regression() -> None:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     readme_path = repo_root / "README.md"
     schema_path = repo_root / "docs" / "manifest-schema-reference.md"
     planning_path = repo_root / "notes" / "phases" / "phase6-planning-6.md"
@@ -655,7 +655,7 @@ def test_feature70_provenance_docs_and_regression() -> None:
 # [agent] ignore docs tests
 @pytest.mark.skip(reason="[agent] ignore docs tests")
 def test_feature114_cli_reference_covers_test_yaml_and_assertions() -> None:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     cli_reference_path = repo_root / "docs" / "cli-reference.md"
 
     cli_reference_text = cli_reference_path.read_text(encoding="utf-8")
@@ -673,7 +673,7 @@ def test_feature114_cli_reference_covers_test_yaml_and_assertions() -> None:
 # [agent] ignore docs tests
 @pytest.mark.skip(reason="[agent] ignore docs tests")
 def test_docs_visibility_defaults_public_and_publish_public_removed() -> None:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     readme_path = repo_root / "README.md"
     getting_started_path = repo_root / "docs" / "getting-started.md"
     registry_guide_path = repo_root / "docs" / "registry-guide.md"
