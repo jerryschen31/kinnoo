@@ -134,7 +134,7 @@ def test_pack_prints_human_readable_archive_size(tmp_path: Path) -> None:
     env = os.environ.copy()
     env["KINNOO_ARCHIVE_ROOT"] = str(archive_root)
 
-    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_script = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     result = subprocess.run(
         [sys.executable, str(cli_script), "pack", str(agent_dir)],
         cwd=tmp_path,
@@ -157,7 +157,7 @@ def test_pack_warns_when_archive_exceeds_threshold_override(tmp_path: Path) -> N
     env["KINNOO_ARCHIVE_ROOT"] = str(archive_root)
     env["KINNOO_PACK_WARN_THRESHOLD_MB"] = "1"
 
-    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_script = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     result = subprocess.run(
         [sys.executable, str(cli_script), "pack", str(agent_dir)],
         cwd=tmp_path,
@@ -183,7 +183,7 @@ def test_inspect_displays_archive_size_for_archive_target(tmp_path: Path) -> Non
     env = os.environ.copy()
     env["KINNOO_ARCHIVE_ROOT"] = str(archive_root)
 
-    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_script = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     pack_result = subprocess.run(
         [sys.executable, str(cli_script), "pack", str(agent_dir)],
         cwd=tmp_path,
@@ -230,28 +230,29 @@ def test_list_includes_archive_size(tmp_path: Path) -> None:
     env["KINNOO_ARCHIVE_ROOT"] = str(archive_root)
     env["KINNOO_REGISTRY_ROOT"] = str(registry_root)
 
-    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
-    list_default = subprocess.run(
-        [sys.executable, str(cli_script), "list"],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-        env=env,
-    )
-    list_local = subprocess.run(
-        [sys.executable, str(cli_script), "list", "--local"],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-        env=env,
-    )
-    list_remote = subprocess.run(
-        [sys.executable, str(cli_script), "list", "--remote"],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-        env=env,
-    )
+    cli_script = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
+    try:
+        list_default = subprocess.run(
+            [sys.executable, str(cli_script), "list"],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+                env=local_env,
+        )
+        list_local = subprocess.run(
+            [sys.executable, str(cli_script), "list", "--local"],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+                env=local_env,
+        )
+        list_remote = subprocess.run(
+            [sys.executable, str(cli_script), "list", "--remote"],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+                env=remote_env,
+        )
 
     default_output = f"{list_default.stdout}\n{list_default.stderr}"
     local_output = f"{list_local.stdout}\n{list_local.stderr}"
@@ -266,6 +267,56 @@ def test_list_includes_archive_size(tmp_path: Path) -> None:
     assert "list-local-agent | latest: 1.0.0 | description: local list fixture | size: " in default_output
     assert re.search(r"list-local-agent .*\| size: \d+(?:\.\d)? (?:B|KB|MB|GB)", default_output)
 
-    assert "Remote registry agents:" in remote_output
-    assert "list-remote-agent | latest: 2.0.0 | description: remote list fixture | size: " in remote_output
-    assert re.search(r"list-remote-agent .*\| size: \d+(?:\.\d)? (?:B|KB|MB|GB)", remote_output)
+        assert "Remote registry agents:" in remote_output
+        assert "list-remote-agent | latest: 2.0.0 | description: remote list fixture | size: " in remote_output
+        assert re.search(r"list-remote-agent .*\| size: \d+(?:\.\d)? (?:B|KB|MB|GB)", remote_output)
+    finally:
+        server.stop()
+
+
+def test_feature79_openclaw_pack_size_reporting_preserved(tmp_path: Path) -> None:
+        agent_dir = tmp_path / "feature79-openclaw-size"
+        agent_dir.mkdir(parents=True, exist_ok=True)
+        (agent_dir / "kinnoo.yaml").write_text(
+                """
+name: feature79-openclaw-size
+version: 1.0.0
+type: openclaw-skill
+framework: openclaw
+entrypoint: index.js
+runtime:
+    language: nodejs
+    version: '>=20'
+    type: daemon
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+""".strip()
+                + "\n",
+                encoding="utf-8",
+        )
+        (agent_dir / "index.js").write_text("console.log('size')\n", encoding="utf-8")
+        (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+        (agent_dir / "package.json").write_text('{"name":"feature79-openclaw-size"}\n', encoding="utf-8")
+        (agent_dir / "AGENTS.md").write_text("# Agents\n", encoding="utf-8")
+        (agent_dir / "skills").mkdir(parents=True, exist_ok=True)
+        (agent_dir / "skills" / "skill.md").write_text("skill\n", encoding="utf-8")
+
+        archive_root = tmp_path / "archive-root"
+        env = os.environ.copy()
+        env["KINNOO_ARCHIVE_ROOT"] = str(archive_root)
+
+        cli_script = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
+        result = subprocess.run(
+                [sys.executable, str(cli_script), "pack", str(agent_dir)],
+                cwd=tmp_path,
+                capture_output=True,
+                text=True,
+                env=env,
+        )
+
+        output = f"{result.stdout}\n{result.stderr}"
+        assert result.returncode == 0, output
+        assert re.search(r"\[kinnoo pack\] Archive size: \d+(?:\.\d)? (?:B|KB|MB|GB)", output)

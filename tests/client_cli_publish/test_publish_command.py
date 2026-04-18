@@ -6,7 +6,22 @@ import sys
 from pathlib import Path
 
 
-CLI_PATH = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+CLI_PATH = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
+SRC_ROOT = Path(__file__).resolve().parents[2] / "src"
+
+
+def _cli_env(*, archive_root: Path, registry_root: Path) -> dict[str, str]:
+    existing_pythonpath = os.environ.get("PYTHONPATH", "")
+    pythonpath_parts = [str(SRC_ROOT)]
+    if existing_pythonpath:
+        pythonpath_parts.append(existing_pythonpath)
+
+    return {
+        **os.environ,
+        "KINNOO_ARCHIVE_ROOT": str(archive_root),
+        "KINNOO_REGISTRY_ROOT": str(registry_root),
+        "PYTHONPATH": os.pathsep.join(pythonpath_parts),
+    }
 
 
 def _write_agent_dir(agent_root: Path, *, name: str, version: str) -> Path:

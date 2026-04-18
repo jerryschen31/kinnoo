@@ -6,7 +6,7 @@ import zipfile
 from pathlib import Path
 
 
-CLI_PATH = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+CLI_PATH = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
 
 
 def _write_archive(
@@ -305,7 +305,7 @@ def test_source_mode_argument_validation_errors(tmp_path: Path) -> None:
 
 
 def test_feature55_proxy_rewrite_forwarding() -> None:
-    next_config = Path(__file__).resolve().parents[1] / "web" / "next.config.ts"
+    next_config = Path(__file__).resolve().parents[2] / "web" / "next.config.ts"
     text = next_config.read_text(encoding="utf-8")
 
     # AC1: /api/* rewrite target must be env-driven and default to localhost backend.
