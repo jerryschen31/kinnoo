@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 WEB_DIR = REPO_ROOT / "web"
 WEB_HOST = "127.0.0.1"
 WEB_PORT = int(os.environ.get("KINNOO_TEST_WEB_PORT", "3000"))

@@ -27,6 +27,214 @@ def test_cli_version_flag():
     assert re.search(r"\b\d+\.\d+\.\d+\b", output), f"Expected semantic version in output, got: {output!r}"
 
 
+def test_help_shows_version_hash_icon():
+    result = run_cli(["-h"])
+    assert result.returncode == 0
+    first_line = result.stdout.splitlines()[0].strip()
+    assert re.match(r"^🍊 Kinnoo CLI v\d+\.\d+\.\d+ \(([a-f0-9]+|unknown)\)$", first_line), first_line
+
+
+def test_init_help_deprecates_framework_flag_and_uses_language_metavar() -> None:
+    assert command_exists("init")
+    result = run_command("init", "-h")
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, output
+    assert "--framework" not in output
+    assert "--language LANGUAGE" in output
+
+
+def test_run_help_removes_thinking_option_and_has_orange_title() -> None:
+    assert command_exists("run")
+    result = run_command("run", "-h")
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, output
+    first_line = result.stdout.splitlines()[0].strip()
+    assert "run a kinnoo agent" in first_line.lower()
+    assert "--thinking" not in output
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "fetch",
+        "publish",
+        "search",
+    ],
+)
+def test_subcommand_help_title_is_orange_prefixed(command: str) -> None:
+    assert command_exists(command)
+    result = run_command(command, "-h")
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, output
+    first_line = result.stdout.splitlines()[0].strip()
+    assert first_line.startswith("🍊")
+
+
+def test_framework_flag_rejected_for_init() -> None:
+    assert command_exists("init")
+    result = run_command("init", "--framework", "gemini", "demo-agent")
+    assert result.returncode != 0
+
+
+def test_run_json_structured_output(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "task471-json-agent"
+    agent_dir.mkdir(parents=True, exist_ok=True)
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    (agent_dir / "run.py").write_text(
+        "import sys\n"
+        "print(f'agent-json-output:{sys.argv[1] if len(sys.argv) > 1 else \"\"}')\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "kinnoo.yaml").write_text(
+        """
+name: task471-json-agent
+version: 1.0.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+""",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "run",
+            str(agent_dir),
+            "hello-json",
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
+    payload = json.loads(result.stdout.strip())
+    assert payload["success"] is True
+    assert payload["exit_code"] == 0
+    assert payload["error"] is None
+    assert payload["input"] == "hello-json"
+    assert payload["runtime_type"] == "one-shot"
+    assert payload["runtime_language"] == "python"
+    assert payload["entrypoint"] == "run.py"
+    assert payload["policy_enforced"] is False
+    assert payload["policy_violations"] == []
+    assert "agent-json-output:hello-json" in payload["output"]
+
+    required_keys = {
+        "output",
+        "exit_code",
+        "success",
+        "start_time",
+        "end_time",
+        "duration_seconds",
+        "agent_dir",
+        "entrypoint",
+        "runtime_language",
+        "runtime_type",
+        "input",
+        "error",
+        "warnings",
+        "resource_usage",
+        "policy_enforced",
+        "policy_violations",
+    }
+    assert required_keys.issubset(payload.keys())
+
+
+def test_run_enforce_policy_replaces_sandbox(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "task472-enforce-policy-agent"
+    agent_dir.mkdir(parents=True, exist_ok=True)
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+    (agent_dir / "run.py").write_text("print('task472-ok')\n", encoding="utf-8")
+    (agent_dir / "kinnoo.yaml").write_text(
+        """
+name: task472-enforce-policy-agent
+version: 1.0.0
+entrypoint: run.py
+runtime:
+    language: python
+    version: ">=3.10"
+    type: one-shot
+dependencies: []
+inputs:
+    type: text
+outputs:
+    type: text
+permissions:
+    network: true
+    filesystem_scope: read-only
+    shell: false
+    browser: false
+    env_access: []
+""",
+        encoding="utf-8",
+    )
+
+    accepted_result = run_command("run", str(agent_dir), "hello", "--enforce-policy")
+    accepted_output = f"{accepted_result.stdout}\n{accepted_result.stderr}"
+    assert accepted_result.returncode == 0, accepted_output
+    assert "task472-ok" in accepted_output
+
+    rejected_result = run_command("run", str(agent_dir), "hello", "--sandbox")
+    rejected_output = f"{rejected_result.stdout}\n{rejected_result.stderr}"
+    assert rejected_result.returncode != 0
+    assert "unrecognized arguments: --sandbox" in rejected_output
+
+    help_result = run_command("run", "-h")
+    help_output = f"{help_result.stdout}\n{help_result.stderr}"
+    assert help_result.returncode == 0, help_output
+    assert "--enforce-policy" in help_output
+    assert "--sandbox" not in help_output
+
+
+def test_disabled_commands_not_accessible() -> None:
+    for disabled_command in ("sync", "stop", "attach", "logs"):
+        result = run_cli([disabled_command])
+        output = f"{result.stdout}\n{result.stderr}"
+        assert result.returncode != 0
+        assert "invalid choice" in output
+
+    help_result = run_cli(["-h"])
+    help_output = f"{help_result.stdout}\n{help_result.stderr}"
+    assert help_result.returncode == 0
+    assert "daemon agents:" not in help_output
+    assert "{stop,attach,logs}" not in help_output
+
+
+def test_cli_direct_script_execution_prefers_local_src_over_pythonpath(tmp_path: Path) -> None:
+    cli_path = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
+    fake_site_root = tmp_path / "fake-site"
+    fake_kinnoo_pkg = fake_site_root / "kinnoo"
+    fake_kinnoo_pkg.mkdir(parents=True, exist_ok=True)
+
+    (fake_kinnoo_pkg / "__init__.py").write_text("__version__ = '9.9.9-fake'\n", encoding="utf-8")
+    (fake_kinnoo_pkg / "schema.py").write_text("NAME_PATTERN = r'^[a-z0-9-]+$'\n", encoding="utf-8")
+    (fake_kinnoo_pkg / "terminal_colors.py").write_text(
+        "def style_text(text, **kwargs):\n    return text\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(cli_path), "--version"],
+        capture_output=True,
+        text=True,
+        env={**os.environ, "PYTHONPATH": str(fake_site_root)},
+        cwd=tmp_path,
+    )
+
+    assert result.returncode == 0, f"Unexpected stderr: {result.stderr}"
+    assert result.stdout.strip() != "9.9.9-fake"
+
+
 def test_top_level_help_grouped_menu_exact_text():
     result = subprocess.run(
         [sys.executable, "src/kinnoo/cli.py", "-h"],
@@ -255,6 +463,789 @@ def test_backend_selection(monkeypatch, tmp_path):
     assert selected_backends[-1] == "remote"
 
 
+def test_feature69_standardized_tests_file_parser(tmp_path):
+    agent_dir = tmp_path / "feature69-parser-agent"
+    agent_dir.mkdir()
+
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: feature69-parser-agent",
+                "version: 1.0.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.10\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "run.py").write_text("print('ok')\n", encoding="utf-8")
+
+    # Canonical external test file path.
+    (agent_dir / "kinnoo.tests.yaml").write_text(
+        "\n".join(
+            [
+                "version: 1",
+                "tests:",
+                "  - id: smoke-1",
+                "    name: basic parse",
+                "    input: hello",
+                "    assertions:",
+                "      - contains: ok",
+                "    timeout_seconds: 5",
+                "    expected_exit_code: 0",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    valid_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "test",
+            str(agent_dir),
+            "--validate-only",
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert valid_result.returncode == 0
+    valid_payload = json.loads(valid_result.stdout)
+    assert valid_payload["valid"] is True
+    assert valid_payload["total"] == 1
+    assert valid_payload["source"].endswith("kinnoo.tests.yaml")
+
+    (agent_dir / "kinnoo.tests.yaml").write_text(
+        "\n".join(
+            [
+                "version: 1",
+                "tests:",
+                "  - id: bad-1",
+                "    name: invalid fixture",
+                "    input: hello",
+                "    timeout_seconds: 3",
+                "    expected_exit_code: 0",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    invalid_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "test",
+            str(agent_dir),
+            "--validate-only",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert invalid_result.returncode == 1
+    assert "Missing required field: tests[0].assertions" in invalid_result.stdout
+
+    # Remove canonical file to validate inline compatibility bridge from kinnoo.yaml.
+    (agent_dir / "kinnoo.tests.yaml").unlink()
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: feature69-parser-agent",
+                "version: 1.0.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.10\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+                "tests_version: 1",
+                "tests:",
+                "  - id: inline-1",
+                "    name: inline declaration",
+                "    input: ping",
+                "    assertions:",
+                "      - contains: pong",
+                "    timeout_seconds: 4",
+                "    expected_exit_code: 0",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    inline_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "test",
+            str(agent_dir),
+            "--validate-only",
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert inline_result.returncode == 0
+    inline_payload = json.loads(inline_result.stdout)
+    assert inline_payload["valid"] is True
+    assert inline_payload["total"] == 1
+    assert inline_payload["source"].endswith("kinnoo.yaml")
+
+
+def test_install_remote_latest_resolves_explicit_version_before_download(monkeypatch, tmp_path) -> None:
+    from kinnoo import install_command
+
+    called_versions: list[str | None] = []
+
+    class _FakeRemoteBackend:
+        def __init__(self, *args, **kwargs):
+            del args, kwargs
+
+        def list_latest_agents(self):
+            return [{"name": "demo-agent", "latest_version": "2.4.1"}]
+
+        def resolve(self, *, name, version=None, tenant=None):
+            del name, tenant
+            called_versions.append(version)
+            return {"download_url": "/api/download/demo-agent/2.4.1"}
+
+        def request_bytes(self, *, path: str) -> bytes:
+            assert path == "/api/download/demo-agent/2.4.1"
+            return b"fake-kno-bytes"
+
+    def _fake_parse_install_target_spec(_target: str):
+        return type(
+            "_Spec",
+            (),
+            {
+                "kind": "registry-latest",
+                "raw_target": "demo-agent",
+                "name": "demo-agent",
+                "version": None,
+                "archive_path": None,
+                "error": None,
+            },
+        )()
+
+    monkeypatch.setattr(install_command, "RemoteRegistryClient", _FakeRemoteBackend)
+    monkeypatch.setattr(install_command, "parse_install_target_spec", _fake_parse_install_target_spec)
+    monkeypatch.setattr(install_command, "_install_from_archive_path", lambda **kwargs: 0)
+    monkeypatch.setenv("KINNOO_REGISTRY_URL", "https://registry.example.test")
+    monkeypatch.setenv("KINNOO_REGISTRY_TOKEN", "token")
+    monkeypatch.setenv("KINNOO_TENANT_SLUG", "acme")
+
+    exit_code = install_command.install_agent(
+        archive_path="demo-agent",
+        target_dir_arg=str(tmp_path / "installed-remote"),
+        assume_yes=True,
+        use_remote=True,
+    )
+
+    assert exit_code == 0
+    assert called_versions == ["2.4.1"]
+
+
+def test_install_remote_reports_filesystem_download_url_as_server_error(monkeypatch, capsys) -> None:
+    from kinnoo import install_command
+
+    class _FakeRemoteBackend:
+        def __init__(self, *args, **kwargs):
+            del args, kwargs
+
+        def list_latest_agents(self):
+            return [{"name": "demo-agent", "latest_version": "1.0.0"}]
+
+        def resolve(self, *, name, version=None, tenant=None):
+            del name, version, tenant
+            return {
+                "download_url": "/data/.registry-storage/archives/tenants/acme/agents/demo-agent/versions/1.0.0/demo-agent.kno"
+            }
+
+        def request_bytes(self, *, path: str) -> bytes:
+            del path
+            raise RuntimeError("404 from backend path fetch")
+
+    def _fake_parse_install_target_spec(_target: str):
+        return type(
+            "_Spec",
+            (),
+            {
+                "kind": "registry-latest",
+                "raw_target": "demo-agent",
+                "name": "demo-agent",
+                "version": None,
+                "archive_path": None,
+                "error": None,
+            },
+        )()
+
+    monkeypatch.setattr(install_command, "RemoteRegistryClient", _FakeRemoteBackend)
+    monkeypatch.setattr(install_command, "parse_install_target_spec", _fake_parse_install_target_spec)
+    monkeypatch.setenv("KINNOO_REGISTRY_URL", "https://registry.example.test")
+    monkeypatch.setenv("KINNOO_REGISTRY_TOKEN", "token")
+    monkeypatch.setenv("KINNOO_TENANT_SLUG", "acme")
+
+    exit_code = install_command.install_agent(
+        archive_path="demo-agent",
+        assume_yes=True,
+        use_remote=True,
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert "root-relative path that could not be downloaded" in captured.err
+
+
+def test_install_remote_uses_authenticated_fetch_for_same_host_http_download_url(monkeypatch, tmp_path) -> None:
+    from kinnoo import install_command
+
+    class _FakeRemoteBackend:
+        def __init__(self, *args, **kwargs):
+            del args, kwargs
+            self._base_url = "https://registry.example.test"
+
+        def list_latest_agents(self):
+            return [{"name": "demo-agent", "latest_version": "1.0.0"}]
+
+        def resolve(self, *, name, version=None, tenant=None):
+            del name, version, tenant
+            return {"download_url": "https://registry.example.test/api/agents/acme/demo-agent/1.0.0/archive"}
+
+        def request_bytes(self, *, path: str) -> bytes:
+            assert path == "/api/agents/acme/demo-agent/1.0.0/archive"
+            return b"PK\x03\x04fake"
+
+    def _fake_parse_install_target_spec(_target: str):
+        return type(
+            "_Spec",
+            (),
+            {
+                "kind": "registry-latest",
+                "raw_target": "demo-agent",
+                "name": "demo-agent",
+                "version": None,
+                "archive_path": None,
+                "error": None,
+            },
+        )()
+
+    monkeypatch.setattr(install_command, "RemoteRegistryClient", _FakeRemoteBackend)
+    monkeypatch.setattr(install_command, "parse_install_target_spec", _fake_parse_install_target_spec)
+    monkeypatch.setattr(install_command, "_install_from_archive_path", lambda **kwargs: 0)
+    monkeypatch.setenv("KINNOO_REGISTRY_URL", "https://registry.example.test")
+    monkeypatch.setenv("KINNOO_REGISTRY_TOKEN", "token")
+    monkeypatch.setenv("KINNOO_TENANT_SLUG", "acme")
+
+    exit_code = install_command.install_agent(
+        archive_path="demo-agent",
+        target_dir_arg=str(tmp_path / "installed-remote"),
+        assume_yes=True,
+        use_remote=True,
+    )
+
+    assert exit_code == 0
+
+
+def test_feature69_execution_engine_and_docs_examples(tmp_path):
+    one_shot_dir = tmp_path / "feature69-oneshot"
+    one_shot_dir.mkdir()
+    (one_shot_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: feature69-oneshot",
+                "version: 1.0.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.10\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (one_shot_dir / "run.py").write_text(
+        "import sys\n"
+        "print(f'oneshot:{sys.argv[1]}')\n",
+        encoding="utf-8",
+    )
+    (one_shot_dir / "kinnoo.tests.yaml").write_text(
+        "\n".join(
+            [
+                "version: 1",
+                "tests:",
+                "  - id: oneshot-1",
+                "    name: one-shot pass",
+                "    input: ping",
+                "    assertions:",
+                "      - contains: oneshot:ping",
+                "    timeout_seconds: 5",
+                "    expected_exit_code: 0",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    one_shot_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "test", str(one_shot_dir), "--json"],
+        capture_output=True,
+        text=True,
+    )
+    assert one_shot_result.returncode == 0
+    one_shot_payload = json.loads(one_shot_result.stdout)
+    assert one_shot_payload["passed"] == 1
+    assert one_shot_payload["total"] == 1
+    assert one_shot_payload["results"][0]["runtime_type"] == "one-shot"
+    assert one_shot_payload["results"][0]["status"] == "passed"
+
+    daemon_dir = tmp_path / "feature69-daemon"
+    daemon_dir.mkdir()
+    (daemon_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: feature69-daemon",
+                "version: 1.0.0",
+                "entrypoint: daemon.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.10\"",
+                "  type: daemon",
+                "  run_command: \"python3 daemon.py\"",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (daemon_dir / "daemon.py").write_text(
+        "import sys\n"
+        "print(f'daemon:{sys.argv[1]}')\n",
+        encoding="utf-8",
+    )
+    (daemon_dir / "kinnoo.tests.yaml").write_text(
+        "\n".join(
+            [
+                "version: 1",
+                "tests:",
+                "  - id: daemon-1",
+                "    name: daemon pass",
+                "    input: pong",
+                "    assertions:",
+                "      - contains: daemon:pong",
+                "    timeout_seconds: 5",
+                "    expected_exit_code: 0",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    daemon_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "test", str(daemon_dir), "--json"],
+        capture_output=True,
+        text=True,
+    )
+    assert daemon_result.returncode == 0
+    daemon_payload = json.loads(daemon_result.stdout)
+    assert daemon_payload["passed"] == 1
+    assert daemon_payload["total"] == 1
+    assert daemon_payload["results"][0]["runtime_type"] == "daemon"
+    assert daemon_payload["results"][0]["status"] == "passed"
+
+    repo_root = Path(__file__).resolve().parents[2]
+    cli_reference_text = (repo_root / "docs" / "cli-reference.md").read_text(encoding="utf-8")
+    schema_text = (repo_root / "docs" / "kinnoo-yaml-spec.md").read_text(encoding="utf-8")
+
+    assert "kinnoo.tests.yaml" in cli_reference_text
+    assert "kinnoo test ./my-agent" in cli_reference_text
+    assert "type: one-shot" in schema_text
+
+
+def test_feature114_verbose_output_and_not_contains_assertion(tmp_path):
+    agent_dir = tmp_path / "feature114-verbose"
+    agent_dir.mkdir()
+
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: feature114-verbose",
+                "version: 1.0.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.10\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "run.py").write_text(
+        "import sys\n"
+        "print(f'Hello {sys.argv[1]}')\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "kinnoo.tests.yaml").write_text(
+        "\n".join(
+            [
+                "version: 1",
+                "tests:",
+                "  - id: verbose-1",
+                "    name: verbose output contract",
+                "    input: world",
+                "    assertions:",
+                "      - contains: Hello world",
+                "      - not_contains: traceback",
+                "    timeout_seconds: 5",
+                "    expected_exit_code: 0",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    text_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "test", str(agent_dir), "--verbose"],
+        capture_output=True,
+        text=True,
+    )
+    assert text_result.returncode == 0
+    assert "expected_output=" in text_result.stdout
+    assert "actual_output=" in text_result.stdout
+    assert "runtime_duration_sec=" in text_result.stdout
+    assert "expected_exit_code=" in text_result.stdout
+    assert "actual_exit_code=" in text_result.stdout
+
+    json_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "test", str(agent_dir), "--json", "--verbose"],
+        capture_output=True,
+        text=True,
+    )
+    assert json_result.returncode == 0
+    payload = json.loads(json_result.stdout)
+    assert payload["verbose"] is True
+    assert payload["passed"] == 1
+    result = payload["results"][0]
+    assert result["input"] == "world"
+    assert "expected_output" in result
+    assert "actual_output" in result
+    assert "runtime_duration_sec" in result
+    assert result["expected_exit_code"] == 0
+    assert result["actual_exit_code"] == 0
+    assert result["error_message"] == ""
+
+
+def test_feature114_create_interactive_default_tests_file(tmp_path):
+    agent_dir = tmp_path / "feature114-create"
+    agent_dir.mkdir()
+
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: feature114-create",
+                "version: 1.0.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.10\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    interactive_answers = "\n".join(
+        [
+            "smoke-create-1",
+            "interactive smoke",
+            "hello",
+            "contains",
+            "hello",
+            "stdout",
+            "n",
+            "10",
+            "0",
+            "n",
+        ]
+    ) + "\n"
+
+    create_result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "test", str(agent_dir), "--create"],
+        capture_output=True,
+        text=True,
+        input=interactive_answers,
+    )
+    assert create_result.returncode == 0
+    assert (agent_dir / "kinnoo.tests.yaml").exists()
+
+    validate_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "test",
+            str(agent_dir),
+            "--validate-only",
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert validate_result.returncode == 0
+    payload = json.loads(validate_result.stdout)
+    assert payload["valid"] is True
+    assert payload["total"] == 1
+
+
+def test_feature114_create_append_custom_tests_file(tmp_path):
+    agent_dir = tmp_path / "feature114-append"
+    agent_dir.mkdir()
+
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                "name: feature114-append",
+                "version: 1.0.0",
+                "entrypoint: run.py",
+                "runtime:",
+                "  language: python",
+                "  version: \">=3.10\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    first_case_answers = "\n".join(
+        [
+            "append-1",
+            "append case one",
+            "hello",
+            "contains",
+            "hello",
+            "stdout",
+            "n",
+            "5",
+            "0",
+            "n",
+        ]
+    ) + "\n"
+    first_create = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "test",
+            str(agent_dir),
+            "--create",
+            "custom.tests.yaml",
+        ],
+        capture_output=True,
+        text=True,
+        input=first_case_answers,
+    )
+    assert first_create.returncode == 0
+
+    second_case_answers = "\n".join(
+        [
+            "append-2",
+            "append case two",
+            "hi",
+            "regex",
+            "(?i)hello|hi",
+            "stdout",
+            "n",
+            "5",
+            "0",
+            "n",
+        ]
+    ) + "\n"
+    append_create = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "test",
+            str(agent_dir),
+            "--create",
+            "custom.tests.yaml",
+            "--append",
+        ],
+        capture_output=True,
+        text=True,
+        input=second_case_answers,
+    )
+    assert append_create.returncode == 0
+
+    validate_result = subprocess.run(
+        [
+            sys.executable,
+            "src/kinnoo/cli.py",
+            "test",
+            str(agent_dir),
+            "--tests-file",
+            "custom.tests.yaml",
+            "--validate-only",
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert validate_result.returncode == 0
+    payload = json.loads(validate_result.stdout)
+    assert payload["valid"] is True
+    assert payload["total"] == 2
+
+
+def test_feature114_test_help_lists_new_flags():
+    result = subprocess.run(
+        [sys.executable, "src/kinnoo/cli.py", "test", "-h"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert "--verbose" in result.stdout
+    assert "--create" in result.stdout
+    assert "--append" in result.stdout
+
+
+def test_feature114_create_and_append_without_agent_dir(tmp_path):
+    cli_path = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
+
+    create_answers = "\n".join(
+        [
+            "shared-1",
+            "shared test one",
+            "hello",
+            "contains",
+            "hello",
+            "stdout",
+            "n",
+            "10",
+            "0",
+            "n",
+        ]
+    ) + "\n"
+
+    create_result = subprocess.run(
+        [sys.executable, str(cli_path), "test", "--create", "my-new-test-file.yaml"],
+        capture_output=True,
+        text=True,
+        input=create_answers,
+        cwd=tmp_path,
+    )
+    assert create_result.returncode == 0
+    created_path = tmp_path / "my-new-test-file.yaml"
+    assert created_path.exists()
+    created_text = created_path.read_text(encoding="utf-8")
+    assert "id: shared-1" in created_text
+
+    append_answers = "\n".join(
+        [
+            "shared-2",
+            "shared test two",
+            "hi",
+            "regex",
+            "(?i)hello|hi",
+            "stdout",
+            "n",
+            "10",
+            "0",
+            "n",
+        ]
+    ) + "\n"
+
+    append_result = subprocess.run(
+        [
+            sys.executable,
+            str(cli_path),
+            "test",
+            "--create",
+            "my-new-test-file.yaml",
+            "--append",
+        ],
+        capture_output=True,
+        text=True,
+        input=append_answers,
+        cwd=tmp_path,
+    )
+    assert append_result.returncode == 0
+
+    appended_text = created_path.read_text(encoding="utf-8")
+    assert "id: shared-1" in appended_text
+    assert "id: shared-2" in appended_text
+
+
+def test_feature114_create_prompt_displays_assertion_options(tmp_path):
+    cli_path = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
+
+    answers = "\n".join(
+        [
+            "prompt-1",
+            "prompt shape test",
+            "hello",
+            "",
+            "hello",
+            "",
+            "n",
+            "10",
+            "0",
+            "n",
+        ]
+    ) + "\n"
+
+    result = subprocess.run(
+        [sys.executable, str(cli_path), "test", "--create", "prompt-shape.tests.yaml"],
+        capture_output=True,
+        text=True,
+        input=answers,
+        cwd=tmp_path,
+    )
+
+    assert result.returncode == 0
+    assert "[contains (default) / not_contains / equals / regex]" in result.stdout
+    assert "[stdout (default) / json]" in result.stdout
+
+
 def test_publish_toggle_true_prefers_authenticated_remote(monkeypatch, tmp_path):
     from kinnoo import publish_command
 
@@ -327,7 +1318,7 @@ from pathlib import Path
 from kinnoo.registry import InstallTargetSpec, RegistryRecord
 
 
-CLI_SCRIPT_PATH = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+CLI_SCRIPT_PATH = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
 
 def test_run_installs_requirements(tmp_path):
         """Test that kinnoo run installs requirements.txt packages into .venv/"""
@@ -1865,8 +2856,10 @@ def test_feature32_logs_daemon_tail_and_follow(monkeypatch, tmp_path, capsys):
 
 def test_feature34_openclaw_template_smoke_run(tmp_path):
     """test289: generated OpenClaw scaffold runs via kinnoo run with required env vars configured."""
-    agent_name = "feature34-openclaw-smoke"
-    cli_script = str((Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"))
+    agent_name = "kinnoo_tmp_test_feature34-openclaw-smoke"
+    cli_script = str((Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"))
+    init_env = os.environ.copy()
+    init_env["HOME"] = str(tmp_path)
 
     init_result = subprocess.run(
         [sys.executable, cli_script, "init", agent_name, "--framework", "openclaw"],
@@ -2091,7 +3084,7 @@ def test_feature21_openai_agents_smoke_run(tmp_path):
 
 
 def test_feature21_pydantic_ai_basic_run(tmp_path):
-    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_path = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     agent_name = "feature21-pydantic-ai-basic-run"
     init_result = subprocess.run(
         [sys.executable, str(cli_path), "init", agent_name, "--framework", "pydantic-ai"],
@@ -2122,7 +3115,7 @@ def test_feature21_pydantic_ai_basic_run(tmp_path):
 
 
 def test_feature21_langgraph_basic_run(tmp_path):
-    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_path = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     agent_name = "feature21-langgraph-basic-run"
     init_result = subprocess.run(
         [sys.executable, str(cli_path), "init", agent_name, "--framework", "langgraph"],
@@ -2153,7 +3146,7 @@ def test_feature21_langgraph_basic_run(tmp_path):
 
 
 def test_feature21_openai_agents_basic_run(tmp_path):
-    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_path = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     agent_name = "feature21-openai-agents-basic-run"
     init_result = subprocess.run(
         [sys.executable, str(cli_path), "init", agent_name, "--framework", "openai-agents"],
@@ -2389,7 +3382,7 @@ outputs:
 
 
 def test_feature23_run_mcp_server_long_running_mode(tmp_path):
-    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_path = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     agent_dir = _feature23_write_mcp_agent_fixture(tmp_path)
 
     process = subprocess.Popen(
@@ -2408,7 +3401,7 @@ def test_feature23_run_mcp_server_long_running_mode(tmp_path):
 
 
 def test_feature23_mcp_server_streams_stdout_stderr(tmp_path):
-    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_path = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     agent_dir = _feature23_write_mcp_agent_fixture(tmp_path)
 
     process = subprocess.Popen(
@@ -2508,10 +3501,10 @@ outputs:
 def test_feature23_sigint_graceful_shutdown_with_escalation(tmp_path):
     agent_dir, marker_file = _feature23_write_stubborn_mcp_agent_fixture(tmp_path)
 
-    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_path = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     env = os.environ.copy()
     env["HOME"] = str(tmp_path)
-    env["PYTHONPATH"] = str(Path(__file__).resolve().parents[1] / "src")
+    env["PYTHONPATH"] = str(Path(__file__).resolve().parents[2] / "src")
 
     process = subprocess.Popen(
         [sys.executable, str(cli_path), "run", str(agent_dir)],
@@ -2643,7 +3636,7 @@ def test_feature25_run_checks_all_declared_services_before_entrypoint(tmp_path):
         encoding="utf-8",
     )
 
-    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_path = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     fixture_process = subprocess.Popen(
         [
             sys.executable,

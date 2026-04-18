@@ -147,7 +147,7 @@ def test_feature24_ac_coverage_and_no_services_regression_gate():
 
 def test_feature25_no_services_regression_unchanged():
     """Regression test: agents without services remain behaviorally unchanged."""
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     cli_path = repo_root / "src" / "kinnoo" / "cli.py"
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -274,7 +274,7 @@ def test_feature19_import_interrupt_and_runnability_regression_gate():
 
 def test_feature31_python_runtime_regression_gate():
     """Regression gate: feature31 Node support must not alter Python run/pack/install behavior."""
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     cli_path = repo_root / "src" / "kinnoo" / "cli.py"
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -364,7 +364,7 @@ def test_feature31_python_runtime_regression_gate():
 
 def test_feature42_json_contract_guidance_and_text_regression_gate():
     """Regression gate for feature42 docs/help/inspect/preflight guidance and text-flow stability."""
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     cli_path = repo_root / "src" / "kinnoo" / "cli.py"
     schema_doc = repo_root / "docs" / "manifest-schema-reference.md"
     readme_doc = repo_root / "README.md"
@@ -663,7 +663,7 @@ def test_feature33_non_openclaw_optional_nonbreaking_regression_gate(tmp_path):
 
 def test_feature35_assets_backward_compatibility_without_state_dirs(tmp_path):
     """Regression gate: manifests without state_dirs preserve asset-only pack/install behavior."""
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     cli_path = repo_root / "src" / "kinnoo" / "cli.py"
 
     archive_root = tmp_path / "archive-root"
@@ -769,7 +769,7 @@ def test_feature36_non_openclaw_import_regression_guard(tmp_path):
     """Regression gate: non-openclaw analyzer/import behavior remains stable."""
     from kinnoo.analyzer import analyze_project
 
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     cli_path = repo_root / "src" / "kinnoo" / "cli.py"
 
     python_project = tmp_path / "feature36-non-openclaw-python"
@@ -861,7 +861,7 @@ def test_feature36_non_openclaw_import_regression_guard(tmp_path):
 
 def test_feature37_python_install_noop_regression_guard(tmp_path):
     """Regression gate: feature37 node-only controls must remain no-op for Python installs."""
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     cli_path = repo_root / "src" / "kinnoo" / "cli.py"
 
     fake_bin = tmp_path / "fake-node-bin"
@@ -978,7 +978,7 @@ def test_feature37_python_install_noop_regression_guard(tmp_path):
 
 def test_feature38_output_format_and_secret_safety_regression_guard(tmp_path):
     """Regression gate: feature38 findings keep stable output format and never echo raw secret values."""
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     cli_path = repo_root / "src" / "kinnoo" / "cli.py"
 
     inspect_agent = tmp_path / "feature38-regression-inspect-agent"

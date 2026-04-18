@@ -107,6 +107,7 @@ import pytest
 from pathlib import Path
 
 KINNOO_CLI = [sys.executable, "-m", "kinnoo.cli"]
+CLI_PATH = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
 
 
 def run_cli(args, cwd=None):
@@ -542,7 +543,7 @@ def test_feature34_scaffold_deterministic_without_openclaw_cli(tmp_path, monkeyp
     second_snapshot = _snapshot(run_two_root / agent_name)
     assert first_snapshot == second_snapshot
 
-    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_script = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     pathless_root = tmp_path / "pathless-cli-run"
     pathless_root.mkdir()
 
