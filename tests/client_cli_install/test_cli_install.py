@@ -1339,7 +1339,7 @@ def test_feature72_frozen_install_and_docs(tmp_path: Path) -> None:
     assert "Frozen lock mismatch for agent 'frozen-agent'" in frozen_drift_output
     assert "Re-run install without --frozen to regenerate lockfile" in frozen_drift_output
 
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     readme_text = (repo_root / "README.md").read_text(encoding="utf-8")
     assert "kinnoo install --frozen" in readme_text
     assert "Re-run install without --frozen to regenerate lockfile" in readme_text

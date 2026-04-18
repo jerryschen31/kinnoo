@@ -611,7 +611,7 @@ def test_feature71_strict_publish_and_docs(tmp_path: Path) -> None:
 	assert signed_publish.returncode == 0, signed_output
 	assert "Published strict-publish-agent==1.0.0 (local)" in signed_output
 
-	repo_root = Path(__file__).resolve().parents[1]
+	repo_root = Path(__file__).resolve().parents[2]
 	workflow_text = (repo_root / ".github" / "workflows" / "kinnoo-publish.yml").read_text(encoding="utf-8")
 	readme_text = (repo_root / "README.md").read_text(encoding="utf-8")
 	combined_docs = f"{workflow_text}\n{readme_text}"

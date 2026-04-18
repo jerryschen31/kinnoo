@@ -70,7 +70,7 @@ def test_registry_backend_protocol(tmp_path: Path) -> None:
 def _load_feature26_filesystem_fixture_module():
 	"""Load the feature26 filesystem MCP fixture run module by file path."""
 	fixture_path = (
-		Path(__file__).resolve().parent
+		Path(__file__).resolve().parents[1]
 		/ "fixtures"
 		/ "feature26-filesystem-mcp-server"
 		/ "run.py"
@@ -276,7 +276,7 @@ def test_feature40_registry_publisher_key_association(tmp_path: Path) -> None:
 
 
 def test_feature55_login_csrf_passthrough() -> None:
-	auth_client_path = Path(__file__).resolve().parents[1] / "web" / "lib" / "auth-client.ts"
+	auth_client_path = Path(__file__).resolve().parents[2] / "web" / "lib" / "auth-client.ts"
 	content = auth_client_path.read_text(encoding="utf-8")
 
 	assert 'fetch("/api/login"' in content
@@ -288,8 +288,8 @@ def test_feature55_login_csrf_passthrough() -> None:
 
 
 def test_feature55_session_csrf_forwarding() -> None:
-	auth_client_path = Path(__file__).resolve().parents[1] / "web" / "lib" / "auth-client.ts"
-	registry_page_path = Path(__file__).resolve().parents[1] / "web" / "app" / "(auth)" / "registry" / "page.tsx"
+	auth_client_path = Path(__file__).resolve().parents[2] / "web" / "lib" / "auth-client.ts"
+	registry_page_path = Path(__file__).resolve().parents[2] / "web" / "app" / "(auth)" / "registry" / "page.tsx"
 	auth_client = auth_client_path.read_text(encoding="utf-8")
 	registry_page = registry_page_path.read_text(encoding="utf-8")
 
@@ -373,14 +373,14 @@ def test_feature55_auth_integration_suite(tmp_path: Path) -> None:
 	assert unauth.status_code == 401
 
 	# Validate rewrite/auth-client contracts and no browser token persistence usage.
-	next_config = (Path(__file__).resolve().parents[1] / "web" / "next.config.ts").read_text(
+	next_config = (Path(__file__).resolve().parents[2] / "web" / "next.config.ts").read_text(
 		encoding="utf-8"
 	)
-	auth_client = (Path(__file__).resolve().parents[1] / "web" / "lib" / "auth-client.ts").read_text(
+	auth_client = (Path(__file__).resolve().parents[2] / "web" / "lib" / "auth-client.ts").read_text(
 		encoding="utf-8"
 	)
 	auth_layout = (
-		Path(__file__).resolve().parents[1] / "web" / "app" / "(auth)" / "layout.tsx"
+		Path(__file__).resolve().parents[2] / "web" / "app" / "(auth)" / "layout.tsx"
 	).read_text(encoding="utf-8")
 
 	assert 'source: "/api/:path*"' in next_config
@@ -603,7 +603,7 @@ def test_feature56_integration_suite(tmp_path: Path, monkeypatch) -> None:
 	assert fallback_search.status_code == 200
 
 	# Tenant-scoped local publish convention is validated by task313 test fixture.
-	cli_registry_test = (Path(__file__).resolve().parents[1] / "tests" / "test_cli_registry.py").read_text(
+	cli_registry_test = (Path(__file__).resolve().parents[2] / "tests" / "client_cli_registry" / "test_cli_registry.py").read_text(
 		encoding="utf-8"
 	)
 	assert "test_feature56_local_publish_tenant_path" in cli_registry_test
@@ -794,7 +794,7 @@ def test_feature57_forwarded_ip_rate_limit_path() -> None:
 	assert first_status == 200
 	assert second_status == 429
 
-	middleware_source = (Path(__file__).resolve().parents[1] / "server" / "middleware.py").read_text(
+	middleware_source = (Path(__file__).resolve().parents[2] / "server" / "middleware.py").read_text(
 		encoding="utf-8"
 	)
 	assert "Redis/Upstash" in middleware_source
@@ -806,7 +806,7 @@ def test_feature57_hardening_non_regression_suite(tmp_path: Path) -> None:
 	from server.app import create_app
 	from server.config import ServerConfig
 
-	web_root = Path(__file__).resolve().parents[1] / "web"
+	web_root = Path(__file__).resolve().parents[2] / "web"
 	next_config = (web_root / "next.config.ts").read_text(encoding="utf-8")
 	web_proxy = (web_root / "proxy.ts").read_text(encoding="utf-8")
 	auth_layout_test = (web_root / "__tests__" / "auth-layout.test.tsx").read_text(encoding="utf-8")
@@ -1450,7 +1450,7 @@ def test_feature59_forgot_password_suite(tmp_path: Path) -> None:
 
 def test_feature60_sqlite_auth_schema_and_indexes(tmp_path: Path) -> None:
 	migration_path = (
-		Path(__file__).resolve().parents[1]
+		Path(__file__).resolve().parents[2]
 		/ "server"
 		/ "storage"
 		/ "sql"
@@ -1766,9 +1766,9 @@ def test_feature60_subphase5_full_suite(tmp_path: Path) -> None:
 
 
 def test_feature60_sso_deferred_but_identity_schema_ready() -> None:
-	schema_path = Path(__file__).resolve().parents[1] / "server" / "storage" / "sql" / "schema_auth.sql"
-	planning_path = Path(__file__).resolve().parents[1] / "notes" / "phases" / "phase5-planning.md"
-	tasks_path = Path(__file__).resolve().parents[1] / "TASKS.txt"
+	schema_path = Path(__file__).resolve().parents[2] / "server" / "storage" / "sql" / "schema_auth.sql"
+	planning_path = Path(__file__).resolve().parents[2] / "notes" / "phases" / "phase5-planning.md"
+	tasks_path = Path(__file__).resolve().parents[2] / "TASKS.txt"
 
 	schema_text = schema_path.read_text(encoding="utf-8")
 	planning_text = planning_path.read_text(encoding="utf-8")

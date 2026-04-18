@@ -40,7 +40,7 @@ def test_install_makes_agent_runnable(tmp_path):
     import shutil
     archive_path, agent_name = make_minimal_kno(tmp_path)
     agent_dir = tmp_path / agent_name
-    cli_path = Path(__file__).parent.parent / "src" / "kinnoo" / "cli.py"
+    cli_path = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     # Debug: print archive contents
     import zipfile
     with zipfile.ZipFile(archive_path, "r") as z:
@@ -95,7 +95,7 @@ def test_run_subdirectory_entrypoint(tmp_path):
         encoding="utf-8",
     )
 
-    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_path = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     run_result = subprocess.run(
         [sys.executable, str(cli_path), "run", str(agent_dir), "hello"],
         capture_output=True,
@@ -144,7 +144,7 @@ def test_run_typescript_entrypoint(tmp_path):
     )
     fake_npx.chmod(0o755)
 
-    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_path = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     env = dict(os.environ)
     env["PATH"] = f"{bin_dir}:{env.get('PATH', '')}"
 
@@ -186,7 +186,7 @@ def test_run_json_input_pydanticai(tmp_path):
         encoding="utf-8",
     )
 
-    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_path = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     run_result = subprocess.run(
         [
             sys.executable,

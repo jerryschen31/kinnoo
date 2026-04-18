@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 
-CLI_PATH = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+CLI_PATH = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
 
 
 def _test_home(root: Path) -> Path:
@@ -273,7 +273,7 @@ def test_publish_uses_home_absolute_mock_registry_path(tmp_path: Path) -> None:
 
     publish_cwd = tmp_path / "publish-cwd"
     publish_cwd.mkdir(parents=True, exist_ok=True)
-    cli_path = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_path = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
 
     env = {
         **os.environ,
