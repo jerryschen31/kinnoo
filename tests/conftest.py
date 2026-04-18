@@ -10,7 +10,7 @@ from tests.marker_tools import apply_auto_markers, register_markers
 
 _DEPRECATED_TEST_PREFIXES: dict[str, str] = {
     "tests/test_init.py::": "deprecated: legacy init CLI contract suite pending migration to positional framework + semantic assertions",
-    "tests/test_validator.py::": "deprecated: legacy validator compatibility suite pending schema/unit vs integration split",
+    "tests/schema_unit/test_validator.py::": "deprecated: legacy validator compatibility suite pending schema/unit vs integration split",
     "tests/test_regression_v1.py::": "deprecated: regression meta-gate suite replaced by marker-driven selection",
     "tests/client_cli_registry/test_cli_registry_modes.py::": "deprecated: legacy registry mode contract suite pending authenticated remote-first policy alignment",
 }
