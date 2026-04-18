@@ -16,18 +16,30 @@ get Kinde Auth setup in codebase - will replace current Auth in dev
 
 **PRE-RELEASE FEATURE 2**
 [todo]
-formal Postgres database setup on the server-side - will replace current EFS-based mock database. Use SQLAlchemy 2.0 and Alembic.
-follow .github/rules/db.rules.md instructions during implementation and testing
+Replace the server's JSON-file and SQLite data stores with a Postgres database so the agent registry can handle concurrent users, search efficiently, and persist data reliably.
+
+High-level work items:
+1. Define Postgres schema — 8 tables (users, tenants, tenant_members, agents, agent_versions, api_keys, audit_log, download_events) using SQLAlchemy 2.0 models and Alembic migrations
+2. Build a new data-access layer (repository classes) so server routes never contain SQL — they call repositories instead
+3. Create a PostgresMetadataManager that replaces the current JSON-backed MetadataManager while keeping the same interface, so existing API routes work without changes
+4. Add a feature flag (json vs postgres backend) for a gradual migration — the old JSON store keeps working until Postgres is validated
+5. Add read-only `kinnoo-server db` CLI commands for admin querying (list tables, search agents, inspect versions, view audit logs, etc.)
+6. Set up local dev Postgres via Docker Compose and CI Postgres via GitHub Actions service container
+7. Write tests against real Postgres with per-test transaction rollback for isolation
+8. Add connection management, health checks, and environment-variable-driven configuration
 
 [definition of done]
-- SQLAlchemy 2.0 async models defined for all server entities (agents, versions, users, tenants, audit) in server/database/models/
-- Alembic migration directory created with initial migration that creates all tables
-- All server routes use Postgres via async sessions and repository pattern (no direct SQL strings)
-- JSON-file metadata store (server/metadata/) replaced by Postgres queries
-- SQLite auth store (server/storage/sqlite_auth_store.py) replaced by Postgres tables
-- Local dev setup works with a Postgres connection string (Docker Compose or local install)
-- All existing server tests pass against Postgres (using test database or transaction rollback)
-- Data migration path documented for any existing dev data
+- SQLAlchemy 2.0 async models defined for all 8 tables in server/database/models/, following db.rules.md patterns (UUID7 PKs, audit timestamps, JSONB metadata, repository pattern)
+- Alembic migration directory created with initial migration that stands up the full schema
+- Repository classes exist for every entity (UserRepository, TenantRepository, AgentRepository, AgentVersionRepository, etc.) — no SQL in route handlers
+- PostgresMetadataManager implements the same interface as the current MetadataManager and passes the same tests
+- Feature flag (REGISTRY_METADATA_BACKEND=json|postgres) controls which backend the server uses; "json" remains the default until switchover
+- ~28 read-only `kinnoo-server db` CLI commands work (schema inspection, agent/version/user/tenant/audit queries, stats)
+- Docker Compose file for local Postgres dev environment; CI workflow includes Postgres service container
+- Server tests run against real Postgres with transaction rollback per test — no leaked state between tests
+- Connection pool settings, DB health check on /health, and fail-fast startup behavior are implemented and configurable via env vars
+- Audit log captures all registry-modifying actions (publish, yank, user/tenant/key changes, security events)
+- Detailed planning and column specs documented in notes/features/postgres-registry-db-planning.md
 
 **PRE-RELEASE FEATURE 3**
 [todo]
