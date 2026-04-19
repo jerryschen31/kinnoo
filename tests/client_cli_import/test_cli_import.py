@@ -12,6 +12,7 @@ import yaml
 
 from src.kinnoo.registry import RegistryService
 from src.kinnoo.registry_backends import MockFilesystemRegistryBackend
+from src.kinnoo.analyzer import analyze_project
 from src.kinnoo.validator import validate as validate_manifest
 
 
@@ -1219,3 +1220,234 @@ def test_feature117_error_message_contract_consistency(tmp_path):
         assert "error:" in lowered
         assert "traceback" not in lowered
         assert "remediation:" in lowered or "usage:" in lowered
+
+
+@pytest.mark.regression_integration
+@pytest.mark.client_cli_import
+@pytest.mark.analyzer
+def test_feature117_langchain_subpackage_inference(tmp_path):
+    project_dir = tmp_path / "feature117-langchain-subpackage"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "run.py").write_text(
+        "from langchain_openai import ChatOpenAI\n"
+        "from langchain_core.runnables import RunnableLambda\n"
+        "chain = RunnableLambda(lambda x: x)\n"
+        "print(ChatOpenAI, chain)\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(project_dir), "--from", "langchain"],
+        capture_output=True,
+        text=True,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, output
+    assert "Applied langchain adapter" in output
+
+    manifest_text = (project_dir / "kinnoo.yaml").read_text(encoding="utf-8")
+    requirements_text = (project_dir / "requirements.txt").read_text(encoding="utf-8")
+    assert "framework: langchain" in manifest_text
+    assert "OPENAI_API_KEY" in manifest_text
+    assert "langchain-openai" in requirements_text
+    assert "langchain-core" in requirements_text
+
+
+@pytest.mark.regression_integration
+@pytest.mark.client_cli_import
+@pytest.mark.analyzer
+def test_feature117_openai_base_vs_agents_sdk_detection(tmp_path):
+    base_project = tmp_path / "feature117-openai-base"
+    base_project.mkdir(parents=True, exist_ok=True)
+    (base_project / "run.py").write_text(
+        "from openai import OpenAI\n"
+        "client = OpenAI()\n"
+        "print(client)\n",
+        encoding="utf-8",
+    )
+
+    base_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(base_project), "--from", "openai"],
+        capture_output=True,
+        text=True,
+    )
+    base_output = f"{base_result.stdout}\n{base_result.stderr}"
+    assert base_result.returncode == 0, base_output
+    base_manifest = (base_project / "kinnoo.yaml").read_text(encoding="utf-8")
+    base_requirements = (base_project / "requirements.txt").read_text(encoding="utf-8")
+    assert "framework: openai\n" in base_manifest or "framework: openai\r\n" in base_manifest
+    assert "openai-agents" not in base_requirements
+    assert "openai" in base_requirements
+
+    agents_project = tmp_path / "feature117-openai-agents"
+    agents_project.mkdir(parents=True, exist_ok=True)
+    (agents_project / "agent.py").write_text(
+        "from agents import Agent\n"
+        "agent = Agent(name='demo')\n"
+        "print(agent)\n",
+        encoding="utf-8",
+    )
+
+    agents_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(agents_project), "--from", "openai"],
+        capture_output=True,
+        text=True,
+    )
+    agents_output = f"{agents_result.stdout}\n{agents_result.stderr}"
+    assert agents_result.returncode == 0, agents_output
+    agents_manifest = (agents_project / "kinnoo.yaml").read_text(encoding="utf-8")
+    agents_requirements = (agents_project / "requirements.txt").read_text(encoding="utf-8")
+    assert "framework: openai-agents" in agents_manifest
+    assert "openai-agents" in agents_requirements
+
+
+@pytest.mark.regression_integration
+@pytest.mark.client_cli_import
+@pytest.mark.client_cli_check
+def test_feature117_openclaw_from_copy_contract(tmp_path):
+    workspace = tmp_path / "feature117-openclaw-workspace"
+    workspace.mkdir(parents=True, exist_ok=True)
+    (workspace / "SOUL.md").write_text("# Soul\n", encoding="utf-8")
+    (workspace / "IDENTITY.md").write_text("# Identity\n", encoding="utf-8")
+    (workspace / "memory").mkdir(parents=True, exist_ok=True)
+    (workspace / "memory" / "state.json").write_text("{\"k\":\"v\"}\n", encoding="utf-8")
+    (workspace / "skills").mkdir(parents=True, exist_ok=True)
+    (workspace / "skills" / "skill.md").write_text("# Skill\n", encoding="utf-8")
+    (workspace / "run.py").write_text("print('openclaw import')\n", encoding="utf-8")
+
+    (workspace / ".git").mkdir(parents=True, exist_ok=True)
+    (workspace / ".git" / "config").write_text("[core]\n", encoding="utf-8")
+    (workspace / ".openclaw").mkdir(parents=True, exist_ok=True)
+    (workspace / ".openclaw" / "cache.txt").write_text("cache\n", encoding="utf-8")
+    (workspace / ".clawhub").mkdir(parents=True, exist_ok=True)
+    (workspace / ".clawhub" / "mirror.json").write_text("{}\n", encoding="utf-8")
+    (workspace / "node_modules").mkdir(parents=True, exist_ok=True)
+    (workspace / "node_modules" / "pkg.js").write_text("module.exports={};\n", encoding="utf-8")
+    (workspace / ".venv").mkdir(parents=True, exist_ok=True)
+    (workspace / ".venv" / "bin").mkdir(parents=True, exist_ok=True)
+    (workspace / ".venv" / "bin" / "python").write_text("", encoding="utf-8")
+
+    target = tmp_path / "feature117-openclaw-target"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(CLI_PATH),
+            "import",
+            "--from",
+            "openclaw",
+            str(target),
+            str(workspace),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, output
+    assert "Imported OpenClaw workspace in-place:" in output
+
+    assert (target / "SOUL.md").exists()
+    assert (target / "IDENTITY.md").exists()
+    assert (target / "memory" / "state.json").exists()
+    assert (target / "skills" / "skill.md").exists()
+    assert (target / "run.py").exists()
+
+    assert not (target / ".git").exists()
+    assert not (target / ".openclaw").exists()
+    assert not (target / ".clawhub").exists()
+    assert not (target / "node_modules").exists()
+    assert not (target / ".venv").exists()
+
+    manifest_path = target / "kinnoo.yaml"
+    assert manifest_path.exists()
+    manifest_text = manifest_path.read_text(encoding="utf-8")
+    assert "framework: openclaw" in manifest_text
+    is_valid, errors = validate_manifest(str(manifest_path))
+    assert is_valid, errors
+
+
+@pytest.mark.regression_integration
+@pytest.mark.client_cli_import
+@pytest.mark.analyzer
+def test_feature117_generic_llm_agent_import_contract(tmp_path):
+    python_project = tmp_path / "feature117-generic-python-llm"
+    python_project.mkdir(parents=True, exist_ok=True)
+    (python_project / "agent.py").write_text(
+        "import os\n"
+        "import litellm\n"
+        "key = os.getenv('LITELLM_API_KEY')\n"
+        "print(litellm, key)\n",
+        encoding="utf-8",
+    )
+
+    py_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(python_project)],
+        capture_output=True,
+        text=True,
+    )
+    py_output = f"{py_result.stdout}\n{py_result.stderr}"
+    assert py_result.returncode == 0, py_output
+    py_manifest = (python_project / "kinnoo.yaml").read_text(encoding="utf-8")
+    py_requirements = (python_project / "requirements.txt").read_text(encoding="utf-8")
+    assert "LITELLM_API_KEY" in py_manifest
+    assert "litellm" in py_requirements
+    py_valid, py_errors = validate_manifest(str(python_project / "kinnoo.yaml"))
+    assert py_valid, py_errors
+
+    node_project = tmp_path / "feature117-generic-node-llm"
+    node_project.mkdir(parents=True, exist_ok=True)
+    (node_project / "package.json").write_text(
+        "{\n"
+        "  \"name\": \"feature117-generic-node-llm\",\n"
+        "  \"version\": \"1.0.0\",\n"
+        "  \"main\": \"index.js\",\n"
+        "  \"dependencies\": {\n"
+        "    \"axios\": \"^1.7.0\"\n"
+        "  }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    (node_project / "index.js").write_text(
+        "const token = process.env.LLM_API_KEY;\n"
+        "console.log(token || 'ok');\n",
+        encoding="utf-8",
+    )
+
+    node_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(node_project)],
+        capture_output=True,
+        text=True,
+    )
+    node_output = f"{node_result.stdout}\n{node_result.stderr}"
+    assert node_result.returncode == 0, node_output
+    node_manifest = (node_project / "kinnoo.yaml").read_text(encoding="utf-8")
+    assert "LLM_API_KEY" in node_manifest
+    assert "axios" in node_manifest.lower()
+    node_valid, node_errors = validate_manifest(str(node_project / "kinnoo.yaml"))
+    assert node_valid, node_errors
+
+
+@pytest.mark.regression_integration
+@pytest.mark.client_cli_import
+@pytest.mark.analyzer
+@pytest.mark.regression_sat
+def test_feature117_import_regression_coverage_floor(tmp_path):
+    import_test_count = sum(
+        1
+        for name, value in globals().items()
+        if name.startswith("test_") and callable(value)
+    )
+    assert import_test_count >= 30
+
+    guard_project = tmp_path / "feature117-framework-accuracy-guard"
+    guard_project.mkdir(parents=True, exist_ok=True)
+    (guard_project / "graph.py").write_text(
+        "from langgraph.graph import StateGraph\n"
+        "from langchain_openai import ChatOpenAI\n"
+        "graph = StateGraph(dict)\n"
+        "compiled = graph.compile()\n"
+        "print(ChatOpenAI, compiled)\n",
+        encoding="utf-8",
+    )
+    payload = analyze_project(guard_project).as_dict()
+    assert payload["inferred"]["framework"] == "langgraph"

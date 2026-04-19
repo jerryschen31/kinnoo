@@ -20,12 +20,26 @@ OPENAI_TS_MARKERS = (
 
 
 def apply(project_dir: Path, base_report: dict[str, object]) -> AdapterResult:
-    del base_report
+    inferred = base_report.get("inferred", {}) if isinstance(base_report.get("inferred"), dict) else {}
     python_sources = read_text_files(project_dir, {".py"})
     node_sources = read_text_files(project_dir, {".ts", ".tsx", ".js", ".mjs", ".cjs"})
 
     py_hits = sum(1 for marker in OPENAI_PY_MARKERS if any(marker in source for source in python_sources))
     node_hits = sum(1 for marker in OPENAI_TS_MARKERS if any(marker in source for source in node_sources))
+    has_agents_import_signal = any(
+        marker in source
+        for marker in ("from agents import", "import agents")
+        for source in python_sources
+    ) or any(
+        marker in source
+        for marker in ("@openai/agents",)
+        for source in node_sources
+    )
+    has_agent_viability_signal = any(
+        marker in source for marker in ("Agent(", " Agent", "Agent\n") for source in python_sources
+    ) or any(
+        marker in source for marker in ("new Agent(", "Agent(", " Agent", "Agent\n") for source in node_sources
+    )
 
     if py_hits <= 0 and node_hits <= 0:
         return AdapterResult(
@@ -58,9 +72,24 @@ def apply(project_dir: Path, base_report: dict[str, object]) -> AdapterResult:
         }
         runtime_evidence = "OpenAI adapter selected Python runtime from SDK markers."
 
+    inferred_framework = "openai-agents" if has_agents_import_signal and has_agent_viability_signal else "openai"
+    existing_dependencies = inferred.get("dependencies") if isinstance(inferred.get("dependencies"), list) else []
+    dependencies = list(existing_dependencies)
+    if "openai" not in dependencies:
+        dependencies.append("openai")
+    if inferred_framework == "openai-agents" and "openai-agents" not in dependencies:
+        dependencies.append("openai-agents")
+
+    env_vars = inferred.get("env_vars") if isinstance(inferred.get("env_vars"), list) else []
+    normalized_env_vars = list(env_vars)
+    if "OPENAI_API_KEY" not in normalized_env_vars:
+        normalized_env_vars.append("OPENAI_API_KEY")
+
     inferred_overrides = {
-        "framework": "openai-agents",
+        "framework": inferred_framework,
         "runtime": inferred_runtime,
+        "dependencies": dependencies,
+        "env_vars": normalized_env_vars,
     }
 
     confidence_overrides = {
@@ -68,7 +97,8 @@ def apply(project_dir: Path, base_report: dict[str, object]) -> AdapterResult:
             "score": 0.94,
             "evidence": (
                 "OpenAI adapter markers matched "
-                f"(python={py_hits}, node={node_hits})."
+                f"(python={py_hits}, node={node_hits}, "
+                f"agents_import={int(has_agents_import_signal)}, agents_viable={int(has_agent_viability_signal)})."
             ),
         },
         "runtime": {
@@ -85,6 +115,15 @@ def apply(project_dir: Path, base_report: dict[str, object]) -> AdapterResult:
         confidence_overrides=confidence_overrides,
         warnings=[],
         unresolved_guidance=[
-            "Confirm OpenAI credentials and tool wiring before first runtime execution.",
+            (
+                "Confirm OpenAI credentials and tool wiring before first runtime execution."
+                if inferred_framework == "openai-agents"
+                else (
+                    "Detected OpenAI SDK usage without Agent() viability markers; "
+                    "treated as base OpenAI integration."
+                    if has_agents_import_signal and not has_agent_viability_signal
+                    else "Confirm OpenAI API key and model configuration before first runtime execution."
+                )
+            ),
         ],
     )
