@@ -400,7 +400,7 @@ def test_manual_extraction_verifies_files(tmp_path):
 
 
 def test_pack_prompts_before_overwrite_existing_archive(agent_dir):
-    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_script = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     cli_cmd = ["python3", str(cli_script)]
     archive_root = agent_dir.parent / "archive-root"
     archive_name = f"{agent_dir.name}.kno"
@@ -444,7 +444,7 @@ def test_pack_prompts_before_overwrite_existing_archive(agent_dir):
 
 
 def test_pack_bump_flag_and_version_output_line(tmp_path):
-    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_script = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     cli_cmd = ["python3", str(cli_script)]
 
     agent_dir = tmp_path / "bump-agent"
@@ -613,7 +613,7 @@ assets:
 
 def test_pack_preflight_pass_records_status(tmp_path):
     """Feature115 test643: pack --preflight is a dry-run and does not create archive."""
-    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_script = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     cli_cmd = ["python3", str(cli_script)]
 
     agent = tmp_path / "pack-preflight-pass-agent"
@@ -701,7 +701,7 @@ outputs:
 
 def test_pack_preflight_fail_warns(tmp_path):
     """Legacy preflight compatibility: --preflight stays dry-run even with unmet deps."""
-    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_script = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     cli_cmd = ["python3", str(cli_script)]
 
     agent = tmp_path / "pack-preflight-fail-agent"
@@ -1467,7 +1467,7 @@ assets:
 
 def test_feature26_filesystem_mcp_fixture_valid_and_packable(tmp_path: Path) -> None:
     """Feature26 test236: filesystem mcp-server fixture validates and packs."""
-    source_fixture = Path(__file__).resolve().parent / "fixtures" / "feature26-filesystem-mcp-server"
+    source_fixture = Path(__file__).resolve().parents[1] / "fixtures" / "feature26-filesystem-mcp-server"
     assert source_fixture.exists(), f"Missing tracked fixture directory: {source_fixture}"
     fixture_dir = tmp_path / "feature26-filesystem-mcp-server"
     shutil.copytree(source_fixture, fixture_dir)
@@ -1499,7 +1499,7 @@ def test_feature26_filesystem_mcp_fixture_valid_and_packable(tmp_path: Path) -> 
 
 def test_feature26_github_mcp_fixture_valid_and_packable(tmp_path: Path) -> None:
     """Feature26 test239: github mcp-server fixture validates and packs."""
-    source_fixture = Path(__file__).resolve().parent / "fixtures" / "feature26-github-mcp-server"
+    source_fixture = Path(__file__).resolve().parents[1] / "fixtures" / "feature26-github-mcp-server"
     assert source_fixture.exists(), f"Missing tracked fixture directory: {source_fixture}"
     fixture_dir = tmp_path / "feature26-github-mcp-server"
     shutil.copytree(source_fixture, fixture_dir)

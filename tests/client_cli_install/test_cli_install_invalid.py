@@ -24,7 +24,7 @@ def make_missing_file_kno(tmp_path, agent_name="missingfileagent"):
 @pytest.mark.parametrize("archive_type", ["invalid_zip", "missing_kinnoo_yaml"])
 def test_install_invalid_archive_or_missing_files(tmp_path, archive_type):
     """Test kinnoo install error handling for invalid archive or missing files (test56)."""
-    cli_path = Path(__file__).parent.parent / "src" / "kinnoo" / "cli.py"
+    cli_path = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     import shutil
     if archive_type == "invalid_zip":
         archive_path = make_invalid_kno(tmp_path)
