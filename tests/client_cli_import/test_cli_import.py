@@ -12,6 +12,7 @@ import yaml
 
 from src.kinnoo.registry import RegistryService
 from src.kinnoo.registry_backends import MockFilesystemRegistryBackend
+from src.kinnoo.validator import validate as validate_manifest
 
 
 CLI_PATH = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
@@ -1111,3 +1112,110 @@ def test_feature75_adapter_confidence_tuning_and_guidance(tmp_path):
     assert fallback_result.returncode == 0, fallback_output
     assert "coverage is insufficient" in fallback_output
     assert "required>=0.60" in fallback_output
+
+
+@pytest.mark.regression_integration
+@pytest.mark.client_cli_import
+@pytest.mark.security_checks
+def test_feature117_import_edge_cases_no_traceback(tmp_path):
+    empty_project = tmp_path / "feature117-empty-project"
+    empty_project.mkdir(parents=True, exist_ok=True)
+
+    unsupported_project = tmp_path / "feature117-unsupported-language"
+    unsupported_project.mkdir(parents=True, exist_ok=True)
+    (unsupported_project / "main.java").write_text("class Main {}\n", encoding="utf-8")
+
+    ambiguous_project = tmp_path / "feature117-ambiguous-framework"
+    ambiguous_project.mkdir(parents=True, exist_ok=True)
+    (ambiguous_project / "app.py").write_text("import openai\nprint('app')\n", encoding="utf-8")
+    (ambiguous_project / "worker.py").write_text("import anthropic\nprint('worker')\n", encoding="utf-8")
+
+    large_project = tmp_path / "feature117-large-project"
+    large_project.mkdir(parents=True, exist_ok=True)
+    for index in range(0, 240):
+        (large_project / f"module_{index}.py").write_text(f"print('module-{index}')\n", encoding="utf-8")
+    (large_project / "run.py").write_text("print('large')\n", encoding="utf-8")
+
+    for project in (empty_project, unsupported_project, ambiguous_project, large_project):
+        result = subprocess.run(
+            [sys.executable, str(CLI_PATH), "import", str(project)],
+            capture_output=True,
+            text=True,
+        )
+        output = f"{result.stdout}\n{result.stderr}".lower()
+        assert "traceback" not in output
+        assert "imported project in-place:" in output or "error:" in output
+
+    ambiguous_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(ambiguous_project), "--force"],
+        capture_output=True,
+        text=True,
+    )
+    assert "analyzer warnings" in f"{ambiguous_result.stdout}\n{ambiguous_result.stderr}".lower()
+
+
+@pytest.mark.regression_integration
+@pytest.mark.client_cli_import
+@pytest.mark.schema_contract
+def test_feature117_generated_manifest_validation_gate(tmp_path):
+    valid_project = tmp_path / "feature117-validation-gate-valid"
+    valid_project.mkdir(parents=True, exist_ok=True)
+    (valid_project / "run.py").write_text("print('ok')\n", encoding="utf-8")
+
+    valid_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(valid_project)],
+        capture_output=True,
+        text=True,
+    )
+    assert valid_result.returncode == 0
+    manifest_path = valid_project / "kinnoo.yaml"
+    assert manifest_path.exists()
+    is_valid, errors = validate_manifest(str(manifest_path))
+    assert is_valid, errors
+
+    invalid_project = tmp_path / "feature117-validation-gate-invalid"
+    invalid_project.mkdir(parents=True, exist_ok=True)
+    (invalid_project / "run.py").write_text("print('ok')\n", encoding="utf-8")
+    env = dict(os.environ)
+    env["KINNOO_IMPORT_FORCE_INVALID_MANIFEST"] = "1"
+
+    invalid_result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "import", str(invalid_project)],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    invalid_output = f"{invalid_result.stdout}\n{invalid_result.stderr}"
+    assert invalid_result.returncode != 0
+    assert "Generated kinnoo.yaml failed validation; import aborted before write." in invalid_output
+    assert "Remediation:" in invalid_output
+    assert not (invalid_project / "kinnoo.yaml").exists()
+
+
+@pytest.mark.regression_integration
+@pytest.mark.client_cli_import
+def test_feature117_error_message_contract_consistency(tmp_path):
+    collision_project = tmp_path / "feature117-error-collision"
+    collision_project.mkdir(parents=True, exist_ok=True)
+    (collision_project / "run.py").write_text("print('ok')\n", encoding="utf-8")
+    (collision_project / "kinnoo.yaml").write_text("name: existing\nversion: 1.0.0\n", encoding="utf-8")
+
+    invalid_target = tmp_path / "feature117-missing-target"
+    extra_arg_project = tmp_path / "feature117-extra-arg-project"
+    extra_arg_project.mkdir(parents=True, exist_ok=True)
+    (extra_arg_project / "run.py").write_text("print('ok')\n", encoding="utf-8")
+
+    scenarios = [
+        [sys.executable, str(CLI_PATH), "import", str(collision_project)],
+        [sys.executable, str(CLI_PATH), "import", str(invalid_target)],
+        [sys.executable, str(CLI_PATH), "import", str(extra_arg_project), "extra-positional"],
+    ]
+
+    for command in scenarios:
+        result = subprocess.run(command, capture_output=True, text=True)
+        output = f"{result.stdout}\n{result.stderr}"
+        lowered = output.lower()
+        assert result.returncode != 0
+        assert "error:" in lowered
+        assert "traceback" not in lowered
+        assert "remediation:" in lowered or "usage:" in lowered
