@@ -10440,3 +10440,139 @@ tasks:
     dependencies: [task489]
     tests: [test693, test694, test695]
     status: in-progress
+
+  - id: task491
+    title: "feature117 import core error hardening and manifest validation gate"
+    type: task
+    epic: [E2, E9, E10]
+    description: |
+      Harden the core `kinnoo import` command execution path for deterministic
+      behavior under edge-case inputs, enforce pre-write manifest validation, and
+      standardize actionable error contract output.
+    files:
+      - src/kinnoo/import_command.py
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/validator.py
+      - tests/client_cli_import/test_cli_import.py
+      - TASKS.txt
+      - TESTS.txt
+      - FEATURES.txt
+      - notes/tasks/task491-swe-handoff.md
+    steps:
+      - 'step1: Add/normalize guardrails for empty directory, unsupported language, ambiguous structure, and large project import inputs.'
+      - 'step2: Ensure every generated manifest is validated before write and returns deterministic remediation guidance on failure.'
+      - 'step3: Standardize user-facing import error formatting across core failure paths.'
+      - 'step4: Add/refresh integration tests for edge paths and kinnoo.yaml collision behavior.'
+      - 'step5: Run import-targeted pytest + manifest validator and capture outputs in handoff notes.'
+    dependencies: [task490]
+    tests: [test696, test697, test698]
+    status: not-started
+
+  - id: task492
+    title: "feature117 framework adapter hardening for langchain langgraph and openai"
+    type: task
+    epic: [E2, E9, E10]
+    description: |
+      Harden framework adapters for LangChain, LangGraph, and OpenAI/OpenAI Agents
+      SDK detection so adapter behavior is structurally valid, dependency-aware,
+      and resistant to framework misclassification.
+    files:
+      - src/kinnoo/framework_adapters/langchain_adapter.py
+      - src/kinnoo/framework_adapters/langgraph_adapter.py
+      - src/kinnoo/framework_adapters/openai_adapter.py
+      - src/kinnoo/analyzer.py
+      - tests/client_cli_import/test_cli_import.py
+      - tests/validator_integration/test_analyzer.py
+      - TASKS.txt
+      - TESTS.txt
+      - FEATURES.txt
+      - notes/tasks/task492-swe-handoff.md
+    steps:
+      - 'step1: Add LangChain sub-package and structure-signal detection with inferred dependencies/env-vars.'
+      - 'step2: Add LangGraph compile/graph construction detection for both Python and Node layouts.'
+      - 'step3: Distinguish OpenAI base SDK from Agents SDK and enforce Agent() viability checks for agents-sdk paths.'
+      - 'step4: Add misclassification regression coverage so LangGraph is not mislabeled as LangChain.'
+      - 'step5: Execute adapter-focused unit/integration tests and record evidence in handoff.'
+    dependencies: [task491]
+    tests: [test699, test700, test701]
+    status: not-started
+
+  - id: task493
+    title: "feature117 openclaw workspace import --from flow hardening"
+    type: task
+    epic: [E2, E9, E10]
+    description: |
+      Implement and harden OpenClaw workspace import flow using
+      `kinnoo import --from openclaw <target> <workspace-path>` including required
+      copy/include behavior, exclusions, and generated manifest validation.
+    files:
+      - src/kinnoo/import_command.py
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/cli.py
+      - tests/client_cli_import/test_cli_import.py
+      - TASKS.txt
+      - TESTS.txt
+      - FEATURES.txt
+      - notes/tasks/task493-swe-handoff.md
+    steps:
+      - 'step1: Add parser/flow support for --from openclaw target+workspace arguments.'
+      - 'step2: Implement workspace copy contract with required include paths and exclusion rules (.git/.openclaw/.clawhub/node_modules/.venv).'
+      - 'step3: Generate framework: openclaw manifest in target and validate before final success.'
+      - 'step4: Add deterministic errors for missing/invalid workspace inputs and no-copyable-content cases.'
+      - 'step5: Add end-to-end import tests for successful copy + invalid-source failures.'
+    dependencies: [task491]
+    tests: [test702]
+    status: not-started
+
+  - id: task494
+    title: "feature117 dependency inference hardening and generic llm agent support"
+    type: task
+    epic: [E2, E9, E10]
+    description: |
+      Improve dependency extraction and generic LLM-agent import quality by adding
+      Poetry dependency parsing and robust dependency/env-var inference for Python
+      and JS/TS projects that are not explicit framework-adapter matches.
+    files:
+      - src/kinnoo/analyzer.py
+      - src/kinnoo/import_command.py
+      - tests/client_cli_import/test_cli_import.py
+      - tests/validator_integration/test_analyzer.py
+      - TASKS.txt
+      - TESTS.txt
+      - FEATURES.txt
+      - notes/tasks/task494-swe-handoff.md
+    steps:
+      - 'step1: Add Poetry pyproject dependency extraction from tool.poetry.dependencies.'
+      - 'step2: Merge/deduplicate inferred dependencies from file-based + import-based signals.'
+      - 'step3: Improve generic Python and JS/TS LLM env-var/dependency inference when framework adapters are not selected.'
+      - 'step4: Add test coverage for poetry parsing and generic-agent import outputs.'
+      - 'step5: Validate outputs with import-related pytest modules and manifest checks.'
+    dependencies: [task491, task492]
+    tests: [test703, test704]
+    status: not-started
+
+  - id: task495
+    title: "feature117 import hardening regression matrix and fixture expansion"
+    type: task
+    epic: [E9, E10]
+    description: |
+      Expand import hardening test matrix and fixtures to enforce framework detection
+      accuracy and ensure at least 30 import-related tests pass with realistic or
+      production-shaped fixtures.
+    files:
+      - tests/client_cli_import/test_cli_import.py
+      - tests/validator_integration/test_analyzer.py
+      - tests/fixtures/
+      - TASKS.txt
+      - TESTS.txt
+      - FEATURES.txt
+      - notes/tasks/task495-swe-handoff.md
+    steps:
+      - 'step1: Add/update realistic import fixtures for langchain/langgraph/openai/openclaw/generic layouts.'
+      - 'step2: Add regression tests that assert framework detection accuracy and no adapter misclassification.'
+      - 'step3: Add/import-count gating assertion to ensure import-related test surface remains >=30 passing tests.'
+      - 'step4: Run full import/analyzer related test subsets and capture pass evidence.'
+      - 'step5: Ensure manifest validator stays clean after task/test manifest updates.'
+    dependencies: [task492, task493, task494]
+    tests: [test705]
+    status: not-started

@@ -3742,3 +3742,41 @@ features:
     owner: swe-agent
     dependencies: [feature115]
     status: in-progress
+
+  - id: feature117
+    title: "Pre-release feature 6 - import hardening (phase14)"
+    description: |
+      Harden the existing `kinnoo import` workflow for production-readiness across
+      a focused framework set (langchain, langgraph, openai/openai-agents, openclaw,
+      and generic Python/JS LLM agents). This is a hardening feature on top of the
+      current implementation, with priority on deterministic behavior, actionable
+      diagnostics, manifest validity, and robust test coverage.
+    tasks: [task491, task492, task493, task494, task495]
+    acceptance_criteria:
+      - id: AC1
+        description: "Import handles empty directories, unsupported languages, ambiguous project layouts, and large projects without traceback/crash, with deterministic user-facing outcomes."
+      - id: AC2
+        description: "Every generated kinnoo.yaml is validated before final write and import reports clear remediation when validation fails."
+      - id: AC3
+        description: "Import error messages follow a consistent actionable format across core failure paths."
+      - id: AC4
+        description: "LangChain adapter detects langchain sub-packages (e.g., langchain-openai/langchain-anthropic) and applies framework-specific dependency/env-var inference with minimal structural viability checks."
+      - id: AC5
+        description: "LangGraph adapter detects graph construction patterns (including compile()) in Python and Node projects and avoids LangChain misclassification regressions."
+      - id: AC6
+        description: "OpenAI adapter distinguishes base SDK usage from OpenAI Agents SDK and applies correct framework/dependency behavior, including Agent() viability checks for agents-sdk projects."
+      - id: AC7
+        description: "`kinnoo import --from openclaw <target> <workspace-path>` copies OpenClaw workspace agent assets while excluding .git/.openclaw/.clawhub/runtime artifacts and generates valid framework: openclaw manifest output."
+      - id: AC8
+        description: "Dependency detection supports Poetry pyproject (`tool.poetry.dependencies`) and framework sub-package inference."
+      - id: AC9
+        description: "Generic Python or JS/TS LLM agents (without explicit framework adapters) import cleanly with inferred dependencies/env vars and valid manifests."
+      - id: AC10
+        description: "Import hardening test suite includes at least 30 passing import-related tests with realistic fixtures and framework-detection accuracy coverage."
+    notes:
+      - "Source requirements: notes/PRE-RELEASE-CHECKLIST.md (Pre-release feature 6) and notes/features/import-hardening.md"
+      - "Scope is hardening of existing import implementation, not greenfield rewrite"
+      - "Includes OpenClaw workspace-based import flow update aligned with current agent model"
+    owner: techlead-agent
+    dependencies: [feature116]
+    status: not-started

@@ -11942,3 +11942,193 @@ tests:
         ac: AC3
     automated: true
     automation_path: tests/test_validator.py::test_invalid_runtime_type
+
+  - id: test696
+    title: "import edge-case inputs fail gracefully without traceback"
+    type: integration
+    preconditions: Import command is available and fixtures exist for empty, unsupported-language, ambiguous-structure, and large-project inputs
+    steps:
+      - 'step1: Run kinnoo import against each edge-case fixture input.'
+      - 'step2: Capture output and exit behavior for each invocation.'
+      - 'step3: Verify no Python traceback is emitted and outputs are deterministic/actionable.'
+    expected: Import handles all edge-case inputs with user-facing guidance and no crash
+    pass_criteria: No traceback in output; each scenario emits deterministic actionable message contract
+    covers:
+      - feature: feature117
+        ac: AC1
+    notes:
+      - "pytest_markers: regression_integration,client_cli_import,security_checks"
+      - "automation_path_subfolder: tests/client_cli_import"
+    automated: true
+    automation_path: tests/client_cli_import/test_cli_import.py::test_feature117_import_edge_cases_no_traceback
+
+  - id: test697
+    title: "generated import manifests validate before write"
+    type: integration
+    preconditions: Import command supports generation flow for representative Python and Node fixtures
+    steps:
+      - 'step1: Run kinnoo import on representative fixtures that generate kinnoo.yaml.'
+      - 'step2: Validate generated manifests via kinnoo validator contract.'
+      - 'step3: Verify failure path reports remediation when generated manifest is invalid.'
+    expected: Generated manifests are validation-clean or surface deterministic remediation before final success
+    pass_criteria: Successful imports produce valid manifests and validation-failure path emits actionable guidance
+    covers:
+      - feature: feature117
+        ac: AC2
+    notes:
+      - "pytest_markers: regression_integration,client_cli_import,schema_contract"
+      - "automation_path_subfolder: tests/client_cli_import"
+    automated: true
+    automation_path: tests/client_cli_import/test_cli_import.py::test_feature117_generated_manifest_validation_gate
+
+  - id: test698
+    title: "import error messages follow consistent actionable contract"
+    type: integration
+    preconditions: Import command exposes standardized error formatting for known failure categories
+    steps:
+      - 'step1: Trigger known import failure categories (existing kinnoo.yaml, unsupported language, invalid source path).'
+      - 'step2: Capture stderr/stdout message payloads.'
+      - 'step3: Assert consistent prefix/structure and remediation hint presence.'
+    expected: All tested failure categories emit consistent actionable error format
+    pass_criteria: Message format contract is stable across categories and includes remediation hints
+    covers:
+      - feature: feature117
+        ac: AC3
+    notes:
+      - "pytest_markers: regression_integration,client_cli_import"
+      - "automation_path_subfolder: tests/client_cli_import"
+    automated: true
+    automation_path: tests/client_cli_import/test_cli_import.py::test_feature117_error_message_contract_consistency
+
+  - id: test699
+    title: "langchain adapter infers sub-package dependencies and structure signals"
+    type: integration
+    preconditions: Fixture includes langchain_openai or langchain_anthropic imports with runnable chain/agent construction
+    steps:
+      - 'step1: Run import/analyzer on LangChain fixture with sub-package imports.'
+      - 'step2: Verify framework detection and inferred dependencies/env vars.'
+      - 'step3: Verify structure-signal checks do not falsely pass import-only placeholder fixtures.'
+    expected: LangChain adapter applies sub-package-aware inference and structural viability checks
+    pass_criteria: framework=langchain with expected dependency/env-var inference and structure guard behavior
+    covers:
+      - feature: feature117
+        ac: AC4
+    notes:
+      - "pytest_markers: regression_integration,client_cli_import,analyzer"
+      - "automation_path_subfolder: tests/client_cli_import"
+    automated: true
+    automation_path: tests/client_cli_import/test_cli_import.py::test_feature117_langchain_subpackage_inference
+
+  - id: test700
+    title: "langgraph adapter detects compile patterns across python and node"
+    type: integration
+    preconditions: Fixtures include Python and Node LangGraph projects with graph construction patterns
+    steps:
+      - 'step1: Run import/analyzer against Python and Node LangGraph fixtures.'
+      - 'step2: Verify graph compile signal detection and dependency inference.'
+      - 'step3: Verify langgraph fixtures are not misclassified as langchain.'
+    expected: LangGraph detection is accurate in both runtimes and robust against misclassification
+    pass_criteria: framework=langgraph in both fixtures with compile evidence and no langchain mislabeling
+    covers:
+      - feature: feature117
+        ac: AC5
+    notes:
+      - "pytest_markers: regression_integration,client_cli_import,analyzer"
+      - "automation_path_subfolder: tests/validator_integration"
+    automated: true
+    automation_path: tests/validator_integration/test_analyzer.py::test_feature117_langgraph_compile_detection_py_and_node
+
+  - id: test701
+    title: "openai adapter distinguishes base sdk from agents sdk"
+    type: integration
+    preconditions: Fixtures exist for openai base-sdk usage and openai agents-sdk Agent() usage
+    steps:
+      - 'step1: Run import/analyzer for openai base-sdk fixture.'
+      - 'step2: Run import/analyzer for agents-sdk fixture.'
+      - 'step3: Verify framework/dependency behavior differs correctly and Agent() viability checks apply to agents-sdk path.'
+    expected: OpenAI adapter correctly separates base-sdk vs agents-sdk contracts
+    pass_criteria: base-sdk is treated as generic/openai dependency path while agents-sdk sets agent-specific framework behavior
+    covers:
+      - feature: feature117
+        ac: AC6
+    notes:
+      - "pytest_markers: regression_integration,client_cli_import,analyzer"
+      - "automation_path_subfolder: tests/client_cli_import"
+    automated: true
+    automation_path: tests/client_cli_import/test_cli_import.py::test_feature117_openai_base_vs_agents_sdk_detection
+
+  - id: test702
+    title: "openclaw --from import copies required workspace assets with exclusion rules"
+    type: integration
+    preconditions: Source OpenClaw workspace fixture includes required files and excluded runtime directories
+    steps:
+      - 'step1: Run kinnoo import --from openclaw <target> <workspace-path>.'
+      - 'step2: Verify required files/directories copied to target.'
+      - 'step3: Verify excluded paths are not copied and generated kinnoo.yaml is valid framework: openclaw output.'
+    expected: OpenClaw workspace import succeeds with strict include/exclude rules and valid manifest output
+    pass_criteria: Required paths present, excluded paths absent, manifest valid with framework=openclaw
+    covers:
+      - feature: feature117
+        ac: AC7
+    notes:
+      - "pytest_markers: regression_integration,client_cli_import,client_cli_check"
+      - "automation_path_subfolder: tests/client_cli_import"
+    automated: true
+    automation_path: tests/client_cli_import/test_cli_import.py::test_feature117_openclaw_from_copy_contract
+
+  - id: test703
+    title: "poetry pyproject dependencies are parsed during import"
+    type: integration
+    preconditions: Python fixture uses pyproject.toml with tool.poetry.dependencies
+    steps:
+      - 'step1: Run import/analyzer for poetry-based fixture.'
+      - 'step2: Inspect inferred dependencies output.'
+      - 'step3: Verify extracted dependencies include poetry-defined packages with stable normalization behavior.'
+    expected: Poetry dependencies are correctly parsed and integrated into inferred dependency set
+    pass_criteria: Expected poetry dependencies are present in normalized inferred dependency output
+    covers:
+      - feature: feature117
+        ac: AC8
+    notes:
+      - "pytest_markers: regression_integration,client_cli_import,analyzer"
+      - "automation_path_subfolder: tests/validator_integration"
+    automated: true
+    automation_path: tests/validator_integration/test_analyzer.py::test_feature117_poetry_dependency_extraction
+
+  - id: test704
+    title: "generic python and js llm agents import with inferred deps and env vars"
+    type: integration
+    preconditions: Fixtures exist for non-framework Python and JS/TS LLM agents
+    steps:
+      - 'step1: Run kinnoo import for generic Python LLM fixture.'
+      - 'step2: Run kinnoo import for generic JS/TS LLM fixture.'
+      - 'step3: Verify imports succeed with inferred dependencies/env vars and valid manifests.'
+    expected: Generic LLM agents import cleanly without requiring framework-specific adapters
+    pass_criteria: Both fixtures import successfully with expected inferred dependencies/env-vars and validation-clean manifests
+    covers:
+      - feature: feature117
+        ac: AC9
+    notes:
+      - "pytest_markers: regression_integration,client_cli_import,analyzer"
+      - "automation_path_subfolder: tests/client_cli_import"
+    automated: true
+    automation_path: tests/client_cli_import/test_cli_import.py::test_feature117_generic_llm_agent_import_contract
+
+  - id: test705
+    title: "import hardening suite enforces coverage floor and framework accuracy"
+    type: integration
+    preconditions: Import-related tests and fixtures for supported frameworks are present
+    steps:
+      - 'step1: Execute import/analyzer focused pytest subsets used by feature117.'
+      - 'step2: Confirm passing import-related tests count is at least 30.'
+      - 'step3: Verify framework accuracy assertions include langgraph-vs-langchain guard coverage.'
+    expected: Import hardening suite preserves broad regression coverage and framework detection accuracy
+    pass_criteria: Import-related passing test count >=30 and accuracy guard checks pass
+    covers:
+      - feature: feature117
+        ac: AC10
+    notes:
+      - "pytest_markers: regression_integration,client_cli_import,analyzer,regression_sat"
+      - "automation_path_subfolder: tests/client_cli_import"
+    automated: true
+    automation_path: tests/client_cli_import/test_cli_import.py::test_feature117_import_regression_coverage_floor
