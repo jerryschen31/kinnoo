@@ -245,7 +245,7 @@ The DoD says "integration tests cover X" but the agent needs a concrete test lis
 | `test_import_langchain_infers_sub_package_deps` | `from langchain_openai import ChatOpenAI` → `langchain-openai` in deps |
 | `test_import_langgraph_warns_no_compile` | LangGraph imports but no `compile()` → warning in output |
 | `test_import_openai_agents_sdk_detected` | `from agents import Agent` → `framework: openai-agents` |
-| `test_import_openai_base_sdk_detected_as_generic` | `from openai import OpenAI` (no agents import) → generic (`framework: null`) |
+| `test_openai_base_sdk_imports_as_generic` | `from openai import OpenAI` (no agents import) → generic (`framework: null`) |
 | `test_import_openclaw_from_copies_files` | `--from openclaw` copies SOUL.md, skills/, memory/ but excludes .git/, .openclaw/ |
 | `test_import_openclaw_from_missing_workspace_error` | `--from openclaw` with invalid path → clear error |
 | `test_import_openclaw_source_generates_manifest` | After copy, kinnoo.yaml exists with `framework: openclaw` |
