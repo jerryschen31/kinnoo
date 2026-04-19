@@ -1,5 +1,7 @@
 # Task379 Notes
 
+> **⚠️ DEPRECATED (2026-04-18):** The OpenClaw skill search preflight described below reflects an earlier paradigm where kinnoo treated individual OpenClaw skills from ClawHub as the fundamental unit. kinnoo now supports OpenClaw workspace-based agents instead. This note is retained for historical context only.
+
 ## Summary
 Implemented Feature84 task379 by enforcing OpenClaw preflight before skill search and adding deterministic guidance for empty results and upstream failures while preserving stable `--json` behavior.
 

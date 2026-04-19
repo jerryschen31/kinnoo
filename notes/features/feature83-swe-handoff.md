@@ -1,5 +1,7 @@
 # Feature83 SWE Handoff
 
+> **⚠️ DEPRECATED (2026-04-18):** Feature83 (`kinnoo install --openclaw-skill`) reflects an earlier paradigm where kinnoo treated individual OpenClaw skills from ClawHub as the fundamental unit. **kinnoo now supports OpenClaw workspace-based agents, NOT individual skills.** The `--from openclaw` import flow targets agent workspaces. This handoff document is retained for historical context only.
+
 ## Scope
 - Feature: feature83
 - Tasks: task376, task377
