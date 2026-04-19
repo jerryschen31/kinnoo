@@ -1771,3 +1771,51 @@ User installed OpenClaw v2026.3.28, tested the CLI directly, and determined that
   - `docker-compose.yml`: removed inline secret literals; now requires env vars.
   - `src/kinnoo/templates.py`: made dotenv import optional for generated MCP client template.
   - `tests/test_registry.py`: updated legacy publish fixtures to include `framework` field.
+
+
+### Concerns about vendor lock-in with Kinde Auth
+
+**prompt**
+There is one worry about vendor lock-in for Kinde as an Auth provider. Let's make sure notes/kinde-auth-setup-dev.md takes this into account. These are the suggestions from a different conversation with an agent:
+
+Notes on migration to a different auth provider down the road, if needed.
+
+How to "Lock-in Proof" Kinnoo
+If you're worried about Kinde being a startup or becoming too expensive, follow these Rigor rules:
+
+Use Open Standards: Only use the standard OIDC flows. If Kinde disappears tomorrow, you can point your AUTH_ISSUER_URL to Auth0, Clerk, or your own Keycloak instance, and the fundamental protocol remains the same. - NOTE TO AGENT: make sure this is noted in notes/kinde-auth-setup-dev.md, if not already
+Own the "Sub" (Subject): In your Postgres DB, never make the Kinde user_id your primary key. Create your own internal_user_id (UUID) and have a mapping table that links it to the kinde_sub.
+Migration Scenario: If you switch to Auth0, you just update the mapping table with the new Auth0 IDs. Your internal foreign keys stay intact. - NOTE TO AGENT: Make sure that the users table proposed for the registry metadata Postgres DB has a separate internal user ID as the primary key, with the kinde user ID being a separate field in that table - check notes/features/postgres-registry-db-planning.md.
+Abstraction Layer: Don't sprinkle Kinde-specific SDK calls throughout your UI. Wrap your auth logic in a simple useAuth() hook or AuthService class. - NOTE TO AGENT: If this is not explicit yet in notes/kinde-auth-setup-dev.md, make sure to add a section in these notes to make sure the SWE agents wraps the auth logic into its own hook or class, so an auth vendor switch is seamless in the codebase.
+Because Kinde is built on OIDC (OpenID Connect) and OAuth2, your server doesn't actually "know" it's talking to Kinde; it just knows it's talking to an Issuer.
+
+The Switch: If you move to Auth0 or an open-source alternative like Logto, you change your ISSUER_URL and CLIENT_ID.
+The Code: Since your server (Python/FastAPI) is likely using a standard library like PyJWT or authlib to validate tokens, the code changes are minimal. You’re just pointing the "Receiver" at a different "Broadcaster."
+Update notes/kinde-auth-setup-dev.md to make sure the SWE agent writes the Auth setup code in such a way that switching vendors is relatively straightforward, by encapsulating auth code into separate hooks or classes, as suggested, and using appropriate config vars and feature flags so that switching is just a matter of changing configuration or substituting a class or hook with a different one - if that makes sense. Separating auth code also makes testing and updates easier.
+
+**response**
+What I changed in the Kinde setup plan:
+
+Added a hard requirement that provider switching should be mostly config + adapter substitution, not route rewrites:
+- kinde-auth-setup-dev.md:18
+Added a new mandatory Vendor Lock-In Guardrails section covering:
+- OIDC/OAuth2 standards-only boundary
+- internal UUID identity ownership
+- server/web/CLI abstraction boundaries
+- provider-neutral config contract
+- provider selection feature flag
+- portability-focused tests
+- kinde-auth-setup-dev.md:59
+Updated server implementation guidance to require an OIDC abstraction with a Kinde-first adapter:
+- kinde-auth-setup-dev.md:183
+Updated web and CLI sections to require single auth hook/service abstractions (no provider calls scattered across UI/commands):
+- kinde-auth-setup-dev.md:263
+- kinde-auth-setup-dev.md:289
+Updated config section to require provider-neutral env keys and optional Kinde aliases:
+- kinde-auth-setup-dev.md:341
+Added portability tests and acceptance criteria for provider abstraction:
+- kinde-auth-setup-dev.md:378
+- kinde-auth-setup-dev.md:418
+Verification of your Postgres-table concern:
+- Internal UUID primary key exists for users: postgres-registry-db-planning.md:223
+- External Kinde subject is separate mapping field kinde_user_id: postgres-registry-db-planning.md:224

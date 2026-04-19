@@ -20,6 +20,7 @@ This plan targets these exact outcomes:
 8. Existing auth tests are updated/replaced and pass.
 9. Token refresh works without forcing frequent re-login.
 10. Registry links published agents to authenticated users/tenants (blank-registry reset is allowed).
+11. Auth implementation remains provider-portable: switching from Kinde to another OIDC provider should be primarily config + adapter substitution, not a route-by-route rewrite.
 
 ---
 
@@ -52,6 +53,34 @@ Use these labels everywhere in execution:
 - **[TEST]**: automated and manual validation implementation/execution.
 
 No step should be executed without an owner label.
+
+---
+
+## 3.1) Vendor Lock-In Guardrails (Mandatory)
+
+These are non-negotiable implementation constraints for SWE and TEST.
+
+1. **Open standards only at protocol boundary**:
+   - Use OIDC/OAuth2 standards (discovery document, JWKS, authorization code + PKCE, refresh token, standard claims).
+   - Do not make route/middleware behavior depend on Kinde-only SDK semantics.
+2. **Own internal identity keys**:
+   - Internal user identity must remain UUID-based in kinnoo-owned storage.
+   - External provider subject (`sub`) must be stored as mapped identity (`kinde_user_id` today), not used as internal PK.
+   - Migration to another provider should preserve internal foreign keys and update only external subject mappings.
+3. **Single auth abstraction per runtime**:
+   - Server: one provider adapter boundary for token verification, auth URL construction, token exchange/refresh, logout URL generation.
+   - Web: one auth hook/service (`useAuth`/`AuthService`) used by UI and API routes; no direct provider SDK calls spread across pages/components.
+   - CLI: one auth service module encapsulating login, callback/device exchange, refresh, and logout behavior.
+4. **Provider-neutral config contract**:
+   - Add provider-neutral env names (example: `AUTH_PROVIDER`, `AUTH_ISSUER_URL`, `AUTH_CLIENT_ID`, `AUTH_CLIENT_SECRET`, `AUTH_AUDIENCE`, `AUTH_REDIRECT_URI`, `AUTH_LOGOUT_REDIRECT_URI`).
+   - Kinde-specific names may remain as compatibility aliases during migration, but app runtime should resolve to provider-neutral config internally.
+5. **Feature-flagged provider selection**:
+   - Add provider selection flag (example: `AUTH_PROVIDER=oidc_kinde`), so future providers can be introduced via adapter selection.
+6. **Test portability as a first-class requirement**:
+   - Add adapter-level tests that run against mocked OIDC metadata/JWKS and assert behavior independent of vendor-specific SDKs.
+
+Reference validation already present in planning:
+- `notes/features/postgres-registry-db-planning.md` defines internal UUID PK for `users.id` and separate `kinde_user_id` mapping field.
 
 ---
 
@@ -151,9 +180,16 @@ If any decision is unresolved, pause implementation.
 
 ### Phase A — Auth Architecture Cutover (Server)
 
-#### A1 [SWE] Introduce Kinde token verification module
+#### A1 [SWE] Introduce OIDC token verification abstraction (Kinde first adapter)
 
-Create new auth verifier module(s) under `server/auth/`:
+Create new auth verifier module(s) under `server/auth/` with a provider-agnostic boundary:
+
+- define adapter interface/class contract (example: `OIDCAuthProvider`),
+- implement Kinde adapter first (example: `KindeOIDCProvider`),
+- keep route/middleware code dependent on interface, not concrete provider type,
+- isolate provider-specific endpoint formats and claim quirks inside adapter only.
+
+Core verifier requirements:
 
 - fetch OIDC discovery document,
 - resolve JWKS,
@@ -222,6 +258,9 @@ Required behavior:
 3. Logout terminates app session + Kinde session and returns to `/login`.
 4. Auth-protected layout still redirects unauthenticated users to `/login`.
 
+Portability requirement:
+- implement/retain a single web auth abstraction (`web/lib/auth-client.ts` and/or `web/lib/use-auth.ts`) so provider switch does not require page-level rewrites.
+
 #### B2 [SWE] Remove obsolete signup/reset-password UI flows or re-point them
 
 Evaluate and update:
@@ -250,6 +289,9 @@ Update `src/kinnoo/auth_command.py`:
    - expiration metadata,
    - tenant context.
 4. Remove dependency on direct username/password prompt for Dev Kinde auth flow.
+
+Portability requirement:
+- implement provider interactions through one CLI auth service boundary so changing providers mostly updates adapter/config, not command UX wiring.
 
 #### C2 [SWE] Implement refresh behavior
 
@@ -296,12 +338,17 @@ For Dev cutover:
 
 Add config keys in `server/config.py` (or equivalent) for:
 
+- provider selection (`AUTH_PROVIDER`),
+- provider-neutral issuer/client/audience/redirect settings,
 - Kinde issuer/domain,
 - client ID/secret,
 - audience,
 - redirect/logout URLs,
 - optional org/tenant claim mapping key,
 - token verification cache/jwks refresh settings.
+
+Config rule:
+- provider-neutral env names are canonical in app runtime; Kinde-prefixed names are optional aliases during transition.
 
 #### E2 [SWE] IaC/env wiring
 
@@ -343,6 +390,8 @@ New required coverage:
 4. missing scope -> `403`,
 5. login callback success/failure behavior,
 6. logout invalidates local session linkage.
+7. provider adapter contract tests pass using mocked OIDC discovery/JWKS responses.
+8. switching provider selection flag fails fast with clear errors when required provider config is missing.
 
 ### CLI tests
 
@@ -393,6 +442,7 @@ Add coverage:
 - No active runtime path depends on local password validation for Dev login.
 - All protected API routes accept Kinde token/session-backed identity.
 - Invalid/expired tokens produce deterministic error envelope.
+- Auth provider is selected through config/adapter boundary rather than hardcoded Kinde calls in route handlers.
 
 ### 8.2 User/tenant linkage
 
