@@ -10516,7 +10516,7 @@ tasks:
       - notes/tasks/task493-swe-handoff.md
     steps:
       - 'step1: Add parser/flow support for --from openclaw target+workspace arguments.'
-      - 'step2: Implement workspace copy contract with required include paths and exclusion rules (.git/.openclaw/.clawhub/node_modules/.venv).'
+      - 'step2: Implement workspace copy contract with required include paths and exclusion rules (.git/, .openclaw/, .clawhub/, node_modules/, .venv/).'
       - 'step3: Generate framework: openclaw manifest in target and validate before final success.'
       - 'step4: Add deterministic errors for missing/invalid workspace inputs and no-copyable-content cases.'
       - 'step5: Add end-to-end import tests for successful copy + invalid-source failures.'
