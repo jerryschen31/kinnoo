@@ -1325,7 +1325,7 @@ from uuid_utils import uuid7
 
 `db.rules.md` asks "does the updated_at trigger work?" but doesn't say *how* to implement it.
 
-**Decision:** Use SQLAlchemy's `onupdate` parameter on the column definition. Do NOT use a Postgres trigger (adds schema complexity) or an ORM event listener (easy to forget).
+**Decision:** `updated_at` is authoritative via a Postgres trigger (server-side). SQLAlchemy `onupdate` may be kept as a convenience for ORM writes, but it is not the source of truth.
 
 ```python
 from datetime import datetime, timezone
@@ -1342,6 +1342,10 @@ updated_at: datetime = Field(
     sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=utc_now, nullable=False)
 )
 ```
+
+**Verification checklist (required):**
+- Confirm the trigger updates `updated_at` on ORM-managed updates.
+- Confirm the trigger updates `updated_at` on out-of-band updates (e.g., direct SQL/Alembic/script path).
 
 ---
 
