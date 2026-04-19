@@ -494,7 +494,7 @@ These tasks make existing code more robust without adding new functionality.
 
 4. **Task Group B** (adapter hardening) — moderate changes, each adapter is independent.
 
-5. **Task Group C** (openclaw --source) — new feature, slightly higher risk. Implement after the hardening is done.
+5. **Task Group C** (`--from openclaw`) — new feature, slightly higher risk. Implement after the hardening is done.
 
 6. **Task Group E** (tests) — write tests throughout, not just at the end. Each task group should have its tests written alongside the implementation.
 
