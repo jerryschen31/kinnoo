@@ -305,7 +305,7 @@ See section B2 above for the full design. Summary:
 
 **Implementation steps for SWE agent:**
 
-1. Add `"openclaw"` to the `--source` choices in `cli.py` (currently only `["clawhub"]`)
+1. Add `"openclaw"` to the `--from` choices in `cli.py` so the public CLI matches the confirmed syntax above. If there is any legacy `--source clawhub` handling, treat that as a separate backward-compatibility concern rather than the primary OpenClaw flow.
 
 2. Create a new function `_import_from_openclaw_workspace()` in `import_command.py` that:
    a. Validates source workspace path exists and looks like an openclaw workspace
