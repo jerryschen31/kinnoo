@@ -1836,3 +1836,182 @@ asyncpg>=0.29.0
 psycopg2-binary>=2.9.0
 uuid-utils>=0.9.0
 ```
+
+---
+
+## Finalization Addendum — Tech Lead Consolidated Plan (Round 4, 2026-04-18)
+
+This section is the final implementation handoff for the SWE agent. It consolidates two
+independent planning passes and resolves remaining ambiguity so no implementation choices
+need to be guessed.
+
+### A. Subagent Evaluation (What was adopted)
+
+1. **Adopted from both subagents**
+   - Add a dedicated IaC Postgres module under `iac/modules/` (not ad-hoc root resources).
+   - Deploy DB into existing VPC private subnets and enforce DB security group ingress only from ECS; do not run DB in public subnets.
+   - Roll out with explicit cutover gates and a rollback kill switch via metadata backend flag.
+   - Require migration parity/drift checks before production cutover.
+   - Define operational safeguards (backups, alarms, health checks, restore drill).
+
+2. **Adjusted by Tech Lead**
+   - Keep this feature scoped to **registry metadata DB** first; no user/tenant auth-store
+     replacement in this phase.
+   - Keep async-first server runtime; sync engine remains CLI-only.
+   - Keep table design from Round 3 as baseline, but enforce IaC and ops requirements below.
+
+3. **Rejected**
+   - Any plan that requires immediate route-level repository rewrites everywhere. Phase 1 must
+     preserve current route contract via `PostgresMetadataManager` parity.
+
+### B. Non-Negotiable Implementation Constraints
+
+1. **Deployment mechanism**
+   - All database infrastructure must be provisioned via Terraform in `iac/`.
+   - No manual AWS console-created DB resources are allowed for production path.
+
+2. **Network and security posture**
+   - RDS must be private-only (no public accessibility).
+   - DB ingress on `5432` only from ECS service security group.
+   - Storage encryption at rest and TLS in transit required.
+
+3. **Safety and migration posture**
+   - Expand/contract migration discipline: no destructive schema changes in initial rollout.
+   - Idempotent backfill and parity verification required before switching reads/writes.
+   - Feature-flag rollback path must be validated in test/staging before production use.
+
+### C. Exact SWE Deliverables by Phase
+
+#### Phase 13.1 — IaC Foundation for Postgres (required first)
+
+Create/modify the following Terraform files:
+
+- **Create**
+  - `iac/modules/rds-postgres/main.tf`
+  - `iac/modules/rds-postgres/variables.tf`
+  - `iac/modules/rds-postgres/outputs.tf`
+
+- **Update**
+  - `iac/modules/vpc/outputs.tf` (ensure existing private subnet IDs are exposed for DB module consumption)
+  - `iac/main.tf` (instantiate `rds-postgres` module and wire deps)
+  - `iac/variables.tf` (DB config vars: class, storage, backup retention, multi-AZ, etc.)
+  - `iac/outputs.tf` (DB endpoint, port, secret ARN, DB identifier)
+  - `iac/modules/secrets/main.tf` + `variables.tf` (DB credentials secret)
+  - `iac/modules/ecs-fargate/main.tf` + `variables.tf` (inject DB env vars/secrets)
+  - `iac/environments/dev/terraform.tfvars`
+  - `iac/environments/prod/terraform.tfvars`
+
+Minimum resource behavior required:
+
+- Dev: single-AZ allowed, lower instance/storage defaults.
+- Prod: Multi-AZ required, deletion protection required, PITR backup retention enabled.
+- DB parameter group must enforce SSL and enable useful log exports.
+- ECS task config must expose:
+  - `REGISTRY_DATABASE_URL`
+  - `REGISTRY_METADATA_BACKEND`
+  - pool settings (`REGISTRY_DB_POOL_SIZE`, `REGISTRY_DB_MAX_OVERFLOW`, `REGISTRY_DB_POOL_RECYCLE`).
+
+#### Phase 13.2 — Server Database Runtime + Schema
+
+Create the DB package per Round 3 spec:
+
+- `server/database/session.py`
+- `server/database/models/*.py` for the 8-table schema
+- `server/database/repository.py`
+- `server/database/exceptions.py`
+- `server/database/migrations/*` (Alembic async env + initial migration)
+
+Integration requirements:
+
+- `server/config.py`: DB URL + pool + backend flag config.
+- `server/app.py`: initialize async engine/session factory when DB URL set.
+- Metadata backend switch:
+  - `json` (default, current behavior)
+  - `postgres` (new `PostgresMetadataManager`, same public interface as current manager).
+- `/health` (or readiness endpoint) must include DB ping when postgres backend is enabled.
+
+#### Phase 13.3 — Data Migration, Parity, and Cutover
+
+Deliver migration tooling and verification:
+
+- Add a migration script for JSON metadata to Postgres (idempotent upserts).
+- Add parity checker producing deterministic report for:
+  - tenant/agent/version counts
+  - key field consistency
+  - checksum/hash consistency where applicable.
+- Optional shadow mode acceptable; required if enabled: drift report must be zero before cutover.
+
+Cutover gates (all required):
+
+1. `alembic upgrade head` successful in env target.
+2. parity checker reports zero mismatches.
+3. integration test suite passes with `REGISTRY_METADATA_BACKEND=postgres`.
+4. rollback drill validated (flip back to `json` path with service still healthy).
+
+#### Phase 13.4 — Observability, Resilience, and Runbooks
+
+Required production safeguards:
+
+- CloudWatch alarms for DB CPU, free storage, connection saturation, and latency.
+- Alerting path configured for DB alarm events.
+- Runbook docs for:
+  - cutover
+  - rollback
+  - restore from snapshot/PITR
+  - connection saturation incident response.
+
+### D. Scalability and Anti-Fragility Requirements
+
+1. **Connection budgeting**
+   - Pool defaults from Round 2/3 are acceptable starting point, but must be env-configurable.
+   - Total projected ECS pooled connections must stay below DB max connections with headroom.
+
+2. **Index and query safety**
+   - Hot read paths (`tenant_slug`, `agent_slug`, version lookups, list/search sorts) require indexes.
+   - Query plans for list/search endpoints must be checked against realistic row counts.
+
+3. **High-volume tables**
+   - `audit_log` and `download_events` are append-heavy; implement indexes for filter columns now.
+   - Partitioning can be deferred, but table growth thresholds and trigger criteria must be documented.
+
+4. **Failure containment**
+   - If DB is unavailable and backend flag is `postgres`, app should fail fast on startup.
+   - During runtime outages, endpoint behavior must degrade predictably (explicit 503 path), not hang.
+
+### E. Test Agent Execution Plan (must exist before final acceptance)
+
+The testing workstream must validate all of the following:
+
+1. **Terraform checks**
+   - `terraform fmt -check -recursive`
+   - `terraform validate`
+   - `terraform plan` for dev and prod varsets
+
+2. **Migration integrity**
+   - fresh DB `upgrade head`
+   - downgrade/upgrade cycle for initial revisions
+   - schema assertion for expected tables/constraints/indexes
+
+3. **Behavioral parity**
+   - existing metadata behavior parity tests against `PostgresMetadataManager`
+   - publish/search/list/version lookup semantics unchanged versus JSON manager
+
+4. **Resilience tests**
+   - simulated DB unavailability startup check
+   - runtime DB outage handling behavior
+   - rollback flag validation
+
+5. **Performance/concurrency sanity**
+   - concurrent publish and search integration test with no lost writes or duplicate versions
+   - no connection-pool exhaustion under expected concurrency envelope
+
+### F. Definition of Done for this DB Feature
+
+This DB feature is complete only when all are true:
+
+1. Terraform can stand up DB infra in dev/prod with approved security posture.
+2. Server can run using Postgres metadata backend with all critical metadata flows working.
+3. Backfill and parity checks are deterministic and clean.
+4. Rollback switch to JSON backend is proven and documented.
+5. Observability + operational runbooks are committed.
+6. Test agent sign-off confirms migration safety, parity, and resilience.
