@@ -15,6 +15,7 @@ LANGGRAPH_TS_MARKERS = (
     "@langchain/langgraph",
     "StateGraph",
 )
+COMPILE_MARKERS = (".compile(", "compile(")
 
 
 def apply(project_dir: Path, base_report: dict[str, object]) -> AdapterResult:
@@ -24,8 +25,8 @@ def apply(project_dir: Path, base_report: dict[str, object]) -> AdapterResult:
 
     py_hits = sum(1 for marker in LANGGRAPH_PY_MARKERS if any(marker in source for source in python_sources))
     node_hits = sum(1 for marker in LANGGRAPH_TS_MARKERS if any(marker in source for source in node_sources))
-    py_compile_hits = sum(1 for marker in (".compile(", "compile(") if any(marker in source for source in python_sources))
-    node_compile_hits = sum(1 for marker in (".compile(", "compile(") if any(marker in source for source in node_sources))
+    py_compile_hits = sum(1 for marker in COMPILE_MARKERS if any(marker in source for source in python_sources))
+    node_compile_hits = sum(1 for marker in COMPILE_MARKERS if any(marker in source for source in node_sources))
     compile_hits = py_compile_hits + node_compile_hits
 
     if py_hits <= 0 and node_hits <= 0:
