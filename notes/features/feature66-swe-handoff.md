@@ -1,5 +1,7 @@
 # Feature66 SWE Handoff
 
+> **⚠️ PARTIALLY DEPRECATED (2026-04-18):** The "OpenClaw skill" routing described below reflects an earlier paradigm where `openclaw-skill` was the fundamental unit. kinnoo now supports OpenClaw workspace-based agents. The run adapter may still be relevant for executing openclaw-framework agents, but the skill-specific routing and ClawHub-based concepts are deprecated.
+
 ## Scope
 - Feature: feature66
 - Tasks: task342, task343
