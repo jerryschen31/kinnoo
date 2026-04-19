@@ -928,7 +928,7 @@ Where `_is_db_ready` does:
 async def _is_db_ready(session_factory):
     try:
         async with session_factory() as session:
-            await session.execute(text("SELECT 1"))
+            await session.execute(select(literal(1)))
         return True
     except Exception:
         return False
