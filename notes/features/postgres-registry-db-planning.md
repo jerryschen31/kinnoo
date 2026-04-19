@@ -1069,12 +1069,12 @@ workspace_members
 └── UNIQUE(workspace_id, user_id)
 ```
 
-Plus a FK on `tenants`:
+Later workspace migration can extend `tenants`:
 
 ```
 tenants
 ├── ...existing columns...
-├── workspace_id    UUID7 FK -> workspaces.id  (nullable — a tenant can exist outside a workspace)
+├── workspace_id    UUID7 FK -> workspaces.id  (nullable — a tenant can exist outside a workspace; not in initial schema)
 ```
 
 And extend `agents.visibility`:
@@ -1086,7 +1086,7 @@ agents.visibility: 'public' | 'workspace' | 'private'  (extend from current 'pub
 **However — do NOT build these tables now.** Here's why:
 
 1. Workspaces are a "nice to have" post-launch feature, not a launch requirement
-2. Adding nullable `workspace_id` to `tenants` later is a trivial Alembic migration
+2. Adding nullable `workspace_id` to `tenants` later in the workspace migration is a trivial Alembic migration
 3. Adding `workspaces` and `workspace_members` tables later is zero-risk (new tables, no schema changes to existing tables)
 4. The visibility enum extension (`'workspace'`) is a one-line migration
 
@@ -1132,7 +1132,6 @@ Here are the final, complete table definitions with every column, type, constrai
 | `tenant_slug` | `TEXT` | UNIQUE, NOT NULL | — | Namespace identifier, e.g. "acme-corp" |
 | `owner_id` | `UUID` | FK → users.id, NOT NULL | — | |
 | `visibility` | `TEXT` | NOT NULL | `'private'` | `'public'` or `'private'` (TEXT not ENUM for extensibility) |
-| `workspace_id` | `UUID` | FK → workspaces.id | `NULL` | Reserved for future workspace feature |
 | `metadata` | `JSONB` | NOT NULL | `'{}'` | Billing tier, quotas, etc. |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | |
 | `updated_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | |
@@ -1140,9 +1139,8 @@ Here are the final, complete table definitions with every column, type, constrai
 **Indexes:**
 - `UNIQUE(tenant_slug)`
 - `idx_tenants_owner ON tenants(owner_id)`
-- `idx_tenants_workspace ON tenants(workspace_id)` (sparse; useful when workspaces are active)
 
-**Note:** `workspace_id` is nullable and has no FK constraint yet (the `workspaces` table doesn't exist). When the workspace feature ships, add the table and the FK in the same Alembic migration.
+**Note:** `workspace_id` is intentionally omitted from the initial `tenants` schema. Add it in the workspace migration together with `workspaces` / `workspace_members` so the column and FK ship together.
 
 ##### Table 3: `tenant_members`
 
