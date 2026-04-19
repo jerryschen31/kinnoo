@@ -10464,7 +10464,7 @@ tasks:
       - 'step3: Standardize user-facing import error formatting across core failure paths.'
       - 'step4: Add/refresh integration tests for edge paths and kinnoo.yaml collision behavior.'
       - 'step5: Run import-targeted pytest + manifest validator and capture outputs in handoff notes.'
-    dependencies: [task490]
+    dependencies: []
     tests: [test696, test697, test698]
     status: not-started
 
@@ -10570,7 +10570,7 @@ tasks:
     steps:
       - 'step1: Add/update realistic import fixtures for langchain/langgraph/openai/openclaw/generic layouts.'
       - 'step2: Add regression tests that assert framework detection accuracy and no adapter misclassification.'
-      - 'step3: Add/import-count gating assertion to ensure import-related test surface remains >=30 passing tests.'
+      - 'step3: Add import-count gating assertion to ensure import-related test surface remains >=30 passing tests.'
       - 'step4: Run full import/analyzer related test subsets and capture pass evidence.'
       - 'step5: Ensure manifest validator stays clean after task/test manifest updates.'
     dependencies: [task492, task493, task494]

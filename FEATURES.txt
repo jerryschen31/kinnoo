@@ -3778,5 +3778,5 @@ features:
       - "Scope is hardening of existing import implementation, not greenfield rewrite"
       - "Includes OpenClaw workspace-based import flow update aligned with current agent model"
     owner: techlead-agent
-    dependencies: [feature116]
+    dependencies: []
     status: not-started
