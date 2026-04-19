@@ -1328,6 +1328,28 @@ from uuid_utils import uuid7
 **Decision:** `updated_at` is authoritative via a Postgres trigger (server-side). SQLAlchemy `onupdate` may be kept as a convenience for ORM writes, but it is not the source of truth.
 
 ```python
+# Alembic migration (DDL): shared trigger function + per-table trigger
+op.execute("""
+CREATE OR REPLACE FUNCTION set_updated_at_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+""")
+
+for table_name in ("users", "tenants", "agents", "agent_versions", "tenant_members", "api_keys"):
+    op.execute(f"""
+    DROP TRIGGER IF EXISTS trg_{table_name}_updated_at ON {table_name};
+    CREATE TRIGGER trg_{table_name}_updated_at
+    BEFORE UPDATE ON {table_name}
+    FOR EACH ROW
+    EXECUTE FUNCTION set_updated_at_timestamp();
+    """)
+```
+
+```python
 from datetime import datetime, timezone
 from sqlalchemy import Column, DateTime, func
 
