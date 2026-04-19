@@ -1855,8 +1855,8 @@ need to be guessed.
    - Define operational safeguards (backups, alarms, health checks, restore drill).
 
 2. **Adjusted by Tech Lead**
-   - Keep this feature scoped to **registry metadata DB** first; no user/tenant auth-store
-     replacement in this phase.
+   - In Phase 13.2 only, do not replace UserStore or TenantStore yet; that replacement is
+     completed in Phase 3 after Kinde readiness.
    - Keep async-first server runtime; sync engine remains CLI-only.
    - Keep table design from Round 3 as baseline, but enforce IaC and ops requirements below.
 
