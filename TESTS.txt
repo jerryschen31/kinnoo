@@ -11944,7 +11944,7 @@ tests:
     automation_path: tests/test_validator.py::test_invalid_runtime_type
 
   - id: test696
-    title: "import edge-case inputs fail gracefully without traceback"
+    title: "import edge-case inputs handle errors without traceback"
     type: integration
     preconditions: Import command is available and fixtures exist for empty, unsupported-language, ambiguous-structure, and large-project inputs
     steps:
