@@ -1,11 +1,23 @@
 
 **PRE-RELEASE FEATURE 1**
 [todo]
-get Kinde Auth setup in codebase - will replace current Auth in dev
+Implement Dev Kinde auth cutover with provider-portable architecture.
+
+High-level work items:
+1. Finalize prerequisite decisions before coding (env naming, tenant mapping, CLI flow, refresh-token storage, app topology, callback port, dev reset confirmation).
+2. Replace local auth runtime with OIDC-based auth validation and login/logout callback flow in `server/`.
+3. Introduce provider abstraction boundaries (server adapter, web hook/service, CLI auth service) so auth provider swap is mostly config + adapter replacement.
+4. Move `kinnoo login/logout` to Kinde-hosted browser/device flow with refresh-token support and clear re-login fallback behavior.
+5. Replace web custom auth form flows with Kinde redirect-based flows (login/callback/logout).
+6. Preserve internal identity ownership: internal UUID user identity with mapped external subject (`sub`) rather than provider subject as internal PK.
+7. Add provider-neutral auth config keys and feature-flagged provider selection; keep Kinde-prefixed names only as compatibility aliases.
+8. Align IaC/env secret injection with app-expected env variable names to remove current secret-name mismatch risks.
+9. Retire or disable legacy password/session/reset runtime paths for Dev cutover behind explicit compatibility control only if needed.
+10. Update automated tests and smoke tests for token validation errors, refresh flow, and provider-adapter contract behavior.
 
 [definition of done]
 - Kinde tenant configured with dev and staging environments
-- server/ auth routes accept and validate Kinde-issued OIDC/JWT tokens
+- server/ auth routes accept and validate Kinde-issued OIDC/JWT tokens via standard OIDC discovery/JWKS validation
 - `kinnoo login` CLI flow redirects to Kinde-hosted login and receives token back
 - `kinnoo logout` clears local auth state and invalidates session
 - Web UI login/register flows use Kinde instead of custom auth forms
@@ -13,6 +25,12 @@ get Kinde Auth setup in codebase - will replace current Auth in dev
 - Server rejects requests with expired or invalid Kinde tokens with clear error messages
 - All existing server tests that test auth pass with Kinde-based flow (or are updated)
 - Token refresh flow works without requiring re-login within a reasonable window
+- Server, web, and CLI each use a single auth abstraction boundary (adapter/service/hook), with no provider-specific logic scattered across routes/pages/commands
+- Provider-neutral auth config contract exists (for example `AUTH_PROVIDER`, issuer/client/audience/redirect vars), with Kinde-prefixed env vars supported as transition aliases
+- Auth provider selection is feature-flagged/config-driven (for example `AUTH_PROVIDER=oidc_kinde`) and fails fast with clear errors on missing required config
+- Internal user identity remains UUID-based in kinnoo-owned storage; external provider subject remains mapped field (not internal primary key)
+- IaC runtime env/secrets are aligned with app-expected auth variable names in deployed ECS task definitions
+- Provider portability tests exist (mocked OIDC discovery/JWKS adapter contract tests) and pass
 
 **PRE-RELEASE FEATURE 2**
 [todo]
