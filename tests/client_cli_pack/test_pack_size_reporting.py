@@ -144,7 +144,7 @@ def test_pack_prints_human_readable_archive_size(tmp_path: Path) -> None:
     env = os.environ.copy()
     env["KINNOO_ARCHIVE_ROOT"] = str(archive_root)
 
-    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_script = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     result = subprocess.run(
         [sys.executable, str(cli_script), "pack", str(agent_dir)],
         cwd=tmp_path,
@@ -167,7 +167,7 @@ def test_pack_warns_when_archive_exceeds_threshold_override(tmp_path: Path) -> N
     env["KINNOO_ARCHIVE_ROOT"] = str(archive_root)
     env["KINNOO_PACK_WARN_THRESHOLD_MB"] = "1"
 
-    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_script = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     result = subprocess.run(
         [sys.executable, str(cli_script), "pack", str(agent_dir)],
         cwd=tmp_path,
@@ -193,7 +193,7 @@ def test_inspect_displays_archive_size_for_archive_target(tmp_path: Path) -> Non
     env = os.environ.copy()
     env["KINNOO_ARCHIVE_ROOT"] = str(archive_root)
 
-    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_script = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     pack_result = subprocess.run(
         [sys.executable, str(cli_script), "pack", str(agent_dir)],
         cwd=tmp_path,
@@ -239,7 +239,7 @@ def test_list_includes_archive_size(tmp_path: Path) -> None:
         "KINNOO_TENANT_SLUG": "tenant-alpha",
     }
 
-    cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+    cli_script = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
     try:
         list_default = subprocess.run(
             [sys.executable, str(cli_script), "list"],
@@ -317,7 +317,7 @@ outputs:
         env = os.environ.copy()
         env["KINNOO_ARCHIVE_ROOT"] = str(archive_root)
 
-        cli_script = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+        cli_script = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
         result = subprocess.run(
                 [sys.executable, str(cli_script), "pack", str(agent_dir)],
                 cwd=tmp_path,

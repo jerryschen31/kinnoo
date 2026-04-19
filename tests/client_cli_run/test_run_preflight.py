@@ -9,7 +9,7 @@ import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
-CLI_PATH = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
+CLI_PATH = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
 
 
 def _create_agent_fixture(agent_dir: Path, *, with_manifest: bool = True) -> None:
