@@ -19,6 +19,11 @@ All notable changes to this project will be documented in this file.
   - `tests/test_cli_import.py::test_feature62_import_openclaw_manifest_migration_guidance`
  - Bumped project version from `0.5.5` to `0.6.0` after Phase 7 final review closure.
 
+## [v0.7.7] - 2026-04-19
+### Added
+- Minor CLI help menu updates
+- Test hardening - pytest markers and moved tests/ into subfolders based on test sets
+
 ## [v0.7.6] - 2026-04-11
 ### Added
 - Added CLI JSON output modes for command workflows that are commonly automated (`list`, `search`, `inspect`, `run`, `pack`, `publish`, and non-interactive `install`).
