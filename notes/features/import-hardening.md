@@ -207,7 +207,7 @@ Here are the specific improvements per adapter:
 | Current | Hardened |
 |---|---|
 | Detects `from agents import` / `import agents` / `from openai import` | Distinguish between OpenAI base SDK (`openai`) and OpenAI Agents SDK (`agents`) |
-| Sets `framework: openai-agents` | Set `framework: openai-agents` for Agents SDK, `framework: openai` for base SDK |
+| Sets `framework: openai-agents` | Set `framework: openai-agents` for Agents SDK; classify base SDK (`openai`-only) as generic (`framework: null`) |
 | No dependency help | Infer deps: `openai` and/or `openai-agents` based on which imports found |
 | No env var help | Add `OPENAI_API_KEY` to inferred env vars |
 | No structural validation | Warn if no `Agent()` instantiation found (for Agents SDK) |
@@ -245,7 +245,7 @@ The DoD says "integration tests cover X" but the agent needs a concrete test lis
 | `test_import_langchain_infers_sub_package_deps` | `from langchain_openai import ChatOpenAI` → `langchain-openai` in deps |
 | `test_import_langgraph_warns_no_compile` | LangGraph imports but no `compile()` → warning in output |
 | `test_import_openai_agents_sdk_detected` | `from agents import Agent` → `framework: openai-agents` |
-| `test_import_openai_base_sdk_detected` | `from openai import OpenAI` (no agents import) → `framework: openai` |
+| `test_import_openai_base_sdk_detected_as_generic` | `from openai import OpenAI` (no agents import) → generic (`framework: null`) |
 | `test_import_openclaw_from_copies_files` | `--from openclaw` copies SOUL.md, skills/, memory/ but excludes .git/, .openclaw/ |
 | `test_import_openclaw_from_missing_workspace_error` | `--from openclaw` with invalid path → clear error |
 | `test_import_openclaw_source_generates_manifest` | After copy, kinnoo.yaml exists with `framework: openclaw` |
@@ -427,7 +427,7 @@ These tasks make existing code more robust without adding new functionality.
 
 **B3. OpenAI adapter improvements**
 - Distinguish `openai` base SDK from `agents` (OpenAI Agents SDK)
-- Set `framework: openai` for base SDK, `framework: openai-agents` for Agents SDK
+- Set `framework: openai-agents` for Agents SDK; classify base SDK as generic (`framework: null`)
 - Infer `OPENAI_API_KEY` env var
 - For Agents SDK: detect `Agent()` instantiation as structural validation
 - Infer `openai` and/or `openai-agents` deps correctly
@@ -583,6 +583,8 @@ This semantic overloading is acceptable because:
 
 **CLI change needed:** In `cli.py`, the `--from` argument currently has `choices=["langchain", "langgraph", "openai"]`. Add `"openclaw"` to this list. Also, the current guard `if import_path_arg is not None and not is_github_url(target_arg)` rejects import-path for non-GitHub imports — this needs to be relaxed when `--from openclaw` is set, since import-path is the source workspace.
 
+> Scope clarification for this hardening: OpenAI base SDK (`openai`) is **not** treated as a first-class framework import target. OpenAI-only projects should import as generic (vanilla Python/JavaScript) unless OpenAI Agents SDK signals are detected.
+
 #### 4. Testing strategy — one framework at a time, real agents
 
 **Confirmed approach:** The SWE agent should harden one framework at a time, in this order:
@@ -628,14 +630,12 @@ tests/fixtures/import/
   openai-agents/
     simple-agent/      # minimal OpenAI Agents SDK agent
     multi-agent/       # multi-agent handoff
-  openai-base/
-    simple-completion/ # just uses openai library directly
   openclaw/
     minimal-workspace/ # SOUL.md + IDENTITY.md + skills/ + memory/
     full-workspace/    # all identity files + code + config
   generic/
-    python-llm/        # Python script with direct LLM calls
-    nodejs-llm/        # Node.js with openai package
+    python-llm/        # Python script with direct LLM calls (including openai-only scripts)
+    nodejs-llm/        # Node.js with openai package (vanilla JS/TS, non-framework)
     prompt-agent/      # mostly .md files + thin runner
   edge-cases/
     empty/             # empty directory
@@ -673,17 +673,26 @@ This section captures a two-subagent review (SWE-focused + test-focused) of this
 
 ### Framework resolution and anti-misclassification rules (normative)
 
+- Supported import targets for this hardening scope (explicit):
+  1. OpenClaw workspaces (`--from openclaw`)
+  2. OpenAI Agents SDK (`openai-agents`)
+  3. LangGraph
+  4. LangChain
+  5. Vanilla Python agents (generic / no framework)
+  6. Vanilla JavaScript/TypeScript agents (generic / no framework)
+- OpenAI base SDK (`openai` imports without Agents SDK signals) is **not** a supported framework target; classify it as generic.
+
 - Detection precedence for hardening:
   1. explicit `--from openclaw`
   2. `openai-agents`
   3. `langgraph`
   4. `langchain`
-  5. `openai` (base SDK)
-  6. generic (`framework: null`)
+  5. vanilla Python (`framework: null`)
+  6. vanilla JavaScript/TypeScript (`framework: null`)
 - If multiple framework signals are present, apply precedence and emit:
   - `Warning: Multiple frameworks detected; selected <framework> by precedence.`
 - Must distinguish:
-  - OpenAI Agents SDK (`agents` imports / `Agent(...)`) vs OpenAI base SDK (`openai` only)
+  - OpenAI Agents SDK (`agents` imports / `Agent(...)`) vs OpenAI base SDK (`openai` only, generic classification)
   - LangGraph vs LangChain when both langchain-family imports appear
 
 ### Required output contract per fixture
