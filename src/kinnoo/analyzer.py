@@ -632,6 +632,64 @@ def _collect_import_names(project_dir: Path) -> set[str]:
     return imports
 
 
+def _collect_node_module_markers(project_dir: Path) -> tuple[set[str], list[str]]:
+    modules: set[str] = set()
+    evidence: list[str] = []
+
+    import_pattern = re.compile(r"""(?:from\s+['"]([^'"]+)['"]|import\s+['"]([^'"]+)['"])""")
+    require_pattern = re.compile(r"""require\(\s*['"]([^'"]+)['"]\s*\)""")
+
+    for node_path in _iter_node_files_with_depth(project_dir, max_depth=8):
+        try:
+            source = node_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+
+        for match in import_pattern.finditer(source):
+            module_name = match.group(1) or match.group(2)
+            if module_name:
+                modules.add(module_name)
+        for match in require_pattern.finditer(source):
+            module_name = match.group(1)
+            if module_name:
+                modules.add(module_name)
+
+    package_json = _load_package_json(project_dir)
+    if isinstance(package_json, dict):
+        for dependency_section in ("dependencies", "devDependencies", "peerDependencies", "optionalDependencies"):
+            section = package_json.get(dependency_section)
+            if not isinstance(section, dict):
+                continue
+            for dependency_name in section.keys():
+                if isinstance(dependency_name, str) and dependency_name.strip():
+                    modules.add(dependency_name.strip())
+                    evidence.append(f"package.json.{dependency_section}:{dependency_name.strip()}")
+
+    return modules, evidence
+
+
+def _detect_langgraph_compile_signal(project_dir: Path) -> bool:
+    compile_pattern = re.compile(r"\.compile\(")
+
+    for python_path in _iter_python_files(project_dir):
+        try:
+            source = python_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        if "langgraph" in source and compile_pattern.search(source):
+            return True
+
+    for node_path in _iter_node_files_with_depth(project_dir, max_depth=8):
+        try:
+            source = node_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        if ("@langchain/langgraph" in source or "langgraph" in source.lower()) and compile_pattern.search(source):
+            return True
+
+    return False
+
+
 def _detect_framework(project_dir: Path) -> DetectorResult:
     openclaw_signals = _detect_openclaw_weighted_signals(project_dir)
     openclaw_score = openclaw_signals["score"]
@@ -653,6 +711,7 @@ def _detect_framework(project_dir: Path) -> DetectorResult:
         )
 
     imports = _collect_import_names(project_dir)
+    node_modules, node_evidence = _collect_node_module_markers(project_dir)
 
     framework_patterns: dict[str, tuple[str, ...]] = {
         "streamlit": ("streamlit",),
@@ -682,6 +741,37 @@ def _detect_framework(project_dir: Path) -> DetectorResult:
         if hit:
             matched.append(framework)
             evidence_details.append(f"{framework}: {', '.join(sorted(hit))}")
+
+    node_framework_patterns: dict[str, tuple[str, ...]] = {
+        "langgraph": ("@langchain/langgraph",),
+        "langchain": ("@langchain/core", "@langchain/openai", "langchain"),
+        "openai-agents": ("@openai/agents",),
+        "chatgpt": ("openai",),
+    }
+    for framework, patterns in node_framework_patterns.items():
+        node_hit = [name for name in node_modules if any(name == marker or name.startswith(f"{marker}/") for marker in patterns)]
+        if not node_hit:
+            continue
+        if framework not in matched:
+            matched.append(framework)
+        evidence_details.append(f"{framework} (node): {', '.join(sorted(node_hit))}")
+
+    langgraph_compile_signal = _detect_langgraph_compile_signal(project_dir)
+    if "langgraph" in matched and "langchain" in matched and langgraph_compile_signal:
+        langgraph_evidence = [detail for detail in evidence_details if detail.startswith("langgraph")]
+        langchain_evidence = [detail for detail in evidence_details if detail.startswith("langchain")]
+        node_evidence_line = f" Node evidence: {'; '.join(node_evidence)}." if node_evidence else ""
+        return DetectorResult(
+            value="langgraph",
+            confidence=0.9,
+            evidence=(
+                f"Framework signals detected -> {'; '.join(langgraph_evidence)}; "
+                f"supporting langchain signals -> {'; '.join(langchain_evidence)}. "
+                "Selected langgraph due to compile() graph-construction viability signal."
+                f"{node_evidence_line}"
+            ),
+            warning=None,
+        )
 
     # LangChain projects commonly import OpenAI SDK helpers directly. When
     # LangChain signals are present, treat chatgpt signal as secondary.
@@ -1262,10 +1352,6 @@ def _collect_pyproject_dependencies(project_dir: Path) -> tuple[dict[str, set[st
     except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
         return dependencies, evidence
 
-    project_table = data.get("project")
-    if not isinstance(project_table, dict):
-        return dependencies, evidence
-
     def add_dep(raw_dep: str, source_label: str) -> None:
         name, constraint = _split_requirement_name_and_constraint(raw_dep)
         if not name:
@@ -1273,18 +1359,60 @@ def _collect_pyproject_dependencies(project_dir: Path) -> tuple[dict[str, set[st
         dependencies.setdefault(name, set()).add(constraint)
         evidence.append(f"{source_label}:{name}{constraint}")
 
-    for dep in project_table.get("dependencies", []):
-        if isinstance(dep, str) and dep.strip():
-            add_dep(dep, "pyproject.project.dependencies")
+    project_table = data.get("project")
+    if isinstance(project_table, dict):
+        for dep in project_table.get("dependencies", []):
+            if isinstance(dep, str) and dep.strip():
+                add_dep(dep, "pyproject.project.dependencies")
 
-    optional = project_table.get("optional-dependencies")
-    if isinstance(optional, dict):
-        for group_name, dep_list in optional.items():
-            if not isinstance(dep_list, list):
+        optional = project_table.get("optional-dependencies")
+        if isinstance(optional, dict):
+            for group_name, dep_list in optional.items():
+                if not isinstance(dep_list, list):
+                    continue
+                for dep in dep_list:
+                    if isinstance(dep, str) and dep.strip():
+                        add_dep(dep, f"pyproject.project.optional-dependencies.{group_name}")
+
+    tool_table = data.get("tool")
+    if isinstance(tool_table, dict):
+        poetry_table = tool_table.get("poetry")
+        if isinstance(poetry_table, dict):
+            poetry_deps = poetry_table.get("dependencies")
+            if isinstance(poetry_deps, dict):
+                for raw_name, raw_constraint in poetry_deps.items():
+                    if not isinstance(raw_name, str) or not raw_name.strip():
+                        continue
+                    if raw_name.strip().lower() == "python":
+                        continue
+                    normalized_constraint = ""
+                    if isinstance(raw_constraint, str):
+                        normalized_constraint = raw_constraint.strip()
+                    elif isinstance(raw_constraint, dict):
+                        normalized_constraint = str(raw_constraint.get("version", "")).strip()
+                    add_dep(f"{raw_name}{normalized_constraint}", "pyproject.tool.poetry.dependencies")
+
+    return dependencies, evidence
+
+
+def _collect_package_json_dependencies(project_dir: Path) -> tuple[dict[str, set[str]], list[str]]:
+    dependencies: dict[str, set[str]] = {}
+    evidence: list[str] = []
+    package_json = _load_package_json(project_dir)
+    if not isinstance(package_json, dict):
+        return dependencies, evidence
+
+    for section_name in ("dependencies", "devDependencies", "peerDependencies", "optionalDependencies"):
+        section = package_json.get(section_name)
+        if not isinstance(section, dict):
+            continue
+        for raw_name, raw_constraint in section.items():
+            if not isinstance(raw_name, str) or not raw_name.strip():
                 continue
-            for dep in dep_list:
-                if isinstance(dep, str) and dep.strip():
-                    add_dep(dep, f"pyproject.project.optional-dependencies.{group_name}")
+            name = _normalize_package_name(raw_name)
+            constraint = raw_constraint.strip() if isinstance(raw_constraint, str) else ""
+            dependencies.setdefault(name, set()).add(constraint)
+            evidence.append(f"package.json.{section_name}:{name}{constraint}")
 
     return dependencies, evidence
 
@@ -1303,18 +1431,23 @@ def _format_dependency_output(dependency_map: dict[str, set[str]]) -> list[str]:
 def _detect_dependencies(project_dir: Path) -> DetectorResult:
     requirements_map, requirements_evidence = _collect_requirements_dependencies(project_dir)
     pyproject_map, pyproject_evidence = _collect_pyproject_dependencies(project_dir)
+    package_json_map, package_json_evidence = _collect_package_json_dependencies(project_dir)
 
     merged: dict[str, set[str]] = {}
-    for source in (requirements_map, pyproject_map):
+    for source in (requirements_map, pyproject_map, package_json_map):
         for package, constraints in source.items():
             merged.setdefault(package, set()).update(constraints)
 
     dependencies = _format_dependency_output(merged)
-    evidence_items = requirements_evidence + pyproject_evidence
+    evidence_items = requirements_evidence + pyproject_evidence + package_json_evidence
 
     if dependencies:
-        source_count = int(bool(requirements_evidence)) + int(bool(pyproject_evidence))
-        confidence = 0.92 if source_count == 2 else 0.82
+        source_count = (
+            int(bool(requirements_evidence))
+            + int(bool(pyproject_evidence))
+            + int(bool(package_json_evidence))
+        )
+        confidence = 0.92 if source_count >= 2 else 0.82
         return DetectorResult(
             value=dependencies,
             confidence=confidence,
@@ -1773,7 +1906,8 @@ def _detect_output_type(project_dir: Path) -> DetectorResult:
 
 def _detect_env_vars(project_dir: Path) -> DetectorResult:
     env_names: set[str] = set()
-    parsed_files = 0
+    parsed_python_files = 0
+    parsed_node_files = 0
 
     for python_path in _iter_python_files(project_dir):
         try:
@@ -1782,22 +1916,39 @@ def _detect_env_vars(project_dir: Path) -> DetectorResult:
         except (OSError, UnicodeDecodeError, SyntaxError):
             continue
 
-        parsed_files += 1
+        parsed_python_files += 1
         env_names.update(_extract_env_var_names(tree))
 
+    node_env_patterns = (
+        re.compile(r"process\.env\.([A-Z][A-Z0-9_]+)"),
+        re.compile(r"process\.env\[['\"]([A-Z][A-Z0-9_]+)['\"]\]"),
+    )
+    for node_path in _iter_node_files_with_depth(project_dir, max_depth=8):
+        try:
+            source = node_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        parsed_node_files += 1
+        for pattern in node_env_patterns:
+            env_names.update(match.group(1) for match in pattern.finditer(source))
+
     inferred = sorted(name for name in env_names if name)
+    parsed_total = parsed_python_files + parsed_node_files
     if inferred:
         return DetectorResult(
             value=inferred,
             confidence=0.88,
-            evidence=f"Detected {len(inferred)} unique env var names across {parsed_files} python file(s).",
+            evidence=(
+                f"Detected {len(inferred)} unique env var names across "
+                f"{parsed_python_files} python file(s) and {parsed_node_files} node file(s)."
+            ),
             warning=None,
         )
 
     return DetectorResult(
         value=[],
         confidence=0.0,
-        evidence=f"No env var patterns detected across {parsed_files} python file(s).",
+        evidence=f"No env var patterns detected across {parsed_total} source file(s).",
         warning="Could not infer env vars from source patterns; verify required environment variables manually.",
     )
 

@@ -3096,7 +3096,7 @@ features:
       - "notes/ and scratch/ should be gitignored for public release"
     owner: swe-agent
     dependencies: []
-    status: not-started
+    status: needs-review
 
   - id: feature98
     title: "GitHub Actions CI/CD pipeline"

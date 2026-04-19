@@ -597,3 +597,63 @@ def test_feature47_openclaw_like_core_layout_inference(tmp_path: Path) -> None:
     assert payload["inferred"]["framework"] == "openclaw"
     assert payload["inferred"]["runtime"]["language"] == "nodejs"
     assert payload["inferred"]["entrypoint"] == "src/entry.ts"
+
+
+def test_feature117_langgraph_compile_detection_py_and_node(tmp_path: Path) -> None:
+    python_project = tmp_path / "feature117-langgraph-python"
+    python_project.mkdir(parents=True, exist_ok=True)
+    (python_project / "graph.py").write_text(
+        "from langgraph.graph import StateGraph\n"
+        "builder = StateGraph(dict)\n"
+        "compiled = builder.compile()\n"
+        "print(compiled)\n",
+        encoding="utf-8",
+    )
+    py_payload = analyze_project(python_project).as_dict()
+    assert py_payload["inferred"]["framework"] == "langgraph"
+
+    node_project = tmp_path / "feature117-langgraph-node"
+    node_project.mkdir(parents=True, exist_ok=True)
+    (node_project / "package.json").write_text(
+        "{\n"
+        "  \"name\": \"feature117-langgraph-node\",\n"
+        "  \"version\": \"1.0.0\",\n"
+        "  \"dependencies\": {\n"
+        "    \"@langchain/langgraph\": \"^0.2.0\",\n"
+        "    \"@langchain/core\": \"^0.3.0\"\n"
+        "  }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    (node_project / "graph.ts").write_text(
+        "import { StateGraph } from '@langchain/langgraph';\n"
+        "const graph = new StateGraph({});\n"
+        "const app = graph.compile();\n"
+        "console.log(app);\n",
+        encoding="utf-8",
+    )
+    node_payload = analyze_project(node_project).as_dict()
+    assert node_payload["inferred"]["framework"] == "langgraph"
+    assert node_payload["inferred"]["framework"] != "langchain"
+
+
+def test_feature117_poetry_dependency_extraction(tmp_path: Path) -> None:
+    project_dir = tmp_path / "feature117-poetry-dependencies"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "run.py").write_text("print('poetry')\n", encoding="utf-8")
+    (project_dir / "pyproject.toml").write_text(
+        "[tool.poetry]\n"
+        "name = \"feature117-poetry\"\n"
+        "version = \"0.1.0\"\n"
+        "\n"
+        "[tool.poetry.dependencies]\n"
+        "python = \">=3.11\"\n"
+        "openai = \"^1.40.0\"\n"
+        "langchain-openai = \"^0.2.0\"\n",
+        encoding="utf-8",
+    )
+
+    payload = analyze_project(project_dir).as_dict()
+    dependencies = payload["inferred"]["dependencies"]
+    assert any(dep.startswith("openai") for dep in dependencies)
+    assert any(dep.startswith("langchain-openai") for dep in dependencies)
