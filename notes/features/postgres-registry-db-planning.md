@@ -48,12 +48,12 @@ The spec says "data migration path documented" but doesn't specify:
 
 The spec says CLI should "create or delete tables; add, modify, delete rows; add, modify, delete columns." This is extremely broad and essentially describes a general-purpose DB admin tool. The SWE agent needs clarity on:
 
-- **Is this meant to be a raw SQL admin shell?** If so, the agent just needs to write a `connect registry-db` command that drops into a psql-like interface. Simple.
+- **Is this meant to be a raw SQL admin shell?** If so, the agent just needs to write a `connect db <connection-name>` command that drops into a psql-like interface. Simple.
 - **Or is it meant to be domain-aware admin commands?** e.g., `kinnoo-server agent list`, `kinnoo-server tenant create`, `kinnoo-server user set-role`. These are more useful but a much larger scope.
-- **What does `kinnoo-server connect registry-db` actually do?** Start an interactive psql session? Start a Python REPL with the session pre-connected? Print the connection string?
+- **What does `kinnoo-server connect db registry-postgres` actually do?** Start an interactive psql session? Start a Python REPL with the session pre-connected? Print the connection string?
 
 **Recommendation:** Two modes:
-1. `kinnoo-server connect registry-db` — prints the connection string and optionally opens `psql` directly (for raw admin work).
+1. `kinnoo-server connect db registry-postgres` — prints the connection string and optionally opens `psql` directly (for raw admin work).
 2. Domain-aware commands: `kinnoo-server db migrate` (run Alembic), `kinnoo-server db seed` (insert example data), `kinnoo-server tenant list`, `kinnoo-server tenant create <slug>`, `kinnoo-server user list`, `kinnoo-server user set-role <email> <role>`.
 
 #### D. Testing Strategy
@@ -447,7 +447,7 @@ With Kinde + Postgres, these are retired:
 17. Remove SQLite auth store, session service, password manager
 
 ### Phase 4: CLI and testing
-18. `kinnoo-server connect registry-db` command
+18. `kinnoo-server connect db registry-postgres` command
 19. `kinnoo-server db migrate` (wraps Alembic)
 20. `kinnoo-server db seed` (creates example data)
 21. Domain commands: `kinnoo-server tenant list/create`, `kinnoo-server user list/set-role`
