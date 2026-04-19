@@ -1,0 +1,483 @@
+# Kinde Auth Setup Plan for Dev (`dev.kinnoo.ai`)
+
+Date: 2026-04-19  
+Source issue: https://github.com/jerryschen31/kinnoo/issues/335  
+Scope: Replace current local SQLite/JSON auth flow with Kinde-backed auth in Dev, and wire registry ownership to Kinde-authenticated identities.
+
+---
+
+## 1) Goal and Definition of Done Mapping
+
+This plan targets these exact outcomes:
+
+1. Kinde tenant configured for Dev + Staging usage.
+2. `server/` auth routes validate Kinde OIDC/JWT tokens (not local password JWTs).
+3. `kinnoo login` uses Kinde hosted auth redirect flow and stores usable registry auth state.
+4. `kinnoo logout` clears local auth state and logs out Kinde/browser session.
+5. Web login/register moves from custom forms to Kinde auth entrypoints.
+6. Existing SQLite-based auth (`user_store.py`, `session.py`, SQLite auth tables) is retired or reduced to non-auth identity mapping.
+7. Invalid/expired Kinde tokens are rejected with clear errors.
+8. Existing auth tests are updated/replaced and pass.
+9. Token refresh works without forcing frequent re-login.
+10. Registry links published agents to authenticated users/tenants (blank-registry reset is allowed).
+
+---
+
+## 2) Current-State Baseline (from repo)
+
+Current auth is local/custom:
+
+- API token issuance: `server/routes/auth.py` + `server/auth/token.py` (HMAC token service).
+- Web session auth: `server/routes/web_auth.py` + `server/auth/session.py` + CSRF cookies.
+- Local user persistence: `server/storage/user_store.py` (JSON files).
+- SQLite auth tables: `server/storage/sqlite_auth_store.py` + `server/storage/sql/schema_auth.sql`.
+- CLI login is username/password to `/api/auth/token`: `src/kinnoo/auth_command.py`.
+- Web frontend login form posts to `/api/login`: `web/app/(public)/login/page.tsx` + `web/lib/auth-client.ts`.
+- Worker proxies frontend `/api/*` to backend with `BACKEND_URL`: `web/lib/backend-proxy.ts`, `web/wrangler.jsonc`.
+
+Related infra constraints:
+
+- Dev frontend: `https://dev.kinnoo.ai`
+- Dev backend: `https://dev-api.kinnoo.ai`
+- ECS env wiring currently uses legacy secret names (`JWT_SECRET`, `SESSION_SECRET`) in IaC module `iac/modules/ecs-fargate/main.tf`; application code expects `REGISTRY_*` names.
+
+---
+
+## 3) Responsibilities Split (No Ambiguity)
+
+Use these labels everywhere in execution:
+
+- **[HUMAN]**: manual Kinde dashboard, Cloudflare, AWS/Secrets, DNS, approvals.
+- **[SWE]**: code implementation and config/IaC changes.
+- **[TEST]**: automated and manual validation implementation/execution.
+
+No step should be executed without an owner label.
+
+---
+
+## 4) Prerequisite Decisions (Blockers Before Coding)
+
+These decisions must be explicitly recorded before implementation begins:
+
+1. **Environment naming decision**: Issue DoD says Dev+Staging, current Kinde has Dev+Prod. Decide:
+   - Option A: Rename existing Kinde “prod” to “staging” for now, or
+   - Option B: keep Dev+Prod but treat Prod as staging until real production cutover.
+2. **Tenant mapping strategy**:
+   - Option A: Kinde org claim -> registry tenant slug (preferred),
+   - Option B: first login auto-creates tenant from email slug.
+3. **CLI auth UX decision**:
+   - Device/browser authorization-code flow (recommended), or
+   - Non-interactive token exchange helper endpoint with PKCE.
+4. **Refresh token storage policy**:
+   - local config file encrypted-at-rest vs plaintext in config directory.
+5. **Blank registry reset confirmation**:
+   - Explicit approval to discard current dev registry users/tenants/agents.
+6. **Kinde application topology**:
+   - Option A: one Kinde app shared by web + CLI (fastest),
+   - Option B: separate Kinde apps for web and CLI (cleaner separation).
+7. **CLI callback port (if loopback flow is used)**:
+   - Choose one fixed port and document it in implementation/config docs before coding (example: `8765`).
+   - Use the same port in Kinde callback settings, CLI runtime config, and tests.
+
+If any decision is unresolved, pause implementation.
+
+---
+
+## 5) Human-Run Setup in Kinde (Manual Checklist)
+
+### 5.1 [HUMAN] Kinde tenant and application configuration
+
+1. Open Kinde admin and select target tenant.
+2. Ensure two non-prod environments are available for this phase:
+   - `dev`
+   - `staging` (or temporary use of current “prod” as staging per decision above).
+3. For the Python/backend app used by kinnoo:
+   - confirm OIDC/OAuth2 enabled,
+   - confirm Authorization Code + PKCE supported for browser and CLI use,
+   - confirm refresh token issuance enabled,
+   - confirm token signing algorithm/key rotation defaults enabled.
+4. Configure **Allowed callback URLs** (exact):
+   - `https://dev.kinnoo.ai/auth/callback`
+   - `https://dev-api.kinnoo.ai/auth/callback` (if backend callback endpoint used)
+   - `http://127.0.0.1:8000/auth/callback` (local backend dev)
+   - `http://localhost:3000/auth/callback` (local web dev)
+   - `http://127.0.0.1:8765/auth/callback` (only if CLI uses local loopback callback; replace `8765` if a different fixed port is chosen in Section 4).
+   - If CLI uses OAuth device flow, skip loopback callback URL and enable device authorization settings instead.
+5. Configure **Allowed logout URLs** (exact):
+   - `https://dev.kinnoo.ai/login`
+   - `http://localhost:3000/login`
+6. Configure **Allowed origins / CORS**:
+   - `https://dev.kinnoo.ai`
+   - `https://dev-api.kinnoo.ai`
+   - `http://localhost:3000`
+   - `http://127.0.0.1:8000`
+7. Configure API audience/scopes for registry:
+   - `registry:read`
+   - `registry:publish`
+   - `registry:admin`
+8. Create at least two test users in Kinde:
+   - one admin-equivalent user,
+   - one regular user.
+9. If using org-based tenancy, create at least one org mapped to one tenant slug.
+10. Export and securely store required values:
+   - Kinde domain/issuer URL,
+   - client ID,
+   - client secret,
+   - audience,
+   - JWKS endpoint URL,
+   - authorize/token/logout endpoints.
+
+### 5.2 [HUMAN] Secrets and environment injection setup
+
+1. Add dev secrets in AWS Secrets Manager (or existing secret mechanism):
+   - `KINDE_ISSUER_URL`
+   - `KINDE_CLIENT_ID`
+   - `KINDE_CLIENT_SECRET`
+   - `KINDE_AUDIENCE`
+   - `KINDE_LOGOUT_REDIRECT_URI`
+   - `KINDE_REDIRECT_URI`
+2. For local runs (non-production), keep fallback values in a local `.env` file or equivalent local env file, but do **not** assume `server/` auto-loads `.env` files.
+   - Recommended path: repository root `.env` (so local commands and scripts can share one env source).
+   - Developers must explicitly export/source those variables before starting the backend.
+   - Example from repository root: `set -a; . ./.env; set +a` (or `direnv` if already used in your environment).
+3. Update Cloudflare Worker runtime vars if needed:
+   - keep `BACKEND_URL=https://dev-api.kinnoo.ai`
+   - add auth-related frontend vars only if required by web implementation.
+4. Confirm ECS task definition injects app-expected env names (not only legacy `JWT_SECRET`/`SESSION_SECRET`).
+
+---
+
+## 6) Implementation Plan for SWE Agent
+
+### Phase A — Auth Architecture Cutover (Server)
+
+#### A1 [SWE] Introduce Kinde token verification module
+
+Create new auth verifier module(s) under `server/auth/`:
+
+- fetch OIDC discovery document,
+- resolve JWKS,
+- validate RS256 JWT signature,
+- validate issuer, audience, expiration (`exp`), not-before (`nbf`), issued-at (`iat`),
+- map claims to internal auth context (`sub`, email, org/tenant claim, scopes).
+
+Replace dependency on local HMAC token validation from `server/auth/token.py` in request auth path.
+
+#### A2 [SWE] Add internal identity upsert (JIT provisioning)
+
+On first valid Kinde-authenticated request:
+
+- upsert local `users` reference record keyed by Kinde `sub`,
+- update denormalized fields (email/display name),
+- derive role and tenant linkage policy from decision in Section 4.
+
+For this phase, if full Postgres auth tables are not yet live, implement transitional store with explicit migration path; do not reintroduce password/session logic.
+
+#### A3 [SWE] Replace auth routes and session routes
+
+Update:
+
+- `server/routes/auth.py`
+- `server/routes/web_auth.py`
+- `server/app.py`
+- `server/auth/middleware.py`
+
+Required behavior:
+
+1. `/api/auth/token` no longer accepts raw username/password for Kinde users.
+2. Add redirect-based login start endpoint(s) and callback endpoint(s).
+3. Add logout endpoint that clears local state and redirects through Kinde logout.
+4. `/api/auth/me` derives identity from Kinde session/token-backed context.
+5. Error envelopes remain consistent (`build_error_envelope` usage preserved).
+
+#### A4 [SWE] Retire local password/session-only components
+
+Deprecate/remove usage from runtime path:
+
+- `server/auth/session.py` (if replaced completely),
+- `server/auth/tokens.py` registration/reset flows,
+- `server/storage/sqlite_auth_store.py` tables related to sessions/password reset,
+- registration/password-reset endpoints in `server/routes/auth.py`.
+
+Keep a compatibility boundary only if required for phased rollout, behind explicit feature flag and defaulted OFF in Dev cutover.
+
+---
+
+### Phase B — Web Frontend Auth Migration
+
+#### B1 [SWE] Replace custom login UI flow with Kinde redirects
+
+Update:
+
+- `web/app/(public)/login/page.tsx`
+- `web/lib/auth-client.ts`
+- `web/app/api/login/route.ts`
+- `web/app/api/logout/route.ts`
+- relevant auth layout and tests.
+
+Required behavior:
+
+1. Login button initiates Kinde hosted login (no password form submission to backend).
+2. Callback route finalizes auth and redirects to `/registry`.
+3. Logout terminates app session + Kinde session and returns to `/login`.
+4. Auth-protected layout still redirects unauthenticated users to `/login`.
+
+#### B2 [SWE] Remove obsolete signup/reset-password UI flows or re-point them
+
+Evaluate and update:
+
+- `web/app/(public)/signup/page.tsx`
+- forgot/reset password pages.
+
+Expected Dev behavior:
+
+- either redirect users to Kinde-hosted signup/reset,
+- or hide these routes until Kinde-hosted paths are confirmed.
+
+---
+
+### Phase C — CLI (`kinnoo login/logout`) Kinde integration
+
+#### C1 [SWE] Implement browser/device login flow in CLI
+
+Update `src/kinnoo/auth_command.py`:
+
+1. `kinnoo login` initiates auth flow (PKCE/device/browser pattern per decision).
+2. CLI receives auth completion token through callback polling/device exchange/local callback.
+3. CLI stores auth state with:
+   - access token,
+   - refresh token,
+   - expiration metadata,
+   - tenant context.
+4. Remove dependency on direct username/password prompt for Dev Kinde auth flow.
+
+#### C2 [SWE] Implement refresh behavior
+
+Before remote calls (`publish`, `list`, `search`, `install`, `fetch`):
+
+1. if access token is close to expiry, refresh using refresh token;
+2. if refresh fails, prompt re-login with actionable message.
+
+#### C3 [SWE] Logout
+
+`kinnoo logout` must:
+
+1. clear local auth state,
+2. optionally open Kinde logout URL for full session termination,
+3. keep current success/no-state behavior semantics.
+
+---
+
+### Phase D — Registry User/Tenant Linking
+
+#### D1 [SWE] Ownership linkage updates
+
+Publishing must persist publisher identity from Kinde subject/user mapping, not legacy local username.
+
+Touch points likely include:
+
+- publish route(s) under `server/routes/publish.py`,
+- metadata ownership fields used by `MetadataManager`,
+- future Postgres user/tenant tables per `notes/features/postgres-registry-db-planning.md`.
+
+#### D2 [SWE] Blank registry reset execution
+
+For Dev cutover:
+
+1. reset auth-related local stores (and metadata store if approved),
+2. bootstrap only Kinde-mapped users/tenants on first login/publish,
+3. document exact reset procedure and one-command script if possible.
+
+---
+
+### Phase E — Infrastructure and Deployment
+
+#### E1 [SWE] Config surface additions
+
+Add config keys in `server/config.py` (or equivalent) for:
+
+- Kinde issuer/domain,
+- client ID/secret,
+- audience,
+- redirect/logout URLs,
+- optional org/tenant claim mapping key,
+- token verification cache/jwks refresh settings.
+
+#### E2 [SWE] IaC/env wiring
+
+Update IaC and deployment wiring:
+
+- `iac/modules/ecs-fargate/main.tf`
+- `iac/modules/secrets/main.tf`
+- env tfvars where needed.
+
+Ensure app-required names are injected exactly, and remove naming mismatch risks.
+
+#### E3 [HUMAN + SWE] Cloudflare Worker verification
+
+Keep and verify:
+
+- `web/wrangler.jsonc` runtime `BACKEND_URL=https://dev-api.kinnoo.ai`
+- cookie/header forwarding behavior intact (multi-`Set-Cookie` safe).
+
+---
+
+## 7) Test Agent Plan (Detailed)
+
+### 7.1 Automated test updates/additions
+
+### Server tests
+
+Update or replace:
+
+- `server/tests/test_auth_route.py`
+- `server/tests/test_jwt_auth.py`
+- `server/tests/test_session_auth.py`
+- `server/tests/test_web_auth.py`
+
+New required coverage:
+
+1. valid Kinde token accepted,
+2. expired token rejected (`401` clear message),
+3. invalid signature / wrong issuer / wrong audience rejected,
+4. missing scope -> `403`,
+5. login callback success/failure behavior,
+6. logout invalidates local session linkage.
+
+### CLI tests
+
+Update/add under `tests/client_cli_*`:
+
+1. `kinnoo login` initiates browser/device flow successfully,
+2. login failure paths are actionable,
+3. refresh token path exercised,
+4. logout clears state.
+
+### Web tests
+
+Update:
+
+- `web/__tests__/login-page.test.tsx`
+- `web/__tests__/auth-layout.test.tsx`
+
+Add coverage:
+
+1. login page uses redirect CTA (not password POST),
+2. callback route success/failure handling,
+3. protected layout with unauthenticated/expired session behavior,
+4. logout integration and redirect.
+
+### 7.2 Smoke/e2e validation matrix (must pass)
+
+1. Browser login on `https://dev.kinnoo.ai/login` succeeds.
+2. Browser logout succeeds and protected page redirects to login.
+3. CLI login against `https://dev-api.kinnoo.ai` succeeds without password prompt.
+4. CLI publish after login associates artifact with correct user/tenant identity.
+5. Access token expiry simulation triggers refresh, not forced re-login.
+6. Corrupted token simulation returns clear auth error.
+7. Existing non-auth registry workflows remain functional.
+
+### 7.3 Recommended command execution set
+
+- Python tests: `python3 -m pytest`
+- Focused server auth: `python3 -m pytest server/tests/test_auth_route.py server/tests/test_web_auth.py`
+- Focused CLI auth: `python3 -m pytest tests -m "client_cli_login or client_cli_logout or client_cli_publish"`
+- Web tests: `cd web && npm test`
+
+---
+
+## 8) Acceptance Criteria by Stream
+
+### 8.1 Auth correctness
+
+- No active runtime path depends on local password validation for Dev login.
+- All protected API routes accept Kinde token/session-backed identity.
+- Invalid/expired tokens produce deterministic error envelope.
+
+### 8.2 User/tenant linkage
+
+- First authenticated request creates/updates local user reference record.
+- Publish ownership is tied to Kinde-authenticated user identity.
+- Tenant context resolution is deterministic and documented.
+
+### 8.3 Operational readiness
+
+- Dev deploy has all required Kinde env vars/secrets.
+- Cloudflare Worker proxy remains functional for login/callback/logout.
+- `/health` and `/ready` remain green after deploy.
+
+---
+
+## 9) Rollout Sequence (Dev)
+
+1. [HUMAN] Complete Kinde dashboard setup + secrets creation.
+2. [SWE] Ship backend token verification + callback/login/logout routes.
+3. [SWE] Ship web redirect-based auth changes.
+4. [SWE] Ship CLI Kinde login/refresh/logout.
+5. [SWE] Ship identity linkage changes for publish.
+6. [TEST] Run automated suites.
+7. [HUMAN + TEST] Run live Dev smoke matrix.
+8. [HUMAN] Approve Dev cutover and blank-registry reset.
+
+Do not reorder unless explicitly approved.
+
+---
+
+## 10) Rollback Plan (If Cutover Fails)
+
+1. Revert to pre-cutover branch/tag.
+2. Redeploy previous backend + frontend worker artifact.
+3. Restore previous env var set (disable Kinde-only routes).
+4. Re-enable legacy login flow only temporarily for service continuity.
+5. Document failure cause and keep Kinde creds intact for next attempt.
+
+Rollback trigger examples:
+
+- login success rate drops below acceptable threshold,
+- publish workflow blocked for authenticated users,
+- token refresh broken causing frequent forced logins.
+
+---
+
+## 11) Risk Register and Controls
+
+1. **Risk**: Kinde callback URL mismatch -> login loop/fail.
+   - **Control**: exact callback URL checklist (Section 5.1).
+2. **Risk**: audience/issuer mismatch -> all API calls unauthorized.
+   - **Control**: startup validation on required Kinde config.
+3. **Risk**: Cloudflare proxy drops auth cookies/headers.
+   - **Control**: preserve multi-`Set-Cookie`; run `/api/login` and `/api/auth/me` probes.
+4. **Risk**: secret name mismatch in ECS/IaC.
+   - **Control**: explicit env var contract test during deploy.
+5. **Risk**: tenant mapping errors publish into wrong namespace.
+   - **Control**: deterministic mapping tests with two users/two tenants.
+6. **Risk**: refresh token mishandling in CLI.
+   - **Control**: expiry simulation tests + secure local storage review.
+
+---
+
+## 12) Artifacts to Produce During Execution
+
+Mandatory implementation artifacts:
+
+1. Updated code across server/web/cli as listed above.
+2. Updated tests (server, CLI, web) and passing test outputs.
+3. Dev deployment runbook update for Kinde setup and secret wiring.
+4. One concise cutover report in `notes/` containing:
+   - exact deployed commit SHA,
+   - validated smoke results,
+   - known limitations.
+
+---
+
+## 13) “Done Done” Checklist
+
+- [ ] Kinde dev/staging environment config complete and verified by human.
+- [ ] Web login/logout works end-to-end on `dev.kinnoo.ai`.
+- [ ] CLI login/logout uses Kinde and works end-to-end.
+- [ ] Backend validates Kinde tokens and rejects invalid/expired tokens clearly.
+- [ ] Agent publish associates with authenticated user/tenant identity.
+- [ ] Legacy password/session auth paths removed or fully disabled in Dev.
+- [ ] Automated tests updated and passing.
+- [ ] Smoke matrix complete and recorded.
+- [ ] Rollback procedure validated.
