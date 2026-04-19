@@ -1333,20 +1333,59 @@ op.execute("""
 CREATE OR REPLACE FUNCTION set_updated_at_timestamp()
 RETURNS TRIGGER AS $$
 BEGIN
-  NEW.updated_at = NOW();
+  NEW.updated_at = clock_timestamp();
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 """)
 
-for table_name in ("users", "tenants", "agents", "agent_versions", "tenant_members", "api_keys"):
-    op.execute(f"""
-    DROP TRIGGER IF EXISTS trg_{table_name}_updated_at ON {table_name};
-    CREATE TRIGGER trg_{table_name}_updated_at
-    BEFORE UPDATE ON {table_name}
-    FOR EACH ROW
-    EXECUTE FUNCTION set_updated_at_timestamp();
-    """)
+op.execute("""
+DROP TRIGGER IF EXISTS trg_users_updated_at ON users;
+CREATE TRIGGER trg_users_updated_at
+BEFORE UPDATE ON users
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at_timestamp();
+""")
+
+op.execute("""
+DROP TRIGGER IF EXISTS trg_tenants_updated_at ON tenants;
+CREATE TRIGGER trg_tenants_updated_at
+BEFORE UPDATE ON tenants
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at_timestamp();
+""")
+
+op.execute("""
+DROP TRIGGER IF EXISTS trg_agents_updated_at ON agents;
+CREATE TRIGGER trg_agents_updated_at
+BEFORE UPDATE ON agents
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at_timestamp();
+""")
+
+op.execute("""
+DROP TRIGGER IF EXISTS trg_agent_versions_updated_at ON agent_versions;
+CREATE TRIGGER trg_agent_versions_updated_at
+BEFORE UPDATE ON agent_versions
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at_timestamp();
+""")
+
+op.execute("""
+DROP TRIGGER IF EXISTS trg_tenant_members_updated_at ON tenant_members;
+CREATE TRIGGER trg_tenant_members_updated_at
+BEFORE UPDATE ON tenant_members
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at_timestamp();
+""")
+
+op.execute("""
+DROP TRIGGER IF EXISTS trg_api_keys_updated_at ON api_keys;
+CREATE TRIGGER trg_api_keys_updated_at
+BEFORE UPDATE ON api_keys
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at_timestamp();
+""")
 ```
 
 ```python
