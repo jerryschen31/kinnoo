@@ -74,6 +74,8 @@ Planning-5 implied ~12-16 weeks for Phases 6-9. This revision targets **~8-10 we
 
 ## 2. Phase 6 — OpenClaw Support + Registry Improvements + Competitive Response
 
+> **⚠️ PARTIALLY DEPRECATED (2026-04-18):** The OpenClaw integration plan below was designed around individual skills from ClawHub as the fundamental agentic unit. **kinnoo now supports OpenClaw workspace-based agents, NOT individual ClawHub skills.** Features referencing ClawHub skill import/search/install (feature62 openclaw-skill schema, feature63 ClawHub mirror, feature64 ClawHub import bridge, feature83 skill install, feature84 skill search) are deprecated in favor of the `kinnoo import --from openclaw` workspace-based agent flow. Non-OpenClaw features in this phase (login, lockfile, adapters, etc.) remain valid.
+
 **Theme:** "Bridge to OpenClaw, modernize registry, and close competitive gaps"
 
 **Goal:** At the end of Phase 6, a user can: `kinnoo login`, discover OpenClaw skills via `kinnoo search`, import them from ClawHub, install via delegated OpenClaw CLI, run via the adapter, keep the mirror up-to-date with `kinnoo sync clawhub`. Additionally, kinnoo gains strict CI signed-package enforcement, a lockfile for reproducible installs, `kinnoo diff`, `kinnoo uninstall`, and framework-specific import adapters — closing the most important gaps identified in competitive analysis.

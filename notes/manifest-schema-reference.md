@@ -134,6 +134,8 @@ The CLI's behavior on `kinnoo run` is determined entirely by this field.
 
 ### Feature62 openclaw-skill schema contract (`type`, `provenance`)
 
+> **⚠️ DEPRECATED PARADIGM (2026-04-18):** The `openclaw-skill` type and ClawHub-based provenance model below reflect an earlier design where kinnoo supported individual OpenClaw skills from ClawHub as a fundamental agentic unit. **kinnoo now supports OpenClaw workspace-based agents, NOT individual skills from ClawHub.** The `--from openclaw` import flow targets agent workspaces (typically `~/.openclaw/workspace-<agent>/`). The `type: openclaw-skill` schema and `provenance.source_registry: clawhub` fields may be retained for backward compatibility but are no longer the primary OpenClaw integration path. New OpenClaw imports should use `kinnoo import --from openclaw`.
+
 Feature62 adds an explicit OpenClaw package type and provenance object while keeping metadata minimal.
 
 - `type` (optional): string
@@ -236,6 +238,8 @@ Migration guidance:
 - For local projects without external source lineage, omit `provenance`.
 
 ### Feature64 ClawHub import guidance (`kinnoo import --source clawhub`)
+
+> **⚠️ DEPRECATED (2026-04-18):** The `--source clawhub` import flow below is superseded by `kinnoo import --from openclaw`, which imports OpenClaw agent workspaces directly. kinnoo no longer treats individual ClawHub skills as the fundamental unit — it supports full OpenClaw agent workspaces instead.
 
 When importing mirrored skills from ClawHub:
 
