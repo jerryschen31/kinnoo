@@ -6,8 +6,8 @@ import sys
 from pathlib import Path
 
 
-CLI_PATH = Path(__file__).resolve().parents[1] / "src" / "kinnoo" / "cli.py"
-SRC_ROOT = Path(__file__).resolve().parents[1] / "src"
+CLI_PATH = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
+SRC_ROOT = Path(__file__).resolve().parents[2] / "src"
 
 
 def _cli_env(*, archive_root: Path, registry_root: Path) -> dict[str, str]:
