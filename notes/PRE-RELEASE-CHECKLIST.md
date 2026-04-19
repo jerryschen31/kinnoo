@@ -67,17 +67,31 @@ update public documentation - improve readibility and comprehensiveness
 
 **PRE-RELEASE FEATURE 6**
 [todo]
-kinnoo import hardening - kinnoo import support and testing is currently weak
-have AI agents harden kinnoo import and make it minimally but robustly functional for production release - simple and robust is the goal
+Harden `kinnoo import` for production-quality robustness. The import command already exists and works for basic cases — this is a HARDENING pass, not a greenfield build. The goal is to make existing import paths robust, error-free, and well-tested for a focused set of AI agent frameworks.
+
+High-level work items:
+1. Error hardening — graceful handling of edge-case inputs (empty directories, unsupported languages, ambiguous project structures); ensure every generated manifest passes kinnoo's own validation; standardize all error messages to a consistent, actionable format
+2. LangChain adapter hardening — detect sub-package imports (langchain-openai, langchain-anthropic, etc.), infer framework-specific dependencies and environment variables, validate project structure has actual chain/agent construction
+3. LangGraph adapter hardening — detect graph construction patterns (StateGraph, compile()), infer dependencies from both langgraph and langchain sub-packages, support Python and Node.js projects
+4. OpenAI adapter hardening — distinguish OpenAI base SDK from OpenAI Agents SDK, infer correct dependencies and env vars for each, validate Agent() instantiation for Agents SDK
+5. OpenClaw agent import — new `--from openclaw` flow that imports an OpenClaw agent workspace (copies SOUL.md, IDENTITY.md, memory/, skills/ etc. to a target directory, excluding .git/.openclaw/.clawhub, and generates kinnoo.yaml). NOTE: kinnoo now supports OpenClaw workspace-based agents, NOT individual skills from ClawHub
+6. Dependency detection improvements — add Poetry pyproject.toml support, framework sub-package dependency inference
+7. Generic LLM agent support — basic Python or JS/TS agents that use LLM libraries directly (not a specific framework) should import cleanly with detected env vars and dependencies
+8. Tests — edge-case integration tests, framework-specific adapter tests, manifest validation regression tests; use real open-source agents from GitHub as test fixtures where possible, or create realistic example agents that match real-world project structures
 
 [definition of done]
-- `kinnoo import <path>` works for Python projects (detects entrypoint, runtime, dependencies)
-- `kinnoo import <path>` works for Node.js/TypeScript projects (detects package.json, entrypoint, runtime)
-- Analyzer correctly infers manifest fields and generated kinnoo.yaml passes validation
-- Clear error messages when import fails (missing entrypoint, ambiguous project structure, unsupported language)
-- User is prompted to review and confirm generated manifest before writing
-- Integration tests cover: Python project happy path, Node.js project happy path, missing entrypoint, empty project, project with existing kinnoo.yaml
-- No crash or traceback on any reasonable input — all error paths produce user-friendly messages
+- `kinnoo import` produces no crash or traceback on any directory input (empty, unsupported language, ambiguous structure, large projects)
+- Every generated kinnoo.yaml passes kinnoo's own validation
+- LangChain adapter detects sub-package imports (langchain-openai, langchain-anthropic, etc.) and infers correct dependencies
+- LangGraph adapter detects graph construction patterns and infers langgraph + langchain dependencies
+- OpenAI adapter correctly distinguishes base SDK from Agents SDK and sets appropriate framework value
+- `kinnoo import --from openclaw <target> <workspace-path>` copies OpenClaw agent workspace files (excluding .git, .openclaw, .clawhub) and generates valid kinnoo.yaml with framework: openclaw
+- Poetry pyproject.toml dependencies are parsed during import
+- All error messages follow consistent format with actionable guidance
+- Integration tests cover: empty directory, unsupported language, Python happy path, Node.js happy path, each framework adapter, OpenClaw agent import, existing kinnoo.yaml collision
+- Framework detection is accurate — detected LangGraph agent is truly LangGraph, not misidentified LangChain, etc.
+- At least 30 import-related tests pass across test files
+- Test fixtures include real open-source agent structures or realistic synthetic agents that match real-world project layouts
 
 **PRE-RELEASE FEATURE 7**
 [todo]

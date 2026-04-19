@@ -1,5 +1,7 @@
 # Feature84 SWE Handoff
 
+> **⚠️ DEPRECATED (2026-04-18):** Feature84 (`kinnoo search --openclaw-skill`) reflects an earlier paradigm where kinnoo treated individual OpenClaw skills from ClawHub as the fundamental unit. **kinnoo now supports OpenClaw workspace-based agents, NOT individual skills.** The `--openclaw-skill` search flag has been removed (see task477). This handoff document is retained for historical context only.
+
 ## Scope
 - Feature: feature84
 - Tasks: task378, task379
