@@ -10,7 +10,7 @@ from pathlib import Path
 from src.kinnoo.signing import load_ed25519_public_key, verify_signature
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CLI = ["python3", str(PROJECT_ROOT / "src" / "kinnoo" / "cli.py")]
 
 
