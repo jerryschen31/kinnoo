@@ -27,6 +27,7 @@ High-level work items:
 6. Set up local dev Postgres via Docker Compose and CI Postgres via GitHub Actions service container
 7. Write tests against real Postgres with per-test transaction rollback for isolation
 8. Add connection management, health checks, and environment-variable-driven configuration
+9. UserStore, TenantStore, and SQLite auth-store replacement is gated on Feature 1 Kinde integration readiness.
 
 [definition of done]
 - SQLAlchemy 2.0 async models defined for all 8 tables in server/database/models/, following db.rules.md patterns (UUID7 PKs, audit timestamps, JSONB metadata, repository pattern)
