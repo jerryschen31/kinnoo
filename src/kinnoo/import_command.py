@@ -974,7 +974,7 @@ def _validate_manifest_text_before_write(
         return False, [f"Generated manifest YAML parse error: {exc}"]
 
     # Test-only failure injection hook for import validation-gate regression coverage.
-    if os.getenv("KINNOO_IMPORT_FORCE_INVALID_MANIFEST") == "1":
+    if os.getenv("KINNOO_IMPORT_FORCE_INVALID_MANIFEST") == "1" and os.getenv("PYTEST_CURRENT_TEST"):
         if not isinstance(parsed, dict):
             parsed = {}
         parsed["version"] = "invalid-version"

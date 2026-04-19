@@ -636,7 +636,9 @@ def _collect_node_module_markers(project_dir: Path) -> tuple[set[str], list[str]
     modules: set[str] = set()
     evidence: list[str] = []
 
-    import_pattern = re.compile(r"""(?:from\s+['"]([^'"]+)['"]|import\s+['"]([^'"]+)['"])""")
+    import_pattern = re.compile(
+        r"""(?:from\s+['"]([^'"]+)['"]|import\s+[^;\n]+?\s+from\s+['"]([^'"]+)['"])"""
+    )
     require_pattern = re.compile(r"""require\(\s*['"]([^'"]+)['"]\s*\)""")
 
     for node_path in _iter_node_files_with_depth(project_dir, max_depth=8):

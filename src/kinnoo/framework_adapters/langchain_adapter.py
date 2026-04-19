@@ -30,7 +30,7 @@ def apply(project_dir: Path, base_report: dict[str, object]) -> AdapterResult:
         if any(marker in source for source in sources)
     )
 
-    if marker_hits <= 0 or viability_hits <= 0:
+    if marker_hits <= 0:
         return AdapterResult(
             framework="langchain",
             detected=False,
@@ -95,10 +95,17 @@ def apply(project_dir: Path, base_report: dict[str, object]) -> AdapterResult:
     return AdapterResult(
         framework="langchain",
         detected=True,
-        coverage_score=min(1.0, 0.5 + 0.08 * marker_hits + 0.1 * viability_hits),
+        coverage_score=min(
+            1.0,
+            (0.62 + 0.08 * marker_hits) if viability_hits <= 0 else (0.5 + 0.08 * marker_hits + 0.1 * viability_hits),
+        ),
         inferred_overrides=inferred_overrides,
         confidence_overrides=confidence_overrides,
-        warnings=[],
+        warnings=(
+            []
+            if viability_hits > 0
+            else ["LangChain viability signal was not detected; verify runnable chain/agent construction."]
+        ),
         unresolved_guidance=[
             "Verify model/provider env vars (for example OPENAI_API_KEY) before first run.",
         ],
