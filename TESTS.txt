@@ -12451,7 +12451,7 @@ tests:
     preconditions: Terraform ECS/secrets wiring changes for task506 are implemented
     steps:
       - 'step1: Inspect Terraform plan/task-definition rendering for DB runtime keys.'
-      - 'step2: Verify presence and mapping of REGISTRY_DATABASE_URL, REGISTRY_METADATA_BACKEND, REGISTRY_DB_POOL_SIZE, REGISTRY_DB_MAX_OVERFLOW, REGISTRY_DB_POOL_RECYCLE.'
+      - 'step2: Verify presence and mapping of REGISTRY_DATABASE_URL, REGISTRY_METADATA_BACKEND, REGISTRY_DB_POOL_SIZE, REGISTRY_DB_MAX_OVERFLOW, REGISTRY_DB_POOL_RECYCLE_SECONDS.'
       - 'step3: Verify secret-backed values are referenced without plaintext secret material committed.'
     expected: ECS runtime wiring exposes required DB env contract via Terraform-managed mappings
     pass_criteria: All required DB keys are mapped correctly and no plaintext sensitive value is committed
