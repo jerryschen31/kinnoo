@@ -8,18 +8,23 @@ import hashlib
 from io import BytesIO
 import importlib
 from typing import Any
+import secrets
+from uuid import UUID
 import zipfile
 
 from starlette.requests import Request
 import yaml
 
 from server.auth.middleware import authenticate_request
+from server.auth.token import TokenClaims
 from server.auth.token import TokenService
 from server.metadata.manager import MetadataManager
 from server.metadata.models import VersionMetadata, utc_now_iso
 from server.routes.errors import build_error_envelope, resolve_request_id
 from server.services.security_check import invoke_security_check_lambda_async, run_post_publish_checks_bytes
 from server.storage.base import StorageBackend
+from server.storage.sqlite_auth_store import SQLiteAuthStore
+from server.storage.user_store import UserStore
 
 
 @dataclass(frozen=True)
@@ -37,6 +42,8 @@ def publish_archive(
     storage_backend: StorageBackend,
     metadata_manager: MetadataManager,
     max_upload_mb: int,
+    user_store: UserStore | None = None,
+    sqlite_auth_store: SQLiteAuthStore | None = None,
 ) -> PublishResult:
     try:
         claims = authenticate_request(
@@ -69,6 +76,11 @@ def publish_archive(
         return PublishResult(status_code=400, body={"error": "manifest requires non-empty name and version"})
 
     tenant_slug = claims.tenant_slug
+    resolved_publisher = _resolve_publish_owner(
+        claims=claims,
+        user_store=user_store,
+        sqlite_auth_store=sqlite_auth_store,
+    )
 
     existing = metadata_manager.get_version_metadata(
         tenant_slug=tenant_slug,
@@ -122,7 +134,10 @@ def publish_archive(
         },
         integrity={"sha256": sha256_hex},
         publisher={
-            "user_id": claims.sub,
+            "user_id": resolved_publisher["user_id"],
+            "external_subject": resolved_publisher["external_subject"],
+            "identity_provider": resolved_publisher["identity_provider"],
+            "tenant_owner_user_id": resolved_publisher["tenant_owner_user_id"],
             "token_id": claims.token_id,
         },
         created_at=timestamp,
@@ -155,6 +170,8 @@ def create_publish_router(
     storage_backend: StorageBackend,
     metadata_manager: MetadataManager,
     max_upload_mb: int,
+    user_store: UserStore | None = None,
+    sqlite_auth_store: SQLiteAuthStore | None = None,
 ) -> Any:
     fastapi_module = importlib.import_module("fastapi")
     APIRouter = getattr(fastapi_module, "APIRouter")
@@ -181,6 +198,8 @@ def create_publish_router(
             storage_backend=storage_backend,
             metadata_manager=metadata_manager,
             max_upload_mb=max_upload_mb,
+            user_store=user_store,
+            sqlite_auth_store=sqlite_auth_store,
         )
         # Route wrappers are thin; publish_archive carries all business logic.
         if result.status_code >= 400:
@@ -227,6 +246,79 @@ def _validate_archive_and_manifest(
         return None, (400, f"kinnoo.yaml missing required field(s): {', '.join(missing_fields)}")
 
     return parsed, None
+
+
+def _is_uuid(value: str) -> bool:
+    try:
+        _ = UUID(value)
+        return True
+    except Exception:
+        return False
+
+
+def _resolve_publish_owner(
+    *,
+    claims: TokenClaims,
+    user_store: UserStore | None,
+    sqlite_auth_store: SQLiteAuthStore | None,
+) -> dict[str, str | None]:
+    if _is_uuid(claims.sub):
+        if sqlite_auth_store is not None:
+            tenant = sqlite_auth_store.upsert_tenant_owner(
+                tenant_slug=claims.tenant_slug,
+                owner_user_id=claims.sub,
+            )
+            tenant_owner_user_id = tenant.owner_user_id
+        else:
+            tenant_owner_user_id = claims.sub
+        return {
+            "user_id": claims.sub,
+            "external_subject": None,
+            "identity_provider": "internal",
+            "tenant_owner_user_id": tenant_owner_user_id,
+        }
+
+    provider_name = "oidc_kinde"
+    internal_user_id = claims.sub
+    if sqlite_auth_store is not None:
+        mapping = sqlite_auth_store.get_identity_mapping(
+            provider=provider_name,
+            provider_user_id=claims.sub,
+        )
+        if mapping is not None:
+            internal_user_id = mapping.user_id
+        elif user_store is not None:
+            synthetic_username = f"oidc-{hashlib.sha256(claims.sub.encode('utf-8')).hexdigest()[:16]}@kinde.local"
+            user = user_store.get_by_username(synthetic_username)
+            if user is None:
+                user = user_store.create_user(
+                    username=synthetic_username,
+                    plaintext_password=secrets.token_urlsafe(32),
+                    role="user",
+                    force_password_change=False,
+                )
+            internal_user_id = user.id
+            sqlite_auth_store.upsert_external_identity(
+                provider=provider_name,
+                provider_user_id=claims.sub,
+                user_id=user.id,
+                provider_email=synthetic_username,
+            )
+
+        tenant = sqlite_auth_store.upsert_tenant_owner(
+            tenant_slug=claims.tenant_slug,
+            owner_user_id=internal_user_id,
+        )
+        tenant_owner_user_id = tenant.owner_user_id
+    else:
+        tenant_owner_user_id = internal_user_id
+
+    return {
+        "user_id": internal_user_id,
+        "external_subject": claims.sub,
+        "identity_provider": provider_name,
+        "tenant_owner_user_id": tenant_owner_user_id,
+    }
 
 
 def _validate_integrity_manifest_in_archive(archive: zipfile.ZipFile) -> str | None:

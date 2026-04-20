@@ -14,6 +14,14 @@ class ReservedTenant:
     owner_user_id: str
 
 
+@dataclass(frozen=True)
+class IdentityMapping:
+    user_id: str
+    provider: str
+    provider_user_id: str
+    provider_email: str | None
+
+
 class SQLiteAuthStore:
     """Persist token consumption, tenant slugs, and identity mappings."""
 
@@ -98,3 +106,81 @@ class SQLiteAuthStore:
                 """,
                 ("local", provider_user_id, user_id, provider_email, now_epoch),
             )
+
+    def upsert_external_identity(
+        self,
+        *,
+        provider: str,
+        provider_user_id: str,
+        user_id: str,
+        provider_email: str | None = None,
+    ) -> None:
+        provider_name = provider.strip().lower()
+        provider_subject = provider_user_id.strip()
+        if not provider_name or not provider_subject:
+            return
+        now_epoch = int(time.time())
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO identities (provider, provider_user_id, user_id, provider_email, created_at_epoch, updated_at_epoch)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(provider, provider_user_id)
+                DO UPDATE SET
+                    user_id = excluded.user_id,
+                    provider_email = excluded.provider_email,
+                    updated_at_epoch = excluded.updated_at_epoch
+                """,
+                (
+                    provider_name,
+                    provider_subject,
+                    user_id,
+                    provider_email,
+                    now_epoch,
+                    now_epoch,
+                ),
+            )
+
+    def get_identity_mapping(self, *, provider: str, provider_user_id: str) -> IdentityMapping | None:
+        provider_name = provider.strip().lower()
+        provider_subject = provider_user_id.strip()
+        if not provider_name or not provider_subject:
+            return None
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT user_id, provider, provider_user_id, provider_email
+                FROM identities
+                WHERE provider = ? AND provider_user_id = ?
+                """,
+                (provider_name, provider_subject),
+            ).fetchone()
+        if row is None:
+            return None
+        return IdentityMapping(
+            user_id=str(row["user_id"]),
+            provider=str(row["provider"]),
+            provider_user_id=str(row["provider_user_id"]),
+            provider_email=(str(row["provider_email"]) if row["provider_email"] is not None else None),
+        )
+
+    def upsert_tenant_owner(self, *, tenant_slug: str, owner_user_id: str, now_epoch: int | None = None) -> ReservedTenant:
+        tenant = tenant_slug.strip()
+        if not tenant:
+            tenant = "global"
+        timestamp = int(time.time()) if now_epoch is None else int(now_epoch)
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO tenants (tenant_slug, owner_user_id, created_at_epoch)
+                VALUES (?, ?, ?)
+                """,
+                (tenant, owner_user_id, timestamp),
+            )
+            row = connection.execute(
+                "SELECT tenant_slug, owner_user_id FROM tenants WHERE tenant_slug = ?",
+                (tenant,),
+            ).fetchone()
+        if row is None:
+            return ReservedTenant(tenant_slug=tenant, owner_user_id=owner_user_id)
+        return ReservedTenant(tenant_slug=str(row["tenant_slug"]), owner_user_id=str(row["owner_user_id"]))

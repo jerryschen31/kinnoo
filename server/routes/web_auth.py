@@ -14,7 +14,8 @@ from starlette.requests import Request
 
 from server.auth.oidc import KindeOIDCProvider
 from server.auth.session import SessionService
-from server.models.user import PASSWORD_MANAGER
+from server.models.user import PASSWORD_MANAGER, username_to_tenant_slug
+from server.storage.sqlite_auth_store import SQLiteAuthStore
 from server.storage.user_store import UserStore
 
 
@@ -28,6 +29,7 @@ def create_web_auth_router(
     user_store: UserStore,
     login_csrf_secret: str,
     oidc_provider: KindeOIDCProvider | None = None,
+    sqlite_auth_store: SQLiteAuthStore | None = None,
 ) -> Any:
     fastapi_module = importlib.import_module("fastapi")
     APIRouter = getattr(fastapi_module, "APIRouter")
@@ -89,22 +91,45 @@ def create_web_auth_router(
 
             email_raw = userinfo.get("email")
             sub_raw = userinfo.get("sub")
+            provider_subject = sub_raw.strip() if isinstance(sub_raw, str) and sub_raw.strip() else ""
             if isinstance(email_raw, str) and email_raw.strip():
                 username = email_raw.strip().lower()
-            elif isinstance(sub_raw, str) and sub_raw.strip():
-                username = f"{sub_raw.strip()}@kinde.local"
+            elif provider_subject:
+                username = f"{provider_subject}@kinde.local"
             else:
                 response = RedirectResponse(url="/login?error=auth_missing_profile", status_code=303)
                 response.delete_cookie(OIDC_STATE_COOKIE, path="/")
                 return response
 
-            user = user_store.get_by_username(username)
+            user = None
+            if sqlite_auth_store is not None and provider_subject:
+                identity_mapping = sqlite_auth_store.get_identity_mapping(
+                    provider="oidc_kinde",
+                    provider_user_id=provider_subject,
+                )
+                if identity_mapping is not None:
+                    user = user_store.get_by_id(identity_mapping.user_id)
+
+            if user is None:
+                user = user_store.get_by_username(username)
             if user is None:
                 user = user_store.create_user(
                     username=username,
                     plaintext_password=secrets.token_urlsafe(32),
                     role="user",
                     force_password_change=False,
+                )
+
+            if sqlite_auth_store is not None:
+                sqlite_auth_store.upsert_external_identity(
+                    provider="oidc_kinde",
+                    provider_user_id=provider_subject or username,
+                    user_id=user.id,
+                    provider_email=(username if "@" in username else None),
+                )
+                sqlite_auth_store.upsert_tenant_owner(
+                    tenant_slug=username_to_tenant_slug(username),
+                    owner_user_id=user.id,
                 )
 
             session_record, session_cookie = session_service.create_session(user_id=user.id)
