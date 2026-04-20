@@ -17,6 +17,7 @@ from src.kinnoo.validator import validate as validate_manifest
 
 
 CLI_PATH = Path(__file__).resolve().parents[2] / "src" / "kinnoo" / "cli.py"
+LARGE_PROJECT_FILE_COUNT = 240
 
 
 def test_feature19_import_defaults_to_current_directory(tmp_path):
@@ -1133,7 +1134,7 @@ def test_feature117_import_edge_cases_no_traceback(tmp_path):
 
     large_project = tmp_path / "feature117-large-project"
     large_project.mkdir(parents=True, exist_ok=True)
-    for index in range(0, 240):
+    for index in range(0, LARGE_PROJECT_FILE_COUNT):
         (large_project / f"module_{index}.py").write_text(f"print('module-{index}')\n", encoding="utf-8")
     (large_project / "run.py").write_text("print('large')\n", encoding="utf-8")
 
@@ -1326,6 +1327,10 @@ def test_feature117_openclaw_from_copy_contract(tmp_path):
     (workspace / ".venv").mkdir(parents=True, exist_ok=True)
     (workspace / ".venv" / "bin").mkdir(parents=True, exist_ok=True)
     (workspace / ".venv" / "bin" / "python").write_text("", encoding="utf-8")
+    if hasattr(os, "symlink"):
+        outside_file = tmp_path / "feature117-outside.txt"
+        outside_file.write_text("outside\n", encoding="utf-8")
+        (workspace / "skills" / "outside-link.txt").symlink_to(outside_file)
 
     target = tmp_path / "feature117-openclaw-target"
 
@@ -1351,6 +1356,7 @@ def test_feature117_openclaw_from_copy_contract(tmp_path):
     assert (target / "memory" / "state.json").exists()
     assert (target / "skills" / "skill.md").exists()
     assert (target / "run.py").exists()
+    assert not (target / "skills" / "outside-link.txt").exists()
 
     assert not (target / ".git").exists()
     assert not (target / ".openclaw").exists()
@@ -1364,6 +1370,25 @@ def test_feature117_openclaw_from_copy_contract(tmp_path):
     assert "framework: openclaw" in manifest_text
     is_valid, errors = validate_manifest(str(manifest_path))
     assert is_valid, errors
+
+    non_empty_target = tmp_path / "feature117-openclaw-target-non-empty"
+    non_empty_target.mkdir(parents=True, exist_ok=True)
+    (non_empty_target / "preexisting.txt").write_text("keep\n", encoding="utf-8")
+    non_empty_result = subprocess.run(
+        [
+            sys.executable,
+            str(CLI_PATH),
+            "import",
+            "--from",
+            "openclaw",
+            str(non_empty_target),
+            str(workspace),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert non_empty_result.returncode != 0
+    assert "target is not empty" in f"{non_empty_result.stdout}\n{non_empty_result.stderr}".lower()
 
 
 @pytest.mark.regression_integration
@@ -1432,12 +1457,20 @@ def test_feature117_generic_llm_agent_import_contract(tmp_path):
 @pytest.mark.analyzer
 @pytest.mark.regression_sat
 def test_feature117_import_regression_coverage_floor(tmp_path):
-    import_test_count = sum(
-        1
-        for name, value in globals().items()
-        if name.startswith("test_") and callable(value)
+    required_import_regression_tests = {
+        "test_feature117_openclaw_from_copy_contract",
+        "test_feature117_generic_llm_agent_import_contract",
+        "test_feature117_import_regression_coverage_floor",
+    }
+    missing_tests = [
+        test_name
+        for test_name in required_import_regression_tests
+        if not callable(globals().get(test_name))
+    ]
+    assert not missing_tests, (
+        "Critical import regression tests must remain present: "
+        + ", ".join(sorted(missing_tests))
     )
-    assert import_test_count >= 30
 
     guard_project = tmp_path / "feature117-framework-accuracy-guard"
     guard_project.mkdir(parents=True, exist_ok=True)

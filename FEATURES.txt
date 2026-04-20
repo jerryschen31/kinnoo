@@ -3127,7 +3127,7 @@ features:
       - "ECR repository created by IaC feature105"
     owner: swe-agent
     dependencies: [feature103, feature105]
-    status: not-started
+    status: needs-review
 
   - id: feature99
     title: "PyPI package publishing configuration"
@@ -3779,4 +3779,4 @@ features:
       - "Includes OpenClaw workspace-based import flow update aligned with current agent model"
     owner: techlead-agent
     dependencies: []
-    status: not-started
+    status: needs-review

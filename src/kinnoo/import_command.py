@@ -218,21 +218,55 @@ def _missing_openclaw_required_paths(workspace_path: Path) -> list[str]:
     return missing
 
 
-def _copy_openclaw_workspace_contents(source_workspace: Path, target_path: Path) -> int:
-    copied_file_count = 0
-    for root, dirs, files in os.walk(source_workspace):
+def _iter_openclaw_workspace_copy_pairs(
+    source_workspace: Path,
+    target_path: Path,
+) -> list[tuple[Path, Path]]:
+    copy_pairs: list[tuple[Path, Path]] = []
+    for root, dirs, files in os.walk(source_workspace, followlinks=False):
         root_path = Path(root)
         rel = root_path.relative_to(source_workspace)
-        dirs[:] = [name for name in dirs if name not in _OPENCLAW_EXCLUDED_DIRS]
-        destination_root = target_path / rel
-        destination_root.mkdir(parents=True, exist_ok=True)
+        dirs[:] = [
+            name
+            for name in dirs
+            if name not in _OPENCLAW_EXCLUDED_DIRS and not (root_path / name).is_symlink()
+        ]
 
         for filename in files:
             source_file = root_path / filename
-            destination_file = destination_root / filename
-            shutil.copy2(source_file, destination_file)
-            copied_file_count += 1
+            if source_file.is_symlink():
+                continue
+            destination_file = target_path / rel / filename
+            copy_pairs.append((source_file, destination_file))
 
+    return copy_pairs
+
+
+def _copy_openclaw_workspace_contents(
+    source_workspace: Path,
+    target_path: Path,
+    *,
+    force: bool,
+) -> int:
+    copy_pairs = _iter_openclaw_workspace_copy_pairs(source_workspace, target_path)
+    if not force:
+        colliding_paths = [
+            str(destination_file) for _, destination_file in copy_pairs if destination_file.exists()
+        ]
+        if colliding_paths:
+            collision_preview = ", ".join(colliding_paths[:5])
+            if len(colliding_paths) > 5:
+                collision_preview += ", ..."
+            raise FileExistsError(
+                "Refusing to overwrite existing files in target path: "
+                f"{collision_preview}"
+            )
+
+    copied_file_count = 0
+    for source_file, destination_file in copy_pairs:
+        destination_file.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source_file, destination_file)
+        copied_file_count += 1
     return copied_file_count
 
 
@@ -274,6 +308,12 @@ def _import_from_openclaw_workspace_source(
         )
         return 1
     target_path.mkdir(parents=True, exist_ok=True)
+    if not force and any(target_path.iterdir()):
+        _emit_import_error(
+            f"OpenClaw import target is not empty: {target_path}",
+            "Use an empty target directory or pass --force to allow overwriting collisions.",
+        )
+        return 1
 
     manifest_path = target_path / "kinnoo.yaml"
     if manifest_path.exists() and not force:
@@ -283,7 +323,18 @@ def _import_from_openclaw_workspace_source(
         )
         return 1
 
-    copied_files = _copy_openclaw_workspace_contents(workspace_path, target_path)
+    try:
+        copied_files = _copy_openclaw_workspace_contents(
+            workspace_path,
+            target_path,
+            force=force,
+        )
+    except FileExistsError as exc:
+        _emit_import_error(
+            str(exc),
+            "Use --force if you explicitly want to overwrite colliding files.",
+        )
+        return 1
     if copied_files <= 0:
         _emit_import_error(
             "OpenClaw workspace source did not contain any copyable files.",

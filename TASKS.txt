@@ -8941,7 +8941,7 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task418, task424]
     tests: [test586, test587]
-    status: not-started
+    status: needs-review
 
   - id: task428
     title: "Create SNS topics for alerts and password reset notifications"
@@ -8958,7 +8958,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task427]
     tests: [test586, test587]
-    status: not-started
+    status: needs-review
 
   - id: task429
     title: "Add invite token validation to registration endpoint"
@@ -8977,7 +8977,7 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task416]
     tests: [test588, test589]
-    status: not-started
+    status: needs-review
 
   - id: task430
     title: "Add invite token field to web registration and handle race conditions"
@@ -8995,7 +8995,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task429]
     tests: [test588, test589]
-    status: not-started
+    status: needs-review
 
   - id: task431
     title: "Add forgot-password endpoint with SNS notification to operator"
@@ -9013,7 +9013,7 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task416, task428]
     tests: [test590, test591]
-    status: not-started
+    status: needs-review
 
   - id: task432
     title: "Add forgot-password web page with rate limiting"
@@ -10466,7 +10466,7 @@ tasks:
       - 'step5: Run import-targeted pytest + manifest validator and capture outputs in handoff notes.'
     dependencies: []
     tests: [test696, test697, test698]
-    status: not-started
+    status: needs-review
 
   - id: task492
     title: "feature117 framework adapter hardening for langchain langgraph and openai"
@@ -10495,7 +10495,7 @@ tasks:
       - 'step5: Execute adapter-focused unit/integration tests and record evidence in handoff.'
     dependencies: [task491]
     tests: [test699, test700, test701]
-    status: not-started
+    status: needs-review
 
   - id: task493
     title: "feature117 openclaw workspace import --from flow hardening"
@@ -10522,7 +10522,7 @@ tasks:
       - 'step5: Add end-to-end import tests for successful copy + invalid-source failures.'
     dependencies: [task491]
     tests: [test702]
-    status: not-started
+    status: needs-review
 
   - id: task494
     title: "feature117 dependency inference hardening and generic llm agent support"
@@ -10549,7 +10549,7 @@ tasks:
       - 'step5: Validate outputs with import-related pytest modules and manifest checks.'
     dependencies: [task491, task492]
     tests: [test703, test704]
-    status: not-started
+    status: needs-review
 
   - id: task495
     title: "feature117 import hardening regression matrix and fixture expansion"
@@ -10575,4 +10575,4 @@ tasks:
       - 'step5: Ensure manifest validator stays clean after task/test manifest updates.'
     dependencies: [task492, task493, task494]
     tests: [test705]
-    status: not-started
+    status: needs-review
