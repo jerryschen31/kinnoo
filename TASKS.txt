@@ -10860,11 +10860,11 @@ tasks:
       - iac/outputs.tf
       - iac/modules/secrets/
       - iac/modules/ecs-fargate/
-      - iac/modules/vpc/outputs.tf
+      - iac/modules/vpc/
       - iac/environments/dev/terraform.tfvars
       - iac/environments/prod/terraform.tfvars
     steps:
-      - 'step1: Create `iac/modules/rds-postgres` and instantiate it from root with dev/prod profile controls.'
+      - 'step1: Create `iac/modules/rds-postgres` and instantiate it from root with dev/prod profile controls, adding private subnet support and related routing/output wiring in `iac/modules/vpc/` as needed for private RDS placement.'
       - 'step2: Enforce private-only DB posture, ECS-only ingress, and required encryption/SSL settings.'
       - 'step3: Add DB secret/wiring and inject REGISTRY_DATABASE_URL plus DB pool/backend env keys into ECS task definition.'
       - 'step4: Validate Terraform format/validate/plan paths for dev/prod var contracts.'
