@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 - Added Feature69 standardized test contract documentation for `kinnoo.tests.yaml` and `kinnoo test` execution modes.
 - Added Feature70 landing-page and README messaging updates for OpenClaw bridge, ClawHub mirror attribution, and Phase 6 command matrix coverage.
 - Added Feature117 import hardening regression coverage (`test696`-`test705`) for edge-case stability, framework adapter behavior, OpenClaw source import, and coverage-floor guards.
+- Added Feature118 task500-task503 implementation coverage for internal identity mapping ownership linkage, provider-neutral auth config contract checks, legacy-auth compatibility gating, and auth portability matrix validation (`test712`-`test715`).
 
 ### Changed
 - Added CI environment/secrets contract documentation for `KINNOO_REGISTRY_URL`, `KINNOO_REGISTRY_TOKEN`, `KINNOO_TENANT_SLUG`, and strict-mode compatibility control.
@@ -22,6 +23,9 @@ All notable changes to this project will be documented in this file.
 - Hardened `kinnoo import` with pre-write manifest validation gate and deterministic `Error`/`Remediation` messaging on core failure paths.
 - Expanded framework inference hardening across LangChain/LangGraph/OpenAI adapters and analyzer Node+Poetry dependency/env-var detection paths.
 - Added explicit OpenClaw workspace source flow: `kinnoo import --from openclaw <target> <workspace-path>` with include/exclude copy contract and manifest validation.
+- Canonicalized runtime auth contract to provider-neutral `AUTH_*` env keys (with Kinde-prefixed alias fallback), and aligned ECS/Secrets IaC wiring with canonical key injection.
+- Default-disabled legacy local password/register/reset auth API paths under OIDC cutover, with explicit temporary compatibility override via `AUTH_ENABLE_LEGACY_PATHS=true`.
+- Bumped project version from `0.7.8` to `0.7.9`.
 
 ## [v0.7.7] - 2026-04-19
 ### Added

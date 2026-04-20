@@ -10719,7 +10719,7 @@ tasks:
       - 'step4: Add/refresh tests proving ownership and tenant linkage correctness across multiple users/tenants and both login paths (web + CLI).'
     dependencies: [task497, task499]
     tests: [test712]
-    status: not-started
+    status: needs-review
 
   - id: task501
     title: "feature118 provider-neutral auth config and IaC env alignment"
@@ -10744,7 +10744,7 @@ tasks:
       - 'step4: Document final env contract and migration guidance for dev/staging operators.'
     dependencies: [task496, task497, task499]
     tests: [test713]
-    status: not-started
+    status: needs-review
 
   - id: task502
     title: "feature118 legacy auth runtime retirement and compatibility gating"
@@ -10768,7 +10768,7 @@ tasks:
       - 'step4: Add regression tests validating legacy-path disablement semantics and cutover safety.'
     dependencies: [task497]
     tests: [test714]
-    status: not-started
+    status: needs-review
 
   - id: task503
     title: "feature118 auth portability and integration test expansion"
@@ -10795,7 +10795,7 @@ tasks:
       - 'step5: Ensure portability matrix coverage/test mappings remain marker-classified and traceable to feature118 ACs.'
     dependencies: [task497, task498, task499, task501, task502]
     tests: [test715]
-    status: not-started
+    status: needs-review
 
   - id: task504
     title: "feature118 dev cutover smoke validation and rollback rehearsal"
