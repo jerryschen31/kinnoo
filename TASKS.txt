@@ -10639,7 +10639,7 @@ tasks:
       - 'step6: Add/refresh server tests for valid and invalid token scenarios and callback/logout flows.'
     dependencies: [task496]
     tests: [test707, test708]
-    status: not-started
+    status: needs-review
 
   - id: task498
     title: "feature118 web auth migration to Kinde-hosted redirects"
@@ -10665,7 +10665,7 @@ tasks:
       - 'step5: Add/update web tests for login/callback/logout/protected-layout flows.'
     dependencies: [task497]
     tests: [test709]
-    status: not-started
+    status: needs-review
 
   - id: task499
     title: "feature118 CLI login/logout/refresh flow migration"
@@ -10693,7 +10693,7 @@ tasks:
       - 'step5: Add/update CLI tests for login success/failure, PKCE flow, dynamic port allocation, refresh path, and logout behaviors.'
     dependencies: [task496, task497]
     tests: [test710, test711]
-    status: not-started
+    status: needs-review
 
   - id: task500
     title: "feature118 internal identity mapping and publish ownership linkage"

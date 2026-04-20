@@ -2,15 +2,25 @@
 
 from __future__ import annotations
 
-import getpass
 import base64
+import getpass
+import hashlib
 import json
 import os
+import secrets
+import socket
 import sys
+import threading
+import time
+import webbrowser
+from dataclasses import dataclass
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib import error as urllib_error
+from urllib import parse as urllib_parse
 from urllib import request as urllib_request
 
 from .config import (
+    RegistryConfig,
     clear_registry_auth_state,
     load_registry_config,
     save_registry_auth_state,
@@ -18,6 +28,22 @@ from .config import (
 
 
 DEFAULT_REGISTRY_URL = "https://registry.kinnoo.ai"
+CALLBACK_PATH = "/auth/callback"
+CALLBACK_TIMEOUT_SECONDS = 180
+TOKEN_REFRESH_SKEW_SECONDS = 120
+CALLBACK_SERVER_PORTS = (8765, 8766, 8767, 0)
+
+
+@dataclass(frozen=True)
+class HostedCLIAuthConfig:
+    authorization_endpoint: str
+    token_endpoint: str
+    logout_endpoint: str | None
+    userinfo_endpoint: str | None
+    client_id: str
+    audience: str | None
+    issuer_url: str | None
+    revocation_endpoint: str | None
 
 
 def _http_user_agent() -> str:
@@ -27,11 +53,43 @@ def _http_user_agent() -> str:
     return "curl/8.7.1"
 
 
+def _hosted_cli_config_from_env() -> HostedCLIAuthConfig | None:
+    client_id = (os.environ.get("KINDE_CLI_CLIENT_ID") or "").strip()
+    authorization_endpoint = (os.environ.get("AUTHORIZATION_ENDPOINT") or "").strip()
+    token_endpoint = (os.environ.get("TOKEN_ENDPOINT") or "").strip()
+    if not client_id or not authorization_endpoint or not token_endpoint:
+        return None
+
+    return HostedCLIAuthConfig(
+        authorization_endpoint=authorization_endpoint,
+        token_endpoint=token_endpoint,
+        logout_endpoint=(os.environ.get("LOGOUT_ENDPOINT") or "").strip() or None,
+        userinfo_endpoint=(os.environ.get("USERINFO_ENDPOINT") or "").strip() or None,
+        client_id=client_id,
+        audience=(os.environ.get("KINDE_AUDIENCE") or "").strip() or None,
+        issuer_url=(os.environ.get("KINDE_ISSUER_URL") or "").strip() or None,
+        revocation_endpoint=(os.environ.get("REVOCATION_ENDPOINT") or "").strip() or None,
+    )
+
+
 def login_command(
     *,
     email: str | None,
     password: str | None,
 ) -> int:
+    hosted_config = _hosted_cli_config_from_env()
+    if hosted_config is not None and _should_use_hosted_cli_auth():
+        return _login_hosted_pkce(hosted_config=hosted_config)
+    return _legacy_login_with_password(email=email, password=password)
+
+
+def _should_use_hosted_cli_auth() -> bool:
+    provider = (os.environ.get("AUTH_PROVIDER") or "").strip().lower()
+    mode = (os.environ.get("KINNOO_CLI_AUTH_MODE") or "").strip().lower()
+    return provider in {"oidc", "oidc_kinde", "kinde"} or mode == "hosted"
+
+
+def _legacy_login_with_password(*, email: str | None, password: str | None) -> int:
     config = load_registry_config()
 
     resolved_registry = (config.registry_url or DEFAULT_REGISTRY_URL).strip()
@@ -42,7 +100,6 @@ def login_command(
 
     resolved_password = password
     if resolved_password is None:
-        # getpass hides keyboard input (including pasted passwords) in interactive shells.
         resolved_password = _prompt_for_password()
 
     if not resolved_email:
@@ -82,8 +139,204 @@ def login_command(
     return 0
 
 
+def _login_hosted_pkce(*, hosted_config: HostedCLIAuthConfig) -> int:
+    config = load_registry_config()
+    resolved_registry = (config.registry_url or DEFAULT_REGISTRY_URL).strip()
+    state = secrets.token_urlsafe(24)
+    code_verifier = _generate_code_verifier()
+    code_challenge = _generate_code_challenge(code_verifier)
+
+    callback_state = _CallbackState()
+    server, callback_port = _start_callback_server(state=state, callback_state=callback_state)
+    if server is None:
+        print("Error: Unable to start local auth callback server.")
+        return 1
+
+    redirect_uri = f"http://127.0.0.1:{callback_port}{CALLBACK_PATH}"
+    auth_url = _build_authorization_url(
+        hosted_config=hosted_config,
+        redirect_uri=redirect_uri,
+        state=state,
+        code_challenge=code_challenge,
+    )
+
+    print("Starting hosted login flow...")
+    if not webbrowser.open(auth_url):
+        print("Open this URL in your browser to continue login:")
+        print(auth_url)
+
+    callback_state.event.wait(timeout=CALLBACK_TIMEOUT_SECONDS)
+    server.shutdown()
+    server.server_close()
+
+    if callback_state.error:
+        print(f"Error: {callback_state.error}")
+        return 1
+    if not callback_state.code:
+        print("Error: Login callback timed out. Please run 'kinnoo login' again.")
+        return 1
+
+    token_payload, exchange_error = _exchange_authorization_code(
+        hosted_config=hosted_config,
+        code=callback_state.code,
+        redirect_uri=redirect_uri,
+        code_verifier=code_verifier,
+    )
+    if exchange_error is not None or token_payload is None:
+        print(f"Error: {exchange_error or 'Hosted token exchange failed.'}")
+        return 1
+
+    access_token = token_payload.get("access_token")
+    if not isinstance(access_token, str) or not access_token.strip():
+        print("Error: Hosted auth response did not include access_token.")
+        return 1
+    refresh_token = token_payload.get("refresh_token")
+    resolved_refresh_token = refresh_token.strip() if isinstance(refresh_token, str) else None
+    expires_in = token_payload.get("expires_in")
+    expires_at_epoch = int(time.time()) + int(expires_in) if isinstance(expires_in, int) else None
+    tenant_slug = _tenant_slug_from_token(access_token) or "global"
+
+    save_registry_auth_state(
+        registry_url=resolved_registry,
+        registry_token=access_token.strip(),
+        tenant_slug=tenant_slug,
+        refresh_token=resolved_refresh_token,
+        expires_at_epoch=expires_at_epoch,
+        token_endpoint=hosted_config.token_endpoint,
+        authorization_endpoint=hosted_config.authorization_endpoint,
+        revocation_endpoint=hosted_config.revocation_endpoint,
+        logout_endpoint=hosted_config.logout_endpoint,
+        oidc_client_id=hosted_config.client_id,
+    )
+
+    print("Login successful.")
+    print(f"Registry: {resolved_registry}")
+    print(f"Tenant: {tenant_slug}")
+    return 0
+
+
+def _build_authorization_url(
+    *,
+    hosted_config: HostedCLIAuthConfig,
+    redirect_uri: str,
+    state: str,
+    code_challenge: str,
+) -> str:
+    params = {
+        "response_type": "code",
+        "client_id": hosted_config.client_id,
+        "redirect_uri": redirect_uri,
+        "scope": "openid profile email offline_access",
+        "state": state,
+        "code_challenge": code_challenge,
+        "code_challenge_method": "S256",
+    }
+    if hosted_config.audience:
+        params["audience"] = hosted_config.audience
+    return hosted_config.authorization_endpoint + "?" + urllib_parse.urlencode(params)
+
+
+def _exchange_authorization_code(
+    *,
+    hosted_config: HostedCLIAuthConfig,
+    code: str,
+    redirect_uri: str,
+    code_verifier: str,
+) -> tuple[dict[str, object] | None, str | None]:
+    payload = urllib_parse.urlencode(
+        {
+            "grant_type": "authorization_code",
+            "client_id": hosted_config.client_id,
+            "code": code,
+            "redirect_uri": redirect_uri,
+            "code_verifier": code_verifier,
+        }
+    ).encode("utf-8")
+    request = urllib_request.Request(
+        url=hosted_config.token_endpoint,
+        data=payload,
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Accept": "application/json",
+            "User-Agent": _http_user_agent(),
+        },
+        method="POST",
+    )
+    try:
+        with urllib_request.urlopen(request, timeout=20.0) as response:
+            body = response.read().decode("utf-8")
+    except urllib_error.HTTPError as error:
+        return None, _extract_error_message(_read_http_error_payload(error)) or f"HTTP {error.code} during token exchange."
+    except urllib_error.URLError as error:
+        reason = getattr(error, "reason", None)
+        return None, f"Failed to reach hosted token endpoint. Reason: {reason}"
+
+    try:
+        parsed = json.loads(body)
+    except json.JSONDecodeError:
+        return None, "Hosted token endpoint returned invalid JSON."
+    if not isinstance(parsed, dict):
+        return None, "Hosted token endpoint returned invalid payload."
+    return parsed, None
+
+
+class _CallbackState:
+    def __init__(self) -> None:
+        self.event = threading.Event()
+        self.code: str | None = None
+        self.error: str | None = None
+
+
+def _start_callback_server(*, state: str, callback_state: _CallbackState) -> tuple[ThreadingHTTPServer | None, int]:
+    handler = _make_callback_handler(expected_state=state, callback_state=callback_state)
+    for port in CALLBACK_SERVER_PORTS:
+        try:
+            server = ThreadingHTTPServer(("127.0.0.1", port), handler)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            return server, int(server.server_address[1])
+        except OSError:
+            continue
+    return None, -1
+
+
+def _make_callback_handler(*, expected_state: str, callback_state: _CallbackState) -> type[BaseHTTPRequestHandler]:
+    class _CallbackHandler(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:  # noqa: N802
+            parsed = urllib_parse.urlparse(self.path)
+            if parsed.path != CALLBACK_PATH:
+                self.send_response(404)
+                self.end_headers()
+                return
+
+            query = urllib_parse.parse_qs(parsed.query)
+            state = (query.get("state") or [""])[0]
+            code = (query.get("code") or [""])[0]
+            error = (query.get("error") or [""])[0]
+            if error:
+                callback_state.error = f"authorization failed: {error}"
+            elif not state or state != expected_state:
+                callback_state.error = "state validation failed"
+            elif not code:
+                callback_state.error = "callback did not include authorization code"
+            else:
+                callback_state.code = code
+
+            callback_state.event.set()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(
+                b"<html><body><h3>Login complete.</h3><p>You can close this tab.</p></body></html>"
+            )
+
+        def log_message(self, format: str, *args: object) -> None:  # noqa: A003
+            del format, args
+
+    return _CallbackHandler
+
+
 def _prompt_for_password() -> str:
-    # In non-interactive subprocess contexts (tests/CI), getpass may fail because no TTY exists.
     try:
         if sys.stdin.isatty():
             return getpass.getpass("Password: ")
@@ -109,16 +362,133 @@ def _tenant_slug_from_token(token: str) -> str | None:
     tenant_slug = payload.get("tenant_slug")
     if isinstance(tenant_slug, str) and tenant_slug.strip():
         return tenant_slug.strip()
+    org_code = payload.get("org_code")
+    if isinstance(org_code, str) and org_code.strip():
+        return org_code.strip()
     return None
 
 
+def _generate_code_verifier() -> str:
+    raw = secrets.token_urlsafe(72)
+    return raw[:96]
+
+
+def _generate_code_challenge(code_verifier: str) -> str:
+    digest = hashlib.sha256(code_verifier.encode("utf-8")).digest()
+    return base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
+
+
 def logout_command() -> int:
+    config = load_registry_config()
+    _attempt_token_revocation(config)
     removed = clear_registry_auth_state()
     if removed:
         print("Logout successful. Cleared stored registry auth state.")
     else:
         print("No stored registry auth state found.")
     return 0
+
+
+def _attempt_token_revocation(config: RegistryConfig) -> None:
+    if not config.revocation_endpoint or not config.refresh_token:
+        return
+    payload = urllib_parse.urlencode(
+        {
+            "token": config.refresh_token,
+            "client_id": config.oidc_client_id or "",
+        }
+    ).encode("utf-8")
+    request = urllib_request.Request(
+        url=config.revocation_endpoint,
+        data=payload,
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+            "User-Agent": _http_user_agent(),
+        },
+        method="POST",
+    )
+    try:
+        urllib_request.urlopen(request, timeout=8.0).read()
+    except Exception:
+        return
+
+
+def refresh_registry_auth_if_needed(*, config: RegistryConfig | None = None) -> tuple[RegistryConfig, str | None]:
+    resolved = config or load_registry_config()
+    if not resolved.registry_token:
+        return resolved, None
+    if not resolved.expires_at_epoch:
+        return resolved, None
+
+    now = int(time.time())
+    if resolved.expires_at_epoch - now > TOKEN_REFRESH_SKEW_SECONDS:
+        return resolved, None
+
+    if not resolved.refresh_token or not resolved.token_endpoint or not resolved.oidc_client_id:
+        return resolved, (
+            "Access token is near expiry and cannot be refreshed automatically. "
+            "Run 'kinnoo login' to re-authenticate."
+        )
+
+    payload = urllib_parse.urlencode(
+        {
+            "grant_type": "refresh_token",
+            "refresh_token": resolved.refresh_token,
+            "client_id": resolved.oidc_client_id,
+        }
+    ).encode("utf-8")
+    request = urllib_request.Request(
+        url=resolved.token_endpoint,
+        data=payload,
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Accept": "application/json",
+            "User-Agent": _http_user_agent(),
+        },
+        method="POST",
+    )
+    try:
+        with urllib_request.urlopen(request, timeout=15.0) as response:
+            raw = response.read().decode("utf-8")
+    except urllib_error.HTTPError as error:
+        message = _extract_error_message(_read_http_error_payload(error)) or "token refresh failed"
+        return resolved, f"Token refresh failed: {message}. Run 'kinnoo login'."
+    except urllib_error.URLError as error:
+        return resolved, f"Token refresh network failure: {getattr(error, 'reason', 'unknown')}. Run 'kinnoo login'."
+
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return resolved, "Token refresh returned invalid JSON. Run 'kinnoo login'."
+    if not isinstance(parsed, dict):
+        return resolved, "Token refresh returned invalid payload. Run 'kinnoo login'."
+
+    access_token = parsed.get("access_token")
+    if not isinstance(access_token, str) or not access_token.strip():
+        return resolved, "Token refresh response missing access_token. Run 'kinnoo login'."
+
+    refreshed_refresh = parsed.get("refresh_token")
+    expires_in = parsed.get("expires_in")
+    expires_at_epoch = int(time.time()) + int(expires_in) if isinstance(expires_in, int) else None
+    refreshed_tenant = _tenant_slug_from_token(access_token) or (resolved.tenant_slug or "global")
+
+    save_registry_auth_state(
+        registry_url=resolved.registry_url or DEFAULT_REGISTRY_URL,
+        registry_token=access_token.strip(),
+        tenant_slug=refreshed_tenant,
+        refresh_token=(
+            refreshed_refresh.strip()
+            if isinstance(refreshed_refresh, str) and refreshed_refresh.strip()
+            else resolved.refresh_token
+        ),
+        expires_at_epoch=expires_at_epoch,
+        token_endpoint=resolved.token_endpoint,
+        authorization_endpoint=resolved.authorization_endpoint,
+        revocation_endpoint=resolved.revocation_endpoint,
+        logout_endpoint=resolved.logout_endpoint,
+        oidc_client_id=resolved.oidc_client_id,
+    )
+    return load_registry_config(), None
 
 
 def _issue_token(
@@ -209,7 +579,6 @@ def _extract_error_message(payload: dict[str, object] | None) -> str:
     if isinstance(message_value, str):
         return message_value
 
-    # Cloudflare and other edge providers often include human-readable details here.
     detail_value = payload.get("detail")
     if isinstance(detail_value, str):
         return detail_value
