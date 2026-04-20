@@ -380,8 +380,8 @@ def test_feature118_identity_mapping_and_publish_ownership(tmp_path, monkeypatch
     assert web_doc.publisher["external_subject"] == "kinde-web-subject-1"
     assert cli_doc.publisher["external_subject"] == "kinde-cli-subject-2"
 
-    _ = UUID(web_internal_user_id)
-    _ = UUID(cli_internal_user_id)
+    assert UUID(web_internal_user_id)
+    assert UUID(cli_internal_user_id)
     assert web_internal_user_id != cli_internal_user_id
 
     web_mapping = app.state.sqlite_auth_store.get_identity_mapping(

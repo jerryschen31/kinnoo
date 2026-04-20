@@ -167,7 +167,7 @@ class SQLiteAuthStore:
     def upsert_tenant_owner(self, *, tenant_slug: str, owner_user_id: str, now_epoch: int | None = None) -> ReservedTenant:
         tenant = tenant_slug.strip()
         if not tenant:
-            tenant = "global"
+            raise ValueError("tenant_slug must be non-empty")
         timestamp = int(time.time()) if now_epoch is None else int(now_epoch)
         with self._connect() as connection:
             connection.execute(

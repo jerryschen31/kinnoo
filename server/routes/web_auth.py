@@ -14,6 +14,7 @@ from starlette.requests import Request
 
 from server.auth.oidc import KindeOIDCProvider
 from server.auth.session import SessionService
+from server.config import resolve_auth_provider
 from server.models.user import PASSWORD_MANAGER, username_to_tenant_slug
 from server.storage.sqlite_auth_store import SQLiteAuthStore
 from server.storage.user_store import UserStore
@@ -40,6 +41,9 @@ def create_web_auth_router(
     RedirectResponse = getattr(responses_module, "RedirectResponse")
 
     router = APIRouter()
+    oidc_provider_name = resolve_auth_provider()
+    if oidc_provider_name in {"", "legacy"}:
+        oidc_provider_name = "oidc_kinde"
 
     if oidc_provider is not None:
         @router.get("/login")
@@ -104,7 +108,7 @@ def create_web_auth_router(
             user = None
             if sqlite_auth_store is not None and provider_subject:
                 identity_mapping = sqlite_auth_store.get_identity_mapping(
-                    provider="oidc_kinde",
+                    provider=oidc_provider_name,
                     provider_user_id=provider_subject,
                 )
                 if identity_mapping is not None:
@@ -121,12 +125,13 @@ def create_web_auth_router(
                 )
 
             if sqlite_auth_store is not None:
-                sqlite_auth_store.upsert_external_identity(
-                    provider="oidc_kinde",
-                    provider_user_id=provider_subject or username,
-                    user_id=user.id,
-                    provider_email=(username if "@" in username else None),
-                )
+                if provider_subject:
+                    sqlite_auth_store.upsert_external_identity(
+                        provider=oidc_provider_name,
+                        provider_user_id=provider_subject,
+                        user_id=user.id,
+                        provider_email=(username if "@" in username else None),
+                    )
                 sqlite_auth_store.upsert_tenant_owner(
                     tenant_slug=username_to_tenant_slug(username),
                     owner_user_id=user.id,
