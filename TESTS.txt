@@ -12134,15 +12134,16 @@ tests:
     automation_path: tests/client_cli_import/test_cli_import.py::test_feature117_import_regression_coverage_floor
 
   - id: test706
-    title: "feature118 prerequisite decision and Kinde setup checklist completeness"
+    title: "feature118 prerequisite decision and dual Kinde app setup checklist completeness"
     type: manual
-    preconditions: Access to Kinde admin, Cloudflare, and AWS secret/config environments for dev/staging setup
+    preconditions: Access to Kinde admin, Cloudflare, and AWS secret/config environments for dev/staging setup; both Kinde apps (Kinnoo Web Dev and Kinnoo CLI Dev) created
     steps:
-      - 'step1: Verify all prerequisite decisions in notes/kinde-auth-setup-dev.md section 4 are explicitly recorded.'
-      - 'step2: Verify callback/logout/origin/scopes/test-user setup is configured in Kinde for selected environment posture.'
-      - 'step3: Verify required auth secrets and runtime variable values are created and mapped for deployment.'
-    expected: Prerequisite blockers are fully resolved and setup artifacts are complete before SWE implementation proceeds
-    pass_criteria: All prerequisite checklist items are marked complete with auditable records and no unresolved blockers
+      - 'step1: Verify all prerequisite decisions in notes/kinde-auth-setup-dev.md section 4 are explicitly recorded (including resolved decisions for CLI PKCE, two-app topology, and dynamic port).'
+      - 'step2: Verify Kinnoo Web Dev app (Backend/Python) has correct callback/logout/origin/scopes/test-user setup per section 5.1.1.'
+      - 'step3: Verify Kinnoo CLI Dev app (Frontend/Native PKCE) has wildcard loopback callback per section 5.1.2.'
+      - 'step4: Verify required auth secrets (separate web client ID/secret and CLI client ID) are created and mapped for deployment per section 5.2.'
+    expected: Prerequisite blockers are fully resolved and dual-app setup artifacts are complete before SWE implementation proceeds
+    pass_criteria: All prerequisite checklist items are marked complete with auditable records, both Kinde apps are configured, and no unresolved blockers
     covers:
       - feature: feature118
         ac: AC1
@@ -12153,15 +12154,16 @@ tests:
     automation_path: null
 
   - id: test707
-    title: "server accepts valid OIDC token and rejects invalid token variants"
+    title: "server accepts valid OIDC token from both Kinde apps and rejects invalid token variants"
     type: integration
-    preconditions: Server auth middleware/routes are wired to OIDC discovery/JWKS validation
+    preconditions: Server auth middleware/routes are wired to OIDC discovery/JWKS validation supporting tokens from both Web Dev and CLI Dev Kinde apps
     steps:
-      - 'step1: Call protected API route with a valid token signed by configured JWKS and matching issuer/audience.'
-      - 'step2: Repeat with invalid signature, expired token, and wrong issuer/audience variants.'
-      - 'step3: Inspect response status and error envelope shape for each invalid variant.'
-    expected: Valid token is accepted and invalid variants are rejected with deterministic auth error envelopes
-    pass_criteria: Valid token path returns success and invalid variants return clear 401 errors with stable envelope contract
+      - 'step1: Call protected API route with a valid token signed by configured JWKS and matching issuer/audience (simulating Web Dev client).'
+      - 'step2: Call protected API route with a valid token simulating CLI Dev client (same issuer/JWKS, different client ID).'
+      - 'step3: Repeat with invalid signature, expired token, and wrong issuer/audience variants.'
+      - 'step4: Inspect response status and error envelope shape for each invalid variant.'
+    expected: Valid tokens from both Kinde apps are accepted and invalid variants are rejected with deterministic auth error envelopes
+    pass_criteria: Valid token path returns success for both app clients and invalid variants return clear 401 errors with stable envelope contract
     covers:
       - feature: feature118
         ac: AC2
@@ -12172,15 +12174,15 @@ tests:
     automation_path: server/tests/test_auth_route.py::test_feature118_oidc_token_validation_contract
 
   - id: test708
-    title: "server provider adapter boundary and fail-fast config selection"
+    title: "server provider adapter boundary and fail-fast config selection with dual client IDs"
     type: integration
-    preconditions: Provider-neutral config and provider selection are implemented for server auth startup
+    preconditions: Provider-neutral config with dual client ID support (web + CLI) and provider selection are implemented for server auth startup
     steps:
-      - 'step1: Start server with valid provider config and confirm adapter-backed auth routes initialize successfully.'
-      - 'step2: Start server with missing required provider config and observe startup behavior.'
-      - 'step3: Validate adapter contract tests with mocked discovery/JWKS responses.'
-    expected: Provider is selected via config-driven adapter boundary and invalid config fails fast with clear errors
-    pass_criteria: Successful startup on valid config, deterministic fail-fast on invalid config, and adapter contract tests pass
+      - 'step1: Start server with valid provider config (including both web client ID/secret and CLI client ID) and confirm adapter-backed auth routes initialize successfully.'
+      - 'step2: Start server with missing required provider config (e.g., missing web client secret) and observe startup behavior.'
+      - 'step3: Validate adapter contract tests with mocked discovery/JWKS responses for both client ID contexts.'
+    expected: Provider is selected via config-driven adapter boundary with dual client ID support and invalid config fails fast with clear errors
+    pass_criteria: Successful startup on valid config, deterministic fail-fast on invalid config, and adapter contract tests pass for dual-client scenario
     covers:
       - feature: feature118
         ac: AC3
@@ -12191,15 +12193,15 @@ tests:
     automation_path: server/tests/test_auth_route.py::test_feature118_provider_adapter_selection_and_fail_fast
 
   - id: test709
-    title: "web auth uses redirect/callback/logout flow and protected-layout redirects"
+    title: "web auth uses Kinnoo Web Dev client redirect/callback/logout flow and protected-layout redirects"
     type: integration
-    preconditions: Web login/signup/reset and auth layout are migrated to provider-hosted auth flow
+    preconditions: Web login/signup/reset and auth layout are migrated to provider-hosted auth flow using Kinnoo Web Dev backend client
     steps:
-      - 'step1: Open login page and verify authentication starts via redirect CTA instead of local credential form POST.'
+      - 'step1: Open login page and verify authentication starts via redirect CTA to Kinde (using Web Dev client ID) instead of local credential form POST.'
       - 'step2: Simulate callback success and failure paths and verify redirect outcomes.'
       - 'step3: Verify unauthenticated access to protected layout redirects to login and logout returns to login.'
-    expected: Web auth flow is provider-based and protected-route behavior remains correct
-    pass_criteria: Redirect-based login/callback/logout flow passes and protected routes enforce unauthenticated redirects
+    expected: Web auth flow uses Kinnoo Web Dev client for provider-based redirect login and protected-route behavior remains correct
+    pass_criteria: Redirect-based login/callback/logout flow passes using Web Dev client and protected routes enforce unauthenticated redirects
     covers:
       - feature: feature118
         ac: AC6
@@ -12210,15 +12212,15 @@ tests:
     automation_path: web/__tests__/login-page.test.tsx::feature118_web_redirect_auth_flow
 
   - id: test710
-    title: "CLI login stores auth state and supports registry operations"
+    title: "CLI login stores auth state using Kinnoo CLI Dev public client with PKCE and supports registry operations"
     type: integration
-    preconditions: "`kinnoo login` uses provider-hosted flow and local auth-state persistence"
+    preconditions: "`kinnoo login` uses Kinnoo CLI Dev public client (PKCE) with dynamic-port loopback callback and local auth-state persistence"
     steps:
-      - 'step1: Execute `kinnoo login` and complete hosted auth flow.'
+      - 'step1: Execute `kinnoo login` using CLI Dev client ID and complete browser-based PKCE auth flow with dynamic-port loopback callback.'
       - 'step2: Inspect local auth state for access token, refresh token, expiry metadata, and tenant context.'
       - 'step3: Execute a registry command requiring auth and confirm authenticated behavior.'
-    expected: CLI login stores complete auth state and enables authenticated registry workflows
-    pass_criteria: Required auth-state fields are persisted and authenticated registry command succeeds without password prompt
+    expected: CLI login uses CLI Dev public client with PKCE, stores complete auth state, and enables authenticated registry workflows
+    pass_criteria: PKCE flow completes with dynamic port, required auth-state fields are persisted, and authenticated registry command succeeds without password prompt
     covers:
       - feature: feature118
         ac: AC4
@@ -12248,15 +12250,15 @@ tests:
     automation_path: tests/client_cli_registry/test_cli_registry.py::test_feature118_cli_refresh_and_logout_contract
 
   - id: test712
-    title: "publish ownership resolves internal UUID identity with external subject mapping"
+    title: "publish ownership resolves internal UUID identity with external subject mapping across both login paths"
     type: integration
-    preconditions: Identity upsert and publish ownership mapping updates are implemented
+    preconditions: Identity upsert and publish ownership mapping updates are implemented; supports tokens from both Kinde apps
     steps:
-      - 'step1: Authenticate two distinct provider identities and perform publish operations in separate tenant contexts.'
+      - 'step1: Authenticate two distinct provider identities (one via web client, one via CLI client) and perform publish operations in separate tenant contexts.'
       - 'step2: Inspect persisted ownership metadata and user records.'
-      - 'step3: Confirm internal UUID remains primary identity key while external subject is mapped field.'
-    expected: Ownership and tenant linkage are deterministic and internal identity model remains kinnoo-owned
-    pass_criteria: Publish records map to correct internal UUID users/tenants and never use provider subject as internal PK
+      - 'step3: Confirm internal UUID remains primary identity key while external subject is mapped field, regardless of which Kinde app was used.'
+    expected: Ownership and tenant linkage are deterministic and internal identity model remains kinnoo-owned across both login paths
+    pass_criteria: Publish records map to correct internal UUID users/tenants and never use provider subject as internal PK regardless of web or CLI login origin
     covers:
       - feature: feature118
         ac: AC7
@@ -12267,15 +12269,15 @@ tests:
     automation_path: server/tests/test_publish.py::test_feature118_identity_mapping_and_publish_ownership
 
   - id: test713
-    title: "provider-neutral env contract and IaC injection alignment"
+    title: "provider-neutral env contract with dual client IDs and IaC injection alignment"
     type: integration
-    preconditions: Provider-neutral config keys and IaC env injection updates are implemented
+    preconditions: Provider-neutral config keys with separate web/CLI client ID support and IaC env injection updates are implemented
     steps:
-      - 'step1: Validate runtime config resolves canonical provider-neutral keys and optional Kinde alias fallbacks.'
-      - 'step2: Inspect IaC/task-definition env mapping for expected key names.'
-      - 'step3: Start service with deployment-style env set and verify auth initialization succeeds.'
-    expected: Runtime and IaC use aligned canonical auth configuration keys with deterministic alias behavior
-    pass_criteria: Canonical env keys initialize auth correctly and IaC mapping has no legacy-name mismatch risk
+      - 'step1: Validate runtime config resolves canonical provider-neutral keys (including KINDE_WEB_CLIENT_ID, KINDE_WEB_CLIENT_SECRET, KINDE_CLI_CLIENT_ID) and optional Kinde alias fallbacks.'
+      - 'step2: Inspect IaC/task-definition env mapping for expected key names matching dual-client topology.'
+      - 'step3: Start service with deployment-style env set and verify auth initialization succeeds with dual client config.'
+    expected: Runtime and IaC use aligned canonical auth configuration keys with deterministic alias behavior for dual-client topology
+    pass_criteria: Canonical env keys initialize auth correctly for dual client IDs and IaC mapping has no legacy-name mismatch risk
     covers:
       - feature: feature118
         ac: AC9
@@ -12305,16 +12307,16 @@ tests:
     automation_path: server/tests/test_auth_route.py::test_feature118_legacy_auth_paths_disabled
 
   - id: test715
-    title: "auth automation matrix and portability contracts pass"
+    title: "auth automation matrix and portability contracts pass across both Kinde apps"
     type: integration
-    preconditions: Server/web/CLI auth test suites and adapter contract tests are implemented for cutover
+    preconditions: Server/web/CLI auth test suites and adapter contract tests are implemented for cutover with dual-app token validation
     steps:
-      - 'step1: Run targeted server auth tests covering valid/invalid token and callback/logout behaviors.'
-      - 'step2: Run targeted CLI login/logout/refresh tests.'
-      - 'step3: Run targeted web auth redirect/callback/protected-layout tests.'
-      - 'step4: Run adapter portability tests against mocked OIDC discovery/JWKS endpoints.'
-    expected: Auth automation matrix is complete and portability contract behavior passes across runtimes
-    pass_criteria: All targeted auth portability and integration suites pass with no unhandled auth regressions
+      - 'step1: Run targeted server auth tests covering valid/invalid token from both web and CLI clients and callback/logout behaviors.'
+      - 'step2: Run targeted CLI login/logout/refresh tests using CLI Dev public client with PKCE and dynamic port.'
+      - 'step3: Run targeted web auth redirect/callback/protected-layout tests using Web Dev backend client.'
+      - 'step4: Run adapter portability tests against mocked OIDC discovery/JWKS endpoints with dual client ID configuration.'
+    expected: Auth automation matrix is complete and portability contract behavior passes across runtimes for both Kinde apps
+    pass_criteria: All targeted auth portability and integration suites pass with no unhandled auth regressions across web and CLI login paths
     covers:
       - feature: feature118
         ac: AC10
@@ -12325,16 +12327,17 @@ tests:
     automation_path: server/tests/test_auth_portability.py::test_feature118_auth_portability_matrix
 
   - id: test716
-    title: "dev smoke matrix and rollback runbook validation"
+    title: "dev smoke matrix across both login paths and rollback runbook validation"
     type: manual
-    preconditions: Dev deployment includes cutover changes and operator has access to web/cli endpoints and deployment controls
+    preconditions: Dev deployment includes cutover changes and operator has access to web/cli endpoints and deployment controls for both Kinde apps
     steps:
-      - 'step1: Execute web login/logout and protected-route smoke checks on dev domain.'
-      - 'step2: Execute CLI login/logout/publish smoke checks and verify user/tenant ownership linkage.'
-      - 'step3: Simulate token failure scenario and verify clear auth rejection behavior.'
-      - 'step4: Rehearse rollback steps and confirm deployment reversion path is operational.'
-    expected: End-to-end cutover validation and rollback readiness are proven before final approval
-    pass_criteria: Smoke checks and rollback rehearsal complete with recorded evidence and no unresolved critical blockers
+      - 'step1: Execute web login/logout and protected-route smoke checks on dev domain using Kinnoo Web Dev app.'
+      - 'step2: Execute CLI login/logout/publish smoke checks using Kinnoo CLI Dev app (PKCE loopback) and verify user/tenant ownership linkage.'
+      - 'step3: Verify publish-identity linkage is consistent regardless of which Kinde app was used for login.'
+      - 'step4: Simulate token failure scenario and verify clear auth rejection behavior.'
+      - 'step5: Rehearse rollback steps and confirm deployment reversion path is operational.'
+    expected: End-to-end cutover validation across both Kinde apps and rollback readiness are proven before final approval
+    pass_criteria: Smoke checks for both web and CLI login paths and rollback rehearsal complete with recorded evidence and no unresolved critical blockers
     covers:
       - feature: feature118
         ac: AC11
