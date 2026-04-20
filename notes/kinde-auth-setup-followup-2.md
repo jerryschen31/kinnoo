@@ -1,3 +1,5 @@
+> Status note: this file is a verbatim historical transcript snapshot. For current task496 completion status, use `notes/kinde-auth-setup-followup.md` and `notes/kinde-auth-setup-dev.md`.
+
 ## User
 
 Working on revised task496 now. I am stuck on section 5.1 in notes/kinde-auth-setup-dev.md - the last three items for Application A (Kinnoo Web Dev). See my [jerry] notes and questions below.

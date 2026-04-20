@@ -218,6 +218,14 @@ This is the public-client app for `kinnoo login` CLI flow. No client secret at r
    - `KINDE_LOGOUT_REDIRECT_URI`
    - `KINDE_WEB_REDIRECT_URI`
    - Note: CLI redirect URI is dynamic (loopback + assigned port) and resolved at runtime, not stored as a secret.
+   - ✅ COMPLETED (human): secrets provisioned in AWS Secrets Manager under:
+     - `kinnoo/dev/KINDE_WEB_CLIENT_ID`
+     - `kinnoo/dev/KINDE_WEB_CLIENT_SECRET`
+     - `kinnoo/dev/KINDE_CLI_CLIENT_ID`
+     - `kinnoo/dev/KINDE_ISSUER_URL`
+     - `kinnoo/dev/KINDE_AUDIENCE`
+     - `kinnoo/dev/KINDE_WEB_REDIRECT_URI`
+     - `kinnoo/dev/KINDE_LOGOUT_REDIRECT_URI`
 2. For local runs (non-production), keep fallback values in a local `.env` file or equivalent local env file, but do **not** assume `server/` auto-loads `.env` files.
    - Recommended path: repository root `.env` (so local commands and scripts can share one env source).
    - Developers must explicitly export/source those variables before starting the backend.
@@ -238,9 +246,13 @@ This is the public-client app for `kinnoo login` CLI flow. No client secret at r
 
 Complete all checks below before marking task496 step5 done.
 
+Scope note:
+- This checklist is for Dev deployment alignment only.
+- Production rollout is a separate phase and must use dedicated Prod Terraform environment variables/files (not Dev tfvars).
+
 #### 5.3.1 Manual verification checklist (required now)
 
-- [ ] Confirm AWS Secrets Manager contains dual-app auth secrets for Dev runtime:
+- [x] Confirm AWS Secrets Manager contains dual-app auth secrets for Dev runtime:
    - Web app: `KINDE_WEB_CLIENT_ID`, `KINDE_WEB_CLIENT_SECRET`
    - CLI app: `KINDE_CLI_CLIENT_ID` (no CLI secret)
    - Shared OIDC/API: `KINDE_ISSUER_URL`, `KINDE_AUDIENCE`, endpoint values used by runtime
@@ -262,6 +274,24 @@ These can be moved into Terraform and deployment automation when implementation 
 3. Keep environment-specific values in `iac/environments/dev/terraform.tfvars`.
 4. Add Cloudflare worker/runtime var management to IaC where supported in your current Cloudflare deployment model.
 5. Add regression checks/scripts to verify ECS env mapping and Cloudflare runtime vars after deploy.
+
+Current status note:
+- `iac/modules/cloudflare/main.tf` currently manages DNS records only.
+- Cloudflare Worker runtime variables are not managed by current Terraform resources in this repository.
+
+#### 5.3.4 Manual Cloudflare runtime fallback (required until IaC support is added)
+
+Use this checklist when applying Step5 in Dev:
+
+1. Confirm Cloudflare Worker runtime variable `BACKEND_URL` equals `https://dev-api.kinnoo.ai`.
+2. If using Wrangler deployment flow, verify `web/wrangler.jsonc` contains:
+   - `"vars": { "BACKEND_URL": "https://dev-api.kinnoo.ai" }`
+3. If using dashboard-managed runtime vars, set/update `BACKEND_URL` in the Worker environment used by `dev.kinnoo.ai`.
+4. Redeploy/re-publish the Worker after any runtime var change.
+5. Validate proxy behavior manually:
+   - `https://dev.kinnoo.ai/login` redirects into Kinde and returns to app callback path.
+   - `/api/*` requests still proxy to `https://dev-api.kinnoo.ai` with required headers/cookies.
+6. Record evidence (timestamp + operator + verification notes) in section 5.3.3.
 
 #### 5.3.3 Task496 step5 sign-off note (record here when complete)
 

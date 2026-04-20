@@ -176,28 +176,31 @@ Date: 2026-04-20
 
 ### Task496 step-by-step status checkpoint
 
-1. Step1 (resolve section 4 blockers): partially complete.
-    - Completed: CLI PKCE flow and dynamic callback-port decision; two-app topology.
-    - Still needs explicit recorded decisions in section 4 for:
-      - environment naming posture
-      - tenant mapping strategy
-      - refresh-token storage policy
-      - dev-registry reset approval
-2. Step2 (configure Web Dev app): mostly complete; verify final callback/logout/origin values in Kinde app settings.
-3. Step3 (configure CLI Dev app): complete if wildcard loopback callback is present and saved.
-4. Step4 (provision/store secrets in deployment secret stores): not complete yet.
-    - Current status is local .env populated.
-    - Still required: deployment secret store entries and naming alignment for runtime.
-5. Step5 (confirm ECS/Cloudflare runtime configuration alignment): not complete yet.
+1. Step1 (resolve section 4 blockers): complete.
+    - Environment naming posture, tenant mapping strategy, refresh-token storage policy, and dev-registry reset approval are explicitly recorded in `notes/kinde-auth-setup-dev.md` section 4.
+2. Step2 (configure Web Dev app): complete (human-confirmed in current setup flow).
+3. Step3 (configure CLI Dev app): complete (human-confirmed with native app + wildcard loopback callback).
+4. Step4 (provision/store secrets in deployment secret stores): complete.
+        - Human confirmed AWS Secrets Manager entries are provisioned using canonical names:
+            - `kinnoo/dev/KINDE_WEB_CLIENT_ID`
+            - `kinnoo/dev/KINDE_WEB_CLIENT_SECRET`
+            - `kinnoo/dev/KINDE_CLI_CLIENT_ID`
+            - `kinnoo/dev/KINDE_ISSUER_URL`
+            - `kinnoo/dev/KINDE_AUDIENCE`
+            - `kinnoo/dev/KINDE_WEB_REDIRECT_URI`
+            - `kinnoo/dev/KINDE_LOGOUT_REDIRECT_URI`
+5. Step5 (confirm ECS/Cloudflare runtime configuration alignment): ready for SWE IaC implementation.
+    - Pending completion of Terraform wiring + test717/test718 execution.
+6. Step6 (manual post-deploy validation): pending human execution after Step5 deploy.
 
 ### What step5 requires (explicit)
 
-1. ECS runtime plan must carry both app identities:
-    - WEB_APP_CLIENT_ID
-    - WEB_APP_CLIENT_SECRET
-    - CLI_APP_CLIENT_ID
-    - REGISTRY_API_AUDIENCE
-    - KINDE_DOMAIN
+1. ECS runtime plan must carry both app identities and auth validation config:
+    - KINDE_WEB_CLIENT_ID
+    - KINDE_WEB_CLIENT_SECRET
+    - KINDE_CLI_CLIENT_ID
+    - KINDE_AUDIENCE
+    - KINDE_ISSUER_URL
     - endpoint values (or derivation from discovery)
 2. Cloudflare runtime plan must preserve backend routing and auth callback behavior:
     - BACKEND_URL remains https://dev-api.kinnoo.ai

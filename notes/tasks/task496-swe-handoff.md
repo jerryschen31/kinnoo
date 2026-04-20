@@ -3,6 +3,9 @@
 ## Objective
 Implement task496 step5 as IaC work owned by SWE, while preserving task496 step6 as human-run post-deploy validation.
 
+Scope environment for this handoff is Dev only.
+Production rollout is explicitly a separate follow-on effort using Prod Terraform variables/files (for example `iac/environments/prod/terraform.tfvars` when that environment config is added).
+
 This handoff covers exact Terraform implementation pointers for:
 1. Secrets Manager resources/references for dual-app auth runtime config.
 2. ECS task-definition env/secret injection alignment.
@@ -12,6 +15,7 @@ This handoff covers exact Terraform implementation pointers for:
 ## Scope Boundaries
 - In scope (SWE/IaC): Terraform updates under iac/ and automated checks for new test717 and test718.
 - Out of scope (human/manual): e2e login/logout/callback smoke and deployed runtime behavior checks in test719.
+- Out of scope (this task): Production deployment/cutover. Do not apply task496 IaC notes directly as a production rollout plan.
 
 ## Current IaC State (Important)
 - `iac/modules/secrets/main.tf` only defines `JWT_SECRET`, `SESSION_SECRET`, `ADMIN_PASSWORD`.
@@ -72,6 +76,10 @@ Required changes:
 1. Add required non-secret dev inputs for any new IaC toggles/vars introduced in step5.
 2. Keep secret values out of tfvars.
 3. If Cloudflare runtime vars cannot be Terraform-managed in current model, include only control flags and keep manual values documented in notes.
+
+Prod note:
+- Do not reuse dev tfvars for production.
+- Mirror variable contract in separate Prod environment tfvars during the later production rollout phase.
 
 ### 7) iac/modules/cloudflare/main.tf and iac/modules/cloudflare/variables.tf
 Required changes:
@@ -143,3 +151,4 @@ Recommended assertions:
 - IaC changes merged and validated for dual-app auth secret + ECS wiring.
 - Automated coverage for test717 and test718 implemented and passing.
 - Manual validation instructions for test719 are complete and handoff-ready for human execution.
+- Dev deployment contract is explicit; production deployment is documented as a separate follow-on rollout using prod tfvars.
