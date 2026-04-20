@@ -3,6 +3,7 @@ import sys
 import os
 import re
 import signal
+import tempfile
 import time
 from pathlib import Path
 import json
@@ -10,8 +11,6 @@ import json
 import pytest
 import yaml
 
-from src.kinnoo.registry import RegistryService
-from src.kinnoo.registry_backends import MockFilesystemRegistryBackend
 from src.kinnoo.analyzer import analyze_project
 from src.kinnoo.validator import validate as validate_manifest
 
@@ -624,22 +623,9 @@ def test_feature62_import_openclaw_manifest_migration_guidance(tmp_path):
     assert "Field 'state_dirs' is not supported in this schema version" in combined
 
 
-def test_feature64_clawhub_import_scaffold(tmp_path):
-    registry_root = tmp_path / "registry"
-    service = RegistryService(backend=MockFilesystemRegistryBackend(root=registry_root))
-    service.upsert_clawhub_mirror_record(
-        agent_slug="weather/weather-skill",
-        source_version="2.0.0",
-        source_url="https://clawhub.ai/skills/weather/weather-skill",
-        synced_at="2026-03-29T04:00:00Z",
-        metadata={"description": "Weather skill"},
-    )
-
-    destination = tmp_path / "imported-weather-skill"
-    env = dict(os.environ)
-    env["KINNOO_REGISTRY_ROOT"] = str(registry_root)
-
-    result = subprocess.run(
+def test_import_rejects_deprecated_clawhub_flags():
+    destination = Path.cwd() / "unused-destination"
+    source_result = subprocess.run(
         [
             sys.executable,
             str(CLI_PATH),
@@ -651,110 +637,39 @@ def test_feature64_clawhub_import_scaffold(tmp_path):
         ],
         capture_output=True,
         text=True,
-        env=env,
     )
-    output = result.stdout + result.stderr
-    assert result.returncode == 0, output
+    source_output = source_result.stdout + source_result.stderr
+    assert source_result.returncode != 0
+    assert "unrecognized arguments:" in source_output.lower()
+    assert "--source" in source_output
 
-    manifest_path = destination / "kinnoo.yaml"
-    report_path = destination / "kinnoo-import-report.json"
-    assert manifest_path.exists()
-    assert report_path.exists()
-
-    manifest_text = manifest_path.read_text(encoding="utf-8")
-    assert "type: openclaw-skill" in manifest_text
-    assert "framework: openclaw" in manifest_text
-    assert "source_registry: clawhub" in manifest_text
-    assert "source_version: 2.0.0" in manifest_text
-    assert "source_slug: weather/weather-skill" in manifest_text
-
-    missing_result = subprocess.run(
+    fallback_result = subprocess.run(
         [
             sys.executable,
             str(CLI_PATH),
             "import",
-            "--source",
-            "clawhub",
-            "missing/not-found",
-            str(tmp_path / "missing-destination"),
+            "--live-fallback",
+            "dummy-path",
         ],
         capture_output=True,
         text=True,
-        env=env,
     )
-    missing_output = missing_result.stdout + missing_result.stderr
-    assert missing_result.returncode != 0
-    assert "was not found in mirror index" in missing_output
-    assert "kinnoo sync clawhub" in missing_output
+    fallback_output = fallback_result.stdout + fallback_result.stderr
+    assert fallback_result.returncode != 0
+    assert "unrecognized arguments:" in fallback_output.lower()
+    assert "--live-fallback" in fallback_output
 
-
-def test_feature64_clawhub_import_requirements_report(tmp_path):
-    registry_root = tmp_path / "registry"
-    service = RegistryService(backend=MockFilesystemRegistryBackend(root=registry_root))
-    service.upsert_clawhub_mirror_record(
-        agent_slug="github/gh-skill",
-        source_version="3.1.0",
-        source_url="https://clawhub.ai/skills/github/gh-skill",
-        synced_at="2026-03-29T05:00:00Z",
-        metadata={
-            "description": "GitHub helper skill",
-            "env_hints": ["GITHUB_TOKEN", "GH_ORG"],
-            "config_hints": ["~/.config/gh/config.yml"],
-            "bin_hints": ["gh"],
-        },
-    )
-
-    destination = tmp_path / "imported-gh-skill"
-    env = dict(os.environ)
-    env["KINNOO_REGISTRY_ROOT"] = str(registry_root)
-
-    result = subprocess.run(
-        [
-            sys.executable,
-            str(CLI_PATH),
-            "import",
-            "--source",
-            "clawhub",
-            "github/gh-skill",
-            str(destination),
-        ],
-        capture_output=True,
-        text=True,
-        env=env,
-    )
-    output = result.stdout + result.stderr
-    assert result.returncode == 0, output
-    assert "Requirement hints:" in output
-    assert "env: GH_ORG, GITHUB_TOKEN" in output
-    assert "config: ~/.config/gh/config.yml" in output
-    assert "bin: gh" in output
-    assert "Unresolved guidance:" in output
-
-    report_path = destination / "kinnoo-import-report.json"
-    assert report_path.exists()
-    report_payload = json.loads(report_path.read_text(encoding="utf-8"))
-    assert report_payload["source"] == "clawhub"
-    assert report_payload["slug"] == "github/gh-skill"
-    assert report_payload["requirements"]["env"] == ["GH_ORG", "GITHUB_TOKEN"]
-    assert report_payload["requirements"]["config"] == ["~/.config/gh/config.yml"]
-    assert report_payload["requirements"]["bin"] == ["gh"]
-    assert isinstance(report_payload["unresolved"], list) and report_payload["unresolved"]
-
-    inspect_result = subprocess.run(
-        [sys.executable, str(CLI_PATH), "inspect", str(destination)],
-        capture_output=True,
-        text=True,
-        env=env,
-    )
-    inspect_output = inspect_result.stdout + inspect_result.stderr
-    assert inspect_result.returncode == 0, inspect_output
-    assert "- Provenance:" in inspect_output
-    assert "source_registry: clawhub" in inspect_output
-    assert "source_slug: github/gh-skill" in inspect_output
-    assert "- Imported Requirement Hints:" in inspect_output
-    assert "- env: GH_ORG, GITHUB_TOKEN" in inspect_output
-    assert "- config: ~/.config/gh/config.yml" in inspect_output
-    assert "- bin: gh" in inspect_output
+    with tempfile.TemporaryDirectory(prefix="kinnoo-import-removed-flag-smoke-") as temp_dir:
+        project_dir = Path(temp_dir) / "smoke-project"
+        project_dir.mkdir(parents=True, exist_ok=True)
+        (project_dir / "run.py").write_text("print('ok')\n", encoding="utf-8")
+        success_result = subprocess.run(
+            [sys.executable, str(CLI_PATH), "import", str(project_dir)],
+            capture_output=True,
+            text=True,
+        )
+        assert success_result.returncode == 0
+        assert (project_dir / "kinnoo.yaml").exists()
 
 
 def _make_feature78_fake_openclaw_cli(bin_dir: Path, *, agent_list_json: str = "[]") -> Path:
