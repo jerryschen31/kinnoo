@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import RegistryNav from "../../../components/blocks/RegistryNav";
 import AgentManifestModal from "../../../components/blocks/AgentManifestModal";
 import RegistryTabs from "../../../components/blocks/RegistryTabs";
-import { logoutWithSessionCsrf } from "../../../lib/auth-client";
 import { fetchMyAgents, searchAgents, type AgentSummary } from "../../../lib/registry-client";
 
 type RegistryDataState = {
@@ -13,6 +12,33 @@ type RegistryDataState = {
   error: string | null;
   agents: AgentSummary[];
 };
+
+function readCookieValue(name: string): string {
+  const cookiePrefix = `${name}=`;
+  const entry = document.cookie
+    .split(";")
+    .map((item) => item.trim())
+    .find((item) => item.startsWith(cookiePrefix));
+  if (!entry) {
+    return "";
+  }
+  return decodeURIComponent(entry.slice(cookiePrefix.length));
+}
+
+function submitLogoutForm(csrfToken: string): void {
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = "/api/logout";
+
+  const csrfInput = document.createElement("input");
+  csrfInput.type = "hidden";
+  csrfInput.name = "csrf_token";
+  csrfInput.value = csrfToken;
+  form.appendChild(csrfInput);
+
+  document.body.appendChild(form);
+  form.submit();
+}
 
 export default function RegistryPage() {
   const [activeView, setActiveView] = useState<"my-agents" | "search">("my-agents");
@@ -109,11 +135,7 @@ export default function RegistryPage() {
           }
 
           setIsLoggingOut(true);
-          try {
-            await logoutWithSessionCsrf();
-          } finally {
-            window.location.assign("/login");
-          }
+          submitLogoutForm(readCookieValue("kinnoo_csrf"));
         }}
       />
       <RegistryTabs

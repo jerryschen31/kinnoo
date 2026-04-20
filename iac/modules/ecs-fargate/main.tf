@@ -1,8 +1,27 @@
 locals {
   name_prefix = "${var.project_name}-${var.environment}"
+  has_auth_provider_secret = contains(keys(var.secret_arns), "AUTH_PROVIDER")
 
   # Keep explicit secret names to make container injection predictable.
-  ordered_secret_keys = ["JWT_SECRET", "SESSION_SECRET", "ADMIN_PASSWORD"]
+  ordered_secret_keys = [
+    "JWT_SECRET",
+    "SESSION_SECRET",
+    "ADMIN_PASSWORD",
+    "AUTH_PROVIDER",
+    "KINDE_WEB_CLIENT_ID",
+    "KINDE_WEB_CLIENT_SECRET",
+    "KINDE_CLI_CLIENT_ID",
+    "KINDE_ISSUER_URL",
+    "KINDE_AUDIENCE",
+    "KINDE_WEB_REDIRECT_URI",
+    "KINDE_LOGOUT_REDIRECT_URI",
+    "JWKS_ENDPOINT_URL",
+    "TOKEN_ENDPOINT",
+    "AUTHORIZATION_ENDPOINT",
+    "LOGOUT_ENDPOINT",
+    "USERINFO_ENDPOINT",
+    "REVOCATION_ENDPOINT",
+  ]
   container_secrets = [
     for secret_key in local.ordered_secret_keys : {
       name      = secret_key
@@ -108,46 +127,54 @@ resource "aws_ecs_task_definition" "app" {
         }
       ]
       environment = [
-        {
-          name  = "KINNOO_ENV"
-          value = "production"
-        },
-        {
-          name  = "REGISTRY_STORAGE_BACKEND"
-          value = "s3"
-        },
-        {
-          name  = "REGISTRY_S3_BUCKET"
-          value = var.registry_bucket_name
-        },
-        {
-          name  = "REGISTRY_S3_REGION"
-          value = var.aws_region
-        },
-        {
-          name  = "REGISTRY_LOCAL_STORAGE_ROOT"
-          value = "/data/.registry-storage"
-        },
-        {
-          name  = "S3_BUCKET"
-          value = var.registry_bucket_name
-        },
-        {
-          name  = "AWS_REGION"
-          value = var.aws_region
-        },
-        {
-          name  = "SNS_TOPIC_ARN"
-          value = var.sns_topic_arn
-        },
-        {
-          name  = "KINNOO_SECURITY_CHECK_EXECUTION_MODE"
-          value = "lambda"
-        },
-        {
-          name  = "KINNOO_SECURITY_CHECK_LAMBDA_NAME"
-          value = var.security_check_lambda_name
-        }
+        for item in [
+          {
+            name  = "KINNOO_ENV"
+            value = "production"
+          },
+          {
+            name  = "AUTH_PROVIDER"
+            value = var.auth_provider
+          },
+          {
+            name  = "REGISTRY_STORAGE_BACKEND"
+            value = "s3"
+          },
+          {
+            name  = "REGISTRY_S3_BUCKET"
+            value = var.registry_bucket_name
+          },
+          {
+            name  = "REGISTRY_S3_REGION"
+            value = var.aws_region
+          },
+          {
+            name  = "REGISTRY_LOCAL_STORAGE_ROOT"
+            value = "/data/.registry-storage"
+          },
+          {
+            name  = "S3_BUCKET"
+            value = var.registry_bucket_name
+          },
+          {
+            name  = "AWS_REGION"
+            value = var.aws_region
+          },
+          {
+            name  = "SNS_TOPIC_ARN"
+            value = var.sns_topic_arn
+          },
+          {
+            name  = "KINNOO_SECURITY_CHECK_EXECUTION_MODE"
+            value = "lambda"
+          },
+          {
+            name  = "KINNOO_SECURITY_CHECK_LAMBDA_NAME"
+            value = var.security_check_lambda_name
+          },
+        ] : item
+        # Filter out AUTH_PROVIDER env var when matching secret exists, so secret value wins.
+        if !(local.has_auth_provider_secret && item.name == "AUTH_PROVIDER")
       ]
       secrets = local.container_secrets
       mountPoints = [
@@ -184,21 +211,19 @@ resource "aws_ecs_task_definition" "app" {
   }
 
   lifecycle {
-    # Keep current live task-definition wiring stable for now.
-    # Manual runtime updates introduced out-of-band differences (including sensitive env wiring)
-    # that we intentionally do not push back via apply under the safe no-change strategy.
-    ignore_changes = [container_definitions, volume]
+    # Keep EFS volume wiring drift-tolerant while allowing auth container definition updates.
+    ignore_changes = [volume]
   }
 
   tags = var.tags
 }
 
 resource "aws_ecs_service" "app" {
-  name            = "${local.name_prefix}-service"
-  cluster         = aws_ecs_cluster.this.id
-  task_definition = aws_ecs_task_definition.app.arn
-  desired_count   = var.desired_count
-  launch_type     = "FARGATE"
+  name                   = "${local.name_prefix}-service"
+  cluster                = aws_ecs_cluster.this.id
+  task_definition        = aws_ecs_task_definition.app.arn
+  desired_count          = var.desired_count
+  launch_type            = "FARGATE"
   enable_execute_command = var.enable_execute_command
 
   network_configuration {
@@ -211,12 +236,6 @@ resource "aws_ecs_service" "app" {
     target_group_arn = var.target_group_arn
     container_name   = "kinnoo-server"
     container_port   = var.container_port
-  }
-
-  lifecycle {
-    # The live service task_definition may be advanced by manual rollouts.
-    # Ignore drift so apply remains no-op against currently running infrastructure.
-    ignore_changes = [task_definition]
   }
 
   tags = var.tags

@@ -10,7 +10,7 @@ terraform {
 }
 
 provider "aws" {
-  region = var.aws_region
+  region  = var.aws_region
   profile = "jerry"
 }
 
@@ -19,8 +19,8 @@ data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
 locals {
-  account_id   = data.aws_caller_identity.current.account_id
-  bucket_name  = var.state_bucket_name
+  account_id  = data.aws_caller_identity.current.account_id
+  bucket_name = var.state_bucket_name
   default_tags = {
     Project     = "kinnoo"
     Environment = var.environment

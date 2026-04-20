@@ -86,6 +86,7 @@ module "ecs_fargate" {
   registry_bucket_name       = module.s3_registry.bucket_name
   sns_topic_arn              = var.sns_topic_arn
   security_check_lambda_name = module.lambda_security_check.function_name
+  auth_provider              = var.auth_provider
   tags                       = local.common_tags
 }
 

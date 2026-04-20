@@ -9,6 +9,7 @@ import tempfile
 import zipfile
 
 from .archive import LocalArchiveBackend
+from .auth_command import refresh_registry_auth_if_needed
 from .config import load_registry_config
 from .install_command import (
     _download_remote_archive_payload,
@@ -48,6 +49,10 @@ def fetch_agent(
         backend = MockFilesystemRegistryBackend(root=backend_root)
     elif use_remote:
         config = load_registry_config()
+        config, refresh_error = refresh_registry_auth_if_needed(config=config)
+        if refresh_error:
+            print(f"Error: {refresh_error}", file=sys.stderr)
+            return 1
         if not config.registry_url or not config.registry_token or not config.tenant_slug:
             print(
                 "Error: Remote registry configuration incomplete. "
@@ -64,6 +69,10 @@ def fetch_agent(
         backend_label = "remote"
     else:
         config = load_registry_config()
+        config, refresh_error = refresh_registry_auth_if_needed(config=config)
+        if refresh_error:
+            print(f"Error: {refresh_error}", file=sys.stderr)
+            return 1
         if config.registry_url and config.registry_token and config.tenant_slug:
             backend = RemoteRegistryClient(
                 base_url=config.registry_url,
