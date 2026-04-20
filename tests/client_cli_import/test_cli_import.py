@@ -3,6 +3,7 @@ import sys
 import os
 import re
 import signal
+import tempfile
 import time
 from pathlib import Path
 import json
@@ -623,6 +624,7 @@ def test_feature62_import_openclaw_manifest_migration_guidance(tmp_path):
 
 
 def test_import_rejects_deprecated_clawhub_flags():
+    destination = Path.cwd() / "unused-destination"
     source_result = subprocess.run(
         [
             sys.executable,
@@ -631,6 +633,7 @@ def test_import_rejects_deprecated_clawhub_flags():
             "--source",
             "clawhub",
             "weather/weather-skill",
+            str(destination),
         ],
         capture_output=True,
         text=True,
@@ -655,6 +658,18 @@ def test_import_rejects_deprecated_clawhub_flags():
     assert fallback_result.returncode != 0
     assert "unrecognized arguments:" in fallback_output.lower()
     assert "--live-fallback" in fallback_output
+
+    with tempfile.TemporaryDirectory(prefix="kinnoo-import-removed-flag-smoke-") as temp_dir:
+        project_dir = Path(temp_dir) / "smoke-project"
+        project_dir.mkdir(parents=True, exist_ok=True)
+        (project_dir / "run.py").write_text("print('ok')\n", encoding="utf-8")
+        success_result = subprocess.run(
+            [sys.executable, str(CLI_PATH), "import", str(project_dir)],
+            capture_output=True,
+            text=True,
+        )
+        assert success_result.returncode == 0
+        assert (project_dir / "kinnoo.yaml").exists()
 
 
 def _make_feature78_fake_openclaw_cli(bin_dir: Path, *, agent_list_json: str = "[]") -> Path:
