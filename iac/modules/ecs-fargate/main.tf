@@ -172,7 +172,9 @@ resource "aws_ecs_task_definition" "app" {
             name  = "KINNOO_SECURITY_CHECK_LAMBDA_NAME"
             value = var.security_check_lambda_name
           },
-        ] : item if !(local.has_auth_provider_secret && item.name == "AUTH_PROVIDER")
+        ] : item
+        # Filter out AUTH_PROVIDER env var when matching secret exists, so secret value wins.
+        if !(local.has_auth_provider_secret && item.name == "AUTH_PROVIDER")
       ]
       secrets = local.container_secrets
       mountPoints = [

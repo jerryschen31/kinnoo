@@ -8,24 +8,6 @@ export type AuthMeResult = {
   status: number;
 };
 
-function readCookie(name: string): string | null {
-  if (typeof document === "undefined") {
-    return null;
-  }
-
-  const encodedName = `${encodeURIComponent(name)}=`;
-  const cookie = document.cookie
-    .split(";")
-    .map((part) => part.trim())
-    .find((part) => part.startsWith(encodedName));
-
-  if (!cookie) {
-    return null;
-  }
-
-  return decodeURIComponent(cookie.slice(encodedName.length));
-}
-
 function isSuccessfulLoginResponse(response: Response): boolean {
   if (response.ok) {
     return true;
@@ -41,16 +23,6 @@ function isSuccessfulLoginResponse(response: Response): boolean {
   return response.status === 303;
 }
 
-function isSuccessfulLogoutResponse(response: Response): boolean {
-  if (response.ok) {
-    return true;
-  }
-  if (response.type === "opaqueredirect") {
-    return true;
-  }
-  return response.status === 303;
-}
-
 export async function startLoginRedirect(): Promise<LoginResult> {
   const response = await fetch("/api/login", {
     method: "GET",
@@ -61,33 +33,6 @@ export async function startLoginRedirect(): Promise<LoginResult> {
 
   return {
     ok: isSuccessfulLoginResponse(response),
-    status: response.status,
-  };
-}
-
-export async function postWithSessionCsrf(path: string): Promise<Response> {
-  const csrfToken = readCookie("kinnoo_csrf");
-  const form = new URLSearchParams();
-  if (csrfToken) {
-    form.set("csrf_token", csrfToken);
-  }
-
-  return fetch(path, {
-    method: "POST",
-    credentials: "include",
-    cache: "no-store",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
-    },
-    body: form.toString(),
-  });
-}
-
-export async function logoutWithSessionCsrf(): Promise<LoginResult> {
-  const response = await postWithSessionCsrf("/api/logout");
-  return {
-    ok: isSuccessfulLogoutResponse(response),
     status: response.status,
   };
 }
