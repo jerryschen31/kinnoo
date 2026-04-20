@@ -12,6 +12,7 @@ describe("feature118 redirect auth flow", () => {
     expect(loginRoute).toContain('proxyToBackend(request, "/login")');
     expect(logoutRoute).toContain('proxyToBackend(request, "/logout")');
     expect(signupRoute).toContain('proxyToBackend(request, "/signup")');
+    expect(signupRoute).toContain('proxyToBackend(request, "/login")');
     expect(callbackRoute).toContain('proxyToBackend(request, "/auth/callback")');
   });
 
