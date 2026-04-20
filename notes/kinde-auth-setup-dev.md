@@ -94,19 +94,21 @@ These decisions must be explicitly recorded before implementation begins:
 2. **Tenant mapping strategy**:
    - Option A: Kinde org claim -> registry tenant slug (preferred),
    - Option B: first login auto-creates tenant from email slug.
-3. **CLI auth UX decision**:
-   - Device/browser authorization-code flow (recommended), or
-   - Non-interactive token exchange helper endpoint with PKCE.
+3. **CLI auth UX decision**: ✅ RESOLVED — Browser-based PKCE authorization code flow with local loopback callback.
+   - CLI opens browser to Kinde authorize endpoint, local temporary HTTP server listens on loopback for callback.
+   - Uses dynamic port allocation (preferred 8765, fallbacks 8766/8767, then OS-assigned free port).
 4. **Refresh token storage policy**:
    - local config file encrypted-at-rest vs plaintext in config directory.
 5. **Blank registry reset confirmation**:
    - Explicit approval to discard current dev registry users/tenants/agents.
-6. **Kinde application topology**:
-   - Option A: one Kinde app shared by web + CLI (fastest),
-   - Option B: separate Kinde apps for web and CLI (cleaner separation).
-7. **CLI callback port (if loopback flow is used)**:
-   - Choose one fixed port and document it in implementation/config docs before coding (example: `8765`).
-   - Use the same port in Kinde callback settings, CLI runtime config, and tests.
+6. **Kinde application topology**: ✅ RESOLVED — Option B: separate Kinde apps for web and CLI (cleaner separation).
+   - **Application A — Kinnoo Web Dev**: Backend type, Python framework. Confidential client with client secret. Used for browser-based web login where auth orchestration is in FastAPI.
+   - **Application B — Kinnoo CLI Dev**: Frontend/Native type (Other native). Public client with PKCE, no client secret at runtime. Used for CLI `kinnoo login` with loopback callback.
+   - Both apps created in Kinde by human (completed per issue #350).
+7. **CLI callback port (if loopback flow is used)**: ✅ RESOLVED — Dynamic port allocation with Kinde wildcard callback.
+   - Kinde CLI app callback URL: `http://127.0.0.1:*/auth/callback` (wildcard port).
+   - CLI runtime: prefer port 8765, fallback 8766/8767, then OS-assigned free port via `socket.bind(('127.0.0.1', 0))`.
+   - No single fixed port required; wildcard in Kinde allows any loopback port.
 
 If any decision is unresolved, pause implementation.
 
@@ -116,55 +118,81 @@ If any decision is unresolved, pause implementation.
 
 ### 5.1 [HUMAN] Kinde tenant and application configuration
 
+> **Two-app topology (resolved in issue #350 followup):** Web and CLI use separate Kinde applications. Both have been created by human.
+
 1. Open Kinde admin and select target tenant.
 2. Ensure two non-prod environments are available for this phase:
    - `dev`
-   - `staging` (or temporary use of current “prod” as staging per decision above).
-3. For the Python/backend app used by kinnoo:
-   - confirm OIDC/OAuth2 enabled,
-   - confirm Authorization Code + PKCE supported for browser and CLI use,
-   - confirm refresh token issuance enabled,
-   - confirm token signing algorithm/key rotation defaults enabled.
-4. Configure **Allowed callback URLs** (exact):
+   - `staging` (or temporary use of current "prod" as staging per decision above).
+
+#### 5.1.1 Application A — Kinnoo Web Dev (Backend, Python)
+
+This is the confidential-client app for browser-based web login where auth orchestration is in FastAPI.
+
+1. Type: **Backend application**
+2. Framework: **Python**
+3. Confirm OIDC/OAuth2 enabled, Authorization Code + PKCE supported, refresh token issuance enabled, token signing defaults enabled.
+4. Configure **Application homepage URI**: `https://dev.kinnoo.ai`
+5. Configure **Application login URI**: `https://dev.kinnoo.ai/login`
+6. Configure **Allowed callback URLs** (exact):
    - `https://dev.kinnoo.ai/auth/callback`
-   - `https://dev-api.kinnoo.ai/auth/callback` (if backend callback endpoint used)
-   - `http://127.0.0.1:8000/auth/callback` (local backend dev)
+   - `https://dev-api.kinnoo.ai/auth/callback` (keep for backend-first callback option)
    - `http://localhost:3000/auth/callback` (local web dev)
-   - `http://127.0.0.1:8765/auth/callback` (only if CLI uses local loopback callback; replace `8765` if a different fixed port is chosen in Section 4).
-   - If CLI uses OAuth device flow, skip loopback callback URL and enable device authorization settings instead.
-5. Configure **Allowed logout URLs** (exact):
+   - `http://127.0.0.1:8000/auth/callback` (local backend dev)
+7. Configure **Allowed logout redirect URLs** (exact):
    - `https://dev.kinnoo.ai/login`
    - `http://localhost:3000/login`
-6. Configure **Allowed origins / CORS**:
+8. Configure **Allowed origins / CORS**:
    - `https://dev.kinnoo.ai`
    - `https://dev-api.kinnoo.ai`
    - `http://localhost:3000`
    - `http://127.0.0.1:8000`
-7. Configure API audience/scopes for registry:
+9. Configure API audience/scopes for registry:
    - `registry:read`
    - `registry:publish`
    - `registry:admin`
-8. Create at least two test users in Kinde:
+10. Export and securely store required values:
+    - Kinde domain/issuer URL,
+    - Web app client ID,
+    - Web app client secret,
+    - audience,
+    - JWKS endpoint URL,
+    - authorize/token/logout endpoints.
+
+#### 5.1.2 Application B — Kinnoo CLI Dev (Frontend/Native, Public Client, PKCE)
+
+This is the public-client app for `kinnoo login` CLI flow. No client secret at runtime.
+
+1. Type: **Frontend application** (choose "Other native" subcategory)
+2. Framework: **Generic/Other** (standard OIDC PKCE in Python, not framework SDK)
+3. Important: configure for **PKCE** with no hard dependency on a client secret at runtime.
+4. Configure **Application homepage URI**: `https://dev.kinnoo.ai` (or docs page; not functionally critical for CLI)
+5. Configure **Application login URI**: `https://dev.kinnoo.ai/login` (optional)
+6. Configure **Allowed callback URLs** (exact):
+   - `http://127.0.0.1:*/auth/callback` (wildcard port — allows dynamic port allocation by CLI)
+7. Configure **Allowed logout redirect URLs** (exact):
+   - `https://dev.kinnoo.ai/login`
+8. Export and securely store required values:
+   - CLI app client ID (no client secret — public client).
+
+#### 5.1.3 Shared tenant-level setup
+
+1. Create at least two test users in Kinde:
    - one admin-equivalent user,
    - one regular user.
-9. If using org-based tenancy, create at least one org mapped to one tenant slug.
-10. Export and securely store required values:
-   - Kinde domain/issuer URL,
-   - client ID,
-   - client secret,
-   - audience,
-   - JWKS endpoint URL,
-   - authorize/token/logout endpoints.
+2. If using org-based tenancy, create at least one org mapped to one tenant slug.
 
 ### 5.2 [HUMAN] Secrets and environment injection setup
 
 1. Add dev secrets in AWS Secrets Manager (or existing secret mechanism):
    - `KINDE_ISSUER_URL`
-   - `KINDE_CLIENT_ID`
-   - `KINDE_CLIENT_SECRET`
+   - `KINDE_WEB_CLIENT_ID` (Web app confidential client ID)
+   - `KINDE_WEB_CLIENT_SECRET` (Web app client secret)
+   - `KINDE_CLI_CLIENT_ID` (CLI app public client ID — no secret needed)
    - `KINDE_AUDIENCE`
    - `KINDE_LOGOUT_REDIRECT_URI`
-   - `KINDE_REDIRECT_URI`
+   - `KINDE_WEB_REDIRECT_URI`
+   - Note: CLI redirect URI is dynamic (loopback + assigned port) and resolved at runtime, not stored as a secret.
 2. For local runs (non-production), keep fallback values in a local `.env` file or equivalent local env file, but do **not** assume `server/` auto-loads `.env` files.
    - Recommended path: repository root `.env` (so local commands and scripts can share one env source).
    - Developers must explicitly export/source those variables before starting the backend.
@@ -279,16 +307,20 @@ Expected Dev behavior:
 
 #### C1 [SWE] Implement browser/device login flow in CLI
 
+> **Uses Kinnoo CLI Dev app (public client, PKCE)**. CLI uses its own Kinde application (separate from Web app) with no client secret dependency.
+
 Update `src/kinnoo/auth_command.py`:
 
-1. `kinnoo login` initiates auth flow (PKCE/device/browser pattern per decision).
-2. CLI receives auth completion token through callback polling/device exchange/local callback.
-3. CLI stores auth state with:
+1. `kinnoo login` initiates browser-based PKCE authorization code flow using the CLI app's client ID.
+2. CLI starts a temporary local HTTP server on `127.0.0.1` (preferred port 8765, fallback 8766/8767, then OS-assigned free port via `socket.bind(('127.0.0.1', 0))`).
+3. Browser opens to Kinde authorize endpoint; callback returns to `http://127.0.0.1:<port>/auth/callback`.
+4. CLI exchanges authorization code + PKCE code verifier for tokens.
+5. CLI stores auth state with:
    - access token,
    - refresh token,
    - expiration metadata,
    - tenant context.
-4. Remove dependency on direct username/password prompt for Dev Kinde auth flow.
+6. Remove dependency on direct username/password prompt for Dev Kinde auth flow.
 
 Portability requirement:
 - implement provider interactions through one CLI auth service boundary so changing providers mostly updates adapter/config, not command UX wiring.
@@ -341,14 +373,17 @@ Add config keys in `server/config.py` (or equivalent) for:
 - provider selection (`AUTH_PROVIDER`),
 - provider-neutral issuer/client/audience/redirect settings,
 - Kinde issuer/domain,
-- client ID/secret,
+- Web app client ID/secret (`KINDE_WEB_CLIENT_ID`, `KINDE_WEB_CLIENT_SECRET`),
+- CLI app client ID (`KINDE_CLI_CLIENT_ID` — public client, no secret),
 - audience,
-- redirect/logout URLs,
+- redirect/logout URLs (web redirect URI stored; CLI redirect URI resolved at runtime),
 - optional org/tenant claim mapping key,
 - token verification cache/jwks refresh settings.
 
 Config rule:
 - provider-neutral env names are canonical in app runtime; Kinde-prefixed names are optional aliases during transition.
+- Server only needs the Web app client ID/secret for server-mediated auth flows.
+- CLI only needs the CLI app client ID for PKCE flows (no secret).
 
 #### E2 [SWE] IaC/env wiring
 

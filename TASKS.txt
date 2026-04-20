@@ -10578,24 +10578,28 @@ tasks:
     status: completed
 
   - id: task496
-    title: "feature118 prerequisite decisions and Kinde tenant setup execution"
+    title: "feature118 prerequisite decisions and dual Kinde app setup execution"
     type: task
     epic: [E8, E7]
     owner: human
     description: |
       Execute and record the prerequisite human decisions and manual Kinde setup
-      needed before implementation begins, including environment naming posture,
-      tenant mapping strategy, CLI auth UX selection, refresh-token storage policy,
-      callback port decision, and dev-registry reset approval.
+      needed before implementation begins. Two Kinde applications have been created
+      per issue #350 followup (Kinnoo Web Dev — Backend/Python confidential client,
+      and Kinnoo CLI Dev — Frontend/Native public client with PKCE). Record remaining
+      decisions: environment naming posture, tenant mapping strategy, refresh-token
+      storage policy, and dev-registry reset approval.
     files:
       - notes/PRE-RELEASE-CHECKLIST.md
       - notes/kinde-auth-setup-dev.md
+      - notes/kinde-auth-setup-followup.md
       - iac/environments/dev/terraform.tfvars
     steps:
-      - 'step1: Resolve and record all blockers listed in notes/kinde-auth-setup-dev.md section 4.'
-      - 'step2: Configure Kinde tenant/app callback/logout/origin/scopes settings for dev/staging posture.'
-      - 'step3: Provision and store required auth secrets/values in deployment secret stores.'
-      - 'step4: Confirm ECS/Cloudflare runtime configuration plan aligns with selected auth decisions.'
+      - 'step1: Resolve and record all blockers listed in notes/kinde-auth-setup-dev.md section 4 (CLI PKCE, two-app topology, and dynamic port decisions already resolved per issue #350).'
+      - 'step2: Configure Kinnoo Web Dev app (Backend/Python): callback/logout/origin/scopes settings per section 5.1.1.'
+      - 'step3: Configure Kinnoo CLI Dev app (Frontend/Native PKCE): wildcard loopback callback per section 5.1.2.'
+      - 'step4: Provision and store required auth secrets (separate web client ID/secret and CLI client ID) in deployment secret stores per section 5.2.'
+      - 'step5: Confirm ECS/Cloudflare runtime configuration plan aligns with dual-app auth decisions.'
     dependencies: []
     tests: [test706]
     status: not-started
@@ -10608,7 +10612,10 @@ tasks:
     description: |
       Replace server request-auth validation path with provider-portable OIDC token
       verification and migrate auth route flows to redirect/callback/logout behavior
-      backed by OIDC discovery + JWKS verification.
+      backed by OIDC discovery + JWKS verification. Server uses the Kinnoo Web Dev
+      backend client (confidential client with client secret) for server-mediated
+      web auth flows. Tokens from both Kinde apps (web and CLI) share the same
+      issuer and JWKS, so server token validation works for both login paths.
     files:
       - server/auth/
       - server/routes/auth.py
@@ -10618,10 +10625,11 @@ tasks:
       - server/tests/
     steps:
       - 'step1: Introduce provider adapter contract for discovery/JWKS/token validation/login-url/logout-url behavior.'
-      - 'step2: Implement Kinde OIDC adapter under the provider contract and wire middleware/routes to abstraction only.'
-      - 'step3: Replace legacy username/password token issuance path with redirect/callback auth flow endpoints.'
-      - 'step4: Ensure auth failures (exp/signature/issuer/audience/scope) return deterministic envelope errors.'
-      - 'step5: Add/refresh server tests for valid and invalid token scenarios and callback/logout flows.'
+      - 'step2: Implement Kinde OIDC adapter under the provider contract using Web Dev client ID/secret and wire middleware/routes to abstraction only.'
+      - 'step3: Replace legacy username/password token issuance path with redirect/callback auth flow endpoints using Web Dev client credentials.'
+      - 'step4: Ensure token validation accepts tokens from both Kinde apps (same issuer/JWKS, different client IDs) for API requests.'
+      - 'step5: Ensure auth failures (exp/signature/issuer/audience/scope) return deterministic envelope errors.'
+      - 'step6: Add/refresh server tests for valid and invalid token scenarios and callback/logout flows.'
     dependencies: [task496]
     tests: [test707, test708]
     status: not-started
@@ -10633,7 +10641,8 @@ tasks:
     owner: swe-agent
     description: |
       Migrate web auth UX from local forms to provider-hosted Kinde redirects and
-      callback completion while preserving protected-route behavior.
+      callback completion while preserving protected-route behavior. Uses the Kinnoo
+      Web Dev backend client (confidential client) for server-mediated browser login.
     files:
       - web/app/(public)/login/
       - web/app/(public)/signup/
@@ -10642,7 +10651,7 @@ tasks:
       - web/lib/auth-client.ts
       - web/__tests__/
     steps:
-      - 'step1: Replace form-based login initiation with redirect-based auth entrypoints.'
+      - 'step1: Replace form-based login initiation with redirect-based auth entrypoints using Web Dev client ID.'
       - 'step2: Implement callback success/failure handling and redirect to registry on success.'
       - 'step3: Migrate or hide signup/reset paths to provider-hosted equivalents per cutover policy.'
       - 'step4: Preserve auth layout redirect behavior for unauthenticated sessions.'
@@ -10657,8 +10666,12 @@ tasks:
     epic: [E2, E8]
     owner: swe-agent
     description: |
-      Move `kinnoo login` and `kinnoo logout` to Kinde-hosted auth behavior and
-      implement durable token refresh semantics for registry-facing CLI workflows.
+      Move `kinnoo login` and `kinnoo logout` to Kinde-hosted auth behavior using the
+      Kinnoo CLI Dev public client (PKCE, no client secret). CLI opens browser to Kinde
+      authorize endpoint with PKCE code challenge, starts temporary local HTTP server on
+      127.0.0.1 with dynamic port allocation (preferred 8765, fallback 8766/8767, then
+      OS-assigned free port), and exchanges authorization code for tokens on callback.
+      Implement durable token refresh semantics for registry-facing CLI workflows.
     files:
       - src/kinnoo/auth_command.py
       - src/kinnoo/config.py
@@ -10666,11 +10679,11 @@ tasks:
       - tests/client_cli_registry/
       - tests/e2e_workflows/
     steps:
-      - 'step1: Implement browser/device/PKCE login flow per selected prerequisite decision.'
+      - 'step1: Implement browser-based PKCE authorization code flow using CLI Dev client ID with dynamic-port loopback callback server.'
       - 'step2: Persist access token, refresh token, expiry metadata, and tenant context safely in local auth state.'
       - 'step3: Add token refresh behavior for registry operations with clear re-login fallback messaging.'
       - 'step4: Ensure logout clears local state and optionally completes provider logout URL flow.'
-      - 'step5: Add/update CLI tests for login success/failure, refresh path, and logout behaviors.'
+      - 'step5: Add/update CLI tests for login success/failure, PKCE flow, dynamic port allocation, refresh path, and logout behaviors.'
     dependencies: [task496, task497]
     tests: [test710, test711]
     status: not-started
@@ -10683,7 +10696,9 @@ tasks:
     description: |
       Ensure authenticated identity ownership remains internal-UUID based while
       mapping external provider subject claims and using mapped identity in publish
-      and tenant-scoped ownership workflows.
+      and tenant-scoped ownership workflows. Identity mapping must work correctly
+      regardless of which Kinde app (Web or CLI) was used for authentication, since
+      both apps share the same Kinde tenant and user pool.
     files:
       - server/routes/publish.py
       - server/storage/
@@ -10691,9 +10706,9 @@ tasks:
       - server/tests/
     steps:
       - 'step1: Implement/adjust user identity upsert keyed by provider subject mapping rather than provider subject as PK.'
-      - 'step2: Resolve deterministic tenant linkage strategy for authenticated requests and publish actions.'
+      - 'step2: Resolve deterministic tenant linkage strategy for authenticated requests and publish actions (works across both Kinde apps).'
       - 'step3: Update publish ownership persistence to use mapped internal identity fields.'
-      - 'step4: Add/refresh tests proving ownership and tenant linkage correctness across multiple users/tenants.'
+      - 'step4: Add/refresh tests proving ownership and tenant linkage correctness across multiple users/tenants and both login paths (web + CLI).'
     dependencies: [task497]
     tests: [test712]
     status: not-started
@@ -10706,7 +10721,9 @@ tasks:
     description: |
       Introduce canonical provider-neutral auth configuration keys in runtime code
       and align IaC/env secret injection with those keys while preserving Kinde-
-      prefixed transition aliases.
+      prefixed transition aliases. Must support dual client IDs: KINDE_WEB_CLIENT_ID
+      + KINDE_WEB_CLIENT_SECRET for server/web flows, and KINDE_CLI_CLIENT_ID for
+      CLI PKCE flows (no client secret). CLI redirect URI is dynamic at runtime.
     files:
       - server/config.py
       - iac/modules/ecs-fargate/main.tf
@@ -10714,9 +10731,9 @@ tasks:
       - iac/environments/dev/terraform.tfvars
       - docs/
     steps:
-      - 'step1: Add canonical provider-neutral auth configuration contract and alias resolution.'
-      - 'step2: Add config-driven provider selection with startup fail-fast validation for missing required fields.'
-      - 'step3: Update IaC task/env injection to match runtime-expected variable names.'
+      - 'step1: Add canonical provider-neutral auth configuration contract with separate web/CLI client ID keys and alias resolution.'
+      - 'step2: Add config-driven provider selection with startup fail-fast validation for missing required fields (web client ID/secret for server, CLI client ID for CLI).'
+      - 'step3: Update IaC task/env injection to match runtime-expected variable names (KINDE_WEB_CLIENT_ID, KINDE_WEB_CLIENT_SECRET, KINDE_CLI_CLIENT_ID, etc.).'
       - 'step4: Document env contract and transition alias behavior for dev/staging workflows.'
     dependencies: [task496]
     tests: [test713]
@@ -10754,7 +10771,9 @@ tasks:
     description: |
       Add and update automated server/web/CLI test coverage for Kinde auth cutover,
       token error paths, callback/logout, refresh behavior, and provider-adapter
-      portability contracts backed by mocked OIDC metadata/JWKS.
+      portability contracts backed by mocked OIDC metadata/JWKS. Tests must cover
+      both Kinde apps: tokens from Web Dev client and CLI Dev client should both
+      validate correctly via shared issuer/JWKS.
     files:
       - server/tests/
       - tests/client_cli_registry/
@@ -10762,10 +10781,11 @@ tasks:
       - web/__tests__/
       - TESTS.txt
     steps:
-      - 'step1: Add server tests for valid token, invalid signature, expired token, wrong issuer/audience, and missing scope behavior.'
-      - 'step2: Add adapter contract tests against mocked discovery/JWKS responses and provider-selection fail-fast checks.'
-      - 'step3: Add CLI and web flow tests for login/callback/logout/refresh behavior.'
-      - 'step4: Ensure new tests are marker-classified and linked to feature/task AC coverage definitions.'
+      - 'step1: Add server tests for valid token (from both web and CLI clients), invalid signature, expired token, wrong issuer/audience, and missing scope behavior.'
+      - 'step2: Add adapter contract tests against mocked discovery/JWKS responses and provider-selection fail-fast checks with dual client ID config.'
+      - 'step3: Add CLI flow tests for PKCE login/callback/dynamic-port-allocation/logout/refresh behavior.'
+      - 'step4: Add web flow tests for login/callback/logout/redirect behavior using Web Dev client.'
+      - 'step5: Ensure new tests are marker-classified and linked to feature/task AC coverage definitions.'
     dependencies: [task497, task498, task499, task501, task502]
     tests: [test715]
     status: not-started
@@ -10777,16 +10797,20 @@ tasks:
     owner: human
     description: |
       Execute and document Dev environment smoke tests for login/logout/publish
-      identity linkage and validate rollback steps are actionable if cutover fails.
+      identity linkage across both login paths (web via Kinnoo Web Dev app and CLI
+      via Kinnoo CLI Dev app) and validate rollback steps are actionable if cutover
+      fails.
     files:
       - notes/kinde-auth-setup-dev.md
       - notes/features/feature118-handoff.md
       - notes/
     steps:
-      - 'step1: Run browser, CLI, and publish ownership smoke checks against dev endpoints after deployment.'
-      - 'step2: Record success/failure evidence and unresolved limitations in cutover notes.'
-      - 'step3: Validate rollback runbook steps are executable with current deployment artifacts/config.'
-      - 'step4: Confirm approval gate before permanent dev cutover finalization.'
+      - 'step1: Run browser login/logout smoke checks against dev endpoints using Kinnoo Web Dev app.'
+      - 'step2: Run CLI login/logout/publish ownership smoke checks using Kinnoo CLI Dev app (PKCE loopback).'
+      - 'step3: Verify publish-identity linkage is correct regardless of which app was used for login.'
+      - 'step4: Record success/failure evidence and unresolved limitations in cutover notes.'
+      - 'step5: Validate rollback runbook steps are executable with current deployment artifacts/config.'
+      - 'step6: Confirm approval gate before permanent dev cutover finalization.'
     dependencies: [task498, task499, task500, task501, task502, task503]
     tests: [test716]
     status: not-started
