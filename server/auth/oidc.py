@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 import base64
 import json
 from typing import Any
+from urllib import error as urllib_error
 from urllib import parse as urllib_parse
 from urllib import request as urllib_request
 
@@ -24,6 +25,10 @@ def _b64url_decode(value: str) -> bytes:
 
 def _now_epoch() -> int:
     return int(datetime.now(timezone.utc).timestamp())
+
+
+class OIDCRequestError(Exception):
+    """Raised when provider HTTP/JSON responses cannot be safely consumed."""
 
 
 def _http_json_request(
@@ -44,11 +49,32 @@ def _http_json_request(
         request_headers.setdefault("Content-Type", "application/x-www-form-urlencoded")
 
     request = urllib_request.Request(url=url, method=method, headers=request_headers, data=body)
-    with urllib_request.urlopen(request, timeout=timeout_seconds) as response:
-        payload = response.read().decode("utf-8")
-    decoded = json.loads(payload)
+    try:
+        with urllib_request.urlopen(request, timeout=timeout_seconds) as response:
+            payload = response.read().decode("utf-8")
+    except urllib_error.HTTPError as error:
+        raise OIDCRequestError(
+            f"OIDC {method.upper()} {url} failed with HTTP {error.code}."
+        ) from error
+    except urllib_error.URLError as error:
+        raise OIDCRequestError(
+            f"OIDC {method.upper()} {url} failed due to network error: {error.reason!s}."
+        ) from error
+    except (TimeoutError, UnicodeDecodeError) as error:
+        raise OIDCRequestError(
+            f"OIDC {method.upper()} {url} returned an unreadable response payload."
+        ) from error
+
+    try:
+        decoded = json.loads(payload)
+    except json.JSONDecodeError as error:
+        raise OIDCRequestError(
+            f"OIDC {method.upper()} {url} returned invalid JSON."
+        ) from error
     if not isinstance(decoded, dict):
-        raise ValueError("OIDC endpoint returned non-object JSON payload.")
+        raise OIDCRequestError(
+            f"OIDC {method.upper()} {url} returned non-object JSON payload."
+        )
     return decoded
 
 
@@ -287,7 +313,12 @@ class OIDCTokenService:
             or (now - self._jwks_cached_at_epoch) >= self._cache_ttl_seconds
         )
         if should_refresh:
-            self._jwks_cache = self.provider.fetch_jwks()
+            try:
+                self._jwks_cache = self.provider.fetch_jwks()
+            except OIDCRequestError as error:
+                raise TokenValidationError(
+                    f"503 service unavailable: jwks fetch failed ({error})"
+                ) from error
             self._jwks_cached_at_epoch = now
 
         keys = self._jwks_cache.get("keys") if isinstance(self._jwks_cache, dict) else None
@@ -298,7 +329,12 @@ class OIDCTokenService:
                 return item
 
         # One forced refresh before failing in case of key rotation.
-        self._jwks_cache = self.provider.fetch_jwks()
+        try:
+            self._jwks_cache = self.provider.fetch_jwks()
+        except OIDCRequestError as error:
+            raise TokenValidationError(
+                f"503 service unavailable: jwks fetch failed ({error})"
+            ) from error
         self._jwks_cached_at_epoch = now
         keys = self._jwks_cache.get("keys") if isinstance(self._jwks_cache, dict) else None
         if isinstance(keys, list):

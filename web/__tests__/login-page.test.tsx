@@ -28,7 +28,7 @@ describe("Login page", () => {
   });
 
   it("starts redirect-based login flow from /api/login", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 303 }));
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 307 }));
 
     render(<LoginPage />);
     fireEvent.click(screen.getByRole("button", { name: "Continue to Login" }));

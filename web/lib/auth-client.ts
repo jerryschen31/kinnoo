@@ -19,8 +19,9 @@ function isSuccessfulLoginResponse(response: Response): boolean {
     return true;
   }
 
-  // Redirect-based auth flows can return temporary redirects.
-  return response.status === 303;
+  // Redirect-based auth flows can surface standard redirect responses
+  // depending on browser/runtime behavior.
+  return [302, 303, 307, 308].includes(response.status);
 }
 
 export async function startLoginRedirect(): Promise<LoginResult> {
