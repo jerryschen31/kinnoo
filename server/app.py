@@ -288,6 +288,7 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
             user_store=user_store,
             login_csrf_secret=os.getenv("REGISTRY_LOGIN_CSRF_SECRET", "dev-login-csrf-secret-change-me"),
             oidc_provider=oidc_provider,
+            sqlite_auth_store=sqlite_auth_store,
         )
     )
     app.include_router(
@@ -303,6 +304,8 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
             storage_backend=storage_backend,
             metadata_manager=metadata_manager,
             max_upload_mb=resolved_config.max_upload_mb,
+            user_store=user_store,
+            sqlite_auth_store=sqlite_auth_store,
         )
     )
     app.include_router(
