@@ -622,7 +622,7 @@ def test_feature62_import_openclaw_manifest_migration_guidance(tmp_path):
     assert "Field 'state_dirs' is not supported in this schema version" in combined
 
 
-def test_task603_import_rejects_removed_clawhub_flags():
+def test_import_rejects_deprecated_clawhub_flags():
     source_result = subprocess.run(
         [
             sys.executable,
@@ -646,7 +646,7 @@ def test_task603_import_rejects_removed_clawhub_flags():
             str(CLI_PATH),
             "import",
             "--live-fallback",
-            ".",
+            "dummy-path",
         ],
         capture_output=True,
         text=True,
