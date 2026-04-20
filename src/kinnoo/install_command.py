@@ -37,6 +37,7 @@ try:
     )
     from kinnoo.registry import RegistryService, parse_install_target_spec
     from kinnoo.registry_backends import MockFilesystemRegistryBackend
+    from kinnoo.auth_command import refresh_registry_auth_if_needed
     from kinnoo.config import load_registry_config, resolve_lockfile_path
     from kinnoo.remote_client import RemoteRegistryClient
     from kinnoo.health_check import (
@@ -67,6 +68,7 @@ except ImportError:
     )
     from .registry import RegistryService, parse_install_target_spec
     from .registry_backends import MockFilesystemRegistryBackend
+    from .auth_command import refresh_registry_auth_if_needed
     from .config import load_registry_config, resolve_lockfile_path
     from .remote_client import RemoteRegistryClient
     from .health_check import (
@@ -1137,6 +1139,10 @@ def install_agent(
             backend = MockFilesystemRegistryBackend(root=backend_root)
         elif use_remote:
             config = load_registry_config()
+            config, refresh_error = refresh_registry_auth_if_needed(config=config)
+            if refresh_error:
+                print(f"Error: {refresh_error}", file=sys.stderr)
+                return 1
             if not config.registry_url or not config.registry_token or not config.tenant_slug:
                 print(
                     "Error: Remote registry configuration incomplete. "
@@ -1154,6 +1160,10 @@ def install_agent(
             resolved_install_source = "registry-remote"
         else:
             config = load_registry_config()
+            config, refresh_error = refresh_registry_auth_if_needed(config=config)
+            if refresh_error:
+                print(f"Error: {refresh_error}", file=sys.stderr)
+                return 1
             if config.registry_url:
                 if not config.registry_token or not config.tenant_slug:
                     print(

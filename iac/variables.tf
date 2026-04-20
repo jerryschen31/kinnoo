@@ -47,6 +47,12 @@ variable "sns_topic_arn" {
   default     = ""
 }
 
+variable "auth_provider" {
+  description = "Runtime auth provider identifier for ECS environment configuration"
+  type        = string
+  default     = "oidc_kinde"
+}
+
 variable "zone_id" {
   description = "Cloudflare zone ID for kinnoo.ai"
   type        = string

@@ -71,6 +71,12 @@ variable "security_check_lambda_name" {
   default     = ""
 }
 
+variable "auth_provider" {
+  description = "Provider identifier exposed to runtime auth configuration"
+  type        = string
+  default     = "oidc_kinde"
+}
+
 variable "cpu" {
   description = "Fargate task CPU units"
   type        = number

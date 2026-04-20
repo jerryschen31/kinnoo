@@ -3306,7 +3306,7 @@ features:
       - "VPC endpoints avoid needing NAT for ECS → S3/ECR"
     owner: swe-agent
     dependencies: []
-    status: not-started
+    status: completed
 
   - id: feature104
     title: "Terraform storage and security (S3, IAM, Secrets Manager)"
@@ -3381,7 +3381,7 @@ features:
       - "ACM certificate validation requires Cloudflare DNS records (feature106)"
     owner: swe-agent
     dependencies: [feature103, feature104]
-    status: needs-review
+    status: completed
 
   - id: feature106
     title: "Terraform Cloudflare DNS and Pages"
@@ -3411,7 +3411,7 @@ features:
       - "Pages project may be created manually — Terraform manages DNS only if Pages API is limited"
     owner: swe-agent
     dependencies: [feature103, feature105]
-    status: needs-review
+    status: completed
 
   - id: feature107
     title: "Terraform monitoring (CloudWatch, alarms, SNS)"
@@ -3545,7 +3545,7 @@ features:
       - "Signup CTA contact path is Twitter/X DM only"
     owner: swe-agent
     dependencies: []
-    status: needs-review
+    status: completed
 
   # ──────────────────────────────────────────────────────────────
   # Phase 15: Deployment, Testing & Launch (features 111-113)
@@ -3633,7 +3633,7 @@ features:
       - "This is the final go/no-go document before opening beta"
     owner: swe-agent
     dependencies: []
-    status: not-started
+    status: paused
 
   - id: feature114
     title: "kinnoo test hardening"
@@ -3656,7 +3656,7 @@ features:
         description: "`kinnoo test -h` includes the new --verbose, --create, and --append options with usage examples."
     owner: swe-agent
     dependencies: [feature69]
-    status: in-progress
+    status: completed
 
   - id: feature115
     title: "UAT Part 1 - CLI hardening"
@@ -3714,7 +3714,7 @@ features:
       - "SWE handoff brief in notes/features/feature115-notes.md"
     owner: swe-agent
     dependencies: [feature114]
-    status: not-started
+    status: needs-review
 
   - id: feature116
     title: "UAT Part 2 - Regression test hardening"
@@ -3741,7 +3741,7 @@ features:
       - "Focus is test architecture resilience and contract clarity, not product surface expansion."
     owner: swe-agent
     dependencies: [feature115]
-    status: in-progress
+    status: completed
 
   - id: feature117
     title: "Pre-release feature 6 - import hardening (phase14)"
@@ -3779,7 +3779,7 @@ features:
       - "Includes OpenClaw workspace-based import flow update aligned with current agent model"
     owner: techlead-agent
     dependencies: []
-    status: needs-review
+    status: completed
 
   - id: feature118
     title: "Pre-release feature 1 - Kinde auth cutover planning manifests"
@@ -3788,36 +3788,42 @@ features:
       Dev Kinde auth cutover with provider-portable architecture across server,
       web, CLI, identity mapping, and deployment configuration surfaces.
 
+      Uses two-app Kinde topology (resolved per issue #350 followup):
+      - Kinnoo Web Dev: Backend/Python confidential client for browser-based web login.
+      - Kinnoo CLI Dev: Frontend/Native public client (PKCE) for CLI kinnoo login with
+        dynamic-port loopback callback.
+
       This feature captures the task/test decomposition and handoff contracts
       needed to deliver pre-release feature 1 in phased execution.
     tasks: [task496, task497, task498, task499, task500, task501, task502, task503, task504]
     acceptance_criteria:
       - id: AC1
-        description: "Kinde prerequisite decisions and tenant/app setup (dev + staging posture, callback/logout URLs, scopes, test users, and secrets) are explicitly tracked with human-owned execution steps."
+        description: "Kinde prerequisite decisions and dual-app setup (Kinnoo Web Dev backend + Kinnoo CLI Dev public client; dev + staging posture, per-app callback/logout URLs, scopes, test users, and per-app secrets) are explicitly tracked with human-owned execution steps."
       - id: AC2
         description: "Server auth request paths validate OIDC/JWT tokens using discovery + JWKS and reject expired/invalid/wrong-issuer-or-audience tokens with clear error envelopes."
       - id: AC3
-        description: "Server auth implementation is provider-portable with a single adapter boundary and config-driven provider selection that fails fast when required auth config is missing."
+        description: "Server auth implementation is provider-portable with a single adapter boundary and config-driven provider selection (supporting dual client IDs for web and CLI) that fails fast when required auth config is missing."
       - id: AC4
-        description: "`kinnoo login` uses Kinde hosted auth flow and persists access token, refresh token, expiry metadata, and tenant context for registry workflows."
+        description: "`kinnoo login` uses Kinde CLI Dev public client with PKCE browser-based auth flow (dynamic-port loopback callback) and persists access token, refresh token, expiry metadata, and tenant context for registry workflows."
       - id: AC5
         description: "`kinnoo logout` clears local auth state and supports provider-session termination behavior without regressing existing no-state semantics."
       - id: AC6
-        description: "Web login/signup/reset surfaces are migrated from custom credential forms to Kinde redirect/callback/logout flows while preserving protected-route redirects."
+        description: "Web login/signup/reset surfaces use Kinnoo Web Dev backend client and are migrated from custom credential forms to Kinde redirect/callback/logout flows while preserving protected-route redirects."
       - id: AC7
-        description: "Internal identity remains UUID-based with external subject mapping; publish/ownership flows resolve authenticated user and tenant deterministically from provider-backed identity."
+        description: "Internal identity remains UUID-based with external subject mapping; publish/ownership flows resolve authenticated user and tenant deterministically from provider-backed identity regardless of which Kinde app was used for login."
       - id: AC8
         description: "Legacy local password/session/reset runtime paths are removed or disabled behind explicit compatibility control defaulted off for Dev cutover."
       - id: AC9
-        description: "Provider-neutral auth env contract is canonical at runtime, Kinde-prefixed aliases are transition-only, and IaC/task env injection matches application-expected names."
+        description: "Provider-neutral auth env contract is canonical at runtime with separate web/CLI client ID keys, Kinde-prefixed aliases are transition-only, and IaC/task env injection matches application-expected names."
       - id: AC10
-        description: "Automated server/web/CLI auth and portability-contract tests are defined and passing for token validation, callback/logout behavior, refresh flow, and adapter contracts."
+        description: "Automated server/web/CLI auth and portability-contract tests are defined and passing for token validation, callback/logout behavior, refresh flow, and adapter contracts across both Kinde apps."
       - id: AC11
-        description: "Dev cutover smoke matrix and rollback runbook are documented and executable, including auth success/failure probes and publish-identity verification."
+        description: "Dev cutover smoke matrix and rollback runbook are documented and executable, including auth success/failure probes and publish-identity verification for both web and CLI login paths."
     notes:
       - "Source requirements: notes/PRE-RELEASE-CHECKLIST.md (Pre-release feature 1) and notes/kinde-auth-setup-dev.md"
       - "Includes human-owned setup tasks and SWE-owned implementation tasks with explicit handoff contracts"
       - "Tests map to all ACs through test706-test716"
+      - "Two-app Kinde topology resolved per issue #350 followup: notes/kinde-auth-setup-followup.md"
     owner: techlead-agent
     dependencies: []
-    status: not-started
+    status: in-progress
