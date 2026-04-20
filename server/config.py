@@ -154,7 +154,21 @@ class ServerConfig:
 
 def resolve_auth_provider(*, env: dict[str, str] | None = None) -> str:
     source = env if env is not None else os.environ
-    return (source.get("AUTH_PROVIDER") or "legacy").strip().lower()
+    explicit = (source.get("AUTH_PROVIDER") or "").strip().lower()
+    if explicit:
+        return explicit
+
+    resolved_contract = resolve_auth_env_contract(env=source)
+    has_kinde_alias_signal = any(
+        (source.get(key) or "").strip()
+        for key in ("KINDE_ISSUER_URL", "KINDE_WEB_CLIENT_ID", "KINDE_CLI_CLIENT_ID")
+    )
+    kinnoo_env = (source.get("KINNOO_ENV") or "").strip().lower()
+    should_infer_hosted_provider = kinnoo_env == "production" and has_kinde_alias_signal
+    if should_infer_hosted_provider and all((resolved_contract.get(key) or "").strip() for key in REQUIRED_AUTH_ENV_KEYS):
+        return "oidc_kinde"
+
+    return "legacy"
 
 
 def resolve_auth_env_contract(*, env: dict[str, str] | None = None) -> dict[str, str]:
