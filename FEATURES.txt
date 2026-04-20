@@ -3827,3 +3827,49 @@ features:
     owner: techlead-agent
     dependencies: []
     status: in-progress
+
+  - id: feature119
+    title: "Pre-release feature 2 - Postgres registry database planning manifests"
+    description: |
+      Define the implementation decomposition for replacing JSON/SQLite-backed
+      registry metadata storage with a Postgres-backed architecture using
+      SQLAlchemy/Alembic, repository boundaries, feature-flagged cutover,
+      migration parity gates, and operational safeguards.
+
+      This feature captures the TechLead planning manifests (feature/tasks),
+      test manifest coverage, and SWE/Test handoff contracts needed for
+      phased implementation and validation.
+    tasks: [task505, task506, task507, task508, task509, task510, task511, task512, task513]
+    acceptance_criteria:
+      - id: AC1
+        description: "Terraform-managed Postgres infrastructure is specified with private-network security posture (private subnets, ECS-only ingress on 5432, encryption/TLS posture, and dev/prod profile differences)."
+      - id: AC2
+        description: "Server database runtime scope is fully specified for an 8-table schema (`users`, `tenants`, `tenant_members`, `agents`, `agent_versions`, `api_keys`, `audit_log`, `download_events`) with index expectations and UUID/audit conventions."
+      - id: AC3
+        description: "Alembic async migration setup and initial schema migration contract are defined, including upgrade/downgrade expectations and migration safety discipline."
+      - id: AC4
+        description: "Repository-layer contracts and route integration boundaries are defined so route handlers avoid embedded SQL and metadata flows remain interface-compatible."
+      - id: AC5
+        description: "Postgres metadata backend cutover contract is defined with `REGISTRY_METADATA_BACKEND=json|postgres` defaulting to `json`, including app wiring and health-check behavior when postgres mode is enabled."
+      - id: AC6
+        description: "Data migration/backfill and deterministic parity verification requirements are defined, including mismatch reporting and cutover gate requirements."
+      - id: AC7
+        description: "Rollback strategy and outage behavior requirements are defined, including explicit rollback drill expectations and predictable failure/degradation behavior."
+      - id: AC8
+        description: "Server CLI database/admin command scope is defined for migration/seed/connect and domain-level read/admin workflows required by the Postgres rollout."
+      - id: AC9
+        description: "Local dev and CI execution requirements are defined for Postgres-backed testing (Docker Compose, CI service container, transaction rollback isolation, and concurrency sanity expectations)."
+      - id: AC10
+        description: "Operational readiness requirements are defined for observability and runbooks (alarms, alerting path, cutover/rollback/restore/connection-saturation guidance)."
+      - id: AC11
+        description: "UserStore/TenantStore/legacy auth replacement is explicitly gated on pre-release feature 1 Kinde readiness, with non-goals documented for this phase."
+      - id: AC12
+        description: "Feature-level task/test decomposition covers all acceptance criteria with explicit human-owned approval gates where operator actions are required."
+    notes:
+      - "Source requirements: notes/PRE-RELEASE-CHECKLIST.md (Pre-release feature 2) and notes/features/postgres-registry-db-planning.md"
+      - "Planning scope only in this issue: create feature/task/test manifests plus handoff briefs; no server/iac implementation changes"
+      - "Phase model aligned to planning addendum: 13.1 IaC foundation, 13.2 runtime/schema, 13.3 migration/parity/cutover, 13.4 observability/runbooks"
+      - "UserStore/TenantStore replacement remains gated by feature118 readiness"
+    owner: techlead-agent
+    dependencies: [feature118]
+    status: not-started

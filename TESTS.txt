@@ -12404,3 +12404,262 @@ tests:
       - "automation_path_subfolder: manual-checklist"
     automated: false
     automation_path: null
+
+  - id: test720
+    title: "feature119 operator prerequisites and gating decisions are explicitly recorded"
+    type: manual
+    preconditions: Planning documents for feature119 are available and operator review session is scheduled
+    steps:
+      - 'step1: Review decision points listed in postgres planning appendix and ensure explicit resolution for tenant mapping, API key policy, download-auth policy, and gating assumptions.'
+      - 'step2: Verify feature118 dependency/gating is explicitly documented for UserStore/TenantStore/auth replacement scope.'
+      - 'step3: Verify cutover/rollback approval gates are listed with responsible owner(s).'
+    expected: Operator prerequisites and rollout guardrails are explicitly captured before implementation starts
+    pass_criteria: All prerequisite decisions are recorded with no unresolved blocker tagged as implicit/assumed
+    covers:
+      - feature: feature119
+        ac: AC11
+      - feature: feature119
+        ac: AC12
+    notes:
+      - "pytest_markers: regression_uat"
+      - "automation_path_subfolder: manual-planning-review"
+    automated: false
+    automation_path: null
+
+  - id: test721
+    title: "feature119 terraform rds-postgres module and private-network posture"
+    type: integration
+    preconditions: Terraform files for task506 are implemented
+    steps:
+      - 'step1: Run `terraform fmt -check -recursive` and `terraform validate` in iac root.'
+      - 'step2: Run `terraform plan` for dev and prod varsets.'
+      - 'step3: Verify generated plan/resources enforce private DB posture, ECS-only ingress on 5432, and encryption/SSL controls.'
+    expected: Terraform DB foundation is syntactically valid and enforces required security/network posture
+    pass_criteria: Terraform checks pass and plan evidence confirms required private/security controls
+    covers:
+      - feature: feature119
+        ac: AC1
+    notes:
+      - "pytest_markers: regression_integration,security_checks"
+      - "automation_path_subfolder: tests/iac"
+    automated: true
+    automation_path: tests/iac/test_feature119_postgres_iac.py::test_feature119_test721_private_rds_posture
+
+  - id: test722
+    title: "feature119 ecs db env and secrets wiring contract"
+    type: integration
+    preconditions: Terraform ECS/secrets wiring changes for task506 are implemented
+    steps:
+      - 'step1: Inspect Terraform plan/task-definition rendering for DB runtime keys.'
+      - 'step2: Verify presence and mapping of REGISTRY_DATABASE_URL, REGISTRY_METADATA_BACKEND, REGISTRY_DB_POOL_SIZE, REGISTRY_DB_MAX_OVERFLOW, REGISTRY_DB_POOL_RECYCLE_SECONDS.'
+      - 'step3: Verify secret-backed values are referenced without plaintext secret material committed.'
+    expected: ECS runtime wiring exposes required DB env contract via Terraform-managed mappings
+    pass_criteria: All required DB keys are mapped correctly and no plaintext sensitive value is committed
+    covers:
+      - feature: feature119
+        ac: AC1
+      - feature: feature119
+        ac: AC5
+    notes:
+      - "pytest_markers: regression_integration,security_checks"
+      - "automation_path_subfolder: tests/iac"
+    automated: true
+    automation_path: tests/iac/test_feature119_postgres_iac.py::test_feature119_test722_ecs_env_secret_wiring
+
+  - id: test723
+    title: "feature119 server database schema and repository contract"
+    type: integration
+    preconditions: task507 implementation is available with server/database package
+    steps:
+      - 'step1: Initialize fresh Postgres test DB and run `alembic upgrade head`.'
+      - 'step2: Verify expected eight tables, key relationships, and index presence for hot query columns.'
+      - 'step3: Execute repository-level CRUD/lookup tests for representative entities.'
+    expected: Schema and repository foundations are complete and aligned with DB contract
+    pass_criteria: Migration succeeds and repository tests verify expected table/index/relationship behavior
+    covers:
+      - feature: feature119
+        ac: AC2
+      - feature: feature119
+        ac: AC4
+    notes:
+      - "pytest_markers: regression_integration,server_api,schema_contract"
+      - "automation_path_subfolder: server/tests"
+    automated: true
+    automation_path: server/tests/test_feature119_schema_repo.py::test_feature119_test723_schema_and_repository_contract
+
+  - id: test724
+    title: "feature119 alembic async migration upgrade and downgrade safety"
+    type: integration
+    preconditions: task507 migration scaffolding is implemented
+    steps:
+      - 'step1: Run upgrade on empty test DB to head.'
+      - 'step2: Execute downgrade then re-upgrade cycle for initial revisions.'
+      - 'step3: Verify schema consistency after cycle and absence of destructive rollout behavior in initial phase.'
+    expected: Migration lifecycle is deterministic and supports safe rollout mechanics
+    pass_criteria: Upgrade/downgrade/upgrade cycle succeeds with stable schema state
+    covers:
+      - feature: feature119
+        ac: AC3
+    notes:
+      - "pytest_markers: regression_integration,schema_contract"
+      - "automation_path_subfolder: server/tests"
+    automated: true
+    automation_path: server/tests/test_feature119_migrations.py::test_feature119_test724_alembic_upgrade_downgrade_cycle
+
+  - id: test725
+    title: "feature119 postgres metadata manager parity under backend flag"
+    type: integration
+    preconditions: task508 metadata backend integration is implemented
+    steps:
+      - 'step1: Run metadata behavior tests with REGISTRY_METADATA_BACKEND=json baseline.'
+      - 'step2: Run same behavior tests with REGISTRY_METADATA_BACKEND=postgres.'
+      - 'step3: Compare publish/list/search/version behavior outputs for parity.'
+    expected: Postgres backend preserves required metadata behavior parity under flag-controlled cutover
+    pass_criteria: Behavior contracts are equivalent (or intentionally-documented deltas) across json and postgres backends
+    covers:
+      - feature: feature119
+        ac: AC4
+      - feature: feature119
+        ac: AC5
+    notes:
+      - "pytest_markers: regression_integration,server_api"
+      - "automation_path_subfolder: server/tests"
+    automated: true
+    automation_path: server/tests/test_feature119_metadata_backend_parity.py::test_feature119_test725_backend_parity
+
+  - id: test726
+    title: "feature119 db health ping fail-fast and outage behavior"
+    type: integration
+    preconditions: task508 health/runtime wiring is implemented
+    steps:
+      - 'step1: Start server in postgres mode with valid DB and verify readiness includes successful DB ping.'
+      - 'step2: Start server in postgres mode with unreachable DB and verify fail-fast startup behavior.'
+      - 'step3: Simulate runtime DB outage and verify deterministic degraded response path (no indefinite hangs).'
+    expected: Postgres-mode health/resilience behavior is explicit and predictable
+    pass_criteria: Startup/outage paths match fail-fast and explicit-degradation requirements
+    covers:
+      - feature: feature119
+        ac: AC5
+      - feature: feature119
+        ac: AC7
+    notes:
+      - "pytest_markers: regression_integration,server_api,security_checks"
+      - "automation_path_subfolder: server/tests"
+    automated: true
+    automation_path: server/tests/test_feature119_health_resilience.py::test_feature119_test726_health_and_outage_paths
+
+  - id: test727
+    title: "feature119 json-to-postgres backfill parity checker and rollback gate"
+    type: integration
+    preconditions: task509 migration/parity tooling is implemented
+    steps:
+      - 'step1: Execute idempotent backfill from representative JSON metadata fixtures into Postgres.'
+      - 'step2: Run parity checker and verify deterministic report for counts/key-fields/hash consistency.'
+      - 'step3: Execute rollback drill by switching backend flag back to json and verifying service health.'
+    expected: Backfill/parity tooling and rollback gate provide deterministic cutover confidence
+    pass_criteria: Repeated backfill runs are idempotent, parity report is zero-mismatch for fixture set, and rollback path is healthy
+    covers:
+      - feature: feature119
+        ac: AC6
+      - feature: feature119
+        ac: AC7
+    notes:
+      - "pytest_markers: regression_integration,server_api"
+      - "automation_path_subfolder: server/tests"
+    automated: true
+    automation_path: server/tests/test_feature119_migration_parity.py::test_feature119_test727_backfill_parity_and_rollback
+
+  - id: test728
+    title: "feature119 kinnoo-server db/admin commands"
+    type: integration
+    preconditions: task510 CLI command surface is implemented
+    steps:
+      - 'step1: Execute `kinnoo-server db migrate` and `kinnoo-server db seed` against test environment.'
+      - 'step2: Execute representative db/admin read commands (tenant/user/agent/audit) and verify output semantics.'
+      - 'step3: Verify failure behavior and error guidance for invalid inputs/unavailable DB.'
+    expected: DB/admin command surface supports operator workflows with clear behavior and error handling
+    pass_criteria: Command suite passes happy-path and failure-path assertions for required workflows
+    covers:
+      - feature: feature119
+        ac: AC8
+    notes:
+      - "pytest_markers: regression_integration,client_cli_registry"
+      - "automation_path_subfolder: server/tests"
+    automated: true
+    automation_path: server/tests/test_feature119_server_cli_db.py::test_feature119_test728_db_admin_commands
+
+  - id: test729
+    title: "feature119 postgres local and ci test harness"
+    type: integration
+    preconditions: task511 local/CI Postgres harness changes are implemented
+    steps:
+      - 'step1: Validate docker-compose local Postgres workflow boots and is consumable by test fixtures.'
+      - 'step2: Validate CI workflow config includes Postgres service container for server test path.'
+      - 'step3: Execute representative Postgres-backed test subset using transaction rollback fixtures.'
+    expected: Local and CI harnesses consistently support Postgres-backed tests
+    pass_criteria: Local and CI harness validation passes and tests run with isolated rollback fixtures
+    covers:
+      - feature: feature119
+        ac: AC9
+    notes:
+      - "pytest_markers: regression_integration,server_api"
+      - "automation_path_subfolder: server/tests"
+    automated: true
+    automation_path: server/tests/test_feature119_postgres_harness.py::test_feature119_test729_local_ci_harness
+
+  - id: test730
+    title: "feature119 concurrency and pool sanity envelope"
+    type: integration
+    preconditions: task511 concurrency sanity coverage is implemented
+    steps:
+      - 'step1: Run concurrent publish/search workload against Postgres-backed metadata manager.'
+      - 'step2: Verify no lost writes, duplicate-version corruption, or deadlock-induced hangs under expected envelope.'
+      - 'step3: Verify connection-pool utilization remains within configured bounds.'
+    expected: Postgres rollout meets baseline concurrency and pool-safety requirements
+    pass_criteria: Concurrency sanity tests pass with deterministic outcomes and no pool exhaustion
+    covers:
+      - feature: feature119
+        ac: AC9
+    notes:
+      - "pytest_markers: regression_integration,server_api"
+      - "automation_path_subfolder: server/tests"
+    automated: true
+    automation_path: server/tests/test_feature119_concurrency.py::test_feature119_test730_publish_search_concurrency
+
+  - id: test731
+    title: "feature119 observability alarms and runbook contract"
+    type: integration
+    preconditions: task512 observability and docs updates are implemented
+    steps:
+      - 'step1: Verify IaC/docs include DB alarm definitions for CPU, free storage, connection saturation, and latency.'
+      - 'step2: Verify cutover, rollback, restore/PITR, and connection saturation runbook sections exist and are internally consistent.'
+      - 'step3: Verify operational docs include ownership/escalation path guidance.'
+    expected: Observability and operational runbooks are complete for Postgres production readiness
+    pass_criteria: All required alarm/runbook contracts are present and pass contract checks
+    covers:
+      - feature: feature119
+        ac: AC10
+    notes:
+      - "pytest_markers: regression_integration,docs_contract,security_checks"
+      - "automation_path_subfolder: tests/docs_contract"
+    automated: true
+    automation_path: tests/docs_contract/test_feature119_ops_runbooks.py::test_feature119_test731_alarm_and_runbook_contract
+
+  - id: test732
+    title: "feature119 human final cutover gate sign-off"
+    type: manual
+    preconditions: task509-task512 deliverables and automated evidence are available
+    steps:
+      - 'step1: Review migration/parity evidence and confirm cutover gates are met.'
+      - 'step2: Execute rollback rehearsal and verify service health after switchback.'
+      - 'step3: Confirm no unresolved critical risks remain and record go/no-go decision.'
+    expected: Final operator sign-off validates readiness for postgres cutover path
+    pass_criteria: Human gate produces explicit signed decision with attached evidence and risk register status
+    covers:
+      - feature: feature119
+        ac: AC12
+    notes:
+      - "pytest_markers: regression_uat"
+      - "automation_path_subfolder: manual-cutover-validation"
+    automated: false
+    automation_path: null
