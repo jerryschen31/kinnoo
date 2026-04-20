@@ -31,6 +31,7 @@ DEFAULT_REGISTRY_URL = "https://registry.kinnoo.ai"
 CALLBACK_PATH = "/auth/callback"
 CALLBACK_TIMEOUT_SECONDS = 180
 TOKEN_REFRESH_SKEW_SECONDS = 120
+CALLBACK_SERVER_PORTS = (8765, 8766, 8767, 0)
 
 
 @dataclass(frozen=True)
@@ -118,7 +119,13 @@ def _legacy_login_with_password(*, email: str | None, password: str | None) -> i
         print(f"Error: {error_message}")
         return 1
 
-    resolved_tenant = _tenant_slug_from_token(token) or "global"
+    resolved_tenant = _tenant_slug_from_token(token)
+    if not resolved_tenant:
+        print(
+            "Error: Registry auth response did not include tenant context. "
+            "Contact the registry administrator.",
+        )
+        return 1
 
     save_registry_auth_state(
         registry_url=resolved_registry,
@@ -282,7 +289,7 @@ class _CallbackState:
 
 def _start_callback_server(*, state: str, callback_state: _CallbackState) -> tuple[ThreadingHTTPServer | None, int]:
     handler = _make_callback_handler(expected_state=state, callback_state=callback_state)
-    for port in (8765, 8766, 8767, 0):
+    for port in CALLBACK_SERVER_PORTS:
         try:
             server = ThreadingHTTPServer(("127.0.0.1", port), handler)
             thread = threading.Thread(target=server.serve_forever, daemon=True)

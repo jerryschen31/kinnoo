@@ -153,6 +153,8 @@ def _read_registry_values_from_file(config_path: Path) -> dict[str, str]:
         if isinstance(value, str) and value.strip():
             normalized[key] = value.strip()
         elif isinstance(value, int):
+            # Keep registry config values string-normalized on disk read;
+            # expires_at_epoch is parsed back to int by _coalesce_env_int_or_file.
             normalized[key] = str(value)
 
     return normalized
