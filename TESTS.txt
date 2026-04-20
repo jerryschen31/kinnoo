@@ -12346,3 +12346,61 @@ tests:
       - "automation_path_subfolder: manual-cutover-validation"
     automated: false
     automation_path: null
+
+  - id: test717
+    title: "task496 iac creates and wires dual-app auth secret references for ecs runtime"
+    type: integration
+    preconditions: Terraform modules for secrets and ecs-fargate are updated for dual-app auth contract and dev inputs are configured
+    steps:
+      - 'step1: Run terraform validate/plan for dev environment after task496 step5 IaC changes.'
+      - 'step2: Inspect plan/output for secret resource or data-source references covering KINDE_WEB_CLIENT_ID, KINDE_WEB_CLIENT_SECRET, KINDE_CLI_CLIENT_ID, KINDE_ISSUER_URL, and KINDE_AUDIENCE.'
+      - 'step3: Verify ecs task definition/container mapping injects these values via secret refs/env wiring to runtime-expected variable names.'
+    expected: IaC defines dual-app auth secret references and ECS wiring aligned with runtime env contract without committing plaintext secret values
+    pass_criteria: Terraform validation/plan succeeds and ECS mapping shows complete canonical auth key injection with no plaintext secret material in repository
+    covers:
+      - feature: feature118
+        ac: AC1
+    notes:
+      - "pytest_markers: regression_integration,infra_iac,security_checks"
+      - "automation_path_subfolder: tests/iac"
+    automated: true
+    automation_path: tests/iac/test_auth_iac_alignment.py::test_task496_dual_app_secret_wiring
+
+  - id: test718
+    title: "task496 iac manages dev tfvars contract and cloudflare runtime var alignment"
+    type: integration
+    preconditions: Dev tfvars and cloudflare module wiring are updated for auth runtime variables in task496 step5
+    steps:
+      - 'step1: Validate iac/environments/dev/terraform.tfvars contains required non-secret inputs for dual-app auth topology.'
+      - 'step2: Validate cloudflare runtime var management is Terraform-managed where provider support exists.'
+      - 'step3: If provider support is partial, verify documented manual runtime var updates exist in notes/kinde-auth-setup-dev.md and match deployed variable names.'
+    expected: Dev environment contract and Cloudflare runtime variable strategy are explicit, reproducible, and aligned with ECS/auth deployment behavior
+    pass_criteria: Required dev tfvars keys are present, Cloudflare runtime vars are either IaC-managed or explicitly documented for manual application, and naming matches runtime expectations
+    covers:
+      - feature: feature118
+        ac: AC1
+    notes:
+      - "pytest_markers: regression_integration,infra_iac"
+      - "automation_path_subfolder: tests/iac"
+    automated: true
+    automation_path: tests/iac/test_auth_iac_alignment.py::test_task496_dev_tfvars_and_cloudflare_runtime_contract
+
+  - id: test719
+    title: "task496 human post-deploy e2e auth smoke and runtime behavior validation"
+    type: manual
+    preconditions: Dev deployment completed with task496 step5 IaC changes applied and both Kinde apps configured
+    steps:
+      - 'step1: Execute web login/logout/callback smoke flow through deployed domains and record evidence.'
+      - 'step2: Execute CLI browser login with loopback callback and confirm successful token acquisition in deployed runtime context.'
+      - 'step3: Verify authenticated API behavior validates issuer/audience/signature in deployed path and rejects invalid auth variants.'
+      - 'step4: Record sign-off evidence in notes/kinde-auth-setup-dev.md section 5.3.3.'
+    expected: Human-operated end-to-end smoke checks confirm deployed auth runtime behavior is correct after IaC alignment changes
+    pass_criteria: All smoke checks pass with evidence captured and no unresolved runtime auth regressions after deploy
+    covers:
+      - feature: feature118
+        ac: AC11
+    notes:
+      - "pytest_markers: regression_uat,manual-cutover-validation"
+      - "automation_path_subfolder: manual-checklist"
+    automated: false
+    automation_path: null

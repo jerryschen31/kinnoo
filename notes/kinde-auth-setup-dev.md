@@ -91,16 +91,24 @@ These decisions must be explicitly recorded before implementation begins:
 1. **Environment naming decision**: Issue DoD says Dev+Staging, current Kinde has Dev+Prod. Decide:
    - Option A: Rename existing Kinde “prod” to “staging” for now, or
    - Option B: keep Dev+Prod but treat Prod as staging until real production cutover.
+   - ✅ RESOLVED — **Option B**. Keep Kinde environments as Development + Production for now, and treat current Production environment as staging-equivalent until real production cutover.
 2. **Tenant mapping strategy**:
    - Option A: Kinde org claim -> registry tenant slug (preferred),
    - Option B: first login auto-creates tenant from email slug.
+   - ✅ RESOLVED — **Option B** for now.
+   - First successful login auto-creates tenant slug from email slug.
+   - If user authenticated via GitHub, use GitHub ID as fallback slug source when email slug is unavailable/unsuitable.
+   - Future plan: add a Settings tab so user can rename tenant slug to any available slug.
+   - Future plan: revisit Option A (org claim mapping) when Teams/Workspaces ships.
 3. **CLI auth UX decision**: ✅ RESOLVED — Browser-based PKCE authorization code flow with local loopback callback.
    - CLI opens browser to Kinde authorize endpoint, local temporary HTTP server listens on loopback for callback.
    - Uses dynamic port allocation (preferred 8765, fallbacks 8766/8767, then OS-assigned free port).
 4. **Refresh token storage policy**:
    - local config file encrypted-at-rest vs plaintext in config directory.
+   - ✅ RESOLVED — local config file **encrypted-at-rest**.
 5. **Blank registry reset confirmation**:
    - Explicit approval to discard current dev registry users/tenants/agents.
+   - ✅ RESOLVED — approved to discard current dev registry users/tenants/agents and reset to blank registry state.
 6. **Kinde application topology**: ✅ RESOLVED — Option B: separate Kinde apps for web and CLI (cleaner separation).
    - **Application A — Kinnoo Web Dev**: Backend type, Python framework. Confidential client with client secret. Used for browser-based web login where auth orchestration is in FastAPI.
    - **Application B — Kinnoo CLI Dev**: Frontend/Native type (Other native). Public client with PKCE, no client secret at runtime. Used for CLI `kinnoo login` with loopback callback.
@@ -123,7 +131,7 @@ If any decision is unresolved, pause implementation.
 1. Open Kinde admin and select target tenant.
 2. Ensure two non-prod environments are available for this phase:
    - `dev`
-   - `staging` (or temporary use of current "prod" as staging per decision above).
+   - `production` (temporarily treated as staging-equivalent until real production cutover).
 
 #### 5.1.1 Application A — Kinnoo Web Dev (Backend, Python)
 
@@ -158,6 +166,23 @@ This is the confidential-client app for browser-based web login where auth orche
     - audience,
     - JWKS endpoint URL,
     - authorize/token/logout endpoints.
+
+**Free Plan fallback (unblocks implementation):**
+
+- Keep the Registry API audience configured.
+   - Use one audience value (for example `https://dev-api.kinnoo.ai`).
+   - Validate issuer + audience + signature in backend.
+- Skip OAuth scope enforcement for now.
+   - Do not block implementation on `registry:read`, `registry:publish`, `registry:admin` in Kinde.
+   - Enforce permissions in your app layer using your own user role + tenant membership logic.
+- Use internal authorization as source of truth.
+   - Read authenticated user from token subject.
+   - Map to internal user record.
+   - Gate publish/admin actions with your internal role checks.
+- Keep scope fields in config/code as future-ready.
+   - Keep placeholders in config and docs, but treat them as optional on Free Plan.
+   - When you upgrade plan, enable real scopes in Kinde and wire strict scope checks.
+- If the Kinde app dashboard does not expose an "Allowed origins / CORS" field for this app type, treat the origin list above as an app/runtime CORS contract and enforce it via server CORS config.
 
 #### 5.1.2 Application B — Kinnoo CLI Dev (Frontend/Native, Public Client, PKCE)
 
@@ -197,10 +222,54 @@ This is the public-client app for `kinnoo login` CLI flow. No client secret at r
    - Recommended path: repository root `.env` (so local commands and scripts can share one env source).
    - Developers must explicitly export/source those variables before starting the backend.
    - Example from repository root: `set -a; . ./.env; set +a` (or `direnv` if already used in your environment).
+   - Accepted local alias keys (currently used by human) should map to canonical runtime names:
+     - `WEB_APP_CLIENT_ID` -> `KINDE_WEB_CLIENT_ID`
+     - `WEB_APP_CLIENT_SECRET` -> `KINDE_WEB_CLIENT_SECRET`
+     - `CLI_APP_CLIENT_ID` -> `KINDE_CLI_CLIENT_ID`
+     - `REGISTRY_API_AUDIENCE` -> `KINDE_AUDIENCE`
+     - `KINDE_DOMAIN` -> `KINDE_ISSUER_URL` (or derive issuer URL consistently)
+     - `JWKS_ENDPOINT_URL`, `TOKEN_ENDPOINT`, `AUTHORIZATION_ENDPOINT`, `LOGOUT_ENDPOINT`, `USERINFO_ENDPOINT`, `REVOCATION_ENDPOINT` -> endpoint config fields used by auth adapter/runtime
 3. Update Cloudflare Worker runtime vars if needed:
    - keep `BACKEND_URL=https://dev-api.kinnoo.ai`
    - add auth-related frontend vars only if required by web implementation.
 4. Confirm ECS task definition injects app-expected env names (not only legacy `JWT_SECRET`/`SESSION_SECRET`).
+
+### 5.3 [HUMAN] Task496 Step5 Verification Checklist (ECS/Cloudflare runtime alignment)
+
+Complete all checks below before marking task496 step5 done.
+
+#### 5.3.1 Manual verification checklist (required now)
+
+- [ ] Confirm AWS Secrets Manager contains dual-app auth secrets for Dev runtime:
+   - Web app: `KINDE_WEB_CLIENT_ID`, `KINDE_WEB_CLIENT_SECRET`
+   - CLI app: `KINDE_CLI_CLIENT_ID` (no CLI secret)
+   - Shared OIDC/API: `KINDE_ISSUER_URL`, `KINDE_AUDIENCE`, endpoint values used by runtime
+- [ ] Confirm ECS runtime plan includes and maps the above secrets/env vars into server task definition.
+- [ ] Confirm secret name mapping in ECS matches app runtime variable names expected by implementation.
+- [ ] Confirm Cloudflare Worker runtime configuration keeps `BACKEND_URL=https://dev-api.kinnoo.ai`.
+- [ ] Confirm Cloudflare route/proxy behavior does not break login/callback/logout flows (including cookie/header forwarding).
+- [ ] Run manual smoke checks:
+   - web login on `https://dev.kinnoo.ai/login` reaches Kinde and returns successfully
+   - CLI login launches browser and receives loopback callback successfully
+   - authenticated API request validates issuer+audience+signature
+
+#### 5.3.2 IaC-capable parts (can be automated)
+
+These can be moved into Terraform and deployment automation when implementation wiring lands:
+
+1. Create/manage Secrets Manager entries for Kinde values in `iac/modules/secrets/`.
+2. Inject ECS task env + secret refs in `iac/modules/ecs-fargate/main.tf`.
+3. Keep environment-specific values in `iac/environments/dev/terraform.tfvars`.
+4. Add Cloudflare worker/runtime var management to IaC where supported in your current Cloudflare deployment model.
+5. Add regression checks/scripts to verify ECS env mapping and Cloudflare runtime vars after deploy.
+
+#### 5.3.3 Task496 step5 sign-off note (record here when complete)
+
+- Date:
+- Verified by:
+- ECS runtime alignment evidence:
+- Cloudflare runtime alignment evidence:
+- Smoke-test evidence links/notes:
 
 ---
 

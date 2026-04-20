@@ -143,3 +143,64 @@ Why:
 3. Native/public settings are the right fit for PKCE + no trusted browser-side secret.
 
 Use `Other front end` only if you are configuring a browser app (SPA) that runs in the user’s browser and handles OAuth there. That is not your CLI case."
+
+---
+
+## Blocker Resolution Log (Task496 Audit Trail)
+
+Date: 2026-04-20
+
+### Resolved decisions and setup
+
+1. Two-app auth topology confirmed:
+    - Kinnoo Web Dev app (Backend/Python, confidential client)
+    - Kinnoo CLI Dev app (Frontend/Native, Other native, public PKCE client)
+2. CLI app-type selection resolved:
+    - "Other native" chosen for CLI app.
+3. Registry API created and audience-based model adopted for Free Plan.
+4. Free Plan fallback accepted:
+    - audience configured
+    - scope enforcement deferred in Kinde and replaced with backend role/tenant authorization checks for now.
+5. Local development env values recorded by human in repository-root .env:
+    - WEB_APP_CLIENT_ID
+    - WEB_APP_CLIENT_SECRET
+    - CLI_APP_CLIENT_ID
+    - REGISTRY_API_AUDIENCE
+    - KINDE_DOMAIN
+    - JWKS_ENDPOINT_URL
+    - TOKEN_ENDPOINT
+    - AUTHORIZATION_ENDPOINT
+    - LOGOUT_ENDPOINT
+    - USERINFO_ENDPOINT
+    - REVOCATION_ENDPOINT
+
+### Task496 step-by-step status checkpoint
+
+1. Step1 (resolve section 4 blockers): partially complete.
+    - Completed: CLI PKCE flow and dynamic callback-port decision; two-app topology.
+    - Still needs explicit recorded decisions in section 4 for:
+      - environment naming posture
+      - tenant mapping strategy
+      - refresh-token storage policy
+      - dev-registry reset approval
+2. Step2 (configure Web Dev app): mostly complete; verify final callback/logout/origin values in Kinde app settings.
+3. Step3 (configure CLI Dev app): complete if wildcard loopback callback is present and saved.
+4. Step4 (provision/store secrets in deployment secret stores): not complete yet.
+    - Current status is local .env populated.
+    - Still required: deployment secret store entries and naming alignment for runtime.
+5. Step5 (confirm ECS/Cloudflare runtime configuration alignment): not complete yet.
+
+### What step5 requires (explicit)
+
+1. ECS runtime plan must carry both app identities:
+    - WEB_APP_CLIENT_ID
+    - WEB_APP_CLIENT_SECRET
+    - CLI_APP_CLIENT_ID
+    - REGISTRY_API_AUDIENCE
+    - KINDE_DOMAIN
+    - endpoint values (or derivation from discovery)
+2. Cloudflare runtime plan must preserve backend routing and auth callback behavior:
+    - BACKEND_URL remains https://dev-api.kinnoo.ai
+    - no route/cookie/header behavior that breaks callback or session handoff
+3. Record where these are injected (Secrets Manager + ECS task env mapping) and where Cloudflare vars are set.
+4. Capture this as a short checklist note in planning docs before marking task496 complete.
