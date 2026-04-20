@@ -85,15 +85,9 @@ def login_command(
     password: str | None,
 ) -> int:
     hosted_config = _hosted_cli_config_from_env()
-    if hosted_config is not None and _should_use_hosted_cli_auth():
+    if hosted_config is not None:
         return _login_hosted_pkce(hosted_config=hosted_config)
     return _legacy_login_with_password(email=email, password=password)
-
-
-def _should_use_hosted_cli_auth() -> bool:
-    provider = (os.environ.get("AUTH_PROVIDER") or "").strip().lower()
-    mode = (os.environ.get("KINNOO_CLI_AUTH_MODE") or "").strip().lower()
-    return provider in {"oidc", "oidc_kinde", "kinde"} or mode == "hosted"
 
 
 def _legacy_login_with_password(*, email: str | None, password: str | None) -> int:
