@@ -136,7 +136,9 @@ class KindeOIDCProvider:
             "response_type": "code",
             "client_id": self._config.web_client_id,
             "redirect_uri": self._config.web_redirect_uri,
-            "scope": "openid profile email offline_access",
+            # Web login does not require refresh-token scope; some Kinde web clients
+            # reject offline_access by default and fail auth initiation.
+            "scope": "openid profile email",
             "state": state,
             "audience": self._config.audience,
         }

@@ -1,1 +1,20 @@
-Build: testing cloudflare frontend deployment 4
+fix(auth+infra+web): complete oidc login path and harden production secret wiring
+
+- Infrastructure:
+	- Updated ECS/secret wiring so runtime receives the expected resolved values for auth settings.
+	- Added missing production signing-secret mappings required by the current server startup validation.
+	- Extended IaC regression coverage to lock in these mappings and prevent drift.
+
+- Backend auth:
+	- Updated web OIDC login scope to remove refresh-token scope for browser login flow compatibility.
+	- Added regression test coverage to ensure browser login scope stays minimal and accepted by the identity provider.
+
+- Web routing:
+	- Added missing callback route proxy so hosted login callbacks are forwarded to backend instead of returning 404.
+	- Extended web auth-flow test to verify callback proxy wiring alongside login/logout proxy routes.
+
+- Validation:
+	- Targeted backend OIDC tests pass.
+	- Targeted web auth-flow test passes.
+
+This commit intentionally excludes any secret values, credentials, and deployment-specific sensitive configuration details.
