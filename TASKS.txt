@@ -10581,27 +10581,34 @@ tasks:
     title: "feature118 prerequisite decisions and dual Kinde app setup execution"
     type: task
     epic: [E8, E7]
-    owner: human
+    owner: [human, swe-agent]
     description: |
       Execute and record the prerequisite human decisions and manual Kinde setup
       needed before implementation begins. Two Kinde applications have been created
       per issue #350 followup (Kinnoo Web Dev — Backend/Python confidential client,
       and Kinnoo CLI Dev — Frontend/Native public client with PKCE). Record remaining
       decisions: environment naming posture, tenant mapping strategy, refresh-token
-      storage policy, and dev-registry reset approval.
+      storage policy, and dev-registry reset approval. Also implement IaC/runtime
+      alignment for dual-app auth configuration in ECS/Cloudflare and perform human
+      post-deploy smoke verification.
     files:
       - notes/PRE-RELEASE-CHECKLIST.md
       - notes/kinde-auth-setup-dev.md
       - notes/kinde-auth-setup-followup.md
       - iac/environments/dev/terraform.tfvars
+      - iac/modules/secrets/main.tf
+      - iac/modules/ecs-fargate/main.tf
+      - iac/modules/cloudflare/main.tf
+      - tests/
     steps:
       - 'step1: Resolve and record all blockers listed in notes/kinde-auth-setup-dev.md section 4 (CLI PKCE, two-app topology, and dynamic port decisions already resolved per issue #350).'
       - 'step2: Configure Kinnoo Web Dev app (Backend/Python): callback/logout/origin/scopes settings per section 5.1.1.'
       - 'step3: Configure Kinnoo CLI Dev app (Frontend/Native PKCE): wildcard loopback callback per section 5.1.2.'
       - 'step4: Provision and store required auth secrets (separate web client ID/secret and CLI client ID) in deployment secret stores per section 5.2.'
-      - 'step5: Confirm ECS/Cloudflare runtime configuration plan aligns with dual-app auth decisions.'
+      - 'step5 [SWE/IaC]: Implement ECS/Cloudflare runtime configuration alignment for dual-app auth using existing iac/ modules: (a) add/manage Secrets Manager resources or references for KINDE_WEB_CLIENT_ID, KINDE_WEB_CLIENT_SECRET, KINDE_CLI_CLIENT_ID, KINDE_ISSUER_URL, KINDE_AUDIENCE and required endpoint vars; (b) wire ECS task env+secret injection to runtime-expected names; (c) add dev environment tfvars inputs required by these modules (no plaintext secrets committed); (d) manage Cloudflare runtime vars in Terraform where provider support exists, otherwise document explicit manual runtime update steps in notes/kinde-auth-setup-dev.md.'
+      - 'step6 [HUMAN]: Execute manual post-deploy validation and record evidence in notes/kinde-auth-setup-dev.md section 5.3.3: web login/logout/callback smoke checks, CLI login loopback callback smoke checks, and runtime behavior validation after deploy (issuer/audience/signature auth path functioning through deployed ECS+Cloudflare routing).'
     dependencies: []
-    tests: [test706]
+    tests: [test706, test717, test718, test719]
     status: not-started
 
   - id: task497
