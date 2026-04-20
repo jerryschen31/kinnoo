@@ -181,12 +181,10 @@ kinnoo check https://github.com/org/repo
 
 ### import
 
-- Usage: `kinnoo import [target] [import_path] [--force] [--source clawhub] [--live-fallback] [--from {langchain,langgraph,openai,openclaw}]`
+- Usage: `kinnoo import [target] [import_path] [--force] [--from {langchain,langgraph,openai,openclaw}]`
 - Description: Import an existing project in-place and prepare Kinnoo metadata.
 - Options:
   - `--force`: overwrite existing `kinnoo.yaml`.
-  - `--source`: import from a supported source namespace.
-  - `--live-fallback`: allow remote fallback when mirror record is missing.
   - `--from`: apply framework-aware adapter hints.
 - Exit codes: non-zero on import/validation failures.
 
