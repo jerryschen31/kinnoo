@@ -124,6 +124,12 @@ def test_feature118_test707_valid_and_invalid_oidc_token_envelopes(tmp_path, mon
     assert login_start.status_code == 307
     assert login_start.headers["location"].startswith("https://issuer.example/oauth2/auth?")
 
+    provider.build_signup_url = lambda state: f"https://issuer.example/oauth2/auth?state={state}&start_page=sign_up"  # type: ignore[method-assign]
+    signup_start = client.get("/signup", follow_redirects=False)
+    assert signup_start.status_code == 307
+    assert signup_start.headers["location"].startswith("https://issuer.example/oauth2/auth?")
+    assert "start_page=sign_up" in signup_start.headers["location"]
+
     state_cookie = client.cookies.get("kinnoo_oidc_state")
     assert state_cookie
     callback = client.get(f"/auth/callback?code=code-1&state={state_cookie}", follow_redirects=False)
@@ -188,3 +194,29 @@ def test_feature118_web_login_scope_excludes_offline_access() -> None:
     scope = (query.get("scope") or [""])[0]
     assert "offline_access" not in scope
     assert scope == "openid profile email"
+
+
+@pytest.mark.regression_integration
+@pytest.mark.server_api
+def test_feature118_web_signup_url_hints_registration() -> None:
+    provider = KindeOIDCProvider(
+        config=OIDCProviderConfig(
+            issuer_url="https://issuer.example",
+            jwks_endpoint_url="https://issuer.example/.well-known/jwks.json",
+            token_endpoint="https://issuer.example/oauth2/token",
+            authorization_endpoint="https://issuer.example/oauth2/auth",
+            logout_endpoint="https://issuer.example/logout",
+            userinfo_endpoint="https://issuer.example/userinfo",
+            audience="https://api.kinnoo.local",
+            web_client_id="web-client-id",
+            web_client_secret="web-client-secret",
+            cli_client_id="cli-client-id",
+            web_redirect_uri="https://dev.kinnoo.ai/auth/callback",
+            logout_redirect_uri="https://dev.kinnoo.ai/login",
+        )
+    )
+
+    url = provider.build_signup_url(state="state-456")
+    query = urllib_parse.parse_qs(urllib_parse.urlparse(url).query)
+    assert (query.get("start_page") or [""])[0] == "sign_up"
+    assert (query.get("prompt") or [""])[0] == "create"
