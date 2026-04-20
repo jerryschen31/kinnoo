@@ -181,7 +181,7 @@ kinnoo check https://github.com/org/repo
 
 ### import
 
-- Usage: `kinnoo import [target] [import_path] [--force] [--source clawhub] [--live-fallback] [--from {langchain,langgraph,openai}]`
+- Usage: `kinnoo import [target] [import_path] [--force] [--source clawhub] [--live-fallback] [--from {langchain,langgraph,openai,openclaw}]`
 - Description: Import an existing project in-place and prepare Kinnoo metadata.
 - Options:
   - `--force`: overwrite existing `kinnoo.yaml`.
@@ -202,6 +202,12 @@ If you want to import a GitHub repo into a local folder:
 
 ```bash
 kinnoo import https://github.com/org/repo ./imported-agent
+```
+
+If you want to import an OpenClaw workspace into a target directory:
+
+```bash
+kinnoo import --from openclaw ./my-openclaw-target ~/.openclaw/workspace-my-agent
 ```
 
 ### pack
