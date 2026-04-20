@@ -39,21 +39,22 @@ describe("Sign up entry points and signup page", () => {
     expect(loginSignupLink.getAttribute("href")).toBe("/signup");
   });
 
-  it("renders invite-only message with one Contact Me action", () => {
+  it("renders hosted sign-up call to action to /api/signup", () => {
     render(<SignupPage />);
 
-    expect(
-      screen.getByText("Sign up is currently invite-only. Please contact me for early access."),
-    ).toBeTruthy();
+    expect(screen.getByText("Sign up today to get access to the agent registry")).toBeTruthy();
 
-    const contactLink = screen.getByRole("link", { name: "Contact Me" });
-    expect(contactLink).toBeTruthy();
-    expect(contactLink.getAttribute("href")).toBe(
-      "https://twitter.com/messages/compose?recipient_id=4118511499",
-    );
-    expect(contactLink.getAttribute("target")).toBe("_blank");
+    const signupLink = screen.getByRole("link", { name: "Create an Account" });
+    expect(signupLink).toBeTruthy();
+    expect(signupLink.getAttribute("href")).toBe("/api/signup");
+  });
 
-    expect(screen.getAllByRole("link", { name: "Contact Me" })).toHaveLength(1);
+  it("keeps fallback login link for existing users", () => {
+    render(<SignupPage />);
+
+    const loginLink = screen.getByRole("link", { name: "Login" });
+    expect(loginLink).toBeTruthy();
+    expect(loginLink.getAttribute("href")).toBe("/login");
   });
 
   it("does not render legacy signup form elements", () => {

@@ -131,18 +131,33 @@ class KindeOIDCProvider:
     def config(self) -> OIDCProviderConfig:
         return self._config
 
-    def build_login_url(self, *, state: str) -> str:
+    def _build_authorization_url(self, *, state: str, extra_params: dict[str, str] | None = None) -> str:
         params = {
             "response_type": "code",
             "client_id": self._config.web_client_id,
             "redirect_uri": self._config.web_redirect_uri,
-            # Web login does not require refresh-token scope; some Kinde web clients
-            # reject offline_access by default and fail auth initiation.
             "scope": "openid profile email",
             "state": state,
             "audience": self._config.audience,
         }
+        if extra_params:
+            params.update(extra_params)
         return self._config.authorization_endpoint + "?" + urllib_parse.urlencode(params)
+
+    def build_login_url(self, *, state: str) -> str:
+        # Web login does not require refresh-token scope; some Kinde web clients
+        # reject offline_access by default and fail auth initiation.
+        return self._build_authorization_url(state=state)
+
+    def build_signup_url(self, *, state: str) -> str:
+        # Hint hosted auth to open registration first when provider supports it.
+        return self._build_authorization_url(
+            state=state,
+            extra_params={
+                "start_page": "sign_up",
+                "prompt": "create",
+            },
+        )
 
     def exchange_code_for_tokens(self, *, code: str) -> dict[str, Any]:
         return _http_json_request(

@@ -62,6 +62,22 @@ def create_web_auth_router(
             )
             return response
 
+        @router.get("/signup")
+        async def oidc_signup_page() -> Any:
+            state = secrets.token_urlsafe(32)
+            signup_url = oidc_provider.build_signup_url(state=state)
+            response = RedirectResponse(url=signup_url, status_code=307)
+            response.set_cookie(
+                key=OIDC_STATE_COOKIE,
+                value=state,
+                httponly=True,
+                secure=True,
+                samesite="lax",
+                path="/",
+                max_age=10 * 60,
+            )
+            return response
+
         @router.get("/auth/callback")
         async def oidc_callback(request: Request, code: str = "", state: str = "", error: str = "") -> Any:
             expected_state = request.cookies.get(OIDC_STATE_COOKIE, "")
