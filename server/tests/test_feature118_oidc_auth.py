@@ -129,7 +129,11 @@ def test_feature118_test707_valid_and_invalid_oidc_token_envelopes(tmp_path, mon
     assert callback.headers["location"] == "/registry"
     assert client.cookies.get(app.state.session_service.cookie_name)
 
-    logout = client.post("/logout", follow_redirects=False)
+    logout = client.post(
+        "/logout",
+        data={"csrf_token": client.cookies.get("kinnoo_csrf") or ""},
+        follow_redirects=False,
+    )
     assert logout.status_code == 303
     assert logout.headers["location"] == "https://issuer.example/logout"
 

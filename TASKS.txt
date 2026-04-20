@@ -10701,24 +10701,25 @@ tasks:
     epic: [E8, E3]
     owner: swe-agent
     description: |
-      Ensure authenticated identity ownership remains internal-UUID based while
-      mapping external provider subject claims and using mapped identity in publish
-      and tenant-scoped ownership workflows. Identity mapping must work correctly
-      regardless of which Kinde app (Web or CLI) was used for authentication, since
-      both apps share the same Kinde tenant and user pool.
+      Complete identity mapping hardening for publish ownership: authenticated
+      identities must remain internal-UUID based while mapping external provider
+      subject claims. Current publish metadata still stores provider subject values
+      directly; this task must migrate ownership linkage to mapped internal
+      identities and preserve deterministic tenant linkage across both login paths
+      (web and CLI).
     files:
       - server/routes/publish.py
       - server/storage/
       - server/services/
       - server/tests/
     steps:
-      - 'step1: Implement/adjust user identity upsert keyed by provider subject mapping rather than provider subject as PK.'
-      - 'step2: Resolve deterministic tenant linkage strategy for authenticated requests and publish actions (works across both Kinde apps).'
-      - 'step3: Update publish ownership persistence to use mapped internal identity fields.'
+      - 'step1: Add/adjust identity upsert keyed by provider-subject mapping while retaining internal UUID as canonical user identity key.'
+      - 'step2: Resolve deterministic tenant linkage strategy for authenticated requests and publish actions across both Kinde apps.'
+      - 'step3: Update publish ownership persistence to store mapped internal identity fields (not raw provider subject as owner PK).'
       - 'step4: Add/refresh tests proving ownership and tenant linkage correctness across multiple users/tenants and both login paths (web + CLI).'
-    dependencies: [task497]
+    dependencies: [task497, task499]
     tests: [test712]
-    status: not-started
+    status: needs-review
 
   - id: task501
     title: "feature118 provider-neutral auth config and IaC env alignment"
@@ -10726,11 +10727,10 @@ tasks:
     epic: [E7, E8]
     owner: swe-agent
     description: |
-      Introduce canonical provider-neutral auth configuration keys in runtime code
-      and align IaC/env secret injection with those keys while preserving Kinde-
-      prefixed transition aliases. Must support dual client IDs: KINDE_WEB_CLIENT_ID
-      + KINDE_WEB_CLIENT_SECRET for server/web flows, and KINDE_CLI_CLIENT_ID for
-      CLI PKCE flows (no client secret). CLI redirect URI is dynamic at runtime.
+      Close remaining provider-neutral auth configuration gaps after initial OIDC
+      cutover work. IaC secret wiring and dual-client runtime variables are largely
+      in place, but canonical provider-neutral keys, alias precedence, and operator
+      documentation still need to be finalized and tested to avoid environment drift.
     files:
       - server/config.py
       - iac/modules/ecs-fargate/main.tf
@@ -10738,13 +10738,13 @@ tasks:
       - iac/environments/dev/terraform.tfvars
       - docs/
     steps:
-      - 'step1: Add canonical provider-neutral auth configuration contract with separate web/CLI client ID keys and alias resolution.'
-      - 'step2: Add config-driven provider selection with startup fail-fast validation for missing required fields (web client ID/secret for server, CLI client ID for CLI).'
-      - 'step3: Update IaC task/env injection to match runtime-expected variable names (KINDE_WEB_CLIENT_ID, KINDE_WEB_CLIENT_SECRET, KINDE_CLI_CLIENT_ID, etc.).'
-      - 'step4: Document env contract and transition alias behavior for dev/staging workflows.'
-    dependencies: [task496]
+      - 'step1: Define canonical provider-neutral auth key contract and explicit alias precedence rules (canonical keys first, Kinde-prefixed aliases as transition fallback only).'
+      - 'step2: Enforce config-driven provider selection and fail-fast validation in server/CLI runtime paths for missing required dual-client fields.'
+      - 'step3: Verify/retain IaC runtime injection alignment and document AUTH_PROVIDER precedence behavior when Secrets Manager and task env defaults both exist.'
+      - 'step4: Document final env contract and migration guidance for dev/staging operators.'
+    dependencies: [task496, task497, task499]
     tests: [test713]
-    status: not-started
+    status: needs-review
 
   - id: task502
     title: "feature118 legacy auth runtime retirement and compatibility gating"
@@ -10768,7 +10768,7 @@ tasks:
       - 'step4: Add regression tests validating legacy-path disablement semantics and cutover safety.'
     dependencies: [task497]
     tests: [test714]
-    status: not-started
+    status: needs-review
 
   - id: task503
     title: "feature118 auth portability and integration test expansion"
@@ -10776,11 +10776,11 @@ tasks:
     epic: [E9, E8]
     owner: swe-agent
     description: |
-      Add and update automated server/web/CLI test coverage for Kinde auth cutover,
-      token error paths, callback/logout, refresh behavior, and provider-adapter
-      portability contracts backed by mocked OIDC metadata/JWKS. Tests must cover
-      both Kinde apps: tokens from Web Dev client and CLI Dev client should both
-      validate correctly via shared issuer/JWKS.
+      Complete the remaining auth portability matrix after task497-task499 test
+      additions. Existing server/web/CLI cutover tests now cover core flows; this
+      task focuses on closing unresolved coverage gaps (identity mapping, provider-
+      neutral contract, and legacy-runtime retirement) and keeping manifest-linked
+      automation paths aligned to the actual test suite.
     files:
       - server/tests/
       - tests/client_cli_registry/
@@ -10788,14 +10788,14 @@ tasks:
       - web/__tests__/
       - TESTS.txt
     steps:
-      - 'step1: Add server tests for valid token (from both web and CLI clients), invalid signature, expired token, wrong issuer/audience, and missing scope behavior.'
-      - 'step2: Add adapter contract tests against mocked discovery/JWKS responses and provider-selection fail-fast checks with dual client ID config.'
-      - 'step3: Add CLI flow tests for PKCE login/callback/dynamic-port-allocation/logout/refresh behavior.'
-      - 'step4: Add web flow tests for login/callback/logout/redirect behavior using Web Dev client.'
-      - 'step5: Ensure new tests are marker-classified and linked to feature/task AC coverage definitions.'
+      - 'step1: Reconcile TESTS.txt automation paths for already-landed feature118 tests from task497-task499 (server/web/CLI).'
+      - 'step2: Add/refresh tests for unresolved identity mapping and publish ownership linkage (task500/test712).'
+      - 'step3: Add/refresh tests for provider-neutral canonical-vs-alias config behavior and env precedence (task501/test713).'
+      - 'step4: Add/refresh tests for legacy auth runtime disablement and compatibility gating semantics (task502/test714).'
+      - 'step5: Ensure portability matrix coverage/test mappings remain marker-classified and traceable to feature118 ACs.'
     dependencies: [task497, task498, task499, task501, task502]
     tests: [test715]
-    status: not-started
+    status: needs-review
 
   - id: task504
     title: "feature118 dev cutover smoke validation and rollback rehearsal"
