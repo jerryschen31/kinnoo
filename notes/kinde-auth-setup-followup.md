@@ -192,6 +192,7 @@ Date: 2026-04-20
 5. Step5 (confirm ECS/Cloudflare runtime configuration alignment): ready for SWE IaC implementation.
     - Pending completion of Terraform wiring + test717/test718 execution.
 6. Step6 (manual post-deploy validation): pending human execution after Step5 deploy.
+    - Step6 Kinde-flow checks pending app cutover tasks 497-499.
 
 ### What step5 requires (explicit)
 
