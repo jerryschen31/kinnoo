@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import RegistryNav from "../../../components/blocks/RegistryNav";
 import AgentManifestModal from "../../../components/blocks/AgentManifestModal";
 import RegistryTabs from "../../../components/blocks/RegistryTabs";
-import { logoutWithSessionCsrf } from "../../../lib/auth-client";
 import { fetchMyAgents, searchAgents, type AgentSummary } from "../../../lib/registry-client";
 
 type RegistryDataState = {
@@ -109,11 +108,7 @@ export default function RegistryPage() {
           }
 
           setIsLoggingOut(true);
-          try {
-            await logoutWithSessionCsrf();
-          } finally {
-            window.location.assign("/login");
-          }
+          window.location.assign("/api/logout");
         }}
       />
       <RegistryTabs
