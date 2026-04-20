@@ -6,6 +6,7 @@ locals {
     "JWT_SECRET",
     "SESSION_SECRET",
     "ADMIN_PASSWORD",
+    "AUTH_PROVIDER",
     "KINDE_WEB_CLIENT_ID",
     "KINDE_WEB_CLIENT_SECRET",
     "KINDE_CLI_CLIENT_ID",
@@ -165,10 +166,6 @@ resource "aws_ecs_task_definition" "app" {
           name  = "KINNOO_SECURITY_CHECK_LAMBDA_NAME"
           value = var.security_check_lambda_name
         },
-        {
-          name  = "AUTH_PROVIDER"
-          value = var.auth_provider
-        }
       ]
       secrets = local.container_secrets
       mountPoints = [

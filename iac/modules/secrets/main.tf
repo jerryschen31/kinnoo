@@ -7,6 +7,7 @@ locals {
 
   # These auth secrets are provisioned out-of-band and referenced by Terraform.
   referenced_secret_names = {
+    AUTH_PROVIDER             = "${var.project_name}/${var.environment}/AUTH_PROVIDER"
     KINDE_WEB_CLIENT_ID       = "${var.project_name}/${var.environment}/KINDE_WEB_CLIENT_ID"
     KINDE_WEB_CLIENT_SECRET   = "${var.project_name}/${var.environment}/KINDE_WEB_CLIENT_SECRET"
     KINDE_CLI_CLIENT_ID       = "${var.project_name}/${var.environment}/KINDE_CLI_CLIENT_ID"
@@ -44,6 +45,10 @@ resource "aws_secretsmanager_secret" "admin_password" {
   description             = "Bootstrap admin password for ${var.project_name} ${var.environment}"
   recovery_window_in_days = 7
   tags                    = var.tags
+}
+
+data "aws_secretsmanager_secret" "auth_provider" {
+  name = local.referenced_secret_names.AUTH_PROVIDER
 }
 
 data "aws_secretsmanager_secret" "kinde_web_client_id" {
@@ -104,6 +109,7 @@ output "secret_arns" {
     JWT_SECRET                = aws_secretsmanager_secret.jwt_secret.arn
     SESSION_SECRET            = aws_secretsmanager_secret.session_secret.arn
     ADMIN_PASSWORD            = aws_secretsmanager_secret.admin_password.arn
+    AUTH_PROVIDER             = data.aws_secretsmanager_secret.auth_provider.arn
     KINDE_WEB_CLIENT_ID       = data.aws_secretsmanager_secret.kinde_web_client_id.arn
     KINDE_WEB_CLIENT_SECRET   = data.aws_secretsmanager_secret.kinde_web_client_secret.arn
     KINDE_CLI_CLIENT_ID       = data.aws_secretsmanager_secret.kinde_cli_client_id.arn
