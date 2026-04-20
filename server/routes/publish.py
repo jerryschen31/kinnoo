@@ -18,6 +18,7 @@ import yaml
 from server.auth.middleware import authenticate_request
 from server.auth.token import TokenClaims
 from server.auth.token import TokenService
+from server.config import resolve_auth_provider
 from server.metadata.manager import MetadataManager
 from server.metadata.models import VersionMetadata, utc_now_iso
 from server.routes.errors import build_error_envelope, resolve_request_id
@@ -278,7 +279,9 @@ def _resolve_publish_owner(
             "tenant_owner_user_id": tenant_owner_user_id,
         }
 
-    provider_name = "oidc_kinde"
+    provider_name = resolve_auth_provider()
+    if provider_name in {"", "legacy"}:
+        provider_name = "oidc_kinde"
     internal_user_id = claims.sub
     if sqlite_auth_store is not None:
         mapping = sqlite_auth_store.get_identity_mapping(
@@ -288,7 +291,9 @@ def _resolve_publish_owner(
         if mapping is not None:
             internal_user_id = mapping.user_id
         elif user_store is not None:
-            synthetic_username = f"oidc-{hashlib.sha256(claims.sub.encode('utf-8')).hexdigest()[:16]}@kinde.local"
+            synthetic_username = (
+                f"oidc-{hashlib.sha256(claims.sub.encode('utf-8')).hexdigest()}@{provider_name}.local"
+            )
             user = user_store.get_by_username(synthetic_username)
             if user is None:
                 user = user_store.create_user(

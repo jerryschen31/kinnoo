@@ -53,7 +53,7 @@ def create_auth_router(
 
     router = APIRouter()
 
-    credentials_token_service = legacy_token_service or token_service
+    password_auth_token_service = legacy_token_service or token_service
 
     @router.post("/api/auth/token")
     async def issue_token(request: Request) -> dict[str, object]:
@@ -78,7 +78,7 @@ def create_auth_router(
 
         status, response_payload = post_auth_token(
             payload=payload,
-            token_service=credentials_token_service,
+            token_service=password_auth_token_service,
             user_store=user_store,
         )
         if status >= 400:

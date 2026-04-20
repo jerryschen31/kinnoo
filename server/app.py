@@ -93,6 +93,11 @@ def _is_auth_store_ready(config: ServerConfig) -> bool:
     return True
 
 
+def _should_enable_legacy_auth_paths(*, auth_provider: str) -> bool:
+    """Enable legacy auth by default for legacy provider, or explicitly via compatibility gate."""
+    return auth_provider not in {"oidc", "oidc_kinde", "kinde"} or is_legacy_auth_compatibility_enabled()
+
+
 def create_app(*, config: ServerConfig | None = None) -> Any:
     """Create and return the server app instance."""
     try:
@@ -135,10 +140,7 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
         password_reset_token_secret = secrets.token_urlsafe(32)
 
     auth_provider = resolve_auth_provider()
-    enable_legacy_auth_paths = (
-        auth_provider not in {"oidc", "oidc_kinde", "kinde"}
-        or is_legacy_auth_compatibility_enabled()
-    )
+    enable_legacy_auth_paths = _should_enable_legacy_auth_paths(auth_provider=auth_provider)
     oidc_provider: KindeOIDCProvider | None = None
     legacy_token_service = TokenService(
         issuer=os.getenv("REGISTRY_TOKEN_ISSUER", "kinnoo-registry"),
