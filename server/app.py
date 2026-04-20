@@ -14,7 +14,7 @@ from server.auth.session import SessionService
 from server.auth.token import SigningKey, TokenService
 from server.auth.tokens import PasswordResetTokenService, RegistrationTokenService
 from server.bootstrap import bootstrap_admin_from_env
-from server.config import ServerConfig
+from server.config import ServerConfig, is_legacy_auth_compatibility_enabled, resolve_auth_provider
 from server.metadata.manager import MetadataManager
 from server.middleware import InMemoryRateLimiter, PathRateLimitMiddleware, RateLimitRule
 from server.routes.agents import create_agents_router
@@ -134,8 +134,20 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
     if not password_reset_token_secret:
         password_reset_token_secret = secrets.token_urlsafe(32)
 
-    auth_provider = (os.getenv("AUTH_PROVIDER") or "legacy").strip().lower()
+    auth_provider = resolve_auth_provider()
+    enable_legacy_auth_paths = (
+        auth_provider not in {"oidc", "oidc_kinde", "kinde"}
+        or is_legacy_auth_compatibility_enabled()
+    )
     oidc_provider: KindeOIDCProvider | None = None
+    legacy_token_service = TokenService(
+        issuer=os.getenv("REGISTRY_TOKEN_ISSUER", "kinnoo-registry"),
+        current_signing_key=SigningKey(
+            kid=os.getenv("REGISTRY_TOKEN_SIGNING_KID", "dev-k1"),
+            secret=os.getenv("REGISTRY_TOKEN_SIGNING_SECRET", "dev-secret-change-me"),
+        ),
+        ttl_minutes=60,
+    )
     token_service: Any
     if auth_provider in {"oidc", "oidc_kinde", "kinde"}:
         oidc_config = OIDCProviderConfig.from_env(env=os.environ, strict=True)
@@ -143,14 +155,7 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
         oidc_provider = KindeOIDCProvider(config=oidc_config)
         token_service = OIDCTokenService(provider=oidc_provider)
     else:
-        token_service = TokenService(
-            issuer=os.getenv("REGISTRY_TOKEN_ISSUER", "kinnoo-registry"),
-            current_signing_key=SigningKey(
-                kid=os.getenv("REGISTRY_TOKEN_SIGNING_KID", "dev-k1"),
-                secret=os.getenv("REGISTRY_TOKEN_SIGNING_SECRET", "dev-secret-change-me"),
-            ),
-            ttl_minutes=60,
-        )
+        token_service = legacy_token_service
     metadata_manager = MetadataManager(storage=storage_backend)
     registration_token_service = RegistrationTokenService(
         signing_secret=register_token_secret,
@@ -273,6 +278,7 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
     app.include_router(
         create_auth_router(
             token_service=token_service,
+            legacy_token_service=legacy_token_service,
             user_store=user_store,
             session_service=session_service,
             registration_token_service=registration_token_service,
@@ -280,6 +286,7 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
             sqlite_auth_store=sqlite_auth_store,
             frontend_url=frontend_url,
             email_service=email_service,
+            enable_legacy_auth_paths=enable_legacy_auth_paths,
         )
     )
     app.include_router(

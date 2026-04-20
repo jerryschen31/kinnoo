@@ -11,6 +11,37 @@ from typing import Literal
 
 StorageBackendName = Literal["local", "mock", "s3"]
 
+AUTH_ENV_ALIASES: dict[str, tuple[str, ...]] = {
+    "AUTH_ISSUER_URL": ("KINDE_ISSUER_URL",),
+    "AUTH_JWKS_ENDPOINT_URL": ("JWKS_ENDPOINT_URL",),
+    "AUTH_TOKEN_ENDPOINT": ("TOKEN_ENDPOINT",),
+    "AUTH_AUTHORIZATION_ENDPOINT": ("AUTHORIZATION_ENDPOINT",),
+    "AUTH_LOGOUT_ENDPOINT": ("LOGOUT_ENDPOINT",),
+    "AUTH_USERINFO_ENDPOINT": ("USERINFO_ENDPOINT",),
+    "AUTH_REVOCATION_ENDPOINT": ("REVOCATION_ENDPOINT",),
+    "AUTH_AUDIENCE": ("KINDE_AUDIENCE",),
+    "AUTH_WEB_CLIENT_ID": ("KINDE_WEB_CLIENT_ID",),
+    "AUTH_WEB_CLIENT_SECRET": ("KINDE_WEB_CLIENT_SECRET",),
+    "AUTH_CLI_CLIENT_ID": ("KINDE_CLI_CLIENT_ID",),
+    "AUTH_WEB_REDIRECT_URI": ("KINDE_WEB_REDIRECT_URI",),
+    "AUTH_LOGOUT_REDIRECT_URI": ("KINDE_LOGOUT_REDIRECT_URI",),
+}
+
+REQUIRED_AUTH_ENV_KEYS: tuple[str, ...] = (
+    "AUTH_ISSUER_URL",
+    "AUTH_JWKS_ENDPOINT_URL",
+    "AUTH_TOKEN_ENDPOINT",
+    "AUTH_AUTHORIZATION_ENDPOINT",
+    "AUTH_LOGOUT_ENDPOINT",
+    "AUTH_USERINFO_ENDPOINT",
+    "AUTH_AUDIENCE",
+    "AUTH_WEB_CLIENT_ID",
+    "AUTH_WEB_CLIENT_SECRET",
+    "AUTH_CLI_CLIENT_ID",
+    "AUTH_WEB_REDIRECT_URI",
+    "AUTH_LOGOUT_REDIRECT_URI",
+)
+
 
 def _read_int_env(name: str, default: int) -> int:
     raw = os.getenv(name)
@@ -119,3 +150,32 @@ class ServerConfig:
             password_reset_token_secret=(os.getenv("REGISTRY_PASSWORD_RESET_TOKEN_SECRET") or "").strip()
             or secrets.token_urlsafe(32),
         )
+
+
+def resolve_auth_provider(*, env: dict[str, str] | None = None) -> str:
+    source = env if env is not None else os.environ
+    return (source.get("AUTH_PROVIDER") or "legacy").strip().lower()
+
+
+def resolve_auth_env_contract(*, env: dict[str, str] | None = None) -> dict[str, str]:
+    source = env if env is not None else os.environ
+    resolved: dict[str, str] = {}
+    for canonical_key, aliases in AUTH_ENV_ALIASES.items():
+        value = (source.get(canonical_key) or "").strip()
+        if value:
+            resolved[canonical_key] = value
+            continue
+        for alias in aliases:
+            alias_value = (source.get(alias) or "").strip()
+            if alias_value:
+                resolved[canonical_key] = alias_value
+                break
+        else:
+            resolved[canonical_key] = ""
+    return resolved
+
+
+def is_legacy_auth_compatibility_enabled(*, env: dict[str, str] | None = None) -> bool:
+    source = env if env is not None else os.environ
+    raw = (source.get("AUTH_ENABLE_LEGACY_PATHS") or "").strip().lower()
+    return raw in {"1", "true", "yes", "on"}

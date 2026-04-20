@@ -76,29 +76,34 @@ def load_registry_config(config_path: Path | None = None) -> RegistryConfig:
             file_key="expires_at_epoch",
         ),
         token_endpoint=_coalesce_env_or_file(
-            env_var_name="TOKEN_ENDPOINT",
+            env_var_name="AUTH_TOKEN_ENDPOINT",
             file_values=file_values,
             file_key="token_endpoint",
+            fallback_env_var_names=("TOKEN_ENDPOINT",),
         ),
         authorization_endpoint=_coalesce_env_or_file(
-            env_var_name="AUTHORIZATION_ENDPOINT",
+            env_var_name="AUTH_AUTHORIZATION_ENDPOINT",
             file_values=file_values,
             file_key="authorization_endpoint",
+            fallback_env_var_names=("AUTHORIZATION_ENDPOINT",),
         ),
         revocation_endpoint=_coalesce_env_or_file(
-            env_var_name="REVOCATION_ENDPOINT",
+            env_var_name="AUTH_REVOCATION_ENDPOINT",
             file_values=file_values,
             file_key="revocation_endpoint",
+            fallback_env_var_names=("REVOCATION_ENDPOINT",),
         ),
         logout_endpoint=_coalesce_env_or_file(
-            env_var_name="LOGOUT_ENDPOINT",
+            env_var_name="AUTH_LOGOUT_ENDPOINT",
             file_values=file_values,
             file_key="logout_endpoint",
+            fallback_env_var_names=("LOGOUT_ENDPOINT",),
         ),
         oidc_client_id=_coalesce_env_or_file(
-            env_var_name="KINDE_CLI_CLIENT_ID",
+            env_var_name="AUTH_CLI_CLIENT_ID",
             file_values=file_values,
             file_key="oidc_client_id",
+            fallback_env_var_names=("KINDE_CLI_CLIENT_ID",),
         ),
     )
 
@@ -255,10 +260,12 @@ def _coalesce_env_or_file(
     env_var_name: str,
     file_values: dict[str, str],
     file_key: str,
+    fallback_env_var_names: tuple[str, ...] = (),
 ) -> str | None:
-    env_value = os.environ.get(env_var_name)
-    if isinstance(env_value, str) and env_value.strip():
-        return env_value.strip()
+    for candidate in (env_var_name, *fallback_env_var_names):
+        env_value = os.environ.get(candidate)
+        if isinstance(env_value, str) and env_value.strip():
+            return env_value.strip()
 
     return file_values.get(file_key)
 
