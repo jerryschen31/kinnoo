@@ -929,16 +929,6 @@ def main():
         help="Overwrite existing kinnoo.yaml in target directory",
     )
     import_parser.add_argument(
-        "--source",
-        choices=["clawhub"],
-        help="Import from an explicit source namespace (currently: clawhub)",
-    )
-    import_parser.add_argument(
-        "--live-fallback",
-        action="store_true",
-        help="Allow remote source fallback when a mirror record is missing",
-    )
-    import_parser.add_argument(
         "--from",
         dest="framework_from",
         choices=["langchain", "langgraph", "openai", "openclaw"],
@@ -1600,8 +1590,6 @@ def main():
         target_path_arg = getattr(args, "target", None)
         import_path_arg = getattr(args, "import_path", None)
         force = bool(getattr(args, "force", False))
-        source = getattr(args, "source", None)
-        live_fallback = bool(getattr(args, "live_fallback", False))
         framework_from = getattr(args, "framework_from", None)
 
         try:
@@ -1613,8 +1601,6 @@ def main():
             target_path_arg=target_path_arg,
             import_path_arg=import_path_arg,
             force=force,
-            source=source,
-            live_fallback=live_fallback,
             framework_from=framework_from,
         )
         sys.exit(exit_code)
