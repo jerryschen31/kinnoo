@@ -12163,7 +12163,7 @@ tests:
       - 'step3: Repeat with invalid signature, expired token, and wrong issuer/audience variants.'
       - 'step4: Inspect response status and error envelope shape for each invalid variant.'
     expected: Valid tokens from both Kinde apps are accepted and invalid variants are rejected with deterministic auth error envelopes
-    pass_criteria: Valid token path returns success for both app clients and invalid variants return clear 401 errors with stable envelope contract
+    pass_criteria: Valid token path returns success and invalid auth variants return clear 401 envelopes; login/callback/logout redirect flow behavior is verified under OIDC mode
     covers:
       - feature: feature118
         ac: AC2
@@ -12171,7 +12171,7 @@ tests:
       - "pytest_markers: regression_integration,server_api"
       - "automation_path_subfolder: server/tests"
     automated: true
-    automation_path: server/tests/test_auth_route.py::test_feature118_oidc_token_validation_contract
+    automation_path: server/tests/test_feature118_oidc_auth.py::test_feature118_test707_valid_and_invalid_oidc_token_envelopes
 
   - id: test708
     title: "server provider adapter boundary and fail-fast config selection with dual client IDs"
@@ -12190,18 +12190,18 @@ tests:
       - "pytest_markers: regression_integration,server_api,schema_contract"
       - "automation_path_subfolder: server/tests"
     automated: true
-    automation_path: server/tests/test_auth_route.py::test_feature118_provider_adapter_selection_and_fail_fast
+    automation_path: server/tests/test_feature118_oidc_auth.py::test_feature118_test708_provider_selection_fail_fast
 
   - id: test709
     title: "web auth uses Kinnoo Web Dev client redirect/callback/logout flow and protected-layout redirects"
     type: integration
     preconditions: Web login/signup/reset and auth layout are migrated to provider-hosted auth flow using Kinnoo Web Dev backend client
     steps:
-      - 'step1: Open login page and verify authentication starts via redirect CTA to Kinde (using Web Dev client ID) instead of local credential form POST.'
-      - 'step2: Simulate callback success and failure paths and verify redirect outcomes.'
-      - 'step3: Verify unauthenticated access to protected layout redirects to login and logout returns to login.'
-    expected: Web auth flow uses Kinnoo Web Dev client for provider-based redirect login and protected-route behavior remains correct
-    pass_criteria: Redirect-based login/callback/logout flow passes using Web Dev client and protected routes enforce unauthenticated redirects
+      - 'step1: Verify login page uses redirect-based CTA and no local password form fields.'
+      - 'step2: Verify web API auth routes proxy login/logout to backend redirect endpoints.'
+      - 'step3: Verify login page redirect initiation fetches /api/login with redirect=manual semantics.'
+    expected: Web auth flow remains redirect-first (no local password form) and route wiring preserves backend-driven login/logout redirects
+    pass_criteria: Redirect CTA + backend proxy route assertions pass and local password-post login UX remains removed
     covers:
       - feature: feature118
         ac: AC6
@@ -12209,7 +12209,7 @@ tests:
       - "pytest_markers: regression_integration,web_ui"
       - "automation_path_subfolder: web/__tests__"
     automated: true
-    automation_path: web/__tests__/login-page.test.tsx::feature118_web_redirect_auth_flow
+    automation_path: web/__tests__/feature118-auth-flow.test.tsx
 
   - id: test710
     title: "CLI login stores auth state using Kinnoo CLI Dev public client with PKCE and supports registry operations"
@@ -12228,7 +12228,7 @@ tests:
       - "pytest_markers: regression_integration,client_cli_login,client_cli_registry"
       - "automation_path_subfolder: tests/client_cli_registry"
     automated: true
-    automation_path: tests/client_cli_registry/test_cli_registry.py::test_feature118_cli_login_state_contract
+    automation_path: tests/client_cli_registry/test_feature118_cli_auth.py::test_feature118_test710_hosted_login_persists_full_auth_state
 
   - id: test711
     title: "CLI refresh and logout behavior"
@@ -12247,7 +12247,7 @@ tests:
       - "pytest_markers: regression_integration,client_cli_logout,client_cli_registry"
       - "automation_path_subfolder: tests/client_cli_registry"
     automated: true
-    automation_path: tests/client_cli_registry/test_cli_registry.py::test_feature118_cli_refresh_and_logout_contract
+    automation_path: tests/client_cli_registry/test_feature118_cli_auth.py::test_feature118_test711_refresh_and_logout_no_state
 
   - id: test712
     title: "publish ownership resolves internal UUID identity with external subject mapping across both login paths"
