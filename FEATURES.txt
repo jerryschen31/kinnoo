@@ -3306,7 +3306,7 @@ features:
       - "VPC endpoints avoid needing NAT for ECS → S3/ECR"
     owner: swe-agent
     dependencies: []
-    status: not-started
+    status: completed
 
   - id: feature104
     title: "Terraform storage and security (S3, IAM, Secrets Manager)"
@@ -3381,7 +3381,7 @@ features:
       - "ACM certificate validation requires Cloudflare DNS records (feature106)"
     owner: swe-agent
     dependencies: [feature103, feature104]
-    status: needs-review
+    status: completed
 
   - id: feature106
     title: "Terraform Cloudflare DNS and Pages"
@@ -3411,7 +3411,7 @@ features:
       - "Pages project may be created manually — Terraform manages DNS only if Pages API is limited"
     owner: swe-agent
     dependencies: [feature103, feature105]
-    status: needs-review
+    status: completed
 
   - id: feature107
     title: "Terraform monitoring (CloudWatch, alarms, SNS)"
@@ -3545,7 +3545,7 @@ features:
       - "Signup CTA contact path is Twitter/X DM only"
     owner: swe-agent
     dependencies: []
-    status: needs-review
+    status: completed
 
   # ──────────────────────────────────────────────────────────────
   # Phase 15: Deployment, Testing & Launch (features 111-113)
@@ -3633,7 +3633,7 @@ features:
       - "This is the final go/no-go document before opening beta"
     owner: swe-agent
     dependencies: []
-    status: not-started
+    status: paused
 
   - id: feature114
     title: "kinnoo test hardening"
@@ -3656,7 +3656,7 @@ features:
         description: "`kinnoo test -h` includes the new --verbose, --create, and --append options with usage examples."
     owner: swe-agent
     dependencies: [feature69]
-    status: in-progress
+    status: completed
 
   - id: feature115
     title: "UAT Part 1 - CLI hardening"
@@ -3714,7 +3714,7 @@ features:
       - "SWE handoff brief in notes/features/feature115-notes.md"
     owner: swe-agent
     dependencies: [feature114]
-    status: not-started
+    status: needs-review
 
   - id: feature116
     title: "UAT Part 2 - Regression test hardening"
@@ -3741,7 +3741,7 @@ features:
       - "Focus is test architecture resilience and contract clarity, not product surface expansion."
     owner: swe-agent
     dependencies: [feature115]
-    status: in-progress
+    status: completed
 
   - id: feature117
     title: "Pre-release feature 6 - import hardening (phase14)"
@@ -3779,7 +3779,7 @@ features:
       - "Includes OpenClaw workspace-based import flow update aligned with current agent model"
     owner: techlead-agent
     dependencies: []
-    status: needs-review
+    status: completed
 
   - id: feature118
     title: "Pre-release feature 1 - Kinde auth cutover planning manifests"
