@@ -9734,7 +9734,7 @@ tasks:
       - 'step5: Add test that --sign SIGNING_KEY is accepted and --signing-key is rejected.'
     dependencies: []
     tests: [test646]
-    status: needs-review
+    status: completed
 
   - id: task464
     title: "pack - --json flag for structured output"
@@ -9756,7 +9756,7 @@ tasks:
       - 'step4: Add test that --json produces valid JSON with expected keys.'
     dependencies: []
     tests: [test647]
-    status: needs-review
+    status: completed
 
   - id: task465
     title: "publish - --local | --remote mutual exclusion and help text"
@@ -9776,7 +9776,7 @@ tasks:
       - 'step3: Add test that using both --local and --remote produces an error.'
     dependencies: []
     tests: [test648]
-    status: needs-review
+    status: completed
 
   - id: task466
     title: "publish - version history and Agent Versions tab"
@@ -9799,7 +9799,7 @@ tasks:
       - 'step4: Add test that multiple publishes of different versions are all retrievable.'
     dependencies: []
     tests: [test649]
-    status: needs-review
+    status: completed
 
   - id: task467
     title: "publish - --json flag for structured output"
@@ -9820,7 +9820,7 @@ tasks:
       - 'step4: Add test that --json produces valid JSON with expected keys.'
     dependencies: []
     tests: [test650]
-    status: needs-review
+    status: completed
 
   - id: task468
     title: "install - remove deprecated openclaw options"
@@ -9842,7 +9842,7 @@ tasks:
       - 'step4: Add test that these options are rejected by the parser.'
     dependencies: []
     tests: [test651]
-    status: needs-review
+    status: completed
 
   - id: task469
     title: "install - default openclaw install to ~/.openclaw/workspace-<name>"
@@ -9862,7 +9862,7 @@ tasks:
       - 'step4: Add test for default openclaw install path and custom override.'
     dependencies: [task468]
     tests: [test652]
-    status: needs-review
+    status: completed
 
   - id: task470
     title: "install - --json flag for structured output"
@@ -9884,7 +9884,7 @@ tasks:
       - 'step4: Add test that --json with -y produces valid JSON; --json without -y errors.'
     dependencies: []
     tests: [test653]
-    status: needs-review
+    status: completed
 
   - id: task471
     title: "run - --json structured output for all agent types"
@@ -9907,7 +9907,7 @@ tasks:
       - 'step4: Add tests for --json output structure for non-openclaw agents.'
     dependencies: []
     tests: [test654]
-    status: needs-review
+    status: completed
 
   - id: task472
     title: "run - replace --sandbox with --enforce-policy"
@@ -9930,7 +9930,7 @@ tasks:
       - 'step4: Add test that --enforce-policy is accepted and --sandbox is rejected.'
     dependencies: []
     tests: [test655]
-    status: needs-review
+    status: completed
 
   - id: task473
     title: "inspect - --json flag for structured output"
@@ -9953,7 +9953,7 @@ tasks:
       - 'step5: Add tests for --json output with various option combinations.'
     dependencies: []
     tests: [test656]
-    status: needs-review
+    status: completed
 
   - id: task474
     title: "inspect - --update simplification to 2 arguments"
@@ -9976,7 +9976,7 @@ tasks:
       - 'step4: Add test for --update before and after target argument.'
     dependencies: []
     tests: [test657]
-    status: needs-review
+    status: completed
 
   - id: task475
     title: "inspect - --update confirmation prompt"
@@ -9998,7 +9998,7 @@ tasks:
       - 'step5: Add tests for prompt behavior and --skip-warnings bypass.'
     dependencies: [task474]
     tests: [test658]
-    status: needs-review
+    status: completed
 
   - id: task476
     title: "Comment out sync, stop, attach, logs commands and daemon help"
@@ -10020,7 +10020,7 @@ tasks:
       - 'step6: Add test that sync/stop/attach/logs are not recognized as valid commands.'
     dependencies: []
     tests: [test659]
-    status: needs-review
+    status: completed
 
   - id: task477
     title: "search - remove --openclaw-skills and refactor --json"
@@ -10041,7 +10041,7 @@ tasks:
       - 'step4: Add tests that --openclaw-skills is rejected and --json outputs valid JSON.'
     dependencies: []
     tests: [test660, test661]
-    status: needs-review
+    status: completed
 
   - id: task478
     title: "list - add --json option"
@@ -10060,7 +10060,7 @@ tasks:
       - 'step3: Add test that --json produces valid JSON output.'
     dependencies: []
     tests: [test662]
-    status: needs-review
+    status: completed
 
   - id: task479
     title: "Registry UI - inline security icons in Name column"
@@ -10211,7 +10211,7 @@ tasks:
       - 'step6: Add tests for fetch download, integrity check, and strict verification.'
     dependencies: []
     tests: [test668, test669]
-    status: needs-review
+    status: completed
 
   - id: task485
     title: "New kinnoo uninstall command"
@@ -10235,7 +10235,7 @@ tasks:
       - 'step5: Add tests for all three uninstall modes and confirmation bypass.'
     dependencies: []
     tests: [test670, test671]
-    status: needs-review
+    status: completed
 
   - id: task486
     title: "Hotfix - hide traceback for remote registry auth/conflict failures"
@@ -10256,7 +10256,7 @@ tasks:
       - 'step4: Add regression tests proving no traceback is emitted and user-facing lines are printed.'
     dependencies: [task484, task485]
     tests: [test672, test673]
-    status: needs-review
+    status: completed
 
   - id: task487
     title: "Hotfix - init/run help cleanup + task482 retry/fallback diagnostics"
@@ -10303,7 +10303,7 @@ tasks:
       - 'step10: Validate Lambda creation with targeted Terraform apply using pushed account ECR image.'
     dependencies: [task482, task486]
     tests: [test674, test675, test676, test677]
-    status: needs-review
+    status: completed
 
   - id: task488
     title: "pack/publish visibility default switch to public + deprecation/doc cleanup"
@@ -10348,7 +10348,7 @@ tasks:
       - 'step10: Run manifest validator and targeted pytest modules covering pack/publish/docs-linked behavior; update notes/tasks/task488-swe-handoff.md with completion evidence.'
     dependencies: [task462, task465, task467, task487]
     tests: [test678, test679, test680, test681, test682, test683, test684]
-    status: needs-review
+    status: completed
 
   - id: task489
     title: "multi-entrypoint manifest + run/inspect/check validation"
@@ -10400,7 +10400,7 @@ tasks:
       - 'step10: Run targeted pytest coverage for new tests and manifest validator before marking task ready for review.'
     dependencies: [task471, task473, task487]
     tests: [test685, test686, test687, test688, test689, test690, test691, test692]
-    status: needs-review
+    status: completed
 
   - id: task490
     title: "regression hardening foundation for CLI and validator tests"
@@ -10439,7 +10439,7 @@ tasks:
       - 'step7: Run manifest validator and focused pytest subsets that cover migrated CLI and validator paths before handoff.'
     dependencies: [task489]
     tests: [test693, test694, test695]
-    status: in-progress
+    status: completed
 
   - id: task491
     title: "feature117 import core error hardening and manifest validation gate"
@@ -10466,7 +10466,7 @@ tasks:
       - 'step5: Run import-targeted pytest + manifest validator and capture outputs in handoff notes.'
     dependencies: []
     tests: [test696, test697, test698]
-    status: needs-review
+    status: completed
 
   - id: task492
     title: "feature117 framework adapter hardening for langchain langgraph and openai"
@@ -10495,7 +10495,7 @@ tasks:
       - 'step5: Execute adapter-focused unit/integration tests and record evidence in handoff.'
     dependencies: [task491]
     tests: [test699, test700, test701]
-    status: needs-review
+    status: completed
 
   - id: task493
     title: "feature117 openclaw workspace import --from flow hardening"
@@ -10522,7 +10522,7 @@ tasks:
       - 'step5: Add end-to-end import tests for successful copy + invalid-source failures.'
     dependencies: [task491]
     tests: [test702]
-    status: needs-review
+    status: completed
 
   - id: task494
     title: "feature117 dependency inference hardening and generic llm agent support"
@@ -10549,7 +10549,7 @@ tasks:
       - 'step5: Validate outputs with import-related pytest modules and manifest checks.'
     dependencies: [task491, task492]
     tests: [test703, test704]
-    status: needs-review
+    status: completed
 
   - id: task495
     title: "feature117 import hardening regression matrix and fixture expansion"
@@ -10575,7 +10575,7 @@ tasks:
       - 'step5: Ensure manifest validator stays clean after task/test manifest updates.'
     dependencies: [task492, task493, task494]
     tests: [test705]
-    status: needs-review
+    status: completed
 
   - id: task496
     title: "feature118 prerequisite decisions and Kinde tenant setup execution"
