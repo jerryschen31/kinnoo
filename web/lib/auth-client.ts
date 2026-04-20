@@ -41,6 +41,16 @@ function isSuccessfulLoginResponse(response: Response): boolean {
   return response.status === 303;
 }
 
+function isSuccessfulLogoutResponse(response: Response): boolean {
+  if (response.ok) {
+    return true;
+  }
+  if (response.type === "opaqueredirect") {
+    return true;
+  }
+  return response.status === 303;
+}
+
 export async function startLoginRedirect(): Promise<LoginResult> {
   const response = await fetch("/api/login", {
     method: "GET",
@@ -77,7 +87,7 @@ export async function postWithSessionCsrf(path: string): Promise<Response> {
 export async function logoutWithSessionCsrf(): Promise<LoginResult> {
   const response = await postWithSessionCsrf("/api/logout");
   return {
-    ok: response.ok || response.status === 303,
+    ok: isSuccessfulLogoutResponse(response),
     status: response.status,
   };
 }

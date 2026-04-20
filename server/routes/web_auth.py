@@ -19,6 +19,7 @@ from server.storage.user_store import UserStore
 
 
 SESSION_CSRF_COOKIE = "kinnoo_csrf"
+OIDC_STATE_COOKIE = "kinnoo_oidc_state"
 
 
 def create_web_auth_router(
@@ -39,15 +40,13 @@ def create_web_auth_router(
     router = APIRouter()
 
     if oidc_provider is not None:
-        STATE_COOKIE = "kinnoo_oidc_state"
-
         @router.get("/login")
         async def oidc_login_page() -> Any:
             state = secrets.token_urlsafe(32)
             login_url = oidc_provider.build_login_url(state=state)
             response = RedirectResponse(url=login_url, status_code=307)
             response.set_cookie(
-                key=STATE_COOKIE,
+                key=OIDC_STATE_COOKIE,
                 value=state,
                 httponly=True,
                 secure=True,
@@ -59,28 +58,28 @@ def create_web_auth_router(
 
         @router.get("/auth/callback")
         async def oidc_callback(request: Request, code: str = "", state: str = "", error: str = "") -> Any:
-            expected_state = request.cookies.get(STATE_COOKIE, "")
+            expected_state = request.cookies.get(OIDC_STATE_COOKIE, "")
             if error:
                 response = RedirectResponse(url="/login?error=auth_callback_error", status_code=303)
-                response.delete_cookie(STATE_COOKIE, path="/")
+                response.delete_cookie(OIDC_STATE_COOKIE, path="/")
                 return response
 
             if not code or not state or not expected_state or state != expected_state:
                 response = RedirectResponse(url="/login?error=auth_state_invalid", status_code=303)
-                response.delete_cookie(STATE_COOKIE, path="/")
+                response.delete_cookie(OIDC_STATE_COOKIE, path="/")
                 return response
 
             try:
                 token_payload = oidc_provider.exchange_code_for_tokens(code=code)
             except Exception:
                 response = RedirectResponse(url="/login?error=auth_exchange_failed", status_code=303)
-                response.delete_cookie(STATE_COOKIE, path="/")
+                response.delete_cookie(OIDC_STATE_COOKIE, path="/")
                 return response
 
             access_token = token_payload.get("access_token")
             if not isinstance(access_token, str) or not access_token.strip():
                 response = RedirectResponse(url="/login?error=auth_missing_token", status_code=303)
-                response.delete_cookie(STATE_COOKIE, path="/")
+                response.delete_cookie(OIDC_STATE_COOKIE, path="/")
                 return response
 
             try:
@@ -96,7 +95,7 @@ def create_web_auth_router(
                 username = f"{sub_raw.strip()}@kinde.local"
             else:
                 response = RedirectResponse(url="/login?error=auth_missing_profile", status_code=303)
-                response.delete_cookie(STATE_COOKIE, path="/")
+                response.delete_cookie(OIDC_STATE_COOKIE, path="/")
                 return response
 
             user = user_store.get_by_username(username)
@@ -127,7 +126,7 @@ def create_web_auth_router(
                 samesite="lax",
                 path="/",
             )
-            response.delete_cookie(STATE_COOKIE, path="/")
+            response.delete_cookie(OIDC_STATE_COOKIE, path="/")
             return response
 
         @router.post("/logout")
@@ -140,7 +139,7 @@ def create_web_auth_router(
             response = RedirectResponse(url=oidc_provider.build_logout_url(), status_code=303)
             response.delete_cookie(session_service.cookie_name, path="/")
             response.delete_cookie(SESSION_CSRF_COOKIE, path="/")
-            response.delete_cookie(STATE_COOKIE, path="/")
+            response.delete_cookie(OIDC_STATE_COOKIE, path="/")
             return response
 
         return router

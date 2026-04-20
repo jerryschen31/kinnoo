@@ -5,9 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import base64
-import hashlib
 import json
-import time
 from typing import Any
 from urllib import parse as urllib_parse
 from urllib import request as urllib_request
@@ -329,9 +327,3 @@ class OIDCTokenService:
             public_key.verify(signature, signing_input, padding.PKCS1v15(), hashes.SHA256())
         except Exception as error:
             raise TokenValidationError("401 unauthorized: token signature invalid") from error
-
-
-def generate_pkce_verifier() -> str:
-    seed = f"{time.time_ns()}-{hashlib.sha256(str(time.time_ns()).encode('utf-8')).hexdigest()}"
-    return base64.urlsafe_b64encode(seed.encode("utf-8")).decode("ascii").rstrip("=")[:96]
-
