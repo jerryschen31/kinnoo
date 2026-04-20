@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import json
 from datetime import datetime, timedelta, timezone
+from urllib import parse as urllib_parse
 
 import pytest
 from cryptography.hazmat.primitives import hashes
@@ -11,6 +12,7 @@ from fastapi.testclient import TestClient
 
 from server.app import create_app
 from server.config import ServerConfig
+from server.auth.oidc import OIDCProviderConfig, KindeOIDCProvider
 
 
 def _b64url_encode(raw: bytes) -> str:
@@ -159,3 +161,30 @@ def test_feature118_test708_provider_selection_fail_fast(monkeypatch: pytest.Mon
     with pytest.raises(ValueError) as error:
         create_app()
     assert "Missing required OIDC configuration" in str(error.value)
+
+
+@pytest.mark.regression_integration
+@pytest.mark.server_api
+def test_feature118_web_login_scope_excludes_offline_access() -> None:
+    provider = KindeOIDCProvider(
+        config=OIDCProviderConfig(
+            issuer_url="https://issuer.example",
+            jwks_endpoint_url="https://issuer.example/.well-known/jwks.json",
+            token_endpoint="https://issuer.example/oauth2/token",
+            authorization_endpoint="https://issuer.example/oauth2/auth",
+            logout_endpoint="https://issuer.example/logout",
+            userinfo_endpoint="https://issuer.example/userinfo",
+            audience="https://api.kinnoo.local",
+            web_client_id="web-client-id",
+            web_client_secret="web-client-secret",
+            cli_client_id="cli-client-id",
+            web_redirect_uri="https://dev.kinnoo.ai/auth/callback",
+            logout_redirect_uri="https://dev.kinnoo.ai/login",
+        )
+    )
+
+    url = provider.build_login_url(state="state-123")
+    query = urllib_parse.parse_qs(urllib_parse.urlparse(url).query)
+    scope = (query.get("scope") or [""])[0]
+    assert "offline_access" not in scope
+    assert scope == "openid profile email"

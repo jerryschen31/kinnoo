@@ -12,6 +12,10 @@ def test_task496_dual_app_secret_wiring() -> None:
     ecs_main = _read("iac/modules/ecs-fargate/main.tf")
 
     required_secret_keys = [
+        "REGISTRY_TOKEN_SIGNING_SECRET",
+        "REGISTRY_SESSION_SIGNING_SECRET",
+        "REGISTRY_REGISTER_TOKEN_SECRET",
+        "REGISTRY_PASSWORD_RESET_TOKEN_SECRET",
         "AUTH_WEB_CLIENT_ID",
         "AUTH_WEB_CLIENT_SECRET",
         "AUTH_CLI_CLIENT_ID",
@@ -42,6 +46,13 @@ def test_task496_dual_app_secret_wiring() -> None:
     assert 'data "aws_secretsmanager_secret" "kinde_web_client_id"' in secrets_main
     assert 'data "aws_secretsmanager_secret" "kinde_web_client_secret"' in secrets_main
     assert 'data "aws_secretsmanager_secret" "kinde_cli_client_id"' in secrets_main
+    # Runtime expects plain values; use explicit JSON-key extraction for referenced auth secrets.
+    assert 'format("%s:%s::", data.aws_secretsmanager_secret.auth_provider.arn, "AUTH_PROVIDER")' in secrets_main
+    assert 'format("%s:%s::", data.aws_secretsmanager_secret.kinde_web_client_id.arn, "KINDE_WEB_CLIENT_ID")' in secrets_main
+    assert 'format("%s:%s::", data.aws_secretsmanager_secret.kinde_web_client_secret.arn, "KINDE_WEB_CLIENT_SECRET")' in secrets_main
+    assert 'format("%s:%s::", data.aws_secretsmanager_secret.kinde_cli_client_id.arn, "KINDE_CLI_CLIENT_ID")' in secrets_main
+    assert 'format("%s:%s::", data.aws_secretsmanager_secret.kinde_issuer_url.arn, "KINDE_ISSUER_URL")' in secrets_main
+    assert 'format("%s:%s::", data.aws_secretsmanager_secret.kinde_audience.arn, "KINDE_AUDIENCE")' in secrets_main
 
     # Step5 requires auth-related container definition updates to be applied.
     assert "ignore_changes = [container_definitions, volume]" not in ecs_main
