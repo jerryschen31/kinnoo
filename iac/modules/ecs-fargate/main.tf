@@ -13,6 +13,12 @@ locals {
     "KINDE_AUDIENCE",
     "KINDE_WEB_REDIRECT_URI",
     "KINDE_LOGOUT_REDIRECT_URI",
+    "JWKS_ENDPOINT_URL",
+    "TOKEN_ENDPOINT",
+    "AUTHORIZATION_ENDPOINT",
+    "LOGOUT_ENDPOINT",
+    "USERINFO_ENDPOINT",
+    "REVOCATION_ENDPOINT",
   ]
   container_secrets = [
     for secret_key in local.ordered_secret_keys : {
