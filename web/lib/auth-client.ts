@@ -1,8 +1,3 @@
-export type LoginCredentials = {
-  email: string;
-  password: string;
-};
-
 export type LoginResult = {
   ok: boolean;
   status: number;
@@ -31,26 +26,6 @@ function readCookie(name: string): string | null {
   return decodeURIComponent(cookie.slice(encodedName.length));
 }
 
-function extractLoginCsrfToken(html: string): string | null {
-  const match = html.match(/name="csrf_token"\s+value="([^"]+)"/i);
-  return match?.[1] ?? null;
-}
-
-async function fetchLoginCsrfToken(): Promise<string | null> {
-  const response = await fetch("/api/login", {
-    method: "GET",
-    credentials: "include",
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    return null;
-  }
-
-  const html = await response.text();
-  return extractLoginCsrfToken(html);
-}
-
 function isSuccessfulLoginResponse(response: Response): boolean {
   if (response.ok) {
     return true;
@@ -62,29 +37,16 @@ function isSuccessfulLoginResponse(response: Response): boolean {
     return true;
   }
 
-  // Backend currently returns 303 on successful form login.
+  // Redirect-based auth flows can return temporary redirects.
   return response.status === 303;
 }
 
-export async function loginWithPassword(credentials: LoginCredentials): Promise<LoginResult> {
-  const csrfToken = await fetchLoginCsrfToken();
-
-  const form = new URLSearchParams();
-  form.set("username", credentials.email.trim());
-  form.set("password", credentials.password);
-  if (csrfToken) {
-    form.set("csrf_token", csrfToken);
-  }
-
+export async function startLoginRedirect(): Promise<LoginResult> {
   const response = await fetch("/api/login", {
-    method: "POST",
+    method: "GET",
     credentials: "include",
     cache: "no-store",
     redirect: "manual",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: form.toString(),
   });
 
   return {
@@ -115,7 +77,7 @@ export async function postWithSessionCsrf(path: string): Promise<Response> {
 export async function logoutWithSessionCsrf(): Promise<LoginResult> {
   const response = await postWithSessionCsrf("/api/logout");
   return {
-    ok: response.ok,
+    ok: response.ok || response.status === 303,
     status: response.status,
   };
 }
