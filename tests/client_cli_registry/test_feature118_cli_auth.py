@@ -105,7 +105,6 @@ def test_feature118_test710_hosted_login_persists_full_auth_state(tmp_path: Path
         home = tmp_path / "home"
         monkeypatch.setenv("HOME", str(home))
         monkeypatch.setenv("KINDE_CLI_CLIENT_ID", "cli-client-id")
-        monkeypatch.setenv("AUTH_PROVIDER", "oidc_kinde")
         monkeypatch.setenv("AUTHORIZATION_ENDPOINT", f"{server.base_url}/authorize")
         monkeypatch.setenv("TOKEN_ENDPOINT", f"{server.base_url}/token")
         monkeypatch.setenv("REVOCATION_ENDPOINT", f"{server.base_url}/revoke")
