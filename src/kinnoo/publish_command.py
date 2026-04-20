@@ -12,6 +12,7 @@ from urllib import request as urllib_request
 from urllib import error as urllib_error
 import yaml
 
+from .auth_command import refresh_registry_auth_if_needed
 from .archive import LocalArchiveBackend
 from .checksum import checksum_sidecar_path_for_archive
 from .config import RegistryConfig, load_publish_behavior_config, load_registry_config
@@ -339,6 +340,9 @@ def _resolve_publish_backend(*, use_local: bool, use_remote: bool) -> tuple[Any 
     registry_root = os.environ.get("KINNOO_REGISTRY_ROOT")
     backend_root = Path(registry_root).expanduser() if registry_root else None
     config = load_registry_config()
+    config, refresh_error = refresh_registry_auth_if_needed(config=config)
+    if refresh_error:
+        return None, "", refresh_error
     publish_behavior = load_publish_behavior_config()
 
     tenant_slug = (config.tenant_slug or "").strip()

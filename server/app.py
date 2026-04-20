@@ -9,6 +9,7 @@ from pathlib import Path
 import secrets
 from typing import Any
 
+from server.auth.oidc import KindeOIDCProvider, OIDCProviderConfig, OIDCTokenService
 from server.auth.session import SessionService
 from server.auth.token import SigningKey, TokenService
 from server.auth.tokens import PasswordResetTokenService, RegistrationTokenService
@@ -133,14 +134,23 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
     if not password_reset_token_secret:
         password_reset_token_secret = secrets.token_urlsafe(32)
 
-    token_service = TokenService(
-        issuer=os.getenv("REGISTRY_TOKEN_ISSUER", "kinnoo-registry"),
-        current_signing_key=SigningKey(
-            kid=os.getenv("REGISTRY_TOKEN_SIGNING_KID", "dev-k1"),
-            secret=os.getenv("REGISTRY_TOKEN_SIGNING_SECRET", "dev-secret-change-me"),
-        ),
-        ttl_minutes=60,
-    )
+    auth_provider = (os.getenv("AUTH_PROVIDER") or "legacy").strip().lower()
+    oidc_provider: KindeOIDCProvider | None = None
+    token_service: Any
+    if auth_provider in {"oidc", "oidc_kinde", "kinde"}:
+        oidc_config = OIDCProviderConfig.from_env(env=os.environ, strict=True)
+        assert oidc_config is not None
+        oidc_provider = KindeOIDCProvider(config=oidc_config)
+        token_service = OIDCTokenService(provider=oidc_provider)
+    else:
+        token_service = TokenService(
+            issuer=os.getenv("REGISTRY_TOKEN_ISSUER", "kinnoo-registry"),
+            current_signing_key=SigningKey(
+                kid=os.getenv("REGISTRY_TOKEN_SIGNING_KID", "dev-k1"),
+                secret=os.getenv("REGISTRY_TOKEN_SIGNING_SECRET", "dev-secret-change-me"),
+            ),
+            ttl_minutes=60,
+        )
     metadata_manager = MetadataManager(storage=storage_backend)
     registration_token_service = RegistrationTokenService(
         signing_secret=register_token_secret,
@@ -277,6 +287,7 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
             session_service=session_service,
             user_store=user_store,
             login_csrf_secret=os.getenv("REGISTRY_LOGIN_CSRF_SECRET", "dev-login-csrf-secret-change-me"),
+            oidc_provider=oidc_provider,
         )
     )
     app.include_router(

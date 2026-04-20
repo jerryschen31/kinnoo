@@ -1,11 +1,13 @@
 locals {
   name_prefix = "${var.project_name}-${var.environment}"
+  has_auth_provider_secret = contains(keys(var.secret_arns), "AUTH_PROVIDER")
 
   # Keep explicit secret names to make container injection predictable.
   ordered_secret_keys = [
     "JWT_SECRET",
     "SESSION_SECRET",
     "ADMIN_PASSWORD",
+    "AUTH_PROVIDER",
     "KINDE_WEB_CLIENT_ID",
     "KINDE_WEB_CLIENT_SECRET",
     "KINDE_CLI_CLIENT_ID",
@@ -13,6 +15,12 @@ locals {
     "KINDE_AUDIENCE",
     "KINDE_WEB_REDIRECT_URI",
     "KINDE_LOGOUT_REDIRECT_URI",
+    "JWKS_ENDPOINT_URL",
+    "TOKEN_ENDPOINT",
+    "AUTHORIZATION_ENDPOINT",
+    "LOGOUT_ENDPOINT",
+    "USERINFO_ENDPOINT",
+    "REVOCATION_ENDPOINT",
   ]
   container_secrets = [
     for secret_key in local.ordered_secret_keys : {
@@ -119,50 +127,54 @@ resource "aws_ecs_task_definition" "app" {
         }
       ]
       environment = [
-        {
-          name  = "KINNOO_ENV"
-          value = "production"
-        },
-        {
-          name  = "REGISTRY_STORAGE_BACKEND"
-          value = "s3"
-        },
-        {
-          name  = "REGISTRY_S3_BUCKET"
-          value = var.registry_bucket_name
-        },
-        {
-          name  = "REGISTRY_S3_REGION"
-          value = var.aws_region
-        },
-        {
-          name  = "REGISTRY_LOCAL_STORAGE_ROOT"
-          value = "/data/.registry-storage"
-        },
-        {
-          name  = "S3_BUCKET"
-          value = var.registry_bucket_name
-        },
-        {
-          name  = "AWS_REGION"
-          value = var.aws_region
-        },
-        {
-          name  = "SNS_TOPIC_ARN"
-          value = var.sns_topic_arn
-        },
-        {
-          name  = "KINNOO_SECURITY_CHECK_EXECUTION_MODE"
-          value = "lambda"
-        },
-        {
-          name  = "KINNOO_SECURITY_CHECK_LAMBDA_NAME"
-          value = var.security_check_lambda_name
-        },
-        {
-          name  = "AUTH_PROVIDER"
-          value = var.auth_provider
-        }
+        for item in [
+          {
+            name  = "KINNOO_ENV"
+            value = "production"
+          },
+          {
+            name  = "AUTH_PROVIDER"
+            value = var.auth_provider
+          },
+          {
+            name  = "REGISTRY_STORAGE_BACKEND"
+            value = "s3"
+          },
+          {
+            name  = "REGISTRY_S3_BUCKET"
+            value = var.registry_bucket_name
+          },
+          {
+            name  = "REGISTRY_S3_REGION"
+            value = var.aws_region
+          },
+          {
+            name  = "REGISTRY_LOCAL_STORAGE_ROOT"
+            value = "/data/.registry-storage"
+          },
+          {
+            name  = "S3_BUCKET"
+            value = var.registry_bucket_name
+          },
+          {
+            name  = "AWS_REGION"
+            value = var.aws_region
+          },
+          {
+            name  = "SNS_TOPIC_ARN"
+            value = var.sns_topic_arn
+          },
+          {
+            name  = "KINNOO_SECURITY_CHECK_EXECUTION_MODE"
+            value = "lambda"
+          },
+          {
+            name  = "KINNOO_SECURITY_CHECK_LAMBDA_NAME"
+            value = var.security_check_lambda_name
+          },
+        ] : item
+        # Filter out AUTH_PROVIDER env var when matching secret exists, so secret value wins.
+        if !(local.has_auth_provider_secret && item.name == "AUTH_PROVIDER")
       ]
       secrets = local.container_secrets
       mountPoints = [

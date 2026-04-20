@@ -7,6 +7,7 @@ import sys
 import json
 from pathlib import Path
 
+from .auth_command import refresh_registry_auth_if_needed
 from .config import load_registry_config
 from .archive import LocalArchiveBackend
 from .registry import RegistryService
@@ -26,6 +27,11 @@ def search_agents(query: str, source: str = "local", json_output: bool = False) 
         effective_source = "remote" if config.registry_url else "local"
 
     if effective_source == "remote":
+        config, refresh_error = refresh_registry_auth_if_needed(config=config)
+        if refresh_error:
+            print(f"Error: {refresh_error}")
+            return 1
+
         if not config.registry_url:
             print(
                 "Error: Remote mode requires a registry URL. "
