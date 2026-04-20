@@ -15,6 +15,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
 from server.auth.token import TokenClaims, TokenValidationError
+from server.config import REQUIRED_AUTH_ENV_KEYS, resolve_auth_env_contract
 from server.models.user import username_to_tenant_slug
 
 
@@ -95,21 +96,8 @@ class OIDCProviderConfig:
 
     @classmethod
     def from_env(cls, *, env: dict[str, str], strict: bool = True) -> "OIDCProviderConfig | None":
-        required = [
-            "KINDE_ISSUER_URL",
-            "JWKS_ENDPOINT_URL",
-            "TOKEN_ENDPOINT",
-            "AUTHORIZATION_ENDPOINT",
-            "LOGOUT_ENDPOINT",
-            "USERINFO_ENDPOINT",
-            "KINDE_AUDIENCE",
-            "KINDE_WEB_CLIENT_ID",
-            "KINDE_WEB_CLIENT_SECRET",
-            "KINDE_CLI_CLIENT_ID",
-            "KINDE_WEB_REDIRECT_URI",
-            "KINDE_LOGOUT_REDIRECT_URI",
-        ]
-        missing = [name for name in required if not (env.get(name) or "").strip()]
+        resolved = resolve_auth_env_contract(env=env)
+        missing = [name for name in REQUIRED_AUTH_ENV_KEYS if not resolved.get(name)]
         if missing:
             if strict:
                 raise ValueError(
@@ -118,18 +106,18 @@ class OIDCProviderConfig:
             return None
 
         return cls(
-            issuer_url=env["KINDE_ISSUER_URL"].strip(),
-            jwks_endpoint_url=env["JWKS_ENDPOINT_URL"].strip(),
-            token_endpoint=env["TOKEN_ENDPOINT"].strip(),
-            authorization_endpoint=env["AUTHORIZATION_ENDPOINT"].strip(),
-            logout_endpoint=env["LOGOUT_ENDPOINT"].strip(),
-            userinfo_endpoint=env["USERINFO_ENDPOINT"].strip(),
-            audience=env["KINDE_AUDIENCE"].strip(),
-            web_client_id=env["KINDE_WEB_CLIENT_ID"].strip(),
-            web_client_secret=env["KINDE_WEB_CLIENT_SECRET"].strip(),
-            cli_client_id=env["KINDE_CLI_CLIENT_ID"].strip(),
-            web_redirect_uri=env["KINDE_WEB_REDIRECT_URI"].strip(),
-            logout_redirect_uri=env["KINDE_LOGOUT_REDIRECT_URI"].strip(),
+            issuer_url=resolved["AUTH_ISSUER_URL"].strip(),
+            jwks_endpoint_url=resolved["AUTH_JWKS_ENDPOINT_URL"].strip(),
+            token_endpoint=resolved["AUTH_TOKEN_ENDPOINT"].strip(),
+            authorization_endpoint=resolved["AUTH_AUTHORIZATION_ENDPOINT"].strip(),
+            logout_endpoint=resolved["AUTH_LOGOUT_ENDPOINT"].strip(),
+            userinfo_endpoint=resolved["AUTH_USERINFO_ENDPOINT"].strip(),
+            audience=resolved["AUTH_AUDIENCE"].strip(),
+            web_client_id=resolved["AUTH_WEB_CLIENT_ID"].strip(),
+            web_client_secret=resolved["AUTH_WEB_CLIENT_SECRET"].strip(),
+            cli_client_id=resolved["AUTH_CLI_CLIENT_ID"].strip(),
+            web_redirect_uri=resolved["AUTH_WEB_REDIRECT_URI"].strip(),
+            logout_redirect_uri=resolved["AUTH_LOGOUT_REDIRECT_URI"].strip(),
         )
 
 
