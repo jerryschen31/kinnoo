@@ -10576,3 +10576,217 @@ tasks:
     dependencies: [task492, task493, task494]
     tests: [test705]
     status: needs-review
+
+  - id: task496
+    title: "feature118 prerequisite decisions and Kinde tenant setup execution"
+    type: task
+    epic: [E8, E7]
+    owner: human
+    description: |
+      Execute and record the prerequisite human decisions and manual Kinde setup
+      needed before implementation begins, including environment naming posture,
+      tenant mapping strategy, CLI auth UX selection, refresh-token storage policy,
+      callback port decision, and dev-registry reset approval.
+    files:
+      - notes/PRE-RELEASE-CHECKLIST.md
+      - notes/kinde-auth-setup-dev.md
+      - iac/environments/dev/terraform.tfvars
+    steps:
+      - 'step1: Resolve and record all blockers listed in notes/kinde-auth-setup-dev.md section 4.'
+      - 'step2: Configure Kinde tenant/app callback/logout/origin/scopes settings for dev/staging posture.'
+      - 'step3: Provision and store required auth secrets/values in deployment secret stores.'
+      - 'step4: Confirm ECS/Cloudflare runtime configuration plan aligns with selected auth decisions.'
+    dependencies: []
+    tests: [test706]
+    status: not-started
+
+  - id: task497
+    title: "feature118 server OIDC auth adapter and route cutover"
+    type: task
+    epic: [E8, E6]
+    owner: swe-agent
+    description: |
+      Replace server request-auth validation path with provider-portable OIDC token
+      verification and migrate auth route flows to redirect/callback/logout behavior
+      backed by OIDC discovery + JWKS verification.
+    files:
+      - server/auth/
+      - server/routes/auth.py
+      - server/routes/web_auth.py
+      - server/auth/middleware.py
+      - server/app.py
+      - server/tests/
+    steps:
+      - 'step1: Introduce provider adapter contract for discovery/JWKS/token validation/login-url/logout-url behavior.'
+      - 'step2: Implement Kinde OIDC adapter under the provider contract and wire middleware/routes to abstraction only.'
+      - 'step3: Replace legacy username/password token issuance path with redirect/callback auth flow endpoints.'
+      - 'step4: Ensure auth failures (exp/signature/issuer/audience/scope) return deterministic envelope errors.'
+      - 'step5: Add/refresh server tests for valid and invalid token scenarios and callback/logout flows.'
+    dependencies: [task496]
+    tests: [test707, test708]
+    status: not-started
+
+  - id: task498
+    title: "feature118 web auth migration to Kinde-hosted redirects"
+    type: task
+    epic: [E4, E8]
+    owner: swe-agent
+    description: |
+      Migrate web auth UX from local forms to provider-hosted Kinde redirects and
+      callback completion while preserving protected-route behavior.
+    files:
+      - web/app/(public)/login/
+      - web/app/(public)/signup/
+      - web/app/api/login/route.ts
+      - web/app/api/logout/route.ts
+      - web/lib/auth-client.ts
+      - web/__tests__/
+    steps:
+      - 'step1: Replace form-based login initiation with redirect-based auth entrypoints.'
+      - 'step2: Implement callback success/failure handling and redirect to registry on success.'
+      - 'step3: Migrate or hide signup/reset paths to provider-hosted equivalents per cutover policy.'
+      - 'step4: Preserve auth layout redirect behavior for unauthenticated sessions.'
+      - 'step5: Add/update web tests for login/callback/logout/protected-layout flows.'
+    dependencies: [task497]
+    tests: [test709]
+    status: not-started
+
+  - id: task499
+    title: "feature118 CLI login/logout/refresh flow migration"
+    type: task
+    epic: [E2, E8]
+    owner: swe-agent
+    description: |
+      Move `kinnoo login` and `kinnoo logout` to Kinde-hosted auth behavior and
+      implement durable token refresh semantics for registry-facing CLI workflows.
+    files:
+      - src/kinnoo/auth_command.py
+      - src/kinnoo/config.py
+      - src/kinnoo/registry.py
+      - tests/client_cli_registry/
+      - tests/e2e_workflows/
+    steps:
+      - 'step1: Implement browser/device/PKCE login flow per selected prerequisite decision.'
+      - 'step2: Persist access token, refresh token, expiry metadata, and tenant context safely in local auth state.'
+      - 'step3: Add token refresh behavior for registry operations with clear re-login fallback messaging.'
+      - 'step4: Ensure logout clears local state and optionally completes provider logout URL flow.'
+      - 'step5: Add/update CLI tests for login success/failure, refresh path, and logout behaviors.'
+    dependencies: [task496, task497]
+    tests: [test710, test711]
+    status: not-started
+
+  - id: task500
+    title: "feature118 internal identity mapping and publish ownership linkage"
+    type: task
+    epic: [E8, E3]
+    owner: swe-agent
+    description: |
+      Ensure authenticated identity ownership remains internal-UUID based while
+      mapping external provider subject claims and using mapped identity in publish
+      and tenant-scoped ownership workflows.
+    files:
+      - server/routes/publish.py
+      - server/storage/
+      - server/services/
+      - server/tests/
+    steps:
+      - 'step1: Implement/adjust user identity upsert keyed by provider subject mapping rather than provider subject as PK.'
+      - 'step2: Resolve deterministic tenant linkage strategy for authenticated requests and publish actions.'
+      - 'step3: Update publish ownership persistence to use mapped internal identity fields.'
+      - 'step4: Add/refresh tests proving ownership and tenant linkage correctness across multiple users/tenants.'
+    dependencies: [task497]
+    tests: [test712]
+    status: not-started
+
+  - id: task501
+    title: "feature118 provider-neutral auth config and IaC env alignment"
+    type: task
+    epic: [E7, E8]
+    owner: swe-agent
+    description: |
+      Introduce canonical provider-neutral auth configuration keys in runtime code
+      and align IaC/env secret injection with those keys while preserving Kinde-
+      prefixed transition aliases.
+    files:
+      - server/config.py
+      - iac/modules/ecs-fargate/main.tf
+      - iac/modules/secrets/main.tf
+      - iac/environments/dev/terraform.tfvars
+      - docs/
+    steps:
+      - 'step1: Add canonical provider-neutral auth configuration contract and alias resolution.'
+      - 'step2: Add config-driven provider selection with startup fail-fast validation for missing required fields.'
+      - 'step3: Update IaC task/env injection to match runtime-expected variable names.'
+      - 'step4: Document env contract and transition alias behavior for dev/staging workflows.'
+    dependencies: [task496]
+    tests: [test713]
+    status: not-started
+
+  - id: task502
+    title: "feature118 legacy auth runtime retirement and compatibility gating"
+    type: task
+    epic: [E8, E6]
+    owner: swe-agent
+    description: |
+      Retire or disable legacy local password/session/reset runtime paths after
+      OIDC cutover, with explicit compatibility control only when needed for
+      temporary rollback safety.
+    files:
+      - server/auth/session.py
+      - server/auth/token.py
+      - server/storage/sqlite_auth_store.py
+      - server/routes/auth.py
+      - server/tests/
+    steps:
+      - 'step1: Identify active runtime dependencies on legacy password/session/reset flows.'
+      - 'step2: Remove or gate legacy paths behind explicit compatibility flag defaulted off for Dev cutover.'
+      - 'step3: Ensure no protected request path falls back to legacy password/session handling when cutover is enabled.'
+      - 'step4: Add regression tests validating legacy-path disablement semantics and cutover safety.'
+    dependencies: [task497]
+    tests: [test714]
+    status: not-started
+
+  - id: task503
+    title: "feature118 auth portability and integration test expansion"
+    type: task
+    epic: [E9, E8]
+    owner: swe-agent
+    description: |
+      Add and update automated server/web/CLI test coverage for Kinde auth cutover,
+      token error paths, callback/logout, refresh behavior, and provider-adapter
+      portability contracts backed by mocked OIDC metadata/JWKS.
+    files:
+      - server/tests/
+      - tests/client_cli_registry/
+      - tests/e2e_workflows/
+      - web/__tests__/
+      - TESTS.txt
+    steps:
+      - 'step1: Add server tests for valid token, invalid signature, expired token, wrong issuer/audience, and missing scope behavior.'
+      - 'step2: Add adapter contract tests against mocked discovery/JWKS responses and provider-selection fail-fast checks.'
+      - 'step3: Add CLI and web flow tests for login/callback/logout/refresh behavior.'
+      - 'step4: Ensure new tests are marker-classified and linked to feature/task AC coverage definitions.'
+    dependencies: [task497, task498, task499, task501, task502]
+    tests: [test715]
+    status: not-started
+
+  - id: task504
+    title: "feature118 dev cutover smoke validation and rollback rehearsal"
+    type: task
+    epic: [E9, E7]
+    owner: human
+    description: |
+      Execute and document Dev environment smoke tests for login/logout/publish
+      identity linkage and validate rollback steps are actionable if cutover fails.
+    files:
+      - notes/kinde-auth-setup-dev.md
+      - notes/features/feature118-handoff.md
+      - notes/
+    steps:
+      - 'step1: Run browser, CLI, and publish ownership smoke checks against dev endpoints after deployment.'
+      - 'step2: Record success/failure evidence and unresolved limitations in cutover notes.'
+      - 'step3: Validate rollback runbook steps are executable with current deployment artifacts/config.'
+      - 'step4: Confirm approval gate before permanent dev cutover finalization.'
+    dependencies: [task498, task499, task500, task501, task502, task503]
+    tests: [test716]
+    status: not-started
