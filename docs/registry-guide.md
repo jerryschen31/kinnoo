@@ -137,3 +137,31 @@ kinnoo publish ./my-agent --pack --strict --remote
 ```bash
 kinnoo logout
 ```
+
+## 10) Auth Environment Contract (feature118)
+
+For OIDC/Kinde cutover environments, use canonical provider-neutral `AUTH_*` keys.
+Kinde-prefixed keys remain temporary compatibility aliases and are loaded only when the canonical key is absent.
+
+- Canonical keys:
+  - `AUTH_PROVIDER`
+  - `AUTH_ISSUER_URL`
+  - `AUTH_JWKS_ENDPOINT_URL`
+  - `AUTH_TOKEN_ENDPOINT`
+  - `AUTH_AUTHORIZATION_ENDPOINT`
+  - `AUTH_LOGOUT_ENDPOINT`
+  - `AUTH_USERINFO_ENDPOINT`
+  - `AUTH_REVOCATION_ENDPOINT` (optional)
+  - `AUTH_AUDIENCE`
+  - `AUTH_WEB_CLIENT_ID`
+  - `AUTH_WEB_CLIENT_SECRET`
+  - `AUTH_CLI_CLIENT_ID`
+  - `AUTH_WEB_REDIRECT_URI`
+  - `AUTH_LOGOUT_REDIRECT_URI`
+
+Legacy local password/register/reset API paths are disabled by default when `AUTH_PROVIDER` is OIDC-backed.
+For temporary rollback only, set:
+
+```bash
+export AUTH_ENABLE_LEGACY_PATHS=true
+```

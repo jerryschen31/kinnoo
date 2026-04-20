@@ -12,6 +12,19 @@ def test_task496_dual_app_secret_wiring() -> None:
     ecs_main = _read("iac/modules/ecs-fargate/main.tf")
 
     required_secret_keys = [
+        "AUTH_WEB_CLIENT_ID",
+        "AUTH_WEB_CLIENT_SECRET",
+        "AUTH_CLI_CLIENT_ID",
+        "AUTH_ISSUER_URL",
+        "AUTH_AUDIENCE",
+        "AUTH_WEB_REDIRECT_URI",
+        "AUTH_LOGOUT_REDIRECT_URI",
+        "AUTH_JWKS_ENDPOINT_URL",
+        "AUTH_TOKEN_ENDPOINT",
+        "AUTH_AUTHORIZATION_ENDPOINT",
+        "AUTH_LOGOUT_ENDPOINT",
+        "AUTH_USERINFO_ENDPOINT",
+        "AUTH_REVOCATION_ENDPOINT",
         "KINDE_WEB_CLIENT_ID",
         "KINDE_WEB_CLIENT_SECRET",
         "KINDE_CLI_CLIENT_ID",

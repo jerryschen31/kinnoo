@@ -226,6 +226,11 @@ This is the public-client app for `kinnoo login` CLI flow. No client secret at r
      - `kinnoo/dev/KINDE_AUDIENCE`
      - `kinnoo/dev/KINDE_WEB_REDIRECT_URI`
      - `kinnoo/dev/KINDE_LOGOUT_REDIRECT_URI`
+    - Operator note (secret precedence gotcha):
+       - In ECS, `AUTH_PROVIDER` from Secrets Manager overrides task-definition default env when both are present.
+       - Secret value changes are picked up only on new task start; force a new ECS deployment after updating secret values.
+       - `KINNOO_CLI_AUTH_MODE` is used by CLI runtime only, not by server auth middleware.
+       - Cloudflare Worker does not need `AUTH_PROVIDER` or `KINNOO_CLI_AUTH_MODE` for current backend-proxy architecture.
 2. For local runs (non-production), keep fallback values in a local `.env` file or equivalent local env file, but do **not** assume `server/` auto-loads `.env` files.
    - Recommended path: repository root `.env` (so local commands and scripts can share one env source).
    - Developers must explicitly export/source those variables before starting the backend.
