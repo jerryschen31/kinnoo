@@ -13,6 +13,33 @@ type RegistryDataState = {
   agents: AgentSummary[];
 };
 
+function readCookieValue(name: string): string {
+  const cookiePrefix = `${name}=`;
+  const entry = document.cookie
+    .split(";")
+    .map((item) => item.trim())
+    .find((item) => item.startsWith(cookiePrefix));
+  if (!entry) {
+    return "";
+  }
+  return decodeURIComponent(entry.slice(cookiePrefix.length));
+}
+
+function submitLogoutForm(csrfToken: string): void {
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = "/api/logout";
+
+  const csrfInput = document.createElement("input");
+  csrfInput.type = "hidden";
+  csrfInput.name = "csrf_token";
+  csrfInput.value = csrfToken;
+  form.appendChild(csrfInput);
+
+  document.body.appendChild(form);
+  form.submit();
+}
+
 export default function RegistryPage() {
   const [activeView, setActiveView] = useState<"my-agents" | "search">("my-agents");
   const [searchQuery, setSearchQuery] = useState("");
@@ -108,7 +135,7 @@ export default function RegistryPage() {
           }
 
           setIsLoggingOut(true);
-          window.location.assign("/api/logout");
+          submitLogoutForm(readCookieValue("kinnoo_csrf"));
         }}
       />
       <RegistryTabs

@@ -130,11 +130,18 @@ def create_web_auth_router(
             return response
 
         @router.post("/logout")
-        @router.get("/logout")
         async def oidc_logout(request: Request) -> Any:
             cookie_value = request.cookies.get(session_service.cookie_name)
-            if isinstance(cookie_value, str) and cookie_value.strip():
-                session_service.logout(cookie_value=cookie_value)
+            csrf_token = (await request.form()).get("csrf_token", "")
+            try:
+                session_service.validate_post_request(
+                    cookie_value=cookie_value,
+                    csrf_token=csrf_token,
+                )
+            except PermissionError:
+                return HTMLResponse("forbidden", status_code=403)
+
+            session_service.logout(cookie_value=cookie_value)
 
             response = RedirectResponse(url=oidc_provider.build_logout_url(), status_code=303)
             response.delete_cookie(session_service.cookie_name, path="/")
