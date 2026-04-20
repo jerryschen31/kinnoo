@@ -10606,10 +10606,10 @@ tasks:
       - 'step3: Configure Kinnoo CLI Dev app (Frontend/Native PKCE): wildcard loopback callback per section 5.1.2.'
       - 'step4: Provision and store required auth secrets (separate web client ID/secret and CLI client ID) in deployment secret stores per section 5.2.'
       - 'step5 [SWE/IaC]: Implement ECS/Cloudflare runtime configuration alignment for dual-app auth using existing iac/ modules: (a) add/manage Secrets Manager resources or references for KINDE_WEB_CLIENT_ID, KINDE_WEB_CLIENT_SECRET, KINDE_CLI_CLIENT_ID, KINDE_ISSUER_URL, KINDE_AUDIENCE and required endpoint vars; (b) wire ECS task env+secret injection to runtime-expected names; (c) add dev environment tfvars inputs required by these modules (no plaintext secrets committed); (d) manage Cloudflare runtime vars in Terraform where provider support exists, otherwise document explicit manual runtime update steps in notes/kinde-auth-setup-dev.md.'
-      - 'step6 [HUMAN]: Execute manual post-deploy validation and record evidence in notes/kinde-auth-setup-dev.md section 5.3.3: web login/logout/callback smoke checks, CLI login loopback callback smoke checks, and runtime behavior validation after deploy (issuer/audience/signature auth path functioning through deployed ECS+Cloudflare routing).'
+      - 'step6 [HUMAN]: Execute manual post-deploy validation and record evidence in notes/kinde-auth-setup-dev.md section 5.3.3 only after app cutover tasks 497-499 are completed and deployed. Step6 Kinde-flow checks pending app cutover tasks 497-499 until then: web login/logout/callback smoke checks, CLI login loopback callback smoke checks, and runtime behavior validation after deploy (issuer/audience/signature auth path functioning through deployed ECS+Cloudflare routing).'
     dependencies: []
     tests: [test706, test717, test718, test719]
-    status: not-started
+    status: needs-review
 
   - id: task497
     title: "feature118 server OIDC auth adapter and route cutover"

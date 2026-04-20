@@ -250,7 +250,14 @@ Scope note:
 - This checklist is for Dev deployment alignment only.
 - Production rollout is a separate phase and must use dedicated Prod Terraform environment variables/files (not Dev tfvars).
 
+Status note:
+- Step6 Kinde-flow checks pending app cutover tasks 497-499.
+
 #### 5.3.1 Manual verification checklist (required now)
+
+Helper script:
+- Run `scripts/task496_step6_manual_validation.sh` to execute automated checks, guide manual login/callback checks, and emit a timestamped report under `outputs/`.
+- Optional: pass `--token` (or set `KINNOO_TEST_BEARER_TOKEN`) to include authenticated `/api/auth/me` checks.
 
 - [x] Confirm AWS Secrets Manager contains dual-app auth secrets for Dev runtime:
    - Web app: `KINDE_WEB_CLIENT_ID`, `KINDE_WEB_CLIENT_SECRET`
