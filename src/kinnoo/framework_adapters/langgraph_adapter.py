@@ -15,7 +15,7 @@ LANGGRAPH_TS_MARKERS = (
     "@langchain/langgraph",
     "StateGraph",
 )
-COMPILE_MARKERS = (".compile(", "compile(")
+COMPILE_MARKERS = (".compile(",)
 
 
 def apply(project_dir: Path, base_report: dict[str, object]) -> AdapterResult:

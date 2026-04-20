@@ -16,8 +16,8 @@ All notable changes to this project will be documented in this file.
 - Deprecated legacy CLI import regression tests that no longer match wrapper-era OpenClaw import behavior:
   - `tests/test_cli_import.py::test_feature36_openclaw_detection_weighted_confidence_output`
   - `tests/test_cli_import.py::test_feature36_infers_runtime_skills_state_dirs`
-- `tests/test_cli_import.py::test_feature36_manifest_valid_or_todo_guidance`
-- `tests/test_cli_import.py::test_feature62_import_openclaw_manifest_migration_guidance`
+  - `tests/test_cli_import.py::test_feature36_manifest_valid_or_todo_guidance`
+  - `tests/test_cli_import.py::test_feature62_import_openclaw_manifest_migration_guidance`
 - Bumped project version from `0.5.5` to `0.6.0` after Phase 7 final review closure.
 - Hardened `kinnoo import` with pre-write manifest validation gate and deterministic `Error`/`Remediation` messaging on core failure paths.
 - Expanded framework inference hardening across LangChain/LangGraph/OpenAI adapters and analyzer Node+Poetry dependency/env-var detection paths.

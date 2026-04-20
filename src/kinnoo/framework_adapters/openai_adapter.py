@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 
 from . import AdapterResult, detect_node_package_manager, read_text_files
 
@@ -35,11 +36,20 @@ def apply(project_dir: Path, base_report: dict[str, object]) -> AdapterResult:
         for marker in ("@openai/agents",)
         for source in node_sources
     )
-    has_agent_viability_signal = any(
-        marker in source for marker in ("Agent(", " Agent", "Agent\n") for source in python_sources
-    ) or any(
-        marker in source for marker in ("new Agent(", "Agent(", " Agent", "Agent\n") for source in node_sources
-    )
+    agent_ctor_pattern = re.compile(r"\b(?:new\s+)?Agent\s*\(")
+    agent_symbol_usage_pattern = re.compile(r"\bAgent\b")
+    import_line_pattern = re.compile(r"^\s*(?:from\s+agents\s+import|import\s+agents\b|import\s+\{[^}]*Agent[^}]*\}\s+from)\b")
+
+    def _has_agent_instantiation(sources: list[str]) -> bool:
+        for source in sources:
+            for line in source.splitlines():
+                if import_line_pattern.search(line):
+                    continue
+                if agent_ctor_pattern.search(line) or agent_symbol_usage_pattern.search(line):
+                    return True
+        return False
+
+    has_agent_viability_signal = _has_agent_instantiation(python_sources) or _has_agent_instantiation(node_sources)
 
     if py_hits <= 0 and node_hits <= 0:
         return AdapterResult(
