@@ -10821,3 +10821,219 @@ tasks:
     dependencies: [task498, task499, task500, task501, task502, task503]
     tests: [test716]
     status: not-started
+
+  - id: task505
+    title: "feature119 operator prerequisite decisions and rollout guardrails"
+    type: task
+    epic: [E7, E8]
+    owner: human
+    description: |
+      Finalize operator-owned prerequisite decisions required before Postgres
+      implementation and cutover, including tenant mapping policy, API key
+      policy, download-auth policy, and rollout guardrails for dev/staging/prod.
+    files:
+      - notes/features/postgres-registry-db-planning.md
+      - notes/PRE-RELEASE-CHECKLIST.md
+      - notes/features/feature119-handoff.md
+    steps:
+      - 'step1: Resolve open operator decisions from planning appendix and record explicit decisions/owners.'
+      - 'step2: Confirm non-goals and gating dependency on feature118 (Kinde readiness) for user/tenant/auth-store replacement.'
+      - 'step3: Approve phased rollout gates, rollback criteria, and acceptance sign-off checkpoints.'
+    dependencies: []
+    tests: [test720]
+    status: not-started
+
+  - id: task506
+    title: "feature119 phase13.1 terraform postgres foundation and ecs wiring"
+    type: task
+    epic: [E7, E3]
+    owner: swe-agent
+    description: |
+      Implement Terraform foundation for Postgres in `iac/`, including
+      `rds-postgres` module wiring, private subnet and security-group posture,
+      DB secret integration, and ECS runtime env/secret wiring for database
+      connectivity and pool/backend configuration.
+    files:
+      - iac/modules/rds-postgres/
+      - iac/main.tf
+      - iac/variables.tf
+      - iac/outputs.tf
+      - iac/modules/secrets/
+      - iac/modules/ecs-fargate/
+      - iac/modules/vpc/outputs.tf
+      - iac/environments/dev/terraform.tfvars
+      - iac/environments/prod/terraform.tfvars
+    steps:
+      - 'step1: Create `iac/modules/rds-postgres` and instantiate it from root with dev/prod profile controls.'
+      - 'step2: Enforce private-only DB posture, ECS-only ingress, and required encryption/SSL settings.'
+      - 'step3: Add DB secret/wiring and inject REGISTRY_DATABASE_URL plus DB pool/backend env keys into ECS task definition.'
+      - 'step4: Validate Terraform format/validate/plan paths for dev/prod var contracts.'
+    dependencies: [task505]
+    tests: [test721, test722]
+    status: not-started
+
+  - id: task507
+    title: "feature119 phase13.2 server database package schema and migrations"
+    type: task
+    epic: [E3, E8]
+    owner: swe-agent
+    description: |
+      Build `server/database/` runtime foundation: async session management,
+      SQLAlchemy/SQLModel models for the 8-table schema, repository primitives,
+      custom exceptions, and Alembic async migration scaffolding with initial
+      migration.
+    files:
+      - server/database/session.py
+      - server/database/models/
+      - server/database/repository.py
+      - server/database/exceptions.py
+      - server/database/migrations/
+      - server/config.py
+    steps:
+      - 'step1: Implement async engine/session factory and pool configuration from env settings.'
+      - 'step2: Define all eight core tables with constraints/relationships/indexes required by hot paths.'
+      - 'step3: Implement repository interfaces and shared exception model for DB access layer.'
+      - 'step4: Configure Alembic async env and initial migration with upgrade/downgrade safety.'
+    dependencies: [task506]
+    tests: [test723, test724]
+    status: not-started
+
+  - id: task508
+    title: "feature119 phase13.2 metadata backend integration and health wiring"
+    type: task
+    epic: [E3, E8]
+    owner: swe-agent
+    description: |
+      Integrate Postgres runtime into server app wiring while preserving existing
+      metadata contract via `PostgresMetadataManager`. Add backend-flag selection,
+      default json behavior, and DB-aware health/readiness behavior for postgres
+      mode.
+    files:
+      - server/app.py
+      - server/config.py
+      - server/metadata/
+      - server/routes/
+      - server/tests/
+    steps:
+      - 'step1: Implement `PostgresMetadataManager` matching current metadata manager public interface.'
+      - 'step2: Add and wire `REGISTRY_METADATA_BACKEND` with `json` default and `postgres` opt-in path.'
+      - 'step3: Initialize DB runtime in app startup and add DB ping in health/readiness when postgres backend is active.'
+      - 'step4: Keep route behavior parity while introducing repository-backed internals.'
+    dependencies: [task507]
+    tests: [test725, test726]
+    status: not-started
+
+  - id: task509
+    title: "feature119 phase13.3 json-to-postgres migration parity and rollback gates"
+    type: task
+    epic: [E3, E9]
+    owner: swe-agent
+    description: |
+      Deliver migration tooling and parity verification required for cutover:
+      idempotent JSON-to-Postgres backfill, deterministic parity reporting, and
+      rollback validation support tied to backend-flag switching.
+    files:
+      - server/database/
+      - scripts/
+      - server/tests/
+      - notes/features/feature119-handoff.md
+    steps:
+      - 'step1: Implement idempotent backfill script(s) for JSON metadata into Postgres schema.'
+      - 'step2: Implement deterministic parity checker for counts/key-field/hash consistency reporting.'
+      - 'step3: Add cutover gate checks and rollback-drill validation guidance/automation hooks.'
+      - 'step4: Verify migration/parity behavior with repeatable integration tests.'
+    dependencies: [task508]
+    tests: [test727]
+    status: not-started
+
+  - id: task510
+    title: "feature119 server db/admin command surface for postgres operations"
+    type: task
+    epic: [E3]
+    owner: swe-agent
+    description: |
+      Extend `kinnoo-server` CLI with database/admin command surface needed for
+      Postgres rollout, including migration/seed/connect flows and domain-aware
+      query/admin commands for tenants/users/agents/audit inspection.
+    files:
+      - server/cli.py
+      - server/database/
+      - server/tests/
+      - docs/
+    steps:
+      - 'step1: Implement or extend `kinnoo-server db migrate`, `db seed`, and db connection/admin workflows.'
+      - 'step2: Add domain-oriented read/admin commands for tenant/user/agent/audit inspection paths.'
+      - 'step3: Ensure command behavior is explicit, safe, and documented for operators.'
+      - 'step4: Add CLI tests for successful and failure-path command behavior.'
+    dependencies: [task507]
+    tests: [test728]
+    status: not-started
+
+  - id: task511
+    title: "feature119 postgres test harness local-dev and ci integration"
+    type: task
+    epic: [E9, E7]
+    owner: swe-agent
+    description: |
+      Build Postgres-enabled testing harness for local and CI execution:
+      docker-compose local DB, CI service-container wiring, transaction-rollback
+      isolation fixtures, and concurrency sanity coverage.
+    files:
+      - docker-compose.yml
+      - .github/workflows/
+      - server/tests/conftest.py
+      - server/tests/
+      - tests/
+    steps:
+      - 'step1: Add local Postgres dev compose workflow and server test fixture integration.'
+      - 'step2: Add CI Postgres service container wiring for server test jobs.'
+      - 'step3: Implement transaction rollback isolation fixtures for Postgres-backed tests.'
+      - 'step4: Add concurrency sanity coverage for publish/search flows and pool-usage behavior.'
+    dependencies: [task506, task507, task508]
+    tests: [test729, test730]
+    status: not-started
+
+  - id: task512
+    title: "feature119 observability resilience runbooks and scalability controls"
+    type: task
+    epic: [E7, E9]
+    owner: swe-agent
+    description: |
+      Add operational readiness artifacts for Postgres rollout: DB alarms/alerting
+      definitions, runtime resilience behavior docs, and runbooks for cutover,
+      rollback, restore, and connection saturation response.
+    files:
+      - iac/
+      - docs/
+      - notes/features/
+      - server/
+    steps:
+      - 'step1: Add DB observability/alerting definitions and document metric thresholds/ownership.'
+      - 'step2: Document fail-fast startup, runtime outage behavior, and rollback operating procedures.'
+      - 'step3: Document restore/PITR and connection-saturation response runbooks.'
+      - 'step4: Align operational docs with implemented infrastructure/runtime controls.'
+    dependencies: [task506, task507, task511]
+    tests: [test731]
+    status: not-started
+
+  - id: task513
+    title: "feature119 human cutover gate execution and final approval"
+    type: task
+    epic: [E7, E9]
+    owner: human
+    description: |
+      Execute final human approval gates for Postgres cutover after SWE delivery:
+      verify migration/parity outputs, execute rollback rehearsal, review runbooks,
+      and record release readiness decision.
+    files:
+      - notes/features/feature119-handoff.md
+      - notes/PRE-RELEASE-CHECKLIST.md
+      - notes/
+    steps:
+      - 'step1: Review `alembic upgrade head`, parity report, and automated regression evidence for postgres mode.'
+      - 'step2: Execute rollback rehearsal by flipping metadata backend to json and confirming service health.'
+      - 'step3: Validate observability and incident-runbook readiness with operator checklist sign-off.'
+      - 'step4: Record final go/no-go decision and unresolved risks.'
+    dependencies: [task509, task510, task511, task512]
+    tests: [test732]
+    status: not-started
