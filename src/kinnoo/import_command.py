@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 import subprocess
+import yaml
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -42,8 +43,10 @@ except ImportError:
 
 try:
     from kinnoo.validator import validate as validate_manifest
+    from kinnoo.validator import validate_manifest_data
 except ImportError:
     from .validator import validate as validate_manifest
+    from .validator import validate_manifest_data
 
 try:
     from kinnoo.terminal_colors import style_text
@@ -202,6 +205,171 @@ def _openclaw_agent_registered(agent_id: str) -> tuple[bool, str | None]:
     return False, None
 
 
+_OPENCLAW_REQUIRED_PATHS = ("SOUL.md", "IDENTITY.md", "memory", "skills")
+_OPENCLAW_EXCLUDED_DIRS = {".git", ".openclaw", ".clawhub", "node_modules", ".venv"}
+
+
+def _missing_openclaw_required_paths(workspace_path: Path) -> list[str]:
+    missing: list[str] = []
+    for relative in _OPENCLAW_REQUIRED_PATHS:
+        candidate = workspace_path / relative
+        if not candidate.exists():
+            missing.append(relative)
+    return missing
+
+
+def _iter_openclaw_workspace_copy_pairs(
+    source_workspace: Path,
+    target_path: Path,
+) -> list[tuple[Path, Path]]:
+    copy_pairs: list[tuple[Path, Path]] = []
+    for root, dirs, files in os.walk(source_workspace, followlinks=False):
+        root_path = Path(root)
+        rel = root_path.relative_to(source_workspace)
+        dirs[:] = [
+            name
+            for name in dirs
+            if name not in _OPENCLAW_EXCLUDED_DIRS and not (root_path / name).is_symlink()
+        ]
+
+        for filename in files:
+            source_file = root_path / filename
+            if source_file.is_symlink():
+                continue
+            destination_file = target_path / rel / filename
+            copy_pairs.append((source_file, destination_file))
+
+    return copy_pairs
+
+
+def _copy_openclaw_workspace_contents(
+    source_workspace: Path,
+    target_path: Path,
+    *,
+    force: bool,
+) -> int:
+    copy_pairs = _iter_openclaw_workspace_copy_pairs(source_workspace, target_path)
+    if not force:
+        colliding_paths = [
+            str(destination_file) for _, destination_file in copy_pairs if destination_file.exists()
+        ]
+        if colliding_paths:
+            collision_preview = ", ".join(colliding_paths[:5])
+            if len(colliding_paths) > 5:
+                collision_preview += ", ..."
+            raise FileExistsError(
+                "Refusing to overwrite existing files in target path: "
+                f"{collision_preview}"
+            )
+
+    copied_file_count = 0
+    for source_file, destination_file in copy_pairs:
+        destination_file.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source_file, destination_file)
+        copied_file_count += 1
+    return copied_file_count
+
+
+def _import_from_openclaw_workspace_source(
+    *,
+    target_path_arg: str,
+    workspace_path_arg: str,
+    force: bool,
+) -> int:
+    target_path = _resolve_import_target(target_path_arg)
+    workspace_path = _resolve_import_target(workspace_path_arg)
+
+    if not workspace_path.exists():
+        _emit_import_error(
+            f"OpenClaw workspace source does not exist: {workspace_path}",
+            "Provide an existing OpenClaw workspace path containing SOUL.md/IDENTITY.md/memory/skills.",
+        )
+        return 1
+
+    if not workspace_path.is_dir():
+        _emit_import_error(
+            f"OpenClaw workspace source must be a directory: {workspace_path}",
+            "Provide a directory path for the workspace source.",
+        )
+        return 1
+
+    missing_paths = _missing_openclaw_required_paths(workspace_path)
+    if missing_paths:
+        _emit_import_error(
+            f"OpenClaw workspace source is missing required path(s): {', '.join(missing_paths)}",
+            "Ensure the source workspace contains SOUL.md, IDENTITY.md, memory/, and skills/.",
+        )
+        return 1
+
+    if target_path.exists() and not target_path.is_dir():
+        _emit_import_error(
+            f"OpenClaw import target must be a directory: {target_path}",
+            "Provide a directory target path (or a new directory path) for imported workspace content.",
+        )
+        return 1
+    target_path.mkdir(parents=True, exist_ok=True)
+    if not force and any(target_path.iterdir()):
+        _emit_import_error(
+            f"OpenClaw import target is not empty: {target_path}",
+            "Use an empty target directory or pass --force to allow overwriting collisions.",
+        )
+        return 1
+
+    manifest_path = target_path / "kinnoo.yaml"
+    if manifest_path.exists() and not force:
+        _emit_import_error(
+            "Import aborted: kinnoo.yaml already exists. Use --force to explicitly override and overwrite.",
+            "Re-run with '--force' only if you intend to replace the existing kinnoo.yaml.",
+        )
+        return 1
+
+    try:
+        copied_files = _copy_openclaw_workspace_contents(
+            workspace_path,
+            target_path,
+            force=force,
+        )
+    except FileExistsError as exc:
+        _emit_import_error(
+            str(exc),
+            "Use --force if you explicitly want to overwrite colliding files.",
+        )
+        return 1
+    if copied_files <= 0:
+        _emit_import_error(
+            "OpenClaw workspace source did not contain any copyable files.",
+            "Verify source workspace content and exclusion paths before retrying import.",
+        )
+        return 1
+
+    report = analyze_project(target_path).as_dict()
+    inferred = report.get("inferred", {}) if isinstance(report.get("inferred"), dict) else {}
+    confidence = report.get("confidence", {}) if isinstance(report.get("confidence"), dict) else {}
+    inferred["framework"] = "openclaw"
+    confidence["framework"] = {
+        "score": 0.98,
+        "evidence": "Explicitly selected openclaw source import flow via '--from openclaw'.",
+    }
+    report["inferred"] = inferred
+    report["confidence"] = confidence
+
+    manifest_text = _build_manifest_from_analysis(target_path, report, session=PromptSession())
+    is_manifest_valid, manifest_errors = _validate_manifest_text_before_write(target_path, manifest_text)
+    if not is_manifest_valid:
+        _emit_import_error(
+            "Generated kinnoo.yaml failed validation; OpenClaw import aborted before write.",
+            "Ensure copied workspace includes a valid executable entrypoint and required runtime metadata.",
+        )
+        for error in manifest_errors:
+            print(f"  - {error}")
+        return 1
+
+    _write_manifest_in_place(target_path, manifest_text, force=force)
+    _print_manifest_validation_and_guidance(manifest_path, report, entrypoint_warning=None)
+    print(style_text(f"Imported OpenClaw workspace in-place: {target_path}", color="green", bold=True))
+    return 0
+
+
 def _build_manifest_text(target_path: Path) -> str:
     """Return a deterministic baseline manifest for in-place import writes."""
     agent_name = target_path.name.replace("_", "-").lower() or "imported-agent"
@@ -224,6 +392,12 @@ def _prompt_with_default(prompt: str, default: str, session: PromptSession | Non
         session.answers_received += 1
     value = value.strip()
     return value if value else default
+
+
+def _emit_import_error(message: str, remediation: str | None = None) -> None:
+    print(style_text(f"Error: {message}", color="red"))
+    if remediation:
+        print(f"Remediation: {remediation}")
 
 
 def _show_detected_values(report: dict[str, Any]) -> None:
@@ -841,6 +1015,40 @@ def _print_manifest_validation_and_guidance(
         print("  - Update kinnoo.yaml to resolve validation warnings before packaging or distribution.")
 
 
+def _validate_manifest_text_before_write(
+    target_path: Path,
+    manifest_text: str,
+) -> tuple[bool, list[str]]:
+    try:
+        parsed = yaml.safe_load(manifest_text)
+    except yaml.YAMLError as exc:
+        return False, [f"Generated manifest YAML parse error: {exc}"]
+
+    # Test-only failure injection hook for import validation-gate regression coverage.
+    if os.getenv("KINNOO_IMPORT_FORCE_INVALID_MANIFEST") == "1" and os.getenv("PYTEST_CURRENT_TEST"):
+        if not isinstance(parsed, dict):
+            parsed = {}
+        parsed["version"] = "invalid-version"
+
+    if not isinstance(parsed, dict):
+        return False, ["Generated manifest must be a YAML mapping (dict) at the top level."]
+
+    is_valid, errors = validate_manifest_data(parsed, manifest_root=target_path)
+    if is_valid:
+        return True, []
+
+    non_blocking_prefixes = (
+        "Declared entrypoint path not found:",
+    )
+    blocking_errors = [
+        error for error in errors
+        if not any(error.startswith(prefix) for prefix in non_blocking_prefixes)
+    ]
+    if not blocking_errors:
+        return True, errors
+    return False, errors
+
+
 def _normalize_clawhub_slug(raw_slug: str) -> str:
     normalized = raw_slug.strip().strip("/")
     parts = [part.strip() for part in normalized.split("/") if part.strip()]
@@ -1087,7 +1295,10 @@ def import_agent(
     """Import a project in-place by writing kinnoo.yaml safely into target root."""
     if source == "clawhub":
         if target_path_arg is None or not target_path_arg.strip():
-            print(style_text("Error: Missing ClawHub slug. Usage: kinnoo import --source clawhub <owner>/<slug>", color="red"))
+            _emit_import_error(
+                "Missing ClawHub slug. Usage: kinnoo import --source clawhub <owner>/<slug>",
+                "Provide a valid '<owner>/<slug>' value after '--source clawhub'.",
+            )
             return 1
         return _import_from_clawhub_source(
             slug_arg=target_path_arg,
@@ -1096,17 +1307,42 @@ def import_agent(
             live_fallback=live_fallback,
         )
 
+    if framework_from == "openclaw":
+        if source == "clawhub":
+            _emit_import_error(
+                "--from openclaw cannot be combined with --source clawhub imports.",
+                "Use either '--source clawhub' or '--from openclaw', but not both.",
+            )
+            return 1
+        if target_path_arg is None or import_path_arg is None:
+            _emit_import_error(
+                "OpenClaw source import requires target and workspace paths.",
+                "Usage: kinnoo import --from openclaw <target> <workspace-path>",
+            )
+            return 1
+        return _import_from_openclaw_workspace_source(
+            target_path_arg=target_path_arg,
+            workspace_path_arg=import_path_arg,
+            force=force,
+        )
+
     target_arg = target_path_arg
     if target_arg is None:
         target_arg = str(Path.cwd())
 
     if import_path_arg is not None and not is_github_url(target_arg):
-        print(style_text("Error: import-path positional argument is only supported for GitHub URL imports.", color="red"))
+        _emit_import_error(
+            "import-path positional argument is only supported for GitHub URL imports.",
+            "Use 'kinnoo import <github-url> <import-path>' or remove the second positional argument.",
+        )
         print("Usage: kinnoo import [target] [import-path] [--force]")
         return 1
 
     if framework_from is not None and source == "clawhub":
-        print(style_text("Error: --from cannot be combined with --source clawhub imports.", color="red"))
+        _emit_import_error(
+            "--from cannot be combined with --source clawhub imports.",
+            "Use either '--source clawhub' or '--from <framework>', but not both.",
+        )
         return 1
 
     target_path: Path
@@ -1118,15 +1354,18 @@ def import_agent(
             destination = Path(import_path_arg).expanduser().resolve()
 
         if destination.exists():
-            print(style_text(f"Error: import target directory already exists: {destination}", color="red"))
+            _emit_import_error(
+                f"import target directory already exists: {destination}",
+                "Choose a new destination path or remove the existing directory first.",
+            )
             return 1
 
         cloned, clone_error = clone_github_repo(repo_url, destination)
         if not cloned:
-            print(style_text(
-                "Error: failed to download/clone agent code from GitHub URL "
-                f"'{repo_url}': {clone_error}"
-            , color="red"))
+            _emit_import_error(
+                f"failed to download/clone agent code from GitHub URL '{repo_url}': {clone_error}",
+                "Verify repository URL and access permissions, then retry.",
+            )
             return 1
 
         target_path = destination
@@ -1138,18 +1377,24 @@ def import_agent(
     created_requirements_file = False
 
     if not target_path.exists():
-        print(style_text(f"Error: import target does not exist: {target_path}", color="red"))
+        _emit_import_error(
+            f"import target does not exist: {target_path}",
+            "Create the target directory or provide an existing project path.",
+        )
         return 1
 
     if not target_path.is_dir():
-        print(style_text(f"Error: import target must be a directory: {target_path}", color="red"))
+        _emit_import_error(
+            f"import target must be a directory: {target_path}",
+            "Provide a directory path instead of a file path.",
+        )
         return 1
 
     if manifest_path.exists() and not force:
-        print(style_text(
-            "Error: Import aborted: kinnoo.yaml already exists. "
-            "Use --force to explicitly override and overwrite."
-        , color="red"))
+        _emit_import_error(
+            "Import aborted: kinnoo.yaml already exists. Use --force to explicitly override and overwrite.",
+            "Re-run with '--force' only if you intend to replace the existing kinnoo.yaml.",
+        )
         return 1
 
     if _is_openclaw_workspace_candidate(target_path):
@@ -1293,6 +1538,16 @@ def import_agent(
         if generated_wrapper_path and generated_wrapper_path.exists():
             generated_wrapper_path.unlink()
         print("Import interrupted (Ctrl+C/EOF). No partial artifacts were left behind.")
+        return 1
+
+    is_manifest_valid, manifest_errors = _validate_manifest_text_before_write(target_path, manifest_text)
+    if not is_manifest_valid:
+        _emit_import_error(
+            "Generated kinnoo.yaml failed validation; import aborted before write.",
+            "Review inferred values (entrypoint/runtime/framework/dependencies) and retry import.",
+        )
+        for error in manifest_errors:
+            print(f"  - {error}")
         return 1
 
     try:

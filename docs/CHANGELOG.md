@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 - Added Feature68 reference GitHub Actions workflow at `.github/workflows/kinnoo-publish.yml` covering install, preflight, pack, and remote publish stages.
 - Added Feature69 standardized test contract documentation for `kinnoo.tests.yaml` and `kinnoo test` execution modes.
 - Added Feature70 landing-page and README messaging updates for OpenClaw bridge, ClawHub mirror attribution, and Phase 6 command matrix coverage.
+- Added Feature117 import hardening regression coverage (`test696`-`test705`) for edge-case stability, framework adapter behavior, OpenClaw source import, and coverage-floor guards.
 
 ### Changed
 - Added CI environment/secrets contract documentation for `KINNOO_REGISTRY_URL`, `KINNOO_REGISTRY_TOKEN`, `KINNOO_TENANT_SLUG`, and strict-mode compatibility control.
@@ -17,7 +18,10 @@ All notable changes to this project will be documented in this file.
   - `tests/test_cli_import.py::test_feature36_infers_runtime_skills_state_dirs`
   - `tests/test_cli_import.py::test_feature36_manifest_valid_or_todo_guidance`
   - `tests/test_cli_import.py::test_feature62_import_openclaw_manifest_migration_guidance`
- - Bumped project version from `0.5.5` to `0.6.0` after Phase 7 final review closure.
+- Bumped project version from `0.5.5` to `0.6.0` after Phase 7 final review closure.
+- Hardened `kinnoo import` with pre-write manifest validation gate and deterministic `Error`/`Remediation` messaging on core failure paths.
+- Expanded framework inference hardening across LangChain/LangGraph/OpenAI adapters and analyzer Node+Poetry dependency/env-var detection paths.
+- Added explicit OpenClaw workspace source flow: `kinnoo import --from openclaw <target> <workspace-path>` with include/exclude copy contract and manifest validation.
 
 ## [v0.7.7] - 2026-04-19
 ### Added
