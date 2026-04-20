@@ -56,7 +56,7 @@ export default function LoginPage() {
             Need an account?{" "}
             <Link
               href="/signup"
-              className="underline decoration-white/40 underline-offset-4 transition hover:text-kinnoo-accent"
+              className="underline decoration-white/40 underline-offset-4 transition hover:text-[#FF7F00]"
             >
               Sign Up
             </Link>
