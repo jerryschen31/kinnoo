@@ -73,7 +73,7 @@ def _http_json_request(
         ) from error
     if not isinstance(decoded, dict):
         raise OIDCRequestError(
-            f"OIDC {method.upper()} {url} returned non-object JSON payload."
+            f"OIDC {method.upper()} {url} returned non-object JSON payload (got {type(decoded).__name__})."
         )
     return decoded
 
@@ -316,9 +316,7 @@ class OIDCTokenService:
             try:
                 self._jwks_cache = self.provider.fetch_jwks()
             except OIDCRequestError as error:
-                raise TokenValidationError(
-                    f"503 service unavailable: jwks fetch failed ({error})"
-                ) from error
+                raise TokenValidationError("503 service unavailable: jwks fetch failed") from error
             self._jwks_cached_at_epoch = now
 
         keys = self._jwks_cache.get("keys") if isinstance(self._jwks_cache, dict) else None
@@ -332,9 +330,7 @@ class OIDCTokenService:
         try:
             self._jwks_cache = self.provider.fetch_jwks()
         except OIDCRequestError as error:
-            raise TokenValidationError(
-                f"503 service unavailable: jwks fetch failed ({error})"
-            ) from error
+            raise TokenValidationError("503 service unavailable: jwks fetch failed") from error
         self._jwks_cached_at_epoch = now
         keys = self._jwks_cache.get("keys") if isinstance(self._jwks_cache, dict) else None
         if isinstance(keys, list):
