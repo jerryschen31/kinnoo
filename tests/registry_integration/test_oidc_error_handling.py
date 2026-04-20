@@ -60,5 +60,6 @@ def test_resolve_jwk_wraps_fetch_errors_as_token_validation_error() -> None:
 
     provider.fetch_jwks = _raise_oidc_error  # type: ignore[method-assign]
 
-    with pytest.raises(TokenValidationError, match="503 service unavailable: jwks fetch failed"):
+    with pytest.raises(TokenValidationError, match="503 service unavailable: jwks fetch failed") as exc_info:
         service._resolve_jwk(kid="missing-kid")
+    assert isinstance(exc_info.value.__cause__, OIDCRequestError)
