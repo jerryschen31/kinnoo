@@ -41,7 +41,7 @@ export default function LoginPage() {
               void handleStartLogin();
             }}
             disabled={isSubmitting}
-            className="mt-2 inline-flex w-full items-center justify-center rounded-button border border-kinnoo-accent/70 bg-kinnoo-accent/10 px-4 py-2 text-sm font-semibold text-kinnoo-text transition hover:bg-kinnoo-accent/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kinnoo-accent"
+            className="mt-2 inline-flex w-full cursor-pointer items-center justify-center rounded-button border border-kinnoo-accent/70 bg-kinnoo-accent/10 px-4 py-2 text-sm font-semibold text-kinnoo-text transition hover:border-[#FF7F00] hover:bg-kinnoo-accent/20 hover:text-[#FF7F00] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kinnoo-accent"
           >
             {isSubmitting ? "Redirecting..." : "Continue to Login"}
           </button>
