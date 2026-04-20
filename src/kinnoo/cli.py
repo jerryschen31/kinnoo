@@ -941,7 +941,7 @@ def main():
     import_parser.add_argument(
         "--from",
         dest="framework_from",
-        choices=["langchain", "langgraph", "openai"],
+        choices=["langchain", "langgraph", "openai", "openclaw"],
         help="Use framework-aware adapter hints for import inference",
     )
 
