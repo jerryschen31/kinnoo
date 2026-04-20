@@ -54,22 +54,29 @@ def _http_user_agent() -> str:
 
 
 def _hosted_cli_config_from_env() -> HostedCLIAuthConfig | None:
-    client_id = (os.environ.get("KINDE_CLI_CLIENT_ID") or "").strip()
-    authorization_endpoint = (os.environ.get("AUTHORIZATION_ENDPOINT") or "").strip()
-    token_endpoint = (os.environ.get("TOKEN_ENDPOINT") or "").strip()
+    client_id = _auth_env("AUTH_CLI_CLIENT_ID", "KINDE_CLI_CLIENT_ID")
+    authorization_endpoint = _auth_env("AUTH_AUTHORIZATION_ENDPOINT", "AUTHORIZATION_ENDPOINT")
+    token_endpoint = _auth_env("AUTH_TOKEN_ENDPOINT", "TOKEN_ENDPOINT")
     if not client_id or not authorization_endpoint or not token_endpoint:
         return None
 
     return HostedCLIAuthConfig(
         authorization_endpoint=authorization_endpoint,
         token_endpoint=token_endpoint,
-        logout_endpoint=(os.environ.get("LOGOUT_ENDPOINT") or "").strip() or None,
-        userinfo_endpoint=(os.environ.get("USERINFO_ENDPOINT") or "").strip() or None,
+        logout_endpoint=_auth_env("AUTH_LOGOUT_ENDPOINT", "LOGOUT_ENDPOINT") or None,
+        userinfo_endpoint=_auth_env("AUTH_USERINFO_ENDPOINT", "USERINFO_ENDPOINT") or None,
         client_id=client_id,
-        audience=(os.environ.get("KINDE_AUDIENCE") or "").strip() or None,
-        issuer_url=(os.environ.get("KINDE_ISSUER_URL") or "").strip() or None,
-        revocation_endpoint=(os.environ.get("REVOCATION_ENDPOINT") or "").strip() or None,
+        audience=_auth_env("AUTH_AUDIENCE", "KINDE_AUDIENCE") or None,
+        issuer_url=_auth_env("AUTH_ISSUER_URL", "KINDE_ISSUER_URL") or None,
+        revocation_endpoint=_auth_env("AUTH_REVOCATION_ENDPOINT", "REVOCATION_ENDPOINT") or None,
     )
+
+
+def _auth_env(canonical_name: str, alias_name: str) -> str:
+    canonical_value = (os.environ.get(canonical_name) or "").strip()
+    if canonical_value:
+        return canonical_value
+    return (os.environ.get(alias_name) or "").strip()
 
 
 def login_command(
