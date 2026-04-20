@@ -23,7 +23,7 @@ export default function TerminalPreview() {
         <button
           type="button"
           onClick={handleCopy}
-          className="rounded-button border border-white/20 px-3 py-1 text-sm font-medium text-kinnoo-text transition hover:border-kinnoo-accent hover:text-kinnoo-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kinnoo-accent"
+          className="rounded-button cursor-pointer border border-white/20 px-3 py-1 text-sm font-medium text-kinnoo-text transition hover:border-[#FF7F00] hover:text-[#FF7F00] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kinnoo-accent"
           aria-label="Copy install command"
         >
           {copied ? "Copied!" : "Copy"}
