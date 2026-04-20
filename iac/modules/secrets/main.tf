@@ -14,6 +14,12 @@ locals {
     KINDE_AUDIENCE            = "${var.project_name}/${var.environment}/KINDE_AUDIENCE"
     KINDE_WEB_REDIRECT_URI    = "${var.project_name}/${var.environment}/KINDE_WEB_REDIRECT_URI"
     KINDE_LOGOUT_REDIRECT_URI = "${var.project_name}/${var.environment}/KINDE_LOGOUT_REDIRECT_URI"
+    JWKS_ENDPOINT_URL         = "${var.project_name}/${var.environment}/JWKS_ENDPOINT_URL"
+    TOKEN_ENDPOINT            = "${var.project_name}/${var.environment}/TOKEN_ENDPOINT"
+    AUTHORIZATION_ENDPOINT    = "${var.project_name}/${var.environment}/AUTHORIZATION_ENDPOINT"
+    LOGOUT_ENDPOINT           = "${var.project_name}/${var.environment}/LOGOUT_ENDPOINT"
+    USERINFO_ENDPOINT         = "${var.project_name}/${var.environment}/USERINFO_ENDPOINT"
+    REVOCATION_ENDPOINT       = "${var.project_name}/${var.environment}/REVOCATION_ENDPOINT"
   }
 
   secret_names = merge(local.managed_secret_names, local.referenced_secret_names)
@@ -68,6 +74,30 @@ data "aws_secretsmanager_secret" "kinde_logout_redirect_uri" {
   name = local.referenced_secret_names.KINDE_LOGOUT_REDIRECT_URI
 }
 
+data "aws_secretsmanager_secret" "jwks_endpoint_url" {
+  name = local.referenced_secret_names.JWKS_ENDPOINT_URL
+}
+
+data "aws_secretsmanager_secret" "token_endpoint" {
+  name = local.referenced_secret_names.TOKEN_ENDPOINT
+}
+
+data "aws_secretsmanager_secret" "authorization_endpoint" {
+  name = local.referenced_secret_names.AUTHORIZATION_ENDPOINT
+}
+
+data "aws_secretsmanager_secret" "logout_endpoint" {
+  name = local.referenced_secret_names.LOGOUT_ENDPOINT
+}
+
+data "aws_secretsmanager_secret" "userinfo_endpoint" {
+  name = local.referenced_secret_names.USERINFO_ENDPOINT
+}
+
+data "aws_secretsmanager_secret" "revocation_endpoint" {
+  name = local.referenced_secret_names.REVOCATION_ENDPOINT
+}
+
 output "secret_arns" {
   description = "Secrets Manager ARNs for app runtime"
   value = {
@@ -81,6 +111,12 @@ output "secret_arns" {
     KINDE_AUDIENCE            = data.aws_secretsmanager_secret.kinde_audience.arn
     KINDE_WEB_REDIRECT_URI    = data.aws_secretsmanager_secret.kinde_web_redirect_uri.arn
     KINDE_LOGOUT_REDIRECT_URI = data.aws_secretsmanager_secret.kinde_logout_redirect_uri.arn
+    JWKS_ENDPOINT_URL         = data.aws_secretsmanager_secret.jwks_endpoint_url.arn
+    TOKEN_ENDPOINT            = data.aws_secretsmanager_secret.token_endpoint.arn
+    AUTHORIZATION_ENDPOINT    = data.aws_secretsmanager_secret.authorization_endpoint.arn
+    LOGOUT_ENDPOINT           = data.aws_secretsmanager_secret.logout_endpoint.arn
+    USERINFO_ENDPOINT         = data.aws_secretsmanager_secret.userinfo_endpoint.arn
+    REVOCATION_ENDPOINT       = data.aws_secretsmanager_secret.revocation_endpoint.arn
   }
 }
 
