@@ -33,6 +33,7 @@ CALLBACK_PATH = "/auth/callback"
 CALLBACK_TIMEOUT_SECONDS = 180
 TOKEN_REFRESH_SKEW_SECONDS = 120
 CALLBACK_SERVER_PORTS = (8765, 8766, 9872, 49527)
+HOSTED_LOGIN_SCOPE = "openid profile email"
 
 
 @dataclass(frozen=True)
@@ -228,7 +229,7 @@ def _build_authorization_url(
         "response_type": "code",
         "client_id": hosted_config.client_id,
         "redirect_uri": redirect_uri,
-        "scope": "openid profile email",
+        "scope": HOSTED_LOGIN_SCOPE,
         "state": state,
         "code_challenge": code_challenge,
         "code_challenge_method": "S256",
