@@ -15,4 +15,4 @@ class DownloadEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     agent_slug: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
     version: Mapped[str] = mapped_column(String(64), nullable=False)
     downloader: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    metadata: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    event_metadata: Mapped[dict] = mapped_column("metadata", JSONB, nullable=False, default=dict)

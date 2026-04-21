@@ -19,6 +19,7 @@ from server.bootstrap import bootstrap_admin_from_env
 from server.config import ServerConfig, is_legacy_auth_compatibility_enabled, resolve_auth_provider
 from server.metadata.manager import MetadataManager
 from server.metadata.postgres_manager import PostgresMetadataManager
+from server.metadata.types import MetadataManagerProtocol
 from server.middleware import InMemoryRateLimiter, PathRateLimitMiddleware, RateLimitRule
 from server.routes.agents import create_agents_router
 from server.routes.auth import create_auth_router
@@ -184,7 +185,7 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
             pool_recycle_seconds=resolved_config.db_pool_recycle_seconds,
         )
         ping_database(db_runtime.sync_engine)
-        metadata_manager: Any = PostgresMetadataManager(
+        metadata_manager: MetadataManagerProtocol = PostgresMetadataManager(
             repository=RegistryRepository(session_factory=db_runtime.sync_session_factory),
         )
     else:

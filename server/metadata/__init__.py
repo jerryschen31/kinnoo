@@ -1,7 +1,6 @@
 """Metadata models and manager exports."""
 
 from server.metadata.manager import MetadataManager
-from server.metadata.postgres_manager import PostgresMetadataManager
 from server.metadata.models import (
     SCHEMA_VERSION_V1,
     AgentIndex,
@@ -19,5 +18,4 @@ __all__ = [
     "GlobalIndex",
     "VersionMetadata",
     "MetadataManager",
-    "PostgresMetadataManager",
 ]

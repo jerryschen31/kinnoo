@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import timezone
+from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import Select, desc, func, select
@@ -14,7 +14,7 @@ from server.database.models import Agent, AgentVersion, AuditLog, Tenant, User
 from server.metadata.models import AgentIndex, AgentVersionSummary, GlobalAgentSummary, GlobalIndex, VersionMetadata, utc_now_iso
 
 
-def _to_iso(value) -> str:
+def _to_iso(value: datetime | None) -> str:
     if value is None:
         return utc_now_iso()
     return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -146,10 +146,13 @@ class RegistryRepository:
                         latest_updated_at=_to_iso(updated_at),
                     )
 
-                tenant_map: dict[str, tuple[GlobalAgentSummary, ...]] = {}
+                tenant_lists: dict[str, list[GlobalAgentSummary]] = {}
                 for (tenant_slug, _), summary in latest_by_agent.items():
-                    tenant_map.setdefault(tenant_slug, tuple())
-                    tenant_map[tenant_slug] = tuple(sorted((*tenant_map[tenant_slug], summary), key=lambda item: item.agent_slug))
+                    tenant_lists.setdefault(tenant_slug, []).append(summary)
+                tenant_map = {
+                    tenant_slug: tuple(sorted(summaries, key=lambda item: item.agent_slug))
+                    for tenant_slug, summaries in tenant_lists.items()
+                }
                 return GlobalIndex(generated_at=utc_now_iso(), tenants=tenant_map)
         except SQLAlchemyError as error:
             raise DatabaseError("Unable to build global index from registry database.") from error

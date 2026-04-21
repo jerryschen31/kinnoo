@@ -77,6 +77,7 @@ def ping_database(engine: Engine) -> None:
 
 def close_database_runtime(runtime: DatabaseRuntime) -> None:
     runtime.sync_engine.dispose()
+    runtime.async_engine.sync_engine.dispose()
 
 
 def sqlalchemy_error_message(error: SQLAlchemyError) -> str:
