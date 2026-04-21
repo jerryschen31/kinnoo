@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import base64
 import json
+import os
 from typing import Any
 from urllib import error as urllib_error
 from urllib import parse as urllib_parse
@@ -272,18 +273,33 @@ class OIDCTokenService:
 
     def _extract_scopes(self, payload: dict[str, Any]) -> tuple[str, ...]:
         scope_raw = payload.get("scope")
+        scopes: tuple[str, ...] = ()
         if isinstance(scope_raw, str):
             scopes = tuple(item.strip() for item in scope_raw.split(" ") if item.strip())
             if scopes:
-                return scopes
+                return self._normalize_registry_scopes(scopes)
 
         scp_raw = payload.get("scp")
         if isinstance(scp_raw, list):
             scopes = tuple(str(item).strip() for item in scp_raw if str(item).strip())
             if scopes:
-                return scopes
+                return self._normalize_registry_scopes(scopes)
 
         return ()
+
+    def _normalize_registry_scopes(self, scopes: tuple[str, ...]) -> tuple[str, ...]:
+        if any(scope.startswith("registry:") for scope in scopes):
+            return scopes
+
+        compatibility_enabled = self._is_scope_compatibility_enabled()
+        if compatibility_enabled and any(scope in {"openid", "profile", "email"} for scope in scopes):
+            ordered = dict.fromkeys((*scopes, "registry:read", "registry:publish"))
+            return tuple(ordered.keys())
+        return scopes
+
+    def _is_scope_compatibility_enabled(self) -> bool:
+        raw = (os.getenv("AUTH_ENABLE_OIDC_SCOPE_COMPAT") or "true").strip().lower()
+        return raw not in {"0", "false", "no", "off"}
 
     def _resolve_tenant_slug(self, payload: dict[str, Any]) -> str:
         candidate_keys = ("tenant_slug", "org_code", "org", "tenant")
