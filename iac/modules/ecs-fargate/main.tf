@@ -11,6 +11,7 @@ locals {
     "REGISTRY_SESSION_SIGNING_SECRET",
     "REGISTRY_REGISTER_TOKEN_SECRET",
     "REGISTRY_PASSWORD_RESET_TOKEN_SECRET",
+    "REGISTRY_DATABASE_URL",
     "AUTH_PROVIDER",
     "AUTH_WEB_CLIENT_ID",
     "AUTH_WEB_CLIENT_SECRET",
@@ -168,6 +169,22 @@ resource "aws_ecs_task_definition" "app" {
           {
             name  = "REGISTRY_LOCAL_STORAGE_ROOT"
             value = "/data/.registry-storage"
+          },
+          {
+            name  = "REGISTRY_METADATA_BACKEND"
+            value = var.registry_metadata_backend
+          },
+          {
+            name  = "REGISTRY_DB_POOL_SIZE"
+            value = tostring(var.registry_db_pool_size)
+          },
+          {
+            name  = "REGISTRY_DB_MAX_OVERFLOW"
+            value = tostring(var.registry_db_max_overflow)
+          },
+          {
+            name  = "REGISTRY_DB_POOL_RECYCLE_SECONDS"
+            value = tostring(var.registry_db_pool_recycle_seconds)
           },
           {
             name  = "S3_BUCKET"

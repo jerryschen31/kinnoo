@@ -8,6 +8,11 @@ output "public_subnet_ids" {
   value       = module.vpc.public_subnet_ids
 }
 
+output "private_subnet_ids" {
+  description = "Private subnet ids for RDS"
+  value       = module.vpc.private_subnet_ids
+}
+
 output "alb_security_group_id" {
   description = "ALB security group id"
   value       = module.vpc.alb_security_group_id
@@ -16,6 +21,11 @@ output "alb_security_group_id" {
 output "ecs_security_group_id" {
   description = "ECS security group id"
   value       = module.vpc.ecs_security_group_id
+}
+
+output "db_security_group_id" {
+  description = "Postgres DB security group id"
+  value       = module.vpc.db_security_group_id
 }
 
 output "ecr_repository_url" {
@@ -66,4 +76,14 @@ output "security_check_lambda_name" {
 output "security_check_lambda_arn" {
   description = "Security-check Lambda function ARN"
   value       = module.lambda_security_check.function_arn
+}
+
+output "registry_db_endpoint" {
+  description = "Postgres instance endpoint"
+  value       = module.rds_postgres.address
+}
+
+output "registry_db_identifier" {
+  description = "Postgres instance identifier"
+  value       = module.rds_postgres.db_instance_identifier
 }
