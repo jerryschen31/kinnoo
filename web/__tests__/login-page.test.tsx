@@ -22,7 +22,7 @@ describe("Login page", () => {
   it("renders hosted-login CTA and no password form inputs", () => {
     render(<LoginPage />);
 
-    expect(screen.getByText("Login to Agent Registry")).toBeTruthy();
+    expect(screen.getByText("Registry Login")).toBeTruthy();
     expect(screen.getByText("Welcome back to Kinnoo!")).toBeTruthy();
     expect(screen.queryByLabelText("Password")).toBeNull();
     expect(screen.queryByLabelText("Username (E-mail)")).toBeNull();
