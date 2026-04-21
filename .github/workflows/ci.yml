@@ -53,4 +53,4 @@ jobs:
         working-directory: web
       
       - name: Run pytest suite
-        run: python3 -m pytest tests
+        run: python3 -m pytest
