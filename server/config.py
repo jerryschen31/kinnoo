@@ -10,6 +10,7 @@ from typing import Literal
 
 
 StorageBackendName = Literal["local", "mock", "s3"]
+MetadataBackendName = Literal["json", "postgres"]
 
 AUTH_ENV_ALIASES: dict[str, tuple[str, ...]] = {
     "AUTH_ISSUER_URL": ("KINDE_ISSUER_URL",),
@@ -85,6 +86,11 @@ class ServerConfig:
     frontend_url: str = "http://localhost:3000"
     register_token_secret: str = ""
     password_reset_token_secret: str = ""
+    metadata_backend: MetadataBackendName = "json"
+    database_url: str = ""
+    db_pool_size: int = 10
+    db_max_overflow: int = 20
+    db_pool_recycle_seconds: int = 1800
 
     @classmethod
     def from_env(cls) -> "ServerConfig":
@@ -120,6 +126,9 @@ class ServerConfig:
                 ) or ("*",)
 
         uvicorn_workers_default = 2 if env_raw == "production" else 1
+        metadata_backend_raw = (os.getenv("REGISTRY_METADATA_BACKEND") or "json").strip().lower()
+        if metadata_backend_raw not in {"json", "postgres"}:
+            raise ValueError("REGISTRY_METADATA_BACKEND must be one of: json, postgres")
 
         return cls(
             storage_backend=backend_raw,
@@ -149,6 +158,11 @@ class ServerConfig:
             or secrets.token_urlsafe(32),
             password_reset_token_secret=(os.getenv("REGISTRY_PASSWORD_RESET_TOKEN_SECRET") or "").strip()
             or secrets.token_urlsafe(32),
+            metadata_backend=metadata_backend_raw,
+            database_url=(os.getenv("REGISTRY_DATABASE_URL") or "").strip(),
+            db_pool_size=_read_int_env("REGISTRY_DB_POOL_SIZE", 10),
+            db_max_overflow=_read_int_env("REGISTRY_DB_MAX_OVERFLOW", 20),
+            db_pool_recycle_seconds=_read_int_env("REGISTRY_DB_POOL_RECYCLE_SECONDS", 1800),
         )
 
 

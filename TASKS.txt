@@ -10870,7 +10870,7 @@ tasks:
       - 'step4: Validate Terraform format/validate/plan paths for dev/prod var contracts.'
     dependencies: [task505]
     tests: [test721, test722]
-    status: not-started
+    status: needs-review
 
   - id: task507
     title: "feature119 phase13.2 server database package schema and migrations"
@@ -10896,7 +10896,7 @@ tasks:
       - 'step4: Configure Alembic async env and initial migration with upgrade/downgrade safety.'
     dependencies: [task506]
     tests: [test723, test724]
-    status: not-started
+    status: needs-review
 
   - id: task508
     title: "feature119 phase13.2 metadata backend integration and health wiring"
@@ -10921,7 +10921,7 @@ tasks:
       - 'step4: Keep route behavior parity while introducing repository-backed internals.'
     dependencies: [task507]
     tests: [test725, test726]
-    status: not-started
+    status: needs-review
 
   - id: task509
     title: "feature119 phase13.3 json-to-postgres migration parity and rollback gates"
@@ -10944,7 +10944,7 @@ tasks:
       - 'step4: Verify migration/parity behavior with repeatable integration tests.'
     dependencies: [task508]
     tests: [test727]
-    status: not-started
+    status: needs-review
 
   - id: task510
     title: "feature119 server db/admin command surface for postgres operations"
@@ -10967,7 +10967,7 @@ tasks:
       - 'step4: Add CLI tests for successful and failure-path command behavior.'
     dependencies: [task507]
     tests: [test728]
-    status: not-started
+    status: needs-review
 
   - id: task511
     title: "feature119 postgres test harness local-dev and ci integration"
@@ -10991,7 +10991,7 @@ tasks:
       - 'step4: Add concurrency sanity coverage for publish/search flows and pool-usage behavior.'
     dependencies: [task506, task507, task508]
     tests: [test729, test730]
-    status: not-started
+    status: needs-review
 
   - id: task512
     title: "feature119 observability resilience runbooks and scalability controls"
@@ -11014,7 +11014,7 @@ tasks:
       - 'step4: Align operational docs with implemented infrastructure/runtime controls.'
     dependencies: [task506, task507, task511]
     tests: [test731]
-    status: not-started
+    status: needs-review
 
   - id: task513
     title: "feature119 human cutover gate execution and final approval"

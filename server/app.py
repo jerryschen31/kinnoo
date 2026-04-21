@@ -9,6 +9,8 @@ from pathlib import Path
 import secrets
 from typing import Any
 
+from server.database.repository import RegistryRepository
+from server.database.session import create_database_runtime, ping_database
 from server.auth.oidc import KindeOIDCProvider, OIDCProviderConfig, OIDCTokenService
 from server.auth.session import SessionService
 from server.auth.token import SigningKey, TokenService
@@ -16,6 +18,8 @@ from server.auth.tokens import PasswordResetTokenService, RegistrationTokenServi
 from server.bootstrap import bootstrap_admin_from_env
 from server.config import ServerConfig, is_legacy_auth_compatibility_enabled, resolve_auth_provider
 from server.metadata.manager import MetadataManager
+from server.metadata.postgres_manager import PostgresMetadataManager
+from server.metadata.types import MetadataManagerProtocol
 from server.middleware import InMemoryRateLimiter, PathRateLimitMiddleware, RateLimitRule
 from server.routes.agents import create_agents_router
 from server.routes.auth import create_auth_router
@@ -93,6 +97,18 @@ def _is_auth_store_ready(config: ServerConfig) -> bool:
     return True
 
 
+def _is_db_ready(*, config: ServerConfig, db_runtime: Any) -> bool:
+    if config.metadata_backend != "postgres":
+        return True
+    if db_runtime is None:
+        return False
+    try:
+        ping_database(db_runtime.sync_engine)
+    except Exception:
+        return False
+    return True
+
+
 def _should_enable_legacy_auth_paths(*, auth_provider: str) -> bool:
     """Enable legacy auth by default for legacy provider, or explicitly via compatibility gate."""
     return auth_provider not in {"oidc", "oidc_kinde", "kinde"} or is_legacy_auth_compatibility_enabled()
@@ -158,7 +174,22 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
         token_service = OIDCTokenService(provider=oidc_provider)
     else:
         token_service = legacy_token_service
-    metadata_manager = MetadataManager(storage=storage_backend)
+    db_runtime = None
+    if resolved_config.metadata_backend == "postgres":
+        if not resolved_config.database_url:
+            raise ValueError("REGISTRY_DATABASE_URL is required when REGISTRY_METADATA_BACKEND=postgres")
+        db_runtime = create_database_runtime(
+            database_url=resolved_config.database_url,
+            pool_size=resolved_config.db_pool_size,
+            max_overflow=resolved_config.db_max_overflow,
+            pool_recycle_seconds=resolved_config.db_pool_recycle_seconds,
+        )
+        ping_database(db_runtime.sync_engine)
+        metadata_manager: MetadataManagerProtocol = PostgresMetadataManager(
+            repository=RegistryRepository(session_factory=db_runtime.sync_session_factory),
+        )
+    else:
+        metadata_manager = MetadataManager(storage=storage_backend)
     registration_token_service = RegistrationTokenService(
         signing_secret=register_token_secret,
     )
@@ -232,6 +263,7 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
     app.state.email_log_sink = email_log_sink
     app.state.email_service = email_service
     app.state.templates = templates
+    app.state.db_runtime = db_runtime
     app.state.uvicorn_config = {
         "workers": max(2, resolved_config.uvicorn_workers)
         if resolved_config.kinnoo_env == "production"
@@ -264,8 +296,9 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
     def ready():
         s3_ready = _is_s3_ready(storage_backend, resolved_config)
         auth_ready = _is_auth_store_ready(resolved_config)
-        if s3_ready and auth_ready:
-            return {"status": "ready", "checks": {"s3": True, "auth_store": True}}
+        db_ready = _is_db_ready(config=resolved_config, db_runtime=db_runtime)
+        if s3_ready and auth_ready and db_ready:
+            return {"status": "ready", "checks": {"s3": True, "auth_store": True, "db": True}}
 
         from fastapi import HTTPException
 
@@ -273,7 +306,7 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
             status_code=503,
             detail={
                 "status": "not_ready",
-                "checks": {"s3": s3_ready, "auth_store": auth_ready},
+                "checks": {"s3": s3_ready, "auth_store": auth_ready, "db": db_ready},
             },
         )
 
