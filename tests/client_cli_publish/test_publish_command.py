@@ -54,6 +54,39 @@ def _write_agent_dir(agent_root: Path, *, name: str, version: str) -> Path:
     return agent_dir
 
 
+def _write_node_agent_dir(agent_root: Path, *, name: str, version: str) -> Path:
+    agent_dir = agent_root / name
+    agent_dir.mkdir(parents=True, exist_ok=True)
+
+    (agent_dir / "kinnoo.yaml").write_text(
+        "\n".join(
+            [
+                f"name: {name}",
+                f"version: {version}",
+                "framework: generic",
+                "entrypoint: run.js",
+                "runtime:",
+                "  language: javascript",
+                "  version: \">=20\"",
+                "  type: one-shot",
+                "dependencies: []",
+                "inputs:",
+                "  type: text",
+                "outputs:",
+                "  type: text",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "run.js").write_text("console.log('hello')\n", encoding="utf-8")
+    (agent_dir / "package.json").write_text(
+        '{"name":"js-pack-publish-agent","version":"1.0.0"}\n',
+        encoding="utf-8",
+    )
+    return agent_dir
+
+
 def test_publish_with_pack_packs_then_publishes(tmp_path: Path) -> None:
     archive_root = tmp_path / "archive-sandbox"
     registry_root = tmp_path / "registry-sandbox"
@@ -124,6 +157,36 @@ def test_publish_with_pack_and_bump_publishes_bumped_version(tmp_path: Path) -> 
     assert published_archives
     manifest_text = (agent_dir / "kinnoo.yaml").read_text(encoding="utf-8")
     assert "version: 1.3.0" in manifest_text
+
+
+def test_publish_with_pack_node_runtime_without_requirements_succeeds(tmp_path: Path) -> None:
+    archive_root = tmp_path / "archive-sandbox"
+    registry_root = tmp_path / "registry-sandbox"
+    work_root = tmp_path / "work"
+    work_root.mkdir(parents=True, exist_ok=True)
+
+    agent_dir = _write_node_agent_dir(work_root, name="js-pack-publish-agent", version="1.0.0")
+
+    env = _cli_env(archive_root=archive_root, registry_root=registry_root)
+
+    result = subprocess.run(
+        [sys.executable, str(CLI_PATH), "publish", str(agent_dir), "--pack", "--local"],
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=tmp_path,
+    )
+
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, output
+    assert "Published js-pack-publish-agent==1.0.0" in output
+
+    published_archives = [
+        candidate
+        for candidate in registry_root.rglob("js-pack-publish-agent.kno")
+        if "1.0.0" in candidate.as_posix()
+    ]
+    assert published_archives
 
 
 def test_publish_pack_bump_guardrail_errors(tmp_path: Path) -> None:

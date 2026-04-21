@@ -712,8 +712,9 @@ def pack_agent(
     if not os.path.isfile(entrypoint_path):
         return _fail("ENTRYPOINT_NOT_FOUND", f"Entrypoint file '{entrypoint}' not found in {agent_dir}")
 
-    requirements_path = os.path.join(abs_agent_dir, "requirements.txt")
-    if not os.path.isfile(requirements_path):
+    requirements_path = Path(abs_agent_dir) / "requirements.txt"
+    require_python_requirements = not is_nodejs_compatible_runtime(runtime_language)
+    if require_python_requirements and not requirements_path.is_file():
         return _fail("REQUIREMENTS_NOT_FOUND", f"requirements.txt not found in {agent_dir}")
 
     include_paths = _normalize_override_paths(include)
@@ -837,7 +838,8 @@ def pack_agent(
     selected_entries: list[tuple[str, Path]] = []
     selected_entries.append(("kinnoo.yaml", Path(kinnoo_yaml_path)))
     selected_entries.append((os.path.basename(entrypoint_path), Path(entrypoint_path)))
-    selected_entries.append(("requirements.txt", Path(requirements_path)))
+    if requirements_path.is_file():
+        selected_entries.append(("requirements.txt", requirements_path))
     selected_entries.extend((relative_path, Path(absolute_path)) for relative_path, absolute_path in safe_additional_paths)
     selected_entries.extend((arcname, Path(absolute_path)) for arcname, absolute_path in asset_files)
     selected_entries.extend((arcname, Path(absolute_path)) for arcname, absolute_path in state_snapshot_files)
@@ -871,7 +873,10 @@ def pack_agent(
         print(style_text(f"[kinnoo pack] Packaging agent directory: {agent_dir}", color="cyan", bold=True))
     wheels_dir = tempfile.TemporaryDirectory(prefix="kinnoo_wheels_")
 
-    wheel_files, failed_requirements = build_wheels(Path(requirements_path), Path(wheels_dir.name))
+    wheel_files: list[Path] = []
+    failed_requirements: list[str] = []
+    if require_python_requirements:
+        wheel_files, failed_requirements = build_wheels(requirements_path, Path(wheels_dir.name))
 
     platform_specific_wheels = [wheel.name for wheel in wheel_files if _is_platform_specific_wheel(wheel.name)]
     if platform_specific_wheels:

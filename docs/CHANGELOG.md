@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 - Added Feature117 import hardening regression coverage (`test696`-`test705`) for edge-case stability, framework adapter behavior, OpenClaw source import, and coverage-floor guards.
 - Added Feature118 task500-task503 implementation coverage for internal identity mapping ownership linkage, provider-neutral auth config contract checks, legacy-auth compatibility gating, and auth portability matrix validation (`test712`-`test715`).
 - Added Feature119 Postgres database implementation foundations (`task506`-`task512`): Terraform RDS module + ECS wiring, server `database/` package and Alembic migrations, metadata backend cutover flag, backfill/parity scripts, db/admin CLI surface, CI/local Postgres harness, and ops runbook/contracts (`test721`-`test731`).
+- Added Phase 14 auth consistency hardening so OIDC tenant resolution remains stable when access tokens omit `email` claims, including server-side userinfo fallback during token validation.
 
 ### Changed
 - Added CI environment/secrets contract documentation for `KINNOO_REGISTRY_URL`, `KINNOO_REGISTRY_TOKEN`, `KINNOO_TENANT_SLUG`, and strict-mode compatibility control.
@@ -28,6 +29,15 @@ All notable changes to this project will be documented in this file.
 - Default-disabled legacy local password/register/reset auth API paths under OIDC cutover, with explicit temporary compatibility override via `AUTH_ENABLE_LEGACY_PATHS=true`.
 - Bumped project version from `0.7.8` to `0.7.9`.
 - Bumped project version from `0.7.9` to `0.7.10`.
+- Updated hosted auth tenant derivation parity across CLI login, web session expectations, and remote publish ownership.
+- Updated auth env bootstrap workflow to export `AUTH_USERINFO_ENDPOINT` (and alias `USERINFO_ENDPOINT`) so hosted tenant/email resolution does not silently fall back to org claims.
+- Removed legacy `kinnoo login` password flags from CLI help and docs to keep hosted-only auth UX consistent.
+- Fixed Node/JavaScript/TypeScript pack + publish --pack behavior to avoid requiring `requirements.txt`; Node-compatible runtimes now rely on package metadata/lockfiles.
+- Expanded focused regression coverage for hosted auth tenant behavior, node-runtime packaging behavior, and publish --pack node path safety.
+- Bumped project version from `0.7.10` to `0.8.0`.
+
+### Notes
+- High-level summary window for this update: commits since `6880a48`, including Postgres deployment completion, hosted auth flow stabilization, tenant slug parity fixes, and JS/TS packaging/publish compatibility hardening.
 
 ## [v0.7.7] - 2026-04-19
 ### Added
