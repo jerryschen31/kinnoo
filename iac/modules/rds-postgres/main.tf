@@ -1,7 +1,8 @@
 locals {
   name_prefix       = "${var.project_name}-${var.environment}"
   is_prod           = var.environment == "prod"
-  backup_retention  = local.is_prod ? 14 : 7
+  # Keep dev/non-prod within stricter free-tier backup retention limits.
+  backup_retention  = local.is_prod ? 14 : 1
   database_name     = "kinnoo_registry"
 }
 
@@ -17,7 +18,7 @@ resource "aws_db_subnet_group" "this" {
 resource "aws_db_instance" "this" {
   identifier                   = "${local.name_prefix}-postgres"
   engine                       = "postgres"
-  engine_version               = "16.3"
+  engine_version               = "16.13"
   instance_class               = var.instance_class
   allocated_storage            = var.allocated_storage
   db_name                      = local.database_name

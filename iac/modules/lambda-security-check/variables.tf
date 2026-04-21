@@ -16,6 +16,7 @@ variable "lambda_role_arn" {
 variable "image_uri" {
   description = "Container image URI for the security check Lambda"
   type        = string
+  default     = "386775099533.dkr.ecr.us-west-2.amazonaws.com/kinnoo-dev-lambda-security-check:latest"
 }
 
 variable "registry_bucket_arn" {
