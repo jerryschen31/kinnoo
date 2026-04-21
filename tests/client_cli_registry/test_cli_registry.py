@@ -150,10 +150,7 @@ def test_feature61_login_interactive_and_noninteractive(tmp_path: Path) -> None:
 
 		noninteractive = _run_registry_command(
 			"login",
-			"--email",
-			"cli@example.com",
-			"--password",
-			"cli-pass",
+			input_text="cli@example.com\ncli-pass\n",
 			env=env,
 		)
 		noninteractive_output = f"{noninteractive.stdout}\n{noninteractive.stderr}"
@@ -309,10 +306,7 @@ def test_feature61_hardened_login_logout_remote_auth_gating(tmp_path: Path) -> N
 
 		login = _run_registry_command(
 			"login",
-			"--email",
-			"kinnooteam@gmail.com",
-			"--password",
-			"kinnooteam-pass",
+			input_text="kinnooteam@gmail.com\nkinnooteam-pass\n",
 			env=env,
 			cwd=tmp_path,
 		)

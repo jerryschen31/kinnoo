@@ -197,7 +197,10 @@ def _login_hosted_pkce(*, hosted_config: HostedCLIAuthConfig) -> int:
     resolved_refresh_token = refresh_token.strip() if isinstance(refresh_token, str) else None
     expires_in = token_payload.get("expires_in")
     expires_at_epoch = int(time.time()) + int(expires_in) if isinstance(expires_in, int) else None
-    tenant_slug = _tenant_slug_from_token(access_token) or "global"
+    tenant_slug = _resolve_hosted_tenant_slug(
+        hosted_config=hosted_config,
+        access_token=access_token,
+    )
 
     save_registry_auth_state(
         registry_url=resolved_registry,
@@ -216,6 +219,54 @@ def _login_hosted_pkce(*, hosted_config: HostedCLIAuthConfig) -> int:
     print(f"Registry: {resolved_registry}")
     print(f"Tenant: {tenant_slug}")
     return 0
+
+
+def _resolve_hosted_tenant_slug(*, hosted_config: HostedCLIAuthConfig, access_token: str) -> str:
+    # Keep CLI tenant derivation aligned with web UI auth flow:
+    # prefer userinfo email -> email-based slug when available.
+    from_userinfo = _tenant_slug_from_userinfo(
+        hosted_config=hosted_config,
+        access_token=access_token,
+    )
+    if from_userinfo:
+        return from_userinfo
+    return _tenant_slug_from_token(access_token) or "global"
+
+
+def _tenant_slug_from_userinfo(*, hosted_config: HostedCLIAuthConfig, access_token: str) -> str | None:
+    if not hosted_config.userinfo_endpoint:
+        return None
+
+    request = urllib_request.Request(
+        url=hosted_config.userinfo_endpoint,
+        headers={
+            "Authorization": f"Bearer {access_token.strip()}",
+            "Accept": "application/json",
+            "User-Agent": _http_user_agent(),
+        },
+        method="GET",
+    )
+    try:
+        with urllib_request.urlopen(request, timeout=15.0) as response:
+            body = response.read().decode("utf-8")
+    except Exception:
+        return None
+
+    try:
+        payload = json.loads(body)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(payload, dict):
+        return None
+
+    email = payload.get("email")
+    if isinstance(email, str) and email.strip():
+        return _username_to_tenant_slug(email.strip().lower())
+
+    subject = payload.get("sub")
+    if isinstance(subject, str) and subject.strip():
+        return _username_to_tenant_slug(f"{subject.strip()}@kinde.local")
+    return None
 
 
 def _build_authorization_url(
@@ -362,34 +413,18 @@ def _tenant_slug_from_token(token: str) -> str | None:
 
     if not isinstance(payload, dict):
         return None
-    tenant_slug = payload.get("tenant_slug")
-    resolved_tenant_slug = tenant_slug.strip() if isinstance(tenant_slug, str) and tenant_slug.strip() else None
-    org_code = payload.get("org_code")
-    resolved_org_code = org_code.strip() if isinstance(org_code, str) and org_code.strip() else None
     email = payload.get("email")
-    resolved_email_slug = (
-        _username_to_tenant_slug(email)
-        if isinstance(email, str) and email.strip()
-        else None
-    )
+    if isinstance(email, str) and email.strip():
+        return _username_to_tenant_slug(email)
 
-    tenant_slug_source = _tenant_slug_source()
-    if tenant_slug_source == "org_code":
-        return resolved_org_code or resolved_tenant_slug or resolved_email_slug
+    tenant_slug = payload.get("tenant_slug")
+    if isinstance(tenant_slug, str) and tenant_slug.strip():
+        return tenant_slug.strip()
 
-    # Default strategy: prefer stable, human-readable email-derived slugs.
-    return resolved_email_slug or resolved_tenant_slug or resolved_org_code
-
-
-def _tenant_slug_source() -> str:
-    raw = (
-        os.getenv("KINNOO_TENANT_SLUG_SOURCE")
-        or os.getenv("AUTH_TENANT_SLUG_SOURCE")
-        or "email"
-    ).strip().lower()
-    if raw in {"org_code", "org", "organization"}:
-        return "org_code"
-    return "email"
+    org_code = payload.get("org_code")
+    if isinstance(org_code, str) and org_code.strip():
+        return org_code.strip()
+    return None
 
 
 def _username_to_tenant_slug(username: str) -> str:
@@ -400,7 +435,6 @@ def _username_to_tenant_slug(username: str) -> str:
     slug = re.sub(r"[^a-z0-9-]+", "-", raw)
     slug = re.sub(r"-+", "-", slug).strip("-")
     return slug or "default"
-    return None
 
 
 def _generate_code_verifier() -> str:
