@@ -20,7 +20,10 @@ export default function SignupPage() {
 
         <p className="pt-5 text-sm text-white/70">
           Already have an account?{" "}
-          <Link href="/login" className="underline decoration-white/40 underline-offset-4 hover:text-[#FF7F00]">
+          <Link
+            href="/login"
+            className="underline decoration-white/40 underline-offset-4 transition hover:text-[#FF7F00] hover:decoration-[#FF7F00]"
+          >
             Login
           </Link>
         </p>
