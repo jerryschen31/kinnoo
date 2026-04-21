@@ -23,6 +23,11 @@ variable "public_subnet_cidrs" {
   type        = list(string)
 }
 
+variable "private_subnet_cidrs" {
+  description = "Two CIDR blocks for private subnets"
+  type        = list(string)
+}
+
 variable "cloudflare_ipv4_cidrs" {
   description = "Cloudflare IPv4 ranges allowed on ALB HTTPS"
   type        = list(string)

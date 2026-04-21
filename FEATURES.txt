@@ -3196,7 +3196,7 @@ features:
       - "Argon2id password hashing already exists"
     owner: swe-agent
     dependencies: []
-    status: not-started
+    status: in-progress
 
   - id: feature101
     title: "Production Dockerfile and docker-compose"

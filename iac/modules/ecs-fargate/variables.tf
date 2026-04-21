@@ -77,6 +77,30 @@ variable "auth_provider" {
   default     = "oidc_kinde"
 }
 
+variable "registry_metadata_backend" {
+  description = "Metadata backend mode exposed to runtime"
+  type        = string
+  default     = "json"
+}
+
+variable "registry_db_pool_size" {
+  description = "Database pool size for runtime"
+  type        = number
+  default     = 10
+}
+
+variable "registry_db_max_overflow" {
+  description = "Database max overflow for runtime"
+  type        = number
+  default     = 20
+}
+
+variable "registry_db_pool_recycle_seconds" {
+  description = "Database pool recycle setting for runtime"
+  type        = number
+  default     = 1800
+}
+
 variable "cpu" {
   description = "Fargate task CPU units"
   type        = number

@@ -7,9 +7,14 @@ from datetime import datetime, timezone
 import os
 from pathlib import Path
 import secrets
+import subprocess
 import sys
 
 from server.bootstrap import bootstrap_admin
+from server.database.repository import RegistryRepository
+from server.database.session import create_database_runtime, ping_database
+from server.metadata.models import VersionMetadata, utc_now_iso
+from server.metadata.postgres_manager import PostgresMetadataManager
 from server.models.user import username_to_tenant_slug
 from server.storage.user_store import UserStore
 
@@ -96,6 +101,39 @@ def _build_parser() -> argparse.ArgumentParser:
 
     invite_list = invite_subparsers.add_parser("list", help="List invite tokens")
     invite_list.add_argument("--store-root", default=".", help="Filesystem root for server persistence.")
+
+    db_parser = subparsers.add_parser("db", help="Postgres database operations")
+    db_subparsers = db_parser.add_subparsers(dest="db_command")
+
+    db_migrate = db_subparsers.add_parser("migrate", help="Run alembic migrations to head")
+    db_migrate.add_argument(
+        "--database-url",
+        default=(os.getenv("REGISTRY_DATABASE_URL") or "").strip(),
+        help="Postgres connection URL (defaults to REGISTRY_DATABASE_URL).",
+    )
+
+    db_seed = db_subparsers.add_parser("seed", help="Seed a sample tenant/agent/version in Postgres")
+    db_seed.add_argument(
+        "--database-url",
+        default=(os.getenv("REGISTRY_DATABASE_URL") or "").strip(),
+        help="Postgres connection URL (defaults to REGISTRY_DATABASE_URL).",
+    )
+    db_seed.add_argument("--tenant-slug", default="seed-tenant")
+    db_seed.add_argument("--agent-slug", default="seed-agent")
+    db_seed.add_argument("--version", default="0.1.0")
+
+    db_list = db_subparsers.add_parser("list", help="List db domain records")
+    db_list.add_argument(
+        "resource",
+        choices=["tenants", "users", "agents", "audit"],
+        help="Domain resource to list.",
+    )
+    db_list.add_argument(
+        "--database-url",
+        default=(os.getenv("REGISTRY_DATABASE_URL") or "").strip(),
+        help="Postgres connection URL (defaults to REGISTRY_DATABASE_URL).",
+    )
+    db_list.add_argument("--limit", type=int, default=20, help="Limit for audit listing.")
 
     return parser
 
@@ -207,6 +245,82 @@ def main(argv: list[str] | None = None) -> int:
                 short_token = f"{token[:7]}..." if len(token) > 10 else token
                 status = "consumed" if bool(invite.get("consumed", False)) else "pending"
                 print(f"{invite.get('email', '')}\t{short_token}\t{invite.get('expires_at', '')}\t{status}")
+            return 0
+
+    if args.command == "db":
+        if args.db_command is None:
+            parser.print_help(sys.stderr)
+            return 2
+        if not args.database_url:
+            print("Database URL is required. Set --database-url or REGISTRY_DATABASE_URL.", file=sys.stderr)
+            return 1
+        runtime = create_database_runtime(
+            database_url=args.database_url,
+            pool_size=5,
+            max_overflow=5,
+            pool_recycle_seconds=1800,
+        )
+        repository = RegistryRepository(session_factory=runtime.sync_session_factory)
+        manager = PostgresMetadataManager(repository=repository)
+        try:
+            ping_database(runtime.sync_engine)
+        except Exception as exc:
+            print(f"Database connection failed: {exc}", file=sys.stderr)
+            return 1
+
+        if args.db_command == "migrate":
+            migration_ini = Path(__file__).parent / "database" / "migrations" / "alembic.ini"
+            command = [
+                sys.executable,
+                "-m",
+                "alembic",
+                "-c",
+                str(migration_ini),
+                "upgrade",
+                "head",
+            ]
+            env = dict(os.environ)
+            env["REGISTRY_DATABASE_URL"] = args.database_url
+            result = subprocess.run(command, text=True, capture_output=True, check=False, env=env)
+            if result.returncode != 0:
+                message = (result.stdout or "") + (result.stderr or "")
+                print(message.strip(), file=sys.stderr)
+                return 1
+            print("Database migration completed: head")
+            return 0
+
+        if args.db_command == "seed":
+            now = utc_now_iso()
+            metadata = VersionMetadata(
+                tenant_slug=args.tenant_slug,
+                agent_slug=args.agent_slug,
+                version=args.version,
+                visibility="private",
+                manifest={"name": args.agent_slug, "version": args.version},
+                storage_keys={"archive": f"archives/{args.tenant_slug}/{args.agent_slug}/{args.version}.kno"},
+                integrity={"sha256": "seed"},
+                publisher={"user_id": "seed-cli"},
+                created_at=now,
+                updated_at=now,
+            )
+            manager.upsert_version_metadata(metadata)
+            print(f"Seeded metadata for {args.tenant_slug}/{args.agent_slug}@{args.version}")
+            return 0
+
+        if args.db_command == "list":
+            if args.resource == "tenants":
+                rows = repository.list_tenants()
+            elif args.resource == "users":
+                rows = repository.list_users()
+            elif args.resource == "agents":
+                rows = repository.list_agents()
+            else:
+                rows = repository.list_audit_log(limit=args.limit)
+            if not rows:
+                print("no records found")
+                return 0
+            for row in rows:
+                print(row)
             return 0
 
     parser.print_help(sys.stderr)

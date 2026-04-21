@@ -28,6 +28,12 @@ variable "public_subnet_cidrs" {
   default     = ["10.0.1.0/24", "10.0.2.0/24"]
 }
 
+variable "private_subnet_cidrs" {
+  description = "CIDR blocks for two private subnets used by RDS"
+  type        = list(string)
+  default     = ["10.0.101.0/24", "10.0.102.0/24"]
+}
+
 variable "cloudflare_api_token" {
   description = "Cloudflare API token for later DNS modules"
   type        = string
@@ -51,6 +57,30 @@ variable "auth_provider" {
   description = "Runtime auth provider identifier for ECS environment configuration"
   type        = string
   default     = "oidc_kinde"
+}
+
+variable "registry_metadata_backend" {
+  description = "Metadata backend mode for registry runtime"
+  type        = string
+  default     = "json"
+}
+
+variable "registry_db_pool_size" {
+  description = "Database connection pool size for registry runtime"
+  type        = number
+  default     = 10
+}
+
+variable "registry_db_max_overflow" {
+  description = "Database max overflow connections for registry runtime"
+  type        = number
+  default     = 20
+}
+
+variable "registry_db_pool_recycle_seconds" {
+  description = "Database pool recycle window in seconds"
+  type        = number
+  default     = 1800
 }
 
 variable "zone_id" {
