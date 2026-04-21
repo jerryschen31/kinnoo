@@ -21,6 +21,7 @@ locals {
     LOGOUT_ENDPOINT           = "${var.project_name}/${var.environment}/LOGOUT_ENDPOINT"
     USERINFO_ENDPOINT         = "${var.project_name}/${var.environment}/USERINFO_ENDPOINT"
     REVOCATION_ENDPOINT       = "${var.project_name}/${var.environment}/REVOCATION_ENDPOINT"
+    REGISTRY_DATABASE_URL     = "${var.project_name}/${var.environment}/REGISTRY_DATABASE_URL"
   }
 
   secret_names = merge(local.managed_secret_names, local.referenced_secret_names)
@@ -103,6 +104,10 @@ data "aws_secretsmanager_secret" "revocation_endpoint" {
   name = local.referenced_secret_names.REVOCATION_ENDPOINT
 }
 
+data "aws_secretsmanager_secret" "registry_database_url" {
+  name = local.referenced_secret_names.REGISTRY_DATABASE_URL
+}
+
 output "secret_arns" {
   description = "Secrets Manager ARNs for app runtime"
   value = {
@@ -140,6 +145,7 @@ output "secret_arns" {
     LOGOUT_ENDPOINT             = format("%s:%s::", data.aws_secretsmanager_secret.logout_endpoint.arn, "LOGOUT_ENDPOINT")
     USERINFO_ENDPOINT           = format("%s:%s::", data.aws_secretsmanager_secret.userinfo_endpoint.arn, "USERINFO_ENDPOINT")
     REVOCATION_ENDPOINT         = format("%s:%s::", data.aws_secretsmanager_secret.revocation_endpoint.arn, "REVOCATION_ENDPOINT")
+    REGISTRY_DATABASE_URL       = format("%s:%s::", data.aws_secretsmanager_secret.registry_database_url.arn, "REGISTRY_DATABASE_URL")
   }
 }
 
