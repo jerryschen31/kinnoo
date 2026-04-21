@@ -11,12 +11,22 @@ from urllib import request as urllib_request
 
 import pytest
 
-from kinnoo.auth_command import login_command, logout_command, refresh_registry_auth_if_needed
+from kinnoo.auth_command import (
+    _tenant_slug_from_token,
+    login_command,
+    logout_command,
+    refresh_registry_auth_if_needed,
+)
 from kinnoo.config import load_registry_config
 
 
 def _jwt_with_tenant(tenant_slug: str) -> str:
     payload = {"tenant_slug": tenant_slug}
+    payload_segment = base64.urlsafe_b64encode(json.dumps(payload).encode("utf-8")).decode("ascii").rstrip("=")
+    return f"header.{payload_segment}.signature"
+
+
+def _jwt_with_payload(payload: dict[str, str]) -> str:
     payload_segment = base64.urlsafe_b64encode(json.dumps(payload).encode("utf-8")).decode("ascii").rstrip("=")
     return f"header.{payload_segment}.signature"
 
@@ -115,6 +125,9 @@ def test_feature118_test710_hosted_login_persists_full_auth_state(tmp_path: Path
         def _fake_browser_open(url: str) -> bool:
             parsed = urllib_parse.urlparse(url)
             params = urllib_parse.parse_qs(parsed.query)
+            scope = (params.get("scope") or [""])[0]
+            assert "offline_access" not in scope
+            assert scope == "openid profile email"
             redirect_uri = (params.get("redirect_uri") or [""])[0]
             state = (params.get("state") or [""])[0]
             urllib_request.urlopen(f"{redirect_uri}?code=abc123&state={state}", timeout=2).read()
@@ -178,3 +191,28 @@ def test_feature118_test711_refresh_and_logout_no_state(tmp_path: Path, monkeypa
         assert second == 0
     finally:
         server.stop()
+
+
+@pytest.mark.regression_integration
+@pytest.mark.client_cli_login
+def test_feature118_cli_tenant_slug_source_defaults_to_email(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("KINNOO_TENANT_SLUG_SOURCE", raising=False)
+    monkeypatch.delenv("AUTH_TENANT_SLUG_SOURCE", raising=False)
+
+    token = _jwt_with_payload({
+        "email": "jerryschen@example.com",
+        "org_code": "org_90bd1f158ac",
+    })
+    assert _tenant_slug_from_token(token) == "jerryschen"
+
+
+@pytest.mark.regression_integration
+@pytest.mark.client_cli_login
+def test_feature118_cli_tenant_slug_source_can_prefer_org_code(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("KINNOO_TENANT_SLUG_SOURCE", "org_code")
+
+    token = _jwt_with_payload({
+        "email": "jerryschen@example.com",
+        "org_code": "org_90bd1f158ac",
+    })
+    assert _tenant_slug_from_token(token) == "org_90bd1f158ac"
