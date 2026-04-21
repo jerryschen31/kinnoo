@@ -259,6 +259,7 @@ class OIDCTokenService:
         if not scopes:
             scopes = ("registry:read",)
 
+        payload = self._augment_payload_with_userinfo_email(payload=payload, access_token=token)
         tenant_slug = self._resolve_tenant_slug(payload)
 
         return TokenClaims(
@@ -301,16 +302,46 @@ class OIDCTokenService:
         raw = (os.getenv("AUTH_ENABLE_OIDC_SCOPE_COMPAT") or "true").strip().lower()
         return raw not in {"0", "false", "no", "off"}
 
+    def _augment_payload_with_userinfo_email(
+        self,
+        *,
+        payload: dict[str, Any],
+        access_token: str,
+    ) -> dict[str, Any]:
+        email = payload.get("email")
+        if isinstance(email, str) and email.strip():
+            return payload
+
+        try:
+            userinfo = self.provider.fetch_userinfo(access_token=access_token.strip())
+        except OIDCRequestError:
+            return payload
+
+        if not isinstance(userinfo, dict):
+            return payload
+
+        resolved_email = userinfo.get("email")
+        if not isinstance(resolved_email, str) or not resolved_email.strip():
+            return payload
+
+        merged_payload = dict(payload)
+        merged_payload["email"] = resolved_email.strip()
+        return merged_payload
+
     def _resolve_tenant_slug(self, payload: dict[str, Any]) -> str:
+        email = payload.get("email")
+        if isinstance(email, str) and email.strip():
+            return username_to_tenant_slug(email.strip())
+
         candidate_keys = ("tenant_slug", "org_code", "org", "tenant")
         for key in candidate_keys:
             value = payload.get(key)
             if isinstance(value, str) and value.strip():
                 return value.strip()
 
-        email = payload.get("email")
-        if isinstance(email, str) and email.strip():
-            return username_to_tenant_slug(email.strip())
+        subject = payload.get("sub")
+        if isinstance(subject, str) and subject.strip():
+            return username_to_tenant_slug(f"{subject.strip()}@kinde.local")
 
         return "global"
 

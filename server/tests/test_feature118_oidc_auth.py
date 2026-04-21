@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 
 from server.app import create_app
 from server.config import ServerConfig
-from server.auth.oidc import OIDCProviderConfig, KindeOIDCProvider
+from server.auth.oidc import OIDCProviderConfig, KindeOIDCProvider, OIDCTokenService
 
 
 def _b64url_encode(raw: bytes) -> str:
@@ -27,6 +27,7 @@ def _mint_rs256_token(
     audience: str,
     subject: str,
     scope: str = "registry:read",
+    extra_claims: dict[str, object] | None = None,
 ) -> str:
     now = datetime.now(timezone.utc)
     payload = {
@@ -40,6 +41,8 @@ def _mint_rs256_token(
         "tenant_slug": "tenant-alpha",
         "jti": "jti-1",
     }
+    if extra_claims:
+        payload.update(extra_claims)
     header = {"alg": "RS256", "kid": kid, "typ": "JWT"}
     signing_input = f"{_b64url_encode(json.dumps(header).encode('utf-8'))}.{_b64url_encode(json.dumps(payload).encode('utf-8'))}"
     signature = private_key.sign(signing_input.encode("ascii"), padding.PKCS1v15(), hashes.SHA256())
@@ -220,3 +223,127 @@ def test_feature118_web_signup_url_hints_registration() -> None:
     query = urllib_parse.parse_qs(urllib_parse.urlparse(url).query)
     assert (query.get("start_page") or [""])[0] == "sign_up"
     assert (query.get("prompt") or [""])[0] == "create"
+
+
+@pytest.mark.regression_integration
+@pytest.mark.server_api
+def test_feature118_token_service_prefers_email_tenant_over_org_code() -> None:
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    kid = "k-email-priority"
+    provider = KindeOIDCProvider(
+        config=OIDCProviderConfig(
+            issuer_url="https://issuer.example",
+            jwks_endpoint_url="https://issuer.example/.well-known/jwks.json",
+            token_endpoint="https://issuer.example/oauth2/token",
+            authorization_endpoint="https://issuer.example/oauth2/auth",
+            logout_endpoint="https://issuer.example/logout",
+            userinfo_endpoint="https://issuer.example/userinfo",
+            audience="https://api.kinnoo.local",
+            web_client_id="web-client-id",
+            web_client_secret="web-client-secret",
+            cli_client_id="cli-client-id",
+            web_redirect_uri="https://dev.kinnoo.ai/auth/callback",
+            logout_redirect_uri="https://dev.kinnoo.ai/login",
+        )
+    )
+    service = OIDCTokenService(provider=provider)
+    provider.fetch_jwks = lambda: {"keys": [_jwk_for_public_key(public_key=private_key.public_key(), kid=kid)]}  # type: ignore[method-assign]
+
+    token = _mint_rs256_token(
+        private_key=private_key,
+        kid=kid,
+        issuer="https://issuer.example",
+        audience="https://api.kinnoo.local",
+        subject="oidc-user-1",
+        extra_claims={
+            "email": "jerry.schen@example.com",
+            "org_code": "org_90bd1f158ac",
+            "tenant_slug": "org_90bd1f158ac",
+        },
+    )
+
+    claims = service.validate_token(token)
+    assert claims.tenant_slug == "jerryschen"
+
+
+@pytest.mark.regression_integration
+@pytest.mark.server_api
+def test_feature118_token_service_falls_back_to_org_code_without_email() -> None:
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    kid = "k-org-fallback"
+    provider = KindeOIDCProvider(
+        config=OIDCProviderConfig(
+            issuer_url="https://issuer.example",
+            jwks_endpoint_url="https://issuer.example/.well-known/jwks.json",
+            token_endpoint="https://issuer.example/oauth2/token",
+            authorization_endpoint="https://issuer.example/oauth2/auth",
+            logout_endpoint="https://issuer.example/logout",
+            userinfo_endpoint="https://issuer.example/userinfo",
+            audience="https://api.kinnoo.local",
+            web_client_id="web-client-id",
+            web_client_secret="web-client-secret",
+            cli_client_id="cli-client-id",
+            web_redirect_uri="https://dev.kinnoo.ai/auth/callback",
+            logout_redirect_uri="https://dev.kinnoo.ai/login",
+        )
+    )
+    service = OIDCTokenService(provider=provider)
+    provider.fetch_jwks = lambda: {"keys": [_jwk_for_public_key(public_key=private_key.public_key(), kid=kid)]}  # type: ignore[method-assign]
+
+    token = _mint_rs256_token(
+        private_key=private_key,
+        kid=kid,
+        issuer="https://issuer.example",
+        audience="https://api.kinnoo.local",
+        subject="oidc-user-1",
+        extra_claims={
+            "org_code": "org_90bd1f158ac",
+            "tenant_slug": "org_90bd1f158ac",
+            "email": "",
+        },
+    )
+
+    claims = service.validate_token(token)
+    assert claims.tenant_slug == "org_90bd1f158ac"
+
+
+@pytest.mark.regression_integration
+@pytest.mark.server_api
+def test_feature118_token_service_uses_userinfo_email_when_token_email_missing() -> None:
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    kid = "k-userinfo-email"
+    provider = KindeOIDCProvider(
+        config=OIDCProviderConfig(
+            issuer_url="https://issuer.example",
+            jwks_endpoint_url="https://issuer.example/.well-known/jwks.json",
+            token_endpoint="https://issuer.example/oauth2/token",
+            authorization_endpoint="https://issuer.example/oauth2/auth",
+            logout_endpoint="https://issuer.example/logout",
+            userinfo_endpoint="https://issuer.example/userinfo",
+            audience="https://api.kinnoo.local",
+            web_client_id="web-client-id",
+            web_client_secret="web-client-secret",
+            cli_client_id="cli-client-id",
+            web_redirect_uri="https://dev.kinnoo.ai/auth/callback",
+            logout_redirect_uri="https://dev.kinnoo.ai/login",
+        )
+    )
+    service = OIDCTokenService(provider=provider)
+    provider.fetch_jwks = lambda: {"keys": [_jwk_for_public_key(public_key=private_key.public_key(), kid=kid)]}  # type: ignore[method-assign]
+    provider.fetch_userinfo = lambda access_token: {"email": "jerry.schen@example.com", "sub": "oidc-user-1"}  # type: ignore[method-assign]
+
+    token = _mint_rs256_token(
+        private_key=private_key,
+        kid=kid,
+        issuer="https://issuer.example",
+        audience="https://api.kinnoo.local",
+        subject="oidc-user-1",
+        extra_claims={
+            "org_code": "org_90bd1f158ac",
+            "tenant_slug": "org_90bd1f158ac",
+            "email": "",
+        },
+    )
+
+    claims = service.validate_token(token)
+    assert claims.tenant_slug == "jerryschen"

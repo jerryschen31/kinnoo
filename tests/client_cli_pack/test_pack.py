@@ -1573,7 +1573,6 @@ assets:
         encoding="utf-8",
     )
     (agent / "run.js").write_text("console.log('node agent');\n", encoding="utf-8")
-    (agent / "requirements.txt").write_text("", encoding="utf-8")
     (agent / "package.json").write_text(
       '{"name":"feature31-node-pack","version":"1.0.0","dependencies":{"left-pad":"1.3.0"}}\n',
       encoding="utf-8",
@@ -1600,6 +1599,7 @@ assets:
         assert "package-lock.json" in names
         assert "pnpm-lock.yaml" in names
         assert "data/notes.txt" in names
+        assert "requirements.txt" not in names
         assert not any(name.startswith("node_modules/") for name in names)
 
     install_calls: list[tuple[list[str], Path | None]] = []
