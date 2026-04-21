@@ -1,5 +1,34 @@
 # Postgres Registry Operations Runbook
 
+## Day-0 Dev DB Bring-Up (Terraform + Cutover)
+1. Pre-create runtime secret names in AWS Secrets Manager (this Terraform stack references them as existing secrets):
+   - `${project_name}/${environment}/REGISTRY_DATABASE_URL`
+   - and any required auth secrets for your environment.
+2. Confirm non-secret runtime defaults in Terraform env tfvars (dev recommended):
+   - `registry_metadata_backend = "json"` (safe before cutover)
+   - `registry_db_pool_size = 10`
+   - `registry_db_max_overflow = 20`
+   - `registry_db_pool_recycle_seconds = 1800`
+3. Provision infra first:
+   - `terraform init`
+   - `terraform plan -var-file=environments/dev/terraform.tfvars`
+   - `terraform apply -var-file=environments/dev/terraform.tfvars`
+4. After apply, get the DB endpoint and build `REGISTRY_DATABASE_URL` using DB credentials and DB name `kinnoo_registry`.
+5. Put/update the final `REGISTRY_DATABASE_URL` value in AWS Secrets Manager.
+6. Ensure runtime access before app cutover:
+   - ECS task role can read `REGISTRY_DATABASE_URL` secret.
+   - Network path allows ECS -> RDS on `5432` (security groups/NACLs).
+7. Initialize schema and migrate data:
+   - Run `db migrate` / `alembic upgrade head`.
+   - If moving from JSON metadata: run `scripts/postgres_backfill.py` then `scripts/postgres_parity.py`.
+8. Cut over:
+   - Set `REGISTRY_METADATA_BACKEND=postgres` (in Terraform env config).
+   - Deploy/restart ECS service so new env + secret are loaded.
+9. Validate dev DB is live:
+   - `/ready` is healthy with DB checks passing.
+   - Registry metadata create/read/update flows succeed.
+   - RDS alarms/connections/latency are within expected thresholds.
+
 ## Alarm Definitions
 - **CPUUtilization** alarm: trigger at >75% for 2 periods (5m).
 - **FreeStorageSpace** alarm: trigger below 2GiB for 2 periods (5m).
