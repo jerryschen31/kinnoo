@@ -7,6 +7,7 @@ import getpass
 import hashlib
 import json
 import os
+import re
 import secrets
 import socket
 import sys
@@ -31,7 +32,7 @@ DEFAULT_REGISTRY_URL = "https://registry.kinnoo.ai"
 CALLBACK_PATH = "/auth/callback"
 CALLBACK_TIMEOUT_SECONDS = 180
 TOKEN_REFRESH_SKEW_SECONDS = 120
-CALLBACK_SERVER_PORTS = (8765, 8766, 8767, 0)
+CALLBACK_SERVER_PORTS = (8765, 8766, 9872, 49527)
 
 
 @dataclass(frozen=True)
@@ -227,7 +228,7 @@ def _build_authorization_url(
         "response_type": "code",
         "client_id": hosted_config.client_id,
         "redirect_uri": redirect_uri,
-        "scope": "openid profile email offline_access",
+        "scope": "openid profile email",
         "state": state,
         "code_challenge": code_challenge,
         "code_challenge_method": "S256",
@@ -361,11 +362,43 @@ def _tenant_slug_from_token(token: str) -> str | None:
     if not isinstance(payload, dict):
         return None
     tenant_slug = payload.get("tenant_slug")
-    if isinstance(tenant_slug, str) and tenant_slug.strip():
-        return tenant_slug.strip()
+    resolved_tenant_slug = tenant_slug.strip() if isinstance(tenant_slug, str) and tenant_slug.strip() else None
     org_code = payload.get("org_code")
-    if isinstance(org_code, str) and org_code.strip():
-        return org_code.strip()
+    resolved_org_code = org_code.strip() if isinstance(org_code, str) and org_code.strip() else None
+    email = payload.get("email")
+    resolved_email_slug = (
+        _username_to_tenant_slug(email)
+        if isinstance(email, str) and email.strip()
+        else None
+    )
+
+    tenant_slug_source = _tenant_slug_source()
+    if tenant_slug_source == "org_code":
+        return resolved_org_code or resolved_tenant_slug or resolved_email_slug
+
+    # Default strategy: prefer stable, human-readable email-derived slugs.
+    return resolved_email_slug or resolved_tenant_slug or resolved_org_code
+
+
+def _tenant_slug_source() -> str:
+    raw = (
+        os.getenv("KINNOO_TENANT_SLUG_SOURCE")
+        or os.getenv("AUTH_TENANT_SLUG_SOURCE")
+        or "email"
+    ).strip().lower()
+    if raw in {"org_code", "org", "organization"}:
+        return "org_code"
+    return "email"
+
+
+def _username_to_tenant_slug(username: str) -> str:
+    raw = username.strip().lower()
+    if "@" in raw:
+        raw = raw.split("@", 1)[0]
+
+    slug = re.sub(r"[^a-z0-9-]+", "-", raw)
+    slug = re.sub(r"-+", "-", slug).strip("-")
+    return slug or "default"
     return None
 
 
