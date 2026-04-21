@@ -2,7 +2,7 @@
 
 ## Day-0 Dev DB Bring-Up (Terraform + Cutover)
 1. Pre-create runtime secret names in AWS Secrets Manager (this Terraform stack references them as existing secrets):
-   - `${project_name}/${environment}/REGISTRY_DATABASE_URL`
+   - `/kinnoo/dev/REGISTRY_DATABASE_URL` (for dev)
    - and any required auth secrets for your environment.
 2. Confirm non-secret runtime defaults in Terraform env tfvars (dev recommended):
    - `registry_metadata_backend = "json"` (safe before cutover)
@@ -18,7 +18,9 @@
    - DB username from RDS config (`kinnoo_admin` by default in this stack).
    - DB password from the RDS-managed master-user secret (RDS is configured with `manage_master_user_password = true`).
    Then build `REGISTRY_DATABASE_URL` for DB name `kinnoo_registry`.
-5. Put/update the final `REGISTRY_DATABASE_URL` value in AWS Secrets Manager.
+5. Put/update the final `REGISTRY_DATABASE_URL` value in AWS Secrets Manager as JSON, for example:
+   - `{"REGISTRY_DATABASE_URL":"postgresql+asyncpg://kinnoo_admin:<password>@<endpoint>:5432/kinnoo_registry"}`
+   ECS wiring expects JSON-key extraction for this secret key.
 6. Ensure runtime access before app cutover:
    - ECS task role can read `REGISTRY_DATABASE_URL` secret.
    - Network path allows ECS -> RDS on `5432` (security groups/NACLs).

@@ -21,7 +21,7 @@ locals {
     LOGOUT_ENDPOINT           = "${var.project_name}/${var.environment}/LOGOUT_ENDPOINT"
     USERINFO_ENDPOINT         = "${var.project_name}/${var.environment}/USERINFO_ENDPOINT"
     REVOCATION_ENDPOINT       = "${var.project_name}/${var.environment}/REVOCATION_ENDPOINT"
-    REGISTRY_DATABASE_URL     = "${var.project_name}/${var.environment}/REGISTRY_DATABASE_URL"
+    REGISTRY_DATABASE_URL     = "/${var.project_name}/${var.environment}/REGISTRY_DATABASE_URL"
   }
 
   secret_names = merge(local.managed_secret_names, local.referenced_secret_names)
