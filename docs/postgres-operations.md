@@ -13,7 +13,11 @@
    - `terraform init`
    - `terraform plan -var-file=environments/dev/terraform.tfvars`
    - `terraform apply -var-file=environments/dev/terraform.tfvars`
-4. After apply, get the DB endpoint and build `REGISTRY_DATABASE_URL` using DB credentials and DB name `kinnoo_registry`.
+4. After apply, get:
+   - DB endpoint from Terraform outputs.
+   - DB username from RDS config (`kinnoo_admin` by default in this stack).
+   - DB password from the RDS-managed master-user secret (RDS is configured with `manage_master_user_password = true`).
+   Then build `REGISTRY_DATABASE_URL` for DB name `kinnoo_registry`.
 5. Put/update the final `REGISTRY_DATABASE_URL` value in AWS Secrets Manager.
 6. Ensure runtime access before app cutover:
    - ECS task role can read `REGISTRY_DATABASE_URL` secret.
