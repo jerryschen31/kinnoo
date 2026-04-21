@@ -78,6 +78,7 @@ PY
   local cli_client_id
   local authorization_endpoint
   local token_endpoint
+  local userinfo_endpoint
 
   audience="$(_fetch_secret_first "KINDE_AUDIENCE AUTH_AUDIENCE" \
     "${project_name}/${environment}/KINDE_AUDIENCE" \
@@ -107,6 +108,13 @@ PY
       return 1
     }
 
+  userinfo_endpoint="$(_fetch_secret_first "USERINFO_ENDPOINT AUTH_USERINFO_ENDPOINT" \
+    "${project_name}/${environment}/USERINFO_ENDPOINT" \
+    "${project_name}/${environment}/AUTH_USERINFO_ENDPOINT")" || {
+      echo "Could not resolve userinfo endpoint secret for ${project_name}/${environment}." >&2
+      return 1
+    }
+
   export AUTH_AUDIENCE="$audience"
   export KINDE_AUDIENCE="$audience"
   export AUTH_CLI_CLIENT_ID="$cli_client_id"
@@ -115,12 +123,15 @@ PY
   export AUTHORIZATION_ENDPOINT="$authorization_endpoint"
   export AUTH_TOKEN_ENDPOINT="$token_endpoint"
   export TOKEN_ENDPOINT="$token_endpoint"
+  export AUTH_USERINFO_ENDPOINT="$userinfo_endpoint"
+  export USERINFO_ENDPOINT="$userinfo_endpoint"
 
   echo "Loaded hosted auth env for ${project_name}/${environment} in ${aws_region}."
   echo "AUTH_AUDIENCE=$AUTH_AUDIENCE"
   echo "AUTH_CLI_CLIENT_ID=$AUTH_CLI_CLIENT_ID"
   echo "AUTH_AUTHORIZATION_ENDPOINT=$AUTH_AUTHORIZATION_ENDPOINT"
   echo "AUTH_TOKEN_ENDPOINT=$AUTH_TOKEN_ENDPOINT"
+  echo "AUTH_USERINFO_ENDPOINT=$AUTH_USERINFO_ENDPOINT"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
@@ -201,6 +212,9 @@ PY
   token_endpoint="$(fetch_secret_first "TOKEN_ENDPOINT AUTH_TOKEN_ENDPOINT" \
     "${project_name}/${environment}/TOKEN_ENDPOINT" \
     "${project_name}/${environment}/AUTH_TOKEN_ENDPOINT")"
+  userinfo_endpoint="$(fetch_secret_first "USERINFO_ENDPOINT AUTH_USERINFO_ENDPOINT" \
+    "${project_name}/${environment}/USERINFO_ENDPOINT" \
+    "${project_name}/${environment}/AUTH_USERINFO_ENDPOINT")"
 
   cat <<EOF
 export AUTH_AUDIENCE='${audience}'
@@ -211,5 +225,7 @@ export AUTH_AUTHORIZATION_ENDPOINT='${authorization_endpoint}'
 export AUTHORIZATION_ENDPOINT='${authorization_endpoint}'
 export AUTH_TOKEN_ENDPOINT='${token_endpoint}'
 export TOKEN_ENDPOINT='${token_endpoint}'
+export AUTH_USERINFO_ENDPOINT='${userinfo_endpoint}'
+export USERINFO_ENDPOINT='${userinfo_endpoint}'
 EOF
 fi

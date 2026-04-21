@@ -28,11 +28,7 @@ Registry: https://dev-api.kinnoo.ai
 Tenant: <your-tenant>
 ```
 
-Non-interactive login:
-
-```bash
-kinnoo login --email user@example.com --password 'your-password'
-```
+Hosted login reuses your browser identity session; rerun `kinnoo login` when token refresh is required.
 
 ## 4) Publish an Agent
 

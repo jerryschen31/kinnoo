@@ -496,10 +496,8 @@ kinnoo keygen
 
 ### login
 
-- Usage: `kinnoo login [--email <email>] [--password <password>]`
+- Usage: `kinnoo login`
 - Description: Authenticate to registry and persist auth state locally.
-- Options:
-  - `--email`, `--password`: provide non-interactive credentials.
 - Exit codes: non-zero on auth/network failures.
 
 Examples:
@@ -510,11 +508,7 @@ If you want interactive login for local development:
 kinnoo login
 ```
 
-If you want non-interactive login in scripted environments:
-
-```bash
-kinnoo login --email user@example.com --password 'your-password'
-```
+If you want non-interactive automation, preconfigure hosted auth env and run `kinnoo login` to complete browser-based auth.
 
 ### logout
 

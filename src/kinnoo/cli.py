@@ -886,8 +886,6 @@ def main():
         formatter_class=argparse.RawTextHelpFormatter,
         description=_orange_description("Authenticate to a registry and persist auth state locally"),
     )
-    login_parser.add_argument("--email", help="Registry account email/username")
-    login_parser.add_argument("--password", help="Registry account password")
 
     logout_parser = subparsers.add_parser(
         "logout",
@@ -1571,10 +1569,7 @@ def main():
         except ImportError:
             from .auth_command import login_command
 
-        exit_code = login_command(
-            email=getattr(args, "email", None),
-            password=getattr(args, "password", None),
-        )
+        exit_code = login_command(email=None, password=None)
         sys.exit(exit_code)
 
     elif args.command == "logout":
