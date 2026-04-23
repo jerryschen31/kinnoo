@@ -199,6 +199,26 @@ def _load_sidecar_public_key_pem(archive_path: Path) -> str | None:
     return None
 
 
+def _archive_has_embedded_signature_metadata(archive_path: Path) -> bool:
+    try:
+        with zipfile.ZipFile(archive_path, "r") as archive_zip:
+            if "META-INF/signature.json" not in archive_zip.namelist():
+                return False
+            payload = archive_zip.read("META-INF/signature.json").decode("utf-8")
+    except Exception:
+        return False
+
+    try:
+        parsed = json.loads(payload)
+    except (ValueError, json.JSONDecodeError):
+        return False
+    if not isinstance(parsed, dict):
+        return False
+
+    signature_value = parsed.get("signature")
+    return isinstance(signature_value, str) and bool(signature_value.strip())
+
+
 def _verify_embedded_integrity_and_signature(
     *,
     extracted_dir: Path,
@@ -1727,6 +1747,7 @@ def _install_from_archive_path(
                     return 1
 
         has_signature_artifacts = signature_path.exists() or signature_metadata_path.exists()
+        has_embedded_signature_metadata = _archive_has_embedded_signature_metadata(archive)
 
         has_detached_signature_pair = signature_path.exists() and signature_metadata_path.exists()
         preinstall_embedded_signature_verified = False
@@ -1784,7 +1805,8 @@ def _install_from_archive_path(
 
             print("[kinnoo install] Archive signature verified.")
         elif checksum_verified and not strict_mode:
-            if expected_publisher_public_key is not None:
+            signature_metadata_present = has_embedded_signature_metadata
+            if expected_publisher_public_key is not None and not signature_metadata_present:
                 print(
                     "Error: Registry publisher key association exists but archive signature metadata is missing.",
                     file=sys.stderr,
@@ -1794,32 +1816,60 @@ def _install_from_archive_path(
                     file=sys.stderr,
                 )
                 return 1
-            print(
-                "Warning: UNVERIFIED PUBLISHER - no signature metadata found for this archive.",
-                file=sys.stderr,
-            )
-            if assume_yes:
-                if not allow_unverified_publisher:
-                    print(
-                        "Error: Non-interactive install requires --allow-unverified-publisher when signature metadata is absent.",
-                        file=sys.stderr,
-                    )
-                    return 1
+            if signature_metadata_present:
                 print(
-                    "[kinnoo install] Unverified publisher override acknowledged via --allow-unverified-publisher."
+                    "Warning: Signature metadata found, but signature verification is skipped in non-strict mode. Use --strict to verify publisher authenticity.",
+                    file=sys.stderr,
                 )
-            else:
-                try:
-                    publisher_confirmation = input(
-                        "UNVERIFIED PUBLISHER: no signature metadata found. Continue? [y/N]: "
-                    ).strip().lower()
-                except EOFError:
-                    print("Install aborted: unverified publisher not approved.", file=sys.stderr)
-                    return 1
+                if assume_yes:
+                    if not allow_unverified_publisher:
+                        print(
+                            "Error: Non-interactive install requires --allow-unverified-publisher when signature verification is skipped.",
+                            file=sys.stderr,
+                        )
+                        return 1
+                    print(
+                        "[kinnoo install] Signature verification override acknowledged via --allow-unverified-publisher."
+                    )
+                else:
+                    try:
+                        publisher_confirmation = input(
+                            "[kinnoo install] Continue without signature verification? [y/N]: "
+                        ).strip().lower()
+                    except EOFError:
+                        print("Install aborted: signature verification not approved.", file=sys.stderr)
+                        return 1
 
-                if publisher_confirmation not in {"y", "yes"}:
-                    print("Install aborted: unverified publisher not approved.", file=sys.stderr)
-                    return 1
+                    if publisher_confirmation not in {"y", "yes"}:
+                        print("Install aborted: signature verification not approved.", file=sys.stderr)
+                        return 1
+            else:
+                print(
+                    "Warning: UNVERIFIED PUBLISHER - no signature metadata found for this archive.",
+                    file=sys.stderr,
+                )
+                if assume_yes:
+                    if not allow_unverified_publisher:
+                        print(
+                            "Error: Non-interactive install requires --allow-unverified-publisher when signature metadata is absent.",
+                            file=sys.stderr,
+                        )
+                        return 1
+                    print(
+                        "[kinnoo install] Unverified publisher override acknowledged via --allow-unverified-publisher."
+                    )
+                else:
+                    try:
+                        publisher_confirmation = input(
+                            "UNVERIFIED PUBLISHER: no signature metadata found. Continue? [y/N]: "
+                        ).strip().lower()
+                    except EOFError:
+                        print("Install aborted: unverified publisher not approved.", file=sys.stderr)
+                        return 1
+
+                    if publisher_confirmation not in {"y", "yes"}:
+                        print("Install aborted: unverified publisher not approved.", file=sys.stderr)
+                        return 1
 
     manifest_data = read_manifest_from_kno_archive(archive)
     if manifest_data is None:
