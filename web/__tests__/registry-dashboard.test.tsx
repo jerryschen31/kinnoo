@@ -134,4 +134,94 @@ describe("Registry dashboard", () => {
     expect(calledUrls.some((url) => url.startsWith("/api/search"))).toBe(true);
   });
 
+  it("renders client-side security icons next to agent name based on security checks", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+
+      if (url === "/api/agents?show_only_mine=true") {
+        return Promise.resolve(
+          jsonResponse({
+            items: [
+              {
+                tenant_slug: "acme",
+                agent_slug: "signed-agent",
+                version: "1.2.3",
+                author: "Alice",
+                framework: "LangGraph",
+              },
+            ],
+          }),
+        );
+      }
+
+      if (url.startsWith("/api/search")) {
+        return Promise.resolve(
+          jsonResponse({
+            items: [
+              {
+                tenant_slug: "acme",
+                agent_slug: "broken-agent",
+                version: "2.0.0",
+                author: "Bob",
+                framework: "OpenAI",
+              },
+            ],
+          }),
+        );
+      }
+
+      if (url === "/api/agents/acme/signed-agent/1.2.3/security-report") {
+        return Promise.resolve(
+          jsonResponse({
+            tenant_slug: "acme",
+            agent_slug: "signed-agent",
+            version: "1.2.3",
+            checks: [
+              { check_name: "signature", status: "pass" },
+              { check_name: "archive_integrity", status: "pass" },
+              { check_name: "per_file_integrity", status: "pass" },
+            ],
+          }),
+        );
+      }
+
+      if (url === "/api/agents/acme/broken-agent/2.0.0/security-report") {
+        return Promise.resolve(
+          jsonResponse({
+            tenant_slug: "acme",
+            agent_slug: "broken-agent",
+            version: "2.0.0",
+            checks: [
+              { check_name: "signature", status: "pass" },
+              { check_name: "archive_integrity", status: "fail" },
+              { check_name: "per_file_integrity", status: "pass" },
+            ],
+          }),
+        );
+      }
+
+      return Promise.resolve(jsonResponse([]));
+    });
+
+    render(<RegistryPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("🔏")).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("registry-search-view")).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByLabelText("Search public agents"), {
+      target: { value: "broken" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("❌")).toBeTruthy();
+    });
+  });
+
 });
