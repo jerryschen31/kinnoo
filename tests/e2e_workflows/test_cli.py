@@ -728,6 +728,69 @@ def test_install_remote_uses_authenticated_fetch_for_same_host_http_download_url
     assert exit_code == 0
 
 
+def test_install_remote_tenant_qualified_selector_and_checksum_metadata(monkeypatch, tmp_path) -> None:
+    from kinnoo import install_command
+
+    resolve_calls: list[tuple[str, str | None, str | None]] = []
+    install_kwargs_capture: dict[str, object] = {}
+
+    class _FakeRemoteBackend:
+        def __init__(self, *args, **kwargs):
+            del args, kwargs
+
+        def resolve(self, *, name, version=None, tenant=None):
+            resolve_calls.append((name, version, tenant))
+            return {
+                "download_url": "/api/download/test-agent-phase14-js-2/0.1.1",
+                "checksum_sha256": "f" * 64,
+            }
+
+        def request_bytes(self, *, path: str) -> bytes:
+            assert path == "/api/download/test-agent-phase14-js-2/0.1.1"
+            return b"fake-kno-bytes"
+
+        def list_agents(self, *, tenant=None):
+            del tenant
+            return []
+
+    def _fake_parse_install_target_spec(_target: str):
+        return type(
+            "_Spec",
+            (),
+            {
+                "kind": "registry-exact",
+                "raw_target": "jerryschen/test-agent-phase14-js-2==0.1.1",
+                "tenant": "jerryschen",
+                "name": "test-agent-phase14-js-2",
+                "version": "0.1.1",
+                "archive_path": None,
+                "error": None,
+            },
+        )()
+
+    def _fake_install_from_archive_path(**kwargs):
+        install_kwargs_capture.update(kwargs)
+        return 0
+
+    monkeypatch.setattr(install_command, "RemoteRegistryClient", _FakeRemoteBackend)
+    monkeypatch.setattr(install_command, "parse_install_target_spec", _fake_parse_install_target_spec)
+    monkeypatch.setattr(install_command, "_install_from_archive_path", _fake_install_from_archive_path)
+    monkeypatch.setenv("KINNOO_REGISTRY_URL", "https://registry.example.test")
+    monkeypatch.setenv("KINNOO_REGISTRY_TOKEN", "token")
+    monkeypatch.setenv("KINNOO_TENANT_SLUG", "acme")
+
+    exit_code = install_command.install_agent(
+        archive_path="jerryschen/test-agent-phase14-js-2==0.1.1",
+        target_dir_arg=str(tmp_path / "installed-remote"),
+        assume_yes=True,
+        use_remote=True,
+    )
+
+    assert exit_code == 0
+    assert resolve_calls == [("test-agent-phase14-js-2", "0.1.1", "jerryschen")]
+    assert install_kwargs_capture.get("expected_archive_checksum") == "f" * 64
+
+
 def test_feature69_execution_engine_and_docs_examples(tmp_path):
     one_shot_dir = tmp_path / "feature69-oneshot"
     one_shot_dir.mkdir()
@@ -5719,6 +5782,41 @@ def test_fetch_downloads_archive(monkeypatch, tmp_path: Path) -> None:
 
     expected_path = tmp_path / "archive" / "fetch-agent" / "1.2.3" / "fetch-agent.kno"
     assert expected_path.exists()
+
+
+def test_fetch_remote_uses_tenant_qualified_selector(monkeypatch, tmp_path: Path) -> None:
+    from kinnoo import fetch_command
+
+    archive_payload = _build_fetch_archive_bytes(name="test-agent-phase14-js-2", version="0.1.1")
+    resolve_calls: list[tuple[str, str | None, str | None]] = []
+
+    class _FakeRemoteBackend:
+        def __init__(self, *args, **kwargs):
+            del args, kwargs
+            self._base_url = "https://registry.example.test"
+
+        def list_agents(self, *, tenant=None):
+            assert tenant == "jerryschen"
+            return [{"name": "test-agent-phase14-js-2", "latest_version": "0.1.1"}]
+
+        def resolve(self, *, name, version=None, tenant=None):
+            resolve_calls.append((name, version, tenant))
+            return {"download_url": "/api/agents/jerryschen/test-agent-phase14-js-2/0.1.1/archive"}
+
+        def request_bytes(self, *, path: str) -> bytes:
+            assert path == "/api/agents/jerryschen/test-agent-phase14-js-2/0.1.1/archive"
+            return archive_payload
+
+    monkeypatch.setattr(fetch_command, "RemoteRegistryClient", _FakeRemoteBackend)
+    monkeypatch.setenv("KINNOO_REGISTRY_URL", "https://registry.example.test")
+    monkeypatch.setenv("KINNOO_REGISTRY_TOKEN", "token")
+    monkeypatch.setenv("KINNOO_TENANT_SLUG", "acme")
+    monkeypatch.setenv("KINNOO_ARCHIVE_ROOT", str(tmp_path / "archive"))
+
+    exit_code = fetch_command.fetch_agent("jerryschen/test-agent-phase14-js-2", use_remote=True)
+
+    assert exit_code == 0
+    assert resolve_calls == [("test-agent-phase14-js-2", "0.1.1", "jerryschen")]
 
 
 def test_fetch_strict_verification(monkeypatch, tmp_path: Path) -> None:

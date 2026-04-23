@@ -9,7 +9,7 @@ import zipfile
 
 import pytest
 
-from kinnoo.registry import RegistryBackend, RegistryService
+from kinnoo.registry import RegistryBackend, RegistryService, parse_install_target_spec
 from kinnoo.registry_backends import (
 	LocalFilesystemRegistryBackend,
 	LocalRegistryBackend,
@@ -65,6 +65,26 @@ def test_registry_backend_protocol(tmp_path: Path) -> None:
 	compat_resolved = compat_backend.resolve(name="demo")
 	assert compat_resolved is not None
 	assert compat_resolved.version == "2.0.0"
+
+
+def test_parse_install_target_spec_supports_tenant_qualified_selectors() -> None:
+	latest = parse_install_target_spec("jerryschen/test-agent-phase14-js-2")
+	assert latest.kind == "registry-latest"
+	assert latest.tenant == "jerryschen"
+	assert latest.name == "test-agent-phase14-js-2"
+	assert latest.version is None
+
+	exact = parse_install_target_spec("jerryschen/test-agent-phase14-js-2==0.1.1")
+	assert exact.kind == "registry-exact"
+	assert exact.tenant == "jerryschen"
+	assert exact.name == "test-agent-phase14-js-2"
+	assert exact.version == "0.1.1"
+
+
+def test_parse_install_target_spec_treats_explicit_archive_path_as_path() -> None:
+	target = parse_install_target_spec("./scratch-install/test-agent-phase14-js-2.kno")
+	assert target.kind == "archive-path"
+	assert target.archive_path is not None
 
 
 def _load_feature26_filesystem_fixture_module():

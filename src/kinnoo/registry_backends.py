@@ -69,8 +69,15 @@ class LocalRegistryBackend:
             publisher_public_key=publisher_public_key,
         )
 
-    def resolve(self, *, name: str, version: Optional[str] = None) -> Optional[RegistryRecord]:
-        record, _ = self.resolve_with_error(name=name, version=version)
+    def resolve(
+        self,
+        *,
+        name: str,
+        version: Optional[str] = None,
+        tenant: str | None = None,
+    ) -> Optional[RegistryRecord]:
+        _ = tenant
+        record, _ = self.resolve_with_error(name=name, version=version, tenant=tenant)
         return record
 
     def resolve_with_error(
@@ -78,7 +85,9 @@ class LocalRegistryBackend:
         *,
         name: str,
         version: Optional[str] = None,
+        tenant: str | None = None,
     ) -> tuple[Optional[RegistryRecord], Optional[str]]:
+        _ = tenant
         agent_dir = self.root / name
         if not agent_dir.exists() or not agent_dir.is_dir():
             return None, f"Registry agent '{name}' was not found."

@@ -51,6 +51,12 @@ def download_payload(
     if not archive_key:
         return 404, {"error": "Archive object missing for requested version."}
 
+    checksum_sha256 = ""
+    integrity = metadata.integrity if isinstance(metadata.integrity, dict) else {}
+    raw_checksum_sha256 = integrity.get("sha256") if isinstance(integrity, dict) else None
+    if isinstance(raw_checksum_sha256, str) and raw_checksum_sha256.strip():
+        checksum_sha256 = raw_checksum_sha256.strip()
+
     download_url = storage_backend.generate_presigned_url(
         key=archive_key,
         expires_in_seconds=presign_ttl_seconds,
@@ -61,6 +67,7 @@ def download_payload(
         "tenant_slug": tenant_slug,
         "agent_slug": agent_slug,
         "version": version,
+        "checksum_sha256": checksum_sha256,
     }
 
 

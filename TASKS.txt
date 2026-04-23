@@ -10069,9 +10069,9 @@ tasks:
     description: |
       Show security icons inline in the Name column for My Agents and Search
       results tables in the registry UI. Icons:
-      ✅ signed + verified, 📦 integrity verified (archive and/or per-file),
+      🔏 signed + verified, 📦 integrity verified (archive and/or per-file),
       ❌ any check failed. Render with two spaces between name and icons
-      (example: "s3-seed-agent  ✅📦"). Icon state is sourced from
+      (example: "s3-seed-agent  🔏📦"). Icon state is sourced from
       server-side security check results.
     files:
       - server/templates/agents.html
@@ -11037,3 +11037,34 @@ tasks:
     dependencies: [task509, task510, task511, task512]
     tests: [test732]
     status: not-started
+
+  - id: task514
+    title: "feature120 UAT3 install/fetch selector and verification-sidecar fixes"
+    type: task
+    epic: [E9]
+    owner: swe-agent
+    description: |
+      Implement UAT round 3 bug fixes for registry install/fetch UX and trust
+      verification: correct modal install command syntax, support tenant-qualified
+      selectors in install/fetch, and fix remote archive verification so checksum
+      metadata from server download resolution is used when local temp files do
+      not have adjacent sidecar artifacts.
+    files:
+      - web/lib/install-command.ts
+      - web/__tests__/agent-card-modal.test.tsx
+      - src/kinnoo/registry.py
+      - src/kinnoo/registry_backends.py
+      - src/kinnoo/install_command.py
+      - src/kinnoo/fetch_command.py
+      - server/routes/download.py
+      - tests/client_cli_registry/test_registry.py
+      - tests/e2e_workflows/test_cli.py
+    steps:
+      - 'step1: Update modal install command rendering to use tenant-qualified exact-version selector syntax (<tenant>/<agent>==<version>).'
+      - 'step2: Extend install/fetch selector parsing to support tenant-qualified selectors without misclassifying slash selectors as filesystem paths.'
+      - 'step3: Thread tenant-qualified selector components through install/fetch remote and local resolution flows.'
+      - 'step4: Include checksum_sha256 in download resolve payload and verify remote downloaded archives using that checksum when local sidecar file is absent.'
+      - 'step5: Add regression tests for selector parsing, tenant-qualified remote resolution, and checksum metadata verification paths.'
+    dependencies: []
+    tests: [test733, test734, test735, test736]
+    status: needs-review

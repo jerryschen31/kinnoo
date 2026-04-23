@@ -12663,3 +12663,81 @@ tests:
       - "automation_path_subfolder: manual-cutover-validation"
     automated: false
     automation_path: null
+
+  - id: test733
+    title: "install target parser supports tenant-qualified selectors"
+    type: integration
+    preconditions: Install target selector parser changes are implemented in CLI registry path
+    steps:
+      - 'step1: Parse selector `acme/research-agent` and assert tenant=`acme`, name=`research-agent`, version unset.'
+      - 'step2: Parse selector `acme/research-agent==1.2.3` and assert tenant=`acme`, name=`research-agent`, version=`1.2.3`.'
+      - 'step3: Parse selector with slash that points to existing local archive path and assert path mode is preserved over selector mode.'
+    expected: Parser correctly distinguishes tenant-qualified selectors from archive paths and captures tenant/name/version fields deterministically
+    pass_criteria: Parser unit/integration assertions pass for tenant-qualified selectors and explicit local path handling
+    covers:
+      - feature: feature120
+        ac: AC2
+    notes:
+      - "pytest_markers: regression_integration,client_cli_registry"
+      - "automation_path_subfolder: tests/client_cli_registry"
+    automated: true
+    automation_path: tests/client_cli_registry/test_registry.py::test_parse_install_target_spec_supports_tenant_qualified_selectors
+
+  - id: test734
+    title: "install target parser preserves explicit archive path behavior"
+    type: integration
+    preconditions: Selector parser supports both tenant-qualified selectors and filesystem path inputs
+    steps:
+      - 'step1: Provide an explicit existing archive path containing slash segments.'
+      - 'step2: Parse via install target parser.'
+      - 'step3: Assert parser output remains path-based and does not split into tenant/name selector components.'
+    expected: Existing local archive path behavior remains backward-compatible while tenant-qualified selectors are supported
+    pass_criteria: Explicit path parsing assertions pass and no selector misclassification occurs
+    covers:
+      - feature: feature120
+        ac: AC2
+    notes:
+      - "pytest_markers: regression_integration,client_cli_registry"
+      - "automation_path_subfolder: tests/client_cli_registry"
+    automated: true
+    automation_path: tests/client_cli_registry/test_registry.py::test_parse_install_target_spec_treats_explicit_archive_path_as_path
+
+  - id: test735
+    title: "install remote tenant-qualified selector with checksum metadata verification"
+    type: integration
+    preconditions: Install command and server download metadata include tenant-aware resolution and checksum_sha256 payload field
+    steps:
+      - 'step1: Execute remote install using tenant-qualified selector with exact version.'
+      - 'step2: Assert install flow calls resolve/download with tenant-aware selector components.'
+      - 'step3: Assert archive verification succeeds using checksum metadata from resolve/download payload when local sidecar file is absent.'
+    expected: Remote install supports tenant-qualified selectors and validates archive integrity via server-provided checksum metadata path
+    pass_criteria: End-to-end install integration assertions pass for tenant-qualified selector and checksum metadata verification behavior
+    covers:
+      - feature: feature120
+        ac: AC2
+      - feature: feature120
+        ac: AC4
+    notes:
+      - "pytest_markers: regression_integration,client_cli_registry,e2e"
+      - "automation_path_subfolder: tests/e2e_workflows"
+    automated: true
+    automation_path: tests/e2e_workflows/test_cli.py::test_install_remote_tenant_qualified_selector_and_checksum_metadata
+
+  - id: test736
+    title: "fetch remote uses tenant-qualified selector"
+    type: integration
+    preconditions: Fetch command resolution flow supports tenant/name selector threading for remote lookups
+    steps:
+      - 'step1: Execute remote fetch using tenant-qualified selector with exact version or latest-mode selector.'
+      - 'step2: Assert resolve path receives tenant and agent name separately.'
+      - 'step3: Assert fetched artifact maps to expected tenant-scoped agent metadata.'
+    expected: Remote fetch supports tenant-qualified selector syntax and routes selector components through backend resolution correctly
+    pass_criteria: Fetch integration assertions pass for tenant-qualified resolution behavior
+    covers:
+      - feature: feature120
+        ac: AC3
+    notes:
+      - "pytest_markers: regression_integration,client_cli_registry,e2e"
+      - "automation_path_subfolder: tests/e2e_workflows"
+    automated: true
+    automation_path: tests/e2e_workflows/test_cli.py::test_fetch_remote_uses_tenant_qualified_selector
