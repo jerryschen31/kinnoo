@@ -27,6 +27,7 @@ from .signing import (
     create_detached_signature_artifacts,
     load_ed25519_private_key,
     public_key_fingerprint,
+    public_key_pem,
     sign_payload,
 )
 from .size_format import format_size_human_readable, size_in_megabytes
@@ -946,6 +947,7 @@ def pack_agent(
             "version": 1,
             "algorithm": "ed25519",
             "signature": base64.b64encode(signature_bytes).decode("ascii"),
+            "public_key_pem": public_key_pem(private_key.public_key()),
             "public_key_fingerprint": public_key_fingerprint(private_key.public_key()),
             "signed_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         }

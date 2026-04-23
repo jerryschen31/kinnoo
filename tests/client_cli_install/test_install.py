@@ -470,6 +470,98 @@ def test_feature40_install_signature_verification_gate(tmp_path):
     assert "Archive authenticity could not be verified" in invalid_output
 
 
+def test_install_strict_embedded_signature_without_detached_sidecars(tmp_path):
+    private_key_path = tmp_path / "publisher-private.pem"
+    public_key_path = tmp_path / "publisher-public.pem"
+
+    keygen_result = subprocess.run(
+        [
+            "python3",
+            "src/kinnoo/cli.py",
+            "keygen",
+            "--private-key",
+            str(private_key_path),
+            "--public-key",
+            str(public_key_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert keygen_result.returncode == 0, f"{keygen_result.stdout}\n{keygen_result.stderr}"
+
+    agent_dir = tmp_path / "strict-embedded-agent"
+    agent_dir.mkdir()
+    (agent_dir / "kinnoo.yaml").write_text(
+        (
+            "name: strict-embedded-agent\n"
+            "version: 1.0.0\n"
+            "entrypoint: run.py\n"
+            "runtime:\n"
+            "  type: one-shot\n"
+            "  language: python\n"
+            "  version: \"3.10\"\n"
+            "dependencies: []\n"
+            "inputs:\n"
+            "  type: string\n"
+            "outputs:\n"
+            "  type: string\n"
+        ),
+        encoding="utf-8",
+    )
+    (agent_dir / "run.py").write_text("print('strict embedded signature')\n", encoding="utf-8")
+    (agent_dir / "requirements.txt").write_text("", encoding="utf-8")
+
+    archive_root = tmp_path / "archive-root"
+    pack_result = subprocess.run(
+        [
+            "python3",
+            "src/kinnoo/cli.py",
+            "pack",
+            str(agent_dir),
+            "--sign",
+            str(private_key_path),
+        ],
+        capture_output=True,
+        text=True,
+        env={**os.environ, "KINNOO_ARCHIVE_ROOT": str(archive_root)},
+    )
+    assert pack_result.returncode == 0, f"{pack_result.stdout}\n{pack_result.stderr}"
+
+    archive_path = archive_root / "strict-embedded-agent" / "1.0.0" / "strict-embedded-agent.kno"
+    assert archive_path.exists()
+
+    detached_signature_path = Path(f"{archive_path}.sig")
+    detached_signature_metadata_path = Path(f"{archive_path}.sig.json")
+    assert detached_signature_path.exists()
+    assert detached_signature_metadata_path.exists()
+
+    detached_signature_path.unlink()
+    detached_signature_metadata_path.unlink()
+
+    install_target = tmp_path / "installed-strict-embedded"
+    install_result = subprocess.run(
+        [
+            "python3",
+            "src/kinnoo/cli.py",
+            "install",
+            str(archive_path),
+            str(install_target),
+            "--strict",
+            "--yes",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    install_output = f"{install_result.stdout}\n{install_result.stderr}"
+    assert install_result.returncode == 0, install_output
+    assert "Detached signature artifacts not found; falling back to embedded META-INF/signature.json verification." in install_output
+    assert "[kinnoo install] Embedded signature verified." in install_output
+    assert install_output.index("[kinnoo install] Embedded signature verified.") < install_output.index(
+        "[kinnoo install] Install summary:"
+    )
+    assert "UNVERIFIED PUBLISHER" not in install_output
+
+
 def _create_feature65_openclaw_archive(tmp_path: Path, name: str = "feature65-openclaw-direct") -> Path:
     archive_path = tmp_path / f"{name}.kno"
     make_dummy_kno_archive(
