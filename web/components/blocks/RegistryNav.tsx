@@ -6,7 +6,7 @@ type RegistryNavProps = {
 };
 
 const baseTabClass =
-  "cursor-pointer rounded-button border px-4 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kinnoo-accent";
+  "cursor-pointer rounded-button border px-4 py-2 text-sm font-medium transition hover:!border-[#FF7F00] hover:!text-[#FF7F00] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kinnoo-accent";
 
 export default function RegistryNav({
   activeView,
@@ -23,8 +23,8 @@ export default function RegistryNav({
         aria-pressed={activeView === "my-agents"}
         className={`${baseTabClass} ${
           activeView === "my-agents"
-            ? "border-kinnoo-accent bg-kinnoo-accent/15 text-kinnoo-text hover:border-kinnoo-accent hover:text-kinnoo-accent"
-            : "border-white/20 text-white/80 hover:border-kinnoo-accent hover:text-kinnoo-accent"
+            ? "border-[#FF7F00] bg-[#FF7F00]/15 text-kinnoo-text"
+            : "border-white/20 text-white/80"
         }`}
       >
         My Agents
@@ -35,8 +35,8 @@ export default function RegistryNav({
         aria-pressed={activeView === "search"}
         className={`${baseTabClass} ${
           activeView === "search"
-            ? "border-kinnoo-accent bg-kinnoo-accent/15 text-kinnoo-text hover:border-kinnoo-accent hover:text-kinnoo-accent"
-            : "border-white/20 text-white/80 hover:border-kinnoo-accent hover:text-kinnoo-accent"
+            ? "border-[#FF7F00] bg-[#FF7F00]/15 text-kinnoo-text"
+            : "border-white/20 text-white/80"
         }`}
       >
         Search
