@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import MainLayout from "../components/blocks/MainLayout";
 
@@ -8,7 +8,7 @@ afterEach(() => {
 });
 
 describe("MainLayout", () => {
-  it("renders hamburger menu and auth buttons", () => {
+  it("renders hamburger menu and public auth buttons when unauthenticated", () => {
     render(
       <MainLayout>
         <div>content</div>
@@ -18,6 +18,46 @@ describe("MainLayout", () => {
     expect(screen.getByRole("button", { name: /open menu/i })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Login" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Sign Up" })).toBeTruthy();
+  });
+
+  it("renders tenant button and profile menu when authenticated", () => {
+    render(
+      <MainLayout initialTenantSlug="jerryschen">
+        <div>content</div>
+      </MainLayout>,
+    );
+
+    expect(screen.getByRole("link", { name: "jerryschen" })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Login" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Sign Up" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /open profile menu/i }));
+    expect(screen.getByRole("link", { name: "Settings" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Logout" })).toBeTruthy();
+  });
+
+  it("submits logout as navigation-style POST from profile menu", () => {
+    document.cookie = "kinnoo_csrf=test-csrf-token";
+    const submitSpy = vi
+      .spyOn(HTMLFormElement.prototype, "submit")
+      .mockImplementation(() => undefined);
+
+    render(
+      <MainLayout initialTenantSlug="jerryschen">
+        <div>content</div>
+      </MainLayout>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /open profile menu/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Logout" }));
+
+    expect(submitSpy).toHaveBeenCalledTimes(1);
+    const logoutForm = document.querySelector(
+      'form[action="/api/logout"][method="POST"]',
+    ) as HTMLFormElement | null;
+    expect(logoutForm).toBeTruthy();
+    const csrfInput = logoutForm?.querySelector('input[name="csrf_token"]') as HTMLInputElement | null;
+    expect(csrfInput?.value).toBe("test-csrf-token");
   });
 
   it("opens menu sheet with expected navigation links", () => {

@@ -2,8 +2,9 @@
 
 import * as Dialog from "@radix-ui/react-dialog";
 import { Menu, X } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { themeConfig } from "../../lib/theme";
 
@@ -26,9 +27,80 @@ function HeaderButton({ href, children }: HeaderButtonProps) {
 
 type MainLayoutProps = {
   children: ReactNode;
+  initialTenantSlug?: string | null;
+  appBaseUrl?: string;
 };
 
-export default function MainLayout({ children }: MainLayoutProps) {
+function readCookieValue(name: string): string {
+  const cookiePrefix = `${name}=`;
+  const entry = document.cookie
+    .split(";")
+    .map((item) => item.trim())
+    .find((item) => item.startsWith(cookiePrefix));
+  if (!entry) {
+    return "";
+  }
+  return decodeURIComponent(entry.slice(cookiePrefix.length));
+}
+
+function submitLogoutForm(csrfToken: string): void {
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = "/api/logout";
+
+  const csrfInput = document.createElement("input");
+  csrfInput.type = "hidden";
+  csrfInput.name = "csrf_token";
+  csrfInput.value = csrfToken;
+  form.appendChild(csrfInput);
+
+  document.body.appendChild(form);
+  form.submit();
+}
+
+export default function MainLayout({ children, initialTenantSlug = null, appBaseUrl = "" }: MainLayoutProps) {
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const profileMenuContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const resolvedBaseUrl = useMemo(() => {
+    const trimmed = appBaseUrl.trim();
+    if (!trimmed) {
+      return "";
+    }
+    return trimmed.endsWith("/") ? trimmed.slice(0, -1) : trimmed;
+  }, [appBaseUrl]);
+
+  const appHref = (path: string): string => {
+    if (!resolvedBaseUrl) {
+      return path;
+    }
+    return `${resolvedBaseUrl}${path}`;
+  };
+
+  const isAuthenticated = Boolean(initialTenantSlug);
+
+  useEffect(() => {
+    if (!isProfileMenuOpen) {
+      return;
+    }
+
+    const handleDocumentPointerDown = (event: MouseEvent) => {
+      const container = profileMenuContainerRef.current;
+      if (!container) {
+        return;
+      }
+      if (container.contains(event.target as Node)) {
+        return;
+      }
+      setIsProfileMenuOpen(false);
+    };
+
+    document.addEventListener("mousedown", handleDocumentPointerDown);
+    return () => {
+      document.removeEventListener("mousedown", handleDocumentPointerDown);
+    };
+  }, [isProfileMenuOpen]);
+
   return (
     <div className="min-h-screen bg-kinnoo-bg text-kinnoo-text">
       <header
@@ -105,8 +177,51 @@ export default function MainLayout({ children }: MainLayoutProps) {
           </div>
 
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-            <HeaderButton href="/login">Login</HeaderButton>
-            <HeaderButton href="/signup">Sign Up</HeaderButton>
+            {isAuthenticated ? (
+              <>
+                <HeaderButton href={appHref("/registry")}>{initialTenantSlug}</HeaderButton>
+                <div ref={profileMenuContainerRef} className="relative">
+                  <button
+                    type="button"
+                    aria-label="Open profile menu"
+                    onClick={() => {
+                      setIsProfileMenuOpen((current) => !current);
+                    }}
+                    className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-white/20 text-kinnoo-text transition hover:border-[#FF7F00] hover:text-[#FF7F00]"
+                  >
+                    <Image src="/user-profile.svg" alt="User profile" width={20} height={20} />
+                  </button>
+                  {isProfileMenuOpen ? (
+                    <div className="absolute right-0 top-full z-50 mt-2 min-w-[9rem] rounded-card border border-white/15 bg-[#222222] py-1 shadow-xl">
+                      <Link
+                        href={appHref("/settings")}
+                        onClick={() => {
+                          setIsProfileMenuOpen(false);
+                        }}
+                        className="block px-4 py-2 text-sm text-kinnoo-text transition hover:text-[#FF7F00]"
+                      >
+                        Settings
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsProfileMenuOpen(false);
+                          submitLogoutForm(readCookieValue("kinnoo_csrf"));
+                        }}
+                        className="block w-full cursor-pointer px-4 py-2 text-left text-sm text-kinnoo-text transition hover:text-[#FF7F00]"
+                      >
+                        Logout
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              </>
+            ) : (
+              <>
+                <HeaderButton href="/login">Login</HeaderButton>
+                <HeaderButton href="/signup">Sign Up</HeaderButton>
+              </>
+            )}
           </div>
         </div>
       </header>

@@ -3,18 +3,14 @@ type RegistryView = "my-agents" | "search";
 type RegistryNavProps = {
   activeView: RegistryView;
   onSelectView: (view: RegistryView) => void;
-  onLogout?: () => void | Promise<void>;
-  logoutLabel?: string;
 };
 
 const baseTabClass =
-  "rounded-button border px-4 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kinnoo-accent";
+  "cursor-pointer rounded-button border px-4 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kinnoo-accent";
 
 export default function RegistryNav({
   activeView,
   onSelectView,
-  onLogout,
-  logoutLabel = "Logout",
 }: RegistryNavProps) {
   return (
     <nav
@@ -27,8 +23,8 @@ export default function RegistryNav({
         aria-pressed={activeView === "my-agents"}
         className={`${baseTabClass} ${
           activeView === "my-agents"
-            ? "border-kinnoo-accent bg-kinnoo-accent/15 text-kinnoo-text"
-            : "border-white/20 text-white/80 hover:border-kinnoo-accent"
+            ? "border-kinnoo-accent bg-kinnoo-accent/15 text-kinnoo-text hover:border-kinnoo-accent hover:text-kinnoo-accent"
+            : "border-white/20 text-white/80 hover:border-kinnoo-accent hover:text-kinnoo-accent"
         }`}
       >
         My Agents
@@ -39,30 +35,12 @@ export default function RegistryNav({
         aria-pressed={activeView === "search"}
         className={`${baseTabClass} ${
           activeView === "search"
-            ? "border-kinnoo-accent bg-kinnoo-accent/15 text-kinnoo-text"
-            : "border-white/20 text-white/80 hover:border-kinnoo-accent"
+            ? "border-kinnoo-accent bg-kinnoo-accent/15 text-kinnoo-text hover:border-kinnoo-accent hover:text-kinnoo-accent"
+            : "border-white/20 text-white/80 hover:border-kinnoo-accent hover:text-kinnoo-accent"
         }`}
       >
         Search
       </button>
-      {onLogout ? (
-        <button
-          type="button"
-          onClick={() => {
-            void onLogout();
-          }}
-          className="ml-auto inline-flex items-center rounded-button border border-white/20 px-4 py-2 text-sm font-medium text-white/80 transition hover:border-kinnoo-accent hover:text-kinnoo-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kinnoo-accent"
-        >
-          {logoutLabel}
-        </button>
-      ) : (
-        <a
-          href="/logout"
-          className="ml-auto inline-flex items-center rounded-button border border-white/20 px-4 py-2 text-sm font-medium text-white/80 transition hover:border-kinnoo-accent hover:text-kinnoo-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kinnoo-accent"
-        >
-          {logoutLabel}
-        </a>
-      )}
     </nav>
   );
 }
