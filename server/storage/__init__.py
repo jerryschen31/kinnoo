@@ -8,7 +8,6 @@ from server.config import ServerConfig
 
 from .base import StorageBackend
 from .local import LocalStorageBackend
-from .mock_s3 import MockS3Backend
 from .s3 import S3StorageBackend
 
 
@@ -19,12 +18,6 @@ def build_storage_backend_from_config(
 ) -> StorageBackend:
 	if config.storage_backend == "local":
 		return LocalStorageBackend(root=config.local_storage_root)
-	if config.storage_backend == "mock":
-		return MockS3Backend(
-			bucket=config.s3_bucket,
-			region=config.s3_region,
-			s3_client=s3_client,
-		)
 	if config.storage_backend == "s3":
 		return S3StorageBackend(
 			bucket=config.s3_bucket,
@@ -44,7 +37,6 @@ def build_storage_backend_from_env(*, s3_client: Any | None = None) -> StorageBa
 __all__ = [
 	"StorageBackend",
 	"LocalStorageBackend",
-	"MockS3Backend",
 	"S3StorageBackend",
 	"build_storage_backend_from_config",
 	"build_storage_backend_from_env",
