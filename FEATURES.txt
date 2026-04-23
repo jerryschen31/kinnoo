@@ -1128,9 +1128,8 @@ features:
       JWT access tokens (short-lived, scoped claims). Web UI uses session cookies
       (feature30). The auth system is provided by feature43.
 
-      Storage uses an abstraction layer with three backends:
+      Storage uses an abstraction layer with two backends:
         - `LocalStorageBackend`  — filesystem, for dev and testing
-        - `MockS3Backend`        — moto-based, for automated tests
         - `S3StorageBackend`     — real S3/MinIO, for staging and production
 
       Switching backend is a config change (`REGISTRY_STORAGE_BACKEND` env var),
@@ -1157,7 +1156,7 @@ features:
       - id: AC1
         description: "A FastAPI server application exists in a dedicated `server/` directory with proper project structure (requirements.txt, entry point, config module)."
       - id: AC2
-        description: "A `StorageBackend` protocol exists with three implementations: `LocalStorageBackend` (filesystem), `MockS3Backend` (moto), and `S3StorageBackend` (real S3/MinIO). Backend is selected via `REGISTRY_STORAGE_BACKEND` env var."
+        description: "A `StorageBackend` protocol exists with two implementations: `LocalStorageBackend` (filesystem) and `S3StorageBackend` (real S3/MinIO). Backend is selected via `REGISTRY_STORAGE_BACKEND` env var."
       - id: AC3
         description: "POST `/api/publish` accepts archive upload, validates structure, recomputes SHA256 server-side, stores archive in object storage, and creates/updates JSON metadata documents. Duplicate tenant+agent+version returns 409 Conflict."
       - id: AC4
@@ -1169,7 +1168,7 @@ features:
       - id: AC7
         description: "All endpoints return appropriate HTTP status codes (200, 201, 400, 401, 403, 404, 409, 429, 500) with JSON error bodies including `error.code`, `error.message`, and `error.request_id`."
       - id: AC8
-        description: "Server tests use FastAPI TestClient and mock S3 (moto) — no real AWS credentials required for testing. All three storage backends have dedicated tests."
+        description: "Server tests use FastAPI TestClient and deterministic fake S3 clients — no real AWS credentials required for testing. Supported storage backends have dedicated tests."
       - id: AC9
         description: "Auth middleware validates JWT access tokens on all endpoints. Scoped claims (registry:read, registry:publish, registry:admin) are enforced per endpoint."
       - id: AC10
@@ -1179,8 +1178,8 @@ features:
       - "Use presigned URLs for archive upload/download to avoid proxying large files through the server."
       - "Three-tier JSON metadata: global index for fast listing, agent index for version history, version doc for detail/audit."
       - "Add pagination (offset/limit) to list and search endpoints from the start."
-      - "S3 backend is behind a `StorageBackend` abstraction. Use moto for mock S3 in tests, local filesystem for dev, real S3 for prod."
-      - "Server dependencies (fastapi, uvicorn, boto3, moto, python-jose) go in server/requirements.txt, NOT in the main kinnoo requirements.txt."
+      - "S3 backend is behind a `StorageBackend` abstraction. Use local filesystem for dev and real S3 for prod."
+      - "Server dependencies (fastapi, uvicorn, boto3, python-jose) go in server/requirements.txt, NOT in the main kinnoo requirements.txt."
       - "Immutable version keys: do not overwrite same version payload. Return 409 on duplicate publish."
       - "Schema-version metadata documents (v1 in filename and payload) to allow future migrations."
       - "Per-tenant visibility flag (public/private) available now. V1 default policy: only authenticated reads."

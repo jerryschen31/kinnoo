@@ -9,7 +9,7 @@ import secrets
 from typing import Literal
 
 
-StorageBackendName = Literal["local", "mock", "s3"]
+StorageBackendName = Literal["local", "s3"]
 MetadataBackendName = Literal["json", "postgres"]
 
 AUTH_ENV_ALIASES: dict[str, tuple[str, ...]] = {
@@ -95,8 +95,8 @@ class ServerConfig:
     @classmethod
     def from_env(cls) -> "ServerConfig":
         backend_raw = os.getenv("REGISTRY_STORAGE_BACKEND", "local").strip().lower()
-        if backend_raw not in {"local", "mock", "s3"}:
-            raise ValueError("REGISTRY_STORAGE_BACKEND must be one of: local, mock, s3")
+        if backend_raw not in {"local", "s3"}:
+            raise ValueError("REGISTRY_STORAGE_BACKEND must be one of: local, s3")
 
         local_storage_root = Path(
             os.getenv("REGISTRY_LOCAL_STORAGE_ROOT", ".registry-storage")

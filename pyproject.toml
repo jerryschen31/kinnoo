@@ -86,7 +86,6 @@ norecursedirs = [
     # [agent] test deprecated: external harvested suites are out-of-scope for kinnoo CI.
     "example-scratch",
     "example-scratch-*",
-    "mock-server",
     "scratch",
     "build",
     "dist",

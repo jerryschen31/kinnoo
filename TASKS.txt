@@ -5017,10 +5017,9 @@ tasks:
     epic: [E7]
     description: |
       Create the server/ directory structure with FastAPI app, config module,
-      and a StorageBackend abstraction with three implementations:
-      LocalStorageBackend (filesystem), MockS3Backend (moto), and
-      S3StorageBackend (real S3/MinIO). Backend selected via
-      REGISTRY_STORAGE_BACKEND env var (local|mock|s3).
+      and a StorageBackend abstraction with two implementations:
+      LocalStorageBackend (filesystem) and S3StorageBackend (real S3/MinIO).
+      Backend selected via REGISTRY_STORAGE_BACKEND env var (local|s3).
     files:
       - server/__init__.py
       - server/app.py
@@ -5028,7 +5027,6 @@ tasks:
       - server/storage/__init__.py
       - server/storage/base.py
       - server/storage/local.py
-      - server/storage/mock_s3.py
       - server/storage/s3.py
       - server/requirements.txt
       - server/tests/test_storage.py
@@ -5036,11 +5034,10 @@ tasks:
       - 'step1: Create server/ directory with __init__.py, app.py (FastAPI), config.py'
       - 'step2: Define StorageBackend protocol with methods: put_object, get_object, list_objects, delete_object, generate_presigned_url'
       - 'step3: Implement LocalStorageBackend using filesystem paths'
-      - 'step4: Implement MockS3Backend using moto library for S3 simulation'
-      - 'step5: Implement S3StorageBackend using boto3 for real S3/MinIO'
-      - 'step6: Add config loading from env vars (REGISTRY_STORAGE_BACKEND, S3 connection vars)'
-      - 'step7: Add server/requirements.txt with fastapi, uvicorn, boto3, moto, python-jose, argon2-cffi'
-      - 'step8: Add tests for all three storage backends (read, write, list, delete, presign)'
+      - 'step4: Implement S3StorageBackend using boto3 for real S3/MinIO'
+      - 'step5: Add config loading from env vars (REGISTRY_STORAGE_BACKEND, S3 connection vars)'
+      - 'step6: Add server/requirements.txt with fastapi, uvicorn, boto3, python-jose, argon2-cffi'
+      - 'step7: Add tests for supported storage backends (read, write, list, delete, presign)'
     dependencies: []
     tests: [test337]
     status: completed
