@@ -96,7 +96,7 @@ class ServerConfig:
     def from_env(cls) -> "ServerConfig":
         backend_raw = os.getenv("REGISTRY_STORAGE_BACKEND", "local").strip().lower()
         if backend_raw not in {"local", "s3"}:
-            raise ValueError("REGISTRY_STORAGE_BACKEND must be one of: local, s3")
+            raise ValueError("REGISTRY_STORAGE_BACKEND must be either local or s3")
 
         local_storage_root = Path(
             os.getenv("REGISTRY_LOCAL_STORAGE_ROOT", ".registry-storage")
