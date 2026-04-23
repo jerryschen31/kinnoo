@@ -205,6 +205,7 @@ def _verify_embedded_integrity_and_signature(
     archive_path: Path,
     strict_mode: bool,
     expected_publisher_public_key: str | None,
+    emit_signature_success_message: bool = True,
 ) -> tuple[bool, str]:
     integrity_path = extracted_dir / "META-INF" / "integrity.json"
     signature_path = extracted_dir / "META-INF" / "signature.json"
@@ -278,7 +279,113 @@ def _verify_embedded_integrity_and_signature(
     if not verify_signature(signing_public_key, integrity_payload, signature_bytes):
         return False, "Error: signature verification failed for META-INF/integrity.json."
 
-    return True, success_message + "\n[kinnoo install] Embedded signature verified."
+    if emit_signature_success_message:
+        return True, success_message + "\n[kinnoo install] Embedded signature verified."
+    return True, success_message
+
+
+def _preinstall_verify_embedded_signature(
+    *,
+    archive_path: Path,
+    expected_publisher_public_key: str | None,
+) -> tuple[bool, str | None]:
+    try:
+        with zipfile.ZipFile(archive_path, "r") as archive_zip:
+            names = set(archive_zip.namelist())
+            integrity_member = "META-INF/integrity.json"
+            signature_member = "META-INF/signature.json"
+
+            if integrity_member not in names:
+                return False, "Error: Strict mode requires META-INF/integrity.json in the archive."
+            if signature_member not in names:
+                return False, "Error: Strict mode requires META-INF/signature.json but it was not found."
+
+            integrity_payload = archive_zip.read(integrity_member)
+            try:
+                manifest = json.loads(integrity_payload.decode("utf-8"))
+            except (UnicodeDecodeError, ValueError, json.JSONDecodeError) as error:
+                return False, f"Error: Failed to parse META-INF/integrity.json: {error}"
+
+            if not isinstance(manifest, dict):
+                return False, "Error: META-INF/integrity.json must contain a JSON object."
+
+            files_map = manifest.get("files", {})
+            if not isinstance(files_map, dict):
+                return False, "Error: META-INF/integrity.json is missing required 'files' mapping."
+
+            mismatches: list[str] = []
+            for relative_path, expected_entry in files_map.items():
+                if not isinstance(relative_path, str) or not relative_path:
+                    mismatches.append("integrity manifest contains an invalid file path entry")
+                    continue
+                if not isinstance(expected_entry, dict):
+                    mismatches.append(f"{relative_path}: integrity entry must be an object")
+                    continue
+                expected_sha256 = expected_entry.get("sha256")
+                if not isinstance(expected_sha256, str) or not expected_sha256.strip():
+                    mismatches.append(f"{relative_path}: missing sha256 in integrity entry")
+                    continue
+                if relative_path not in names:
+                    mismatches.append(f"{relative_path}: listed in integrity.json but missing from archive")
+                    continue
+
+                payload = archive_zip.read(relative_path)
+                actual_sha256 = hashlib.sha256(payload).hexdigest()
+                if actual_sha256 != expected_sha256:
+                    mismatches.append(
+                        f"{relative_path}: checksum mismatch (expected {expected_sha256}, got {actual_sha256})"
+                    )
+
+            if mismatches:
+                mismatch_details = "\n".join(f"  - {item}" for item in mismatches)
+                return False, "Verification FAILED: integrity mismatch detected.\n" + mismatch_details
+
+            try:
+                signature_doc = json.loads(archive_zip.read(signature_member).decode("utf-8"))
+            except (UnicodeDecodeError, ValueError, json.JSONDecodeError) as error:
+                return False, f"Error: Failed to parse META-INF/signature.json: {error}"
+
+            if not isinstance(signature_doc, dict):
+                return False, "Error: META-INF/signature.json must contain a JSON object."
+
+            signature_base64 = signature_doc.get("signature")
+            if not isinstance(signature_base64, str) or not signature_base64.strip():
+                return False, "Error: META-INF/signature.json is missing required 'signature' field."
+
+            try:
+                signature_bytes = base64.b64decode(signature_base64.encode("ascii"))
+            except (ValueError, UnicodeEncodeError) as error:
+                return False, f"Error: META-INF/signature.json has invalid base64 signature: {error}"
+
+            public_key_pem = expected_publisher_public_key
+            if public_key_pem is None:
+                embedded_public_key = signature_doc.get("public_key_pem")
+                if isinstance(embedded_public_key, str) and embedded_public_key.strip():
+                    public_key_pem = embedded_public_key.strip()
+            if public_key_pem is None:
+                public_key_pem = _load_sidecar_public_key_pem(archive_path)
+            if public_key_pem is None:
+                return False, "Error: Strict mode could not resolve public key for signature verification."
+
+            try:
+                signing_public_key = load_ed25519_public_key_from_pem(public_key_pem)
+            except ValueError as error:
+                return False, f"Error: Invalid embedded signing public key: {error}"
+
+            actual_fingerprint = public_key_fingerprint(signing_public_key)
+            expected_fingerprint = signature_doc.get("public_key_fingerprint")
+            if isinstance(expected_fingerprint, str) and expected_fingerprint.strip():
+                if expected_fingerprint.strip() != actual_fingerprint:
+                    return False, "Error: signature fingerprint does not match signing public key."
+
+            if not verify_signature(signing_public_key, integrity_payload, signature_bytes):
+                return False, "Error: signature verification failed for META-INF/integrity.json."
+    except zipfile.BadZipFile:
+        return False, f"Error: Archive '{archive_path}' is not a valid .kno (zip) archive."
+    except OSError as error:
+        return False, f"Error: Failed to inspect archive for strict signature verification: {error}"
+
+    return True, "[kinnoo install] Embedded signature verified."
 
 
 def _update_lockfile_after_install(
@@ -1621,10 +1728,24 @@ def _install_from_archive_path(
 
         has_signature_artifacts = signature_path.exists() or signature_metadata_path.exists()
 
-        if strict_mode and not (signature_path.exists() and signature_metadata_path.exists()):
+        has_detached_signature_pair = signature_path.exists() and signature_metadata_path.exists()
+        preinstall_embedded_signature_verified = False
+
+        if strict_mode and not has_detached_signature_pair:
             print(
                 "[kinnoo install] Detached signature artifacts not found; falling back to embedded META-INF/signature.json verification."
             )
+            embedded_ok, embedded_message = _preinstall_verify_embedded_signature(
+                archive_path=archive,
+                expected_publisher_public_key=expected_publisher_public_key,
+            )
+            if not embedded_ok:
+                if embedded_message:
+                    print(embedded_message, file=sys.stderr)
+                return 1
+            if embedded_message:
+                print(embedded_message)
+            preinstall_embedded_signature_verified = True
 
         if has_signature_artifacts:
             if not signature_path.exists() or not signature_metadata_path.exists():
@@ -1662,7 +1783,7 @@ def _install_from_archive_path(
                 return 1
 
             print("[kinnoo install] Archive signature verified.")
-        elif checksum_verified:
+        elif checksum_verified and not strict_mode:
             if expected_publisher_public_key is not None:
                 print(
                     "Error: Registry publisher key association exists but archive signature metadata is missing.",
@@ -1894,6 +2015,7 @@ def _install_from_archive_path(
             archive_path=archive,
             strict_mode=strict_mode,
             expected_publisher_public_key=expected_publisher_public_key,
+            emit_signature_success_message=not preinstall_embedded_signature_verified,
         )
         if embedded_message:
             target_stream = sys.stdout if embedded_ok else sys.stderr

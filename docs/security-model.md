@@ -38,6 +38,34 @@ Signing helpers live in `src/kinnoo/signing.py`.
   - client-side strict workflows validate signature artifacts,
   - signature metadata includes public key and fingerprint for trust decisions.
 
+### Embedded vs Detached Signatures
+
+Kinnoo uses two complementary signature surfaces:
+
+- Embedded signature: `META-INF/signature.json` inside the `.kno` archive.
+- Detached signature artifacts: `<archive>.sig` and `<archive>.sig.json` sidecars.
+
+Both can represent archive authenticity, but they serve different operational contexts:
+
+- Embedded signature is portable and travels with the archive payload.
+- Detached artifacts support external and registry pipeline verification before install/extraction.
+
+Expected strict install behavior (`kinnoo install --strict`):
+
+- If detached signature artifacts are present, they are verified first.
+- If detached signature artifacts are absent, install falls back to embedded
+  `META-INF/signature.json` verification.
+- On successful strict fallback verification, install emits an informational line:
+  - `[kinnoo install] Embedded signature verified.`
+- If neither detached nor valid embedded signature metadata can be verified,
+  strict install fails.
+
+Note for compatibility:
+
+- Older signed archives may include `META-INF/signature.json` without embedded
+  `public_key_pem`. In that case strict verification still requires a resolvable
+  publisher key via detached metadata or explicit key association.
+
 Algorithm and metadata behavior:
 
 - Detached signatures use Ed25519.
