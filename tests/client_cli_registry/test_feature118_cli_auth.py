@@ -333,3 +333,64 @@ def test_feature118_hosted_login_discovers_auth_config_from_registry_url(
         assert config.oidc_client_id == "cli-client-id"
     finally:
         server.stop()
+
+
+@pytest.mark.regression_integration
+@pytest.mark.client_cli_login
+@pytest.mark.client_cli_registry
+def test_feature118_login_with_explicit_registry_url_fails_when_discovery_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys,
+) -> None:
+    monkeypatch.setenv("KINNOO_REGISTRY_URL", "https://registry.example.invalid")
+    monkeypatch.delenv("KINNOO_LOGIN_ALLOW_LEGACY_FALLBACK", raising=False)
+
+    monkeypatch.delenv("AUTH_CLI_CLIENT_ID", raising=False)
+    monkeypatch.delenv("KINDE_CLI_CLIENT_ID", raising=False)
+    monkeypatch.delenv("AUTH_AUTHORIZATION_ENDPOINT", raising=False)
+    monkeypatch.delenv("AUTHORIZATION_ENDPOINT", raising=False)
+    monkeypatch.delenv("AUTH_TOKEN_ENDPOINT", raising=False)
+    monkeypatch.delenv("TOKEN_ENDPOINT", raising=False)
+
+    monkeypatch.setattr(
+        "kinnoo.auth_command._hosted_cli_config_from_registry",
+        lambda *, registry_url: (None, f"HTTP 404 from {registry_url}/api/auth/config"),
+    )
+
+    result = login_command(email=None, password=None)
+    captured = capsys.readouterr()
+    combined = f"{captured.out}\n{captured.err}"
+
+    assert result == 1
+    assert "Hosted auth discovery failed; refusing silent fallback to legacy email/password login." in combined
+    assert "KINNOO_LOGIN_ALLOW_LEGACY_FALLBACK=1" in combined
+    assert "Email/Username:" not in combined
+
+
+@pytest.mark.regression_integration
+@pytest.mark.client_cli_login
+@pytest.mark.client_cli_registry
+def test_feature118_login_with_explicit_registry_url_allows_opt_in_legacy_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("KINNOO_REGISTRY_URL", "https://registry.example.invalid")
+    monkeypatch.setenv("KINNOO_LOGIN_ALLOW_LEGACY_FALLBACK", "1")
+
+    monkeypatch.delenv("AUTH_CLI_CLIENT_ID", raising=False)
+    monkeypatch.delenv("KINDE_CLI_CLIENT_ID", raising=False)
+    monkeypatch.delenv("AUTH_AUTHORIZATION_ENDPOINT", raising=False)
+    monkeypatch.delenv("AUTHORIZATION_ENDPOINT", raising=False)
+    monkeypatch.delenv("AUTH_TOKEN_ENDPOINT", raising=False)
+    monkeypatch.delenv("TOKEN_ENDPOINT", raising=False)
+
+    monkeypatch.setattr(
+        "kinnoo.auth_command._hosted_cli_config_from_registry",
+        lambda *, registry_url: (None, f"HTTP 404 from {registry_url}/api/auth/config"),
+    )
+    monkeypatch.setattr(
+        "kinnoo.auth_command._issue_token",
+        lambda *, registry_url, email, password, tenant_slug: (_jwt_with_tenant("team-alpha"), None),
+    )
+
+    result = login_command(email="user@example.com", password="test-password")
+    assert result == 0

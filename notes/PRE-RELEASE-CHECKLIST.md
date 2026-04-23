@@ -32,6 +32,9 @@ High-level work items:
 - IaC runtime env/secrets are aligned with app-expected auth variable names in deployed ECS task definitions
 - Provider portability tests exist (mocked OIDC discovery/JWKS adapter contract tests) and pass
 
+[status]
+done
+
 **PRE-RELEASE FEATURE 2**
 [todo]
 Replace the server's JSON-file and SQLite data stores with a Postgres database so the agent registry can handle concurrent users, search efficiently, and persist data reliably.
@@ -70,6 +73,9 @@ Some tests that previously used mock-server/ may need to be deprecated as a resu
 - All tests that imported from or referenced mock-server/ are either migrated to use server/ components or deprecated with explicit skip reasons
 - No remaining references to mock-server in any test file, import, or config
 - Full pytest suite passes after removal
+
+[status]
+done
 
 **PRE-RELEASE FEATURE 4**
 [todo]
@@ -124,20 +130,29 @@ High-level work items:
 - At least 30 import-related tests pass across test files
 - Test fixtures include real open-source agent structures or realistic synthetic agents that match real-world project layouts
 
+[status]
+done
+
 **PRE-RELEASE FEATURE 7**
 [todo]
-create staging environment and associated codebase changes and deliverables for staging environment
-this staging environment and deliverables should be easily configured to become the latest production environment with minimal configuration toggle
+create prod environment and associated codebase changes and deliverables for prod environment
+the prod environment should be deployable with minimal manual configuration needed - majority of deployed resources should be under IaC, when possible
+setup s3://kinnoo-terraform-state-prod/ as the TF state bucket for prod
+setup s3://kinnoo-registry-prod/ as the prod registry bucket
+we will configure a separate staging environment later - for now, just dev and prod
+Cloudflare Worker for deploying kinnoo.ai web brought under IAC, as much as possible - configured very similarly to the current Cloudflare worker for dev
+push to master should trigger a new deployment of the Cloudflare Worker
 
 [definition of done]
-- Staging infra deployed on AWS (ECS/Fargate or equivalent) with Postgres, S3, and Kinde staging tenant
+- Prod infra deployed on AWS (ECS/Fargate or equivalent) with Postgres, S3, and Kinde prod tenant
 - Server runs against staging Postgres and S3 (not SQLite and local filesystem)
-- Environment-specific config driven by env vars or a single config toggle (e.g., KINNOO_ENV=staging vs production)
-- staging.kinnoo.ai resolves and serves the registry web UI and API
-- Cloudflare Worker for deploying staging.kinnoo.ai brought under IAC, if possible 
-- CLI can target staging registry via `KINNOO_REGISTRY_URL` or config file
-- Smoke tests (init, pack, publish, search, install, run) pass end-to-end against staging
-- Deployment runbook documented: how to deploy, how to promote staging to production
+- Environment-specific config driven by env vars or a single config toggle (e.g., KINNOO_ENV=dev vs production)
+- kinnoo.ai resolves and serves the prod landing page, registry web UI, and supporting frontend pages
+- api.kinnoo.ai resolves as the prod API
+- Cloudflare Worker for prod is running 
+- CLI can target dev or prod registry via `KINNOO_REGISTRY_URL` or config file
+- Smoke tests (init, pack, publish, search, install, run) pass end-to-end against prod
+- Deployment runbook documented: exact step-by-step for how to deploy prod environment
 - Dev secrets and placeholder values (dev-secret-change-me, dev-k1) replaced with env-injected production-grade secrets
 
 **PRE-RELEASE FEATURE 8**
