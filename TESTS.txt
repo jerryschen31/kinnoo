@@ -12741,3 +12741,41 @@ tests:
       - "automation_path_subfolder: tests/e2e_workflows"
     automated: true
     automation_path: tests/e2e_workflows/test_cli.py::test_fetch_remote_uses_tenant_qualified_selector
+
+  - id: test737
+    title: "server exposes non-secret hosted auth discovery config"
+    type: integration
+    preconditions: OIDC auth provider mode is enabled with canonical AUTH_* runtime values
+    steps:
+      - 'step1: Start server in OIDC mode with AUTH_* env configuration for issuer/audience/endpoints and CLI client ID.'
+      - 'step2: Call `GET /api/auth/config` without auth.'
+      - 'step3: Verify response includes non-secret hosted auth config fields required for CLI PKCE login and excludes web client secret material.'
+    expected: Discovery endpoint returns stable non-secret OIDC auth config contract for CLI bootstrap
+    pass_criteria: Endpoint returns 200 with expected fields and does not expose sensitive secret values
+    covers:
+      - feature: feature120
+        ac: AC5
+    notes:
+      - "pytest_markers: regression_integration,server_api,security_checks"
+      - "automation_path_subfolder: server/tests"
+    automated: true
+    automation_path: server/tests/test_auth_route.py::test_auth_config_discovery_endpoint_returns_non_secret_oidc_fields
+
+  - id: test738
+    title: "cli hosted login discovers auth config from registry url"
+    type: integration
+    preconditions: Registry auth discovery endpoint is available and KINNOO_REGISTRY_URL is configured while local hosted-auth env vars are unset
+    steps:
+      - 'step1: Unset AUTH/KINDE hosted-login env vars for audience/client/endpoints and set only KINNOO_REGISTRY_URL.'
+      - 'step2: Execute `kinnoo login` hosted flow and simulate browser callback/code exchange via local test server.'
+      - 'step3: Verify CLI login uses discovered config values, persists auth state, and succeeds without manual env bootstrap script.'
+    expected: End-user hosted login succeeds with discovery fallback using only registry URL configuration
+    pass_criteria: Login succeeds and persisted auth state includes discovered token/authorization endpoint + CLI client ID fields
+    covers:
+      - feature: feature120
+        ac: AC5
+    notes:
+      - "pytest_markers: regression_integration,client_cli_login,client_cli_registry"
+      - "automation_path_subfolder: tests/client_cli_registry"
+    automated: true
+    automation_path: tests/client_cli_registry/test_feature118_cli_auth.py::test_feature118_hosted_login_discovers_auth_config_from_registry_url
