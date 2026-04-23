@@ -88,11 +88,13 @@ function AgentTable({
                 <button
                   type="button"
                   onClick={() => onAgentNameClick(agent, source)}
-                  className="text-left text-kinnoo-accent underline decoration-kinnoo-accent/50 underline-offset-2 transition hover:text-[#60A5FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kinnoo-accent"
+                  className="text-left text-kinnoo-accent transition hover:text-[#60A5FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kinnoo-accent"
                 >
-                  {agent.agent_slug}
+                  <span className="underline decoration-kinnoo-accent/50 underline-offset-2">
+                    {agent.agent_slug}
+                  </span>
                   {securityIcons[`${agent.tenant_slug}/${agent.agent_slug}/${agent.version}`] ? (
-                    <span aria-label="agent security icon" className="text-base no-underline">
+                    <span aria-label="agent security icon" className="text-base">
                       {"\u00A0\u00A0"}
                       {securityIcons[`${agent.tenant_slug}/${agent.agent_slug}/${agent.version}`]}
                     </span>
