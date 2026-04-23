@@ -2,7 +2,6 @@
 
 import * as Dialog from "@radix-ui/react-dialog";
 import { Menu, X } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
@@ -78,6 +77,7 @@ export default function MainLayout({ children, initialTenantSlug = null, appBase
   };
 
   const isAuthenticated = Boolean(initialTenantSlug);
+  const tenantInitial = initialTenantSlug?.trim().charAt(0).toUpperCase() || "U";
 
   useEffect(() => {
     if (!isProfileMenuOpen) {
@@ -150,17 +150,28 @@ export default function MainLayout({ children, initialTenantSlug = null, appBase
                     </Dialog.Close>
                   </div>
                   <nav className="flex flex-col gap-3 text-sm">
-                    <a href="https://github.com/kinnoo-project/kinnoo" target="_blank" rel="noreferrer">
+                    <a
+                      href="https://github.com/kinnoo-project/kinnoo"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-kinnoo-text transition hover:text-[#FF7F00]"
+                    >
                       GitHub
                     </a>
                     <a
                       href="https://github.com/kinnoo-project/kinnoo/tree/main/docs"
                       target="_blank"
                       rel="noreferrer"
+                      className="text-kinnoo-text transition hover:text-[#FF7F00]"
                     >
                       Docs
                     </a>
-                    <a href="https://github.com/kinnoo-project/kinnoo/issues" target="_blank" rel="noreferrer">
+                    <a
+                      href="https://github.com/kinnoo-project/kinnoo/issues"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-kinnoo-text transition hover:text-[#FF7F00]"
+                    >
                       Report an Issue
                     </a>
                   </nav>
@@ -187,9 +198,9 @@ export default function MainLayout({ children, initialTenantSlug = null, appBase
                     onClick={() => {
                       setIsProfileMenuOpen((current) => !current);
                     }}
-                    className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-white/20 text-kinnoo-text transition hover:border-[#FF7F00] hover:text-[#FF7F00]"
+                    className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-white/20 text-sm font-semibold text-kinnoo-text transition hover:border-[#FF7F00] hover:text-[#FF7F00]"
                   >
-                    <Image src="/user-profile.svg" alt="User profile" width={20} height={20} />
+                    <span aria-hidden="true">{tenantInitial}</span>
                   </button>
                   {isProfileMenuOpen ? (
                     <div className="absolute right-0 top-full z-50 mt-2 min-w-[9rem] rounded-card border border-white/15 bg-[#222222] py-1 shadow-xl">
