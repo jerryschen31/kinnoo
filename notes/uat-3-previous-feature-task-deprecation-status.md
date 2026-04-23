@@ -41,19 +41,27 @@ task341: "Feature65 delegated install failure-mode handling and tests"
 ### B. Active auth and UAT tasks (low deprecation risk)
 
 task332: "Feature61 login/logout CLI commands and auth state persistence"
-- Recent UAT/auth changes reinforce this direction (hosted discovery, fail-fast fallback behavior), so this remains relevant and should not be deprecated (12%).
+- Recent UAT/auth changes reinforce this direction (hosted discovery, fail-fast fallback behavior), so this remains relevant and should not be deprecated (22%).
+- Associated failing pytest functions: `tests/client_cli_registry/test_cli_registry.py::test_feature61_login_interactive_and_noninteractive`, `tests/client_cli_registry/test_cli_registry.py::test_feature61_logout_and_auth_precedence`.
+- Assessment: likely code-drift/contract drift in legacy test expectations (interactive credential prompts and old error text) after hosted-login migration, not evidence that the task itself should be deprecated.
 
 task333: "Feature61 login/logout tests and operator documentation"
 - Supporting tests/docs remain required for feature61 closure and still align with current auth flows (10%).
 
 task449: "Login and logout CLI hardening"
-- This task directly tightens the current auth model and no-fallback remote behavior, so it remains important and should not be deprecated (15%).
+- This task directly tightens the current auth model and no-fallback remote behavior, so it remains important and should not be deprecated (20%).
+- Associated failing pytest functions: `tests/client_cli_registry/test_cli_registry.py::test_feature61_login_interactive_and_noninteractive`, `tests/client_cli_registry/test_cli_registry.py::test_feature61_logout_and_auth_precedence`.
+- Assessment: failures align with auth UX/message changes under hosted OIDC flows; this looks like test drift more than a task-level regression.
 
 task514: "feature120 UAT3 install/fetch selector and verification-sidecar fixes"
-- This is the core UAT3 implementation lane and remains current with recent code changes (5%).
+- This is the core UAT3 implementation lane and remains current with recent code changes (14%).
+- Associated failing pytest functions: `tests/e2e_workflows/test_cli.py::test_install_remote_latest_resolves_explicit_version_before_download`, `tests/e2e_workflows/test_cli.py::test_install_remote_reports_filesystem_download_url_as_server_error`, `tests/e2e_workflows/test_cli.py::test_install_remote_uses_authenticated_fetch_for_same_host_http_download_url`, `tests/e2e_workflows/test_cli.py::test_install_remote_tenant_qualified_selector_and_checksum_metadata`, `tests/e2e_workflows/test_cli.py::test_fetch_downloads_archive`, `tests/e2e_workflows/test_cli.py::test_fetch_remote_uses_tenant_qualified_selector`, `tests/e2e_workflows/test_cli.py::test_fetch_strict_verification`.
+- Assessment: mostly environment/auth-state interference (`Token refresh network failure`) in remote-path tests; task remains active and should not be deprecated.
 
 task515: "hosted auth discovery via registry config endpoint"
-- This was actively worked in UAT3 and remains central to current auth architecture; not a deprecation candidate (5%).
+- This was actively worked in UAT3 and remains central to current auth architecture; not a deprecation candidate (10%).
+- Associated failing pytest functions: `tests/client_cli_registry/test_feature118_cli_auth.py::test_feature118_test710_hosted_login_persists_full_auth_state`, `tests/client_cli_registry/test_feature118_cli_auth.py::test_feature118_hosted_login_prefers_userinfo_email_for_tenant_slug`, `tests/validator_integration/test_archive_integrity.py::test_publish_copies_checksum_sidecar_when_present`, `tests/e2e_workflows/test_cli.py::test_publish_toggle_true_prefers_authenticated_remote`.
+- Assessment: failures are primarily drift from env-var precedence/global CI auth env (`KINNOO_TENANT_SLUG`, hosted endpoints) and auth refresh side effects; this indicates test/fixture drift, not task obsolescence.
 
 ### C. Security hardening implementation tasks in needs-review (generally low deprecation risk)
 
@@ -79,7 +87,9 @@ task388: "Add JSON logging, CORS, and health/ready endpoints to server"
 - Production-readiness requirements remain valid; no architectural conflict observed (13%).
 
 task389: "Harden Uvicorn config and enforce secret validation in production mode"
-- Operational hardening remains aligned with deployment goals and should remain active (12%).
+- Operational hardening remains aligned with deployment goals and should remain active (20%).
+- Associated failing pytest function: `tests/e2e_workflows/test_feature_89.py::test_feature89_group1`.
+- Assessment: ready-check contract now includes an additional `db` readiness key, so this appears to be expected functionality expansion (drift in assertions), not a deprecation signal.
 
 task390: "Add server-side upload validation (size, zip, manifest fields)"
 - Upload validation remains strategically necessary and still fits current codebase trajectory (12%).
@@ -185,10 +195,14 @@ task422: "Create ECR repository and ALB modules with HTTPS/ACM"
 - Compute/network deployment modules remain active requirements (10%).
 
 task423: "Create ECS Fargate cluster, task definition, and service"
-- ECS service provisioning remains relevant and not deprecated (11%).
+- ECS service provisioning remains relevant and not deprecated (15%).
+- Associated failing pytest function: `tests/e2e_workflows/test_feature_105.py::test_feature105_group3`.
+- Assessment: failure is a brittle string-match expectation on Terraform text formatting/alignment; functionality appears present, so this is test drift, not evidence to deprecate.
 
 task424: "Create EFS module with mount targets and verify terraform validate"
-- Persistent storage module remains part of current infra baseline (12%).
+- Persistent storage module remains part of current infra baseline (15%).
+- Associated failing pytest function: `tests/e2e_workflows/test_feature_105.py::test_feature105_group3`.
+- Assessment: assertions are format-sensitive while EFS resources/desired-count wiring still exist; likely drift in test wording/format assumptions.
 
 task425: "Create Cloudflare DNS module for dev.kinnoo.ai and dev-api.kinnoo.ai"
 - DNS module remains relevant; blockers were operational, not strategic (12%).
@@ -215,6 +229,16 @@ task431: "Add forgot-password endpoint with SNS notification to operator"
 
 task432: "Add forgot-password web page with rate limiting"
 - Not started but still required to complete feature109 intent; likely defer, not deprecate (18%).
+
+task433: "Keep landing unchanged and simplify Sign Up invite-only page"
+- Current web auth implementation has moved to hosted OIDC redirects and no longer matches the original invite-only copy assertions, so this appears partially superseded (72%).
+- Associated failing pytest function: `tests/e2e_workflows/test_feature_110.py::test_feature110_group1`.
+- Assessment: likely code drift/functionality update (post-feature118 web auth migration), not a fresh regression.
+
+task434: "Verify no mailto flow and preserve login/registry + static export"
+- Portions remain relevant, but login-flow assertions (`router.push("/registry")`) appear superseded by hosted redirect flow; this task likely needs reconcile/split rather than direct continuation (80%).
+- Associated failing pytest function: `tests/e2e_workflows/test_feature_110.py::test_feature110_group2`.
+- Assessment: likely drift due newer hosted-auth redirect behavior and current web build/runtime expectations.
 
 task435: "Create e2e smoke test script with parameterized registry URL and credentials"
 - Still needed for release validation; no evidence it is obsolete (15%).
@@ -270,10 +294,14 @@ task450: "kinnoo test hardening"
 - Still relevant and independent of UAT3 auth changes; appears unfinished rather than obsolete (18%).
 
 task451: "Fix remote install latest resolution and download URL handling"
-- This fix aligns with current remote registry behavior and should remain active for review closure (10%).
+- This fix aligns with current remote registry behavior and should remain active for review closure (12%).
+- Associated failing pytest functions: `tests/client_cli_install/test_install_refactor.py::test_install_name_resolves_latest_from_mock_registry`, `tests/client_cli_install/test_install_refactor.py::test_install_name_equals_version_from_mock_registry`, plus remote install/fetch failures in `tests/e2e_workflows/test_cli.py`.
+- Assessment: mixed signal (some true workflow mismatch from tenant-scoped local publish vs local install lookup, plus auth-environment drift); still not a deprecation candidate.
 
 task452: "Fix publish framework requirement and JS/TS runtime language handling"
-- Still aligned with current architecture; no sign this issue fix should be deprecated (10%).
+- Still aligned with current architecture; no sign this issue fix should be deprecated (25%).
+- Associated failing pytest functions: `tests/client_cli_publish/test_publish_refactor.py::test_publish_name_resolves_latest_local_archive`, `tests/client_cli_publish/test_publish_refactor.py::test_publish_rolls_existing_tagged_to_untagged`, `tests/validator_integration/test_archive_integrity.py::test_publish_copies_checksum_sidecar_when_present`.
+- Assessment: mostly drift from tenant-scoped local registry pathing and auth-refresh side effects in `--local` scenarios; likely stale test assumptions rather than task obsolescence.
 
 task453: "CLI top-level help - version, commit hash, and icon"
 - Cosmetic/UX hardening still valid; low deprecation risk (20%).
@@ -329,13 +357,19 @@ task497: "feature118 server OIDC auth adapter and route cutover"
 - The server auth cutover appears materially implemented; as a planning-task artifact it is likely stale (82%).
 
 task498: "feature118 web auth migration to Kinde-hosted redirects"
-- If web auth path is already migrated, this planning task should likely be deprecated/closed to avoid duplicate tracking (80%).
+- If web auth path is already migrated, this planning task should likely be deprecated/closed to avoid duplicate tracking (86%).
+- Associated failing pytest functions: `tests/e2e_workflows/test_feature_110.py::test_feature110_group1`, `tests/e2e_workflows/test_feature_110.py::test_feature110_group2`, `tests/client_cli_registry/test_registry.py::test_feature55_login_csrf_passthrough`, `tests/client_cli_registry/test_registry.py::test_feature55_session_csrf_forwarding`.
+- Assessment: failing tests largely assert pre-migration web auth behavior/contracts and are likely stale after hosted-auth cutover.
 
 task499: "feature118 CLI login/logout/refresh flow migration"
-- CLI auth migration has active code and UAT3 fixes; this planning task likely represents completed/superseded work (82%).
+- CLI auth migration has active code and UAT3 fixes; this planning task likely represents completed/superseded work (84%).
+- Associated failing pytest functions: `tests/client_cli_registry/test_feature118_cli_auth.py::test_feature118_test710_hosted_login_persists_full_auth_state`, `tests/client_cli_registry/test_feature118_cli_auth.py::test_feature118_hosted_login_prefers_userinfo_email_for_tenant_slug`, `tests/client_cli_registry/test_cli_registry.py::test_feature61_login_interactive_and_noninteractive`.
+- Assessment: failures are mostly environment-precedence and hosted-flow expectation drift; this supports closing/reconciling the planning task rather than treating it as an active implementation lane.
 
 task500: "feature118 internal identity mapping and publish ownership linkage"
-- Likely partially implemented during auth cutover; as a manifest planning item this is probably stale (74%).
+- Likely partially implemented during auth cutover; as a manifest planning item this is probably stale (78%).
+- Associated failing pytest functions: `server/tests/test_feature118_oidc_auth.py::test_feature118_token_service_prefers_email_tenant_over_org_code`, `server/tests/test_feature118_oidc_auth.py::test_feature118_token_service_uses_userinfo_email_when_token_email_missing`.
+- Assessment: tenant slug normalization now appears hyphen-preserving (`jerry-schen`) vs older expectation (`jerryschen`), indicating contract drift rather than a clear regression bug.
 
 task501: "feature118 provider-neutral auth config and IaC env alignment"
 - Recent auth/env refinements suggest this has moved forward; the task likely needs closure or deprecation as planning residue (72%).
