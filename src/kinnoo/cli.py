@@ -25,13 +25,13 @@ try:
     from kinnoo.schema import NAME_PATTERN
     from kinnoo import __version__ as KINNOO_VERSION
     from kinnoo.remote_client import RemoteRegistryClientError
-    from kinnoo.terminal_colors import style_text
+    from kinnoo.terminal_colors import style_text, install_cli_line_prefix_colorization
 except ImportError:
     # fallback for direct script execution
     from .schema import NAME_PATTERN
     from . import __version__ as KINNOO_VERSION
     from .remote_client import RemoteRegistryClientError
-    from .terminal_colors import style_text
+    from .terminal_colors import style_text, install_cli_line_prefix_colorization
 
 
 RUN_USAGE_TEXT = (
@@ -213,7 +213,11 @@ class KinnooArgumentParser(argparse.ArgumentParser):
         return formatter.format_help()
 
 def main():
-    import os
+    sys.stdout, sys.stderr = install_cli_line_prefix_colorization(
+        stdout=sys.stdout,
+        stderr=sys.stderr,
+    )
+
     if len(sys.argv) == 2 and sys.argv[1] in {"-h", "--help"}:
         _print_top_level_help()
         sys.exit(0)

@@ -1833,9 +1833,8 @@ def _install_from_archive_path(
                     )
                 else:
                     try:
-                        publisher_confirmation = input(
-                            "[kinnoo install] Continue without signature verification? [y/N]: "
-                        ).strip().lower()
+                        print("[kinnoo install] Continue without signature verification? [y/N]: ", end="", flush=True)
+                        publisher_confirmation = input().strip().lower()
                     except EOFError:
                         print("Install aborted: signature verification not approved.", file=sys.stderr)
                         return 1
