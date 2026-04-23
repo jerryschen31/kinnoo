@@ -1,8 +1,9 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useMemo, useState } from "react";
 
-import type { AgentSummary } from "../../lib/registry-client";
+import { fetchAgentSecurityReport, type AgentSummary } from "../../lib/registry-client";
 
 type RegistryView = "my-agents" | "search";
 
@@ -24,6 +25,8 @@ type RegistryTabsProps = {
   };
   onAgentNameClick: (agent: AgentSummary, source: "my-agents" | "search") => void;
 };
+
+type AgentSecurityIcon = "🔏" | "❌" | "";
 
 const panelMotion = {
   initial: { opacity: 0, y: 8 },
@@ -52,10 +55,12 @@ function formatSize(size?: number): string {
 function AgentTable({
   agents,
   source,
+  securityIcons,
   onAgentNameClick,
 }: {
   agents: AgentSummary[];
   source: "my-agents" | "search";
+  securityIcons: Record<string, AgentSecurityIcon>;
   onAgentNameClick: (agent: AgentSummary, source: "my-agents" | "search") => void;
 }) {
   return (
@@ -86,6 +91,12 @@ function AgentTable({
                   className="text-left text-kinnoo-accent underline decoration-kinnoo-accent/50 underline-offset-2 transition hover:text-[#60A5FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kinnoo-accent"
                 >
                   {agent.agent_slug}
+                  {securityIcons[`${agent.tenant_slug}/${agent.agent_slug}/${agent.version}`] ? (
+                    <span aria-label="agent security icon" className="text-base no-underline">
+                      {"\u00A0\u00A0"}
+                      {securityIcons[`${agent.tenant_slug}/${agent.agent_slug}/${agent.version}`]}
+                    </span>
+                  ) : null}
                 </button>
               </td>
               <td className="px-3 py-2">{agent.version}</td>
@@ -111,6 +122,89 @@ export default function RegistryTabs({
   searchState,
   onAgentNameClick,
 }: RegistryTabsProps) {
+  const [securityIcons, setSecurityIcons] = useState<Record<string, AgentSecurityIcon>>({});
+
+  const candidateAgents = useMemo(() => {
+    const merged = [...myAgentsState.agents, ...searchState.agents];
+    const deduped = new Map<string, AgentSummary>();
+    for (const agent of merged) {
+      const key = `${agent.tenant_slug}/${agent.agent_slug}/${agent.version}`;
+      if (!deduped.has(key)) {
+        deduped.set(key, agent);
+      }
+    }
+    return Array.from(deduped.values());
+  }, [myAgentsState.agents, searchState.agents]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const pendingAgents = candidateAgents.filter((agent) => {
+      const key = `${agent.tenant_slug}/${agent.agent_slug}/${agent.version}`;
+      return !(key in securityIcons) && Boolean(agent.version);
+    });
+
+    if (pendingAgents.length === 0) {
+      return;
+    }
+
+    const loadSecurityIcons = async () => {
+      const updates: Record<string, AgentSecurityIcon> = {};
+
+      await Promise.all(
+        pendingAgents.map(async (agent) => {
+          const key = `${agent.tenant_slug}/${agent.agent_slug}/${agent.version}`;
+          try {
+            const report = await fetchAgentSecurityReport(
+              agent.tenant_slug,
+              agent.agent_slug,
+              agent.version,
+            );
+
+            const checks = Array.isArray(report.checks) ? report.checks : [];
+            const signaturePass = checks.some(
+              (check) => check.check_name === "signature" && check.status.toLowerCase() === "pass",
+            );
+            const archiveIntegrityFail = checks.some(
+              (check) =>
+                (check.check_name === "archive_integrity" || check.check_name === "archive") &&
+                check.status.toLowerCase() === "fail",
+            );
+            const perFileIntegrityFail = checks.some(
+              (check) =>
+                (check.check_name === "per_file_integrity" || check.check_name === "per_file") &&
+                check.status.toLowerCase() === "fail",
+            );
+
+            if (archiveIntegrityFail || perFileIntegrityFail) {
+              updates[key] = "❌";
+              return;
+            }
+
+            if (signaturePass) {
+              updates[key] = "🔏";
+              return;
+            }
+
+            updates[key] = "";
+          } catch {
+            updates[key] = "";
+          }
+        }),
+      );
+
+      if (!cancelled && Object.keys(updates).length > 0) {
+        setSecurityIcons((current) => ({ ...current, ...updates }));
+      }
+    };
+
+    void loadSecurityIcons();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [candidateAgents, securityIcons]);
+
   return (
     <AnimatePresence mode="wait" initial={false}>
       {activeView === "my-agents" ? (
@@ -134,6 +228,7 @@ export default function RegistryTabs({
             <AgentTable
               agents={myAgentsState.agents}
               source="my-agents"
+              securityIcons={securityIcons}
               onAgentNameClick={onAgentNameClick}
             />
           )}
@@ -182,6 +277,7 @@ export default function RegistryTabs({
               <AgentTable
                 agents={searchState.agents}
                 source="search"
+                securityIcons={securityIcons}
                 onAgentNameClick={onAgentNameClick}
               />
             )}

@@ -198,7 +198,7 @@ export default function MainLayout({ children, initialTenantSlug = null, appBase
                     onClick={() => {
                       setIsProfileMenuOpen((current) => !current);
                     }}
-                    className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border-2 border-white/20 text-[1.05rem] font-semibold text-kinnoo-text transition hover:border-[#FF7F00] hover:text-[#FF7F00]"
+                    className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-white/20 text-sm font-semibold text-kinnoo-text transition hover:border-[#FF7F00] hover:text-[#FF7F00]"
                   >
                     <span aria-hidden="true">{tenantInitial}</span>
                   </button>
