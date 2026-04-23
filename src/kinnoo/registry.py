@@ -39,6 +39,7 @@ class InstallTargetSpec:
     kind: Literal["archive-path", "registry-latest", "registry-exact", "invalid"]
     raw_target: str
     archive_path: Path | None = None
+    tenant: str | None = None
     name: str | None = None
     version: str | None = None
     error: str | None = None
@@ -80,8 +81,17 @@ class RegistryService:
             manifest_metadata=manifest_metadata,
         )
 
-    def resolve(self, *, name: str, version: Optional[str] = None) -> Optional[RegistryRecord]:
-        return self._backend.resolve(name=name, version=version)
+    def resolve(
+        self,
+        *,
+        name: str,
+        version: Optional[str] = None,
+        tenant: str | None = None,
+    ) -> Optional[RegistryRecord]:
+        try:
+            return self._backend.resolve(name=name, version=version, tenant=tenant)
+        except TypeError:
+            return self._backend.resolve(name=name, version=version)
 
     def list_entries(self) -> list[RegistryRecord]:
         return self._backend.list_entries()
@@ -127,12 +137,16 @@ class RegistryService:
         *,
         name: str,
         version: Optional[str] = None,
+        tenant: str | None = None,
     ) -> tuple[Optional[RegistryRecord], Optional[str]]:
         backend_resolver = getattr(self._backend, "resolve_with_error", None)
         if callable(backend_resolver):
-            return backend_resolver(name=name, version=version)
+            try:
+                return backend_resolver(name=name, version=version, tenant=tenant)
+            except TypeError:
+                return backend_resolver(name=name, version=version)
 
-        record = self.resolve(name=name, version=version)
+        record = self.resolve(name=name, version=version, tenant=tenant)
         if record is not None:
             return record, None
 
@@ -276,6 +290,8 @@ def parse_install_target_spec(target: str) -> InstallTargetSpec:
     Supported selector forms:
     - ``<name>`` (latest)
     - ``<name>==<version>`` (exact)
+    - ``<tenant>/<name>`` (latest)
+    - ``<tenant>/<name>==<version>`` (exact)
     """
 
     candidate = target.strip()
@@ -287,8 +303,8 @@ def parse_install_target_spec(target: str) -> InstallTargetSpec:
         )
 
     looks_like_path = (
-        "/" in candidate
-        or candidate.startswith(".")
+        candidate.startswith(".")
+        or candidate.startswith("/")
         or candidate.startswith("~")
         or candidate.endswith(".kno")
         or Path(candidate).exists()
@@ -327,11 +343,35 @@ def parse_install_target_spec(target: str) -> InstallTargetSpec:
                 ),
             )
 
-        if not re.fullmatch(NAME_PATTERN, name):
+        tenant: str | None = None
+        selector_name = name
+        if "/" in name:
+            tenant_part, raw_name = name.split("/", 1)
+            tenant_part = tenant_part.strip()
+            raw_name = raw_name.strip()
+            if not tenant_part or not raw_name:
+                return InstallTargetSpec(
+                    kind="invalid",
+                    raw_target=target,
+                    error=(
+                        "Invalid registry selector format. Use '<name>==<version>' or "
+                        "'<tenant>/<name>==<version>'."
+                    ),
+                )
+            if not re.fullmatch(r"^[a-z][a-z0-9-]*$", tenant_part):
+                return InstallTargetSpec(
+                    kind="invalid",
+                    raw_target=target,
+                    error=f"Invalid registry tenant slug '{tenant_part}'.",
+                )
+            tenant = tenant_part
+            selector_name = raw_name
+
+        if not re.fullmatch(NAME_PATTERN, selector_name):
             return InstallTargetSpec(
                 kind="invalid",
                 raw_target=target,
-                error=f"Invalid registry agent name '{name}'.",
+                error=f"Invalid registry agent name '{selector_name}'.",
             )
 
         if not re.fullmatch(SEMVER_PATTERN, version):
@@ -344,22 +384,48 @@ def parse_install_target_spec(target: str) -> InstallTargetSpec:
         return InstallTargetSpec(
             kind="registry-exact",
             raw_target=target,
-            name=name,
+            tenant=tenant,
+            name=selector_name,
             version=version,
         )
 
-    if not re.fullmatch(NAME_PATTERN, candidate):
+    tenant: str | None = None
+    selector_name = candidate
+    if "/" in candidate:
+        tenant_part, raw_name = candidate.split("/", 1)
+        tenant_part = tenant_part.strip()
+        raw_name = raw_name.strip()
+        if not tenant_part or not raw_name:
+            return InstallTargetSpec(
+                kind="invalid",
+                raw_target=target,
+                error=(
+                    f"Invalid install target '{candidate}'. Use a .kno file path, "
+                    "'<name>', '<name>==<version>', '<tenant>/<name>', or '<tenant>/<name>==<version>'."
+                ),
+            )
+        if not re.fullmatch(r"^[a-z][a-z0-9-]*$", tenant_part):
+            return InstallTargetSpec(
+                kind="invalid",
+                raw_target=target,
+                error=f"Invalid registry tenant slug '{tenant_part}'.",
+            )
+        tenant = tenant_part
+        selector_name = raw_name
+
+    if not re.fullmatch(NAME_PATTERN, selector_name):
         return InstallTargetSpec(
             kind="invalid",
             raw_target=target,
             error=(
                 f"Invalid install target '{candidate}'. Use a .kno file path, "
-                "'<name>', or '<name>==<version>'."
+                "'<name>', '<name>==<version>', '<tenant>/<name>', or '<tenant>/<name>==<version>'."
             ),
         )
 
     return InstallTargetSpec(
         kind="registry-latest",
         raw_target=target,
-        name=candidate,
+        tenant=tenant,
+        name=selector_name,
     )

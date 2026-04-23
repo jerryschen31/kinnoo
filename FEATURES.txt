@@ -3658,6 +3658,30 @@ features:
     dependencies: [feature69]
     status: completed
 
+  - id: feature120
+    title: "UAT 3 - fixes"
+    description: |
+      Third round of User Acceptance Testing (UAT) focused on UI tweaks and
+      bug fixes identified during hands-on validation. This pass addresses
+      install/fetch selector clarity, tenant-qualified selector support, and
+      remote archive verification behavior to reduce operator confusion and
+      improve trust-path correctness.
+    tasks: [task514]
+    acceptance_criteria:
+      - id: AC1
+        description: "Agent manifest modal shows exact-version install command syntax using '=='."
+      - id: AC2
+        description: "`kinnoo install` accepts tenant-qualified selectors (`tenant/agent` and `tenant/agent==version`)."
+      - id: AC3
+        description: "`kinnoo fetch` accepts tenant-qualified selectors (`tenant/agent` and `tenant/agent==version`)."
+      - id: AC4
+        description: "Remote installs/fetches can verify archive checksum using server-provided checksum metadata even when no local sidecar file exists at temp download path."
+      - id: AC5
+        description: "Regression tests cover parser updates, tenant-qualified remote resolution, and checksum metadata verification flow."
+    owner: swe-agent
+    dependencies: []
+    status: needs-review
+
   - id: feature115
     title: "UAT Part 1 - CLI hardening"
     description: |

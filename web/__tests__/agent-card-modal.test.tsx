@@ -55,7 +55,7 @@ describe("AgentCard", () => {
   it("opens manifest modal from name click and closes using X", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
       const url = String(input);
-      if (url === "/api/agents") {
+      if (url === "/api/agents?show_only_mine=true") {
         return Promise.resolve(
           jsonResponse([
             {
@@ -106,7 +106,7 @@ describe("AgentCard", () => {
   it("fetches detail endpoint and renders registry, agent, versions, and security tabs", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
       const url = String(input);
-      if (url === "/api/agents") {
+      if (url === "/api/agents?show_only_mine=true") {
         return Promise.resolve(
           jsonResponse([
             {
@@ -187,7 +187,7 @@ describe("AgentCard", () => {
     vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
       const url = String(input);
 
-      if (url === "/api/agents") {
+      if (url === "/api/agents?show_only_mine=true") {
         return Promise.resolve(
           jsonResponse([
             {
@@ -245,13 +245,13 @@ describe("AgentCard", () => {
     fireEvent.click(await screen.findByRole("button", { name: "public-helper" }));
 
     await waitFor(() => {
-      expect(screen.getByText("kinnoo install acme/public-helper@2.0.0")).toBeTruthy();
+      expect(screen.getByText("kinnoo install acme/public-helper==2.0.0")).toBeTruthy();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Copy" }));
 
     await waitFor(() => {
-      expect(writeText).toHaveBeenCalledWith("kinnoo install acme/public-helper@2.0.0");
+      expect(writeText).toHaveBeenCalledWith("kinnoo install acme/public-helper==2.0.0");
       expect(screen.getByRole("button", { name: "Copied!" })).toBeTruthy();
     });
   });
@@ -266,7 +266,7 @@ describe("AgentCard", () => {
     vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
       const url = String(input);
 
-      if (url === "/api/agents") {
+      if (url === "/api/agents?show_only_mine=true") {
         return Promise.resolve(
           jsonResponse([
             {
@@ -366,12 +366,12 @@ describe("AgentCard", () => {
     fireEvent.click(await screen.findByRole("button", { name: "public-helper" }));
 
     await waitFor(() => {
-      expect(screen.getByText("kinnoo install acme/public-helper@2.0.0")).toBeTruthy();
+      expect(screen.getByText("kinnoo install acme/public-helper==2.0.0")).toBeTruthy();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Copy" }));
     await waitFor(() => {
-      expect(writeText).toHaveBeenCalledWith("kinnoo install acme/public-helper@2.0.0");
+      expect(writeText).toHaveBeenCalledWith("kinnoo install acme/public-helper==2.0.0");
       expect(screen.getByRole("button", { name: "Copied!" })).toBeTruthy();
     });
   });

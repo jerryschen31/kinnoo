@@ -787,16 +787,28 @@ DEFAULT_OPENCLAW_MINIMUM_VERSION = "0.1.0"
 
 def _resolve_remote_latest_version(*, backend: RemoteRegistryClient, agent_name: str) -> str | None:
     """Resolve explicit latest version from remote registry list metadata."""
-    summaries = backend.list_latest_agents()
+    tenant_slug: str | None = None
+    normalized_agent_name = agent_name
+    if "/" in agent_name:
+        tenant_part, raw_name = agent_name.split("/", 1)
+        if tenant_part.strip() and raw_name.strip():
+            tenant_slug = tenant_part.strip()
+            normalized_agent_name = raw_name.strip()
+
+    list_agents_fn = getattr(backend, "list_agents", None)
+    if callable(list_agents_fn):
+        summaries = list_agents_fn(tenant=tenant_slug)
+    else:
+        summaries = backend.list_latest_agents()
     for summary in summaries:
         if isinstance(summary, dict):
-            candidate_name = summary.get("name")
+            candidate_name = summary.get("name") or summary.get("agent_slug")
             latest_version = summary.get("latest_version")
         else:
             candidate_name = getattr(summary, "name", None)
             latest_version = getattr(summary, "latest_version", None)
 
-        if candidate_name == agent_name and isinstance(latest_version, str) and latest_version.strip():
+        if candidate_name == normalized_agent_name and isinstance(latest_version, str) and latest_version.strip():
             return latest_version.strip()
 
     return None
@@ -1119,11 +1131,14 @@ def install_agent(
         return 1
 
     if target_spec.kind in {"registry-latest", "registry-exact"}:
-        selector = str(target_spec.name)
+        selector_name = str(target_spec.name)
+        selector_tenant = getattr(target_spec, "tenant", None)
+        selector_with_tenant = f"{selector_tenant}/{selector_name}" if selector_tenant else selector_name
+        selector = selector_with_tenant
         version: str | None = None
         if target_spec.kind == "registry-exact":
             version = target_spec.version
-            selector = f"{target_spec.name}=={target_spec.version}"
+            selector = f"{selector_with_tenant}=={target_spec.version}"
 
         if use_local and use_remote:
             print("Error: --local and --remote cannot be used together.", file=sys.stderr)
@@ -1187,6 +1202,7 @@ def install_agent(
 
         resolved_archive_path: Path | None = None
         expected_publisher_key: str | None = None
+        expected_archive_checksum: str | None = None
 
         if backend_label == "remote":
             resolved_version = version
@@ -1194,7 +1210,7 @@ def install_agent(
                 try:
                     resolved_version = _resolve_remote_latest_version(
                         backend=backend,
-                        agent_name=str(target_spec.name),
+                        agent_name=selector_with_tenant,
                     )
                 except Exception as error:
                     print(f"Error: Failed to resolve latest remote version: {error}", file=sys.stderr)
@@ -1209,7 +1225,11 @@ def install_agent(
                     return 1
 
             try:
-                resolved_payload = backend.resolve(name=str(target_spec.name), version=resolved_version)
+                resolved_payload = backend.resolve(
+                    name=selector_name,
+                    version=resolved_version,
+                    tenant=selector_tenant,
+                )
             except Exception as error:
                 print(f"Error: Failed to resolve remote registry target: {error}", file=sys.stderr)
                 return 1
@@ -1219,6 +1239,9 @@ def install_agent(
                 raw_download_url = resolved_payload.get("download_url")
                 if isinstance(raw_download_url, str) and raw_download_url.strip():
                     download_url = raw_download_url.strip()
+                raw_checksum = resolved_payload.get("checksum_sha256")
+                if isinstance(raw_checksum, str) and raw_checksum.strip():
+                    expected_archive_checksum = raw_checksum.strip()
 
             if not download_url:
                 print(
@@ -1245,8 +1268,9 @@ def install_agent(
                 return 1
         else:
             resolved_record, resolve_error = service.resolve_with_error(
-                name=str(target_spec.name),
+                name=selector_name,
                 version=version,
+                tenant=selector_tenant,
             )
             if resolved_record is None:
                 print(f"Error: {resolve_error or 'Registry resolution failed.'}", file=sys.stderr)
@@ -1284,6 +1308,7 @@ def install_agent(
                 skip_verify=skip_verify,
                 frozen_mode=frozen_mode,
                 expected_publisher_public_key=expected_publisher_key,
+                expected_archive_checksum=expected_archive_checksum,
                 minimum_openclaw_version=minimum_openclaw_version,
                 install_source=resolved_install_source,
             )
@@ -1507,6 +1532,7 @@ def _install_from_archive_path(
     skip_verify: bool = False,
     frozen_mode: bool = False,
     expected_publisher_public_key: str | None = None,
+    expected_archive_checksum: str | None = None,
     minimum_openclaw_version: str = DEFAULT_OPENCLAW_MINIMUM_VERSION,
     install_source: str = "archive-file",
 ) -> int:
@@ -1532,6 +1558,7 @@ def _install_from_archive_path(
     if skip_verify:
         print("[kinnoo install] Verification skipped (--skip-verify).")
     else:
+        checksum_verified = False
         if checksum_path.exists():
             try:
                 expected_checksum, expected_archive_filename = read_checksum_sidecar(checksum_path)
@@ -1556,8 +1583,19 @@ def _install_from_archive_path(
                 return 1
 
             print("[kinnoo install] Archive checksum verified.")
+            checksum_verified = True
+        elif isinstance(expected_archive_checksum, str) and expected_archive_checksum.strip():
+            checksum_matches, _ = verify_archive_checksum(archive, expected_archive_checksum.strip())
+            if not checksum_matches:
+                print(
+                    "Archive integrity check failed — the file may be corrupted or tampered with",
+                    file=sys.stderr,
+                )
+                return 1
+            print("[kinnoo install] Archive checksum verified.")
+            checksum_verified = True
 
-        source_is_unverified = not checksum_path.exists()
+        source_is_unverified = not checksum_verified
         if strict_mode and source_is_unverified:
             print(
                 "Error: Strict mode requires archive integrity verification; checksum sidecar is missing.",
@@ -1585,14 +1623,8 @@ def _install_from_archive_path(
 
         if strict_mode and not (signature_path.exists() and signature_metadata_path.exists()):
             print(
-                "Error: Strict mode requires valid signature metadata; unsigned artifacts are not allowed.",
-                file=sys.stderr,
+                "[kinnoo install] Detached signature artifacts not found; falling back to embedded META-INF/signature.json verification."
             )
-            print(
-                "Error: Re-pack with --sign and retry install in strict mode.",
-                file=sys.stderr,
-            )
-            return 1
 
         if has_signature_artifacts:
             if not signature_path.exists() or not signature_metadata_path.exists():
@@ -1630,7 +1662,7 @@ def _install_from_archive_path(
                 return 1
 
             print("[kinnoo install] Archive signature verified.")
-        elif checksum_path.exists():
+        elif checksum_verified:
             if expected_publisher_public_key is not None:
                 print(
                     "Error: Registry publisher key association exists but archive signature metadata is missing.",

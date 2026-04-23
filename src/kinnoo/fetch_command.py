@@ -86,19 +86,26 @@ def fetch_agent(
     service = RegistryService(backend=backend)
 
     requested_version = target_spec.version if target_spec.kind == "registry-exact" else None
+    selector_name = str(target_spec.name)
+    selector_tenant = getattr(target_spec, "tenant", None)
+    selector_with_tenant = f"{selector_tenant}/{selector_name}" if selector_tenant else selector_name
     resolved_archive_path: Path | None = None
     is_remote_temp_archive = False
 
     if backend_label == "remote":
         resolved_version = requested_version
         if resolved_version is None:
-            resolved_version = _resolve_remote_latest_version(backend=backend, agent_name=str(target_spec.name))
+            resolved_version = _resolve_remote_latest_version(backend=backend, agent_name=selector_with_tenant)
             if resolved_version is None:
                 print("Error: Failed to resolve latest remote version.", file=sys.stderr)
                 return 1
 
         try:
-            payload = backend.resolve(name=str(target_spec.name), version=resolved_version)
+            payload = backend.resolve(
+                name=selector_name,
+                version=resolved_version,
+                tenant=selector_tenant,
+            )
         except Exception as error:
             print(f"Error: Failed to resolve remote registry target: {error}", file=sys.stderr)
             return 1
@@ -129,8 +136,9 @@ def fetch_agent(
             return 1
     else:
         resolved_record, resolve_error = service.resolve_with_error(
-            name=str(target_spec.name),
+            name=selector_name,
             version=requested_version,
+            tenant=selector_tenant,
         )
         if resolved_record is None:
             print(f"Error: {resolve_error or 'Registry resolution failed.'}", file=sys.stderr)
