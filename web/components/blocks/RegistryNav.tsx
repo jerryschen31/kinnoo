@@ -21,11 +21,7 @@ export default function RegistryNav({
         type="button"
         onClick={() => onSelectView("my-agents")}
         aria-pressed={activeView === "my-agents"}
-        className={`${baseTabClass} ${
-          activeView === "my-agents"
-            ? "border-[#FF7F00] bg-[#FF7F00]/15 text-kinnoo-text"
-            : "border-white/20 text-white/80"
-        }`}
+        className={`${baseTabClass} border-white/20 bg-transparent text-white/80`}
       >
         My Agents
       </button>
@@ -33,11 +29,7 @@ export default function RegistryNav({
         type="button"
         onClick={() => onSelectView("search")}
         aria-pressed={activeView === "search"}
-        className={`${baseTabClass} ${
-          activeView === "search"
-            ? "border-[#FF7F00] bg-[#FF7F00]/15 text-kinnoo-text"
-            : "border-white/20 text-white/80"
-        }`}
+        className={`${baseTabClass} border-white/20 bg-transparent text-white/80`}
       >
         Search
       </button>
