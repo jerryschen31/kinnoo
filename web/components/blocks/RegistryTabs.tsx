@@ -63,6 +63,16 @@ function AgentTable({
   securityIcons: Record<string, AgentSecurityIcon>;
   onAgentNameClick: (agent: AgentSummary, source: "my-agents" | "search") => void;
 }) {
+  const iconTooltip = (icon: AgentSecurityIcon): string => {
+    if (icon === "🔏") {
+      return "Agent archive signed with publisher private key.";
+    }
+    if (icon === "❌") {
+      return "Agent archive failed integrity verification (corrupted or tampered).";
+    }
+    return "";
+  };
+
   return (
     <div className="mt-3 overflow-x-auto rounded-card border border-white/15">
       <table className="min-w-full border-collapse text-left text-sm text-kinnoo-text">
@@ -94,7 +104,15 @@ function AgentTable({
                     {agent.agent_slug}
                   </span>
                   {securityIcons[`${agent.tenant_slug}/${agent.agent_slug}/${agent.version}`] ? (
-                    <span aria-label="agent security icon" className="text-base">
+                    <span
+                      aria-label={iconTooltip(
+                        securityIcons[`${agent.tenant_slug}/${agent.agent_slug}/${agent.version}`],
+                      )}
+                      title={iconTooltip(
+                        securityIcons[`${agent.tenant_slug}/${agent.agent_slug}/${agent.version}`],
+                      )}
+                      className="text-base"
+                    >
                       {"\u00A0\u00A0"}
                       {securityIcons[`${agent.tenant_slug}/${agent.agent_slug}/${agent.version}`]}
                     </span>
