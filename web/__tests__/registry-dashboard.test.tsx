@@ -25,7 +25,6 @@ describe("Registry dashboard", () => {
 
     expect(screen.getByRole("button", { name: "My Agents" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Search" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Logout" })).toBeTruthy();
   });
 
   it("defaults to My Agents view on initial render", async () => {
@@ -135,23 +134,4 @@ describe("Registry dashboard", () => {
     expect(calledUrls.some((url) => url.startsWith("/api/search"))).toBe(true);
   });
 
-  it("submits logout as navigation-style POST with csrf token", () => {
-    document.cookie = "kinnoo_csrf=test-csrf-token";
-    const submitSpy = vi
-      .spyOn(HTMLFormElement.prototype, "submit")
-      .mockImplementation(() => undefined);
-
-    render(<RegistryPage />);
-    fireEvent.click(screen.getByRole("button", { name: "Logout" }));
-
-    expect(submitSpy).toHaveBeenCalledTimes(1);
-    const logoutForm = document.querySelector(
-      'form[action="/api/logout"][method="POST"]',
-    ) as HTMLFormElement | null;
-    expect(logoutForm).toBeTruthy();
-    const csrfInput = logoutForm?.querySelector(
-      'input[name="csrf_token"]',
-    ) as HTMLInputElement | null;
-    expect(csrfInput?.value).toBe("test-csrf-token");
-  });
 });

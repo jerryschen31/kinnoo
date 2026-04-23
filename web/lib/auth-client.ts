@@ -6,6 +6,8 @@ export type LoginResult = {
 export type AuthMeResult = {
   ok: boolean;
   status: number;
+  tenantSlug: string | null;
+  username: string | null;
 };
 
 function isSuccessfulLoginResponse(response: Response): boolean {
@@ -53,14 +55,34 @@ export async function fetchAuthMeServer(cookieHeader: string): Promise<AuthMeRes
       },
     });
 
+    let tenantSlug: string | null = null;
+    let username: string | null = null;
+    if (response.ok) {
+      try {
+        const payload = (await response.json()) as { tenant_slug?: unknown; username?: unknown };
+        if (typeof payload.tenant_slug === "string" && payload.tenant_slug.trim()) {
+          tenantSlug = payload.tenant_slug.trim();
+        }
+        if (typeof payload.username === "string" && payload.username.trim()) {
+          username = payload.username.trim();
+        }
+      } catch {
+        // Keep auth status even if payload parsing fails.
+      }
+    }
+
     return {
       ok: response.ok,
       status: response.status,
+      tenantSlug,
+      username,
     };
   } catch {
     return {
       ok: false,
       status: 503,
+      tenantSlug: null,
+      username: null,
     };
   }
 }
