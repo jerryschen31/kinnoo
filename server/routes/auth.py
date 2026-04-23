@@ -44,6 +44,7 @@ def create_auth_router(
     frontend_url: str,
     email_service: EmailService,
     enable_legacy_auth_paths: bool = True,
+    oidc_provider: Any | None = None,
 ) -> Any:
     fastapi_module = importlib.import_module("fastapi")
     APIRouter = getattr(fastapi_module, "APIRouter")
@@ -54,6 +55,32 @@ def create_auth_router(
     router = APIRouter()
 
     password_auth_token_service = legacy_token_service or token_service
+
+    @router.get("/api/auth/config")
+    async def auth_config(request: Request) -> dict[str, object]:
+        request_id = resolve_request_id(request)
+        if oidc_provider is None:
+            return JSONResponse(
+                status_code=404,
+                content=build_error_envelope(
+                    status_code=404,
+                    message="hosted auth config is not available",
+                    request_id=request_id,
+                ),
+            )
+
+        provider_config = oidc_provider.config
+        return {
+            "schema_version": 1,
+            "auth_mode": "oidc",
+            "issuer_url": provider_config.issuer_url,
+            "authorization_endpoint": provider_config.authorization_endpoint,
+            "token_endpoint": provider_config.token_endpoint,
+            "logout_endpoint": provider_config.logout_endpoint,
+            "userinfo_endpoint": provider_config.userinfo_endpoint,
+            "audience": provider_config.audience,
+            "cli_client_id": provider_config.cli_client_id,
+        }
 
     @router.post("/api/auth/token")
     async def issue_token(request: Request) -> dict[str, object]:

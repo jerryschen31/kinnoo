@@ -94,6 +94,22 @@ class _OIDCTestServer:
                 self._write_json(404, {"error": "not found"})
 
             def do_GET(self) -> None:  # noqa: N802
+                if self.path == "/api/auth/config":
+                    self._write_json(
+                        200,
+                        {
+                            "schema_version": 1,
+                            "auth_mode": "oidc",
+                            "issuer_url": f"{outer.base_url}",
+                            "authorization_endpoint": f"{outer.base_url}/authorize",
+                            "token_endpoint": f"{outer.base_url}/token",
+                            "logout_endpoint": f"{outer.base_url}/logout",
+                            "userinfo_endpoint": f"{outer.base_url}/userinfo",
+                            "audience": "https://api.kinnoo.local",
+                            "cli_client_id": "cli-client-id",
+                        },
+                    )
+                    return
                 if self.path == "/userinfo":
                     self._write_json(
                         200,
@@ -263,5 +279,57 @@ def test_feature118_hosted_login_prefers_userinfo_email_for_tenant_slug(tmp_path
         assert result == 0
         config = load_registry_config()
         assert config.tenant_slug == "jerryschen"
+    finally:
+        server.stop()
+
+
+@pytest.mark.regression_integration
+@pytest.mark.client_cli_login
+@pytest.mark.client_cli_registry
+def test_feature118_hosted_login_discovers_auth_config_from_registry_url(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    server = _OIDCTestServer()
+    server.start()
+    try:
+        home = tmp_path / "home"
+        monkeypatch.setenv("HOME", str(home))
+        monkeypatch.setenv("KINNOO_REGISTRY_URL", server.base_url)
+
+        # Simulate pip-user workflow: only registry URL is required.
+        monkeypatch.delenv("AUTH_CLI_CLIENT_ID", raising=False)
+        monkeypatch.delenv("KINDE_CLI_CLIENT_ID", raising=False)
+        monkeypatch.delenv("AUTH_AUTHORIZATION_ENDPOINT", raising=False)
+        monkeypatch.delenv("AUTHORIZATION_ENDPOINT", raising=False)
+        monkeypatch.delenv("AUTH_TOKEN_ENDPOINT", raising=False)
+        monkeypatch.delenv("TOKEN_ENDPOINT", raising=False)
+        monkeypatch.delenv("AUTH_USERINFO_ENDPOINT", raising=False)
+        monkeypatch.delenv("USERINFO_ENDPOINT", raising=False)
+        monkeypatch.delenv("AUTH_AUDIENCE", raising=False)
+        monkeypatch.delenv("KINDE_AUDIENCE", raising=False)
+
+        def _fake_browser_open(url: str) -> bool:
+            parsed = urllib_parse.urlparse(url)
+            params = urllib_parse.parse_qs(parsed.query)
+            assert parsed.path == "/authorize"
+            assert (params.get("client_id") or [""])[0] == "cli-client-id"
+            redirect_uri = (params.get("redirect_uri") or [""])[0]
+            state = (params.get("state") or [""])[0]
+            urllib_request.urlopen(f"{redirect_uri}?code=abc123&state={state}", timeout=2).read()
+            return True
+
+        monkeypatch.setattr("kinnoo.auth_command.webbrowser.open", _fake_browser_open)
+
+        result = login_command(email=None, password=None)
+        assert result == 0
+
+        config = load_registry_config()
+        assert config.registry_url == server.base_url
+        assert config.registry_token is not None
+        assert config.refresh_token == "refresh-1"
+        assert config.token_endpoint == f"{server.base_url}/token"
+        assert config.authorization_endpoint == f"{server.base_url}/authorize"
+        assert config.oidc_client_id == "cli-client-id"
     finally:
         server.stop()

@@ -11068,3 +11068,30 @@ tasks:
     dependencies: []
     tests: [test733, test734, test735, test736]
     status: needs-review
+
+  - id: task515
+    title: "hosted auth discovery via registry config endpoint"
+    type: task
+    epic: [E9]
+    owner: swe-agent
+    description: |
+      Implement hosted auth discovery so `kinnoo login` can bootstrap required
+      non-secret OIDC CLI configuration from the configured registry URL when
+      local auth env vars are missing. This enables end-user login setup with
+      only `KINNOO_REGISTRY_URL` and supports seamless dev/prod switching by
+      environment-specific registry endpoint.
+    files:
+      - src/kinnoo/auth_command.py
+      - server/routes/auth.py
+      - server/app.py
+      - tests/client_cli_registry/test_feature118_cli_auth.py
+      - server/tests/test_auth_route.py
+    steps:
+      - 'step1: Add public non-secret auth discovery endpoint (`GET /api/auth/config`) on server auth router for OIDC mode.'
+      - 'step2: Wire OIDC provider context into auth router so discovery payload can be generated from canonical server config.'
+      - 'step3: Extend CLI login to fetch discovery config from `<KINNOO_REGISTRY_URL>/api/auth/config` when hosted auth env vars are not set.'
+      - 'step4: Preserve env-var precedence; discovery should be fallback-only and keep existing hosted login behavior intact.'
+      - 'step5: Add regression coverage for discovery endpoint contract and discovery-only CLI login flow.'
+    dependencies: []
+    tests: [test737, test738]
+    status: needs-review

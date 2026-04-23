@@ -322,6 +322,7 @@ def create_app(*, config: ServerConfig | None = None) -> Any:
             frontend_url=frontend_url,
             email_service=email_service,
             enable_legacy_auth_paths=enable_legacy_auth_paths,
+            oidc_provider=oidc_provider,
         )
     )
     app.include_router(

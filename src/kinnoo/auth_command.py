@@ -74,6 +74,89 @@ def _hosted_cli_config_from_env() -> HostedCLIAuthConfig | None:
     )
 
 
+def _payload_value(payload: dict[str, object], *keys: str) -> str | None:
+    for key in keys:
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def _hosted_cli_config_from_registry(*, registry_url: str) -> HostedCLIAuthConfig | None:
+    normalized_registry = registry_url.strip().rstrip("/")
+    if not normalized_registry:
+        return None
+
+    config_url = f"{normalized_registry}/api/auth/config"
+    request = urllib_request.Request(
+        url=config_url,
+        headers={
+            "Accept": "application/json",
+            "User-Agent": _http_user_agent(),
+        },
+        method="GET",
+    )
+    try:
+        with urllib_request.urlopen(request, timeout=10.0) as response:
+            body = response.read().decode("utf-8")
+    except Exception:
+        return None
+
+    try:
+        payload = json.loads(body)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(payload, dict):
+        return None
+
+    client_id = _payload_value(payload, "cli_client_id", "AUTH_CLI_CLIENT_ID", "KINDE_CLI_CLIENT_ID")
+    authorization_endpoint = _payload_value(
+        payload,
+        "authorization_endpoint",
+        "auth_authorization_endpoint",
+        "AUTH_AUTHORIZATION_ENDPOINT",
+        "AUTHORIZATION_ENDPOINT",
+    )
+    token_endpoint = _payload_value(
+        payload,
+        "token_endpoint",
+        "auth_token_endpoint",
+        "AUTH_TOKEN_ENDPOINT",
+        "TOKEN_ENDPOINT",
+    )
+    if not client_id or not authorization_endpoint or not token_endpoint:
+        return None
+
+    return HostedCLIAuthConfig(
+        authorization_endpoint=authorization_endpoint,
+        token_endpoint=token_endpoint,
+        logout_endpoint=_payload_value(
+            payload,
+            "logout_endpoint",
+            "auth_logout_endpoint",
+            "AUTH_LOGOUT_ENDPOINT",
+            "LOGOUT_ENDPOINT",
+        ),
+        userinfo_endpoint=_payload_value(
+            payload,
+            "userinfo_endpoint",
+            "auth_userinfo_endpoint",
+            "AUTH_USERINFO_ENDPOINT",
+            "USERINFO_ENDPOINT",
+        ),
+        client_id=client_id,
+        audience=_payload_value(payload, "audience", "AUTH_AUDIENCE", "KINDE_AUDIENCE"),
+        issuer_url=_payload_value(payload, "issuer_url", "AUTH_ISSUER_URL", "KINDE_ISSUER_URL"),
+        revocation_endpoint=_payload_value(
+            payload,
+            "revocation_endpoint",
+            "auth_revocation_endpoint",
+            "AUTH_REVOCATION_ENDPOINT",
+            "REVOCATION_ENDPOINT",
+        ),
+    )
+
+
 def _auth_env(canonical_name: str, alias_name: str) -> str:
     canonical_value = (os.environ.get(canonical_name) or "").strip()
     if canonical_value:
@@ -86,16 +169,29 @@ def login_command(
     email: str | None,
     password: str | None,
 ) -> int:
-    hosted_config = _hosted_cli_config_from_env()
-    if hosted_config is not None:
-        return _login_hosted_pkce(hosted_config=hosted_config)
-    return _legacy_login_with_password(email=email, password=password)
-
-
-def _legacy_login_with_password(*, email: str | None, password: str | None) -> int:
     config = load_registry_config()
-
     resolved_registry = (config.registry_url or DEFAULT_REGISTRY_URL).strip()
+
+    hosted_config = _hosted_cli_config_from_env()
+    if hosted_config is None:
+        hosted_config = _hosted_cli_config_from_registry(registry_url=resolved_registry)
+        if hosted_config is not None:
+            print(f"[kinnoo login] Discovered hosted auth config from {resolved_registry}/api/auth/config")
+    if hosted_config is not None:
+        return _login_hosted_pkce(hosted_config=hosted_config, resolved_registry=resolved_registry)
+    return _legacy_login_with_password(
+        email=email,
+        password=password,
+        resolved_registry=resolved_registry,
+    )
+
+
+def _legacy_login_with_password(
+    *,
+    email: str | None,
+    password: str | None,
+    resolved_registry: str,
+) -> int:
 
     resolved_email = (email or "").strip()
     if not resolved_email:
@@ -142,9 +238,7 @@ def _legacy_login_with_password(*, email: str | None, password: str | None) -> i
     return 0
 
 
-def _login_hosted_pkce(*, hosted_config: HostedCLIAuthConfig) -> int:
-    config = load_registry_config()
-    resolved_registry = (config.registry_url or DEFAULT_REGISTRY_URL).strip()
+def _login_hosted_pkce(*, hosted_config: HostedCLIAuthConfig, resolved_registry: str) -> int:
     state = secrets.token_urlsafe(24)
     code_verifier = _generate_code_verifier()
     code_challenge = _generate_code_challenge(code_verifier)
