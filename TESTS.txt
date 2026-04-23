@@ -10735,20 +10735,22 @@ tests:
     automation_path: server/tests/test_storage.py::test_s3_get_object_missing_key_raises_file_not_found
 
   - id: test623
-    title: "feature29 mock-server S3 backend maps missing object errors to FileNotFoundError"
-    type: unit
-    preconditions: Mock-server S3 storage backend wired with client that raises NoSuchKey for missing keys
+    title: "DEPRECATED — feature29 mock-server S3 backend maps missing object errors to FileNotFoundError"
+    status: deprecated
+    deprecation_note: "[agent] test deprecated: mock-server directory and runtime were removed in issue #364; server/storage coverage remains in test622."
+    type: deprecated
+    preconditions: Deprecated after mock-server removal
     steps:
-      - 'step1: Construct mock-server S3StorageBackend with a fake client that raises NoSuchKey from get_object.'
-      - 'step2: Call get_object() for a non-existent key.'
-      - 'step3: Verify backend raises FileNotFoundError to match server behavior.'
-    expected: Mock-server missing-object handling matches server S3 backend semantics
-    pass_criteria: get_object() raises FileNotFoundError for missing key path
+      - 'step1: DEPRECATED — mock-server backend removed.'
+      - 'step2: Validate replacement coverage exists in server/tests for S3 missing-key normalization.'
+      - 'step3: Confirm deprecated test is excluded from active automation.'
+    expected: Mock-server-specific coverage is retired and superseded by server backend coverage
+    pass_criteria: Deprecation metadata is present and replacement test622 remains active
     covers:
       - feature: feature29
         ac: AC8
     automated: true
-    automation_path: mock-server/tests/test_storage.py::test_s3_get_object_missing_key_raises_file_not_found
+    automation_path: server/tests/test_storage.py::test_s3_get_object_missing_key_raises_file_not_found
 
   - id: test624
     title: "publish endpoint accepts kinnoo.yaml without framework"
