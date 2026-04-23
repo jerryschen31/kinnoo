@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.8.2] - 2026-04-23
+### Added
+- Added hosted auth discovery flow for CLI login so end-users can bootstrap hosted OIDC config from `GET /api/auth/config` using only `KINNOO_REGISTRY_URL` when local AUTH/KINDE env vars are not set.
+- Added server-side public non-secret auth config endpoint (`/api/auth/config`) in OIDC mode, exposing CLI-required values (issuer/audience/endpoints/CLI client ID) without secrets.
+- Added centralized CLI stdout/stderr line-prefix colorization with TTY detection and `NO_COLOR` support, including compatibility fallback from truecolor to ANSI 256-color terminals.
+
+### Changed
+- Updated non-strict install trust UX to distinguish signed metadata presence from truly unsigned archives: when signature metadata exists but strict verification is not enabled, CLI now warns accordingly and asks for explicit confirmation to continue without signature verification.
+- Updated the non-strict signature confirmation prompt to emit `[kinnoo install] Continue without signature verification? [y/N]:` for consistent CLI prefix formatting.
+- Bumped project version from `0.8.1` to `0.8.2`.
+
 ## [v0.8.1] - 2026-04-22
 ### Changed
 - Hardened strict install trust flow when detached signature sidecars are absent: fallback now performs embedded signature verification pre-install and emits explicit `[kinnoo install] Embedded signature verified.` status messaging.
