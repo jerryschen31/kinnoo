@@ -209,6 +209,14 @@ describe("Registry dashboard", () => {
       expect(screen.getByText("🔏")).toBeTruthy();
     });
 
+    const signedIcon = screen.getByText("🔏").closest("span");
+    expect(signedIcon?.getAttribute("title")).toBe(
+      "Agent archive signed with publisher private key.",
+    );
+    expect(signedIcon?.getAttribute("aria-label")).toBe(
+      "Agent archive signed with publisher private key.",
+    );
+
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
 
     await waitFor(() => {
@@ -222,6 +230,14 @@ describe("Registry dashboard", () => {
     await waitFor(() => {
       expect(screen.getByText("❌")).toBeTruthy();
     });
+
+    const failedIcon = screen.getByText("❌").closest("span");
+    expect(failedIcon?.getAttribute("title")).toBe(
+      "Agent archive failed integrity verification (corrupted or tampered).",
+    );
+    expect(failedIcon?.getAttribute("aria-label")).toBe(
+      "Agent archive failed integrity verification (corrupted or tampered).",
+    );
   });
 
 });
