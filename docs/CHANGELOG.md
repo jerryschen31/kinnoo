@@ -2,11 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [v0.8.1] - 2026-04-22
+### Changed
+- Hardened strict install trust flow when detached signature sidecars are absent: fallback now performs embedded signature verification pre-install and emits explicit `[kinnoo install] Embedded signature verified.` status messaging.
+- Updated signing metadata so newly packed signed archives embed `public_key_pem` in `META-INF/signature.json`, enabling strict embedded verification even when detached sidecars are unavailable.
+- Clarified security documentation for embedded-vs-detached signature roles and strict fallback behavior, and added regression coverage for strict install with embedded signature verification in no-sidecar paths.
+- Bumped project version from `0.8.0` to `0.8.1`.
+
+## [v0.8.0] - 2026-04-22
 ### Added
-- Added Feature68 reference GitHub Actions workflow at `.github/workflows/kinnoo-publish.yml` covering install, preflight, pack, and remote publish stages.
-- Added Feature69 standardized test contract documentation for `kinnoo.tests.yaml` and `kinnoo test` execution modes.
-- Added Feature70 landing-page and README messaging updates for OpenClaw bridge, ClawHub mirror attribution, and Phase 6 command matrix coverage.
 - Added Feature117 import hardening regression coverage (`test696`-`test705`) for edge-case stability, framework adapter behavior, OpenClaw source import, and coverage-floor guards.
 - Added Feature118 task500-task503 implementation coverage for internal identity mapping ownership linkage, provider-neutral auth config contract checks, legacy-auth compatibility gating, and auth portability matrix validation (`test712`-`test715`).
 - Added Feature119 Postgres database implementation foundations (`task506`-`task512`): Terraform RDS module + ECS wiring, server `database/` package and Alembic migrations, metadata backend cutover flag, backfill/parity scripts, db/admin CLI surface, CI/local Postgres harness, and ops runbook/contracts (`test721`-`test731`).
@@ -144,6 +148,10 @@ All notable changes to this project will be documented in this file.
 - Added uninstall lifecycle command coverage and metadata cleanup behavior.
 - Added backend hardening and registry server readiness improvements for auth, policy, and remote publish/list/search paths.
 - Added dev environment readiness work across frontend/backend deployment paths (Cloudflare + ECS) and operational validation scripts.
+- Added Feature68 reference GitHub Actions workflow at `.github/workflows/kinnoo-publish.yml` covering install, preflight, pack, and remote publish stages.
+- Added Feature69 standardized test contract documentation for `kinnoo.tests.yaml` and `kinnoo test` execution modes.
+- Added Feature70 landing-page and README messaging updates for OpenClaw bridge, ClawHub mirror attribution, and Phase 6 command matrix coverage.
+
 
 ### Changed
 - Re-versioned historical release numbering to align with patch/minor cadence and reduce artificial minor bumps.
