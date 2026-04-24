@@ -12845,3 +12845,199 @@ tests:
       - "automation_path_subfolder: tests/e2e_workflows + server/tests"
     automated: true
     automation_path: tests/e2e_workflows/test_cli.py::test_backend_selection
+
+  - id: test740
+    title: "feature121 production runbook completeness and operator clarity review"
+    type: manual
+    preconditions: "notes/prod-deployment-instructions.md is authored for issue #369"
+    steps:
+      - 'step1: Verify the runbook contains an operator quick map and a Known Production Blockers section that lists task518-task525 and the phases each blocks.'
+      - 'step2: Verify Phases 0-9 each include Goal, Preconditions, Steps (copy-pasteable with explicit env vars), Smoke check (scripted with curl/aws/jq where possible), and Gotchas.'
+      - 'step3: Verify the runbook covers state-bucket bootstrap, prod secret pre-creation (including the leading-slash REGISTRY_DATABASE_URL stub), lambda chicken-and-egg bootstrap, prod root-stack apply, RDS secret hydration, alembic migrations via ECS Exec, server image build/push and ECS redeploy, Cloudflare/Worker cutover, and an explicit rollback drill.'
+      - 'step4: Verify cross-contamination guardrails (no kinnoo-dev-* names, no kinnoo/dev/* secrets, no dev.kinnoo.ai or dev-api.kinnoo.ai env vars) are documented and a one-shot scan command is included.'
+      - 'step5: Verify a non-codebase-familiar DevOps operator can follow the runbook end-to-end without reading source code.'
+    expected: Production deployment runbook is actionable, unambiguous, and aligned to current repository behavior.
+    pass_criteria: Operator can execute the documented phases without guessing missing critical steps; every phase has a scripted smoke check; gotchas address the chicken-and-egg, ACM validation proxy state, leading-slash secret naming, and arm/amd64 build pitfalls.
+    covers:
+      - feature: feature121
+        ac: AC1
+      - feature: feature121
+        ac: AC2
+      - feature: feature121
+        ac: AC4
+      - feature: feature121
+        ac: AC5
+    notes:
+      - "pytest_markers: regression_uat,docs_contract"
+      - "automation_path_subfolder: manual-operator-runbook"
+    automated: false
+    automation_path: null
+
+  - id: test741
+    title: "feature121 iac prod-domain and dns isolation contract"
+    type: integration
+    preconditions: task518 IaC domain/routing parameterization changes are implemented
+    steps:
+      - 'step1: Run terraform plan for dev and prod backends/tfvars.'
+      - 'step2: Verify prod plan references prod API/frontend domain settings and does not target dev DNS records.'
+      - 'step3: Verify dev plan remains isolated to dev DNS/resources.'
+    expected: IaC plan contract enforces explicit domain separation across environments
+    pass_criteria: Prod and dev plans are environment-isolated with no cross-environment DNS mutation
+    covers:
+      - feature: feature121
+        ac: AC2
+      - feature: feature121
+        ac: AC3
+    notes:
+      - "pytest_markers: regression_integration,security_checks"
+      - "automation_path_subfolder: tests/iac"
+    automated: true
+    automation_path: tests/iac/test_feature121_env_isolation.py::test_feature121_test741_prod_dev_dns_isolation
+
+  - id: test742
+    title: "feature121 prod-safe deploy and dns script behavior"
+    type: integration
+    preconditions: task519 script updates are implemented
+    steps:
+      - 'step1: Execute prod-targeted deploy helper in dry-run/safe mode and verify no hardcoded dev ECS names are used.'
+      - 'step2: Execute prod DNS verification script with prod inputs and verify expected prod hostnames/targets are checked.'
+      - 'step3: Execute dev mode and verify existing dev checks are preserved.'
+    expected: Deployment/smoke scripts are environment-aware and safe for prod operations
+    pass_criteria: Script behavior is deterministic per selected environment with no dev/prod targeting drift
+    covers:
+      - feature: feature121
+        ac: AC3
+      - feature: feature121
+        ac: AC4
+    notes:
+      - "pytest_markers: regression_integration,ops"
+      - "automation_path_subfolder: scripts/ops"
+    automated: true
+    automation_path: tests/iac/test_feature121_ops_scripts.py::test_feature121_test742_environment_safe_scripts
+
+  - id: test743
+    title: "feature121 production config rejects dev-domain defaults"
+    type: integration
+    preconditions: task520 production config hardening changes are implemented
+    steps:
+      - 'step1: Start config load/runtime in production mode without explicit CORS/frontend env vars.'
+      - 'step2: Verify behavior fails fast or enforces explicit prod-safe origin requirements (no implicit dev-domain fallback).'
+      - 'step3: Verify production mode with explicit prod origins/front-end URL succeeds.'
+    expected: Production runtime config cannot silently fall back to Dev-domain defaults
+    pass_criteria: Production mode requires explicit prod-safe config and passes only with valid prod inputs
+    covers:
+      - feature: feature121
+        ac: AC2
+      - feature: feature121
+        ac: AC3
+    notes:
+      - "pytest_markers: regression_integration,server_api,security_checks"
+      - "automation_path_subfolder: server/tests"
+    automated: true
+    automation_path: server/tests/test_feature121_production_config.py::test_feature121_test743_prod_requires_explicit_origins
+
+  - id: test744
+    title: "feature121 terraform provider portability without hardcoded profile"
+    type: integration
+    preconditions: task521 provider portability changes are implemented in iac roots
+    steps:
+      - 'step1: Run terraform init/plan in `iac/` and `iac/state/` with operator-provided AWS environment credentials/profile.'
+      - 'step2: Verify no hardcoded profile assumptions remain in Terraform provider blocks.'
+      - 'step3: Verify dev/prod plan flows continue to work under explicit operator credentials.'
+    expected: Terraform roots are portable across operators and environments without local hardcoded profile coupling
+    pass_criteria: Terraform commands succeed with explicit operator credential context and no hardcoded-profile dependency
+    covers:
+      - feature: feature121
+        ac: AC3
+      - feature: feature121
+        ac: AC4
+    notes:
+      - "pytest_markers: regression_integration,ops"
+      - "automation_path_subfolder: tests/iac"
+    automated: true
+    automation_path: tests/iac/test_feature121_provider_portability.py::test_feature121_test744_provider_profile_portability
+
+  - id: test745
+    title: "feature121 web prod wrangler config exists and targets prod domains"
+    type: integration
+    preconditions: task522 web prod wrangler config has been added
+    steps:
+      - 'step1: Parse `web/wrangler.prod.jsonc` (or equivalent env overlay) and assert routes target `kinnoo.ai`.'
+      - 'step2: Assert `vars.BACKEND_URL` equals `https://api.kinnoo.ai`.'
+      - 'step3: Assert `WORKER_SELF_REFERENCE` and assets bindings are preserved.'
+      - 'step4: Assert no `dev.kinnoo.ai` or `dev-api.kinnoo.ai` references remain in the prod config.'
+    expected: Prod wrangler config is environment-isolated and ready for `wrangler deploy`.
+    pass_criteria: Config file passes all assertions and dev wrangler config is unchanged.
+    covers:
+      - feature: feature121
+        ac: AC2
+      - feature: feature121
+        ac: AC3
+    notes:
+      - "pytest_markers: regression_integration,docs_contract"
+      - "automation_path_subfolder: web/__tests__"
+    automated: true
+    automation_path: web/__tests__/wrangler-prod-config.test.ts::wrangler_prod_config_targets_prod_domains
+
+  - id: test746
+    title: "feature121 prod lambda image bootstrap script behavior"
+    type: integration
+    preconditions: task523 lambda bootstrap script is implemented
+    steps:
+      - 'step1: Run bootstrap script in `--dry-run` (or equivalent inspection) mode against a fake prod workspace and assert it would target the prod ECR repo URL.'
+      - 'step2: Assert the script documents and uses the placeholder image URI for the targeted ECR-only apply.'
+      - 'step3: Assert the script remains backward compatible with the dev workspace.'
+    expected: Lambda bootstrap can produce a real prod image and emit a tfvars-ready URI without touching dev resources.
+    pass_criteria: Script succeeds against a mocked prod terraform workspace and prints a prod-prefixed image URI.
+    covers:
+      - feature: feature121
+        ac: AC3
+      - feature: feature121
+        ac: AC4
+    notes:
+      - "pytest_markers: regression_integration,ops"
+      - "automation_path_subfolder: scripts/ops"
+    automated: true
+    automation_path: tests/iac/test_feature121_lambda_bootstrap.py::test_feature121_test746_prod_lambda_bootstrap
+
+  - id: test747
+    title: "feature121 prod tfvars completeness contract"
+    type: integration
+    preconditions: task524 prod tfvars completion changes are implemented
+    steps:
+      - 'step1: Parse `iac/variables.tf` and collect all variables with `nullable = false` or no default.'
+      - 'step2: Parse `iac/environments/prod/terraform.tfvars` and assert every required key is present with a non-empty value.'
+      - 'step3: Assert `lambda_security_check_image_uri` matches the required regex pattern declared in `iac/variables.tf`.'
+    expected: Prod tfvars satisfies the variable contract declared by `iac/variables.tf`.
+    pass_criteria: All required variables are present in prod tfvars and pattern-validated values match their constraints.
+    covers:
+      - feature: feature121
+        ac: AC3
+      - feature: feature121
+        ac: AC4
+    notes:
+      - "pytest_markers: regression_integration,docs_contract"
+      - "automation_path_subfolder: tests/iac"
+    automated: true
+    automation_path: tests/iac/test_feature121_prod_tfvars_contract.py::test_feature121_test747_prod_tfvars_required_keys
+
+  - id: test748
+    title: "feature121 registry database url stub secret bootstrap idempotence"
+    type: integration
+    preconditions: task525 stub secret script is implemented
+    steps:
+      - 'step1: Run script against a mocked Secrets Manager with no existing secret; assert secret is created with placeholder JSON.'
+      - 'step2: Run script again; assert no overwrite and exit code remains success.'
+      - 'step3: Pre-populate secret with a real (non-placeholder) value, run script; assert real value is preserved.'
+    expected: Stub-secret bootstrap is safe to run before first apply and never clobbers a hydrated value.
+    pass_criteria: All three runs match expected behavior with no real value overwritten.
+    covers:
+      - feature: feature121
+        ac: AC3
+      - feature: feature121
+        ac: AC4
+    notes:
+      - "pytest_markers: regression_integration,ops,security_checks"
+      - "automation_path_subfolder: scripts/ops"
+    automated: true
+    automation_path: tests/iac/test_feature121_db_url_stub_secret.py::test_feature121_test748_stub_secret_idempotence

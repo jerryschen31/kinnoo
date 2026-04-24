@@ -10705,3 +10705,273 @@ tasks:
     dependencies: []
     tests: [test739]
     status: needs-review
+
+  - id: task517
+    title: "feature121 author production deployment runbook"
+    type: task
+    epic: [E7, E5]
+    owner: swe-agent
+    description: |
+      Write `notes/prod-deployment-instructions.md` as the canonical step-by-step
+      operator runbook for first production deployment, written for a DevOps
+      operator who is not familiar with the Kinnoo codebase. The runbook must
+      mirror the Dev pipeline documented in
+      `notes/how-to-terraform-apply-and-redeploy-ECS.md` and the Postgres
+      operations runbook in `docs/postgres-operations.md`, and must use only
+      verified behavior from the current repository.
+
+      For each phase the runbook must include: Goal, Preconditions, copy-pasteable
+      Steps (with explicit env vars), a Smoke check that is scripted wherever
+      possible (curl/aws/jq one-liners), and Gotchas. The runbook must also
+      document end-to-end smoke flow plus a mandatory rollback drill before
+      go-live, and must include cross-contamination guardrails preventing any
+      Dev resource/secret/domain reuse in Prod.
+    files:
+      - notes/prod-deployment-instructions.md
+      - FEATURES.txt
+      - TASKS.txt
+      - TESTS.txt
+    steps:
+      - 'step1: Audit current IaC, ops scripts, server runtime, and Dev runbook to capture only verified deployment behavior.'
+      - 'step2: Write phased production runbook (Phases 0-9) with clear preconditions, commands, scripted smoke checks, and gotchas per phase.'
+      - 'step3: Add explicit no-cross-contamination guardrails for domains, env vars, secret namespaces, and process paths, with a one-shot scan command.'
+      - 'step4: Capture discovered codebase gaps as follow-up tasks (task518-task525) linked to feature121.'
+    dependencies: []
+    tests: [test740]
+    status: needs-review
+    notes:
+      - "Critical path order:"
+      - "  1. task517 (this runbook) - first."
+      - "  2. task518 (IaC prod-domain parity) and task524 (prod tfvars completeness) - in parallel after task517."
+      - "  3. task519 (env-aware ops scripts) and task520 (prod CORS hardening) and task522 (web prod wrangler) - in parallel after task518."
+      - "  4. task523 (lambda bootstrap) - after task524."
+      - "  5. task525 (REGISTRY_DATABASE_URL stub) - independent, can start any time after task517."
+      - "  6. task521 (terraform provider portability) - last, decouples operator credentials from hardcoded profile."
+
+  - id: task518
+    title: "feature121 iac prod-domain and cloudflare routing parity"
+    type: task
+    epic: [E7]
+    owner: swe-agent
+    description: |
+      Remove dev-domain hardcoding from IaC root/module wiring and implement
+      explicit production DNS/routing support so Prod and Dev can coexist
+      without record overlap or traffic cross-contamination.
+    files:
+      - iac/main.tf
+      - iac/variables.tf
+      - iac/modules/alb/
+      - iac/modules/cloudflare/
+      - iac/environments/dev/terraform.tfvars
+      - iac/environments/prod/terraform.tfvars
+    steps:
+      - 'step1: Parameterize API/frontend domain values by environment in root/module wiring.'
+      - 'step2: Ensure Cloudflare resources model prod records separately from dev records.'
+      - 'step3: Validate prod Terraform plan does not mutate dev DNS resources when applying prod backend/tfvars.'
+      - 'step4: Add/update tests validating DNS/resource isolation contract.'
+    dependencies: [task517]
+    tests: [test741]
+    status: not-started
+
+  - id: task519
+    title: "feature121 production-safe deployment, lambda bootstrap, and dns smoke scripts"
+    type: task
+    epic: [E7, E9]
+    owner: swe-agent
+    description: |
+      Generalize operator scripts so production deploy/lambda-bootstrap/DNS-smoke
+      commands are environment-safe. Today these scripts are hardcoded to
+      `kinnoo-dev-*` ECS names and dev DNS names. The hardening must:
+
+      1. Make `scripts/ops/rebuild_push_server_and_redeploy_ecs.sh` accept an
+         environment selector (env var or argument) and resolve cluster/service/ECR
+         from terraform outputs rather than hardcoded names.
+      2. Make `scripts/ops/build_and_push_lambda_security_check_image.sh`
+         environment-aware (initialize against the prod terraform workspace) so
+         the Lambda image can be built/pushed against either dev or prod ECR.
+      3. Add a prod-aware DNS verification script analogous to
+         `scripts/ops/check_cloudflare_dns_setup.sh` that validates
+         `api.kinnoo.ai` and `kinnoo.ai` proxied CNAMEs and that
+         `api.kinnoo.ai/health` returns 200 ok.
+      4. Preserve existing dev workflows; default behavior must be opt-in safe.
+    files:
+      - scripts/ops/rebuild_push_server_and_redeploy_ecs.sh
+      - scripts/ops/build_and_push_lambda_security_check_image.sh
+      - scripts/ops/check_cloudflare_dns_setup.sh
+      - scripts/ops/
+    steps:
+      - 'step1: Remove dev-hardcoded ECS cluster/service assumptions from deploy helper script and resolve from terraform outputs.'
+      - 'step2: Make Lambda image build/push script environment-aware (selectable workspace/backend).'
+      - 'step3: Add prod DNS verification script (api.kinnoo.ai + kinnoo.ai checks).'
+      - 'step4: Preserve dev smoke workflows while adding environment selection and safe defaults.'
+      - 'step5: Add script-level regression checks for prod/dev targeting behavior.'
+    dependencies: [task518]
+    tests: [test742]
+    status: not-started
+
+  - id: task520
+    title: "feature121 runtime production default isolation hardening"
+    type: task
+    epic: [E7, E6]
+    owner: swe-agent
+    description: |
+      Remove or harden production runtime defaults that currently fall back to
+      dev-domain values, ensuring production mode requires explicit production
+      origin/frontend configuration.
+    files:
+      - server/config.py
+      - server/tests/
+      - iac/modules/ecs-fargate/
+      - iac/environments/prod/terraform.tfvars
+    steps:
+      - 'step1: Eliminate production default CORS/frontend values that reference dev domains.'
+      - 'step2: Enforce explicit prod-safe config behavior in production mode.'
+      - 'step3: Align IaC runtime env injection with new strict config contract.'
+      - 'step4: Add runtime tests for production-mode config validation behavior.'
+    dependencies: [task518]
+    tests: [test743]
+    status: not-started
+
+  - id: task521
+    title: "feature121 terraform provider profile portability"
+    type: task
+    epic: [E7]
+    owner: swe-agent
+    description: |
+      Remove operator-specific hardcoded AWS provider profile assumptions from
+      Terraform roots (`iac/` and `iac/state/`) so deploy commands can run with
+      explicit operator environment credentials.
+    files:
+      - iac/providers.tf
+      - iac/state/main.tf
+      - notes/prod-deployment-instructions.md
+    steps:
+      - 'step1: Remove hardcoded profile values and rely on explicit environment/provider input.'
+      - 'step2: Verify dev/prod plans still work with operator-provided credentials.'
+      - 'step3: Document credential expectations in operator runbook.'
+    dependencies: [task517]
+    tests: [test744]
+    status: not-started
+
+  - id: task522
+    title: "feature121 web frontend prod wrangler config and worker deploy"
+    type: task
+    epic: [E4, E7]
+    owner: swe-agent
+    description: |
+      The current `web/wrangler.jsonc` is hardcoded to `name: "kinnoo"`,
+      `routes.pattern: "dev.kinnoo.ai"`, and `vars.BACKEND_URL: "https://dev-api.kinnoo.ai"`.
+      A separate Prod wrangler configuration is required so the same Open-Next
+      build can be deployed to `kinnoo.ai` against `https://api.kinnoo.ai`
+      without mutating the Dev worker.
+
+      Output: a `web/wrangler.prod.jsonc` (or env-overlay equivalent) plus
+      documentation/scripts so that `npx wrangler deploy --config wrangler.prod.jsonc`
+      stands up the Prod worker. Worker name and `WORKER_SELF_REFERENCE` binding
+      must remain consistent with the Open-Next adapter.
+    files:
+      - web/wrangler.jsonc
+      - web/wrangler.prod.jsonc
+      - web/package.json
+      - notes/prod-deployment-instructions.md
+    steps:
+      - 'step1: Add a prod wrangler config (file or environment) that targets `kinnoo.ai` and `https://api.kinnoo.ai`.'
+      - 'step2: Preserve `WORKER_SELF_REFERENCE` self-binding and assets binding in the prod variant.'
+      - 'step3: Add or update an npm script to deploy the prod worker.'
+      - 'step4: Verify dev deploy continues to work unchanged.'
+    dependencies: [task518]
+    tests: [test745]
+    status: not-started
+
+  - id: task523
+    title: "feature121 prod lambda security-check image bootstrap procedure"
+    type: task
+    epic: [E7, E6]
+    owner: swe-agent
+    description: |
+      First-time Prod apply has a chicken-and-egg: `iac/variables.tf` declares
+      `lambda_security_check_image_uri` with `nullable = false` and a regex
+      validation, while `scripts/ops/build_and_push_lambda_security_check_image.sh`
+      reads `terraform output lambda_security_check_ecr_repository_url`, which
+      does not exist before the first apply.
+
+      Deliver an environment-aware bootstrap workflow that:
+
+      1. Creates the Prod Lambda ECR repo (targeted apply against
+         `module.ecr` with a transient public placeholder image URI).
+      2. Builds and pushes the real Lambda image to that repo.
+      3. Surfaces the resulting image URI for paste into
+         `iac/environments/prod/terraform.tfvars`.
+
+      Either deliver this as a single script
+      (`scripts/ops/bootstrap_lambda_image.sh ENV TAG`) or extend the existing
+      script with `--env prod` selection. Document the procedure in the prod
+      runbook.
+    files:
+      - scripts/ops/build_and_push_lambda_security_check_image.sh
+      - scripts/ops/
+      - notes/prod-deployment-instructions.md
+    steps:
+      - 'step1: Implement environment-aware bootstrap script for the Lambda ECR repo + image push.'
+      - 'step2: Document the targeted-apply trick (placeholder image URI for module.ecr) explicitly.'
+      - 'step3: Validate against a dev rerun that the script remains backward-compatible.'
+    dependencies: [task524]
+    tests: [test746]
+    status: not-started
+
+  - id: task524
+    title: "feature121 complete prod terraform.tfvars contract"
+    type: task
+    epic: [E7]
+    owner: swe-agent
+    description: |
+      `iac/environments/prod/terraform.tfvars` is missing required values that
+      will cause `terraform apply` to fail or to inherit dev defaults. At
+      minimum: `lambda_security_check_image_uri` (declared with
+      `nullable = false` and a strict regex), `auth_provider` (no default in
+      `iac/variables.tf` for prod usage), and any prod DNS overrides surfaced
+      by task518.
+
+      Deliver a complete, explicit prod tfvars file with inline comments
+      describing each value, plus a contract test that catches missing required
+      keys before deployment.
+    files:
+      - iac/environments/prod/terraform.tfvars
+      - iac/variables.tf
+      - tests/iac/
+    steps:
+      - 'step1: Inventory all required tfvars by parsing iac/variables.tf for nullable=false / no-default vars.'
+      - 'step2: Populate iac/environments/prod/terraform.tfvars with explicit values and inline comments per key.'
+      - 'step3: Add a contract test that reads variables.tf and prod tfvars and asserts no required key is missing.'
+    dependencies: [task518]
+    tests: [test747]
+    status: not-started
+
+  - id: task525
+    title: "feature121 registry database url stub secret bootstrap"
+    type: task
+    epic: [E7, E3]
+    owner: swe-agent
+    description: |
+      `iac/modules/secrets/main.tf` reads `/${project}/${environment}/REGISTRY_DATABASE_URL`
+      via a Secrets Manager `data` source, so the secret name must already exist
+      before first `terraform apply`. The hydration script
+      `scripts/ops/refresh_registry_database_url_secret.sh` requires RDS to
+      already exist, so it cannot run before the first apply.
+
+      Deliver a small, idempotent script
+      (`scripts/ops/create_registry_database_url_stub_secret.sh`) that creates
+      the secret with a clearly-marked placeholder JSON value if it does not
+      yet exist, so first apply can proceed and Phase 5 of the runbook can
+      hydrate the real value afterwards.
+    files:
+      - scripts/ops/create_registry_database_url_stub_secret.sh
+      - scripts/ops/refresh_registry_database_url_secret.sh
+      - notes/prod-deployment-instructions.md
+    steps:
+      - 'step1: Implement idempotent stub-secret creation script (no-op if real value already present).'
+      - 'step2: Refuse to overwrite an already-hydrated value (only fill if value contains the placeholder marker).'
+      - 'step3: Document use in the prod runbook Phase 2.'
+    dependencies: []
+    tests: [test748]
+    status: not-started
