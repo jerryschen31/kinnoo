@@ -41,6 +41,7 @@ _MARKER_DESCRIPTIONS: dict[str, str] = {
     "web_ui": "web frontend tests",
     "docs_contract": "documentation contract tests",
     "security_checks": "security and hardening tests",
+    "ops": "operational/devops scripts and IaC tests",
 }
 
 
