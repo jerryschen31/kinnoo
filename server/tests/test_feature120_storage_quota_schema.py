@@ -33,3 +33,4 @@ def test_feature120_test749_storage_quota_migration_contains_usage_triggers() ->
     assert "quota_bytes" in migration
     assert "refresh_tenant_storage_usage" in migration
     assert "trg_refresh_tenant_storage_usage_agent_versions" in migration
+    assert "enforce_tenant_quota_consistency_on_member" in migration

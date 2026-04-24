@@ -94,9 +94,9 @@ def publish_archive(
             body={"error": f"Version already published for {tenant_slug}/{agent_slug}/{version}"},
         )
 
-    usage_resolver = getattr(metadata_manager, "get_tenant_storage_usage", None)
-    if callable(usage_resolver):
-        used_bytes, quota_bytes = usage_resolver(tenant_slug=tenant_slug)
+    storage_usage = metadata_manager.get_tenant_storage_usage(tenant_slug=tenant_slug)
+    if storage_usage is not None:
+        used_bytes, quota_bytes = storage_usage
         next_used = used_bytes + len(archive_bytes)
         if next_used > quota_bytes:
             return PublishResult(

@@ -240,7 +240,7 @@ def test_publish_accepts_manifest_without_framework_field(tmp_path):
     assert body["version"] == "1.0.0"
 
 
-def test_publish_rejects_when_tenant_storage_quota_would_be_exceeded(tmp_path):
+def test_publish_rejects_when_tenant_storage_quota_would_be_exceeded(tmp_path, monkeypatch: pytest.MonkeyPatch):
     config = ServerConfig(
         storage_backend="local",
         local_storage_root=tmp_path / "storage",
@@ -263,10 +263,11 @@ def test_publish_rejects_when_tenant_storage_quota_would_be_exceeded(tmp_path):
     )
 
     archive_bytes = _make_archive_bytes(name="quota-agent", version="1.0.0")
-    setattr(
+    monkeypatch.setattr(
         app.state.metadata_manager,
         "get_tenant_storage_usage",
         lambda *, tenant_slug: (len(archive_bytes) - 1, len(archive_bytes) - 1),
+        raising=False,
     )
 
     response = client.post(
