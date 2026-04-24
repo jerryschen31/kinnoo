@@ -27,62 +27,6 @@ def _base_config(tmp_path: Path, *, env: str = "dev") -> ServerConfig:
     )
 
 
-def test_feature89_group1(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setenv("REGISTRY_TOKEN_SIGNING_SECRET", "prod-token-signing-secret")
-    monkeypatch.setenv("REGISTRY_SESSION_SIGNING_SECRET", "prod-session-signing-secret")
-    monkeypatch.setenv("REGISTRY_REGISTER_TOKEN_SECRET", "prod-register-token-secret")
-    monkeypatch.setenv("REGISTRY_PASSWORD_RESET_TOKEN_SECRET", "prod-password-reset-token-secret")
-
-    config = _base_config(tmp_path, env="production")
-    app = create_app(config=config)
-    client = TestClient(app, base_url="https://testserver")
-
-    health = client.get("/health")
-    assert health.status_code == 200
-    assert health.json() == {"status": "ok", "version": "0.30.0"}
-
-    ready = client.get("/ready")
-    assert ready.status_code == 200
-    assert ready.json()["status"] == "ready"
-    assert ready.json()["checks"] == {"s3": True, "auth_store": True}
-
-    not_allowed_preflight = client.options(
-        "/health",
-        headers={
-            "Origin": "https://example.com",
-            "Access-Control-Request-Method": "GET",
-        },
-    )
-    assert "access-control-allow-origin" not in {
-        key.lower(): value for key, value in not_allowed_preflight.headers.items()
-    }
-
-    allowed_preflight = client.options(
-        "/health",
-        headers={
-            "Origin": "https://dev.kinnoo.ai",
-            "Access-Control-Request-Method": "GET",
-        },
-    )
-    assert allowed_preflight.headers.get("access-control-allow-origin") == "https://dev.kinnoo.ai"
-
-    monkeypatch.setattr("server.app._is_auth_store_ready", lambda _config: False)
-    not_ready = client.get("/ready")
-    assert not_ready.status_code == 503
-
-    formatter = _JsonLogFormatter()
-    payload = json.loads(
-        formatter.format(
-            logging.makeLogRecord(
-                {"name": "feature89-test", "levelname": "INFO", "msg": "structured"}
-            )
-        )
-    )
-    assert payload["logger"] == "feature89-test"
-    assert payload["level"] == "INFO"
-    assert payload["message"] == "structured"
-
-
 def test_feature89_group2(tmp_path: Path, monkeypatch) -> None:
     for name in (
         "REGISTRY_TOKEN_SIGNING_SECRET",

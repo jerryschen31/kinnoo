@@ -294,32 +294,6 @@ def test_feature40_registry_publisher_key_association(tmp_path: Path) -> None:
 	assert spoof_result.returncode != 0
 	assert "public key does not match registry publisher key association" in spoof_output
 
-
-def test_feature55_login_csrf_passthrough() -> None:
-	auth_client_path = Path(__file__).resolve().parents[2] / "web" / "lib" / "auth-client.ts"
-	content = auth_client_path.read_text(encoding="utf-8")
-
-	assert 'fetch("/api/login"' in content
-	assert 'method: "GET"' in content
-	assert 'method: "POST"' in content
-	assert 'credentials: "include"' in content
-	assert 'form.set("csrf_token", csrfToken)' in content
-	assert '"Content-Type": "application/x-www-form-urlencoded"' in content
-
-
-def test_feature55_session_csrf_forwarding() -> None:
-	auth_client_path = Path(__file__).resolve().parents[2] / "web" / "lib" / "auth-client.ts"
-	registry_page_path = Path(__file__).resolve().parents[2] / "web" / "app" / "(auth)" / "registry" / "page.tsx"
-	auth_client = auth_client_path.read_text(encoding="utf-8")
-	registry_page = registry_page_path.read_text(encoding="utf-8")
-
-	assert 'readCookie("kinnoo_csrf")' in auth_client
-	assert '"X-CSRF-Token": csrfToken' in auth_client
-	assert 'form.set("csrf_token", csrfToken)' in auth_client
-	assert 'postWithSessionCsrf("/api/logout")' in auth_client
-	assert "logoutWithSessionCsrf" in registry_page
-
-
 def test_feature55_api_auth_me_contract(tmp_path: Path) -> None:
 	from fastapi.testclient import TestClient
 

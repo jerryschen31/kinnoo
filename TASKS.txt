@@ -1564,7 +1564,7 @@ tasks:
       - step7: Keep behavior deterministic for tests covering no-bump, patch/minor/major bump, and invalid bump inputs
     dependencies: [task23, task24, task27, task43]
     tests: [test106]
-    status: deprecated
+    status: completed
 
   - id: task80
     title: Define archive and registry storage abstractions
@@ -1585,7 +1585,6 @@ tasks:
       - step4: Keep method signatures deterministic and decoupled from CLI specifics for future remote backend swap
     dependencies: [task69]
     tests: [test107]
-    status: completed
 
   - id: task81
     title: Refactor pack default archive destination
@@ -1605,7 +1604,6 @@ tasks:
       - step4: Keep behavior stable for deterministic path assertions in tests
     dependencies: [task24, task80]
     tests: [test107]
-    status: completed
 
   - id: task82
     title: Standardize pack output and overwrite confirmation
@@ -1626,7 +1624,6 @@ tasks:
       - step4: Ensure failed pack runs do not emit misleading success/version lines
     dependencies: [task78, task79, task81]
     tests: [test108]
-    status: completed
 
   - id: task83
     title: Refactor publish CLI to agent-name source
@@ -1646,7 +1643,6 @@ tasks:
       - step4: Keep clear non-zero errors when agent/archive/version cannot be resolved
     dependencies: [task80, task81]
     tests: [test109, test111]
-    status: completed
 
   - id: task84
     title: Implement publish mock registry target and rollover
@@ -1666,7 +1662,6 @@ tasks:
       - step4: Keep rollover numbering deterministic for repeatable tests
     dependencies: [task83]
     tests: [test110]
-    status: completed
 
   - id: task85
     title: Install by registry name/version using mock backend
@@ -1687,7 +1682,6 @@ tasks:
       - step4: Isolate backend calls so mock backend can be replaced with real remote registry backend later
     dependencies: [task80, task83, task84]
     tests: [test112, test113]
-    status: completed
 
   - id: task86
     title: Refactor list with default local and source flags
@@ -1708,7 +1702,6 @@ tasks:
       - step4: Keep output schema stable (name, latest version, description) across sources
     dependencies: [task80, task81, task84]
     tests: [test114]
-    status: completed
 
   - id: task87
     title: Refactor search with default local and source flags
@@ -1729,7 +1722,6 @@ tasks:
       - step4: Keep case-insensitive name/description matching semantics stable across sources
     dependencies: [task80, task81, task84, task86]
     tests: [test115]
-    status: completed
 
   - id: task88
     title: Preserve file-path install compatibility
@@ -1748,7 +1740,6 @@ tasks:
       - step4: Verify backward compatibility with existing install test scenarios
     dependencies: [task85]
     tests: [test116]
-    status: completed
 
   - id: task89
     title: Document pack/publish/archive/registry refactor
@@ -1769,7 +1760,6 @@ tasks:
       - step5: Document feature12 deprecation context and migration guidance for developers
     dependencies: [task82, task84, task85, task86, task87, task88]
     tests: [test117]
-    status: completed
 
   - id: task90
     title: Harden source-mode CLI validation and errors
@@ -1791,7 +1781,6 @@ tasks:
       - step4: Keep error messages stable and concise for deterministic CLI unit tests
     dependencies: [task83, task85, task86, task87]
     tests: [test118]
-    status: completed
 
   - id: task91
     title: Use absolute mock registry scratch path
@@ -1815,7 +1804,6 @@ tasks:
       - step5: Update docs/examples that reference `registry-scratch/...` to `~/kinnoo-mock-registry-scratch/...`
     dependencies: [task84]
     tests: [test119]
-    status: completed
 
   - id: task92
     title: Add --preflight CLI mode wiring
@@ -1835,7 +1823,6 @@ tasks:
       - step4: Return non-zero on preflight failures and zero on full preflight pass
     dependencies: [task39]
     tests: [test120]
-    status: completed
 
   - id: task93
     title: Implement runtime version preflight check
@@ -1855,7 +1842,6 @@ tasks:
       - step4: Keep check output stable and concise so future tests can assert exact messages
     dependencies: [task92]
     tests: [test121]
-    status: completed
 
   - id: task94
     title: Implement env vars preflight resolution check
@@ -1875,7 +1861,6 @@ tasks:
       - step4: Keep failure messaging deterministic and secret-safe for future unit and security regression tests
     dependencies: [task92, task53, task54, task57]
     tests: [test122]
-    status: completed
 
   - id: task95
     title: Implement entrypoint and dependency checks
@@ -1894,7 +1879,6 @@ tasks:
       - step4: Keep checks isolated from normal run execution path for testable behavior separation
     dependencies: [task92, task9, task14]
     tests: [test123]
-    status: completed
 
   - id: task96
     title: Add checklist output and ready summary
@@ -1913,7 +1897,6 @@ tasks:
       - step4: Ensure formatting remains deterministic for future snapshot-style unit tests
     dependencies: [task93, task94, task95]
     tests: [test124]
-    status: completed
 
   - id: task97
     title: Document preflight usage and contracts
@@ -1933,7 +1916,6 @@ tasks:
       - step4: Keep wording/output examples stable to support future documentation tests
     dependencies: [task96]
     tests: [test125]
-    status: completed
 
   - id: task98
     title: Install summary display and confirmation prompt with --yes flag
@@ -1957,7 +1939,6 @@ tasks:
       - step6: Add inline comment documenting the no-secret-values invariant on the summary display code
     dependencies: [task69, task53]
     tests: [test126, test127]
-    status: completed
 
   - id: task99
     title: Unverified source confirmation prompt
@@ -1977,7 +1958,6 @@ tasks:
       - step4: If --yes is set, print warning but skip prompt
     dependencies: [task98]
     tests: [test128]
-    status: completed
 
   - id: task100
     title: Run trace logging to ~/.kinnoo/logs/
@@ -2000,7 +1980,6 @@ tasks:
       - step5: Ensure graceful failure if log directory creation fails (warn, don't crash)
     dependencies: [task39]
     tests: [test129, test130]
-    status: completed
 
   - id: task101
     title: Log file secret-safety enforcement
@@ -2020,7 +1999,6 @@ tasks:
       - step3: Add test that runs an agent with known input and verifies the log file does not contain the input text
     dependencies: [task100]
     tests: [test130]
-    status: completed
 
   - id: task102
     title: Inline no-secret-values comments on trust code
@@ -2041,7 +2019,6 @@ tasks:
       - step3: Verify no existing code path accidentally leaks values
     dependencies: [task98, task100]
     tests: [test131]
-    status: completed
 
   - id: task103
     title: Env var exposure heuristic sweep in inspect and pack
@@ -2068,7 +2045,6 @@ tasks:
       - 'step7: Add disclaimer "(heuristic scan — may produce false positives; not a substitute for code review)"'
     dependencies: [task62, task23]
     tests: [test132, test133]
-    status: completed
 
   - id: task104
     title: Documentation for trust baseline features
@@ -2089,7 +2065,6 @@ tasks:
       - step5: Document the no-secret-values invariant as a project-wide security contract
     dependencies: [task98, task99, task100, task103]
     tests: [test134]
-    status: completed
 
   - id: task105
     title: Generate checksum sidecar during pack
@@ -2108,7 +2083,6 @@ tasks:
       - step4: Print a clear message indicating checksum file location
     dependencies: [task27, task83]
     tests: [test135, test136]
-    status: completed
 
   - id: task106
     title: Add checksum utility helpers
@@ -2130,7 +2104,6 @@ tasks:
       - step4: Integrate helpers in command modules without duplicating checksum logic
     dependencies: [task105]
     tests: [test137]
-    status: completed
 
   - id: task107
     title: Enforce checksum verification on install
@@ -2148,7 +2121,6 @@ tasks:
       - step4: Preserve existing extraction/install flow on successful verification
     dependencies: [task106]
     tests: [test138, test139]
-    status: completed
 
   - id: task108
     title: Missing checksum warning on install
@@ -2165,7 +2137,6 @@ tasks:
       - step3: Continue with normal install behavior and unchanged exit semantics
     dependencies: [task107]
     tests: [test140]
-    status: completed
 
   - id: task109
     title: Show checksum in inspect output
@@ -2182,7 +2153,6 @@ tasks:
       - step3: Keep output deterministic and avoid exposing unrelated file contents
     dependencies: [task106]
     tests: [test141]
-    status: completed
 
   - id: task110
     title: Publish checksum sidecar with archive
@@ -2200,7 +2170,6 @@ tasks:
       - step4: Include checksum sidecar status in publish output messaging
     dependencies: [task106, task84]
     tests: [test142]
-    status: completed
 
   - id: task111
     title: Docs and regression coverage for checksums
@@ -2220,7 +2189,6 @@ tasks:
       - step4: Add docs test asserting feature16 coverage statements remain present
     dependencies: [task105, task107, task108, task109, task110]
     tests: [test143]
-    status: completed
 
   - id: task112
     title: Pack archive size reporting and large-archive warning
@@ -2238,7 +2206,6 @@ tasks:
       - step4: Add test-friendly threshold control (for example env-var override) to avoid generating >100 MB fixtures in CI
     dependencies: [task83]
     tests: [test144, test145]
-    status: completed
 
   - id: task113
     title: Inspect displays archive size metadata
@@ -2255,7 +2222,6 @@ tasks:
       - step3: Keep output additive and non-breaking for existing inspect fields
     dependencies: [task112]
     tests: [test146]
-    status: completed
 
   - id: task114
     title: List output includes archive size
@@ -2274,7 +2240,6 @@ tasks:
       - step3: Preserve backward-compatible output ordering while adding size visibility
     dependencies: [task112, task87]
     tests: [test147]
-    status: completed
 
   - id: task115
     title: Docs and regression coverage for feature17
@@ -2293,7 +2258,6 @@ tasks:
       - step3: Add docs test asserting feature17 coverage statements remain present
     dependencies: [task112, task113, task114]
     tests: [test148]
-    status: completed
 
   - id: task116
     title: InputGuard protocol, result models, and factory function
@@ -2319,7 +2283,6 @@ tasks:
       - 'step7: Ensure the module is importable and `get_default_guard()` returns an instance with both `check` and `check_inputs` methods'
     dependencies: []
     tests: [test149, test150]
-    status: completed
 
   - id: task117
     title: "RegexInputGuard — comprehensive injection pattern library"
@@ -2437,7 +2400,6 @@ tasks:
       - 'step6: Ensure the guard does not run in preflight mode (preflight=True already returns early, but verify)'
     dependencies: [task117]
     tests: [test160, test161, test162, test163]
-    status: completed
 
   - id: task119
     title: "Docs and regression coverage for feature18"
@@ -2459,7 +2421,6 @@ tasks:
       - 'step3: Add test_feature18_docs_cover_input_safety_guard test in test_docs.py asserting required feature18 documentation strings are present'
     dependencies: [task116, task117, task118]
     tests: [test164]
-    status: completed
 
   - id: task120
     title: "Reduce SQL comment false positives while preserving detection rigor"
@@ -2482,7 +2443,6 @@ tasks:
       - 'step4: Re-run feature18 tests and full suite to verify precision improvements do not regress category coverage'
     dependencies: [task117]
     tests: [test165, test166]
-    status: completed
 
   - id: task121
     title: "Add inputs.required manifest field"
@@ -2503,7 +2463,6 @@ tasks:
       - 'step4: Add/extend validator tests for valid and invalid `inputs.required` values'
     dependencies: [task50]
     tests: [test167, test168, test169]
-    status: completed
 
   - id: task122
     title: "Update run CLI parsing for no-input and pass-through"
@@ -2523,7 +2482,6 @@ tasks:
       - 'step4: Add CLI tests for no-input, pass-through, and backward compatibility'
     dependencies: [task121]
     tests: [test170, test171, test172]
-    status: completed
 
   - id: task123
     title: "Implement run_command flexible input execution flow"
@@ -2546,7 +2504,6 @@ tasks:
       - 'step5: Add integration tests for reject/proceed/no-guard behavior in pass-through mode'
     dependencies: [task122, task118]
     tests: [test173, test174, test175, test176]
-    status: completed
 
   - id: task124
     title: "Feature20 regression suite verification"
@@ -2566,7 +2523,6 @@ tasks:
       - 'step4: Record pass/fail evidence in task notes before handoff to review'
     dependencies: [task123]
     tests: [test177]
-    status: completed
 
   - id: task125
     title: "Feature20 merge-fix: enforce required input and refresh run usage guidance"
@@ -2589,7 +2545,6 @@ tasks:
       - 'step4: Add regression test asserting updated run usage/help guidance appears on missing-args path'
     dependencies: [task123]
     tests: [test178, test179]
-    status: completed
 
   - id: task126
     title: "Extend init --framework parsing for feature21"
@@ -2610,7 +2565,6 @@ tasks:
       - 'step4: Add/extend parser-focused tests for new and invalid choices'
     dependencies: [task16]
     tests: [test180, test181]
-    status: completed
 
   - id: task127
     title: "Generate framework templates and metadata artifacts"
@@ -2631,7 +2585,6 @@ tasks:
       - 'step4: Add/extend tests for generated file contents and manifest validity'
     dependencies: [task126, task18]
     tests: [test182, test183, test184, test185, test186, test187]
-    status: completed
 
   - id: task128
     title: "Add runnable smoke tests for new frameworks"
@@ -2651,7 +2604,6 @@ tasks:
       - 'step4: Validate contract expectations (input handling/stdout path/env-var guidance) for each framework template'
     dependencies: [task127, task10]
     tests: [test188, test189, test190]
-    status: completed
 
   - id: task129
     title: "Feature21 regression gate for existing frameworks"
@@ -2671,7 +2623,6 @@ tasks:
       - 'step3: Capture regression evidence for handoff/review'
     dependencies: [task126, task127, task128]
     tests: [test191]
-    status: completed
 
   - id: task130
     title: "Feature21 dependency compatibility pinning update"
@@ -2694,7 +2645,6 @@ tasks:
       - 'step4: Ensure AC4 wording and tests stay aligned with implemented version policy'
     dependencies: [task127]
     tests: [test192, test193]
-    status: completed
 
   - id: task131
     title: "Feature21 implement real PydanticAI runnable template"
@@ -2716,7 +2666,6 @@ tasks:
       - 'step4: Add tests asserting framework-native code markers and runnable behavior with basic input'
     dependencies: [task130, task128]
     tests: [test194, test195]
-    status: completed
 
   - id: task132
     title: "Feature21 implement real LangGraph runnable template"
@@ -2738,7 +2687,6 @@ tasks:
       - 'step4: Add tests asserting framework-native graph constructs and runnable behavior with basic input'
     dependencies: [task130, task128]
     tests: [test196, test197]
-    status: completed
 
   - id: task133
     title: "Feature21 implement real OpenAI Agents runnable template"
@@ -2760,7 +2708,6 @@ tasks:
       - 'step4: Add tests asserting framework-native constructs and runnable behavior with basic input'
     dependencies: [task130, task128]
     tests: [test198, test199]
-    status: completed
 
   - id: task134
     title: "Feature21 optional kinnoo.yaml model metadata field"
@@ -2785,7 +2732,6 @@ tasks:
       - 'step4: Add tests for validator acceptance and template generation behavior with/without `model`'
     dependencies: [task127, task50]
     tests: [test200, test201]
-    status: completed
 
   - id: task135
     title: "Feature22 manifest assets schema and validation"
@@ -2806,7 +2752,6 @@ tasks:
       - 'step4: Add tests for valid and invalid assets field structures with field-specific errors'
     dependencies: [task50]
     tests: [test202, test203]
-    status: completed
 
   - id: task136
     title: "Feature22 pack asset path inclusion and safety"
@@ -2826,7 +2771,6 @@ tasks:
       - 'step4: Add tests for inclusion, opt-out, traversal rejection, and missing path warning behavior'
     dependencies: [task135, task25]
     tests: [test204, test205, test206, test207]
-    status: completed
 
   - id: task137
     title: "Feature22 install extraction and inspect visibility"
@@ -2848,7 +2792,6 @@ tasks:
       - 'step4: Add tests for install extraction and inspect asset visibility'
     dependencies: [task136, task63]
     tests: [test208, test210]
-    status: completed
 
   - id: task138
     title: "Feature22 archive size threshold behavior for assets"
@@ -2867,7 +2810,6 @@ tasks:
       - 'step4: Add tests covering default threshold and custom override threshold behavior'
     dependencies: [task135, task136, task113]
     tests: [test209]
-    status: completed
 
   - id: task139
     title: "Feature22 asset credential warning sweep in pack"
@@ -2888,7 +2830,6 @@ tasks:
       - 'step4: Add tests for filename warnings, regex warnings, binary-file skip behavior, and non-blocking continuation'
     dependencies: [task136, task103]
     tests: [test212, test213]
-    status: completed
 
   - id: task140
     title: "Feature22 documentation and regression gate"
@@ -2909,7 +2850,6 @@ tasks:
       - 'step4: Run manifest and regression validations and prepare review evidence'
     dependencies: [task136, task137, task138, task139]
     tests: [test211]
-    status: completed
 
   - id: task141
     title: "Feature23 schema support for mcp-server runtime type"
@@ -2930,7 +2870,6 @@ tasks:
       - 'step4: Verify existing manifest validation behavior remains backward compatible for one-shot agents'
     dependencies: [task50]
     tests: [test214]
-    status: completed
 
   - id: task142
     title: "Feature23 supervisor lifecycle and readiness probes"
@@ -2951,7 +2890,6 @@ tasks:
       - 'step4: Add tests for readiness success/failure and fallback behavior'
     dependencies: [task141]
     tests: [test216, test221]
-    status: completed
 
   - id: task143
     title: "Feature23 run_command integration for mcp-server mode"
@@ -2972,7 +2910,6 @@ tasks:
       - 'step4: Add integration tests for long-running launch behavior and stream passthrough'
     dependencies: [task142, task39]
     tests: [test215, test218]
-    status: completed
 
   - id: task144
     title: "Feature23 graceful shutdown and trace logging"
@@ -2994,7 +2931,6 @@ tasks:
       - 'step4: Add tests for graceful and forced shutdown paths plus trace log contents'
     dependencies: [task143, task100]
     tests: [test217, test219]
-    status: completed
 
   - id: task145
     title: "Feature23 regression gate for one-shot runtime"
@@ -3013,7 +2949,6 @@ tasks:
       - 'step4: Capture evidence for feature23 AC7 before handoff'
     dependencies: [task143, task144]
     tests: [test220]
-    status: completed
 
   - id: task146
     title: "Feature24 schema constants and manifest shape support for services"
@@ -3032,7 +2967,6 @@ tasks:
       - 'step4: Keep schema additions modular for feature25 runtime health-check consumption'
     dependencies: [task50]
     tests: [test222, test225]
-    status: completed
 
   - id: task147
     title: "Feature24 validator rules for services objects and duplicates"
@@ -3051,7 +2985,6 @@ tasks:
       - 'step4: Reject duplicate service names within a manifest and emit deterministic error text'
     dependencies: [task146]
     tests: [test223, test224, test227]
-    status: completed
 
   - id: task148
     title: "Feature24 inspect output support for declared services"
@@ -3070,7 +3003,6 @@ tasks:
       - 'step4: Keep existing inspect output stable for manifests without services'
     dependencies: [task147, task63]
     tests: [test226]
-    status: completed
 
   - id: task149
     title: "Feature24 AC coverage and regression gate"
@@ -3090,7 +3022,6 @@ tasks:
       - 'step4: Capture evidence and mark tasks ready for TechLead review'
     dependencies: [task147, task148]
     tests: [test222, test223, test224, test225, test226, test227]
-    status: completed
 
   - id: task150
     title: "Feature25 health-check module and checker primitives"
@@ -3111,7 +3042,6 @@ tasks:
       - 'step4: Implement process-name check using pgrep (or cross-platform equivalent fallback) and return actionable guidance messages'
     dependencies: [task149]
     tests: [test228, test229, test230]
-    status: completed
 
   - id: task151
     title: "Feature25 integrate service checks into run and preflight output"
@@ -3131,7 +3061,6 @@ tasks:
       - 'step4: Keep output human-readable and deterministic for multi-service manifests'
     dependencies: [task150, task97]
     tests: [test231, test232]
-    status: completed
 
   - id: task152
     title: "Feature25 interactive and non-interactive failure policy"
@@ -3151,7 +3080,6 @@ tasks:
       - 'step4: Keep prompt and exit-code behavior consistent with existing confirmation patterns'
     dependencies: [task151]
     tests: [test233, test234]
-    status: completed
 
   - id: task153
     title: "Feature25 AC coverage and no-services regression gate"
@@ -3172,7 +3100,6 @@ tasks:
       - 'step4: Capture command evidence and set tasks ready for TechLead review'
     dependencies: [task150, task151, task152]
     tests: [test228, test229, test230, test231, test232, test233, test234, test235]
-    status: completed
 
   - id: task154
     title: "Feature26 filesystem MCP server package and permissions schema"
@@ -3195,7 +3122,6 @@ tasks:
       - 'step4: Add validation/pack tests to prove fixture is valid and packable as .kno'
     dependencies: [task143, task147]
     tests: [test236, test237]
-    status: completed
 
   - id: task155
     title: "Feature26 filesystem MCP runtime permission enforcement"
@@ -3215,7 +3141,6 @@ tasks:
       - 'step4: Add runtime tests for reject/allow branches with actionable error messaging'
     dependencies: [task154]
     tests: [test238]
-    status: completed
 
   - id: task156
     title: "Feature26 github MCP server package and mcp-client init template"
@@ -3237,7 +3162,6 @@ tasks:
       - 'step4: Ensure template entrypoint follows kinnoo contract (sys.argv[1] input, stdout output) and passes validation'
     dependencies: [task154, task132]
     tests: [test239, test240, test241]
-    status: completed
 
   - id: task157
     title: "Feature26 AC coverage and regression gate"
@@ -3257,7 +3181,6 @@ tasks:
       - 'step4: Capture evidence and set tasks ready for TechLead review'
     dependencies: [task154, task155, task156]
     tests: [test236, test237, test238, test239, test240, test241, test242]
-    status: completed
 
   - id: task158
     title: "Feature27 analyzer core API and report model"
@@ -3277,7 +3200,6 @@ tasks:
       - 'step4: Add baseline tests for module/API existence and report-section structure'
     dependencies: []
     tests: [test243, test249, test250]
-    status: completed
 
   - id: task159
     title: "Feature27 entrypoint runtime framework detectors"
@@ -3296,7 +3218,6 @@ tasks:
       - 'step4: Add tests for positive and ambiguous detection paths with actionable diagnostics'
     dependencies: [task158]
     tests: [test244]
-    status: completed
 
   - id: task160
     title: "Feature27 dependencies and env var detectors"
@@ -3315,7 +3236,6 @@ tasks:
       - 'step4: Add tests covering detection accuracy and noisy/partial input cases'
     dependencies: [task158]
     tests: [test245, test246]
-    status: completed
 
   - id: task161
     title: "Feature27 assets and services detectors"
@@ -3334,7 +3254,6 @@ tasks:
       - 'step4: Add tests for service-type hints and optional health-check suggestions'
     dependencies: [task158]
     tests: [test247, test248]
-    status: completed
 
   - id: task162
     title: "Feature27 analyzer validation suite and import reusability gate"
@@ -3355,7 +3274,6 @@ tasks:
       - 'step4: Capture AC coverage evidence and prepare tasks for TechLead review'
     dependencies: [task159, task160, task161]
     tests: [test251]
-    status: completed
 
   - id: task163
     title: "Feature19 import CLI surface and path resolution"
@@ -3376,7 +3294,6 @@ tasks:
       - 'step4: Add focused CLI tests for default path and invalid argument cases'
     dependencies: [task158]
     tests: [test252, test253]
-    status: completed
 
   - id: task164
     title: "Feature19 in-place manifest write, collision safety, and rollback"
@@ -3397,7 +3314,6 @@ tasks:
       - 'step4: Add rollback cleanup path for failures after write start'
     dependencies: [task163]
     tests: [test254, test255, test256]
-    status: completed
 
   - id: task165
     title: "Feature19 analyzer integration and confirm-first wizard"
@@ -3418,7 +3334,6 @@ tasks:
       - 'step4: Add tests proving analyzer invocation and prompt minimization behavior'
     dependencies: [task162, task163]
     tests: [test257, test258]
-    status: completed
 
   - id: task166
     title: "Feature19 schema-conditional prompts and entrypoint bridge handling"
@@ -3439,7 +3354,6 @@ tasks:
       - 'step4: Add tests for conditional prompt gating and wrapper-option behavior'
     dependencies: [task165]
     tests: [test259, test260]
-    status: completed
 
   - id: task167
     title: "Feature19 interruption safety and in-place runnability gate"
@@ -3460,7 +3374,6 @@ tasks:
       - 'step4: Add feature19 regression gate wiring to avoid future UX regressions'
     dependencies: [task164, task166]
     tests: [test261, test262]
-    status: completed
 
   - id: task168
     title: "Feature31 schema and validator support for runtime.language nodejs"
@@ -3481,7 +3394,6 @@ tasks:
       - 'step4: Add focused validator tests for nodejs acceptance and invalid-language rejection'
     dependencies: []
     tests: [test263, test264]
-    status: completed
 
   - id: task169
     title: "Feature31 run path for Node.js entrypoints"
@@ -3502,7 +3414,6 @@ tasks:
       - 'step4: Add integration test covering node run success path and streamed output'
     dependencies: [task168]
     tests: [test265]
-    status: completed
 
   - id: task170
     title: "Feature31 Node.js dependency install via npm or pnpm"
@@ -3523,7 +3434,6 @@ tasks:
       - 'step4: Add tests for npm default, pnpm override, and actionable failure output'
     dependencies: [task168]
     tests: [test266]
-    status: completed
 
   - id: task171
     title: "Feature31 pack/install archive behavior for node_modules and lockfiles"
@@ -3545,7 +3455,6 @@ tasks:
       - 'step4: Add archive-content test that asserts exclusion/inclusion behavior'
     dependencies: [task168, task170]
     tests: [test267]
-    status: completed
 
   - id: task172
     title: "Feature31 Node.js preflight checks"
@@ -3567,7 +3476,6 @@ tasks:
       - 'step4: Add tests for success and failure preflight paths with clear diagnostics'
     dependencies: [task168]
     tests: [test268]
-    status: completed
 
   - id: task173
     title: "Feature31 python runtime regression gate"
@@ -3589,7 +3497,6 @@ tasks:
       - 'step4: Attach regression evidence to task completion notes for techlead review'
     dependencies: [task169, task170, task171, task172]
     tests: [test269]
-    status: completed
 
   - id: task174
     title: "Feature42 schema and validator support for json input/output types"
@@ -3610,7 +3517,6 @@ tasks:
       - 'step4: Add focused unit tests for json acceptance and invalid type rejection'
     dependencies: []
     tests: [test270, test271]
-    status: completed
 
   - id: task175
     title: "Feature42 run path JSON input modes"
@@ -3631,7 +3537,6 @@ tasks:
       - 'step4: Add integration tests for inline json mode and json-file mode across runtime paths'
     dependencies: [task174]
     tests: [test272, test273]
-    status: completed
 
   - id: task176
     title: "Feature42 json output contract enforcement"
@@ -3652,7 +3557,6 @@ tasks:
       - 'step4: Add integration coverage for valid json output pass and invalid json output failure'
     dependencies: [task175]
     tests: [test274]
-    status: completed
 
   - id: task177
     title: "Feature42 docs preflight inspect and regression gates"
@@ -3676,7 +3580,6 @@ tasks:
       - 'step4: Add docs regression assertions for feature42 contract coverage'
     dependencies: [task174, task175, task176]
     tests: [test275]
-    status: completed
 
   - id: task178
     title: "Feature32 daemon runtime schema and validation"
@@ -3697,7 +3600,6 @@ tasks:
       - 'step4: Add focused validator tests for daemon acceptance and invalid type rejection'
     dependencies: [task168]
     tests: [test276]
-    status: completed
 
   - id: task179
     title: "Feature32 daemon start path and persisted state"
@@ -3719,7 +3621,6 @@ tasks:
       - 'step4: Add integration tests for python and node daemon start semantics'
     dependencies: [task178]
     tests: [test277]
-    status: completed
 
   - id: task180
     title: "Feature32 daemon stop command and graceful termination"
@@ -3741,7 +3642,6 @@ tasks:
       - 'step4: Add integration coverage for graceful stop and fallback stop paths'
     dependencies: [task179]
     tests: [test278]
-    status: completed
 
   - id: task181
     title: "Feature32 daemon attach interactive control"
@@ -3763,7 +3663,6 @@ tasks:
       - 'step4: Add integration tests for successful attach and expected guarded failures'
     dependencies: [task179]
     tests: [test279]
-    status: completed
 
   - id: task182
     title: "Feature32 daemon logs command and contextual output"
@@ -3785,7 +3684,6 @@ tasks:
       - 'step4: Add integration tests for tail and follow behavior across daemon runtimes'
     dependencies: [task179]
     tests: [test280]
-    status: completed
 
   - id: task183
     title: "Feature32 supervisor health state diagnostics and regression gate"
@@ -3808,7 +3706,6 @@ tasks:
       - 'step4: Add regression gate for daemon controls against existing python/node workflows'
     dependencies: [task179, task180, task181, task182]
     tests: [test281]
-    status: completed
 
   - id: task184
     title: "Feature33 runtime.package_manager schema and validator support"
@@ -3829,7 +3726,6 @@ tasks:
       - 'step4: Add focused validator tests for valid and invalid runtime.package_manager values'
     dependencies: [task168]
     tests: [test282]
-    status: completed
 
   - id: task185
     title: "Feature33 channels skills and state_dirs type/path validation"
@@ -3850,7 +3746,6 @@ tasks:
       - 'step4: Add validator tests covering valid payloads and representative type/path failures'
     dependencies: [task184]
     tests: [test283]
-    status: completed
 
   - id: task186
     title: "Feature33 framework openclaw targeted validation rules"
@@ -3870,7 +3765,6 @@ tasks:
       - 'step4: Add tests proving openclaw-specific rules execute only when framework is openclaw'
     dependencies: [task185]
     tests: [test284]
-    status: completed
 
   - id: task187
     title: "Feature33 non-openclaw compatibility and non-breaking guard"
@@ -3891,7 +3785,6 @@ tasks:
       - 'step4: Add guard tests ensuring no backward-incompatible validation drift'
     dependencies: [task184, task185, task186]
     tests: [test285]
-    status: completed
 
   - id: task188
     title: "Feature33 manifest docs updates for OpenClaw and generic Node examples"
@@ -3912,7 +3805,6 @@ tasks:
       - 'step4: Add docs tests asserting feature33 field guidance and examples are present'
     dependencies: [task184, task185, task186, task187]
     tests: [test286]
-    status: completed
 
   - id: task189
     title: "Feature34 OpenClaw scaffold file and directory generation"
@@ -3933,7 +3825,6 @@ tasks:
       - 'step4: Add scaffold tests validating required files and directories are created'
     dependencies: [task168, task184, task185, task186]
     tests: [test287]
-    status: completed
 
   - id: task190
     title: "Feature34 generated OpenClaw manifest validation contract"
@@ -3954,7 +3845,6 @@ tasks:
       - 'step4: Add tests asserting generated manifest schema correctness'
     dependencies: [task189]
     tests: [test288]
-    status: completed
 
   - id: task191
     title: "Feature34 OpenClaw template runnable via kinnoo run"
@@ -3976,7 +3866,6 @@ tasks:
       - 'step4: Confirm output/exit behavior follows one-shot invocation expectations for scaffold smoke run'
     dependencies: [task189, task190]
     tests: [test289]
-    status: completed
 
   - id: task192
     title: "Feature34 OpenClaw template README setup guidance"
@@ -3998,7 +3887,6 @@ tasks:
       - 'step4: Add tests asserting required setup guidance appears in generated README/docs output'
     dependencies: [task189]
     tests: [test290]
-    status: completed
 
   - id: task193
     title: "Feature34 deterministic scaffold output without openclaw CLI dependency"
@@ -4020,7 +3908,6 @@ tasks:
       - 'step4: Add regression gate ensuring existing framework init behavior remains stable'
     dependencies: [task189, task190, task191, task192]
     tests: [test291]
-    status: completed
 
   - id: task194
     title: "Feature35 state_dirs schema contract and validation rules"
@@ -4041,7 +3928,6 @@ tasks:
       - 'step4: Add validator tests covering positive and negative state_dirs contract cases'
     dependencies: [task185]
     tests: [test292]
-    status: completed
 
   - id: task195
     title: "Feature35 pack snapshot capture for mutable state directories"
@@ -4062,7 +3948,6 @@ tasks:
       - 'step4: Add tests verifying expected snapshot layout in produced archives'
     dependencies: [task194, task27]
     tests: [test293]
-    status: completed
 
   - id: task196
     title: "Feature35 install restore flow with overwrite warning and force controls"
@@ -4083,7 +3968,6 @@ tasks:
       - 'step4: Add integration tests for no-overwrite default and explicit force overwrite path'
     dependencies: [task195, task30]
     tests: [test294]
-    status: completed
 
   - id: task197
     title: "Feature35 selective snapshot exclusions for state_dirs"
@@ -4104,7 +3988,6 @@ tasks:
       - 'step4: Add tests for representative patterns such as memory daily logs and edge cases'
     dependencies: [task194, task195, task196]
     tests: [test295]
-    status: completed
 
   - id: task198
     title: "Feature35 docs and compatibility regression safeguards"
@@ -4126,7 +4009,6 @@ tasks:
       - 'step4: Add regression tests proving asset bundling behavior remains unchanged for non-state_dirs manifests'
     dependencies: [task194, task195, task196, task197]
     tests: [test296]
-    status: completed
 
   - id: task199
     title: "Feature36 OpenClaw detector evidence and confidence scoring"
@@ -4147,7 +4029,6 @@ tasks:
       - 'step4: Add analyzer and import-facing tests verifying confidence and evidence reporting behavior'
     dependencies: [task158, task163, task184]
     tests: [test297]
-    status: completed
 
   - id: task200
     title: "Feature36 manifest inference for runtime package manager skills and state dirs"
@@ -4169,7 +4050,6 @@ tasks:
       - 'step4: Add tests asserting inferred runtime package manager skills and state_dirs output for representative fixtures'
     dependencies: [task199, task185, task194]
     tests: [test298]
-    status: completed
 
   - id: task201
     title: "Feature36 identity signal detection for SOUL AGENTS and optional USER docs"
@@ -4189,7 +4069,6 @@ tasks:
       - 'step4: Add tests covering identity artifact presence and optional-file behavior'
     dependencies: [task199]
     tests: [test299]
-    status: completed
 
   - id: task202
     title: "Feature36 import output validity and unresolved-field guidance"
@@ -4211,7 +4090,6 @@ tasks:
       - 'step4: Add tests asserting valid generation path and warning-first unresolved guidance path'
     dependencies: [task200, task201]
     tests: [test300]
-    status: completed
 
   - id: task203
     title: "Feature36 non-openclaw regression safeguards"
@@ -4232,7 +4110,6 @@ tasks:
       - 'step4: Add regression gate test protecting non-openclaw import behavior across future changes'
     dependencies: [task199, task200, task201, task202]
     tests: [test301]
-    status: completed
 
   - id: task204
     title: "Feature37 Node audit summary and severity reporting"
@@ -4253,7 +4130,6 @@ tasks:
       - 'step4: Add integration tests validating summary output and non-node no-op behavior'
     dependencies: [task165, task168]
     tests: [test302]
-    status: completed
 
   - id: task205
     title: "Feature37 critical CVE install gate and override control"
@@ -4274,7 +4150,6 @@ tasks:
       - 'step4: Add tests for default block path and explicit override continuation path'
     dependencies: [task204]
     tests: [test303]
-    status: completed
 
   - id: task206
     title: "Feature37 lifecycle script detection warnings and ignore-scripts"
@@ -4295,7 +4170,6 @@ tasks:
       - 'step4: Add tests for script-detected warning path and ignore-scripts enforcement path'
     dependencies: [task204]
     tests: [test304]
-    status: completed
 
   - id: task207
     title: "Feature37 machine-readable audit and install decision trace"
@@ -4315,7 +4189,6 @@ tasks:
       - 'step4: Add tests asserting trace schema and expected decision records for blocked and override installs'
     dependencies: [task205, task206]
     tests: [test305]
-    status: completed
 
   - id: task208
     title: "Feature37 non-node install regression safeguards"
@@ -4334,7 +4207,6 @@ tasks:
       - 'step4: Add explicit regression gate test to prevent future cross-runtime behavior drift'
     dependencies: [task204, task205, task206, task207]
     tests: [test306]
-    status: completed
 
   - id: task209
     title: "Feature38 JS TS JSON credential scanning rules"
@@ -4355,7 +4227,6 @@ tasks:
       - 'step4: Add tests proving JS TS JSON credential patterns are detected with deterministic warning messages'
     dependencies: []
     tests: [test307]
-    status: completed
 
   - id: task210
     title: "Feature38 risky JS execution primitive detection"
@@ -4375,7 +4246,6 @@ tasks:
       - 'step4: Add tests asserting file/line evidence is present for flagged risky primitive fixtures'
     dependencies: [task209]
     tests: [test308]
-    status: completed
 
   - id: task211
     title: "Feature38 OpenClaw config danger rule set"
@@ -4394,7 +4264,6 @@ tasks:
       - 'step4: Add tests covering dangerous config detection and non-dangerous config no-warning baselines'
     dependencies: [task209]
     tests: [test309]
-    status: completed
 
   - id: task212
     title: "Feature38 memory snapshot credential scan before pack"
@@ -4414,7 +4283,6 @@ tasks:
       - 'step4: Add tests proving warnings are emitted for risky memory candidates and pack remains non-blocking'
     dependencies: [task209]
     tests: [test310]
-    status: completed
 
   - id: task213
     title: "Feature38 sweep output contract and no-secret regression safeguards"
@@ -4434,7 +4302,6 @@ tasks:
       - 'step4: Add regression tests proving secret-like values are never echoed in sweep output'
     dependencies: [task209, task210, task211, task212]
     tests: [test311]
-    status: completed
 
   - id: task214
     title: "Feature39 permissions schema and validator contract"
@@ -4456,7 +4323,6 @@ tasks:
       - 'step4: Add validator and schema-reference tests for valid and invalid permissions declarations'
     dependencies: []
     tests: [test312]
-    status: completed
 
   - id: task215
     title: "Feature39 install-time permission disclosure and consent flow"
@@ -4478,7 +4344,6 @@ tasks:
       - 'step4: Add integration tests for consent accepted denied and non-interactive override paths'
     dependencies: [task214]
     tests: [test313]
-    status: completed
 
   - id: task216
     title: "Feature39 sandbox execution mode and enforcement backend"
@@ -4500,7 +4365,6 @@ tasks:
       - 'step4: Add integration tests covering successful sandboxed run and deterministic failure paths'
     dependencies: [task214]
     tests: [test314]
-    status: completed
 
   - id: task217
     title: "Feature39 cross-runtime permission enforcement for Python and Node"
@@ -4522,7 +4386,6 @@ tasks:
       - 'step4: Add regression coverage proving both runtime types honor policy checks without cross-runtime drift'
     dependencies: [task215, task216]
     tests: [test315]
-    status: completed
 
   - id: task218
     title: "Feature39 violation diagnostics and secret-safe logging"
@@ -4544,7 +4407,6 @@ tasks:
       - 'step4: Add tests asserting actionable diagnostics and explicit no-secret-value protections'
     dependencies: [task215, task216, task217]
     tests: [test316]
-    status: completed
 
   - id: task219
     title: "Feature40 key generation workflow"
@@ -4565,7 +4427,6 @@ tasks:
       - 'step4: Add tests proving keys are generated, readable in expected format, and usable by signing helpers'
     dependencies: []
     tests: [test317]
-    status: completed
 
   - id: task220
     title: "Feature40 pack signing integration"
@@ -4587,7 +4448,6 @@ tasks:
       - 'step4: Add tests validating signed pack path emits expected signature artifacts and metadata contract'
     dependencies: [task219]
     tests: [test318]
-    status: completed
 
   - id: task221
     title: "Feature40 install signature verification gate"
@@ -4609,7 +4469,6 @@ tasks:
       - 'step4: Add tests for valid-signature allow path and invalid-signature block path'
     dependencies: [task220]
     tests: [test319]
-    status: completed
 
   - id: task222
     title: "Feature40 unsigned archive warning and confirmation path"
@@ -4631,7 +4490,6 @@ tasks:
       - 'step4: Add tests covering interactive confirmation and non-interactive unsigned handling paths'
     dependencies: [task221]
     tests: [test320]
-    status: completed
 
   - id: task223
     title: "Feature40 registry publisher key association"
@@ -4653,7 +4511,6 @@ tasks:
       - 'step4: Add tests validating key association persistence lookup and anti-spoofing verification path'
     dependencies: [task219, task221]
     tests: [test321]
-    status: completed
 
   - id: task224
     title: "Feature41 runtime event monitoring baseline"
@@ -4675,7 +4532,6 @@ tasks:
       - 'step4: Add tests proving expected event categories are captured with stable field shapes'
     dependencies: [task217, task218]
     tests: [test322]
-    status: completed
 
   - id: task225
     title: "Feature41 permission violation enforcement and kill switch"
@@ -4697,7 +4553,6 @@ tasks:
       - 'step4: Add tests validating warn-only and kill-switch enforcement outcomes for representative violations'
     dependencies: [task224]
     tests: [test323]
-    status: completed
 
   - id: task226
     title: "Feature41 resource control enforcement"
@@ -4719,7 +4574,6 @@ tasks:
       - 'step4: Add tests covering enforced limits and graceful unsupported-platform fallback behavior'
     dependencies: [task224]
     tests: [test324]
-    status: completed
 
   - id: task227
     title: "Feature41 dry-run monitoring mode"
@@ -4740,7 +4594,6 @@ tasks:
       - 'step4: Add tests validating dry-run outputs and side-effect suppression guarantees'
     dependencies: [task224]
     tests: [test325]
-    status: completed
 
   - id: task228
     title: "Feature41 feature39 integration and graceful degradation"
@@ -4762,7 +4615,6 @@ tasks:
       - 'step4: Add regression tests proving integration with feature39 policies and graceful degradation messaging'
     dependencies: [task224, task225, task226, task227]
     tests: [test326]
-    status: completed
 
   # ======================================================================
   # Feature28: Registry Backend Abstraction & Remote Client
@@ -4789,7 +4641,6 @@ tasks:
       - 'step5: Run full regression suite to confirm no local behavior changes'
     dependencies: []
     tests: [test327]
-    status: completed
 
   - id: task230
     title: "RemoteRegistryClient HTTP implementation"
@@ -4813,7 +4664,6 @@ tasks:
       - 'step7: Add unit tests using mock HTTP responses'
     dependencies: [task229]
     tests: [test328]
-    status: completed
 
   - id: task231
     title: "Registry config system (URL, token, tenant)"
@@ -4833,7 +4683,6 @@ tasks:
       - 'step4: Add tests for config loading with and without env var overrides'
     dependencies: []
     tests: [test329]
-    status: completed
 
   - id: task232
     title: "CLI command integration with backend abstraction"
@@ -4859,7 +4708,6 @@ tasks:
       - 'step6: Run full CLI regression test suite'
     dependencies: [task229, task230, task231]
     tests: [test330]
-    status: completed
 
   - id: task233
     title: "Remote client error handling"
@@ -4882,7 +4730,6 @@ tasks:
       - 'step8: Add tests for each error scenario'
     dependencies: [task230]
     tests: [test331]
-    status: completed
 
   # ======================================================================
   # Feature43: Auth, User & Tenant Management
@@ -4910,7 +4757,6 @@ tasks:
       - 'step6: Verify no plaintext passwords appear in any log or error output'
     dependencies: []
     tests: [test332]
-    status: completed
 
   - id: task235
     title: "Bootstrap admin CLI command"
@@ -4933,7 +4779,6 @@ tasks:
       - 'step6: Add tests for bootstrap success, duplicate prevention, and password output'
     dependencies: [task234]
     tests: [test333]
-    status: completed
 
   - id: task236
     title: "Tenant model and slug management"
@@ -4956,7 +4801,6 @@ tasks:
       - 'step6: Add unit tests for model, slug validation, uniqueness, and authorization'
     dependencies: [task234]
     tests: [test334]
-    status: completed
 
   - id: task237
     title: "JWT access token issuance and validation"
@@ -4982,7 +4826,6 @@ tasks:
       - 'step8: Add tests for issuance, validation, scope enforcement, denylist, and rotation'
     dependencies: [task234]
     tests: [test335]
-    status: completed
 
   - id: task238
     title: "Session cookie auth for web UI"
@@ -5005,7 +4848,6 @@ tasks:
       - 'step6: Add tests for session lifecycle, CSRF, expiration, and invalidation'
     dependencies: [task234, task237]
     tests: [test336]
-    status: completed
 
   # ======================================================================
   # Feature29: Remote Registry Server
@@ -5040,7 +4882,6 @@ tasks:
       - 'step7: Add tests for supported storage backends (read, write, list, delete, presign)'
     dependencies: []
     tests: [test337]
-    status: completed
 
   - id: task240
     title: "JSON metadata model (3-tier)"
@@ -5065,7 +4906,6 @@ tasks:
       - 'step6: Add tests for all three document types: create, read, update operations'
     dependencies: [task239]
     tests: [test338]
-    status: completed
 
   - id: task241
     title: "Publish endpoint (POST /api/publish)"
@@ -5092,7 +4932,6 @@ tasks:
       - 'step10: Add tests using TestClient and mock storage'
     dependencies: [task239, task240, task237]
     tests: [test339]
-    status: completed
 
   - id: task242
     title: "List and detail endpoints"
@@ -5115,7 +4954,6 @@ tasks:
       - 'step7: Add tests for pagination, visibility enforcement, and error cases'
     dependencies: [task239, task240, task237]
     tests: [test340]
-    status: completed
 
   - id: task243
     title: "Download endpoint with presigned URLs"
@@ -5138,7 +4976,6 @@ tasks:
       - 'step7: Add tests using mock storage presigned URL generation'
     dependencies: [task239, task240, task237]
     tests: [test341]
-    status: completed
 
   - id: task244
     title: "Search endpoint and auth middleware + rate limiting"
@@ -5162,7 +4999,6 @@ tasks:
       - 'step6: Add tests for search results, empty queries, visibility filtering, and rate limits'
     dependencies: [task239, task240, task237]
     tests: [test342]
-    status: completed
 
   # ======================================================================
   # Feature30: Registry Web UI
@@ -5189,7 +5025,6 @@ tasks:
       - 'step5: Add tests verifying template engine is configured and base layout renders'
     dependencies: [task239]
     tests: [test343]
-    status: completed
 
   - id: task246
     title: "Login page + session auth flow"
@@ -5212,7 +5047,6 @@ tasks:
       - 'step6: Add tests for login success, failure, logout, CSRF validation'
     dependencies: [task238, task245]
     tests: [test344]
-    status: completed
 
   - id: task247
     title: "Agent listing + search pages"
@@ -5235,7 +5069,6 @@ tasks:
       - 'step6: Add tests for listing, pagination, search, and session requirement'
     dependencies: [task245, task240]
     tests: [test345]
-    status: completed
 
   - id: task248
     title: "Agent profile + download pages"
@@ -5256,7 +5089,6 @@ tasks:
       - 'step5: Add tests for profile rendering, download redirect, and missing agent 404'
     dependencies: [task245, task240, task243]
     tests: [test346]
-    status: completed
 
   - id: task249
     title: "Agents page clickable name + right-side manifest key/value table"
@@ -5278,7 +5110,6 @@ tasks:
       - 'step4: Preserve existing pagination/session behavior and add focused integration coverage'
     dependencies: [task247, task248]
     tests: [test347]
-    status: completed
 
   - id: task250
     title: "Published Agents table framework column"
@@ -5298,7 +5129,6 @@ tasks:
       - 'step4: Add integration coverage verifying both populated and N/A framework rendering cases'
     dependencies: [task247]
     tests: [test348]
-    status: completed
 
   - id: task251
     title: Remote list/search summary-shape compatibility fix
@@ -5319,7 +5149,6 @@ tasks:
       - 'step4: Verify nearby remote list mode regression remains green'
     dependencies: [task232, task233]
     tests: [test349, test350]
-    status: completed
 
   - id: task252
     title: Publish optional pack-and-bump flow
@@ -5344,7 +5173,6 @@ tasks:
       - 'step5: Add focused tests for happy-path pack-and-publish, bump-and-publish, and guardrail errors'
     dependencies: [task83, task106, task232]
     tests: [test351, test352, test353]
-    status: completed
 
   - id: task253
     title: Add mcp-server framework option to kinnoo init
@@ -5366,7 +5194,6 @@ tasks:
       - 'step4: Add tests for template generation plus help output example regression coverage'
     dependencies: [task157]
     tests: [test354, test355]
-    status: completed
 
   - id: task254
     title: Curate and stage real-world open-source agent examples for import/run/pack trials
@@ -5389,7 +5216,6 @@ tasks:
       - 'step4: Write curated list with links to example-scratch/agents-list.md and clone each selected example into a dedicated subfolder under example-scratch/'
     dependencies: [task253]
     tests: []
-    status: deprecated
 
   - id: task255
     title: Execute 42-agent import/inspect/run/pack validation matrix
@@ -5417,7 +5243,6 @@ tasks:
       - 'step6: Add test harness utilities to keep matrix runs deterministic, resilient to per-agent failures, and actionable in CI output'
     dependencies: [task254]
     tests: [test356, test357, test358, test359]
-    status: deprecated
 
   - id: task256
     title: Auto-generate requirements.txt during kinnoo import
@@ -5443,7 +5268,6 @@ tasks:
       - 'step5: Document assessment that earlier feature19 tasks did not fully satisfy packaging-readiness expectations'
     dependencies: [task164, task165, task167]
     tests: [test360, test361]
-    status: completed
 
   - id: task257
     title: Add runtime.path executable override for kinnoo run
@@ -5472,7 +5296,6 @@ tasks:
       - 'step5: Add integration tests covering nodejs runtime.path override behavior and fallback semantics'
     dependencies: [task39, task93]
     tests: [test362, test363]
-    status: completed
 
   - id: task258
     title: Analyzer input/output type auto-detection
@@ -5493,7 +5316,6 @@ tasks:
       - 'step4: Add tests for each input/output type detection scenario'
     dependencies: [task135]
     tests: [test364, test365]
-    status: completed
 
   - id: task259
     title: Add --preflight flag to kinnoo pack
@@ -5516,7 +5338,6 @@ tasks:
       - 'step5: Add tests for pack --preflight PASS and FAIL scenarios'
     dependencies: [task172]
     tests: [test366, test367]
-    status: completed
 
   - id: task260
     title: Separate daemon commands in help output
@@ -5536,7 +5357,6 @@ tasks:
       - 'step4: Add test asserting daemon commands appear in separate section'
     dependencies: []
     tests: [test368]
-    status: completed
 
   - id: task261
     title: Analyzer model auto-detection
@@ -5556,7 +5376,6 @@ tasks:
       - 'step3: Test detection against gemini, claude-chat, chatgpt init templates'
     dependencies: [task135]
     tests: [test369, test370]
-    status: completed
 
   - id: task262
     title: Framework help — one per line with descriptions
@@ -5574,7 +5393,6 @@ tasks:
       - 'step3: Add test asserting each framework appears on its own line with description'
     dependencies: []
     tests: [test371]
-    status: completed
 
   - id: task263
     title: Add --language flag to kinnoo init
@@ -5596,7 +5414,6 @@ tasks:
       - 'step5: Add tests for valid and invalid language/framework combinations'
     dependencies: []
     tests: [test372, test373]
-    status: completed
 
   - id: task264
     title: Remove remnant Python files from OpenClaw init
@@ -5615,7 +5432,6 @@ tasks:
       - 'step3: Add test asserting run.py and requirements.txt are absent in openclaw scaffold'
     dependencies: []
     tests: [test374]
-    status: completed
 
   - id: task265
     title: kinnoo import from GitHub URL
@@ -5639,7 +5455,6 @@ tasks:
       - 'step6: Add tests for URL import, collision, and failure scenarios'
     dependencies: [task135]
     tests: [test375, test376, test377]
-    status: completed
 
   - id: task266
     title: Add kinnoo check command
@@ -5661,7 +5476,6 @@ tasks:
       - 'step5: Add tests for check command against local dir and URL scenarios'
     dependencies: [task135, task258]
     tests: [test378, test379]
-    status: completed
 
   - id: task267
     title: Pretty print with color across CLI commands
@@ -5686,7 +5500,6 @@ tasks:
       - 'step6: Add tests verifying color codes in output when TTY and absence when not'
     dependencies: []
     tests: [test380, test381]
-    status: completed
 
   - id: task268
     title: Fix preflight venv check when runtime.path is set
@@ -5708,7 +5521,6 @@ tasks:
       - 'step4: Add test for preflight FAIL with no runtime.path and no venv (existing behavior)'
     dependencies: [task257]
     tests: [test382, test383]
-    status: completed
 
   - id: task269
     title: Auto-wrapper generation for class-only Python agents
@@ -5732,7 +5544,6 @@ tasks:
       - 'step4: Test with langchain-tool-calling-agent and openai-agents-basic-tools'
     dependencies: []
     tests: [test384, test385]
-    status: completed
 
   - id: task270
     title: Jupyter notebook to Python script conversion
@@ -5752,7 +5563,6 @@ tasks:
       - 'step4: Test with langgraph-react-from-scratch notebook'
     dependencies: []
     tests: [test386, test387]
-    status: deprecated
 
   - id: task271
     title: Subdirectory entrypoint detection improvement
@@ -5773,7 +5583,6 @@ tasks:
       - 'step4: Test with openai-agents-sdk-customer-service and vanilla-python-octoagent'
     dependencies: []
     tests: [test388, test389]
-    status: completed
 
   - id: task272
     title: Requirements auto-inference from Python imports
@@ -5793,7 +5602,6 @@ tasks:
       - 'step4: Test with langgraph-multi-agent-router (compare inferred vs actual)'
     dependencies: []
     tests: [test390, test391, test408]
-    status: completed
 
   - id: task273
     title: Node.js/TypeScript agent import and run improvements
@@ -5814,7 +5622,6 @@ tasks:
       - 'step4: Test with vanilla-typescript-easy-agent'
     dependencies: []
     tests: [test392, test393]
-    status: completed
 
   - id: task274
     title: Async entrypoint and hardcoded input detection
@@ -5834,7 +5641,6 @@ tasks:
       - 'step4: Test with openai-agents-hello-world (hardcoded) and an argparse agent'
     dependencies: []
     tests: [test394, test395]
-    status: completed
 
   - id: task275
     title: Service dependency auto-detection
@@ -5854,7 +5660,6 @@ tasks:
       - 'step4: Test with vanilla-python-reze-agent and openclaw-ollama-extension-agent'
     dependencies: []
     tests: [test396, test397]
-    status: completed
 
   - id: task276
     title: PydanticAI dependency injection (deps) support
@@ -5874,7 +5679,6 @@ tasks:
       - 'step4: Validate --json-input with pydanticai-bank-support-agent'
     dependencies: []
     tests: [test398, test399]
-    status: completed
 
   - id: task277
     title: End-to-end validation with representative agents
@@ -5896,7 +5700,6 @@ tasks:
       - 'step6: Document results in test report'
     dependencies: [task269, task271, task272, task273, task274, task275, task276]
     tests: [test400, test401]
-    status: completed
     
   - id: task278
     title: Streamlit/Gradio UI agent support
@@ -5920,13 +5723,11 @@ tasks:
       - 'step5: Test with nirbar1985-ai-travel-agent and aymenfurter-microagents'
     dependencies: []
     tests: [test402, test403, test404, test405]
-    status: completed
 
   - id: task279
     title: "DEPRECATED — Extended framework detection (CrewAI, Swarm, Agno, etc.)"
     type: feature
     epic: [E2]
-    status: deprecated
     deprecation_note: "All 9 extended framework detections deferred per human review (2025-03-23). Will be addressed in a future feature."
     description: |
       Extend kinnoo's analyzer to detect CrewAI, Swarm, Agno, SmolAgents, AutoGen,
@@ -5939,7 +5740,6 @@ tasks:
       - 'step1: DEPRECATED'
     dependencies: [task269, task272]
     tests: [test406, test407, test409]
-    status: deprecated
 
   - id: task280
     title: OpenClaw-like analyzer detection without root package.json
@@ -5961,7 +5761,6 @@ tasks:
       - 'step5: Validate targeted analyzer regressions with pytest --testmon'
     dependencies: [task275, task276]
     tests: [test410, test411, test412, test413]
-    status: completed
 
   - id: task281
     title: Inspect full/raw rendering and metadata update command
@@ -5985,7 +5784,6 @@ tasks:
       - 'step7: Run focused pytest coverage for inspect command changes'
     dependencies: [task66, task67, task68, task69, task148]
     tests: [test414, test415, test416, test417, test418, test419, test420]
-    status: completed
 
   # ======================================================================
   # Phase 5 (V5): Web Frontend and Registry Frontend + Backend
@@ -6018,7 +5816,6 @@ tasks:
       - 'step5: Run npm run dev and npm run build to confirm zero errors on Node 20+'
     dependencies: []
     tests: [test421, test422]
-    status: completed
 
   - id: task283
     title: "Configure Tailwind with dark-mode design tokens"
@@ -6041,7 +5838,6 @@ tasks:
       - 'step4: Verify Tailwind compiles with the extended theme by running npm run build'
     dependencies: [task282]
     tests: [test423]
-    status: completed
 
   - id: task284
     title: "Create directory structure and placeholder route pages"
@@ -6073,7 +5869,6 @@ tasks:
       - 'step6: Verify all routes are accessible via npm run dev: /, /login, /signup, /registry'
     dependencies: [task282]
     tests: [test424, test425]
-    status: completed
 
   - id: task285
     title: "Install Radix UI, Lucide, and framer-motion dependencies"
@@ -6092,7 +5887,6 @@ tasks:
       - 'step3: Run npm run build to confirm no dependency conflicts or type errors'
     dependencies: [task282]
     tests: [test426]
-    status: completed
 
   - id: task286
     title: "Create ThemeConfig design token module"
@@ -6115,7 +5909,6 @@ tasks:
       - 'step4: Verify TypeScript compiles the module without errors'
     dependencies: [task283]
     tests: [test427, test428]
-    status: completed
 
   - id: task287
     title: "Build MainLayout header with hamburger menu and auth buttons"
@@ -6141,7 +5934,6 @@ tasks:
       - 'step6: Verify hamburger opens/closes and buttons navigate correctly in dev server'
     dependencies: [task284, task286]
     tests: [test429, test430]
-    status: completed
 
   - id: task288
     title: "Make layout responsive for mobile viewports"
@@ -6162,7 +5954,6 @@ tasks:
       - 'step4: Visually verify at 375px, 640px, 768px, and 1024px widths'
     dependencies: [task287]
     tests: [test431]
-    status: completed
 
   - id: task289
     title: "Write smoke tests for layout and design tokens"
@@ -6185,7 +5976,6 @@ tasks:
       - 'step4: Run tests and verify all pass'
     dependencies: [task287, task286]
     tests: [test427, test428, test429, test430]
-    status: completed
 
   # ------ Sub-phase 2: Landing Page and Secure Login UI (feature51, feature52) ------
 
@@ -6206,7 +5996,6 @@ tasks:
       - 'step4: Verify no clipping/overlap at 375px, 768px, and 1280px widths'
     dependencies: [task287]
     tests: [test432]
-    status: completed
 
   - id: task291
     title: "Create Terminal Preview component with copy-to-clipboard"
@@ -6226,7 +6015,6 @@ tasks:
       - 'step4: Ensure button has accessible name and visible focus ring'
     dependencies: [task290]
     tests: [test433]
-    status: completed
 
   - id: task292
     title: "Build six-card Features section with required copy"
@@ -6246,7 +6034,6 @@ tasks:
       - 'step4: Ensure card content wraps safely on narrow screens without overflow'
     dependencies: [task290]
     tests: [test434, test435]
-    status: completed
 
   - id: task293
     title: "Add landing page automated test coverage"
@@ -6265,7 +6052,6 @@ tasks:
       - 'step4: Run test suite and ensure deterministic pass results'
     dependencies: [task291, task292]
     tests: [test432, test433, test434, test435, test436]
-    status: completed
 
   - id: task294
     title: "Implement login page UI card and required fields"
@@ -6284,7 +6070,6 @@ tasks:
       - 'step4: Confirm visual alignment with dark theme styles'
     dependencies: [task287]
     tests: [test437]
-    status: completed
 
   - id: task295
     title: "Add client-side validation and loading-state behavior"
@@ -6304,7 +6089,6 @@ tasks:
       - 'step4: Restore button state after success/failure and render safe error feedback'
     dependencies: [task294]
     tests: [test438, test439, test442]
-    status: completed
 
   - id: task296
     title: "Implement secure login submission through BFF proxy"
@@ -6325,7 +6109,6 @@ tasks:
       - 'step4: Ensure proxy/rewrite configuration forwards request and response headers as expected'
     dependencies: [task294]
     tests: [test440, test441]
-    status: completed
 
   - id: task297
     title: "Add login page automated tests for validation and auth flow"
@@ -6344,7 +6127,6 @@ tasks:
       - 'step4: Test fetch call includes credentials and success path navigates to /registry'
     dependencies: [task295, task296]
     tests: [test437, test438, test439, test440, test441, test442]
-    status: completed
 
   # ------ Sub-phase 3: Registry Dashboard (feature53, feature54) ------
 
@@ -6366,7 +6148,6 @@ tasks:
       - 'step4: Ensure keyboard navigation and focus styles for nav controls'
     dependencies: [task287, task297]
     tests: [test443, test444]
-    status: completed
 
   - id: task299
     title: "Implement My Agents and Search view state with framer-motion transitions"
@@ -6386,7 +6167,6 @@ tasks:
       - 'step4: Preserve search control state while switching views where appropriate'
     dependencies: [task298]
     tests: [test445, test446]
-    status: completed
 
   - id: task300
     title: "Integrate dashboard data fetching for my agents and search"
@@ -6406,7 +6186,6 @@ tasks:
       - 'step4: Render loading, empty, and error states for both views'
     dependencies: [task299]
     tests: [test447]
-    status: completed
 
   - id: task301
     title: "Add automated tests for dashboard shell and tab/view behavior"
@@ -6425,7 +6204,6 @@ tasks:
       - 'step4: Test tab switching updates rendered view content'
     dependencies: [task299, task300]
     tests: [test443, test444, test445, test446, test447]
-    status: completed
 
   - id: task302
     title: "Build reusable AgentCard with required metadata fields"
@@ -6445,7 +6223,6 @@ tasks:
       - 'step4: Reuse component in both My Agents and Search result grids'
     dependencies: [task300]
     tests: [test448]
-    status: completed
 
   - id: task303
     title: "Implement manifest modal with detail endpoint integration"
@@ -6466,7 +6243,6 @@ tasks:
       - 'step4: Render safe fallback states for loading/error in modal body'
     dependencies: [task302]
     tests: [test449, test450]
-    status: completed
 
   - id: task304
     title: "Add install command terminal block and copy action in search modal"
@@ -6486,7 +6262,6 @@ tasks:
       - 'step4: Ensure keyboard-accessible interaction and focus styles'
     dependencies: [task303]
     tests: [test451]
-    status: completed
 
   - id: task305
     title: "Add automated tests for AgentCard and modal copy workflow"
@@ -6505,7 +6280,6 @@ tasks:
       - 'step4: Assert install command copy button copies and shows feedback'
     dependencies: [task303, task304]
     tests: [test448, test449, test450, test451, test452]
-    status: completed
 
   - id: task306
     title: "Polish landing and header visuals per brand updates"
@@ -6531,7 +6305,6 @@ tasks:
       - 'step5: Update and execute task306 smoke tests until all checks pass'
     dependencies: [task287, task293, task297]
     tests: []
-    status: completed
 
   # ------ Sub-phase 4: Integration, CSRF & Production Hardening (feature55, feature56, feature57) ------
 
@@ -6553,7 +6326,6 @@ tasks:
       - 'step4: Document env contract for BACKEND_URL in web/.env.example or project docs'
     dependencies: [task282]
     tests: [test453]
-    status: completed
 
   - id: task308
     title: "Implement CSRF pass-through for login and authenticated POST flows"
@@ -6573,7 +6345,6 @@ tasks:
       - 'step4: Validate behavior against backend validate_post_request expectations'
     dependencies: [task307, task296]
     tests: [test454, test455]
-    status: completed
 
   - id: task309
     title: "Add backend /api/auth/me endpoint for session validation"
@@ -6593,7 +6364,6 @@ tasks:
       - 'step4: Add route-level tests for success and 401 failure paths'
     dependencies: [task308]
     tests: [test456]
-    status: completed
 
   - id: task310
     title: "Implement auth guard in app/(auth)/layout.tsx using /api/auth/me"
@@ -6612,7 +6382,6 @@ tasks:
       - 'step4: Add tests for redirect and success rendering behavior'
     dependencies: [task309]
     tests: [test457, test458]
-    status: completed
 
   - id: task311
     title: "Add session-cookie fallback auth for JSON API routes"
@@ -6631,7 +6400,6 @@ tasks:
       - 'step4: Add tests covering Bearer and session-cookie auth paths'
     dependencies: [task309]
     tests: [test459]
-    status: completed
 
   - id: task312
     title: "Bootstrap local admin account from environment"
@@ -6652,7 +6420,6 @@ tasks:
       - 'step4: Add tests ensuring no secret values are logged or returned'
     dependencies: [task311]
     tests: [test460]
-    status: completed
 
   - id: task313
     title: "Ensure local kinnoo publish writes to tenant path in mocked S3"
@@ -6673,7 +6440,6 @@ tasks:
       - 'step4: Add regression tests for tenant-path correctness in local mode'
     dependencies: [task312]
     tests: [test461]
-    status: completed
 
   - id: task314
     title: "Add integration tests for auth fallback, admin bootstrap, and publish paths"
@@ -6693,7 +6459,6 @@ tasks:
       - 'step4: Keep tests deterministic across repeated local runs'
     dependencies: [task311, task312, task313]
     tests: [test459, test460, test461, test462]
-    status: completed
 
   - id: task315
     title: "Add Next.js security headers middleware for production hardening"
@@ -6712,7 +6477,6 @@ tasks:
       - 'step4: Add tests verifying header presence and production gating'
     dependencies: [task307]
     tests: [test463]
-    status: completed
 
   - id: task316
     title: "Implement (auth) loading.tsx and error.tsx for graceful failures"
@@ -6732,7 +6496,6 @@ tasks:
       - 'step4: Add tests for error/loading rendering behavior'
     dependencies: [task310]
     tests: [test464]
-    status: completed
 
   - id: task317
     title: "Forward X-Forwarded-For for rate limiter compatibility and add migration TODO"
@@ -6752,7 +6515,6 @@ tasks:
       - 'step4: Add tests asserting forwarded IP signal reaches limiter path'
     dependencies: [task315]
     tests: [test465]
-    status: completed
 
   - id: task318
     title: "Finalize Sub-phase 4 integration/hardening test suite"
@@ -6773,7 +6535,6 @@ tasks:
       - 'step4: Run full manifest-linked tests and ensure deterministic pass'
     dependencies: [task314, task316, task317]
     tests: [test453, test454, test455, test456, test457, test458, test463, test464, test465, test466]
-    status: completed
 
   # ------ Sub-phase 5: User Registration & Password Reset (feature58, feature59, feature60) ------
 
@@ -6798,7 +6559,6 @@ tasks:
       - 'step4: Enforce password match and 10-128 length validation before submit; include passphrase-friendly helper text'
     dependencies: [task287, task295]
     tests: [test467, test468, test471]
-    status: completed
 
   - id: task320
     title: "Implement register-request endpoint with privacy + token issuance"
@@ -6820,7 +6580,6 @@ tasks:
       - 'step4: Invoke email service and return generic 200 response in all account-existence cases'
     dependencies: [task319, task327, task328]
     tests: [test469, test470]
-    status: completed
 
   - id: task321
     title: "Implement register-confirm with DB-backed user, identity, tenant creation"
@@ -6845,7 +6604,6 @@ tasks:
       - 'step4: Consume token, create session cookie response from relational session store, and support redirect to /registry'
     dependencies: [task320, task327, task328]
     tests: [test472, test473, test486]
-    status: completed
 
   - id: task322
     title: "Add registration integration/component tests including slug collisions"
@@ -6865,7 +6623,6 @@ tasks:
       - 'step4: Run linked registration suite and ensure deterministic pass'
     dependencies: [task320, task321]
     tests: [test467, test468, test469, test470, test471, test472, test473, test474, test486]
-    status: completed
 
   - id: task323
     title: "Build forgot-password pages and policy-aware reset UX"
@@ -6886,7 +6643,6 @@ tasks:
       - 'step4: Enforce client validation for password match and 10-128 length before submit'
     dependencies: [task319]
     tests: [test475, test478]
-    status: completed
 
   - id: task324
     title: "Implement password-reset-request endpoint with generic response"
@@ -6907,7 +6663,6 @@ tasks:
       - 'step4: Dispatch reset message through email service abstraction'
     dependencies: [task323, task327, task328]
     tests: [test476, test477]
-    status: completed
 
   - id: task325
     title: "Implement password-reset-confirm with policy checks and session revocation"
@@ -6932,7 +6687,6 @@ tasks:
       - 'step4: Invalidate all active user sessions in relational store and return success response for login redirect'
     dependencies: [task324, task329]
     tests: [test479, test480, test487, test489]
-    status: completed
 
   - id: task326
     title: "Add forgot-password integration/component tests with policy paths"
@@ -6952,7 +6706,6 @@ tasks:
       - 'step4: Run linked forgot-password suite and ensure deterministic pass'
     dependencies: [task324, task325]
     tests: [test475, test476, test477, test478, test479, test480, test481, test487, test489]
-    status: completed
 
   - id: task327
     title: "Introduce SQLite auth schema and repository foundation"
@@ -6975,7 +6728,6 @@ tasks:
       - 'step4: Wire app configuration to use SQLite auth store in development'
     dependencies: [task287]
     tests: [test485]
-    status: completed
 
   - id: task328
     title: "Add EmailService abstraction, env secrets, and single-use token state"
@@ -7000,7 +6752,6 @@ tasks:
       - 'step5: Ensure successful confirm flows mark token consumed atomically'
     dependencies: [task327]
     tests: [test482, test483]
-    status: completed
 
   - id: task329
     title: "Apply password hardening, rehash-on-login, and auth abuse controls"
@@ -7023,7 +6774,6 @@ tasks:
       - 'step4: Add deterministic tests for policy rejection, rehash, and abuse controls'
     dependencies: [task328]
     tests: [test470, test477, test487, test488]
-    status: completed
 
   - id: task330
     title: "Finalize Sub-phase 5 integration, smoke tests, and SSO-ready docs"
@@ -7049,7 +6799,6 @@ tasks:
       - 'step4: Produce deterministic suite entry point and smoke-test checklist docs for future CI and manual verification'
     dependencies: [task322, task326, task329]
     tests: [test474, test481, test482, test483, test484, test489, test490]
-    status: completed
 
   - id: task331
     title: "Registry manifest tabs, install terminal block, and blank-search UX fix"
@@ -7077,7 +6826,6 @@ tasks:
       - "step5: Run and document smoke tests in notes/tasks/task331-smoke-tests.md"
     dependencies: []
     tests: []
-    status: needs-review
 
   - id: task332
     title: "Feature61 login/logout CLI commands and auth state persistence"
@@ -7099,7 +6847,6 @@ tasks:
       - 'step4: Derive tenant slug from authenticated identity/token claims and ensure publish/registry clients preserve explicit env override paths'
     dependencies: []
     tests: [test491]
-    status: needs-review
 
   - id: task333
     title: "Feature61 login/logout tests and operator documentation"
@@ -7121,7 +6868,6 @@ tasks:
       - 'step4: Verify docs and command help text are consistent with implemented UX'
     dependencies: [task332]
     tests: [test492]
-    status: needs-review
 
   - id: task334
     title: "Feature62 openclaw-skill schema and validator extension"
@@ -7143,7 +6889,6 @@ tasks:
       - 'step4: Update schema reference docs with canonical openclaw-skill examples'
     dependencies: []
     tests: [test493]
-    status: needs-review
 
   - id: task335
     title: "Feature62 schema fixture coverage and migration guidance"
@@ -7163,7 +6908,6 @@ tasks:
       - 'step4: Verify docs examples pass schema validation'
     dependencies: [task334]
     tests: [test494]
-    status: needs-review
 
   - id: task336
     title: "Feature63 ClawHub mirror storage with clawhub tenant ownership model"
@@ -7184,7 +6928,6 @@ tasks:
       - 'step4: Add deterministic APIs for listing and inspecting mirrored clawhub records'
     dependencies: [task334]
     tests: [test495]
-    status: needs-review
 
   - id: task337
     title: "Feature63 mirror attribution UX and query behavior"
@@ -7205,7 +6948,6 @@ tasks:
       - 'step4: Add regression tests for provenance labels and repeated ingestion outcomes'
     dependencies: [task336]
     tests: [test496]
-    status: needs-review
 
   - id: task338
     title: "Feature64 kinnoo import source clawhub command path"
@@ -7226,7 +6968,6 @@ tasks:
       - 'step4: Persist local import report artifact describing inferred and unresolved fields'
     dependencies: [task334, task336]
     tests: [test497]
-    status: needs-review
 
   - id: task339
     title: "Feature64 import hinting and unresolved guidance"
@@ -7247,7 +6988,6 @@ tasks:
       - 'step4: Add tests asserting guidance output and saved import report structure'
     dependencies: [task338]
     tests: [test498]
-    status: needs-review
 
   - id: task340
     title: "Feature65 delegated OpenClaw install runtime integration"
@@ -7268,7 +7008,6 @@ tasks:
       - 'step4: Keep kinnoo-side validation and trust checks active around delegated flow'
     dependencies: [task334]
     tests: [test499]
-    status: needs-review
 
   - id: task341
     title: "Feature65 delegated install failure-mode handling and tests"
@@ -7289,7 +7028,6 @@ tasks:
       - 'step4: Update README install docs with delegated behavior and prerequisites'
     dependencies: [task340]
     tests: [test500]
-    status: needs-review
 
   - id: task342
     title: "Feature66 OpenClaw run adapter backend selection and flagging"
@@ -7310,7 +7048,6 @@ tasks:
       - 'step4: Emit structured adapter diagnostics including selected backend and invocation details'
     dependencies: [task340]
     tests: [test501]
-    status: deprecated
 
   - id: task343
     title: "Feature66 run adapter error handling and regression tests"
@@ -7331,7 +7068,6 @@ tasks:
       - 'step4: Document adapter limitations and compatibility notes in changelog/docs'
     dependencies: [task342]
     tests: [test502]
-    status: deprecated
 
   - id: task344
     title: "Feature67 sync clawhub command with incremental/full modes"
@@ -7352,7 +7088,6 @@ tasks:
       - 'step4: Preserve source attribution metadata across sync updates'
     dependencies: [task336]
     tests: [test503]
-    status: completed
 
   - id: task345
     title: "Feature67 sync resilience, rate control, and diagnostics"
@@ -7373,7 +7108,6 @@ tasks:
       - 'step4: Add tests for unavailable upstream and partial-failure sync behavior'
     dependencies: [task344]
     tests: [test504]
-    status: completed
 
   - id: task346
     title: "Feature68 GitHub Actions reference workflow and env contract"
@@ -7394,7 +7128,6 @@ tasks:
       - 'step4: Add docs links and operator guidance for setup and troubleshooting'
     dependencies: [task332]
     tests: [test505]
-    status: completed
 
   - id: task347
     title: "Feature68 CI workflow regression checks and docs validation"
@@ -7415,7 +7148,6 @@ tasks:
       - 'step4: Validate CI docs behavior across local and remote registry modes'
     dependencies: [task346]
     tests: [test506]
-    status: completed
 
   - id: task348
     title: "Feature69 kinnoo tests file format and parser"
@@ -7436,7 +7168,6 @@ tasks:
       - 'step4: Update schema docs with canonical format and anti-pattern guidance'
     dependencies: []
     tests: [test507]
-    status: completed
 
   - id: task349
     title: "Feature69 kinnoo test execution engine and CLI summary"
@@ -7457,7 +7188,6 @@ tasks:
       - 'step4: Add test fixtures and docs examples for Python and JS/TS agents'
     dependencies: [task348]
     tests: [test508]
-    status: completed
 
   - id: task350
     title: "Feature70 landing page and README messaging update"
@@ -7478,7 +7208,6 @@ tasks:
       - 'step4: Ensure wording remains aligned with implemented command behavior'
     dependencies: []
     tests: [test509]
-    status: completed
 
   - id: task351
     title: "Feature70 docs consistency checks and release-note updates"
@@ -7499,7 +7228,6 @@ tasks:
       - 'step4: Ensure docs changes pass existing documentation integrity checks'
     dependencies: [task350]
     tests: [test510]
-    status: completed
 
   - id: task352
     title: "Feature71 strict install enforcement"
@@ -7520,7 +7248,6 @@ tasks:
       - 'step4: Add tests for strict pass/fail behavior and user diagnostics'
     dependencies: [task222]
     tests: [test511]
-    status: completed
 
   - id: task353
     title: "Feature71 strict publish enforcement and CI rollout docs"
@@ -7541,7 +7268,6 @@ tasks:
       - 'step4: Add publish strict-mode tests and docs alignment checks'
     dependencies: [task352, task346]
     tests: [test512]
-    status: completed
 
   - id: task354
     title: "Feature72 lockfile write/update implementation"
@@ -7562,7 +7288,6 @@ tasks:
       - 'step4: Add tests for lockfile creation and stable update behavior'
     dependencies: []
     tests: [test513]
-    status: completed
 
   - id: task355
     title: "Feature72 frozen lockfile install behavior"
@@ -7583,7 +7308,6 @@ tasks:
       - 'step4: Add tests and docs for frozen-mode expected behavior'
     dependencies: [task354]
     tests: [test514]
-    status: completed
 
   - id: task356
     title: "Feature73 diff command core engine"
@@ -7604,7 +7328,6 @@ tasks:
       - 'step4: Add tests covering baseline diff output and deterministic ordering'
     dependencies: []
     tests: [test515]
-    status: completed
 
   - id: task357
     title: "Feature73 diff json output and exit semantics"
@@ -7625,7 +7348,6 @@ tasks:
       - 'step4: Update docs with diff automation examples'
     dependencies: [task356]
     tests: [test516]
-    status: completed
 
   - id: task358
     title: "Feature74 uninstall command and mandatory confirmation"
@@ -7646,7 +7368,6 @@ tasks:
       - 'step4: Add tests for confirmation required and successful uninstall behavior'
     dependencies: []
     tests: [test517]
-    status: completed
 
   - id: task359
     title: "Feature74 uninstall metadata cleanup and error-path coverage"
@@ -7667,7 +7388,6 @@ tasks:
       - 'step4: Add tests/docs for metadata cleanup and error handling'
     dependencies: [task358, task354]
     tests: [test518]
-    status: completed
 
   - id: task360
     title: "Feature75 framework adapter architecture for langchain langgraph openai"
@@ -7689,7 +7409,6 @@ tasks:
       - 'step4: Add deterministic fallback to generic analyzer when adapter coverage is incomplete'
     dependencies: []
     tests: [test519]
-    status: completed
 
   - id: task361
     title: "Feature75 adapter confidence tuning docs and cross-runtime tests"
@@ -7710,7 +7429,6 @@ tasks:
       - 'step4: Document adapter best practices and known limitations for developers'
     dependencies: [task360]
     tests: [test520]
-    status: completed
 
   - id: task362
     title: "Feature76 preflight CLI detection and version parsing"
@@ -7730,7 +7448,6 @@ tasks:
       - 'step4: Add unit/integration tests for missing CLI, invalid version text, and compatible version checks'
     dependencies: []
     tests: [test521]
-    status: completed
 
   - id: task363
     title: "Feature76 preflight reuse and optional gateway health gating"
@@ -7750,7 +7467,6 @@ tasks:
       - 'step4: Add command-level tests proving the right preflight mode is invoked per command'
     dependencies: [task362]
     tests: [test522]
-    status: completed
 
   - id: task364
     title: "Feature77 init delegation to openclaw agents add"
@@ -7770,7 +7486,6 @@ tasks:
       - 'step4: Add tests for delegation command shape and preflight-before-subprocess ordering'
     dependencies: [task363]
     tests: [test523]
-    status: completed
 
   - id: task365
     title: "Feature77 init manifest generation and operator summary"
@@ -7791,7 +7506,6 @@ tasks:
       - 'step4: Add tests/docs for manifest shape and summary output'
     dependencies: [task364]
     tests: [test524]
-    status: completed
 
   - id: task366
     title: "Feature78 OpenClaw workspace detection and manifest inference"
@@ -7811,7 +7525,6 @@ tasks:
       - 'step4: Add import tests covering detection confidence and manifest generation'
     dependencies: [task363]
     tests: [test525]
-    status: completed
 
   - id: task367
     title: "Feature78 import copy/register workflow and conflict handling"
@@ -7831,7 +7544,6 @@ tasks:
       - 'step4: Add tests for copy prompt flow in-place registration flow and conflict diagnostics'
     dependencies: [task366]
     tests: [test526]
-    status: completed
 
   - id: task368
     title: "Feature79 OpenClaw pack include rules"
@@ -7851,7 +7563,6 @@ tasks:
       - 'step4: Add tests for include contract using OpenClaw workspace fixtures'
     dependencies: []
     tests: [test527]
-    status: completed
 
   - id: task369
     title: "Feature79 OpenClaw pack exclude rules and roundtrip viability"
@@ -7872,7 +7583,6 @@ tasks:
       - 'step4: Add Vitest fixture contract check for JS/TS-oriented workspace file expectations'
     dependencies: [task368]
     tests: [test528]
-    status: completed
 
   - id: task370
     title: "Feature80 OpenClaw install extract and register flow"
@@ -7892,7 +7602,6 @@ tasks:
       - 'step4: Add tests for extract+register happy path and command invocation shape'
     dependencies: [task363, task369]
     tests: [test529]
-    status: completed
 
   - id: task371
     title: "Feature80 install diagnostics conflicts and trust checks"
@@ -7913,7 +7622,6 @@ tasks:
       - 'step4: Add tests covering conflicts validation-ordering and trace content'
     dependencies: [task370]
     tests: [test530]
-    status: completed
 
   - id: task372
     title: "Feature81 run delegation thinking passthrough and exit semantics"
@@ -7933,7 +7641,6 @@ tasks:
       - 'step4: Add tests for command mapping thinking passthrough and exit propagation'
     dependencies: [task363]
     tests: [test531]
-    status: completed
 
   - id: task373
     title: "Feature81 gateway preflight gating and json output passthrough"
@@ -7953,7 +7660,6 @@ tasks:
       - 'step4: Add tests for gateway-down behavior text-default behavior and json output passthrough'
     dependencies: [task372]
     tests: [test532]
-    status: completed
 
   - id: task374
     title: "Feature82 logs command wrapper and flag passthrough"
@@ -7973,7 +7679,6 @@ tasks:
       - 'step4: Add tests for command routing and passthrough behavior'
     dependencies: [task363]
     tests: [test533]
-    status: completed
 
   - id: task375
     title: "Feature82 logs preflight validation and failure diagnostics"
@@ -7993,7 +7698,6 @@ tasks:
       - 'step4: Add tests for error-path behavior and deterministic messaging'
     dependencies: [task374]
     tests: [test534]
-    status: completed
 
   - id: task376
     title: "Feature83 openclaw skill install command and agent resolution"
@@ -8013,7 +7717,6 @@ tasks:
       - 'step4: Add tests for existing-agent delegation behavior and command shape'
     dependencies: [task363]
     tests: [test535]
-    status: completed
 
   - id: task377
     title: "Feature83 skill identifier normalization and outcome diagnostics"
@@ -8033,7 +7736,6 @@ tasks:
       - 'step4: Add tests for missing-agent remediation and outcome diagnostic contracts'
     dependencies: [task376]
     tests: [test536]
-    status: completed
 
   - id: task378
     title: "Feature84 openclaw skill search command wrapper"
@@ -8053,7 +7755,6 @@ tasks:
       - 'step4: Add tests for delegation behavior and json passthrough contracts'
     dependencies: [task363]
     tests: [test537]
-    status: completed
 
   - id: task379
     title: "Feature84 search preflight and empty/error guidance"
@@ -8073,7 +7774,6 @@ tasks:
       - 'step4: Add tests for preflight failures and empty/error guidance paths'
     dependencies: [task378]
     tests: [test538]
-    status: completed
 
   - id: task380
     title: "Feature85 deprecation metadata and cli/help migration messaging"
@@ -8094,7 +7794,6 @@ tasks:
       - 'step4: Add tests validating help output no longer exposes deprecated usage strings'
     dependencies: [task363, task364, task366, task370, task372]
     tests: [test539]
-    status: completed
 
   - id: task381
     title: "Feature85 runtime deprecation warnings and non-breaking compatibility"
@@ -8115,7 +7814,6 @@ tasks:
       - 'step4: Add compatibility tests ensuring deprecated paths still work while warning'
     dependencies: [task380]
     tests: [test540]
-    status: completed
 
   - id: task382
     title: "Create integrity.py module and embed SHA-256 manifest in .kno archives"
@@ -8133,7 +7831,6 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: []
     tests: [test541, test542]
-    status: needs-review
 
   - id: task383
     title: "Document integrity manifest format and verify pack integration"
@@ -8150,7 +7847,6 @@ tasks:
       - 'step3: Write or update tests and verify locally with pytest'
     dependencies: [task382]
     tests: [test541, test542]
-    status: needs-review
 
   - id: task384
     title: "Add Ed25519 signing to .kno archives via --sign flag"
@@ -8168,7 +7864,6 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task383]
     tests: [test543, test544]
-    status: needs-review
 
   - id: task385
     title: "Verify signature integration and unsigned archive backward compat"
@@ -8186,7 +7881,6 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task384]
     tests: [test543, test544]
-    status: needs-review
 
   - id: task386
     title: "Add install-time integrity and signature verification (--strict, --skip-verify)"
@@ -8205,7 +7899,6 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task383, task385]
     tests: [test545, test546]
-    status: needs-review
 
   - id: task387
     title: "Handle missing manifests, tampered files, and backward compat in install"
@@ -8223,7 +7916,6 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task386]
     tests: [test545, test546]
-    status: needs-review
 
   - id: task388
     title: "Add JSON logging, CORS, and health/ready endpoints to server"
@@ -8242,7 +7934,6 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: []
     tests: [test547, test548]
-    status: needs-review
 
   - id: task389
     title: "Harden Uvicorn config and enforce secret validation in production mode"
@@ -8260,7 +7951,6 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task388]
     tests: [test547, test548]
-    status: needs-review
 
   - id: task390
     title: "Add server-side upload validation (size, zip, manifest fields)"
@@ -8278,7 +7968,6 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task383]
     tests: [test549, test550]
-    status: needs-review
 
   - id: task391
     title: "Enforce integrity.json validation on upload and return JSON errors"
@@ -8295,7 +7984,6 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task390]
     tests: [test549, test550]
-    status: needs-review
 
   - id: task392
     title: "Implement configurable per-endpoint and per-tenant rate limiting"
@@ -8313,7 +8001,6 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: []
     tests: [test551, test552]
-    status: needs-review
 
   - id: task393
     title: "Add X-RateLimit-* and Retry-After headers to all responses"
@@ -8330,7 +8017,6 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task392]
     tests: [test551, test552]
-    status: needs-review
 
   - id: task394
     title: "Create kinnoo.yaml spec doc with field reference table"
@@ -8348,7 +8034,6 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: []
     tests: [test553, test554]
-    status: needs-review
 
   - id: task395
     title: "Add framework examples and version/compat notes to spec doc"
@@ -8364,7 +8049,6 @@ tasks:
       - 'step3: Write or update tests and verify locally with pytest'
     dependencies: [task394]
     tests: [test553, test554]
-    status: needs-review
 
   - id: task396
     title: "Create CLI reference doc for client commands (init through uninstall)"
@@ -8382,7 +8066,6 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: []
     tests: [test555, test556]
-    status: needs-review
 
   - id: task397
     title: "Add server CLI commands and cross-references to CLI reference"
@@ -8399,7 +8082,6 @@ tasks:
       - 'step3: Write or update tests and verify locally with pytest'
     dependencies: [task396]
     tests: [test555, test556]
-    status: needs-review
 
   - id: task398
     title: "Create security model doc with threat model and signing architecture"
@@ -8416,7 +8098,6 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task383, task385, task387]
     tests: [test557, test558]
-    status: needs-review
 
   - id: task399
     title: "Document auth flow and cross-reference from README"
@@ -8433,7 +8114,6 @@ tasks:
       - 'step3: Write or update tests and verify locally with pytest'
     dependencies: [task398]
     tests: [test557, test558]
-    status: needs-review
 
   - id: task400
     title: "Create getting-started guide with end-to-end agent walkthrough"
@@ -8450,7 +8130,6 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: []
     tests: [test559, test560]
-    status: needs-review
 
   - id: task401
     title: "Create registry guide with publish/install workflows and expected output"
@@ -8466,7 +8145,6 @@ tasks:
       - 'step3: Write or update tests and verify locally with pytest'
     dependencies: [task400]
     tests: [test559, test560]
-    status: needs-review
 
   - id: task402
     title: "Rewrite README for beta with badges and quick-start"
@@ -8483,7 +8161,6 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task395, task397]
     tests: [test561, test562]
-    status: needs-review
 
   - id: task403
     title: "Create supported-agents.md with framework compatibility matrix"
@@ -8499,7 +8176,6 @@ tasks:
       - 'step3: Write or update tests and verify locally with pytest'
     dependencies: [task402]
     tests: [test561, test562]
-    status: needs-review
 
   - id: task404
     title: "Audit repo for secrets and create CONTRIBUTING.md, CODE_OF_CONDUCT.md"
@@ -8518,7 +8194,6 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: []
     tests: [test563, test564]
-    status: needs-review
 
   - id: task405
     title: "Create issue/PR templates and verify .gitignore coverage"
@@ -8537,7 +8212,6 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task404]
     tests: [test563, test564]
-    status: needs-review
 
   - id: task406
     title: "Create CI and backend deploy GitHub Actions workflows"
@@ -8555,7 +8229,6 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task418, task424, task441]
     tests: [test565, test566]
-    status: needs-review
 
   - id: task407
     title: "Create frontend deploy and Terraform plan/apply workflows with OIDC"
@@ -8573,7 +8246,6 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task406, task441]
     tests: [test565, test566]
-    status: needs-review
 
   - id: task408
     title: "Validate pyproject.toml metadata and configure trusted publisher"
@@ -8590,7 +8262,6 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: []
     tests: [test567, test568]
-    status: needs-review
 
   - id: task409
     title: "Create pypi-publish.yml workflow triggered on push to master"
@@ -8606,7 +8277,6 @@ tasks:
       - 'step3: Write or update tests and verify locally with pytest'
     dependencies: [task408, task443]
     tests: [test567, test568]
-    status: needs-review
 
   - id: task410
     title: "Implement account lockout after 5 failed logins with 15-min cooldown"
@@ -8624,7 +8294,6 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: []
     tests: [test569, test570, test571]
-    status: needs-review
 
   - id: task411
     title: "Implement password policy enforcement with specific guidance messages"
@@ -8640,7 +8309,6 @@ tasks:
       - 'step3: Write or update tests and verify locally with pytest'
     dependencies: [task410]
     tests: [test569, test570, test571]
-    status: needs-review
 
   - id: task412
     title: "Implement JWT token blacklist on logout with automatic pruning"
@@ -8659,7 +8327,6 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task411]
     tests: [test569, test570, test571]
-    status: needs-review
 
   - id: task413
     title: "Create multi-stage production Dockerfile with non-root user and healthcheck"
@@ -8677,7 +8344,6 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task389]
     tests: [test572, test573]
-    status: needs-review
 
   - id: task414
     title: "Create docker-compose.yml for local dev and verify container startup"
@@ -8695,7 +8361,6 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task413]
     tests: [test572, test573]
-    status: needs-review
 
   - id: task415
     title: "Implement user management CLI commands (create, list, reset-password, unlock, delete)"
@@ -8715,7 +8380,6 @@ tasks:
       - 'step6: Write or update tests and verify locally with pytest'
     dependencies: [task412]
     tests: [test574, test575]
-    status: needs-review
 
   - id: task416
     title: "Implement invite token CLI commands (create, list) with input validation"
@@ -8734,7 +8398,6 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task415]
     tests: [test574, test575]
-    status: needs-review
 
   - id: task417
     title: "Create iac/ project structure with versions.tf, providers.tf, and state bootstrap"
@@ -8756,7 +8419,6 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: []
     tests: [test576, test577]
-    status: needs-review
 
   - id: task418
     title: "Create VPC module with public subnets, security groups, and S3 endpoint"
@@ -8777,7 +8439,6 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task417]
     tests: [test576, test577]
-    status: needs-review
 
   - id: task419
     title: "Create S3 registry module with encryption, Object Lock, and versioning"
@@ -8796,7 +8457,6 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task418]
     tests: [test578, test579, test580]
-    status: needs-review
 
   - id: task420
     title: "Create IAM roles module (ECS task, execution, GitHub OIDC)"
@@ -8814,7 +8474,6 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task419]
     tests: [test578, test579, test580]
-    status: needs-review
 
   - id: task421
     title: "Create Secrets Manager module for JWT, session, and admin secrets"
@@ -8831,7 +8490,6 @@ tasks:
       - 'step3: Write or update tests and verify locally with pytest'
     dependencies: [task420]
     tests: [test578, test579, test580]
-    status: needs-review
 
   - id: task422
     title: "Create ECR repository and ALB modules with HTTPS/ACM"
@@ -8850,7 +8508,6 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task418, task421]
     tests: [test581, test582, test583]
-    status: needs-review
 
   - id: task423
     title: "Create ECS Fargate cluster, task definition, and service"
@@ -8867,7 +8524,6 @@ tasks:
       - 'step3: Write or update tests and verify locally with pytest'
     dependencies: [task422]
     tests: [test581, test582, test583]
-    status: needs-review
 
   - id: task424
     title: "Create EFS module with mount targets and verify terraform validate"
@@ -8884,7 +8540,6 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task423]
     tests: [test581, test582, test583]
-    status: needs-review
 
   - id: task425
     title: "Create Cloudflare DNS module for dev.kinnoo.ai and dev-api.kinnoo.ai"
@@ -8902,7 +8557,6 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task418, task424]
     tests: [test584, test585]
-    status: needs-review
 
   - id: task426
     title: "Add ACM validation CNAME records and Cloudflare API token config"
@@ -8919,7 +8573,6 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task425]
     tests: [test584, test585]
-    status: needs-review
 
   - id: task427
     title: "Create CloudWatch log group and alarm modules (5xx, unhealthy, CPU)"
@@ -8938,7 +8591,6 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task418, task424]
     tests: [test586, test587]
-    status: needs-review
 
   - id: task428
     title: "Create SNS topics for alerts and password reset notifications"
@@ -8955,7 +8607,6 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task427]
     tests: [test586, test587]
-    status: needs-review
 
   - id: task429
     title: "Add invite token validation to registration endpoint"
@@ -8974,7 +8625,6 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task416]
     tests: [test588, test589]
-    status: needs-review
 
   - id: task430
     title: "Add invite token field to web registration and handle race conditions"
@@ -8992,7 +8642,6 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task429]
     tests: [test588, test589]
-    status: needs-review
 
   - id: task431
     title: "Add forgot-password endpoint with SNS notification to operator"
@@ -9010,7 +8659,6 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task416, task428]
     tests: [test590, test591]
-    status: needs-review
 
   - id: task432
     title: "Add forgot-password web page with rate limiting"
@@ -9027,7 +8675,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task431]
     tests: [test590, test591]
-    status: not-started
+    status: deprecated
 
   - id: task433
     title: "Keep landing unchanged and simplify Sign Up invite-only page"
@@ -9044,7 +8692,6 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: []
     tests: [test592, test593]
-    status: needs-review
 
   - id: task434
     title: "Verify no mailto flow and preserve login/registry + static export"
@@ -9062,7 +8709,6 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task433]
     tests: [test592, test593]
-    status: needs-review
 
   - id: task435
     title: "Create e2e smoke test script with parameterized registry URL and credentials"
@@ -9080,7 +8726,7 @@ tasks:
       - 'step5: Write or update tests and verify locally with pytest'
     dependencies: [task389, task414]
     tests: [test594, test595]
-    status: not-started
+    status: deprecated
 
   - id: task436
     title: "Add cleanup, CI integration, and per-step timing to smoke test"
@@ -9097,7 +8743,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: [task435]
     tests: [test594, test595]
-    status: not-started
+    status: deprecated
 
   - id: task437
     title: "Publish 3+ agents covering different frameworks to the registry"
@@ -9130,7 +8776,7 @@ tasks:
       - 'step3: Write or update tests and verify locally with pytest'
     dependencies: [task437, task445]
     tests: [test596, test597]
-    status: not-started
+    status: deprecated
 
   - id: task439
     title: "Create launch checklist doc with Infrastructure, Security, CI/CD sections"
@@ -9147,7 +8793,7 @@ tasks:
       - 'step4: Write or update tests and verify locally with pytest'
     dependencies: []
     tests: [test598, test599]
-    status: not-started
+    status: completed
 
   - id: task440
     title: "Add User Onboarding walkthrough and make checklist actionable for operator"
@@ -9163,7 +8809,7 @@ tasks:
       - 'step3: Write or update tests and verify locally with pytest'
     dependencies: [task439]
     tests: [test598, test599]
-    status: not-started
+    status: completed
 
   - id: task441
     title: "Apply Terraform state bootstrap in AWS and verify S3 native lockfile backend"
@@ -9185,7 +8831,6 @@ tasks:
       - 'step5: Run regression script for bootstrap verification.'
     dependencies: [task417, task418]
     tests: [test602]
-    status: completed
 
   - id: task442
     title: "Configure Cloudflare credentials and complete live DNS validation"
@@ -9207,7 +8852,7 @@ tasks:
       - 'step5: Run DNS validation regression script and archive output in docs/iac-operator-runbook.md.'
     dependencies: [task425, task426, task441]
     tests: [test603]
-    status: not-started
+    status: completed
 
   - id: task443
     title: "Configure PyPI trusted publisher (OIDC) for release workflow"
@@ -9251,7 +8896,7 @@ tasks:
       - 'step5: Record elapsed response time and any gaps in docs/password-reset-runbook.md.'
     dependencies: [task431, task432, task415]
     tests: [test604]
-    status: not-started
+    status: deprecated
 
   - id: task445
     title: "Execute registry seeding runbook with signed multi-framework agents"
@@ -9343,7 +8988,7 @@ tasks:
       - 'step6: Run automated validation scripts for backend readiness and Cloudflare Pages cutover, and archive output with task448 handoff notes.'
     dependencies: [task424, task426, task442]
     tests: [test607, test608]
-    status: not-started
+    status: completed
 
   - id: task449
     title: "Login and logout CLI hardening"
@@ -9371,7 +9016,7 @@ tasks:
       - 'step6: Update operator docs with hardened login/logout and remote-registry usage guidance (including no-fallback remote mode behavior).'
     dependencies: [task332, task333]
     tests: [test609]
-    status: not-started
+    status: completed
 
   - id: task450
     title: "kinnoo test hardening"
@@ -9399,7 +9044,6 @@ tasks:
       - 'step6: Add automated tests for verbose output contract and interactive create/append flows; run manifest validator and targeted pytest.'
     dependencies: [task348, task349]
     tests: [test610, test611, test612, test613, test614]
-    status: needs-review
 
   - id: task451
     title: "Fix remote install latest resolution and download URL handling"
@@ -9428,7 +9072,6 @@ tasks:
       - 'step6: Execute targeted pytest validation for new regression coverage.'
     dependencies: [task232]
     tests: [test615, test616, test617, test618, test619, test620, test621, test622, test623]
-    status: needs-review
 
   - id: task452
     title: "Fix publish framework requirement and JS/TS runtime language handling"
@@ -9465,7 +9108,6 @@ tasks:
       - 'step6: Back-document deployment commands/results and important branch-note in task summary notes.'
     dependencies: [task451]
     tests: [test624, test625, test626, test627]
-    status: needs-review
 
   # ────────────────────────────────────────────────────────────────
   # feature115 — UAT Part 1: CLI Hardening (task453 – task487)
@@ -9496,7 +9138,6 @@ tasks:
       - 'step4: Add test that kinnoo -h output starts with 🍊 Kinnoo CLI v and contains a parenthesized hash.'
     dependencies: []
     tests: [test628]
-    status: needs-review
 
   - id: task454
     title: "init - framework as required positional argument"
@@ -9522,7 +9163,6 @@ tasks:
       - 'step5: Add tests for framework positional argument and no-framework template output.'
     dependencies: []
     tests: [test629, test630]
-    status: needs-review
 
   - id: task455
     title: "init - interactive wizard when no arguments"
@@ -9548,7 +9188,6 @@ tasks:
       - 'step4: Add test that wizard prompts appear and selections produce valid scaffolds (mock stdin).'
     dependencies: [task454]
     tests: [test631]
-    status: needs-review
 
   - id: task456
     title: "init - change default python entrypoint to main.py"
@@ -9569,7 +9208,6 @@ tasks:
       - 'step4: Add test that python init produces main.py (not run.py).'
     dependencies: []
     tests: [test632]
-    status: needs-review
 
   - id: task457
     title: "init - complete template with folders and --minimal flag"
@@ -9596,7 +9234,6 @@ tasks:
       - 'step5: Add tests for complete template output and minimal template output for each language category.'
     dependencies: [task454, task456]
     tests: [test633, test634, test635]
-    status: needs-review
 
   - id: task458
     title: "init - README.md template improvements"
@@ -9620,7 +9257,6 @@ tasks:
       - 'step4: Add test that README contains expected sections and footer.'
     dependencies: [task456, task457]
     tests: [test636]
-    status: needs-review
 
   - id: task459
     title: "init - language-specific .gitignore templates"
@@ -9641,7 +9277,6 @@ tasks:
       - 'step3: Add tests verifying exact .gitignore content for each language category.'
     dependencies: [task457]
     tests: [test637, test638, test639, test640]
-    status: needs-review
 
   - id: task460
     title: "pack - ignore data/ by default and add --include/--exclude"
@@ -9663,7 +9298,6 @@ tasks:
       - 'step4: Add tests for data/ exclusion by default and --include data override.'
     dependencies: []
     tests: [test641, test642]
-    status: needs-review
 
   - id: task461
     title: "pack - --preflight dry-run"
@@ -9684,7 +9318,6 @@ tasks:
       - 'step4: Add test that --preflight lists files and does not create an archive.'
     dependencies: []
     tests: [test643]
-    status: needs-review
 
   - id: task462
     title: "pack - help text updates and default patch bump"
@@ -9707,7 +9340,6 @@ tasks:
       - 'step4: Add test that --bump without version increments patch; --public description is correct.'
     dependencies: []
     tests: [test644, test645]
-    status: needs-review
 
   - id: task463
     title: "pack - merge --signing-key into --sign"
@@ -9731,7 +9363,6 @@ tasks:
       - 'step5: Add test that --sign SIGNING_KEY is accepted and --signing-key is rejected.'
     dependencies: []
     tests: [test646]
-    status: completed
 
   - id: task464
     title: "pack - --json flag for structured output"
@@ -9753,7 +9384,6 @@ tasks:
       - 'step4: Add test that --json produces valid JSON with expected keys.'
     dependencies: []
     tests: [test647]
-    status: completed
 
   - id: task465
     title: "publish - --local | --remote mutual exclusion and help text"
@@ -9773,7 +9403,6 @@ tasks:
       - 'step3: Add test that using both --local and --remote produces an error.'
     dependencies: []
     tests: [test648]
-    status: completed
 
   - id: task466
     title: "publish - version history and Agent Versions tab"
@@ -9796,7 +9425,6 @@ tasks:
       - 'step4: Add test that multiple publishes of different versions are all retrievable.'
     dependencies: []
     tests: [test649]
-    status: completed
 
   - id: task467
     title: "publish - --json flag for structured output"
@@ -9817,7 +9445,6 @@ tasks:
       - 'step4: Add test that --json produces valid JSON with expected keys.'
     dependencies: []
     tests: [test650]
-    status: completed
 
   - id: task468
     title: "install - remove deprecated openclaw options"
@@ -9839,7 +9466,6 @@ tasks:
       - 'step4: Add test that these options are rejected by the parser.'
     dependencies: []
     tests: [test651]
-    status: completed
 
   - id: task469
     title: "install - default openclaw install to ~/.openclaw/workspace-<name>"
@@ -9859,7 +9485,6 @@ tasks:
       - 'step4: Add test for default openclaw install path and custom override.'
     dependencies: [task468]
     tests: [test652]
-    status: completed
 
   - id: task470
     title: "install - --json flag for structured output"
@@ -9881,7 +9506,6 @@ tasks:
       - 'step4: Add test that --json with -y produces valid JSON; --json without -y errors.'
     dependencies: []
     tests: [test653]
-    status: completed
 
   - id: task471
     title: "run - --json structured output for all agent types"
@@ -9904,7 +9528,6 @@ tasks:
       - 'step4: Add tests for --json output structure for non-openclaw agents.'
     dependencies: []
     tests: [test654]
-    status: completed
 
   - id: task472
     title: "run - replace --sandbox with --enforce-policy"
@@ -9927,7 +9550,6 @@ tasks:
       - 'step4: Add test that --enforce-policy is accepted and --sandbox is rejected.'
     dependencies: []
     tests: [test655]
-    status: completed
 
   - id: task473
     title: "inspect - --json flag for structured output"
@@ -9950,7 +9572,6 @@ tasks:
       - 'step5: Add tests for --json output with various option combinations.'
     dependencies: []
     tests: [test656]
-    status: completed
 
   - id: task474
     title: "inspect - --update simplification to 2 arguments"
@@ -9973,7 +9594,6 @@ tasks:
       - 'step4: Add test for --update before and after target argument.'
     dependencies: []
     tests: [test657]
-    status: completed
 
   - id: task475
     title: "inspect - --update confirmation prompt"
@@ -9995,7 +9615,6 @@ tasks:
       - 'step5: Add tests for prompt behavior and --skip-warnings bypass.'
     dependencies: [task474]
     tests: [test658]
-    status: completed
 
   - id: task476
     title: "Comment out sync, stop, attach, logs commands and daemon help"
@@ -10017,7 +9636,6 @@ tasks:
       - 'step6: Add test that sync/stop/attach/logs are not recognized as valid commands.'
     dependencies: []
     tests: [test659]
-    status: completed
 
   - id: task477
     title: "search - remove --openclaw-skills and refactor --json"
@@ -10038,7 +9656,6 @@ tasks:
       - 'step4: Add tests that --openclaw-skills is rejected and --json outputs valid JSON.'
     dependencies: []
     tests: [test660, test661]
-    status: completed
 
   - id: task478
     title: "list - add --json option"
@@ -10057,7 +9674,6 @@ tasks:
       - 'step3: Add test that --json produces valid JSON output.'
     dependencies: []
     tests: [test662]
-    status: completed
 
   - id: task479
     title: "Registry UI - inline security icons in Name column"
@@ -10082,7 +9698,6 @@ tasks:
       - 'step4: Add test that Name column renders inline icons correctly for various states.'
     dependencies: []
     tests: [test663]
-    status: needs-review
 
   - id: task480
     title: "Registry - server-side security check script"
@@ -10105,7 +9720,6 @@ tasks:
       - 'step5: Add unit tests for each check function with pass/fail cases.'
     dependencies: []
     tests: [test664]
-    status: needs-review
 
   - id: task481
     title: "Registry - update security column and persist check report"
@@ -10130,7 +9744,6 @@ tasks:
       - 'step5: Add test that publish triggers checks and updates metadata.'
     dependencies: [task480]
     tests: [test665]
-    status: needs-review
 
   - id: task482
     title: "Registry - containerized Lambda for server-side checks"
@@ -10161,7 +9774,6 @@ tasks:
       - 'step5: Add integration test for end-to-end publish → Lambda → report flow.'
     dependencies: [task481]
     tests: [test666]
-    status: needs-review
 
   - id: task483
     title: "Registry UI - Security tab in selected-agent details"
@@ -10183,7 +9795,6 @@ tasks:
       - 'step4: Add test that Security tab renders correctly with sample check data.'
     dependencies: [task481]
     tests: [test667]
-    status: needs-review
 
   - id: task484
     title: "New kinnoo fetch command"
@@ -10208,7 +9819,6 @@ tasks:
       - 'step6: Add tests for fetch download, integrity check, and strict verification.'
     dependencies: []
     tests: [test668, test669]
-    status: completed
 
   - id: task485
     title: "New kinnoo uninstall command"
@@ -10232,7 +9842,6 @@ tasks:
       - 'step5: Add tests for all three uninstall modes and confirmation bypass.'
     dependencies: []
     tests: [test670, test671]
-    status: completed
 
   - id: task486
     title: "Hotfix - hide traceback for remote registry auth/conflict failures"
@@ -10253,7 +9862,6 @@ tasks:
       - 'step4: Add regression tests proving no traceback is emitted and user-facing lines are printed.'
     dependencies: [task484, task485]
     tests: [test672, test673]
-    status: completed
 
   - id: task487
     title: "Hotfix - init/run help cleanup + task482 retry/fallback diagnostics"
@@ -10300,7 +9908,6 @@ tasks:
       - 'step10: Validate Lambda creation with targeted Terraform apply using pushed account ECR image.'
     dependencies: [task482, task486]
     tests: [test674, test675, test676, test677]
-    status: completed
 
   - id: task488
     title: "pack/publish visibility default switch to public + deprecation/doc cleanup"
@@ -10436,7 +10043,6 @@ tasks:
       - 'step7: Run manifest validator and focused pytest subsets that cover migrated CLI and validator paths before handoff.'
     dependencies: [task489]
     tests: [test693, test694, test695]
-    status: completed
 
   - id: task491
     title: "feature117 import core error hardening and manifest validation gate"
@@ -10463,7 +10069,6 @@ tasks:
       - 'step5: Run import-targeted pytest + manifest validator and capture outputs in handoff notes.'
     dependencies: []
     tests: [test696, test697, test698]
-    status: completed
 
   - id: task492
     title: "feature117 framework adapter hardening for langchain langgraph and openai"
@@ -10492,7 +10097,6 @@ tasks:
       - 'step5: Execute adapter-focused unit/integration tests and record evidence in handoff.'
     dependencies: [task491]
     tests: [test699, test700, test701]
-    status: completed
 
   - id: task493
     title: "feature117 openclaw workspace import --from flow hardening"
@@ -10519,7 +10123,6 @@ tasks:
       - 'step5: Add end-to-end import tests for successful copy + invalid-source failures.'
     dependencies: [task491]
     tests: [test702]
-    status: completed
 
   - id: task494
     title: "feature117 dependency inference hardening and generic llm agent support"
@@ -10546,7 +10149,6 @@ tasks:
       - 'step5: Validate outputs with import-related pytest modules and manifest checks.'
     dependencies: [task491, task492]
     tests: [test703, test704]
-    status: completed
 
   - id: task495
     title: "feature117 import hardening regression matrix and fixture expansion"
@@ -10572,7 +10174,6 @@ tasks:
       - 'step5: Ensure manifest validator stays clean after task/test manifest updates.'
     dependencies: [task492, task493, task494]
     tests: [test705]
-    status: completed
 
   - id: task496
     title: "feature118 prerequisite decisions and dual Kinde app setup execution"
@@ -10606,7 +10207,6 @@ tasks:
       - 'step6 [HUMAN]: Execute manual post-deploy validation and record evidence in notes/kinde-auth-setup-dev.md section 5.3.3 only after app cutover tasks 497-499 are completed and deployed. Step6 Kinde-flow checks pending app cutover tasks 497-499 until then: web login/logout/callback smoke checks, CLI login loopback callback smoke checks, and runtime behavior validation after deploy (issuer/audience/signature auth path functioning through deployed ECS+Cloudflare routing).'
     dependencies: []
     tests: [test706, test717, test718, test719]
-    status: needs-review
 
   - id: task497
     title: "feature118 server OIDC auth adapter and route cutover"
@@ -10636,7 +10236,6 @@ tasks:
       - 'step6: Add/refresh server tests for valid and invalid token scenarios and callback/logout flows.'
     dependencies: [task496]
     tests: [test707, test708]
-    status: needs-review
 
   - id: task498
     title: "feature118 web auth migration to Kinde-hosted redirects"
@@ -10662,7 +10261,6 @@ tasks:
       - 'step5: Add/update web tests for login/callback/logout/protected-layout flows.'
     dependencies: [task497]
     tests: [test709]
-    status: needs-review
 
   - id: task499
     title: "feature118 CLI login/logout/refresh flow migration"
@@ -10690,7 +10288,6 @@ tasks:
       - 'step5: Add/update CLI tests for login success/failure, PKCE flow, dynamic port allocation, refresh path, and logout behaviors.'
     dependencies: [task496, task497]
     tests: [test710, test711]
-    status: needs-review
 
   - id: task500
     title: "feature118 internal identity mapping and publish ownership linkage"
@@ -10716,7 +10313,6 @@ tasks:
       - 'step4: Add/refresh tests proving ownership and tenant linkage correctness across multiple users/tenants and both login paths (web + CLI).'
     dependencies: [task497, task499]
     tests: [test712]
-    status: needs-review
 
   - id: task501
     title: "feature118 provider-neutral auth config and IaC env alignment"
@@ -10741,7 +10337,6 @@ tasks:
       - 'step4: Document final env contract and migration guidance for dev/staging operators.'
     dependencies: [task496, task497, task499]
     tests: [test713]
-    status: needs-review
 
   - id: task502
     title: "feature118 legacy auth runtime retirement and compatibility gating"
@@ -10765,7 +10360,6 @@ tasks:
       - 'step4: Add regression tests validating legacy-path disablement semantics and cutover safety.'
     dependencies: [task497]
     tests: [test714]
-    status: needs-review
 
   - id: task503
     title: "feature118 auth portability and integration test expansion"
@@ -10792,7 +10386,6 @@ tasks:
       - 'step5: Ensure portability matrix coverage/test mappings remain marker-classified and traceable to feature118 ACs.'
     dependencies: [task497, task498, task499, task501, task502]
     tests: [test715]
-    status: needs-review
 
   - id: task504
     title: "feature118 dev cutover smoke validation and rollback rehearsal"
@@ -10817,7 +10410,7 @@ tasks:
       - 'step6: Confirm approval gate before permanent dev cutover finalization.'
     dependencies: [task498, task499, task500, task501, task502, task503]
     tests: [test716]
-    status: not-started
+    status: completed
 
   - id: task505
     title: "feature119 operator prerequisite decisions and rollout guardrails"
@@ -10838,7 +10431,7 @@ tasks:
       - 'step3: Approve phased rollout gates, rollback criteria, and acceptance sign-off checkpoints.'
     dependencies: []
     tests: [test720]
-    status: not-started
+    status: completed
 
   - id: task506
     title: "feature119 phase13.1 terraform postgres foundation and ecs wiring"
@@ -10867,7 +10460,6 @@ tasks:
       - 'step4: Validate Terraform format/validate/plan paths for dev/prod var contracts.'
     dependencies: [task505]
     tests: [test721, test722]
-    status: needs-review
 
   - id: task507
     title: "feature119 phase13.2 server database package schema and migrations"
@@ -10893,7 +10485,6 @@ tasks:
       - 'step4: Configure Alembic async env and initial migration with upgrade/downgrade safety.'
     dependencies: [task506]
     tests: [test723, test724]
-    status: needs-review
 
   - id: task508
     title: "feature119 phase13.2 metadata backend integration and health wiring"
@@ -10918,7 +10509,6 @@ tasks:
       - 'step4: Keep route behavior parity while introducing repository-backed internals.'
     dependencies: [task507]
     tests: [test725, test726]
-    status: needs-review
 
   - id: task509
     title: "feature119 phase13.3 json-to-postgres migration parity and rollback gates"
@@ -10941,7 +10531,6 @@ tasks:
       - 'step4: Verify migration/parity behavior with repeatable integration tests.'
     dependencies: [task508]
     tests: [test727]
-    status: needs-review
 
   - id: task510
     title: "feature119 server db/admin command surface for postgres operations"
@@ -10964,7 +10553,6 @@ tasks:
       - 'step4: Add CLI tests for successful and failure-path command behavior.'
     dependencies: [task507]
     tests: [test728]
-    status: needs-review
 
   - id: task511
     title: "feature119 postgres test harness local-dev and ci integration"
@@ -10988,7 +10576,6 @@ tasks:
       - 'step4: Add concurrency sanity coverage for publish/search flows and pool-usage behavior.'
     dependencies: [task506, task507, task508]
     tests: [test729, test730]
-    status: needs-review
 
   - id: task512
     title: "feature119 observability resilience runbooks and scalability controls"
@@ -11011,7 +10598,6 @@ tasks:
       - 'step4: Align operational docs with implemented infrastructure/runtime controls.'
     dependencies: [task506, task507, task511]
     tests: [test731]
-    status: needs-review
 
   - id: task513
     title: "feature119 human cutover gate execution and final approval"
@@ -11033,7 +10619,7 @@ tasks:
       - 'step4: Record final go/no-go decision and unresolved risks.'
     dependencies: [task509, task510, task511, task512]
     tests: [test732]
-    status: not-started
+    status: completed
 
   - id: task514
     title: "feature120 UAT3 install/fetch selector and verification-sidecar fixes"
@@ -11064,7 +10650,7 @@ tasks:
       - 'step5: Add regression tests for selector parsing, tenant-qualified remote resolution, and checksum metadata verification paths.'
     dependencies: []
     tests: [test733, test734, test735, test736]
-    status: needs-review
+    status: not-started
 
   - id: task515
     title: "hosted auth discovery via registry config endpoint"
