@@ -11,6 +11,7 @@ def error_code_for_status(status_code: int) -> str:
         401: "unauthorized",
         403: "forbidden",
         404: "not_found",
+        413: "payload_too_large",
         409: "conflict",
         429: "too_many_requests",
     }
