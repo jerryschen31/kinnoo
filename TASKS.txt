@@ -10678,3 +10678,30 @@ tasks:
     dependencies: []
     tests: [test737, test738]
     status: needs-review
+
+  - id: task516
+    title: "phase 14 regression test fixes"
+    type: task
+    epic: [E9]
+    owner: test-agent
+    description: |
+      Apply targeted regression-test repairs identified in issue #368 for phase 14:
+      restore accidentally removed publish test helpers/imports, isolate registry
+      auth config state in remote registry CLI tests to avoid host-env leakage,
+      and remove per-request TestClient cookie usage that now emits a deprecation
+      warning.
+    files:
+      - server/tests/test_publish.py
+      - server/tests/test_agents_routes.py
+      - tests/e2e_workflows/test_cli.py
+      - TASKS.txt
+      - TESTS.txt
+      - FEATURES.txt
+    steps:
+      - "step1: Restore missing imports and helper functions in server/tests/test_publish.py removed by commit 758a401."
+      - "step2: Update agents routes session-auth test to set cookie on client instance instead of per-request cookies argument."
+      - "step3: Isolate registry auth config state for affected e2e registry install/fetch/publish tests using per-test temporary HOME/config with minimal env vars."
+      - "step4: Run focused regression tests and full `python3 -m pytest tests server/tests` to verify behavior."
+    dependencies: []
+    tests: [test739]
+    status: in-progress

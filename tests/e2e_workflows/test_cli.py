@@ -17,6 +17,26 @@ from tests.helpers import command_exists, run_cli, run_command
 LEGACY_DAEMON_LOGS_DISABLED_REASON = "deprecated: logs daemon command surface is disabled for task476"
 LEGACY_PUBLISH_LOCAL_DEFAULT_REASON = "deprecated: publish local-default contract replaced by authenticated remote-first behavior"
 
+
+def _isolate_registry_auth_config(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
+    from kinnoo import config as kinnoo_config
+
+    isolated_home = tmp_path / "isolated-home"
+    config_path = isolated_home / ".kinnoo" / "config.yaml"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text("", encoding="utf-8")
+
+    monkeypatch.setenv("HOME", str(isolated_home))
+    monkeypatch.setattr(kinnoo_config, "DEFAULT_CONFIG_PATH", config_path)
+
+    monkeypatch.delenv("KINNOO_REFRESH_TOKEN", raising=False)
+    monkeypatch.delenv("KINNOO_TOKEN_EXPIRES_AT_EPOCH", raising=False)
+    monkeypatch.delenv("AUTH_TOKEN_ENDPOINT", raising=False)
+    monkeypatch.delenv("TOKEN_ENDPOINT", raising=False)
+
+    return config_path
+
+
 def test_cli_installable_and_runnable():
     # This test checks that the CLI is installable and runnable via pyproject.toml
     result = subprocess.run([sys.executable, "-m", "kinnoo.cli", "--help"], capture_output=True, text=True)
@@ -272,6 +292,8 @@ def test_top_level_help_colored_when_forced():
 def test_backend_selection(monkeypatch, tmp_path):
     from kinnoo import install_command, publish_command
     from kinnoo.config import PublishBehaviorConfig
+
+    _isolate_registry_auth_config(monkeypatch, tmp_path)
 
     archive_root = tmp_path / "archive"
     agent_archive_dir = archive_root / "demo-agent" / "1.0.0"
@@ -577,6 +599,8 @@ def test_feature69_standardized_tests_file_parser(tmp_path):
 def test_install_remote_latest_resolves_explicit_version_before_download(monkeypatch, tmp_path) -> None:
     from kinnoo import install_command
 
+    _isolate_registry_auth_config(monkeypatch, tmp_path)
+
     called_versions: list[str | None] = []
 
     class _FakeRemoteBackend:
@@ -627,8 +651,10 @@ def test_install_remote_latest_resolves_explicit_version_before_download(monkeyp
     assert called_versions == ["2.4.1"]
 
 
-def test_install_remote_reports_filesystem_download_url_as_server_error(monkeypatch, capsys) -> None:
+def test_install_remote_reports_filesystem_download_url_as_server_error(monkeypatch, capsys, tmp_path) -> None:
     from kinnoo import install_command
+
+    _isolate_registry_auth_config(monkeypatch, tmp_path)
 
     class _FakeRemoteBackend:
         def __init__(self, *args, **kwargs):
@@ -681,6 +707,8 @@ def test_install_remote_reports_filesystem_download_url_as_server_error(monkeypa
 def test_install_remote_uses_authenticated_fetch_for_same_host_http_download_url(monkeypatch, tmp_path) -> None:
     from kinnoo import install_command
 
+    _isolate_registry_auth_config(monkeypatch, tmp_path)
+
     class _FakeRemoteBackend:
         def __init__(self, *args, **kwargs):
             del args, kwargs
@@ -730,6 +758,8 @@ def test_install_remote_uses_authenticated_fetch_for_same_host_http_download_url
 
 def test_install_remote_tenant_qualified_selector_and_checksum_metadata(monkeypatch, tmp_path) -> None:
     from kinnoo import install_command
+
+    _isolate_registry_auth_config(monkeypatch, tmp_path)
 
     resolve_calls: list[tuple[str, str | None, str | None]] = []
     install_kwargs_capture: dict[str, object] = {}
@@ -1278,6 +1308,8 @@ def test_feature114_create_prompt_displays_assertion_options(tmp_path):
 
 def test_publish_toggle_true_prefers_authenticated_remote(monkeypatch, tmp_path):
     from kinnoo import publish_command
+
+    _isolate_registry_auth_config(monkeypatch, tmp_path)
 
     (tmp_path / "kinnoo-config.txt").write_text(
         "publish_to_authenticated_registry=true\n",
@@ -5753,6 +5785,8 @@ def _build_fetch_archive_bytes(*, name: str, version: str, include_signature_met
 def test_fetch_downloads_archive(monkeypatch, tmp_path: Path) -> None:
     from kinnoo import fetch_command
 
+    _isolate_registry_auth_config(monkeypatch, tmp_path)
+
     archive_payload = _build_fetch_archive_bytes(name="fetch-agent", version="1.2.3")
 
     class _FakeRemoteBackend:
@@ -5786,6 +5820,8 @@ def test_fetch_downloads_archive(monkeypatch, tmp_path: Path) -> None:
 
 def test_fetch_remote_uses_tenant_qualified_selector(monkeypatch, tmp_path: Path) -> None:
     from kinnoo import fetch_command
+
+    _isolate_registry_auth_config(monkeypatch, tmp_path)
 
     archive_payload = _build_fetch_archive_bytes(name="test-agent-phase14-js-2", version="0.1.1")
     resolve_calls: list[tuple[str, str | None, str | None]] = []
@@ -5821,6 +5857,8 @@ def test_fetch_remote_uses_tenant_qualified_selector(monkeypatch, tmp_path: Path
 
 def test_fetch_strict_verification(monkeypatch, tmp_path: Path) -> None:
     from kinnoo import fetch_command
+
+    _isolate_registry_auth_config(monkeypatch, tmp_path)
 
     signed_payload = _build_fetch_archive_bytes(
         name="strict-agent",
