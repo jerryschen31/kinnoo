@@ -4,9 +4,16 @@ project_name        = "kinnoo"
 vpc_cidr            = "10.0.0.0/16"
 public_subnet_cidrs = ["10.0.1.0/24", "10.0.2.0/24"]
 private_subnet_cidrs = ["10.0.101.0/24", "10.0.102.0/24"]
-dev_record_type     = "AAAA"
-dev_record_content  = "100::"
-manage_dev_record   = false
+
+# Domain wiring (task518): per-environment subdomain labels keep dev/prod
+# Cloudflare records and ALB ACM certificates strictly isolated.
+base_domain             = "kinnoo.ai"
+frontend_subdomain      = "dev"
+api_subdomain           = "dev-api"
+frontend_record_type    = "AAAA"
+frontend_record_content = "100::"
+manage_frontend_record  = false
+
 auth_provider       = "oidc_kinde"
 registry_metadata_backend = "postgres" # "json"
 registry_db_pool_size = 10
