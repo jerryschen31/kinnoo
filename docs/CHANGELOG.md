@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.9.0] - 2026-04-23
+### Fixed
+- Fixed remote registry search result rendering in CLI so agent names no longer appear as `(unknown)` when the API payload provides `agent_slug` instead of `name`.
+
+### Added
+- Added regression coverage for remote search summary-shape compatibility to ensure CLI search output correctly falls back to `agent_slug` for display.
+
+### Changed
+- Bumped project version from `0.8.2` to `0.9.0`.
+
 ## [v0.8.2] - 2026-04-23
 ### Added
 - Added hosted auth discovery flow for CLI login so end-users can bootstrap hosted OIDC config from `GET /api/auth/config` using only `KINNOO_REGISTRY_URL` when local AUTH/KINDE env vars are not set.
