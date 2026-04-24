@@ -13048,7 +13048,7 @@ tests:
     type: integration
     preconditions: task526 storage quota implementation is present
     steps:
-      - 'step1: Verify SQLAlchemy models expose agent_versions.archive_size_bytes and tenant_members.used_bytes/quota_bytes with 5 GiB default quota.'
+      - 'step1: Verify SQLAlchemy models expose agent_versions.archive_size_bytes and tenants.used_bytes/quota_bytes with 5 GiB default quota.'
       - 'step2: Verify migration includes storage usage refresh trigger functions for agent_versions updates.'
       - 'step3: Exercise publish flow with an injected tenant quota lower than upload size and verify request is rejected.'
     expected: Storage quota schema exists and publish rejects uploads that would exceed tenant quota.
@@ -13060,7 +13060,7 @@ tests:
       - "pytest_markers: regression_integration,server_api,security_checks"
       - "automation_path_subfolder: server/tests"
     automated: true
-    automation_path: server/tests/test_feature120_storage_quota_schema.py::test_feature120_test749_storage_quota_schema_fields_exist
+    automation_path: server/tests/test_publish.py::test_publish_rejects_when_tenant_storage_quota_would_be_exceeded
 
   - id: test750
     title: "issue372 waf publish endpoint per-ip rate-limit terraform contract"

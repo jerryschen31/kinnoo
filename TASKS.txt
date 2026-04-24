@@ -10984,12 +10984,12 @@ tasks:
     owner: swe-agent
     description: |
       Implement tenant storage quota support for Postgres-backed registry metadata.
-      Add archive size tracking per agent version, add tenant member quota/usage
+      Add archive size tracking per agent version, add tenant-level quota/usage
       fields with a 5 GiB default free-tier quota, and enforce quota checks in
       the publish flow before accepting uploads.
     files:
       - server/database/models/agent_version.py
-      - server/database/models/tenant_member.py
+      - server/database/models/tenant.py
       - server/database/repository.py
       - server/database/migrations/versions/20260424_0002_storage_quota.py
       - server/metadata/models.py
@@ -10998,7 +10998,7 @@ tasks:
       - server/tests/test_publish.py
       - server/tests/test_feature120_storage_quota_schema.py
     steps:
-      - 'step1: Add archive_size_bytes to agent_versions and used_bytes/quota_bytes to tenant_members (quota default 5 GiB).'
+      - 'step1: Add archive_size_bytes to agent_versions and used_bytes/quota_bytes to tenants (quota default 5 GiB).'
       - 'step2: Add Alembic migration for new columns and trigger-based used_bytes recalculation from agent_versions totals per tenant.'
       - 'step3: Persist archive_size_bytes in Postgres metadata writes and expose tenant storage usage/quota lookup in repository manager.'
       - 'step4: Enforce tenant storage quota in publish endpoint when Postgres metadata backend is active.'

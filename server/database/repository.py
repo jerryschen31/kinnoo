@@ -10,8 +10,8 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
 from server.database.exceptions import DatabaseConflictError, DatabaseError
-from server.database.models import Agent, AgentVersion, AuditLog, Tenant, TenantMember, User
-from server.database.models.tenant_member import FREE_TIER_QUOTA_BYTES
+from server.database.models import Agent, AgentVersion, AuditLog, Tenant, User
+from server.database.models.tenant import FREE_TIER_QUOTA_BYTES
 from server.metadata.models import AgentIndex, AgentVersionSummary, GlobalAgentSummary, GlobalIndex, VersionMetadata, utc_now_iso
 
 
@@ -98,22 +98,13 @@ class RegistryRepository:
     def get_tenant_storage_usage(self, *, tenant_slug: str) -> tuple[int, int]:
         try:
             with self._session_factory() as session:
-                tenant_id = session.execute(select(Tenant.id).where(Tenant.slug == tenant_slug)).scalar_one_or_none()
-                if tenant_id is None:
+                usage_row = session.execute(
+                    select(Tenant.used_bytes, Tenant.quota_bytes).where(Tenant.slug == tenant_slug).limit(1)
+                ).first()
+                if usage_row is None:
                     return 0, FREE_TIER_QUOTA_BYTES
 
-                used_bytes = session.execute(
-                    select(func.coalesce(func.sum(AgentVersion.archive_size_bytes), 0))
-                    .join(Agent, AgentVersion.agent_id == Agent.id)
-                    .where(Agent.tenant_id == tenant_id)
-                ).scalar_one()
-
-                quota_bytes = session.execute(
-                    select(TenantMember.quota_bytes)
-                    .where(TenantMember.tenant_id == tenant_id)
-                    .order_by(TenantMember.created_at.asc())
-                    .limit(1)
-                ).scalar_one_or_none()
+                used_bytes, quota_bytes = usage_row
                 effective_quota = int(quota_bytes or FREE_TIER_QUOTA_BYTES)
                 return int(used_bytes or 0), effective_quota
         except SQLAlchemyError as error:
