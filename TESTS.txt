@@ -13048,11 +13048,9 @@ tests:
     type: integration
     preconditions: task526 storage quota implementation is present
     steps:
-      - 'step1: Verify SQLAlchemy models expose agent_versions.archive_size_bytes and tenants.used_bytes/quota_bytes with 5 GiB default quota.'
-      - 'step2: Verify migration includes storage usage refresh trigger functions for agent_versions updates.'
-      - 'step3: Exercise publish flow with an injected tenant quota lower than upload size and verify request is rejected.'
-    expected: Storage quota schema exists and publish rejects uploads that would exceed tenant quota.
-    pass_criteria: New columns and migration trigger contracts are present, and publish returns HTTP 413 with quota-exceeded error details.
+      - 'step1: Exercise publish flow with an injected tenant quota lower than upload size and verify request is rejected.'
+    expected: Publish rejects uploads that would exceed tenant quota.
+    pass_criteria: Publish returns HTTP 413 with quota-exceeded error details.
     covers:
       - feature: feature120
         ac: AC5

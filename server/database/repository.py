@@ -99,7 +99,7 @@ class RegistryRepository:
         try:
             with self._session_factory() as session:
                 usage_row = session.execute(
-                    select(Tenant.used_bytes, Tenant.quota_bytes).where(Tenant.slug == tenant_slug).limit(1)
+                    select(Tenant.used_bytes, Tenant.quota_bytes).where(Tenant.slug == tenant_slug)
                 ).first()
                 if usage_row is None:
                     return 0, FREE_TIER_QUOTA_BYTES
