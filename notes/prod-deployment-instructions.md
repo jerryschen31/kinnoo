@@ -320,10 +320,17 @@ The current script in `scripts/ops/build_and_push_lambda_security_check_image.sh
 cd "$KINNOO_ROOT/iac"
 
 # Targeted apply: create only the Prod Lambda ECR repo.
+# The placeholder URI must match the private-ECR regex enforced by
+# `iac/variables.tf` (`^[0-9]{12}\.dkr\.ecr\.[a-z0-9-]+\.amazonaws\.com/.+:.+$`).
+# Resolve your account id and pass a placeholder that satisfies the regex; the
+# value is never pulled because the targeted apply does not create the Lambda.
+ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+PLACEHOLDER_LAMBDA_URI="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/kinnoo-prod-lambda-security-check:bootstrap"
+
 terraform init -reconfigure -backend-config=environments/prod/backend.hcl
 terraform apply \
   -var-file=environments/prod/terraform.tfvars \
-  -var='lambda_security_check_image_uri=public.ecr.aws/lambda/python:3.11' \
+  -var="lambda_security_check_image_uri=${PLACEHOLDER_LAMBDA_URI}" \
   -target=module.ecr
 
 LAMBDA_ECR_URI="$(terraform output -raw lambda_security_check_ecr_repository_url)"
@@ -357,7 +364,7 @@ aws ecr describe-images \
 
 ### Gotchas
 
-- The temporary `-var=lambda_security_check_image_uri=public.ecr.aws/lambda/python:3.11` in the targeted apply is needed because `iac/variables.tf` declares the variable with `nullable = false` and a regex validation. Plain `terraform apply -target=module.ecr` will refuse to plan without a value. The targeted apply only creates the ECR repo, so the placeholder is never deployed.
+- The temporary `-var=lambda_security_check_image_uri=...` in the targeted apply is needed because `iac/variables.tf` declares the variable with `nullable = false` and a regex that requires a **private** ECR URI of the form `^[0-9]{12}\.dkr\.ecr\.[a-z0-9-]+\.amazonaws\.com/.+:.+$`. Plain `terraform apply -target=module.ecr` will refuse to plan without a value, and a public ECR URI like `public.ecr.aws/lambda/python:3.11` will fail the regex. Use a placeholder that matches the regex (the value is never pulled because the targeted apply does not create the Lambda function).
 - Lambda images **must be `linux/amd64`**. If you build on Apple Silicon without `--platform linux/amd64`, Lambda will reject the image at create time.
 - Use a real version tag (e.g. `v0`, `2026-04-24-001`), not `latest`, so subsequent deploys can be rolled back deterministically.
 
