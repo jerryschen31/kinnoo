@@ -12845,3 +12845,112 @@ tests:
       - "automation_path_subfolder: tests/e2e_workflows + server/tests"
     automated: true
     automation_path: tests/e2e_workflows/test_cli.py::test_backend_selection
+
+  - id: test740
+    title: "feature121 production runbook completeness and operator clarity review"
+    type: manual
+    preconditions: "notes/prod-deployment-instructions.md is authored for issue #369"
+    steps:
+      - 'step1: Review runbook and verify it contains ordered deployment phases with explicit commands and go/no-go criteria.'
+      - 'step2: Verify runbook includes state-bucket bootstrap, prod IaC apply, ECS redeploy, smoke tests, and rollback checks.'
+      - 'step3: Verify runbook explicitly documents dev/prod isolation checks and known deployment blockers/gaps.'
+    expected: Production deployment runbook is actionable, unambiguous, and aligned to current repository behavior
+    pass_criteria: Operator can execute the documented phases without guessing missing critical steps and with clear blocker visibility
+    covers:
+      - feature: feature121
+        ac: AC1
+      - feature: feature121
+        ac: AC2
+      - feature: feature121
+        ac: AC4
+      - feature: feature121
+        ac: AC5
+    notes:
+      - "pytest_markers: regression_uat,docs_contract"
+      - "automation_path_subfolder: manual-operator-runbook"
+    automated: false
+    automation_path: null
+
+  - id: test741
+    title: "feature121 iac prod-domain and dns isolation contract"
+    type: integration
+    preconditions: task518 IaC domain/routing parameterization changes are implemented
+    steps:
+      - 'step1: Run terraform plan for dev and prod backends/tfvars.'
+      - 'step2: Verify prod plan references prod API/frontend domain settings and does not target dev DNS records.'
+      - 'step3: Verify dev plan remains isolated to dev DNS/resources.'
+    expected: IaC plan contract enforces explicit domain separation across environments
+    pass_criteria: Prod and dev plans are environment-isolated with no cross-environment DNS mutation
+    covers:
+      - feature: feature121
+        ac: AC2
+      - feature: feature121
+        ac: AC3
+    notes:
+      - "pytest_markers: regression_integration,security_checks"
+      - "automation_path_subfolder: tests/iac"
+    automated: true
+    automation_path: tests/iac/test_feature121_env_isolation.py::test_feature121_test741_prod_dev_dns_isolation
+
+  - id: test742
+    title: "feature121 prod-safe deploy and dns script behavior"
+    type: integration
+    preconditions: task519 script updates are implemented
+    steps:
+      - 'step1: Execute prod-targeted deploy helper in dry-run/safe mode and verify no hardcoded dev ECS names are used.'
+      - 'step2: Execute prod DNS verification script with prod inputs and verify expected prod hostnames/targets are checked.'
+      - 'step3: Execute dev mode and verify existing dev checks are preserved.'
+    expected: Deployment/smoke scripts are environment-aware and safe for prod operations
+    pass_criteria: Script behavior is deterministic per selected environment with no dev/prod targeting drift
+    covers:
+      - feature: feature121
+        ac: AC3
+      - feature: feature121
+        ac: AC4
+    notes:
+      - "pytest_markers: regression_integration,ops"
+      - "automation_path_subfolder: scripts/ops"
+    automated: true
+    automation_path: tests/iac/test_feature121_ops_scripts.py::test_feature121_test742_environment_safe_scripts
+
+  - id: test743
+    title: "feature121 production config rejects dev-domain defaults"
+    type: integration
+    preconditions: task520 production config hardening changes are implemented
+    steps:
+      - 'step1: Start config load/runtime in production mode without explicit CORS/frontend env vars.'
+      - 'step2: Verify behavior fails fast or enforces explicit prod-safe origin requirements (no implicit dev-domain fallback).'
+      - 'step3: Verify production mode with explicit prod origins/front-end URL succeeds.'
+    expected: Production runtime config cannot silently fall back to Dev-domain defaults
+    pass_criteria: Production mode requires explicit prod-safe config and passes only with valid prod inputs
+    covers:
+      - feature: feature121
+        ac: AC2
+      - feature: feature121
+        ac: AC3
+    notes:
+      - "pytest_markers: regression_integration,server_api,security_checks"
+      - "automation_path_subfolder: server/tests"
+    automated: true
+    automation_path: server/tests/test_feature121_production_config.py::test_feature121_test743_prod_requires_explicit_origins
+
+  - id: test744
+    title: "feature121 terraform provider portability without hardcoded profile"
+    type: integration
+    preconditions: task521 provider portability changes are implemented in iac roots
+    steps:
+      - 'step1: Run terraform init/plan in `iac/` and `iac/state/` with operator-provided AWS environment credentials/profile.'
+      - 'step2: Verify no hardcoded profile assumptions remain in Terraform provider blocks.'
+      - 'step3: Verify dev/prod plan flows continue to work under explicit operator credentials.'
+    expected: Terraform roots are portable across operators and environments without local hardcoded profile coupling
+    pass_criteria: Terraform commands succeed with explicit operator credential context and no hardcoded-profile dependency
+    covers:
+      - feature: feature121
+        ac: AC3
+      - feature: feature121
+        ac: AC4
+    notes:
+      - "pytest_markers: regression_integration,ops"
+      - "automation_path_subfolder: tests/iac"
+    automated: true
+    automation_path: tests/iac/test_feature121_provider_portability.py::test_feature121_test744_provider_profile_portability

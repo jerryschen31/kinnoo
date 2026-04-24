@@ -3796,3 +3796,33 @@ features:
     owner: swe-agent
     dependencies: []
     status: in-progress
+
+  - id: feature121
+    title: "Production deployment instructions and production-cutover gap register"
+    description: |
+      Establish a clear, operator-ready production deployment runbook and an
+      explicit gap register for codebase work required to make production
+      deployment complete, repeatable, and safely isolated from Dev.
+
+      Scope includes: production state-bucket bootstrap instructions, production
+      IaC apply flow, image build/redeploy path, phased smoke-test gates, and
+      explicit no-cross-contamination rules between Dev and Prod domains,
+      secrets, and runtime configuration.
+    tasks: [task517, task518, task519, task520, task521]
+    acceptance_criteria:
+      - id: AC1
+        description: "A detailed `notes/prod-deployment-instructions.md` runbook exists with explicit, ordered deployment phases and gate checks."
+      - id: AC2
+        description: "Runbook includes explicit no-cross-contamination checks to keep Dev/Prod DNS, secrets, env vars, and process flows isolated."
+      - id: AC3
+        description: "Known production deployment gaps discovered during runbook authoring are captured as explicit tasks in TASKS.txt."
+      - id: AC4
+        description: "Runbook documents production Terraform state bootstrap, production root-stack apply flow, and production ECS image deploy/redeploy steps."
+      - id: AC5
+        description: "Runbook defines phase-end smoke tests and rollback checks before declaring production deployment complete."
+    notes:
+      - "Source: issue #369 and follow-up comment requiring dev/prod mirroring plus strict isolation."
+      - "This feature starts with runbook + gap capture; implementation of gap tasks is tracked separately."
+    owner: techlead-agent
+    dependencies: [feature118, feature119]
+    status: in-progress
