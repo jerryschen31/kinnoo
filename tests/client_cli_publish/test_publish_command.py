@@ -16,8 +16,12 @@ def _cli_env(*, archive_root: Path, registry_root: Path) -> dict[str, str]:
     if existing_pythonpath:
         pythonpath_parts.append(existing_pythonpath)
 
+    isolated_home = archive_root.parent / "isolated-home"
+    isolated_home.mkdir(parents=True, exist_ok=True)
+
     return {
         **os.environ,
+        "HOME": str(isolated_home),
         "KINNOO_ARCHIVE_ROOT": str(archive_root),
         "KINNOO_REGISTRY_ROOT": str(registry_root),
         "PYTHONPATH": os.pathsep.join(pythonpath_parts),

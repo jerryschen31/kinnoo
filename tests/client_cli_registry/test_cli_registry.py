@@ -40,6 +40,15 @@ from kinnoo.registry_backends import MockFilesystemRegistryBackend
 from tests.helpers import run_command
 
 
+def _env_with_isolated_home(tmp_path: Path, env: dict[str, str]) -> dict[str, str]:
+    home_dir = tmp_path / "isolated-home"
+    home_dir.mkdir(parents=True, exist_ok=True)
+    return {
+        **env,
+        "HOME": str(home_dir),
+    }
+
+
 def _run_registry_command(
 	command: str,
 	*args: object,
@@ -98,6 +107,7 @@ def test_feature56_local_publish_tenant_path(tmp_path: Path) -> None:
 		"KINNOO_REGISTRY_ROOT": str(registry_root),
 		"KINNOO_TENANT_SLUG": "tenant-alpha",
 	}
+	env = _env_with_isolated_home(tmp_path, env)
 
 	publish = _run_registry_command("publish", "tenant-path-agent", "--local", env=env)
 	output = f"{publish.stdout}\n{publish.stderr}"
@@ -289,6 +299,7 @@ def test_publish_preserves_all_versions(tmp_path: Path) -> None:
 		"KINNOO_ARCHIVE_ROOT": str(archive_root),
 		"KINNOO_REGISTRY_ROOT": str(registry_root),
 	}
+	publish_v1_env = _env_with_isolated_home(tmp_path, publish_v1_env)
 	publish_v1 = _run_registry_command(
 		"publish",
 		"feature115-versioned-agent",
@@ -426,6 +437,7 @@ def test_feature71_strict_publish_and_docs(tmp_path: Path) -> None:
 		"KINNOO_REGISTRY_ROOT": str(registry_root),
 		"KINNOO_TENANT_SLUG": "tenant-strict",
 	}
+	env = _env_with_isolated_home(tmp_path, env)
 
 	unsigned_publish = _run_registry_command(
 		"publish", "strict-publish-agent", "--local", "--strict", env=env
