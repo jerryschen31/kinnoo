@@ -10730,6 +10730,8 @@ tasks:
     dependencies: []
     tests: [test740]
     status: needs-review
+    notes:
+      - "Critical path: task517 -> task518 -> (task519, task520); task521 can proceed after task517."
 
   - id: task518
     title: "feature121 iac prod-domain and cloudflare routing parity"

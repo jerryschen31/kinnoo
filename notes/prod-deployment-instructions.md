@@ -68,7 +68,8 @@ export TF_VAR_zone_id=<cloudflare-zone-id>
 ### A.3 Repo checks
 
 ```bash
-cd /home/runner/work/kinnoo/kinnoo
+export KINNOO_ROOT=${KINNOO_ROOT:-$PWD}
+cd "$KINNOO_ROOT"
 python3 scripts/validate_project_manifests.py
 ```
 
@@ -85,7 +86,7 @@ python3 scripts/validate_project_manifests.py
 Use the dedicated state stack before the main `iac/` root stack.
 
 ```bash
-cd /home/runner/work/kinnoo/kinnoo/iac/state
+cd "$KINNOO_ROOT/iac/state"
 terraform init
 terraform plan \
   -var='environment=prod' \
@@ -145,7 +146,7 @@ The secrets module expects these secret names for Prod (prefix `kinnoo/prod/...`
 ## Phase D - Plan/apply main IaC root stack with Prod backend
 
 ```bash
-cd /home/runner/work/kinnoo/kinnoo/iac
+cd "$KINNOO_ROOT/iac"
 terraform init -reconfigure -backend-config=environments/prod/backend.hcl
 terraform validate
 terraform plan -var-file=environments/prod/terraform.tfvars -out=tfplan-prod
@@ -170,7 +171,7 @@ terraform apply tfplan-prod
 Use explicit commands (not the current helper script, which is Dev-hardcoded).
 
 ```bash
-cd /home/runner/work/kinnoo/kinnoo
+cd "$KINNOO_ROOT"
 
 ECR_REPO_URI="$(terraform -chdir=iac output -raw ecr_repository_url)"
 ECS_SERVICE="$(terraform -chdir=iac output -raw ecs_service_name)"
