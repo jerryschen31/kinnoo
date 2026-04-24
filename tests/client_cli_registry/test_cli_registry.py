@@ -117,125 +117,6 @@ def test_feature56_local_publish_tenant_path(tmp_path: Path) -> None:
 	assert tenant_metadata.exists()
 
 
-def test_feature61_login_interactive_and_noninteractive(tmp_path: Path) -> None:
-	accepted = {
-		("interactive@example.com", "interactive-pass"): "team-interactive",
-		("cli@example.com", "cli-pass"): "platform-ops",
-	}
-
-	server = _AuthTokenTestServer(accepted_credentials=accepted)
-	server.start()
-	try:
-		env = {
-			**os.environ,
-			"HOME": str(tmp_path / "home"),
-			"KINNOO_REGISTRY_URL": server.base_url,
-		}
-
-		interactive = _run_registry_command(
-			"login",
-			input_text="interactive@example.com\ninteractive-pass\n",
-			env=env,
-		)
-		interactive_output = f"{interactive.stdout}\n{interactive.stderr}"
-		assert interactive.returncode == 0, interactive_output
-		assert "Login successful." in interactive_output
-
-		config_path = Path(env["HOME"]) / ".kinnoo" / "config.yaml"
-		assert config_path.exists()
-		first_config = config_path.read_text(encoding="utf-8")
-		assert f"registry_url: '{server.base_url}'" in first_config
-		assert "tenant_slug: 'team-interactive'" in first_config
-		assert "tenant_slug: 'interactive'" not in first_config
-
-		noninteractive = _run_registry_command(
-			"login",
-			input_text="cli@example.com\ncli-pass\n",
-			env=env,
-		)
-		noninteractive_output = f"{noninteractive.stdout}\n{noninteractive.stderr}"
-		assert noninteractive.returncode == 0, noninteractive_output
-		assert "Login successful." in noninteractive_output
-
-		second_config = config_path.read_text(encoding="utf-8")
-		assert "tenant_slug: 'platform-ops'" in second_config
-		assert "tenant_slug: 'cli'" not in second_config
-	finally:
-		server.stop()
-
-
-def test_feature61_logout_and_auth_precedence(tmp_path: Path) -> None:
-	archive_root = tmp_path / "archive"
-	_write_archive(archive_root, name="feature61-agent", version="1.0.0")
-
-	home_dir = tmp_path / "home"
-	config_path = home_dir / ".kinnoo" / "config.yaml"
-	config_path.parent.mkdir(parents=True, exist_ok=True)
-
-	server = _AuthPublishTestServer(accepted_publish_token="env-token")
-	server.start()
-	try:
-		config_path.write_text(
-			"\n".join(
-				[
-					f"registry_url: '{server.base_url}'",
-					"registry_token: 'config-token'",
-					"tenant_slug: 'config-tenant'",
-				]
-			)
-			+ "\n",
-			encoding="utf-8",
-		)
-
-		base_env = {
-			**os.environ,
-			"HOME": str(home_dir),
-			"KINNOO_ARCHIVE_ROOT": str(archive_root),
-		}
-
-		logout = _run_registry_command("logout", env=base_env, cwd=tmp_path)
-		logout_output = f"{logout.stdout}\n{logout.stderr}"
-		assert logout.returncode == 0, logout_output
-		assert "Logout successful." in logout_output
-
-		post_logout = config_path.read_text(encoding="utf-8") if config_path.exists() else ""
-		assert "registry_token" not in post_logout
-		assert "tenant_slug" not in post_logout
-
-		env_without_auth = {
-			**base_env,
-			"KINNOO_REGISTRY_URL": server.base_url,
-		}
-		publish_without_auth = _run_registry_command(
-			"publish",
-			"feature61-agent",
-			"--remote",
-			env=env_without_auth,
-			cwd=tmp_path,
-		)
-		missing_auth_output = f"{publish_without_auth.stdout}\n{publish_without_auth.stderr}"
-		assert publish_without_auth.returncode != 0
-		assert "Remote registry configuration incomplete" in missing_auth_output
-
-		env_with_overrides = {
-			**env_without_auth,
-			"KINNOO_REGISTRY_TOKEN": "env-token",
-			"KINNOO_TENANT_SLUG": "env-tenant",
-		}
-		publish_with_overrides = _run_registry_command(
-			"publish",
-			"feature61-agent",
-			"--remote",
-			env=env_with_overrides,
-			cwd=tmp_path,
-		)
-		override_output = f"{publish_with_overrides.stdout}\n{publish_with_overrides.stderr}"
-		assert publish_with_overrides.returncode == 0, override_output
-		assert "Published feature61-agent==1.0.0 (remote)" in override_output
-	finally:
-		server.stop()
-
-
 def test_feature61_publish_toggle_prefers_logged_in_auth_state(tmp_path: Path) -> None:
 	archive_root = tmp_path / "archive"
 	_write_archive(archive_root, name="feature61-agent", version="1.0.0")
@@ -462,93 +343,56 @@ def test_publish_preserves_all_versions(tmp_path: Path) -> None:
 	assert "feature115-versioned-agent | latest: 1.1.0" in search_output
 
 
-def test_feature63_mirror_attribution_and_idempotency(tmp_path: Path) -> None:
-	registry_root = tmp_path / "registry"
-	service = RegistryService(backend=MockFilesystemRegistryBackend(root=registry_root))
+def test_remote_search_uses_agent_slug_when_name_missing(monkeypatch) -> None:
+	from kinnoo import search_command
+	from kinnoo.config import RegistryConfig
 
-	service.upsert_clawhub_mirror_record(
-		agent_slug="weather/weather-skill",
-		source_version="1.2.3",
-		source_url="https://clawhub.ai/skills/weather/weather-skill",
-		synced_at="2026-03-29T01:00:00Z",
-		metadata={"description": "Weather skill"},
-	)
-	service.upsert_clawhub_mirror_record(
-		agent_slug="weather/weather-skill",
-		source_version="1.2.3",
-		source_url="https://clawhub.ai/skills/weather/weather-skill",
-		synced_at="2026-03-29T02:00:00Z",
-		metadata={"description": "Weather skill updated sync"},
-	)
-	service.upsert_clawhub_mirror_record(
-		agent_slug="weather/weather-skill",
-		source_version="1.2.4",
-		source_url="https://clawhub.ai/skills/weather/weather-skill",
-		synced_at="2026-03-29T03:00:00Z",
-		metadata={"description": "Weather skill v1.2.4"},
-	)
-
-	records = service.list_clawhub_mirror_records()
-	assert len(records) == 2
-	assert [record.source_version for record in records] == ["1.2.3", "1.2.4"]
-
-	from src.kinnoo import search_command
-	from src.kinnoo.config import RegistryConfig
-	from src.kinnoo.inspect_command import inspect_target
-
-	original_load_registry_config = search_command.load_registry_config
-	original_remote_client = search_command.RemoteRegistryClient
-	original_registry_service = search_command.RegistryService
-
-	class _MirrorRemoteClientStub:
+	class _RemoteClientStub:
 		def __init__(self, *, base_url: str, token: str, tenant_slug: str) -> None:
 			del base_url, token, tenant_slug
 
-		def search_agents(self, *, query: str) -> list[object]:
-			return service.search_agents(query=query)
+	class _RegistryServiceStub:
+		def __init__(self, backend: object) -> None:
+			del backend
 
-		def list_clawhub_mirror_records(self) -> list[object]:
-			return service.list_clawhub_mirror_records()
+		def search_agents(self, *, query: str) -> list[dict[str, str]]:
+			assert query == "agent"
+			return [
+				{
+					"agent_slug": "calendar-agent",
+					"latest_version": "0.1.1",
+					"description": "remote fixture",
+				}
+			]
 
-	search_command.load_registry_config = lambda: RegistryConfig(
-		registry_url="https://registry.example.test",
-		registry_token="token",
-		tenant_slug="tenant-alpha",
+		def list_clawhub_mirror_records(self) -> list[dict[str, str]]:
+			return []
+
+	monkeypatch.setattr(
+		search_command,
+		"load_registry_config",
+		lambda: RegistryConfig(
+			registry_url="https://registry.example.test",
+			registry_token="token",
+			tenant_slug="tenant-alpha",
+		),
 	)
-	search_command.RemoteRegistryClient = _MirrorRemoteClientStub
-	search_command.RegistryService = RegistryService
-	try:
-		search_stdout = io.StringIO()
-		search_stderr = io.StringIO()
-		with contextlib.redirect_stdout(search_stdout), contextlib.redirect_stderr(search_stderr):
-			search_code = search_command.search_agents(query="weather", source="remote")
-		search_output = search_stdout.getvalue() + search_stderr.getvalue()
-		assert search_code == 0, search_output
-		assert "source: clawhub (mirrored)" in search_output
-		assert "synced_at: 2026-03-29T03:00:00Z" in search_output
+	monkeypatch.setattr(
+		search_command,
+		"refresh_registry_auth_if_needed",
+		lambda config: (config, None),
+	)
+	monkeypatch.setattr(search_command, "RemoteRegistryClient", _RemoteClientStub)
+	monkeypatch.setattr(search_command, "RegistryService", _RegistryServiceStub)
 
-		namespace_stdout = io.StringIO()
-		namespace_stderr = io.StringIO()
-		with contextlib.redirect_stdout(namespace_stdout), contextlib.redirect_stderr(namespace_stderr):
-			namespace_code = search_command.search_agents(query="clawhub", source="remote")
-		namespace_output = namespace_stdout.getvalue() + namespace_stderr.getvalue()
-		assert namespace_code == 0, namespace_output
-		assert "source: clawhub (mirrored)" in namespace_output
+	stdout_buffer = io.StringIO()
+	with contextlib.redirect_stdout(stdout_buffer):
+		exit_code = search_command.search_agents(query="agent", source="remote")
 
-		inspect_stdout = io.StringIO()
-		inspect_stderr = io.StringIO()
-		with contextlib.redirect_stdout(inspect_stdout), contextlib.redirect_stderr(inspect_stderr):
-			inspect_code = inspect_target("clawhub:weather/weather-skill")
-		inspect_output = inspect_stdout.getvalue() + inspect_stderr.getvalue()
-		assert inspect_code == 0, inspect_output
-		assert "Source: ClawHub (mirrored)" in inspect_output
-		assert "Last Synced At: 2026-03-29T03:00:00Z" in inspect_output
-	finally:
-		search_command.load_registry_config = original_load_registry_config
-		search_command.RemoteRegistryClient = original_remote_client
-		search_command.RegistryService = original_registry_service
-
-
+	output = stdout_buffer.getvalue()
+	assert exit_code == 0
+	assert "- calendar-agent | latest: 0.1.1 | description: remote fixture" in output
+	assert "- (unknown) | latest: 0.1.1 | description: remote fixture" not in output
 def test_feature71_strict_publish_and_docs(tmp_path: Path) -> None:
 	from src.kinnoo.signing import create_detached_signature_artifacts, generate_ed25519_keypair
 

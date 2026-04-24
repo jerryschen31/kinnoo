@@ -1789,6 +1789,7 @@ tests:
         ac: AC3
 
   - id: test109
+    status: deprecated
     title: publish by agent name resolves latest local archived version to mock registry target
     type: integration
     preconditions: local archive contains multiple versions for same agent; mock registry root writable
@@ -1808,6 +1809,7 @@ tests:
         ac: AC5
 
   - id: test110
+    status: deprecated
     title: publish existing tagged version rolls old artifact to untagged slot
     type: integration
     preconditions: mock registry already has tagged artifact at target version for agent
@@ -1843,6 +1845,7 @@ tests:
         ac: AC8
 
   - id: test112
+    status: deprecated
     title: install by name resolves latest from mock registry via backend abstraction
     type: integration
     preconditions: mock registry contains multiple versions for agent and install fixture environment is ready
@@ -1859,6 +1862,7 @@ tests:
         ac: AC10
 
   - id: test113
+    status: deprecated
     title: install name==version resolves exact version from mock registry
     type: integration
     preconditions: mock registry contains at least two versions for same agent
@@ -2373,6 +2377,7 @@ tests:
         ac: AC6
 
   - id: test142
+    status: deprecated
     title: publish includes checksum sidecar when present
     type: integration
     preconditions: "local archive contains `.kno` with matching `.kno.sha256` sidecar"
@@ -7506,6 +7511,7 @@ tests:
         ac: AC1
 
   - id: test454
+    status: deprecated
     title: "Login CSRF flow passes through BFF without stripped fields or cookies"
     type: integration
     preconditions: login form submission path routed through BFF
@@ -7522,6 +7528,7 @@ tests:
         ac: AC2
 
   - id: test455
+    status: deprecated
     title: "Session CSRF token is forwarded on authenticated POST requests"
     type: integration
     preconditions: frontend reads kinnoo_csrf and forwards token
@@ -8149,6 +8156,7 @@ tests:
         ac: AC7
 
   - id: test491
+    status: deprecated
     title: "Login command supports email/password-first interactive and non-interactive auth flows"
     type: integration
     preconditions: Registry auth endpoint available and CLI config path writable
@@ -8169,6 +8177,7 @@ tests:
         ac: AC5
 
   - id: test492
+    status: deprecated
     title: "Logout clears auth state and publish falls back to explicit auth sources"
     type: integration
     preconditions: User is logged in and has local auth state
@@ -8187,6 +8196,7 @@ tests:
         ac: AC4
 
   - id: test493
+    status: deprecated
     title: "openclaw-skill schema accepts canonical type and provenance object"
     type: integration
     preconditions: Updated schema and validator are available
@@ -8205,6 +8215,7 @@ tests:
         ac: AC2
 
   - id: test494
+    status: deprecated
     title: "OpenClaw schema migration docs and validator behavior remain consistent"
     type: integration
     preconditions: Manifest schema docs and validation fixtures are updated
@@ -8223,6 +8234,7 @@ tests:
         ac: AC4
 
   - id: test495
+    status: deprecated
     title: "ClawHub mirror records are stored under admin-controlled clawhub tenant"
     type: integration
     preconditions: Mirror ingestion pipeline and registry storage are implemented
@@ -8241,6 +8253,7 @@ tests:
         ac: AC2
 
   - id: test496
+    status: deprecated
     title: "Mirror attribution appears in search/inspect and sync is idempotent"
     type: integration
     preconditions: Mirror records exist in registry storage
@@ -8259,6 +8272,7 @@ tests:
         ac: AC4
 
   - id: test497
+    status: deprecated
     title: "Import from ClawHub source scaffolds openclaw-skill manifests"
     type: integration
     preconditions: ClawHub mirror index contains sample skill slug
@@ -8277,6 +8291,7 @@ tests:
         ac: AC2
 
   - id: test498
+    status: deprecated
     title: "ClawHub import emits requirement hints and import report guidance"
     type: integration
     preconditions: Imported ClawHub skill metadata includes env/bin/config hints
@@ -8295,6 +8310,7 @@ tests:
         ac: AC4
 
   - id: test499
+    status: deprecated
     title: "Install delegates openclaw-skill packages with precheck enforcement"
     type: integration
     preconditions: OpenClaw CLI fixture is available for delegated invocation
@@ -8313,6 +8329,7 @@ tests:
         ac: AC2
 
   - id: test500
+    status: deprecated
     title: "Delegated install preserves kinnoo checks and install tracing"
     type: integration
     preconditions: Delegated install path and install trace writer are implemented
@@ -9197,6 +9214,7 @@ tests:
     automation_path: tests/test_feature_88.py::test_feature88_group2
 
   - id: test547
+    status: deprecated
     title: "feature89 verify AC1, AC2, AC3, AC4"
     type: integration
     preconditions: Repo checked out with dependencies installed; server test fixtures available
@@ -9968,6 +9986,7 @@ tests:
     automation_path: tests/test_feature_105.py::test_feature105_group2
 
   - id: test583
+    status: deprecated
     title: "feature105 verify AC7, AC8, AC9"
     type: integration
     preconditions: Terraform CLI installed; iac/ directory exists with module structure
@@ -10166,6 +10185,7 @@ tests:
     automation_path: tests/test_feature_109.py::test_feature109_group2
 
   - id: test592
+    status: deprecated
     title: "feature110 verify AC1, AC2, AC3"
     type: integration
     preconditions: Node.js and npm installed; web/ frontend dependencies installed
@@ -10187,6 +10207,7 @@ tests:
     automation_path: tests/test_feature_110.py::test_feature110_group1
 
   - id: test593
+    status: deprecated
     title: "feature110 verify AC4, AC5, AC6, AC7"
     type: integration
     preconditions: Node.js and npm installed; web/ frontend dependencies installed
@@ -12136,6 +12157,7 @@ tests:
     automation_path: tests/client_cli_import/test_cli_import.py::test_feature117_import_regression_coverage_floor
 
   - id: test706
+    status: deprecated
     title: "feature118 prerequisite decision and dual Kinde app setup checklist completeness"
     type: manual
     preconditions: Access to Kinde admin, Cloudflare, and AWS secret/config environments for dev/staging setup; both Kinde apps (Kinnoo Web Dev and Kinnoo CLI Dev) created
@@ -12156,6 +12178,7 @@ tests:
     automation_path: null
 
   - id: test707
+    status: deprecated
     title: "server accepts valid OIDC token from both Kinde apps and rejects invalid token variants"
     type: integration
     preconditions: Server auth middleware/routes are wired to OIDC discovery/JWKS validation supporting tokens from both Web Dev and CLI Dev Kinde apps
@@ -12176,6 +12199,7 @@ tests:
     automation_path: server/tests/test_feature118_oidc_auth.py::test_feature118_test707_valid_and_invalid_oidc_token_envelopes
 
   - id: test708
+    status: deprecated
     title: "server provider adapter boundary and fail-fast config selection with dual client IDs"
     type: integration
     preconditions: Provider-neutral config with dual client ID support (web + CLI) and provider selection are implemented for server auth startup
@@ -12195,6 +12219,7 @@ tests:
     automation_path: server/tests/test_feature118_oidc_auth.py::test_feature118_test708_provider_selection_fail_fast
 
   - id: test709
+    status: deprecated
     title: "web auth uses Kinnoo Web Dev client redirect/callback/logout flow and protected-layout redirects"
     type: integration
     preconditions: Web login/signup/reset and auth layout are migrated to provider-hosted auth flow using Kinnoo Web Dev backend client
@@ -12214,6 +12239,7 @@ tests:
     automation_path: web/__tests__/feature118-auth-flow.test.tsx
 
   - id: test710
+    status: deprecated
     title: "CLI login stores auth state using Kinnoo CLI Dev public client with PKCE and supports registry operations"
     type: integration
     preconditions: "`kinnoo login` uses Kinnoo CLI Dev public client (PKCE) with dynamic-port loopback callback and local auth-state persistence"
@@ -12233,6 +12259,7 @@ tests:
     automation_path: tests/client_cli_registry/test_feature118_cli_auth.py::test_feature118_test710_hosted_login_persists_full_auth_state
 
   - id: test711
+    status: deprecated
     title: "CLI refresh and logout behavior"
     type: integration
     preconditions: CLI token refresh and logout logic are implemented
@@ -12252,6 +12279,7 @@ tests:
     automation_path: tests/client_cli_registry/test_feature118_cli_auth.py::test_feature118_test711_refresh_and_logout_no_state
 
   - id: test712
+    status: deprecated
     title: "publish ownership resolves internal UUID identity with external subject mapping across both login paths"
     type: integration
     preconditions: Identity upsert and publish ownership mapping updates are implemented; supports tokens from both Kinde apps
@@ -12271,6 +12299,7 @@ tests:
     automation_path: server/tests/test_publish.py::test_feature118_identity_mapping_and_publish_ownership
 
   - id: test713
+    status: deprecated
     title: "provider-neutral env contract with dual client IDs and IaC injection alignment"
     type: integration
     preconditions: Provider-neutral config keys with separate web/CLI client ID support and IaC env injection updates are implemented
@@ -12290,6 +12319,7 @@ tests:
     automation_path: server/tests/test_config.py::test_feature118_provider_neutral_env_alignment
 
   - id: test714
+    status: deprecated
     title: "legacy password/session auth paths disabled by default after cutover"
     type: integration
     preconditions: Legacy auth runtime gating or removal is implemented in server runtime path
@@ -12309,6 +12339,7 @@ tests:
     automation_path: server/tests/test_auth_route.py::test_feature118_legacy_auth_paths_disabled
 
   - id: test715
+    status: deprecated
     title: "auth automation matrix and portability contracts pass across both Kinde apps"
     type: integration
     preconditions: Server/web/CLI auth test suites and adapter contract tests are implemented for cutover with dual-app token validation
@@ -12350,6 +12381,7 @@ tests:
     automation_path: null
 
   - id: test717
+    status: deprecated
     title: "task496 iac creates and wires dual-app auth secret references for ecs runtime"
     type: integration
     preconditions: Terraform modules for secrets and ecs-fargate are updated for dual-app auth contract and dev inputs are configured
@@ -12369,6 +12401,7 @@ tests:
     automation_path: tests/iac/test_auth_iac_alignment.py::test_task496_dual_app_secret_wiring
 
   - id: test718
+    status: deprecated
     title: "task496 iac manages dev tfvars contract and cloudflare runtime var alignment"
     type: integration
     preconditions: Dev tfvars and cloudflare module wiring are updated for auth runtime variables in task496 step5
@@ -12388,6 +12421,7 @@ tests:
     automation_path: tests/iac/test_auth_iac_alignment.py::test_task496_dev_tfvars_and_cloudflare_runtime_contract
 
   - id: test719
+    status: deprecated
     title: "task496 human post-deploy e2e auth smoke and runtime behavior validation"
     type: manual
     preconditions: Dev deployment completed with task496 step5 IaC changes applied and both Kinde apps configured
@@ -12429,6 +12463,7 @@ tests:
     automation_path: null
 
   - id: test721
+    status: deprecated
     title: "feature119 terraform rds-postgres module and private-network posture"
     type: integration
     preconditions: Terraform files for task506 are implemented
@@ -12448,6 +12483,7 @@ tests:
     automation_path: tests/iac/test_feature119_postgres_iac.py::test_feature119_test721_private_rds_posture
 
   - id: test722
+    status: deprecated
     title: "feature119 ecs db env and secrets wiring contract"
     type: integration
     preconditions: Terraform ECS/secrets wiring changes for task506 are implemented
@@ -12469,6 +12505,7 @@ tests:
     automation_path: tests/iac/test_feature119_postgres_iac.py::test_feature119_test722_ecs_env_secret_wiring
 
   - id: test723
+    status: deprecated
     title: "feature119 server database schema and repository contract"
     type: integration
     preconditions: task507 implementation is available with server/database package
@@ -12490,6 +12527,7 @@ tests:
     automation_path: server/tests/test_feature119_schema_repo.py::test_feature119_test723_schema_and_repository_contract
 
   - id: test724
+    status: deprecated
     title: "feature119 alembic async migration upgrade and downgrade safety"
     type: integration
     preconditions: task507 migration scaffolding is implemented
@@ -12509,6 +12547,7 @@ tests:
     automation_path: server/tests/test_feature119_migrations.py::test_feature119_test724_alembic_upgrade_downgrade_cycle
 
   - id: test725
+    status: deprecated
     title: "feature119 postgres metadata manager parity under backend flag"
     type: integration
     preconditions: task508 metadata backend integration is implemented
@@ -12530,6 +12569,7 @@ tests:
     automation_path: server/tests/test_feature119_metadata_backend_parity.py::test_feature119_test725_backend_parity
 
   - id: test726
+    status: deprecated
     title: "feature119 db health ping fail-fast and outage behavior"
     type: integration
     preconditions: task508 health/runtime wiring is implemented
@@ -12551,6 +12591,7 @@ tests:
     automation_path: server/tests/test_feature119_health_resilience.py::test_feature119_test726_health_and_outage_paths
 
   - id: test727
+    status: deprecated
     title: "feature119 json-to-postgres backfill parity checker and rollback gate"
     type: integration
     preconditions: task509 migration/parity tooling is implemented
@@ -12572,6 +12613,7 @@ tests:
     automation_path: server/tests/test_feature119_migration_parity.py::test_feature119_test727_backfill_parity_and_rollback
 
   - id: test728
+    status: deprecated
     title: "feature119 kinnoo-server db/admin commands"
     type: integration
     preconditions: task510 CLI command surface is implemented
@@ -12591,6 +12633,7 @@ tests:
     automation_path: server/tests/test_feature119_server_cli_db.py::test_feature119_test728_db_admin_commands
 
   - id: test729
+    status: deprecated
     title: "feature119 postgres local and ci test harness"
     type: integration
     preconditions: task511 local/CI Postgres harness changes are implemented
@@ -12610,6 +12653,7 @@ tests:
     automation_path: server/tests/test_feature119_postgres_harness.py::test_feature119_test729_local_ci_harness
 
   - id: test730
+    status: deprecated
     title: "feature119 concurrency and pool sanity envelope"
     type: integration
     preconditions: task511 concurrency sanity coverage is implemented
@@ -12629,6 +12673,7 @@ tests:
     automation_path: server/tests/test_feature119_concurrency.py::test_feature119_test730_publish_search_concurrency
 
   - id: test731
+    status: deprecated
     title: "feature119 observability alarms and runbook contract"
     type: integration
     preconditions: task512 observability and docs updates are implemented

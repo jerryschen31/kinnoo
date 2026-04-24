@@ -73,7 +73,7 @@ def search_agents(query: str, source: str = "local", json_output: bool = False) 
         for summary in results:
             json_results.append(
                 {
-                    "name": _summary_text(summary=summary, field="name", default="(unknown)"),
+                    "name": _summary_name(summary=summary),
                     "latest_version": _summary_text(summary=summary, field="latest_version", default="(unknown)"),
                     "description": _summary_text(summary=summary, field="description", default="(no description)"),
                     "source": "remote",
@@ -182,6 +182,14 @@ def _summary_text(*, summary: object, field: str, default: str) -> str:
     if value in (None, ""):
         return default
     return str(value)
+
+
+def _summary_name(*, summary: object) -> str:
+    for field in ("name", "agent_slug"):
+        value = _summary_value(summary=summary, field=field)
+        if value not in (None, ""):
+            return str(value)
+    return "(unknown)"
 
 
 def _summary_value(*, summary: object, field: str) -> object | None:

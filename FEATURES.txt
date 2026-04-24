@@ -209,7 +209,6 @@ features:
         description: "Generated Claude Chat agent is runnable with `kinnoo run` and produces Claude LLM responses to input."
     owner: techlead-agent
     dependencies: [feature2]
-    status: completed
   
   - id: feature5
     title: "kinnoo pack — Agent packaging"
@@ -244,7 +243,6 @@ features:
       - "No Docker or remote install support in MVP; deferred to V1.1/V2."
     owner: techlead-agent
     dependencies: [feature3]
-    status: completed
 
   - id: feature6
     title: "kinnoo install — Agent installation from archive"
@@ -278,7 +276,6 @@ features:
       - "kinnoo install extraction should just run tar -xzf under the hood, since .kno is currently just an alias for .tar.gz"
     owner: techlead-agent
     dependencies: [feature4, feature5]
-    status: completed
 
   # ======================================================================
   # Phase 2 (V2): expanded CLI
@@ -304,7 +301,6 @@ features:
         description: "All existing V1 tests continue to pass after refactor."
     owner: techlead-agent
     dependencies: []
-    status: completed
 
   - id: feature8
     title: "Packaging Robustness"
@@ -328,7 +324,6 @@ features:
         description: "If platform-specific wheels are detected during packing, a warning is printed: 'Archive contains platform-specific wheels that may not install on other operating systems'."
     owner: techlead-agent
     dependencies: []
-    status: completed
 
   - id: feature9
     title: "Manifest Schema V2 Extensions"
@@ -353,7 +348,6 @@ features:
         description: "env_vars items are validated as non-empty strings (empty string items in the list produce an error)."
     owner: techlead-agent
     dependencies: []
-    status: completed
 
   - id: feature10
     title: "Environment Variable / Secret Management (env_vars)"
@@ -380,7 +374,6 @@ features:
         description: "No code path in the codebase ever prints, logs, or displays the VALUE of any env var or secret — only variable NAMES may appear in output or logs."
     owner: techlead-agent
     dependencies: [feature9]
-    status: completed
 
   - id: feature11
     title: "kinnoo inspect — Manifest inspection command"
@@ -410,7 +403,6 @@ features:
         description: "If `kinnoo.yaml` is present but missing required fields, inspect output clearly names each missing required field using validator-provided messages."
     owner: techlead-agent
     dependencies: [feature7]
-    status: completed
 
   - id: feature12
     title: "Local Registry (kinnoo publish, kinnoo install <name>, kinnoo list, kinnoo search)"
@@ -441,7 +433,6 @@ features:
         description: "Publish/resolve logic is behind an abstraction (e.g., RegistryBackend interface) so swapping local for remote backend is a minimal change."
     owner: techlead-agent
     dependencies: [feature11]
-    status: deprecated
 
   - id: feature13
     title: "Pack/Publish Refactor — Local Archive + Registry Publish Flow"
@@ -527,7 +518,6 @@ features:
         description: "If all checks pass, prints 'Ready to run'; if any fail, prints actionable guidance per failed check."
     owner: techlead-agent
     dependencies: [feature10]
-    status: completed
 
   - id: feature15
     title: "Trust Baseline"
@@ -556,7 +546,6 @@ features:
       - "--yes/-y flag on install follows apt/brew convention for CI automation."
     owner: techlead-agent
     dependencies: [feature10]
-    status: completed
 
   - id: feature16
     title: "Archive Integrity (Checksums)"
@@ -581,7 +570,6 @@ features:
         description: "`kinnoo publish` publishes the .kno file along with associated .kno.sha256 file, if present."
     owner: techlead-agent
     dependencies: [feature8]
-    status: completed
 
   - id: feature17
     title: "Pack Size Reporting & Warnings"
@@ -601,7 +589,6 @@ features:
         description: "`kinnoo list` includes archive size in the registry listing output."
     owner: techlead-agent
     dependencies: [feature8]
-    status: completed
 
   - id: feature18
     title: "Input Safety Guard"
@@ -796,7 +783,6 @@ features:
       - "One smoke test per template: `kinnoo init` + validate generated manifest."
     owner: techlead-agent
     dependencies: [feature4]
-    status: completed
 
   - id: feature22
     title: "Asset Bundling"
@@ -1260,7 +1246,6 @@ features:
       - "TypeScript entrypoint transpilation support is deferred; start with .js/.mjs execution."
     owner: techlead-agent
     dependencies: []
-    status: completed
 
   - id: feature32
     title: "Daemon Runtime Type + Process Controls"
@@ -1287,7 +1272,6 @@ features:
       - "Reuses existing supervisor and health-check modules as the control-plane base."
     owner: techlead-agent
     dependencies: [feature31]
-    status: completed
 
   - id: feature33
     title: "Manifest Schema Extensions for OpenClaw/JS Agents"
@@ -1313,7 +1297,6 @@ features:
       - "Acts as the schema contract for scaffold/import and pack/install state behavior."
     owner: techlead-agent
     dependencies: [feature31]
-    status: completed
 
   - id: feature34
     title: "OpenClaw Scaffold Template"
@@ -1338,7 +1321,6 @@ features:
       - "Keeps first version lean and runnable; advanced gateway bridge remains deferred."
     owner: techlead-agent
     dependencies: [feature31, feature33]
-    status: completed
 
   - id: feature35
     title: "Mutable State Directories in Pack/Install"
@@ -1363,7 +1345,6 @@ features:
       - "Framework-agnostic and reusable for non-OpenClaw agents with mutable local state."
     owner: techlead-agent
     dependencies: []
-    status: completed
 
   - id: feature36
     title: "OpenClaw Import Detection & Manifest Inference"
@@ -1389,7 +1370,6 @@ features:
       - "Should remain warning-first and operator-confirmed when confidence is mixed."
     owner: techlead-agent
     dependencies: [feature31, feature33, feature35]
-    status: completed
 
   - id: feature37
     title: "Node.js Dependency Audit & Lifecycle Script Controls"
@@ -1414,7 +1394,6 @@ features:
       - "Lifecycle script visibility is critical because install-time code execution is a major attack path."
     owner: techlead-agent
     dependencies: [feature31]
-    status: completed
 
   - id: feature38
     title: "JS/TS Static Security Sweep"
@@ -1439,7 +1418,6 @@ features:
       - "Rule set should be heuristic and non-blocking initially to reduce false-positive friction."
     owner: techlead-agent
     dependencies: [feature31]
-    status: completed
 
   - id: feature39
     title: "Manifest Permissions Model + Sandbox Execution"
@@ -1464,7 +1442,6 @@ features:
       - "This feature provides the contract required by runtime monitoring in feature41."
     owner: techlead-agent
     dependencies: []
-    status: completed
 
   - id: feature40
     title: "Archive Signing & Publisher Verification"
@@ -1489,7 +1466,6 @@ features:
       - "Keep signing module isolated for future key-rotation and trust-policy extensions."
     owner: techlead-agent
     dependencies: []
-    status: completed
 
   - id: feature41
     title: "Runtime Behavior Monitoring & Kill Switch"
@@ -1514,7 +1490,6 @@ features:
       - "Implementation should prioritize cross-platform baseline observability before deeper syscall-level instrumentation."
     owner: techlead-agent
     dependencies: [feature39]
-    status: completed
 
   - id: feature42
     title: "JSON Input/Output Types for Agent Interop"
@@ -1542,7 +1517,6 @@ features:
       - "Supports both local one-shot and future daemon/MCP-oriented structured message workflows."
     owner: techlead-agent
     dependencies: [feature20, feature31]
-    status: completed
 
   # ======================================================================
   # Phase 3 (V3) continued: Remote Registry — Auth & Management
@@ -1613,7 +1587,6 @@ features:
         description: "publish supports optional pack-and-publish flow from agent directories via --pack, including optional --bump major/minor/patch with clear guardrail errors"
     owner: techlead-agent
     dependencies: [feature30]
-    status: completed
 
   - id: feature45
     title: "kinnoo init mcp-server framework scaffolding"
@@ -1629,7 +1602,6 @@ features:
         description: "`kinnoo init -h` includes an explicit example showing mcp-server initialization usage."
     owner: techlead-agent
     dependencies: [feature23, feature26]
-    status: completed
 
   - id: feature46
     title: "UAT Phase 3/4 continuation — agent analysis, CLI improvements, and bug fixes"
@@ -1663,7 +1635,6 @@ features:
         description: "Preflight passes when runtime.path is set but .venv does not yet exist."
     owner: techlead-agent
     dependencies: [feature3, feature19, feature20, feature27, feature44]
-    status: completed
 
   - id: feature47
     title: "Agent supportability assessment and kinnoo compatibility roadmap"
@@ -1706,7 +1677,6 @@ features:
         description: "Analyzer detects OpenClaw-like JS/TS projects that lack a root package.json by inferring node runtime, entrypoint candidates, and OpenClaw framework signals from lightweight project evidence."
     owner: techlead-agent
     dependencies: [feature46]
-    status: completed
 
   - id: feature48
     title: "kinnoo inspect advanced metadata views and manifest update workflow"
@@ -1728,7 +1698,6 @@ features:
         description: "`kinnoo inspect --update <target> <old-key> <new-value>` updates manifest metadata with interactive warning prompt (`y/N`) and supports `--skip-warnings` to bypass prompt."
     owner: techlead-agent
     dependencies: [feature11, feature24]
-    status: completed
 
   # ======================================================================
   # Phase 5 (V5): Web Frontend and Registry Frontend + Backend
@@ -1764,7 +1733,6 @@ features:
         description: "Font family is set to 'Avenir Next', 'Segoe UI', sans-serif in the global CSS/Tailwind config."
     owner: techlead-agent
     dependencies: []
-    status: completed
 
   - id: feature50
     title: "MainLayout, Design System & Global Theme"
@@ -1795,7 +1763,6 @@ features:
         description: "Smoke tests pass: root layout renders hamburger menu and Login button, ThemeConfig design tokens match specification."
     owner: techlead-agent
     dependencies: [feature49]
-    status: completed
 
   # ------ Sub-phase 2: Landing Page and Secure Login UI ------
 
@@ -1825,7 +1792,6 @@ features:
         description: "Automated tests validate hero content, terminal preview command/copy button, and all six feature cards."
     owner: techlead-agent
     dependencies: [feature50]
-    status: completed
 
   - id: feature52
     title: "Secure Login UI, Validation, and Session-Cookie Submission Flow"
@@ -1853,7 +1819,6 @@ features:
         description: "Automated tests verify required fields, validation behavior, loading state, and successful redirect handling for the login flow."
     owner: techlead-agent
     dependencies: [feature50, feature51]
-    status: completed
 
   # ------ Sub-phase 3: Registry Dashboard ------
 
@@ -1882,7 +1847,6 @@ features:
         description: "Automated tests validate nav/tab rendering, default state, search controls, and tab transition behavior."
     owner: techlead-agent
     dependencies: [feature52]
-    status: completed
 
   - id: feature54
     title: "Agent Cards, Manifest Modal, and Install Command Copy Flow"
@@ -1909,7 +1873,6 @@ features:
         description: "Automated component tests validate card field rendering, name click behavior, modal open/close, manifest content rendering, and install-command copy functionality."
     owner: techlead-agent
     dependencies: [feature53]
-    status: completed
 
   # ------ Sub-phase 4: Integration, CSRF & Production Hardening ------
 
@@ -1939,7 +1902,6 @@ features:
         description: "All integration behavior remains compatible with existing session-cookie flow and does not require token storage in browser storage."
     owner: techlead-agent
     dependencies: [feature54]
-    status: completed
 
   - id: feature56
     title: "API Auth Compatibility, Local Registry Admin Bootstrap, and Mocked S3 Publish Path"
@@ -1964,7 +1926,6 @@ features:
         description: "No changes introduce credential/token leakage in logs, responses, or test artifacts."
     owner: techlead-agent
     dependencies: [feature55]
-    status: completed
 
   - id: feature57
     title: "Production Hardening: Security Headers, Error States, and Rate-Limiter Proxy Signals"
@@ -1988,7 +1949,6 @@ features:
         description: "Hardening changes preserve existing dashboard/login functionality without behavioral regressions."
     owner: techlead-agent
     dependencies: [feature55, feature56]
-    status: completed
 
   # ------ Sub-phase 5: User Registration & Password Reset (feature58, feature59, feature60) ------
 
@@ -2020,7 +1980,6 @@ features:
         description: "Automated tests cover registration happy path, duplicate-safe privacy behavior, token expiry/consumption, slug collision handling, password validation failures, and rate limiting."
     owner: techlead-agent
     dependencies: [feature57]
-    status: completed
 
   - id: feature59
     title: "Forgot Password Workflow, Policy Enforcement, and Session Revocation"
@@ -2047,7 +2006,6 @@ features:
         description: "Automated tests cover reset happy path, non-enumerating request behavior, token expiry/consumption failures, password-policy rejection paths, and rate limiting."
     owner: techlead-agent
     dependencies: [feature58]
-    status: completed
 
   - id: feature60
     title: "Relational Auth Foundation, Hash Rotation, and Sub-phase 5 Hardening"
@@ -2077,7 +2035,6 @@ features:
         description: "Google/GitHub SSO implementation is deferred, but identity schema and ownership model are ready so tenant ownership never depends on provider email on each login."
     owner: techlead-agent
     dependencies: [feature58, feature59]
-    status: completed
 
   # ======================================================================
   # Phase 6: OpenClaw Support + Registry Improvements + Competitive Response
@@ -2103,7 +2060,6 @@ features:
         description: "Tenant slug for login state is derived from authenticated identity (or token claims) rather than requiring user-provided `--tenant` input."
     owner: techlead-agent
     dependencies: []
-    status: needs-review
 
   - id: feature62
     title: "openclaw-skill manifest schema extension"
@@ -2176,7 +2132,6 @@ features:
         ```
     owner: techlead-agent
     dependencies: []
-    status: deprecated
 
   - id: feature63
     title: "ClawHub mirror index with clawhub tenant ownership"
@@ -2197,7 +2152,6 @@ features:
       - "Deprecated in favor of direct OpenClaw CLI wrapper flows in feature76-feature84 (no bridge mirror-first UX)."
     owner: techlead-agent
     dependencies: [feature62]
-    status: deprecated
 
   - id: feature64
     title: "ClawHub import bridge"
@@ -2218,7 +2172,6 @@ features:
       - "Deprecated in favor of feature78 OpenClaw workspace import via CLI wrapper and registration reconciliation."
     owner: techlead-agent
     dependencies: [feature62, feature63]
-    status: deprecated
 
   - id: feature65
     title: "Delegated OpenClaw install bridge"
@@ -2239,7 +2192,6 @@ features:
       - "Deprecated in favor of feature80 extract + `openclaw agents add` registration wrapper flow."
     owner: techlead-agent
     dependencies: [feature62]
-    status: deprecated
 
   - id: feature66
     title: "OpenClaw run adapter v1"
@@ -2261,7 +2213,6 @@ features:
       - "Feature66 tasks and tests are deprecated and excluded from active regression execution."
     owner: techlead-agent
     dependencies: [feature65]
-    status: deprecated
 
   - id: feature67
     title: "ClawHub sync command"
@@ -2282,7 +2233,6 @@ features:
       - "Deprecated in favor of feature84 OpenClaw skill search wrapper and feature83 skill install wrapper pathways."
     owner: techlead-agent
     dependencies: [feature63]
-    status: deprecated
 
   - id: feature68
     title: "GitHub Actions reference CI workflow"
@@ -2301,7 +2251,6 @@ features:
         description: "Docs include troubleshooting guidance for common CI signing/publish failures."
     owner: techlead-agent
     dependencies: [feature61]
-    status: completed
 
   - id: feature69
     title: "kinnoo test foundation with standardized test file format"
@@ -2320,7 +2269,6 @@ features:
         description: "Docs include minimal-friction examples for Python and JS/TS agents and guidance for CI integration."
     owner: techlead-agent
     dependencies: []
-    status: completed
 
   - id: feature70
     title: "Landing page and docs messaging refresh"
@@ -2339,7 +2287,6 @@ features:
         description: "Content changes are covered by docs regression tests for key command snippets and references."
     owner: techlead-agent
     dependencies: []
-    status: completed
 
   - id: feature71
     title: "Strict CI signed-package enforcement"
@@ -2358,7 +2305,6 @@ features:
         description: "CI documentation includes strict-mode rollout guidance and failure examples."
     owner: techlead-agent
     dependencies: []
-    status: completed
 
   - id: feature72
     title: "Lockfile support for reproducible installs"
@@ -2377,7 +2323,6 @@ features:
         description: "Docs describe lockfile lifecycle and team/CI best practices."
     owner: techlead-agent
     dependencies: []
-    status: completed
 
   - id: feature73
     title: "kinnoo diff command"
@@ -2396,7 +2341,6 @@ features:
         description: "Exit code semantics are deterministic: success-identical vs success-different vs fatal-error."
     owner: techlead-agent
     dependencies: []
-    status: completed
 
   - id: feature74
     title: "kinnoo uninstall command"
@@ -2415,7 +2359,6 @@ features:
         description: "Missing-agent and partial-cleanup failure paths return deterministic actionable diagnostics."
     owner: techlead-agent
     dependencies: [feature72]
-    status: completed
 
   - id: feature75
     title: "Framework import adapters for LangChain, LangGraph, and OpenAI Agents SDK"
@@ -2434,7 +2377,6 @@ features:
         description: "Automated adapter tests include at least one JS/TS-oriented fixture path where relevant and preserve deterministic CLI behavior."
     owner: techlead-agent
     dependencies: []
-    status: completed
 
   # ──────────────────────────────────────────────────────────────────────
   # Phase 7 — OpenClaw CLI Wrapper (proper integration via openclaw CLI)
@@ -2480,7 +2422,6 @@ features:
       - "Consider caching preflight result within a single CLI invocation to avoid redundant subprocess calls."
     owner: techlead-agent
     dependencies: []
-    status: completed
 
   - id: feature77
     title: "OpenClaw init via CLI wrapper"
@@ -2509,7 +2450,6 @@ features:
       - "OpenClaw version must be 2026.3.28+"
     owner: techlead-agent
     dependencies: [feature76]
-    status: completed
 
   - id: feature78
     title: "OpenClaw import via CLI wrapper"
@@ -2538,7 +2478,6 @@ features:
       - "OpenClaw version must be 2026.3.28+"
     owner: techlead-agent
     dependencies: [feature76]
-    status: completed
 
   - id: feature79
     title: "OpenClaw workspace pack"
@@ -2565,7 +2504,6 @@ features:
       - "Consider whether openclaw.json should be included (it may contain local-only config)."
     owner: techlead-agent
     dependencies: []
-    status: completed
 
   - id: feature80
     title: "OpenClaw install via CLI wrapper"
@@ -2594,7 +2532,6 @@ features:
       - "OpenClaw version must be 2026.3.28+"
     owner: techlead-agent
     dependencies: [feature76, feature79]
-    status: completed
 
   - id: feature81
     title: "OpenClaw run via CLI wrapper"
@@ -2622,7 +2559,6 @@ features:
       - "OpenClaw version must be 2026.3.28+"
     owner: techlead-agent
     dependencies: [feature76]
-    status: completed
 
   - id: feature82
     title: "OpenClaw logs passthrough"
@@ -2646,7 +2582,6 @@ features:
       - "Consider also supporting `--local-time` passthrough."
     owner: techlead-agent
     dependencies: [feature76]
-    status: completed
 
   - id: feature83
     title: "OpenClaw skill install for agents"
@@ -2675,7 +2610,6 @@ features:
       - "OpenClaw version must be 2026.3.28+"
     owner: techlead-agent
     dependencies: [feature76]
-    status: completed
 
   - id: feature84
     title: "OpenClaw skill search via ClawHub"
@@ -2700,7 +2634,6 @@ features:
       - "OpenClaw version must be 2026.3.28+"
     owner: techlead-agent
     dependencies: [feature76]
-    status: completed
   
   - id: feature85
     title: "Deprecate OpenClaw bridge features 62-67"
@@ -2732,7 +2665,6 @@ features:
       - "Full removal of deprecated code is deferred to a future cleanup phase."
     owner: techlead-agent
     dependencies: [feature76, feature77, feature78, feature80, feature81]
-    status: completed
 
   # ──────────────────────────────────────────────────────────────
   # Phase 8: Client-Side Security Hardening (features 86-88)
@@ -2764,7 +2696,6 @@ features:
       - "See phase8-planning-3.md for full context"
     owner: swe-agent
     dependencies: []
-    status: needs-review
 
   - id: feature87
     title: "Embedded signature (META-INF/signature.json)"
@@ -2794,7 +2725,6 @@ features:
       - "Key pair must exist or be generated via `kinnoo keygen`"
     owner: swe-agent
     dependencies: [feature86]
-    status: needs-review
 
   - id: feature88
     title: "Install-time integrity verification"
@@ -2825,7 +2755,6 @@ features:
       - "Backward compatibility is critical — old archives must still install"
     owner: swe-agent
     dependencies: [feature86, feature87]
-    status: needs-review
 
   # ──────────────────────────────────────────────────────────────
   # Phase 9: Server Hardening & Containerization (features 89-91, 100-102)
@@ -2863,7 +2792,6 @@ features:
       - "server/app.py (194 lines) has create_app() factory function"
     owner: swe-agent
     dependencies: []
-    status: needs-review
 
   - id: feature90
     title: "Server-side upload validation and integrity enforcement"
@@ -2895,7 +2823,6 @@ features:
       - "Max upload size should come from ServerConfig"
     owner: swe-agent
     dependencies: [feature86]
-    status: needs-review
 
   - id: feature91
     title: "Production-grade rate limiting and abuse protections"
@@ -2927,7 +2854,6 @@ features:
       - "Redis-backed rate limiting deferred to post-beta"
     owner: swe-agent
     dependencies: []
-    status: needs-review
 
 # ──────────────────────────────────────────────────────────────
 # Phase 11: Documentation (features 92-99)
@@ -2958,7 +2884,6 @@ features:
       - "Reference: existing test fixtures for valid manifest examples"
     owner: swe-agent
     dependencies: []
-    status: needs-review
 
   - id: feature93
     title: "CLI command reference document"
@@ -2986,7 +2911,6 @@ features:
       - "Some server commands (feature102) may not exist yet — document planned commands with [planned] tag"
     owner: swe-agent
     dependencies: []
-    status: needs-review
 
   - id: feature94
     title: "Security model document"
@@ -3012,7 +2936,6 @@ features:
       - "Reference: src/kinnoo/signing.py, server/auth/token.py, server/auth/session.py"
     owner: swe-agent
     dependencies: [feature86, feature87, feature88]
-    status: needs-review
 
   - id: feature95
     title: "Getting started guide and registry guide"
@@ -3038,7 +2961,6 @@ features:
       - "Focus on the invite-only beta workflow"
     owner: swe-agent
     dependencies: []
-    status: needs-review
 
   - id: feature96
     title: "README rewrite and supported agents document"
@@ -3064,7 +2986,6 @@ features:
       - "Create: docs/supported-agents.md"
     owner: swe-agent
     dependencies: [feature92, feature93]
-    status: needs-review
 
   - id: feature97
     title: "Public GitHub repository preparation"
@@ -3095,7 +3016,6 @@ features:
       - "notes/ and scratch/ should be gitignored for public release"
     owner: swe-agent
     dependencies: []
-    status: needs-review
 
   - id: feature98
     title: "GitHub Actions CI/CD pipeline"
@@ -3126,7 +3046,6 @@ features:
       - "ECR repository created by IaC feature105"
     owner: swe-agent
     dependencies: [feature103, feature105]
-    status: needs-review
 
   - id: feature99
     title: "PyPI package publishing configuration"
@@ -3153,7 +3072,6 @@ features:
       - "Trusted publisher setup requires manual PyPI configuration by operator"
     owner: swe-agent
     dependencies: []
-    status: needs-review
 
 
 # ──────────────────────────────────────────────────────────────
@@ -3195,7 +3113,7 @@ features:
       - "Argon2id password hashing already exists"
     owner: swe-agent
     dependencies: []
-    status: in-progress
+    status: completed
 
   - id: feature101
     title: "Production Dockerfile and docker-compose"
@@ -3229,7 +3147,6 @@ features:
       - "Requirements: server/requirements.txt or separate from client requirements.txt"
     owner: swe-agent
     dependencies: [feature89]
-    status: needs-review
 
   - id: feature102
     title: "Admin CLI for user management"
@@ -3265,7 +3182,6 @@ features:
       - "Operates directly on the auth store file (no HTTP API needed)"
     owner: swe-agent
     dependencies: [feature100]
-    status: paused
 
   # ──────────────────────────────────────────────────────────────
   # Phase 12: Infrastructure as Code (features 103-107)
@@ -3305,7 +3221,6 @@ features:
       - "VPC endpoints avoid needing NAT for ECS → S3/ECR"
     owner: swe-agent
     dependencies: []
-    status: completed
 
   - id: feature104
     title: "Terraform storage and security (S3, IAM, Secrets Manager)"
@@ -3342,7 +3257,6 @@ features:
       - "OIDC provider setup for GitHub Actions: repo kinnoo/kinnoo"
     owner: swe-agent
     dependencies: [feature103]
-    status: needs-review
 
   - id: feature105
     title: "Terraform compute stack (ECR, ALB, ACM, ECS/Fargate, EFS)"
@@ -3380,7 +3294,6 @@ features:
       - "ACM certificate validation requires Cloudflare DNS records (feature106)"
     owner: swe-agent
     dependencies: [feature103, feature104]
-    status: completed
 
   - id: feature106
     title: "Terraform Cloudflare DNS and Pages"
@@ -3410,7 +3323,6 @@ features:
       - "Pages project may be created manually — Terraform manages DNS only if Pages API is limited"
     owner: swe-agent
     dependencies: [feature103, feature105]
-    status: completed
 
   - id: feature107
     title: "Terraform monitoring (CloudWatch, alarms, SNS)"
@@ -3442,7 +3354,6 @@ features:
       - "30-day log retention is sufficient for beta"
     owner: swe-agent
     dependencies: [feature103, feature105]
-    status: paused
 
   # ──────────────────────────────────────────────────────────────
   # Phase 14: Beta Operations Setup (features 108-110)
@@ -3478,7 +3389,6 @@ features:
       - "Depends on feature102 for invite token generation"
     owner: swe-agent
     dependencies: [feature102]
-    status: paused
 
   - id: feature109
     title: "Forgot password flow with operator alert"
@@ -3511,7 +3421,6 @@ features:
       - "Jerry sees alert, runs: kinnoo-server user reset-password --email user@example.com"
     owner: swe-agent
     dependencies: [feature102, feature107]
-    status: paused
 
   - id: feature110
     title: "Landing page update for invite-only beta"
@@ -3544,7 +3453,6 @@ features:
       - "Signup CTA contact path is Twitter/X DM only"
     owner: swe-agent
     dependencies: []
-    status: completed
 
   # ──────────────────────────────────────────────────────────────
   # Phase 15: Deployment, Testing & Launch (features 111-113)
@@ -3579,7 +3487,7 @@ features:
       - "Should be idempotent — safe to run multiple times"
     owner: swe-agent
     dependencies: [feature89, feature101]
-    status: not-started
+    status: completed
 
   - id: feature112
     title: "Registry seeding and validation"
@@ -3632,7 +3540,6 @@ features:
       - "This is the final go/no-go document before opening beta"
     owner: swe-agent
     dependencies: []
-    status: paused
 
   - id: feature114
     title: "kinnoo test hardening"
@@ -3655,7 +3562,6 @@ features:
         description: "`kinnoo test -h` includes the new --verbose, --create, and --append options with usage examples."
     owner: swe-agent
     dependencies: [feature69]
-    status: completed
 
   - id: feature115
     title: "UAT Part 1 - CLI hardening"
@@ -3713,7 +3619,6 @@ features:
       - "SWE handoff brief in notes/features/feature115-notes.md"
     owner: swe-agent
     dependencies: [feature114]
-    status: needs-review
 
   - id: feature116
     title: "UAT Part 2 - Regression test hardening"
@@ -3740,7 +3645,6 @@ features:
       - "Focus is test architecture resilience and contract clarity, not product surface expansion."
     owner: swe-agent
     dependencies: [feature115]
-    status: completed
 
   - id: feature117
     title: "Pre-release feature 6 - import hardening (phase14)"
@@ -3778,7 +3682,6 @@ features:
       - "Includes OpenClaw workspace-based import flow update aligned with current agent model"
     owner: techlead-agent
     dependencies: []
-    status: completed
 
   - id: feature118
     title: "Pre-release feature 1 - Kinde auth cutover planning manifests"
