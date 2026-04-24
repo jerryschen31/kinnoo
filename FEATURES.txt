@@ -3808,7 +3808,7 @@ features:
       IaC apply flow, image build/redeploy path, phased smoke-test gates, and
       explicit no-cross-contamination rules between Dev and Prod domains,
       secrets, and runtime configuration.
-    tasks: [task517, task518, task519, task520, task521]
+    tasks: [task517, task518, task519, task520, task521, task522, task523, task524, task525]
     acceptance_criteria:
       - id: AC1
         description: "A detailed `notes/prod-deployment-instructions.md` runbook exists with explicit, ordered deployment phases and gate checks."
