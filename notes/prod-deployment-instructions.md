@@ -325,7 +325,7 @@ cd "$KINNOO_ROOT/iac"
 # Resolve your account id and pass a placeholder that satisfies the regex; the
 # value is never pulled because the targeted apply does not create the Lambda.
 ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
-PLACEHOLDER_LAMBDA_URI="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/kinnoo-prod-lambda-security-check:bootstrap"
+PLACEHOLDER_LAMBDA_URI="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/kinnoo-prod-lambda-security-check:placeholder-not-pulled"
 
 terraform init -reconfigure -backend-config=environments/prod/backend.hcl
 terraform apply \
@@ -703,7 +703,10 @@ python3 -m kinnoo search ""    # expect empty or seeded results, no auth error
 ### Rollback drill (mandatory before go-live announcement)
 
 1. Note the current image tag: `aws ecs describe-task-definition --task-definition kinnoo-prod-server --query 'taskDefinition.containerDefinitions[0].image' --output text`.
-2. Re-deploy the previous known-good image tag:
+2. Re-deploy the previous known-good image tag. The `jq` filter copies the
+   existing task definition, swaps the container image to the previous tag,
+   strips fields that AWS rejects on `register-task-definition`, then registers
+   a new revision and forces an ECS redeploy:
 
    ```bash
    PREV_TAG=<previous-tag>
