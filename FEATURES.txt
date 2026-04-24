@@ -3781,7 +3781,7 @@ features:
     description: |
       Pre-release testing and bug fixes as we prepare for production
       deployment and release.
-    tasks: [task514, task515, task516]
+    tasks: [task514, task515, task516, task526, task527]
     acceptance_criteria:
       - id: AC1
         description: "Agent manifest modal shows exact-version install command syntax using '=='."

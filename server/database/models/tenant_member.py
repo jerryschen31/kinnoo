@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import ForeignKey, String, UniqueConstraint
+from sqlalchemy import BigInteger, ForeignKey, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from server.database.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+
+FREE_TIER_QUOTA_BYTES = 5 * 1024 * 1024 * 1024
 
 
 class TenantMember(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -16,6 +18,8 @@ class TenantMember(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     role: Mapped[str] = mapped_column(String(64), nullable=False, default="owner")
+    used_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    quota_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False, default=FREE_TIER_QUOTA_BYTES)
 
     tenant = relationship("Tenant", back_populates="members")
     user = relationship("User", back_populates="memberships")
