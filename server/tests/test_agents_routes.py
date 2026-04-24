@@ -373,10 +373,8 @@ def test_list_agents_session_auth_defaults_to_mine_only(tmp_path):
     )
     assert jerry_result.status_code == 201
 
-    response = client.get(
-        "/api/agents",
-        cookies={session_cookie.name: session_cookie.value},
-    )
+    client.cookies.set(session_cookie.name, session_cookie.value)
+    response = client.get("/api/agents")
     assert response.status_code == 200
     payload = response.json()
     assert payload["total"] == 1

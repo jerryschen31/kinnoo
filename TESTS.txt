@@ -12826,3 +12826,22 @@ tests:
       - "automation_path_subfolder: tests/client_cli_registry"
     automated: true
     automation_path: tests/client_cli_registry/test_feature118_cli_auth.py::test_feature118_hosted_login_discovers_auth_config_from_registry_url
+
+  - id: test739
+    title: "phase14 regression test drift guard for publish and remote registry suites"
+    type: integration
+    preconditions: phase14 regression fix patches are present in server and e2e test suites
+    steps:
+      - "step1: Run publish API regression tests that depend on archive helper/import scaffolding in `server/tests/test_publish.py`."
+      - "step2: Run targeted e2e CLI remote install/fetch/publish regression tests and confirm no token-refresh leakage from host auth config."
+      - "step3: Run session-auth listing test in `server/tests/test_agents_routes.py` and confirm no per-request cookie deprecation warning is emitted."
+    expected: Fixed regression tests execute deterministically with isolated auth config and restored publish test scaffolding
+    pass_criteria: Targeted regression tests pass and warning-causing cookie usage is removed from affected server test
+    covers:
+      - feature: feature120
+        ac: AC5
+    notes:
+      - "pytest_markers: regression_integration,client_cli_registry,server_api,e2e"
+      - "automation_path_subfolder: tests/e2e_workflows + server/tests"
+    automated: true
+    automation_path: tests/e2e_workflows/test_cli.py::test_backend_selection
