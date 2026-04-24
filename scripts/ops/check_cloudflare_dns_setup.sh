@@ -120,7 +120,7 @@ PY
 # fails the smoke gate.
 if command -v curl >/dev/null 2>&1; then
   echo "[info] GET https://${API_FQDN}/health"
-  http_status="$(curl -k -fsS -o /dev/null -w '%{http_code}' "https://${API_FQDN}/health" || true)"
+  http_status="$(curl -fsS -o /dev/null -w '%{http_code}' "https://${API_FQDN}/health" || true)"
   if [[ "$http_status" != "200" ]]; then
     echo "[error] https://${API_FQDN}/health returned HTTP ${http_status:-unknown}" >&2
     exit 1

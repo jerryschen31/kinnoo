@@ -157,4 +157,13 @@ variable "lambda_security_check_image_uri" {
     )
     error_message = "Set lambda_security_check_image_uri to a full private ECR image URI with tag (example: 123456789012.dkr.ecr.us-west-2.amazonaws.com/kinnoo-dev-lambda-security-check:v1). Do not use a public Lambda base image URI."
   }
+
+  validation {
+    # Reject the well-known bootstrap placeholder (12 zeros for the account
+    # id) so a forgotten tfvars edit cannot silently apply against AWS. The
+    # placeholder is intentionally regex-valid so `terraform validate` passes
+    # for static scanning, but `terraform plan/apply` must refuse it.
+    condition     = !can(regex("^0{12}\\.dkr\\.ecr\\.", var.lambda_security_check_image_uri))
+    error_message = "lambda_security_check_image_uri is still set to the 000000000000 bootstrap placeholder. Run scripts/ops/build_and_push_lambda_security_check_image.sh and replace the value with the real ECR image URI."
+  }
 }
