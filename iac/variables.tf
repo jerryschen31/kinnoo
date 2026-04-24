@@ -88,20 +88,59 @@ variable "zone_id" {
   type        = string
 }
 
-variable "dev_record_type" {
-  description = "DNS record type for dev.kinnoo.ai (for example CNAME for Pages, AAAA for Worker custom-domain setup)"
+variable "base_domain" {
+  description = "Base apex domain for kinnoo (e.g. kinnoo.ai). Shared by all environments."
+  type        = string
+  default     = "kinnoo.ai"
+}
+
+variable "frontend_subdomain" {
+  description = "Subdomain label for the frontend (e.g. dev for dev.kinnoo.ai, www or empty for prod)."
+  type        = string
+  default     = "dev"
+}
+
+variable "api_subdomain" {
+  description = "Subdomain label for the API ALB (e.g. dev-api for dev-api.kinnoo.ai, api for api.kinnoo.ai)."
+  type        = string
+  default     = "dev-api"
+}
+
+variable "frontend_record_type" {
+  description = "DNS record type for the frontend record (CNAME, AAAA, etc.)."
   type        = string
   default     = "CNAME"
 }
 
-variable "dev_record_content" {
-  description = "DNS record content/target for dev.kinnoo.ai"
+variable "frontend_record_content" {
+  description = "DNS record content/target for the frontend record (e.g. kinnoo.pages.dev)."
   type        = string
   default     = "kinnoo.pages.dev"
 }
 
+variable "manage_frontend_record" {
+  description = "Whether Terraform should manage the frontend DNS record in Cloudflare."
+  type        = bool
+  default     = false
+}
+
+# Backwards-compatible aliases for the old dev_*-prefixed inputs. These remain
+# so existing tfvars do not break, but new tfvars should set the neutral
+# frontend_* / api_subdomain inputs above.
+variable "dev_record_type" {
+  description = "Deprecated: use frontend_record_type."
+  type        = string
+  default     = ""
+}
+
+variable "dev_record_content" {
+  description = "Deprecated: use frontend_record_content."
+  type        = string
+  default     = ""
+}
+
 variable "manage_dev_record" {
-  description = "Whether Terraform should manage the dev.kinnoo.ai DNS record"
+  description = "Deprecated: use manage_frontend_record."
   type        = bool
   default     = false
 }
