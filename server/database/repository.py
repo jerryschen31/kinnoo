@@ -109,9 +109,11 @@ class RegistryRepository:
                 ).scalar_one()
 
                 quota_bytes = session.execute(
-                    select(func.max(TenantMember.quota_bytes)).where(TenantMember.tenant_id == tenant_id)
+                    select(TenantMember.quota_bytes)
+                    .where(TenantMember.tenant_id == tenant_id)
+                    .order_by(TenantMember.created_at.asc())
+                    .limit(1)
                 ).scalar_one_or_none()
-
                 effective_quota = int(quota_bytes or FREE_TIER_QUOTA_BYTES)
                 return int(used_bytes or 0), effective_quota
         except SQLAlchemyError as error:
