@@ -10975,3 +10975,55 @@ tasks:
     dependencies: []
     tests: [test748]
     status: not-started
+
+
+  - id: task526
+    title: "issue372 tenant storage quota schema and publish enforcement"
+    type: task
+    epic: [E9]
+    owner: swe-agent
+    description: |
+      Implement tenant storage quota support for Postgres-backed registry metadata.
+      Add archive size tracking per agent version, add tenant-level quota/usage
+      fields with a 5 GiB default free-tier quota, and enforce quota checks in
+      the publish flow before accepting uploads.
+    files:
+      - server/database/models/agent_version.py
+      - server/database/models/tenant.py
+      - server/database/repository.py
+      - server/database/migrations/versions/20260424_0002_storage_quota.py
+      - server/metadata/models.py
+      - server/metadata/postgres_manager.py
+      - server/routes/publish.py
+      - server/tests/test_publish.py
+      - server/tests/test_feature120_storage_quota_schema.py
+    steps:
+      - 'step1: Add archive_size_bytes to agent_versions and used_bytes/quota_bytes to tenants (quota default 5 GiB).'
+      - 'step2: Add Alembic migration for new columns and trigger-based used_bytes recalculation from agent_versions totals per tenant.'
+      - 'step3: Persist archive_size_bytes in Postgres metadata writes and expose tenant storage usage/quota lookup in repository manager.'
+      - 'step4: Enforce tenant storage quota in publish endpoint when Postgres metadata backend is active.'
+      - 'step5: Add regression tests covering schema/migration contract and publish quota rejection behavior.'
+    dependencies: []
+    tests: [test749]
+    status: needs-review
+
+  - id: task527
+    title: "issue372 aws waf per-ip publish rate limiting"
+    type: task
+    epic: [E9]
+    owner: swe-agent
+    description: |
+      Add an AWS WAFv2 Web ACL in front of the existing ALB that blocks abusive
+      publish traffic by source IP. Apply a rate-based rule scoped to the
+      publish endpoint path so each IP is limited to 100 requests per 5-minute
+      WAF evaluation window.
+    files:
+      - iac/modules/alb/main.tf
+      - tests/iac/test_feature120_waf_publish_rate_limit.py
+    steps:
+      - 'step1: Add regional aws_wafv2_web_acl with default allow behavior and CloudWatch visibility config.'
+      - 'step2: Add a blocking rate_based_statement rule for /api/publish with aggregate_key_type IP and limit 100.'
+      - 'step3: Associate the Web ACL with the existing ALB and add regression coverage for Terraform contract.'
+    dependencies: [task526]
+    tests: [test750]
+    status: needs-review

@@ -143,6 +143,7 @@ def test_publish_endpoint(tmp_path):
     )
     assert version_doc is not None
     assert version_doc.integrity["sha256"] == expected_checksum
+    assert version_doc.archive_size_bytes == len(archive_bytes)
 
     agent_index = app.state.metadata_manager.get_agent_index(
         tenant_slug="tenant-alpha",
@@ -237,6 +238,48 @@ def test_publish_accepts_manifest_without_framework_field(tmp_path):
     body = response.json()
     assert body["agent_slug"] == "agent-no-framework"
     assert body["version"] == "1.0.0"
+
+
+def test_publish_rejects_when_tenant_storage_quota_would_be_exceeded(tmp_path, monkeypatch: pytest.MonkeyPatch):
+    config = ServerConfig(
+        storage_backend="local",
+        local_storage_root=tmp_path / "storage",
+        s3_bucket="kinnoo-registry-dev",
+        s3_region="us-east-1",
+        s3_endpoint_url=None,
+        s3_access_key_id=None,
+        s3_secret_access_key=None,
+        presign_ttl_seconds=120,
+        max_upload_mb=2,
+    )
+
+    app = create_app(config=config)
+    client = TestClient(app)
+
+    publish_token = app.state.token_service.issue_token(
+        subject="publisher-user",
+        tenant_slug="tenant-alpha",
+        scopes=["registry:publish", "registry:read"],
+    )
+
+    archive_bytes = _make_archive_bytes(name="quota-agent", version="1.0.0")
+    monkeypatch.setattr(
+        app.state.metadata_manager,
+        "get_tenant_storage_usage",
+        lambda *, tenant_slug: (len(archive_bytes) - 1, len(archive_bytes) - 1),
+        raising=False,
+    )
+
+    response = client.post(
+        "/api/publish",
+        files={"file": ("quota-agent.kno", archive_bytes, "application/octet-stream")},
+        headers={"Authorization": f"Bearer {publish_token}"},
+    )
+
+    assert response.status_code == 413
+    payload = response.json()
+    assert payload["error"]["code"] == "payload_too_large"
+    assert "quota exceeded" in payload["error"]["message"].lower()
 
 
 def test_publish_defaults_visibility_to_public_when_manifest_omits_visibility(tmp_path):

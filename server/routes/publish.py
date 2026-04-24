@@ -94,6 +94,21 @@ def publish_archive(
             body={"error": f"Version already published for {tenant_slug}/{agent_slug}/{version}"},
         )
 
+    storage_usage = metadata_manager.get_tenant_storage_usage(tenant_slug=tenant_slug)
+    if storage_usage is not None:
+        used_bytes, quota_bytes = storage_usage
+        next_used = used_bytes + len(archive_bytes)
+        if next_used > quota_bytes:
+            return PublishResult(
+                status_code=413,
+                body={
+                    "error": (
+                        f"tenant storage quota exceeded ({used_bytes}/{quota_bytes} bytes used; "
+                        f"upload would increase usage to {next_used})"
+                    )
+                },
+            )
+
     archive_key = (
         f"archives/tenants/{tenant_slug}/agents/{agent_slug}/versions/{version}/{agent_slug}.kno"
     )
@@ -145,6 +160,7 @@ def publish_archive(
         updated_at=timestamp,
         security_status=check_report.get("security_status", ""),
         security_report=security_report_rows,
+        archive_size_bytes=len(archive_bytes),
     )
     metadata_manager.upsert_version_metadata(version_metadata)
     _ = invoke_security_check_lambda_async(

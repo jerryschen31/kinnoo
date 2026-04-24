@@ -26,3 +26,6 @@ class PostgresMetadataManager:
 
     def get_global_index(self) -> GlobalIndex | None:
         return self._repository.get_global_index()
+
+    def get_tenant_storage_usage(self, *, tenant_slug: str) -> tuple[int, int] | None:
+        return self._repository.get_tenant_storage_usage(tenant_slug=tenant_slug)

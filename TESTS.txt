@@ -13041,3 +13041,40 @@ tests:
       - "automation_path_subfolder: scripts/ops"
     automated: true
     automation_path: tests/iac/test_feature121_db_url_stub_secret.py::test_feature121_test748_stub_secret_idempotence
+
+
+  - id: test749
+    title: "issue372 storage quota schema and publish quota enforcement"
+    type: integration
+    preconditions: task526 storage quota implementation is present
+    steps:
+      - 'step1: Exercise publish flow with an injected tenant quota lower than upload size and verify request is rejected.'
+    expected: Publish rejects uploads that would exceed tenant quota.
+    pass_criteria: Publish returns HTTP 413 with quota-exceeded error details.
+    covers:
+      - feature: feature120
+        ac: AC5
+    notes:
+      - "pytest_markers: regression_integration,server_api,security_checks"
+      - "automation_path_subfolder: server/tests"
+    automated: true
+    automation_path: server/tests/test_publish.py::test_publish_rejects_when_tenant_storage_quota_would_be_exceeded
+
+  - id: test750
+    title: "issue372 waf publish endpoint per-ip rate-limit terraform contract"
+    type: integration
+    preconditions: task527 WAF Terraform changes are present
+    steps:
+      - 'step1: Parse iac/modules/alb/main.tf and verify a regional WAFv2 Web ACL resource exists.'
+      - 'step2: Verify the Web ACL contains a rate_based_statement scoped to /api/publish with aggregate key IP and limit 100.'
+      - 'step3: Verify a web ACL association attaches the ACL to the ALB resource.'
+    expected: Terraform defines ALB-attached WAF protection for publish endpoint per-IP abuse.
+    pass_criteria: Static IaC contract assertions for Web ACL, rate rule, and association all pass.
+    covers:
+      - feature: feature120
+        ac: AC5
+    notes:
+      - "pytest_markers: regression_integration,security_checks"
+      - "automation_path_subfolder: tests/iac"
+    automated: true
+    automation_path: tests/iac/test_feature120_waf_publish_rate_limit.py::test_feature120_test750_waf_publish_ip_rate_limit_contract

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import ForeignKey, Index, String, UniqueConstraint
+from sqlalchemy import BigInteger, ForeignKey, Index, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -22,5 +22,6 @@ class AgentVersion(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     publisher: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     security_status: Mapped[str] = mapped_column(String(64), nullable=False, default="")
     security_report: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    archive_size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
 
     agent = relationship("Agent", back_populates="versions")

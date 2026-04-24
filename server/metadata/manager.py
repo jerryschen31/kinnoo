@@ -71,6 +71,10 @@ class MetadataManager:
             return None
         return GlobalIndex.from_document(payload)
 
+    def get_tenant_storage_usage(self, *, tenant_slug: str) -> tuple[int, int] | None:
+        _ = tenant_slug
+        return None
+
     def upsert_version_metadata(self, metadata: VersionMetadata) -> tuple[VersionMetadata, AgentIndex, GlobalIndex]:
         self.put_version_metadata(metadata)
         updated_agent_index = self._upsert_agent_index_from_version(metadata)
