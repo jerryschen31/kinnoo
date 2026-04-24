@@ -357,7 +357,7 @@ aws ecr describe-images \
 
 ### Gotchas
 
-- The temporary `-var=lambda_security_check_image_uri=public.ecr.aws/lambda/python:3.11` in the targeted apply is needed because `iac/variables.tf` declares the variable with `******able = false` and a regex validation. Plain `terraform apply -target=module.ecr` will refuse to plan without a value. The targeted apply only creates the ECR repo, so the placeholder is never deployed.
+- The temporary `-var=lambda_security_check_image_uri=public.ecr.aws/lambda/python:3.11` in the targeted apply is needed because `iac/variables.tf` declares the variable with `nullable = false` and a regex validation. Plain `terraform apply -target=module.ecr` will refuse to plan without a value. The targeted apply only creates the ECR repo, so the placeholder is never deployed.
 - Lambda images **must be `linux/amd64`**. If you build on Apple Silicon without `--platform linux/amd64`, Lambda will reject the image at create time.
 - Use a real version tag (e.g. `v0`, `2026-04-24-001`), not `latest`, so subsequent deploys can be rolled back deterministically.
 

@@ -10740,7 +10740,13 @@ tasks:
     tests: [test740]
     status: needs-review
     notes:
-      - "Critical path order: task517 first, then task518 and task524 in parallel, then task519 and task520 (depend on task518) and task522 (depends on task518) and task523 and task525 (independent), then task521 last."
+      - "Critical path order:"
+      - "  1. task517 (this runbook) - first."
+      - "  2. task518 (IaC prod-domain parity) and task524 (prod tfvars completeness) - in parallel after task517."
+      - "  3. task519 (env-aware ops scripts) and task520 (prod CORS hardening) and task522 (web prod wrangler) - in parallel after task518."
+      - "  4. task523 (lambda bootstrap) - after task524."
+      - "  5. task525 (REGISTRY_DATABASE_URL stub) - independent, can start any time after task517."
+      - "  6. task521 (terraform provider portability) - last, decouples operator credentials from hardcoded profile."
 
   - id: task518
     title: "feature121 iac prod-domain and cloudflare routing parity"
