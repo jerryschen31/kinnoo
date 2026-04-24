@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from server.database.exceptions import DatabaseConflictError, DatabaseError
 from server.database.models import Agent, AgentVersion, AuditLog, Tenant, User
+from server.database.models.tenant import FREE_TIER_QUOTA_BYTES
 from server.metadata.models import AgentIndex, AgentVersionSummary, GlobalAgentSummary, GlobalIndex, VersionMetadata, utc_now_iso
 
 
@@ -53,6 +54,7 @@ class RegistryRepository:
                 existing.publisher = dict(metadata.publisher)
                 existing.security_status = str(metadata.security_status or "")
                 existing.security_report = metadata.security_report
+                existing.archive_size_bytes = int(metadata.archive_size_bytes or 0)
                 session.commit()
         except IntegrityError as error:
             raise DatabaseConflictError("Unable to upsert metadata due to uniqueness conflict.") from error
@@ -88,9 +90,25 @@ class RegistryRepository:
                     updated_at=_to_iso(version_row.updated_at),
                     security_status=version_row.security_status,
                     security_report=version_row.security_report,
+                    archive_size_bytes=int(version_row.archive_size_bytes or 0),
                 )
         except SQLAlchemyError as error:
             raise DatabaseError("Unable to fetch version metadata from registry database.") from error
+
+    def get_tenant_storage_usage(self, *, tenant_slug: str) -> tuple[int, int]:
+        try:
+            with self._session_factory() as session:
+                usage_row = session.execute(
+                    select(Tenant.used_bytes, Tenant.quota_bytes).where(Tenant.slug == tenant_slug)
+                ).first()
+                if usage_row is None:
+                    return 0, FREE_TIER_QUOTA_BYTES
+
+                used_bytes, quota_bytes = usage_row
+                effective_quota = int(quota_bytes or FREE_TIER_QUOTA_BYTES)
+                return int(used_bytes or 0), effective_quota
+        except SQLAlchemyError as error:
+            raise DatabaseError("Unable to fetch tenant storage usage from registry database.") from error
 
     def get_agent_index(self, *, tenant_slug: str, agent_slug: str) -> AgentIndex | None:
         try:
