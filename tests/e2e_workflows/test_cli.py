@@ -387,8 +387,8 @@ def test_backend_selection(monkeypatch, tmp_path):
             else:
                 selected_backends.append("local")
 
-        def resolve_with_error(self, *, name, version=None):
-            del name, version
+        def resolve_with_error(self, *, name, version=None, tenant=None):
+            del name, version, tenant
             return (
                 RegistryRecord(
                     name="demo-agent",
