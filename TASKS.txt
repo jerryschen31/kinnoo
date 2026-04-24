@@ -10705,3 +10705,119 @@ tasks:
     dependencies: []
     tests: [test739]
     status: needs-review
+
+  - id: task517
+    title: "feature121 author production deployment runbook"
+    type: task
+    epic: [E7, E5]
+    owner: swe-agent
+    description: |
+      Write `notes/prod-deployment-instructions.md` as the canonical step-by-step
+      operator runbook for first production deployment. The runbook must be based
+      on current repository IaC/runtime behavior and include phase gates,
+      smoke checks, rollback checks, and explicit separation controls between
+      Dev and Prod.
+    files:
+      - notes/prod-deployment-instructions.md
+      - FEATURES.txt
+      - TASKS.txt
+      - TESTS.txt
+    steps:
+      - 'step1: Audit current IaC/runtime/scripts and existing notes to capture only verified deployment behavior.'
+      - 'step2: Write phased production runbook with clear preconditions, commands, and go/no-go criteria.'
+      - 'step3: Add explicit no-cross-contamination checks for domains, env vars, secret namespaces, and process paths.'
+      - 'step4: Capture discovered codebase gaps as follow-up tasks and link to feature121.'
+    dependencies: []
+    tests: [test740]
+    status: needs-review
+
+  - id: task518
+    title: "feature121 iac prod-domain and cloudflare routing parity"
+    type: task
+    epic: [E7]
+    owner: swe-agent
+    description: |
+      Remove dev-domain hardcoding from IaC root/module wiring and implement
+      explicit production DNS/routing support so Prod and Dev can coexist
+      without record overlap or traffic cross-contamination.
+    files:
+      - iac/main.tf
+      - iac/variables.tf
+      - iac/modules/alb/
+      - iac/modules/cloudflare/
+      - iac/environments/dev/terraform.tfvars
+      - iac/environments/prod/terraform.tfvars
+    steps:
+      - 'step1: Parameterize API/frontend domain values by environment in root/module wiring.'
+      - 'step2: Ensure Cloudflare resources model prod records separately from dev records.'
+      - 'step3: Validate prod Terraform plan does not mutate dev DNS resources when applying prod backend/tfvars.'
+      - 'step4: Add/update tests validating DNS/resource isolation contract.'
+    dependencies: [task517]
+    tests: [test741]
+    status: not-started
+
+  - id: task519
+    title: "feature121 production-safe deployment and dns smoke scripts"
+    type: task
+    epic: [E7, E9]
+    owner: swe-agent
+    description: |
+      Add or generalize operator scripts so production deploy/smoke commands are
+      environment-safe (no hardcoded kinnoo-dev ECS names) and include production
+      DNS verification checks aligned to final prod routing model.
+    files:
+      - scripts/ops/rebuild_push_server_and_redeploy_ecs.sh
+      - scripts/ops/check_cloudflare_dns_setup.sh
+      - scripts/ops/
+    steps:
+      - 'step1: Remove dev-hardcoded ECS cluster/service assumptions from deploy helper script.'
+      - 'step2: Add explicit production DNS verification script/flow.'
+      - 'step3: Preserve dev smoke workflows while adding environment selection and safe defaults.'
+      - 'step4: Add script-level regression checks for prod/dev targeting behavior.'
+    dependencies: [task518]
+    tests: [test742]
+    status: not-started
+
+  - id: task520
+    title: "feature121 runtime production default isolation hardening"
+    type: task
+    epic: [E7, E6]
+    owner: swe-agent
+    description: |
+      Remove or harden production runtime defaults that currently fall back to
+      dev-domain values, ensuring production mode requires explicit production
+      origin/frontend configuration.
+    files:
+      - server/config.py
+      - server/tests/
+      - iac/modules/ecs-fargate/
+      - iac/environments/prod/terraform.tfvars
+    steps:
+      - 'step1: Eliminate production default CORS/frontend values that reference dev domains.'
+      - 'step2: Enforce explicit prod-safe config behavior in production mode.'
+      - 'step3: Align IaC runtime env injection with new strict config contract.'
+      - 'step4: Add runtime tests for production-mode config validation behavior.'
+    dependencies: [task518]
+    tests: [test743]
+    status: not-started
+
+  - id: task521
+    title: "feature121 terraform provider profile portability"
+    type: task
+    epic: [E7]
+    owner: swe-agent
+    description: |
+      Remove operator-specific hardcoded AWS provider profile assumptions from
+      Terraform roots (`iac/` and `iac/state/`) so deploy commands can run with
+      explicit operator environment credentials.
+    files:
+      - iac/providers.tf
+      - iac/state/main.tf
+      - notes/prod-deployment-instructions.md
+    steps:
+      - 'step1: Remove hardcoded profile values and rely on explicit environment/provider input.'
+      - 'step2: Verify dev/prod plans still work with operator-provided credentials.'
+      - 'step3: Document credential expectations in operator runbook.'
+    dependencies: [task517]
+    tests: [test744]
+    status: not-started
