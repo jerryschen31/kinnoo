@@ -17,6 +17,8 @@ registry_db_pool_recycle_seconds = 1800
 # Example: 123456789012.dkr.ecr.us-west-2.amazonaws.com/kinnoo-dev-lambda-security-check:v1
 lambda_security_check_image_uri = "386775099533.dkr.ecr.us-west-2.amazonaws.com/kinnoo-dev-lambda-security-check:latest"
 
+zone_id = "374008a2e2e60744960d315cd526a384"
+
 # Database vars
 # registry_metadata_backend = "postgres" # or "json" for fallback DB
 # registry_db_pool_size = 10
