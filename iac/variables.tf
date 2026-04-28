@@ -47,6 +47,18 @@ variable "github_repo" {
   default     = "kinnoo/kinnoo"
 }
 
+variable "github_oidc_provider_url" {
+  description = "OIDC provider URL for GitHub Actions"
+  type        = string
+  default     = "https://token.actions.githubusercontent.com"
+}
+
+variable "manage_github_oidc_provider" {
+  description = "Whether this environment should create/manage the GitHub OIDC provider"
+  type        = bool
+  default     = true
+}
+
 variable "sns_topic_arn" {
   description = "SNS topic ARN for operator notifications"
   type        = string
@@ -88,20 +100,38 @@ variable "zone_id" {
   type        = string
 }
 
+variable "base_domain" {
+  description = "Base DNS domain for frontend and API records"
+  type        = string
+  default     = "kinnoo.ai"
+}
+
+variable "api_record_name" {
+  description = "Cloudflare record name/host label for API endpoint (for example dev-api or api)"
+  type        = string
+  default     = "dev-api"
+}
+
+variable "frontend_record_name" {
+  description = "Cloudflare record name/host label for frontend endpoint (for example dev, @, or www)"
+  type        = string
+  default     = "dev"
+}
+
 variable "dev_record_type" {
-  description = "DNS record type for dev.kinnoo.ai (for example CNAME for Pages, AAAA for Worker custom-domain setup)"
+  description = "DNS record type for managed frontend DNS record (for example CNAME for Pages, AAAA for Worker custom-domain setup)"
   type        = string
   default     = "CNAME"
 }
 
 variable "dev_record_content" {
-  description = "DNS record content/target for dev.kinnoo.ai"
+  description = "DNS record content/target for managed frontend DNS record"
   type        = string
   default     = "kinnoo.pages.dev"
 }
 
 variable "manage_dev_record" {
-  description = "Whether Terraform should manage the dev.kinnoo.ai DNS record"
+  description = "Whether Terraform should manage the configured frontend DNS record"
   type        = bool
   default     = false
 }

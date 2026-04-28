@@ -19,6 +19,18 @@ variable "github_repo" {
   default     = "kinnoo/kinnoo"
 }
 
+variable "github_oidc_provider_url" {
+  description = "OIDC provider URL for GitHub Actions"
+  type        = string
+  default     = "https://token.actions.githubusercontent.com"
+}
+
+variable "manage_github_oidc_provider" {
+  description = "Whether this stack manages (creates) the GitHub OIDC provider"
+  type        = bool
+  default     = true
+}
+
 variable "tags" {
   description = "Common tags"
   type        = map(string)

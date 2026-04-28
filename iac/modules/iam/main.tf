@@ -1,5 +1,10 @@
 data "aws_caller_identity" "current" {}
 
+locals {
+  terraform_state_bucket_name = "${var.project_name}-terraform-state-${var.environment}"
+  github_oidc_provider_arn    = var.manage_github_oidc_provider ? aws_iam_openid_connect_provider.github[0].arn : data.aws_iam_openid_connect_provider.github[0].arn
+}
+
 data "aws_iam_policy_document" "ecs_task_assume_role" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -32,6 +37,19 @@ data "aws_iam_policy_document" "ecs_task_permissions" {
       var.registry_bucket_arn,
       "${var.registry_bucket_arn}/*",
     ]
+  }
+
+  statement {
+    sid = "ECSExecSSMChannels"
+
+    actions = [
+      "ssmmessages:CreateControlChannel",
+      "ssmmessages:CreateDataChannel",
+      "ssmmessages:OpenControlChannel",
+      "ssmmessages:OpenDataChannel",
+    ]
+
+    resources = ["*"]
   }
 }
 
@@ -165,7 +183,9 @@ resource "aws_iam_role_policy" "ecs_execution_extras" {
 }
 
 resource "aws_iam_openid_connect_provider" "github" {
-  url = "https://token.actions.githubusercontent.com"
+  count = var.manage_github_oidc_provider ? 1 : 0
+
+  url = var.github_oidc_provider_url
 
   client_id_list = ["sts.amazonaws.com"]
 
@@ -176,13 +196,18 @@ resource "aws_iam_openid_connect_provider" "github" {
   tags = var.tags
 }
 
+data "aws_iam_openid_connect_provider" "github" {
+  count = var.manage_github_oidc_provider ? 0 : 1
+  url   = var.github_oidc_provider_url
+}
+
 data "aws_iam_policy_document" "github_assume_role" {
   statement {
     actions = ["sts:AssumeRoleWithWebIdentity"]
 
     principals {
       type        = "Federated"
-      identifiers = [aws_iam_openid_connect_provider.github.arn]
+      identifiers = [local.github_oidc_provider_arn]
     }
 
     condition {
@@ -245,8 +270,8 @@ data "aws_iam_policy_document" "github_actions_permissions" {
     ]
 
     resources = [
-      "arn:aws:s3:::kinnoo-terraform-state-dev",
-      "arn:aws:s3:::kinnoo-terraform-state-dev/*",
+      "arn:aws:s3:::${local.terraform_state_bucket_name}",
+      "arn:aws:s3:::${local.terraform_state_bucket_name}/*",
     ]
   }
 }

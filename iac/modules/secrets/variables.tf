@@ -8,6 +8,12 @@ variable "project_name" {
   type        = string
 }
 
+variable "aws_region" {
+  description = "AWS region for secret lookups"
+  type        = string
+  default     = "us-west-2"
+}
+
 variable "tags" {
   description = "Common tags"
   type        = map(string)

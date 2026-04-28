@@ -2,7 +2,7 @@ locals {
   name_prefix       = "${var.project_name}-${var.environment}"
   is_prod           = var.environment == "prod"
   # Keep dev/non-prod within stricter free-tier backup retention limits.
-  backup_retention  = local.is_prod ? 14 : 1
+  backup_retention  = 1
   database_name     = "kinnoo_registry"
 }
 

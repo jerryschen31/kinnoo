@@ -25,6 +25,27 @@ locals {
   }
 
   secret_names = merge(local.managed_secret_names, local.referenced_secret_names)
+
+  managed_secret_ids = {
+    JWT_SECRET     = aws_secretsmanager_secret.jwt_secret.id
+    SESSION_SECRET = aws_secretsmanager_secret.session_secret.id
+    ADMIN_PASSWORD = aws_secretsmanager_secret.admin_password.id
+  }
+
+  managed_secret_seed_specs = {
+    JWT_SECRET = {
+      length  = 64
+      special = false
+    }
+    SESSION_SECRET = {
+      length  = 64
+      special = false
+    }
+    ADMIN_PASSWORD = {
+      length  = 32
+      special = true
+    }
+  }
 }
 
 resource "aws_secretsmanager_secret" "jwt_secret" {
@@ -46,6 +67,40 @@ resource "aws_secretsmanager_secret" "admin_password" {
   description             = "Bootstrap admin password for ${var.project_name} ${var.environment}"
   recovery_window_in_days = 7
   tags                    = var.tags
+}
+
+data "external" "managed_secret_has_current" {
+  for_each = local.managed_secret_names
+
+  program = ["python3", "${path.module}/secret_has_current.py"]
+
+  query = {
+    secret_id  = local.managed_secret_names[each.key]
+    aws_region = var.aws_region
+  }
+
+  depends_on = [
+    aws_secretsmanager_secret.jwt_secret,
+    aws_secretsmanager_secret.session_secret,
+    aws_secretsmanager_secret.admin_password,
+  ]
+}
+
+resource "random_password" "managed_secret_seed" {
+  for_each = {
+    for key, value in local.managed_secret_seed_specs : key => value
+    if try(data.external.managed_secret_has_current[key].result.has_current, "false") != "true"
+  }
+
+  length  = each.value.length
+  special = each.value.special
+}
+
+resource "aws_secretsmanager_secret_version" "managed_secret_seed" {
+  for_each = random_password.managed_secret_seed
+
+  secret_id     = local.managed_secret_ids[each.key]
+  secret_string = each.value.result
 }
 
 data "aws_secretsmanager_secret" "auth_provider" {

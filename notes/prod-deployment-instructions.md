@@ -135,7 +135,7 @@ Expected: AWS account ID printed, Cloudflare reports `true` and `kinnoo.ai`, man
 ### Steps
 
 ```bash
-cd "$KINNOO_ROOT/iac/state"
+cd "$KINNOO_ROOT/iac/state-prod/"
 terraform init
 terraform plan \
   -var='environment=prod' \
