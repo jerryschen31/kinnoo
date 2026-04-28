@@ -258,22 +258,6 @@ data "aws_iam_policy_document" "github_actions_permissions" {
 
     resources = ["*"]
   }
-
-  statement {
-    sid = "TerraformStateBucket"
-
-    actions = [
-      "s3:GetObject",
-      "s3:PutObject",
-      "s3:DeleteObject",
-      "s3:ListBucket",
-    ]
-
-    resources = [
-      "arn:aws:s3:::${local.terraform_state_bucket_name}",
-      "arn:aws:s3:::${local.terraform_state_bucket_name}/*",
-    ]
-  }
 }
 
 resource "aws_iam_role_policy" "github_actions" {
