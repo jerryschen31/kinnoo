@@ -10,7 +10,7 @@ output "port" {
 
 output "db_instance_identifier" {
   description = "Postgres DB instance identifier"
-  value       = aws_db_instance.this.id
+  value       = aws_db_instance.this.identifier
 }
 
 output "database_name" {

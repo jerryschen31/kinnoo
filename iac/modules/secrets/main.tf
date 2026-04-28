@@ -5,7 +5,7 @@ locals {
     ADMIN_PASSWORD = "${var.project_name}/${var.environment}/admin-password"
   }
 
-  # These auth secrets are provisioned out-of-band and referenced by Terraform.
+  # Auth secrets provisioned out-of-band and referenced (not managed) by Terraform.
   referenced_secret_names = {
     AUTH_PROVIDER             = "${var.project_name}/${var.environment}/AUTH_PROVIDER"
     KINDE_WEB_CLIENT_ID       = "${var.project_name}/${var.environment}/KINDE_WEB_CLIENT_ID"
