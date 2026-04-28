@@ -243,7 +243,15 @@ kinnoo/prod/admin-password
    create_kinde_secret kinnoo/prod/REVOCATION_ENDPOINT    "https://<your-tenant>.kinde.com/oauth2/revoke"
    ```
 
-2. Pre-create a **stub** REGISTRY_DATABASE_URL secret. Phase 5 overwrites it with the real RDS URL. The stub lets Phase 4 plan/apply succeed because the data source can resolve the secret. The leading slash is required to match `iac/modules/secrets/main.tf`:
+2. Pre-create a **stub** REGISTRY_DATABASE_URL secret. Phase 5 overwrites it with the real RDS URL. The stub lets Phase 4 plan/apply succeed because the data source can resolve the secret. The leading slash is required to match `iac/modules/secrets/main.tf`.
+
+   Once `task525` has shipped, prefer the idempotent helper (safe to re-run; refuses to overwrite a real value):
+
+   ```bash
+   ENVIRONMENT=prod scripts/ops/create_registry_database_url_stub_secret.sh
+   ```
+
+   Or, the manual equivalent:
 
    ```bash
    aws secretsmanager create-secret \

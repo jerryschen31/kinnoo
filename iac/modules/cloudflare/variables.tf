@@ -4,37 +4,35 @@ variable "zone_id" {
 }
 
 variable "domain" {
-  description = "Base domain name"
+  description = "Base domain name (e.g. kinnoo.ai)"
   type        = string
   default     = "kinnoo.ai"
 }
 
-variable "api_record_name" {
-  description = "DNS host label for API endpoint record"
+variable "frontend_subdomain" {
+  description = "Frontend subdomain label (e.g. dev for dev.kinnoo.ai)."
   type        = string
-  default     = "dev-api"
 }
 
-variable "frontend_record_name" {
-  description = "DNS host label for frontend endpoint record"
+variable "api_subdomain" {
+  description = "API subdomain label (e.g. dev-api for dev-api.kinnoo.ai)."
   type        = string
-  default     = "dev"
 }
 
 variable "frontend_record_type" {
-  description = "DNS record type for frontend endpoint record"
+  description = "DNS record type for the frontend record."
   type        = string
   default     = "CNAME"
 }
 
 variable "frontend_record_content" {
-  description = "DNS record content/target for frontend endpoint record"
+  description = "DNS record content/target for the frontend record."
   type        = string
   default     = "kinnoo.pages.dev"
 }
 
 variable "manage_frontend_record" {
-  description = "Whether Terraform should manage the frontend endpoint record"
+  description = "Whether Terraform should manage the frontend DNS record."
   type        = bool
   default     = false
 }

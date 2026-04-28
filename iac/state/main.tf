@@ -10,8 +10,11 @@ terraform {
 }
 
 provider "aws" {
-  region  = var.aws_region
-  profile = "jerry"
+  region = var.aws_region
+  # Operator credentials come from the standard AWS credential chain. This
+  # bootstrap stack must be runnable by any operator (or CI role), so do not
+  # hardcode `profile` here. See task521 / notes/prod-deployment-instructions.md
+  # Phase 1 for the expected setup.
 }
 
 data "aws_caller_identity" "current" {}

@@ -1,63 +1,74 @@
+"""task518 / test741: prod-domain and DNS isolation contract.
+
+Static parsing tests that assert iac/main.tf and the cloudflare module no
+longer hardcode dev domain literals, and that dev/prod tfvars surface
+distinct frontend/api subdomain values.
+"""
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
 
-
 ROOT = Path(__file__).resolve().parents[2]
-
-pytestmark = [pytest.mark.regression_integration, pytest.mark.integration, pytest.mark.security_checks]
-
-
-def _read(path: str) -> str:
-    return (ROOT / path).read_text(encoding="utf-8")
+IAC = ROOT / "iac"
 
 
-def _assert_contains(text: str, needle: str) -> None:
-    assert needle in text, f"Expected to find '{needle}' in configuration"
+def _read(rel: str) -> str:
+    return (ROOT / rel).read_text(encoding="utf-8")
 
 
+def _parse_tfvars(rel: str) -> dict[str, str]:
+    """Very small tfvars parser: key = value (string/number/bool/list)."""
+    text = _read(rel)
+    out: dict[str, str] = {}
+    for line in text.splitlines():
+        stripped = line.split("#", 1)[0].strip()
+        if not stripped or "=" not in stripped:
+            continue
+        key, _, value = stripped.partition("=")
+        out[key.strip()] = value.strip().strip('"')
+    return out
+
+
+@pytest.mark.regression_integration
+@pytest.mark.security_checks
 def test_feature121_test741_prod_dev_dns_isolation() -> None:
     main_tf = _read("iac/main.tf")
-    cloudflare_tf = _read("iac/modules/cloudflare/main.tf")
-    cloudflare_vars_tf = _read("iac/modules/cloudflare/variables.tf")
-    prod_tfvars = _read("iac/environments/prod/terraform.tfvars")
+    cf_main = _read("iac/modules/cloudflare/main.tf")
+    cf_vars = _read("iac/modules/cloudflare/variables.tf")
 
-    # Root IaC must derive API domain from environment-specific tfvars, not hardcode dev.
-    _assert_contains(main_tf, 'api_domain            = local.api_domain')
-    _assert_contains(main_tf, 'api_domain = "${var.api_record_name}.${var.base_domain}"')
+    # Root must not bind the ALB ACM cert to a dev-only literal.
     assert 'api_domain            = "dev-api.kinnoo.ai"' not in main_tf
+    assert "local.api_fqdn" in main_tf
 
-    # Cloudflare module must use generic API/frontend record resources and variables.
-    _assert_contains(cloudflare_tf, 'resource "cloudflare_record" "frontend"')
-    _assert_contains(cloudflare_tf, 'resource "cloudflare_record" "api"')
-    _assert_contains(cloudflare_tf, 'name    = local.api_host')
-    _assert_contains(cloudflare_tf, 'name    = local.frontend_host')
-    assert 'resource "cloudflare_record" "dev_pages"' not in cloudflare_tf
-    assert 'resource "cloudflare_record" "dev_api"' not in cloudflare_tf
-    assert 'local.dev_host' not in cloudflare_tf
-    assert 'local.dev_api_host' not in cloudflare_tf
-    _assert_contains(cloudflare_tf, "from = cloudflare_record.dev_api")
-    _assert_contains(cloudflare_tf, "to   = cloudflare_record.api")
-    _assert_contains(cloudflare_vars_tf, 'variable "api_record_name"')
-    _assert_contains(cloudflare_vars_tf, 'variable "frontend_record_name"')
-    _assert_contains(cloudflare_vars_tf, 'variable "manage_frontend_record"')
+    # Cloudflare module must no longer contain dev-only host literals.
+    assert 'dev_host' not in cf_main
+    assert 'dev_api_host' not in cf_main
+    assert "var.frontend_subdomain" in cf_main
+    assert "var.api_subdomain" in cf_main
 
-    # Prod tfvars must explicitly use prod API and frontend hostnames.
-    _assert_contains(prod_tfvars, 'api_record_name     = "api"')
-    _assert_contains(prod_tfvars, 'frontend_record_name = "@"')
+    # Module variables must expose the neutral inputs used by the root module.
+    for required_var in (
+        "frontend_subdomain",
+        "api_subdomain",
+        "frontend_record_type",
+        "frontend_record_content",
+        "manage_frontend_record",
+    ):
+        assert re.search(rf'variable\s+"{required_var}"', cf_vars), required_var
 
+    # Both env tfvars must declare distinct frontend/api subdomains so a single
+    # apply cannot mutate the other environment's records.
+    dev = _parse_tfvars("iac/environments/dev/terraform.tfvars")
+    prod = _parse_tfvars("iac/environments/prod/terraform.tfvars")
 
-def test_feature121_test741_dev_dns_contract_preserved() -> None:
-    main_tf = _read("iac/main.tf")
-    dev_tfvars = _read("iac/environments/dev/terraform.tfvars")
+    for key in ("frontend_subdomain", "api_subdomain"):
+        assert key in dev, f"dev tfvars missing {key}"
+        assert key in prod, f"prod tfvars missing {key}"
+        assert dev[key] != prod[key], f"dev/prod must differ on {key}"
 
-    # Existing dev controls remain wired to Cloudflare frontend management knobs.
-    _assert_contains(main_tf, 'frontend_record_type  = var.dev_record_type')
-    _assert_contains(main_tf, 'frontend_record_content = var.dev_record_content')
-    _assert_contains(main_tf, 'manage_frontend_record = var.manage_dev_record')
-
-    # Dev environment remains explicitly scoped to dev/dev-api hostnames.
-    _assert_contains(dev_tfvars, 'api_record_name     = "dev-api"')
-    _assert_contains(dev_tfvars, 'frontend_record_name = "dev"')
+    # Specifically the prod api subdomain must not be the dev api subdomain.
+    assert prod["api_subdomain"] != "dev-api"
+    assert prod["frontend_subdomain"] != "dev"

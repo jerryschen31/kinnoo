@@ -24,9 +24,8 @@ variable "alb_security_group_id" {
 }
 
 variable "api_domain" {
-  description = "API domain to bind ACM certificate"
+  description = "API domain to bind ACM certificate (e.g. dev-api.kinnoo.ai or api.kinnoo.ai). Required; no default to prevent accidental dev/prod cross-wiring."
   type        = string
-  default     = "dev-api.kinnoo.ai"
 }
 
 variable "tags" {
