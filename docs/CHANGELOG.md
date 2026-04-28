@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.10.0] - 2026-04-28
+### Added
+- Added tenant usage quota setup and enforcement for registry usage controls.
+- Production environment is now deployed and operational for frontend/backend traffic.
+
+### Changed
+- Bumped project version from `0.9.0` to `0.10.0`.
+
 ## [v0.9.0] - 2026-04-23
 ### Fixed
 - Fixed remote registry search result rendering in CLI so agent names no longer appear as `(unknown)` when the API payload provides `agent_slug` instead of `name`.
