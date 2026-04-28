@@ -56,8 +56,8 @@ See [Getting Started](https://github.com/kinnoo-project/kinnoo/blob/main/docs/ge
 
 Kinnoo currently supports initializing and running agents for these frameworks:
 
-- vanilla python
-- vanilla javascript / typescript
+- vanilla python (generic)
+- vanilla javascript / typescript (generic)
 - chatgpt
 - gemini
 - claude-chat
@@ -66,7 +66,6 @@ Kinnoo currently supports initializing and running agents for these frameworks:
 - openai-agents
 - mcp-client
 - openclaw
-
 
 See [Supported Agents](https://github.com/kinnoo-project/kinnoo/blob/main/docs/supported-agents.md) for more details.
 
