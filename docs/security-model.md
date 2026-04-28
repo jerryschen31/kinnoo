@@ -1,167 +1,110 @@
 # Security Model
 
-This document describes the current security architecture implemented in Kinnoo.
+Kinnoo’s security model is built around the developer workflow you already use: package, publish, fetch/install, and run.
 
-## Scope
+The goal is straightforward: make it hard for tampered or untrusted artifacts to slip through your pipeline while keeping normal developer workflows practical.
 
-- Client-side security features in `src/kinnoo/*`.
-- Server-side auth, upload, and rate-limit controls in `server/*`.
+## What Kinnoo Protects Against
 
-## Threat Model
+Kinnoo is designed to reduce risk from:
 
-### Main threats
+- Archive tampering between publish and install
+- Accidental or malicious publication of invalid artifacts
+- Unauthorized registry access
+- Cross-tenant access to private artifacts
+- Abuse patterns (for example brute-force auth and high-rate API traffic)
 
-- Archive tampering between publish and install.
-- Malicious or accidental publish of invalid archives.
-- Credential theft or replay of stolen tokens/cookies.
-- Cross-tenant data exposure.
-- Brute-force login attempts.
-- API abuse through high request rates.
+## Security Across the Normal Lifecycle
 
-### Current mitigations
+### 1) During `kinnoo pack`
 
-- Integrity manifest verification and optional signature verification.
-- Server-side upload validation (type/size/manifest/integrity checks).
-- Password hashing with Argon2 when available (scrypt fallback).
-- HMAC-signed JWT-compatible tokens with expiration and denylist revocation support.
-- Signed session cookies plus CSRF token enforcement for web session flows.
-- Tenant-scoped authorization checks.
-- Endpoint-group rate limiting with response headers and retry guidance.
+When you package an agent, Kinnoo produces integrity metadata inside the archive so files can be checked later.
 
-## Signing Model (Ed25519)
+If you also sign during pack:
 
-Signing helpers live in `src/kinnoo/signing.py`.
+```bash
+kinnoo keygen
+kinnoo pack ./my-agent --sign ./kinnoo-ed25519-private.pem
+```
 
-- Key generation: `kinnoo keygen` writes Ed25519 private/public key files.
-- Signing: `kinnoo pack --sign <private.pem>` creates detached signature artifacts.
-- Verification:
-  - client-side strict workflows validate signature artifacts,
-  - signature metadata includes public key and fingerprint for trust decisions.
+Kinnoo creates signature artifacts that can be used for publisher verification:
 
-### Embedded vs Detached Signatures
+- Embedded signature metadata inside the `.kno` archive (`META-INF/signature.json`)
+- Detached sidecars next to the archive (`.sig` and `.sig.json`)
 
-Kinnoo uses two complementary signature surfaces:
+The detached metadata includes algorithm, archive checksum, and publisher key/fingerprint data needed for trust decisions.
 
-- Embedded signature: `META-INF/signature.json` inside the `.kno` archive.
-- Detached signature artifacts: `<archive>.sig` and `<archive>.sig.json` sidecars.
+### 2) During `kinnoo publish`
 
-Both can represent archive authenticity, but they serve different operational contexts:
+Before accepting uploads, registry-side checks validate archive shape and metadata (including manifest and integrity-related checks).
 
-- Embedded signature is portable and travels with the archive payload.
-- Detached artifacts support external and registry pipeline verification before install/extraction.
+For stronger guarantees, publish with strict trust gating:
 
-Expected strict install behavior (`kinnoo install --strict`):
+```bash
+kinnoo publish ./my-agent --pack --strict --remote
+```
 
-- If detached signature artifacts are present, they are verified first.
-- If detached signature artifacts are absent, install falls back to embedded
-  `META-INF/signature.json` verification.
-- On successful strict fallback verification, install emits an informational line:
-  - `[kinnoo install] Embedded signature verified.`
-- If neither detached nor valid embedded signature metadata can be verified,
-  strict install fails.
+### 3) During `kinnoo fetch` and `kinnoo install`
 
-Note for compatibility:
+Kinnoo verifies integrity before trusting downloaded artifacts.
 
-- Older signed archives may include `META-INF/signature.json` without embedded
-  `public_key_pem`. In that case strict verification still requires a resolvable
-  publisher key via detached metadata or explicit key association.
+With strict mode:
 
-Algorithm and metadata behavior:
+```bash
+kinnoo fetch my-agent==1.2.3 --remote --strict
+kinnoo install my-agent==1.2.3 --remote --strict
+```
 
-- Detached signatures use Ed25519.
-- Signature metadata includes:
-  - `algorithm: ed25519`
-  - archive checksum
-  - public key PEM
-  - public-key fingerprint
+Strict verification behavior:
 
-## Integrity Verification
+- Detached signatures are verified when present.
+- If detached artifacts are missing, install can fall back to embedded signature verification.
+- If required signature/integrity checks cannot be satisfied, strict mode fails closed.
 
-Integrity helpers live in `src/kinnoo/integrity.py`.
+## Signing and Verification Model
 
-- `kinnoo pack` writes `META-INF/integrity.json`.
-- Integrity manifest records per-file checksums.
-- `kinnoo install` verifies integrity manifest content before trusting archive content.
-- `kinnoo fetch` verifies downloaded archive integrity before local archive registration.
-- Strict mode (`install --strict`) and strict publish checks require stronger trust gates.
+- Signature algorithm: **Ed25519**
+- Recommended workflow: sign at pack time, then publish/install with `--strict`
+- Trust context: signature metadata carries publisher key identity material (for example public key and fingerprint)
 
-Current trust-control examples:
+This gives teams a practical way to enforce “known publisher” and “artifact unchanged” checks in CI/CD and local installs.
 
-- `kinnoo pack ./my-agent --sign ./kinnoo-ed25519-private.pem`
-- `kinnoo publish ./my-agent --pack --strict --remote`
-- `kinnoo fetch my-agent==1.2.3 --remote --strict`
-- `kinnoo install my-agent==1.2.3 --remote --strict`
+## Auth, Authorization, and Session Protections
 
-## Authentication and Session Security
+Registry access is protected through authenticated sessions/tokens and scoped authorization checks.
 
-### Passwords
+At a high level:
 
-- User password hashing uses `server/models/user.py`:
-  - Preferred: Argon2 (`argon2-cffi` runtime availability).
-  - Fallback: scrypt with per-password salt.
+- Login issues authenticated state used by CLI registry operations.
+- Authorization scopes gate sensitive actions (for example publish/admin operations).
+- Tenant context is part of access decisions for private artifacts.
+- Session/token invalidation paths are supported for logout/revocation scenarios.
 
-### Token-based API auth
+## Abuse Resistance and Operational Safety
 
-- `server/auth/token.py` issues and validates HMAC-signed JWT-compatible bearer tokens.
-- Token claims include issuer, subject, tenant slug, scopes, issue time, and expiry.
-- Token revoke support exists via token-id denylist.
-- Login lockout is enforced through failed-attempt tracking in user store.
+The hosted service applies request-throttling controls and returns standard rate-limit headers so clients can back off safely.
 
-### Web session auth
+Typical protections include:
 
-- `server/auth/session.py` provides signed cookie sessions.
-- Session POST validation requires CSRF token match.
-- Session invalidation supported on logout and user-session invalidation flows.
+- Auth endpoint throttling
+- Publish endpoint throttling
+- Search/list endpoint throttling
 
-## Auth Flow Summary
+## Privacy and Secrets Baseline
 
-Current flow components:
+- Secrets are not expected in `kinnoo.yaml`; manifests should list variable names only.
+- Credentials should be provided via environment variables or secret management systems.
+- Use strict verification for production installs and shared registries.
 
-1. Registration: invite/registration token helpers exist in `server/auth/tokens.py` and related web routes.
-2. Login: credential exchange at auth endpoints issues bearer token (API) and/or web session.
-3. JWT issuance: access tokens include scope + tenant claims.
-4. Token refresh: no dedicated JWT refresh endpoint is currently exposed; clients re-authenticate when needed.
-5. Logout: persisted client auth state can be cleared (`kinnoo logout`), and server token/session invalidation paths are implemented.
+## Recommended Secure Defaults
 
-## Authorization and Tenant Isolation
+For most teams, this is a strong baseline:
 
-- Authorization is scope-based for API actions (`registry:read`, `registry:publish`, `registry:admin`).
-- Tenant identity is part of token/session context.
-- Private data access is checked against tenant ownership in list/search/download/agent detail paths.
-
-## Upload Validation
-
-Publish endpoints validate archives before accepting storage writes:
-
-- file extension and zip format checks,
-- max upload size checks,
-- manifest presence/shape checks,
-- manifest validation checks,
-- integrity-manifest verification when provided.
-
-## Rate Limiting and Abuse Protection
-
-Rate-limiting middleware is in `server/middleware.py` with defaults from `server/config.py`.
-
-Default policy:
-
-- Auth endpoints: 5 requests per 60 seconds per IP.
-- Publish endpoints: 10 requests per hour per tenant.
-- Search endpoints: 60 requests per 60 seconds per IP.
-
-Responses include:
-
-- `X-RateLimit-Limit`
-- `X-RateLimit-Remaining`
-- `X-RateLimit-Reset`
-- `Retry-After` on `429` responses
-
-## Transport and Deployment Notes
-
-- Production-oriented CORS configuration exists in server config.
-- Expected deployment posture uses HTTPS fronted by edge/network controls.
-- Exact TLS/edge policy depends on deployment environment configuration.
+1. `kinnoo keygen`
+2. `kinnoo pack --sign ...`
+3. `kinnoo publish --pack --strict --remote`
+4. `kinnoo install --remote --strict`
 
 ## Responsible Disclosure
 
-Until a dedicated security process file exists, report suspected vulnerabilities directly to project maintainers through private channels instead of public issues.
+If you suspect a security vulnerability, report it privately to project maintainers instead of opening a public issue with exploit details.
