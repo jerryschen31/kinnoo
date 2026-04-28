@@ -7,6 +7,7 @@ refresh_registry_database_url_secret() {
   set -euo pipefail
 
   local db_id="${1:-}"
+  local db_instance_identifier=""
   local environment="${2:-dev}"
   local aws_region="${3:-us-west-2}"
   local project_name="${4:-kinnoo}"
@@ -36,9 +37,29 @@ refresh_registry_database_url_secret() {
   local payload
   local shape
 
-  master_secret_arn="$(AWS_PAGER='' aws rds describe-db-instances \
+  # Accept either DB instance identifier (e.g. kinnoo-prod-postgres)
+  # or RDS resource id (e.g. db-ABCDEFG...).
+  if AWS_PAGER='' aws rds describe-db-instances \
     --region "$aws_region" \
     --db-instance-identifier "$db_id" \
+    --query 'DBInstances[0].DBInstanceIdentifier' \
+    --output text >/dev/null 2>&1; then
+    db_instance_identifier="$db_id"
+  else
+    db_instance_identifier="$(AWS_PAGER='' aws rds describe-db-instances \
+      --region "$aws_region" \
+      --query "DBInstances[?DbiResourceId=='${db_id}'].DBInstanceIdentifier | [0]" \
+      --output text)"
+  fi
+
+  if [[ -z "$db_instance_identifier" || "$db_instance_identifier" == "None" ]]; then
+    echo "Could not resolve DB instance identifier from input '$db_id'." >&2
+    return 1
+  fi
+
+  master_secret_arn="$(AWS_PAGER='' aws rds describe-db-instances \
+    --region "$aws_region" \
+    --db-instance-identifier "$db_instance_identifier" \
     --query 'DBInstances[0].MasterUserSecret.SecretArn' \
     --output text)"
 
@@ -55,13 +76,13 @@ refresh_registry_database_url_secret() {
 
   host="$(AWS_PAGER='' aws rds describe-db-instances \
     --region "$aws_region" \
-    --db-instance-identifier "$db_id" \
+    --db-instance-identifier "$db_instance_identifier" \
     --query 'DBInstances[0].Endpoint.Address' \
     --output text)"
 
   port="$(AWS_PAGER='' aws rds describe-db-instances \
     --region "$aws_region" \
-    --db-instance-identifier "$db_id" \
+    --db-instance-identifier "$db_instance_identifier" \
     --query 'DBInstances[0].Endpoint.Port' \
     --output text)"
 
@@ -104,7 +125,7 @@ PY
   )"
 
   echo "Updated secret: $target_secret"
-  echo "RDS instance: $db_id"
+  echo "RDS instance: $db_instance_identifier"
   echo "Stored URL shape: $shape"
 }
 

@@ -39,6 +39,8 @@ web/.wrangler/
 **/.terraform/
 *.tfstate
 *.tfstate.*
+*.tfstate*
+*tfplan*
 
 # Reports
 outputs/
