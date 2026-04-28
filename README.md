@@ -12,11 +12,11 @@ Kinnoo is a unified platform that allows **AI agent developers** to create, pack
 
 ## What Kinnoo Is
 
-- Strong lifecycle harness: init, test, pack, publish, fetch, install, inspect, and run - all within the same CLI.
-- Strong contract harness: `kinnoo.yaml` provides a framework-agnostic manifest with validation and predictable runtime expectations.
-- Strong trust harness: integrity verification, optional signing, strict trust gates, and inspection-first workflows before install/run.
-- Strong distribution harness: registry auth, publish/search/list/install flows, and versioned artifact distribution for teams.
-- Framework portability: build and ship agents across common agent frameworks with consistent packaging and operator UX.
+- Strong **lifecycle** harness: `init`, `test`, `pack`, `publish`, `fetch`, `install`, `inspect`, `run` - all within the same CLI.
+- Strong **contract** harness: `kinnoo.yaml` provides a framework-agnostic manifest with validation and predictable runtime expectations.
+- Strong **trust** harness: integrity verification, optional signing, strict trust gates, and inspection-first workflows before install/run.
+- Strong **distribution** harness: registry auth, publish/search/list/install flows, and versioned artifact distribution for teams.
+- Framework **portability**: build and ship agents across common agent frameworks with consistent packaging and operator UX.
 
 ## What Kinnoo Is Not
 
@@ -27,7 +27,7 @@ Kinnoo is a unified platform that allows **AI agent developers** to create, pack
 
 ## Installation and Quick Start
 
-To install the Kinnoo CLI:
+To **install** the Kinnoo CLI:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
@@ -35,7 +35,7 @@ python3 -m pip install --upgrade pip
 pip install kinnoo
 ```
 
-To create and publish an agent to the Kinnoo registry:
+To **create and publish** an agent to the Kinnoo registry:
 ```bash
 kinnoo init chatgpt my-chat-agent
 kinnoo pack my-chat-agent
@@ -44,7 +44,7 @@ kinnoo login
 kinnoo publish my-chat-agent --pack --strict --remote
 ```
 
-To install and run an agent from the registry:
+To **install and run** an agent from the registry:
 ```bash
 kinnoo install kinnootest/test-chat-agent
 kinnoo run test-chat-agent 'what is 2+2?'
