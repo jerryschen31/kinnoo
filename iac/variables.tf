@@ -47,18 +47,6 @@ variable "github_repo" {
   default     = "kinnoo/kinnoo"
 }
 
-variable "github_oidc_provider_url" {
-  description = "OIDC provider URL for GitHub Actions"
-  type        = string
-  default     = "https://token.actions.githubusercontent.com"
-}
-
-variable "manage_github_oidc_provider" {
-  description = "Whether this environment should create/manage the GitHub OIDC provider"
-  type        = bool
-  default     = true
-}
-
 variable "sns_topic_arn" {
   description = "SNS topic ARN for operator notifications"
   type        = string
@@ -101,37 +89,58 @@ variable "zone_id" {
 }
 
 variable "base_domain" {
-  description = "Base DNS domain for frontend and API records"
+  description = "Base apex domain for kinnoo (e.g. kinnoo.ai). Shared by all environments."
   type        = string
   default     = "kinnoo.ai"
 }
 
-variable "api_record_name" {
-  description = "Cloudflare record name/host label for API endpoint (for example dev-api or api)"
-  type        = string
-  default     = "dev-api"
-}
-
-variable "frontend_record_name" {
-  description = "Cloudflare record name/host label for frontend endpoint (for example dev, @, or www)"
+variable "frontend_subdomain" {
+  description = "Subdomain label for the frontend (e.g. dev for dev.kinnoo.ai, www or empty for prod)."
   type        = string
   default     = "dev"
 }
 
-variable "dev_record_type" {
-  description = "DNS record type for managed frontend DNS record (for example CNAME for Pages, AAAA for Worker custom-domain setup)"
+variable "api_subdomain" {
+  description = "Subdomain label for the API ALB (e.g. dev-api for dev-api.kinnoo.ai, api for api.kinnoo.ai)."
+  type        = string
+  default     = "dev-api"
+}
+
+variable "frontend_record_type" {
+  description = "DNS record type for the frontend record (CNAME, AAAA, etc.)."
   type        = string
   default     = "CNAME"
 }
 
-variable "dev_record_content" {
-  description = "DNS record content/target for managed frontend DNS record"
+variable "frontend_record_content" {
+  description = "DNS record content/target for the frontend record (e.g. kinnoo.pages.dev)."
   type        = string
   default     = "kinnoo.pages.dev"
 }
 
+variable "manage_frontend_record" {
+  description = "Whether Terraform should manage the frontend DNS record in Cloudflare."
+  type        = bool
+  default     = false
+}
+
+# Backwards-compatible aliases for the old dev_*-prefixed inputs. These remain
+# so existing tfvars do not break, but new tfvars should set the neutral
+# frontend_* / api_subdomain inputs above.
+variable "dev_record_type" {
+  description = "Deprecated: use frontend_record_type."
+  type        = string
+  default     = ""
+}
+
+variable "dev_record_content" {
+  description = "Deprecated: use frontend_record_content."
+  type        = string
+  default     = ""
+}
+
 variable "manage_dev_record" {
-  description = "Whether Terraform should manage the configured frontend DNS record"
+  description = "Deprecated: use manage_frontend_record."
   type        = bool
   default     = false
 }
@@ -147,5 +156,14 @@ variable "lambda_security_check_image_uri" {
       && can(regex("^[0-9]{12}\\.dkr\\.ecr\\.[a-z0-9-]+\\.amazonaws\\.com\\/.+:.+$", var.lambda_security_check_image_uri))
     )
     error_message = "Set lambda_security_check_image_uri to a full private ECR image URI with tag (example: 123456789012.dkr.ecr.us-west-2.amazonaws.com/kinnoo-dev-lambda-security-check:v1). Do not use a public Lambda base image URI."
+  }
+
+  validation {
+    # Reject the well-known bootstrap placeholder (12 zeros for the account
+    # id) so a forgotten tfvars edit cannot silently apply against AWS. The
+    # placeholder is intentionally regex-valid so `terraform validate` passes
+    # for static scanning, but `terraform plan/apply` must refuse it.
+    condition     = !can(regex("^0{12}\\.dkr\\.ecr\\.", var.lambda_security_check_image_uri))
+    error_message = "lambda_security_check_image_uri is still set to the 000000000000 bootstrap placeholder. Run scripts/ops/build_and_push_lambda_security_check_image.sh and replace the value with the real ECR image URI."
   }
 }

@@ -7,14 +7,8 @@ terraform {
 }
 
 locals {
-  frontend_host = var.frontend_record_name
-  api_host      = var.api_record_name
-  frontend_fqdn = var.frontend_record_name == "@" ? var.domain : "${var.frontend_record_name}.${var.domain}"
-}
-
-moved {
-  from = cloudflare_record.dev_api
-  to   = cloudflare_record.api
+  frontend_host = var.frontend_subdomain
+  api_host      = var.api_subdomain
 }
 
 resource "cloudflare_record" "frontend" {
@@ -47,10 +41,22 @@ resource "cloudflare_record" "acm_validation" {
 
 output "frontend_url" {
   description = "Frontend URL"
-  value       = "https://${local.frontend_fqdn}"
+  value       = "https://${local.frontend_host}.${var.domain}"
 }
 
 output "api_url" {
   description = "API URL"
+  value       = "https://${local.api_host}.${var.domain}"
+}
+
+# Backwards-compatible aliases for downstream consumers that previously read
+# dev_url / dev_api_url. Safe to remove after consumers migrate.
+output "dev_url" {
+  description = "Deprecated alias for frontend_url"
+  value       = "https://${local.frontend_host}.${var.domain}"
+}
+
+output "dev_api_url" {
+  description = "Deprecated alias for api_url"
   value       = "https://${local.api_host}.${var.domain}"
 }

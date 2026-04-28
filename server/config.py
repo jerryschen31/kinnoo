@@ -109,14 +109,14 @@ class ServerConfig:
         cors_origins_raw = (os.getenv("CORS_ORIGINS") or "").strip()
         if env_raw == "production":
             if not cors_origins_raw:
-                # Restrictive defaults for beta deployment domains.
-                cors_origins = ("https://dev.kinnoo.ai", "https://dev-api.kinnoo.ai")
-            else:
-                cors_origins = tuple(
-                    origin.strip() for origin in cors_origins_raw.split(",") if origin.strip()
+                raise ValueError(
+                    "CORS_ORIGINS must be set in production (no implicit dev-domain fallback)."
                 )
-                if not cors_origins:
-                    raise ValueError("CORS_ORIGINS must contain at least one origin in production")
+            cors_origins = tuple(
+                origin.strip() for origin in cors_origins_raw.split(",") if origin.strip()
+            )
+            if not cors_origins:
+                raise ValueError("CORS_ORIGINS must contain at least one origin in production")
         else:
             if not cors_origins_raw:
                 cors_origins = ("*",)
