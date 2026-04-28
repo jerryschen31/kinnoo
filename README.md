@@ -40,6 +40,7 @@ pip install kinnoo
 kinnoo init chatgpt my-agent
 kinnoo run ./my-agent "hello"
 kinnoo pack ./my-agent
+export KINNOO_REGISTRY_URL=https://api.kinnoo.ai
 kinnoo login
 kinnoo publish ./my-agent --pack --strict --remote
 ```
