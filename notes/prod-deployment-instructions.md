@@ -199,13 +199,15 @@ kinnoo/prod/REVOCATION_ENDPOINT
 /kinnoo/prod/REGISTRY_DATABASE_URL          # note the leading slash
 ```
 
-These are **created** by the secrets module (do **not** pre-create them):
+These secret **containers** are created by `terraform apply` (do **not** pre-create them, as Terraform will fail on a name collision):
 
 ```text
 kinnoo/prod/jwt-secret
 kinnoo/prod/session-secret
 kinnoo/prod/admin-password
 ```
+
+Terraform creates the containers only. Secret **values** are intentionally **not** seeded by Terraform (seeding values would persist plaintext in the state file). After Phase 4's `terraform apply` succeeds, seed these three secrets manually (Step 3 below).
 
 ### Steps
 
@@ -261,6 +263,27 @@ kinnoo/prod/admin-password
      || echo "Already exists, leaving as-is."
    ```
 
+3. After Phase 4's `terraform apply` completes, seed the JWT/session/admin secret **values** manually. Terraform creates the secret containers but intentionally does not set values, to avoid persisting plaintext credentials in the state file:
+
+   ```bash
+   # Generate and store a random 64-byte hex JWT signing key
+   aws secretsmanager put-secret-value \
+     --secret-id "kinnoo/prod/jwt-secret" \
+     --secret-string "$(python3 -c 'import secrets; print(secrets.token_hex(64))')"
+
+   # Generate and store a random 64-byte hex session signing key
+   aws secretsmanager put-secret-value \
+     --secret-id "kinnoo/prod/session-secret" \
+     --secret-string "$(python3 -c 'import secrets; print(secrets.token_hex(64))')"
+
+   # Generate and store a random admin bootstrap password
+   aws secretsmanager put-secret-value \
+     --secret-id "kinnoo/prod/admin-password" \
+     --secret-string "$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
+   ```
+
+   Run each command only once. Check first with `aws secretsmanager get-secret-value --secret-id <name>` if unsure whether a value already exists.
+
 ### Smoke check
 
 ```bash
@@ -300,7 +323,7 @@ Expected: `All required prod secrets present.`
 - The Kinde redirect URIs you put into `KINDE_WEB_REDIRECT_URI` and `KINDE_LOGOUT_REDIRECT_URI` **must also be configured in the Kinde Prod app dashboard**. Otherwise login will fail at callback time with `redirect_uri mismatch`.
 - The JSON key inside each secret must equal the secret name's last segment. The ECS task definition extracts the value with the `secret-arn:KEY::` pointer (see `iac/modules/secrets/main.tf` `format("%s:%s::", arn, "KEY")`). Storing a raw string instead of JSON will produce empty env vars at runtime.
 - For `REGISTRY_DATABASE_URL`, the secret name has a **leading slash** (`/kinnoo/prod/REGISTRY_DATABASE_URL`). Do not create `kinnoo/prod/REGISTRY_DATABASE_URL` — the data source will not find it.
-- Do **not** pre-create `kinnoo/prod/jwt-secret`, `kinnoo/prod/session-secret`, `kinnoo/prod/admin-password`. These are managed by Terraform and will conflict.
+- Do **not** pre-create `kinnoo/prod/jwt-secret`, `kinnoo/prod/session-secret`, `kinnoo/prod/admin-password` before running `terraform apply`. Terraform creates the secret containers; a pre-existing secret with the same name will cause a conflict error. Seed the values manually after apply (Step 3 above).
 
 ---
 
