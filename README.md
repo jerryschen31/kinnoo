@@ -8,7 +8,7 @@
 
 Kinnoo is a unified platform that allows **AI agent developers** to create, package and share AI agents, which **agent end-users** can install and run on a local machine.
  
-[Website](https://kinnoo.ai) · [Docs](https://github.com/kinnoo-project/kinnoo/tree/main/docs) · [Getting Started](https://github.com/kinnoo-project/kinnoo/blob/main/docs/getting-started.md)
+[Website](https://kinnoo.ai) · [Docs](https://github.com/kinnoo-project/kinnoo/tree/main/docs/README.md) · [Getting Started](https://github.com/kinnoo-project/kinnoo/blob/main/docs/getting-started.md)
 
 ## What Kinnoo Is
 
