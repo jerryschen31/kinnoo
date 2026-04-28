@@ -10771,7 +10771,7 @@ tasks:
       - 'step4: Add/update tests validating DNS/resource isolation contract.'
     dependencies: [task517]
     tests: [test741]
-    status: not-started
+    status: needs-review
 
   - id: task519
     title: "feature121 production-safe deployment, lambda bootstrap, and dns smoke scripts"

@@ -27,3 +27,8 @@ def test_feature101_group2() -> None:
     assert "services:" in compose_text
     assert "server:" in compose_text
     assert "8000:8000" in compose_text
+
+
+def test_feature101_group3_server_dependencies() -> None:
+    server_requirements = _read("server/requirements.txt")
+    assert "PyYAML" in server_requirements

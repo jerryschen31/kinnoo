@@ -1,5 +1,9 @@
 data "aws_caller_identity" "current" {}
 
+locals {
+  api_domain = "${var.api_record_name}.${var.base_domain}"
+}
+
 module "vpc" {
   source = "./modules/vpc"
 
@@ -27,6 +31,8 @@ module "iam" {
   project_name        = var.project_name
   registry_bucket_arn = module.s3_registry.bucket_arn
   github_repo         = var.github_repo
+  github_oidc_provider_url = var.github_oidc_provider_url
+  manage_github_oidc_provider = var.manage_github_oidc_provider
   tags                = local.common_tags
 }
 
@@ -45,6 +51,7 @@ module "lambda_security_check" {
 module "secrets" {
   source = "./modules/secrets"
 
+  aws_region   = var.aws_region
   environment  = var.environment
   project_name = var.project_name
   tags         = local.common_tags
@@ -66,7 +73,7 @@ module "alb" {
   vpc_id                = module.vpc.vpc_id
   public_subnet_ids     = module.vpc.public_subnet_ids
   alb_security_group_id = module.vpc.alb_security_group_id
-  api_domain            = "dev-api.kinnoo.ai"
+  api_domain            = local.api_domain
   tags                  = local.common_tags
 }
 
@@ -111,10 +118,12 @@ module "cloudflare" {
   source = "./modules/cloudflare"
 
   zone_id               = var.zone_id
-  domain                = "kinnoo.ai"
-  dev_record_type       = var.dev_record_type
-  dev_record_content    = var.dev_record_content
-  manage_dev_record     = var.manage_dev_record
+  domain                = var.base_domain
+  api_record_name       = var.api_record_name
+  frontend_record_name  = var.frontend_record_name
+  frontend_record_type  = var.dev_record_type
+  frontend_record_content = var.dev_record_content
+  manage_frontend_record = var.manage_dev_record
   alb_dns_name          = module.alb.alb_dns_name
   acm_validation_record = module.alb.acm_validation_record
 }

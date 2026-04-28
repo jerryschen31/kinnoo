@@ -7,23 +7,29 @@ terraform {
 }
 
 locals {
-  dev_host     = "dev"
-  dev_api_host = "dev-api"
+  frontend_host = var.frontend_record_name
+  api_host      = var.api_record_name
+  frontend_fqdn = var.frontend_record_name == "@" ? var.domain : "${var.frontend_record_name}.${var.domain}"
 }
 
-resource "cloudflare_record" "dev_pages" {
-  count   = var.manage_dev_record ? 1 : 0
+moved {
+  from = cloudflare_record.dev_api
+  to   = cloudflare_record.api
+}
+
+resource "cloudflare_record" "frontend" {
+  count   = var.manage_frontend_record ? 1 : 0
   zone_id = var.zone_id
-  name    = local.dev_host
-  type    = var.dev_record_type
-  content = var.dev_record_content
+  name    = local.frontend_host
+  type    = var.frontend_record_type
+  content = var.frontend_record_content
   ttl     = 1
   proxied = true
 }
 
-resource "cloudflare_record" "dev_api" {
+resource "cloudflare_record" "api" {
   zone_id = var.zone_id
-  name    = local.dev_api_host
+  name    = local.api_host
   type    = "CNAME"
   content = var.alb_dns_name
   ttl     = 1
@@ -39,12 +45,12 @@ resource "cloudflare_record" "acm_validation" {
   proxied = false
 }
 
-output "dev_url" {
-  description = "Dev frontend URL"
-  value       = "https://${local.dev_host}.${var.domain}"
+output "frontend_url" {
+  description = "Frontend URL"
+  value       = "https://${local.frontend_fqdn}"
 }
 
-output "dev_api_url" {
-  description = "Dev API URL"
-  value       = "https://${local.dev_api_host}.${var.domain}"
+output "api_url" {
+  description = "API URL"
+  value       = "https://${local.api_host}.${var.domain}"
 }
