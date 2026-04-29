@@ -6,6 +6,11 @@ terraform {
   }
 }
 
+moved {
+  from = cloudflare_record.dev_api
+  to   = cloudflare_record.api
+}
+
 locals {
   frontend_host = var.frontend_subdomain
   api_host      = var.api_subdomain

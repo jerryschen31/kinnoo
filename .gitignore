@@ -41,6 +41,7 @@ web/.wrangler/
 *.tfstate.*
 *.tfstate*
 *tfplan*
+*.plan
 
 # Reports
 outputs/

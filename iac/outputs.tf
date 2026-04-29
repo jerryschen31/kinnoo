@@ -40,32 +40,32 @@ output "lambda_security_check_ecr_repository_url" {
 
 output "alb_dns_name" {
   description = "ALB DNS name"
-  value       = module.alb.alb_dns_name
+  value       = try(module.alb[0].alb_dns_name, null)
 }
 
 output "alb_target_group_arn" {
   description = "ALB target group ARN"
-  value       = module.alb.target_group_arn
+  value       = try(module.alb[0].target_group_arn, null)
 }
 
 output "acm_validation_record" {
   description = "ACM DNS validation record for Cloudflare"
-  value       = module.alb.acm_validation_record
+  value       = try(module.alb[0].acm_validation_record, null)
 }
 
 output "ecs_cluster_arn" {
   description = "ECS cluster ARN"
-  value       = module.ecs_fargate.cluster_arn
+  value       = try(module.ecs_fargate[0].cluster_arn, null)
 }
 
 output "ecs_service_name" {
   description = "ECS service name"
-  value       = module.ecs_fargate.service_name
+  value       = try(module.ecs_fargate[0].service_name, null)
 }
 
 output "efs_file_system_id" {
   description = "EFS file system ID"
-  value       = module.ecs_fargate.efs_file_system_id
+  value       = try(module.ecs_fargate[0].efs_file_system_id, null)
 }
 
 output "security_check_lambda_name" {
@@ -80,10 +80,10 @@ output "security_check_lambda_arn" {
 
 output "registry_db_endpoint" {
   description = "Postgres instance endpoint"
-  value       = module.rds_postgres.address
+  value       = try(module.rds_postgres[0].address, null)
 }
 
 output "registry_db_identifier" {
   description = "Postgres instance identifier"
-  value       = module.rds_postgres.db_instance_identifier
+  value       = try(module.rds_postgres[0].db_instance_identifier, null)
 }
