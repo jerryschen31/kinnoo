@@ -2068,6 +2068,7 @@ features:
       imported ClawHub skills have explicit type and provenance while keeping metadata
       intentionally minimal.
     tasks: [task334, task335]
+    status: deprecated
     acceptance_criteria:
       - id: AC1
         description: "Schema supports `type: openclaw-skill` with validation rules for framework/type compatibility."
@@ -2591,6 +2592,7 @@ features:
       registered with openclaw, prompt to install the agent first. The skill must exist
       on ClawHub.
     tasks: [task376, task377]
+    status: deprecated
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo install --openclaw-skill <slug> <agent>` delegates to `openclaw skills install <slug>` targeting the agent's workspace."
@@ -2618,6 +2620,7 @@ features:
       by delegating to `openclaw skills search <query>`. Provides discovery of
       available OpenClaw skills through the kinnoo CLI surface.
     tasks: [task378, task379]
+    status: deprecated
     acceptance_criteria:
       - id: AC1
         description: "`kinnoo search --openclaw-skill <query>` delegates to `openclaw skills search <query>` with stdout passthrough."
