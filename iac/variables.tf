@@ -47,6 +47,24 @@ variable "github_repo" {
   default     = "kinnoo/kinnoo"
 }
 
+variable "manage_github_oidc_provider" {
+  description = "Whether this environment manages the shared GitHub OIDC provider in AWS IAM"
+  type        = bool
+  default     = false
+}
+
+variable "enable_dev_runtime" {
+  description = "Dev-only toggle for runtime stack modules (ALB, ECS, WAF, Cloudflare API/ACM records). Ignored outside dev."
+  type        = bool
+  default     = true
+}
+
+variable "enable_dev_database" {
+  description = "Dev-only toggle for the Postgres database module. Ignored outside dev."
+  type        = bool
+  default     = true
+}
+
 variable "sns_topic_arn" {
   description = "SNS topic ARN for operator notifications"
   type        = string
