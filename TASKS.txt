@@ -11027,3 +11027,32 @@ tasks:
     dependencies: [task526]
     tests: [test750]
     status: needs-review
+
+  - id: task528
+    title: "issue379 add Terms of Service and Privacy Policy pages"
+    type: task
+    epic: [E4]
+    owner: swe-agent
+    description: |
+      Implement public /terms and /privacy routes in the Next.js web frontend
+      with long-form, professional legal text covering the protections and
+      compliance topics required by issue #379. Add a shared LegalPage layout
+      component for consistent typography. Surface the new pages in the global
+      site footer and the navigation menu so they are reachable from anywhere
+      in the app, and add Vitest coverage that asserts the required sections
+      and clauses are rendered.
+    files:
+      - web/app/(public)/terms/page.tsx
+      - web/app/(public)/privacy/page.tsx
+      - web/components/blocks/LegalPage.tsx
+      - web/components/blocks/MainLayout.tsx
+      - web/__tests__/legal-pages.test.tsx
+    steps:
+      - 'step1: Add shared LegalPage / LegalSection / LegalSubsection layout components.'
+      - 'step2: Implement /terms page with About, Eligibility, User Content + License, Non-Endorsement, User Responsibility (Human-in-the-Loop), Acceptable Use, Intellectual Property, Termination + archival retention, AS-IS/AS-AVAILABLE Disclaimers, Limitation of Liability, Indemnification, Governing Law, and General Provisions sections.'
+      - 'step3: Implement /privacy page with Scope, Information Collected (incl. Kinde Auth + Google/GitHub social sign-in), Use, GDPR Legal Bases, Sharing (incl. Kinde as processor and no-sale clause), International Transfers, Retention, Security, GDPR + CCPA Rights, Children Under 13, DNT/Third Parties, Changes, and Contact sections.'
+      - 'step4: Add /terms and /privacy links in the navigation menu and a new global site footer in MainLayout.'
+      - 'step5: Add Vitest tests asserting each page renders title, last-updated date, all top-level section headings in order, the required production-ready clauses from issue #379, and a cross-link between the two pages.'
+    dependencies: []
+    tests: [test751, test752]
+    status: needs-review
