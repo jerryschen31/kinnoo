@@ -36,7 +36,6 @@ jobs:
         run: npx @opennextjs/cloudflare build
 
   deploy-prod:
-    if: github.ref == 'refs/heads/master'
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     environment:
