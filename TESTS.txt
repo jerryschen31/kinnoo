@@ -13101,7 +13101,7 @@ tests:
       - "pytest_markers: regression_unit,frontend"
       - "automation_path_subfolder: web/__tests__"
     automated: true
-    automation_path: web/__tests__/legal-pages.test.tsx::Terms of Service page
+    automation_path: web/__tests__/legal-pages.test.tsx
 
   - id: test752
     title: "issue379 privacy policy page renders required sections and clauses"
@@ -13125,4 +13125,4 @@ tests:
       - "pytest_markers: regression_unit,frontend"
       - "automation_path_subfolder: web/__tests__"
     automated: true
-    automation_path: web/__tests__/legal-pages.test.tsx::Privacy Policy page
+    automation_path: web/__tests__/legal-pages.test.tsx
