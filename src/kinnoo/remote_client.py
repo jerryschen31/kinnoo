@@ -87,7 +87,20 @@ class RemoteRegistryClient:
         encoded_name = urllib_parse.quote(name, safe="")
         encoded_version = urllib_parse.quote(selected_version, safe="")
         path = f"/api/agents/{encoded_tenant}/{encoded_name}/{encoded_version}/download"
-        return self._request_json(method="GET", path=path)
+        response = self._request_json(method="GET", path=path)
+        if isinstance(response, dict):
+            response = dict(response)
+            raw_download_url = response.get("download_url")
+            if isinstance(raw_download_url, str):
+                normalized_download_url = raw_download_url.strip()
+                if normalized_download_url:
+                    parsed = urllib_parse.urlparse(normalized_download_url)
+                    if not parsed.scheme:
+                        if not normalized_download_url.startswith("/"):
+                            normalized_download_url = "/" + normalized_download_url.lstrip("/")
+                        normalized_download_url = f"{self._base_url}{normalized_download_url}"
+                    response["download_url"] = normalized_download_url
+        return response
 
     def search(self, *, query: str, tenant: str | None = None) -> list[dict[str, Any]]:
         """Search agents by name/description on remote registry."""
@@ -106,6 +119,45 @@ class RemoteRegistryClient:
         if isinstance(response, list):
             return response
         return response.get("items", []) if isinstance(response, dict) else []
+
+    def fetch_clawhub_mirror_record(self, *, slug: str) -> dict[str, Any] | None:
+        """Fetch a mirrored ClawHub record by slug when backend supports this endpoint."""
+        normalized_slug = slug.strip().strip("/")
+        if not normalized_slug:
+            return None
+
+        encoded_slug = urllib_parse.quote(normalized_slug, safe="")
+        try:
+            response = self._request_json(method="GET", path=f"/api/mirror/clawhub/{encoded_slug}")
+        except RemoteRegistryClientError as error:
+            if "not found (404)" in str(error).lower():
+                return None
+            raise
+
+        if isinstance(response, dict):
+            return response
+        return None
+
+    def fetch_clawhub_mirror_index(
+        self,
+        *,
+        full: bool = False,
+        since: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Fetch mirrored ClawHub index records for sync workflows."""
+        query_params = {"mode": "full" if full else "incremental"}
+        if since is not None and since.strip():
+            query_params["since"] = since.strip()
+
+        encoded_query = urllib_parse.urlencode(query_params)
+        response = self._request_json(method="GET", path=f"/api/mirror/clawhub?{encoded_query}")
+        if isinstance(response, list):
+            return [item for item in response if isinstance(item, dict)]
+        if isinstance(response, dict):
+            items = response.get("items")
+            if isinstance(items, list):
+                return [item for item in items if isinstance(item, dict)]
+        return []
 
     # Compatibility methods to satisfy the broader registry protocol shape used
     # by existing service code until remote CLI selection is introduced in task232.
@@ -176,6 +228,40 @@ class RemoteRegistryClient:
                 "Please try again or contact the registry administrator."
             ) from None
         return decoded
+
+    def request_bytes(self, *, path: str) -> bytes:
+        """Fetch raw bytes from a remote API path using bearer auth."""
+        normalized_path = path.strip()
+        if not normalized_path:
+            raise ValueError("path must be non-empty")
+        if not normalized_path.startswith("/"):
+            normalized_path = "/" + normalized_path
+
+        url = f"{self._base_url}{normalized_path}"
+        headers = {
+            "Authorization": f"Bearer {self._token}",
+            "User-Agent": _http_user_agent(),
+        }
+
+        request = urllib_request.Request(
+            url=url,
+            headers=headers,
+            method="GET",
+        )
+
+        try:
+            with urllib_request.urlopen(request, timeout=self._timeout_seconds) as response:
+                return response.read()
+        except urllib_error.HTTPError as error:
+            response_body = _read_http_error_body(error)
+            raise RemoteRegistryClientError(
+                _message_for_http_error(error.code, response_body=response_body)
+            ) from None
+        except urllib_error.URLError:
+            raise RemoteRegistryClientError(
+                "Remote registry request failed (network error). "
+                "Check network connectivity and registry URL."
+            ) from None
 
 
 def _message_for_http_error(status_code: int, *, response_body: str = "") -> str:

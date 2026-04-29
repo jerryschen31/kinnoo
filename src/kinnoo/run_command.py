@@ -27,6 +27,7 @@ from .health_check import (
     run_service_health_check,
 )
 from .schema import SUPPORTED_NODE_PACKAGE_MANAGERS, normalize_env_vars
+from .runtime_language import is_nodejs_compatible_runtime
 from .sandbox import evaluate_sandbox_permissions
 from .install_trace import write_violation_event
 from .logging_utils import emit_violation_event_diagnostic
@@ -37,6 +38,7 @@ from .runtime_monitor import posix_resource_limits_supported
 from .runtime_monitor import resolve_monitor_policy_summary
 from .runtime_monitor import resolve_violation_enforcement
 from .terminal_colors import style_text
+from .openclaw_preflight import run_openclaw_preflight_for_command
 from .supervisor import (
     build_daemon_state_payload,
     clear_daemon_state,
@@ -52,7 +54,7 @@ from .supervisor import (
     wait_until_ready,
     write_daemon_state,
 )
-from .validator import validate
+from .validator import resolve_entrypoint_selection, validate
 
 
 def _redact_secrets(text: str, secret_values: Iterable[str]) -> str:
@@ -328,10 +330,19 @@ def _extract_dependency_names(requirements_path: Path) -> list[str]:
     return unique_dependency_names
 
 
-def _check_preflight_entrypoint(manifest: dict, agent_dir: Path) -> tuple[bool, str]:
-    entrypoint = manifest.get("entrypoint")
-    if not isinstance(entrypoint, str) or not entrypoint.strip():
-        return False, "entrypoint check failed: manifest entrypoint is missing or empty"
+def _check_preflight_entrypoint(
+    manifest: dict,
+    agent_dir: Path,
+    entrypoint_arg: str | None = None,
+) -> tuple[bool, str]:
+    selection, selection_errors = resolve_entrypoint_selection(
+        manifest,
+        requested_entrypoint=entrypoint_arg,
+    )
+    if selection is None:
+        return False, f"entrypoint check failed: {selection_errors[0]}"
+
+    entrypoint = selection["selected_entrypoint"]
 
     entrypoint_path = agent_dir / entrypoint
     if not entrypoint_path.exists():
@@ -463,27 +474,32 @@ def _manifest_declared_io_types(manifest: dict, section_name: str) -> list[str]:
 def _stream_and_capture_process_output(
     process: subprocess.Popen,
     timeout_seconds: float | None = None,
+    *,
+    echo_streams: bool = True,
 ) -> tuple[str, str, bool]:
     stdout_chunks: list[str] = []
     stderr_chunks: list[str] = []
 
-    def _pump(stream, target_stream, chunks: list[str]) -> None:
+    def _pump(stream, target_stream, chunks: list[str], *, echo: bool) -> None:
         if stream is None:
             return
         for line in iter(stream.readline, ""):
             chunks.append(line)
-            target_stream.write(line)
-            target_stream.flush()
+            if echo:
+                target_stream.write(line)
+                target_stream.flush()
         stream.close()
 
     stdout_thread = threading.Thread(
         target=_pump,
         args=(process.stdout, sys.stdout, stdout_chunks),
+        kwargs={"echo": echo_streams},
         daemon=True,
     )
     stderr_thread = threading.Thread(
         target=_pump,
         args=(process.stderr, sys.stderr, stderr_chunks),
+        kwargs={"echo": echo_streams},
         daemon=True,
     )
 
@@ -633,7 +649,7 @@ def _build_pass_through_guard_inputs(pass_through_args: list[str]) -> list[tuple
     return inputs
 
 
-def run_preflight(agent_dir_arg: str) -> int:
+def run_preflight(agent_dir_arg: str, entrypoint_arg: str | None = None) -> int:
     """Run preflight-only checks without executing the agent entrypoint."""
     agent_dir = Path(agent_dir_arg).resolve()
     kinnoo_yaml = agent_dir / "kinnoo.yaml"
@@ -703,16 +719,20 @@ def run_preflight(agent_dir_arg: str) -> int:
     dependencies_message = "dependency readiness check failed: manifest validation prerequisite not met"
     if manifest_valid and manifest is not None:
         runtime_version_constraint = str(runtime_section.get("version", ""))
-        if runtime_language == "nodejs":
+        if is_nodejs_compatible_runtime(runtime_language):
             runtime_constraint_ok, runtime_message = check_node_runtime_constraint(runtime_version_constraint)
         else:
             runtime_constraint_ok, runtime_message = _check_runtime_version_constraint(runtime_version_constraint)
 
         env_vars_ok, env_vars_message = _check_preflight_env_vars(manifest, agent_dir)
 
-        entrypoint_ok, entrypoint_message = _check_preflight_entrypoint(manifest, agent_dir)
+        entrypoint_ok, entrypoint_message = _check_preflight_entrypoint(
+            manifest,
+            agent_dir,
+            entrypoint_arg=entrypoint_arg,
+        )
 
-        if runtime_language == "nodejs":
+        if is_nodejs_compatible_runtime(runtime_language):
             package_manager_raw = runtime_section.get("package_manager")
             package_manager = "npm"
             if package_manager_raw is not None:
@@ -807,7 +827,7 @@ def run_preflight(agent_dir_arg: str) -> int:
 
     if manifest_valid and manifest is not None:
         if not runtime_constraint_ok:
-            if runtime_language == "nodejs":
+            if is_nodejs_compatible_runtime(runtime_language):
                 print("  - Action: install or upgrade Node.js so runtime.version in kinnoo.yaml is satisfied")
             else:
                 print("  - Action: use a Python interpreter that satisfies runtime.version in kinnoo.yaml")
@@ -816,7 +836,7 @@ def run_preflight(agent_dir_arg: str) -> int:
         if not entrypoint_ok:
             print("  - Action: ensure manifest entrypoint exists and is readable")
         if not dependencies_ok:
-            if runtime_language == "nodejs":
+            if is_nodejs_compatible_runtime(runtime_language):
                 print("  - Action: install the configured Node package manager and ensure it is on PATH")
             else:
                 print("  - Action: create agent .venv and install requirements (for example: kinnoo run <agent-dir> '<input>')")
@@ -846,7 +866,7 @@ def run_preflight(agent_dir_arg: str) -> int:
     print(style_text("Not ready to run", color="red", bold=True, stream=sys.stdout))
     print("Remediation summary:")
     if not runtime_constraint_ok:
-        if runtime_language == "nodejs":
+        if is_nodejs_compatible_runtime(runtime_language):
             print("- runtime version: install or upgrade Node.js to satisfy runtime.version")
         else:
             print("- runtime version: use a compatible Python interpreter per runtime.version")
@@ -855,7 +875,7 @@ def run_preflight(agent_dir_arg: str) -> int:
     if not entrypoint_ok:
         print("- entrypoint: ensure manifest entrypoint exists and is readable")
     if not dependencies_ok:
-        if runtime_language == "nodejs":
+        if is_nodejs_compatible_runtime(runtime_language):
             print("- dependencies: install the configured Node package manager and ensure it is on PATH")
         else:
             print("- dependencies: create .venv and install requirements")
@@ -1011,9 +1031,12 @@ def attach_agent(agent_dir_arg: str) -> int:
         return 1
 
     runtime_language = state_payload.get("runtime_language")
-    if runtime_language not in ("python", "nodejs"):
+    if runtime_language != "python" and not is_nodejs_compatible_runtime(runtime_language):
         _print_safe_error(
-            f"Error: attach is unsupported for runtime.language '{runtime_language}'. Supported values: python, nodejs"
+            (
+                f"Error: attach is unsupported for runtime.language '{runtime_language}'. "
+                "Supported values: python, nodejs, javascript, typescript"
+            )
         )
         return 1
 
@@ -1176,6 +1199,7 @@ def logs_agent(agent_dir_arg: str, follow: bool = False, tail_lines: int = 20) -
 def run_agent(
     agent_dir_arg: str,
     input_arg: str | None,
+    entrypoint_arg: str | None = None,
     json_input_arg: str | None = None,
     json_file_arg: str | None = None,
     preflight: bool = False,
@@ -1183,18 +1207,24 @@ def run_agent(
     pass_through_args: list[str] | None = None,
     sandbox: bool = False,
     dry_run: bool = False,
+    experimental_openclaw_adapter: bool = False,
+    openclaw_thinking: str | None = None,
+    openclaw_json_output: bool = False,
     max_seconds: float | None = None,
     max_cpu_seconds: int | None = None,
     max_memory_mb: int | None = None,
 ) -> int:
+    run_started_at = datetime.now(timezone.utc)
     runtime_pass_through_args = list(pass_through_args or [])
     if preflight:
-        return run_preflight(agent_dir_arg)
+        return run_preflight(agent_dir_arg, entrypoint_arg=entrypoint_arg)
 
     agent_dir = Path(agent_dir_arg).resolve()
     trace_manifest: dict | None = None
     trace_lifecycle: dict[str, object] | None = None
     trace_forbidden_values: list[str] = []
+    runtime_warnings: list[str] = []
+    policy_violations: list[dict[str, str]] = []
     runtime_monitor: RuntimeMonitor | None = None
     if input_arg is not None:
         trace_forbidden_values.append(input_arg)
@@ -1253,6 +1283,8 @@ def run_agent(
     runtime_type = runtime_section.get("type") if isinstance(runtime_section.get("type"), str) else "one-shot"
     runtime_language_raw = runtime_section.get("language") if isinstance(runtime_section.get("language"), str) else "python"
     runtime_language = runtime_language_raw.strip().lower() or "python"
+    manifest_type_raw = manifest.get("type") if isinstance(manifest, dict) else None
+    manifest_type = manifest_type_raw.strip().lower() if isinstance(manifest_type_raw, str) else "agent"
 
     runtime_path: Path | None = None
     runtime_path_value = runtime_section.get("path") if isinstance(runtime_section.get("path"), str) else None
@@ -1364,9 +1396,12 @@ def run_agent(
                     return finalize(1)
     elif runtime_language == "python":
         python_exe = Path(sys.executable)
-    elif runtime_language != "nodejs":
+    elif not is_nodejs_compatible_runtime(runtime_language):
         _print_safe_error(
-            f"Error: Unsupported runtime.language '{runtime_language}'. Supported values are: python, nodejs"
+            (
+                f"Error: Unsupported runtime.language '{runtime_language}'. "
+                "Supported values are: python, nodejs, javascript, typescript"
+            )
         )
         return finalize(1)
 
@@ -1375,10 +1410,14 @@ def run_agent(
         _print_safe_error("Error: input is required for kinnoo run unless --preflight is used")
         return finalize(1)
 
-    entrypoint = manifest.get("entrypoint")
-    if not entrypoint:
-        _print_safe_error("Error: 'entrypoint' not specified in kinnoo.yaml")
+    entrypoint_selection, entrypoint_selection_errors = resolve_entrypoint_selection(
+        manifest,
+        requested_entrypoint=entrypoint_arg,
+    )
+    if entrypoint_selection is None:
+        _print_safe_error(f"Error: {entrypoint_selection_errors[0]}")
         return finalize(1)
+    entrypoint = entrypoint_selection["selected_entrypoint"]
 
     declared_env_vars = normalize_env_vars(manifest.get("env_vars"))
     dotenv_values = _load_agent_dotenv(agent_dir / ".env")
@@ -1485,6 +1524,15 @@ def run_agent(
                 print(f"[kinnoo] violation event logged: '{violation_trace_path}'", file=sys.stderr)
 
             if enforcement_decision.action == "warn_continue":
+                policy_violations.append(
+                    {
+                        "classification": str(sandbox_decision.code),
+                        "capability": str(sandbox_decision.capability or "unspecified"),
+                        "action": str(sandbox_decision.action or "unspecified"),
+                        "reason_code": str(enforcement_decision.reason_code),
+                        "message": str(sandbox_decision.message),
+                    }
+                )
                 _print_safe_error(
                     "Warning: runtime policy violation allowed in warn mode "
                     f"(reason_code={enforcement_decision.reason_code}); execution continues.",
@@ -1508,7 +1556,8 @@ def run_agent(
                 )
                 return finalize(1)
 
-        print("[kinnoo] sandbox policy check passed", flush=True)
+        if not openclaw_json_output:
+            print("[kinnoo] sandbox policy check passed", flush=True)
 
     # Evaluate the user input before entrypoint execution; this is warning-based and never hard-rejects
     # when a user explicitly confirms in interactive mode.
@@ -1528,6 +1577,9 @@ def run_agent(
             aggregate_warnings.extend(guard_result.warnings)
 
         if aggregate_warnings:
+            for warning in aggregate_warnings:
+                param_suffix = f" (param: {warning.param_name})" if warning.param_name else ""
+                runtime_warnings.append(f"[{warning.threat_category}] {warning.description}{param_suffix}")
             print("[kinnoo] Input safety warning:", file=sys.stderr)
             for warning in aggregate_warnings:
                 param_suffix = f" (param: {warning.param_name})" if warning.param_name else ""
@@ -1566,6 +1618,65 @@ def run_agent(
                 pythonpath_parts.append(existing_pythonpath)
             subprocess_env["PYTHONPATH"] = os.pathsep.join(pythonpath_parts)
 
+    if manifest_type == "openclaw-skill":
+        preflight_result = run_openclaw_preflight_for_command("run")
+        if not preflight_result.ok:
+            _print_safe_error(f"Error: {preflight_result.message}")
+            return finalize(1)
+
+        agent_name_value = manifest.get("name")
+        agent_name = str(agent_name_value).strip() if isinstance(agent_name_value, str) else ""
+        if not agent_name:
+            _print_safe_error("Error: OpenClaw run requires a non-empty manifest name field.")
+            return finalize(1)
+
+        delegated_command = [
+            "openclaw",
+            "agent",
+            "--agent",
+            agent_name,
+            "--message",
+            effective_input_arg or "",
+        ]
+        if openclaw_thinking is not None:
+            delegated_command.extend(["--thinking", openclaw_thinking])
+        if openclaw_json_output:
+            delegated_command.append("--json")
+
+        if not openclaw_json_output:
+            print(
+                "[kinnoo run][openclaw] delegated invocation: "
+                f"command={' '.join(delegated_command)}",
+                flush=True,
+            )
+        try:
+            delegated_process = subprocess.Popen(
+                delegated_command,
+                cwd=agent_dir,
+                stdout=sys.stdout,
+                stderr=sys.stderr,
+                env=subprocess_env,
+            )
+            delegated_process.communicate()
+        except Exception as error:
+            _print_safe_error(
+                "Error: OpenClaw run delegation invocation failed "
+                f"(category=openclaw_agent_invocation_failed): {error}",
+                secret_values=resolved_env_vars.values(),
+            )
+            return finalize(1)
+
+        if delegated_process.returncode != 0:
+            _print_safe_error(
+                "Error: OpenClaw run delegation failed "
+                "(category=openclaw_agent_runtime_nonzero_exit). "
+                "Review OpenClaw command output and retry.",
+                secret_values=resolved_env_vars.values(),
+            )
+            return finalize(delegated_process.returncode)
+
+        return finalize(0)
+
     runtime_run_command = runtime_section.get("run_command") if isinstance(runtime_section.get("run_command"), str) else None
     if runtime_run_command and runtime_run_command.strip():
         try:
@@ -1574,7 +1685,7 @@ def run_agent(
             _print_safe_error(f"Error: Invalid runtime.run_command value: {error}")
             return finalize(1)
         process_args = [token.replace("{entrypoint}", str(entrypoint_path)) for token in process_args]
-    elif runtime_language == "nodejs":
+    elif is_nodejs_compatible_runtime(runtime_language):
         entrypoint_suffix = entrypoint_path.suffix.lower()
         if entrypoint_suffix in {".ts", ".tsx"}:
             process_args = ["npx", "tsx", str(entrypoint_path)]
@@ -1626,15 +1737,21 @@ def run_agent(
         runtime_language=runtime_language,
         force_telemetry_limited=force_telemetry_limited,
     )
-    print(
-        "[kinnoo monitor] policy summary: "
-        f"network={'allowed' if monitor_policy_summary.network_allowed else 'denied'}, "
-        f"filesystem_scope={monitor_policy_summary.filesystem_scope}, "
-        f"shell={'allowed' if monitor_policy_summary.shell_allowed else 'denied'}, "
-        f"browser={'allowed' if monitor_policy_summary.browser_allowed else 'denied'}"
-    )
+    if not openclaw_json_output:
+        print(
+            "[kinnoo monitor] policy summary: "
+            f"network={'allowed' if monitor_policy_summary.network_allowed else 'denied'}, "
+            f"filesystem_scope={monitor_policy_summary.filesystem_scope}, "
+            f"shell={'allowed' if monitor_policy_summary.shell_allowed else 'denied'}, "
+            f"browser={'allowed' if monitor_policy_summary.browser_allowed else 'denied'}"
+        )
     if monitor_policy_summary.telemetry_limited:
         limited_caps = ", ".join(monitor_policy_summary.telemetry_limited_capabilities)
+        runtime_warnings.append(
+            "telemetry_limited: "
+            f"reason_code={monitor_policy_summary.telemetry_reason_code}; "
+            f"limited_capabilities=[{limited_caps}]"
+        )
         print(
             "[kinnoo monitor] graceful degradation: "
             f"reason_code={monitor_policy_summary.telemetry_reason_code} "
@@ -1810,6 +1927,79 @@ def run_agent(
             signal.signal(signal.SIGINT, previous_sigint_handler)
 
     try:
+        if openclaw_json_output:
+            process_kwargs = {
+                "cwd": agent_dir,
+                "stdout": subprocess.PIPE,
+                "stderr": subprocess.PIPE,
+                "env": subprocess_env,
+                "text": True,
+                "bufsize": 1,
+            }
+            if resource_preexec_fn is not None:
+                process_kwargs["preexec_fn"] = resource_preexec_fn
+            process = subprocess.Popen(
+                process_args,
+                **process_kwargs,
+            )
+            captured_stdout, captured_stderr, timed_out = _stream_and_capture_process_output(
+                process,
+                timeout_seconds=resource_controls.max_seconds,
+                echo_streams=False,
+            )
+
+            run_finished_at = datetime.now(timezone.utc)
+            payload: dict[str, object] = {
+                "output": captured_stdout,
+                "exit_code": 1 if timed_out else int(process.returncode),
+                "success": (not timed_out) and process.returncode == 0,
+                "start_time": run_started_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "end_time": run_finished_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "duration_seconds": (run_finished_at - run_started_at).total_seconds(),
+                "agent_dir": str(agent_dir),
+                "entrypoint": str(entrypoint),
+                "entrypoint_selection_source": str(entrypoint_selection["selection_source"]),
+                "entrypoint_contract_mode": str(entrypoint_selection["contract_mode"]),
+                "declared_entrypoints": list(entrypoint_selection["declared_entrypoints"]),
+                "runtime_language": runtime_language,
+                "runtime_type": runtime_type,
+                "input": effective_input_arg,
+                "error": None,
+                "warnings": runtime_warnings,
+                "resource_usage": None,
+                "policy_enforced": sandbox,
+                "policy_violations": policy_violations,
+            }
+
+            if timed_out:
+                payload["error"] = "runtime resource control triggered kill switch (reason_code=wall_clock_timeout_exceeded)"
+                print(json.dumps(payload, sort_keys=True))
+                return finalize(1)
+
+            if process.returncode != 0:
+                if resource_controls.max_cpu_seconds is not None and process.returncode < 0:
+                    payload["error"] = "runtime resource control triggered kill switch (reason_code=cpu_limit_exceeded)"
+                else:
+                    payload["error"] = captured_stderr.strip() or "agent run failed"
+                print(json.dumps(payload, sort_keys=True))
+                return finalize(process.returncode)
+
+            if enforce_json_output_contract:
+                try:
+                    json.loads(captured_stdout)
+                except json.JSONDecodeError as error:
+                    payload["success"] = False
+                    payload["exit_code"] = 1
+                    payload["error"] = (
+                        "outputs.type=json contract violation: stdout is not valid JSON "
+                        f"(line {error.lineno}, column {error.colno}: {error.msg})"
+                    )
+                    print(json.dumps(payload, sort_keys=True))
+                    return finalize(1)
+
+            print(json.dumps(payload, sort_keys=True))
+            return finalize(process.returncode)
+
         if enforce_json_output_contract:
             process_kwargs = {
                 "cwd": agent_dir,

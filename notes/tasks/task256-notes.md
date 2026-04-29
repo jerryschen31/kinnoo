@@ -50,7 +50,7 @@ Result:
 
 Command:
 ```bash
-python3 src/validate_project_manifests.py
+python3 scripts/validate_project_manifests.py
 ```
 Result:
 ```text

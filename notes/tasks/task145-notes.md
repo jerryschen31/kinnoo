@@ -15,7 +15,7 @@
 
 ## Test runs and results
 - python3 -m pytest tests/test_regression_v1.py::test_feature23_no_regression_for_one_shot_runtime -> 1 passed
-- python3 src/validate_project_manifests.py -> Validation passed: manifests are consistent
+- python3 scripts/validate_project_manifests.py -> Validation passed: manifests are consistent
 
 ## Bug/error notes
 - No repeated bug/error class encountered during task145 implementation.

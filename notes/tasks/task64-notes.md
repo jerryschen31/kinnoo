@@ -17,7 +17,7 @@
 ### Validation results
 
 - `python3 -m pytest tests/test_cli_inspect.py -k "inspect_reads_manifest_from_archive_without_extracting or inspect_missing_required_files_prints_guidance or inspect_missing_target_prints_usage"` → passed
-- `python3 src/validate_project_manifests.py` → Validation passed
+- `python3 scripts/validate_project_manifests.py` → Validation passed
 
 ### Bookkeeping
 

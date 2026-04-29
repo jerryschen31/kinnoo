@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
 
 from server.app import create_app
@@ -81,3 +82,57 @@ def test_auth_token_route_and_rate_limit(tmp_path):
     assert throttled_body["error"]["code"] == "too_many_requests"
     assert throttled_body["error"]["message"] == "429 too many requests"
     assert throttled_body["error"]["request_id"]
+
+
+@pytest.mark.regression_integration
+@pytest.mark.server_api
+def test_auth_config_discovery_endpoint_returns_non_secret_oidc_fields(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("AUTH_PROVIDER", "oidc_kinde")
+    monkeypatch.setenv("AUTH_ISSUER_URL", "https://issuer.example")
+    monkeypatch.setenv("AUTH_JWKS_ENDPOINT_URL", "https://issuer.example/.well-known/jwks.json")
+    monkeypatch.setenv("AUTH_TOKEN_ENDPOINT", "https://issuer.example/oauth2/token")
+    monkeypatch.setenv("AUTH_AUTHORIZATION_ENDPOINT", "https://issuer.example/oauth2/auth")
+    monkeypatch.setenv("AUTH_LOGOUT_ENDPOINT", "https://issuer.example/logout")
+    monkeypatch.setenv("AUTH_USERINFO_ENDPOINT", "https://issuer.example/userinfo")
+    monkeypatch.setenv("AUTH_AUDIENCE", "https://api.kinnoo.local")
+    monkeypatch.setenv("AUTH_WEB_CLIENT_ID", "web-client-id")
+    monkeypatch.setenv("AUTH_WEB_CLIENT_SECRET", "web-client-secret")
+    monkeypatch.setenv("AUTH_CLI_CLIENT_ID", "cli-client-id")
+    monkeypatch.setenv("AUTH_WEB_REDIRECT_URI", "http://127.0.0.1:8000/auth/callback")
+    monkeypatch.setenv("AUTH_LOGOUT_REDIRECT_URI", "http://localhost:3000/login")
+
+    config = ServerConfig(
+        storage_backend="local",
+        local_storage_root=tmp_path / "storage",
+        s3_bucket="kinnoo-registry-dev",
+        s3_region="us-east-1",
+        s3_endpoint_url=None,
+        s3_access_key_id=None,
+        s3_secret_access_key=None,
+        presign_ttl_seconds=120,
+        max_upload_mb=5,
+    )
+    app = create_app(config=config)
+    client = TestClient(app)
+
+    response = client.get("/api/auth/config")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["schema_version"] == 1
+    assert payload["auth_mode"] == "oidc"
+    assert payload["issuer_url"] == "https://issuer.example"
+    assert payload["authorization_endpoint"] == "https://issuer.example/oauth2/auth"
+    assert payload["token_endpoint"] == "https://issuer.example/oauth2/token"
+    assert payload["logout_endpoint"] == "https://issuer.example/logout"
+    assert payload["userinfo_endpoint"] == "https://issuer.example/userinfo"
+    assert payload["audience"] == "https://api.kinnoo.local"
+    assert payload["cli_client_id"] == "cli-client-id"
+    assert "web_client_secret" not in payload
+
+
+# [agent] test used during UAT or migration, currently not used for regression
+# def test_feature118_legacy_auth_paths_disabled(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+#     ...

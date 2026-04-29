@@ -13,7 +13,7 @@ const config: Config = {
         kinnoo: {
           bg: "#000000",
           text: "#F9FAFB",
-          accent: "#3B82F6",
+          accent: "#FF7F00",
           surface: "#111111",
         },
         "card-border": "rgba(255,255,255,0.1)",

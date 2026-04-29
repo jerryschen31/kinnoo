@@ -19,14 +19,17 @@ def post_auth_token(
     """Handle POST /api/auth/token request payload."""
     username = payload.get("username")
     password = payload.get("password")
-    tenant_slug = payload.get("tenant_slug", "global")
+    tenant_slug_raw = payload.get("tenant_slug")
 
     if not isinstance(username, str) or not username.strip():
         return 400, {"error": "username is required"}
     if not isinstance(password, str) or not password:
         return 400, {"error": "password is required"}
-    if not isinstance(tenant_slug, str) or not tenant_slug.strip():
-        return 400, {"error": "tenant_slug must be a non-empty string"}
+    tenant_slug: str | None = None
+    if tenant_slug_raw is not None:
+        if not isinstance(tenant_slug_raw, str) or not tenant_slug_raw.strip():
+            return 400, {"error": "tenant_slug must be a non-empty string when provided"}
+        tenant_slug = tenant_slug_raw.strip()
 
     try:
         token = token_service.issue_token_for_credentials(
@@ -35,7 +38,16 @@ def post_auth_token(
             user_store=user_store,
             tenant_slug=tenant_slug,
         )
-    except PermissionError:
+    except PermissionError as error:
+        message = str(error)
+        if message.startswith("423 account_locked"):
+            retry_after = 900
+            if "retry_after=" in message:
+                try:
+                    retry_after = int(message.rsplit("retry_after=", 1)[1])
+                except ValueError:
+                    retry_after = 900
+            return 423, {"error": "account_locked", "retry_after": retry_after}
         return 401, {"error": "invalid username or password"}
 
     return 200, {

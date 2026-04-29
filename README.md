@@ -1,503 +1,78 @@
-# README
+# Kinnoo 🍊
 
-## Kinnoo is a developer platform for sharing agents.
 
-## Packaging format
+![Status: Beta](https://img.shields.io/badge/status-beta-blue)
+![Release](https://img.shields.io/badge/release-v0.10.0-yellow)
+![Python](https://img.shields.io/badge/python-3.11%2B-3776AB)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-- `kinnoo pack` creates `.kno` artifacts as ZIP archives.
-- `kinnoo install` expects `.kno` files in this ZIP-based format.
+Kinnoo is a unified platform that allows **AI agent developers** to create, package and share AI agents, which **agent end-users** can install and run on a local machine.
+ 
+[Website](https://kinnoo.ai) · [Docs](https://github.com/kinnoo-project/kinnoo/tree/main/docs/README.md) · [Getting Started](https://github.com/kinnoo-project/kinnoo/blob/main/docs/getting-started.md)
 
-## Manifest optional metadata (Feature9)
+## What Kinnoo Is
 
-`kinnoo.yaml` supports these optional fields:
+- Strong **lifecycle** harness: `init`, `test`, `pack`, `publish`, `fetch`, `install`, `inspect`, `run` - all within the same CLI.
+- Strong **contract** harness: `kinnoo.yaml` provides a framework-agnostic manifest with validation and predictable runtime expectations.
+- Strong **trust** harness: integrity verification, optional signing, strict trust gates, and inspection-first workflows before install/run.
+- Strong **distribution** harness: registry auth, publish/search/list/install flows, and versioned artifact distribution for teams.
+- Framework **portability**: build and ship agents across common agent frameworks with consistent packaging and operator UX.
 
-- `description` (string)
-- `author` (string)
-- `license` (string)
-- `env_vars` (list of non-empty strings)
+## What Kinnoo Is Not
 
-Notes:
+- Not a foundation model or model-hosting service.
+- Not a replacement for framework-level design and orchestration (planner logic, tool routing, memory/retrieval strategy).
+- Not a UI-only chatbot builder; Kinnoo focuses on CLI-runnable agent lifecycle workflows.
+- Not a guarantee of agent quality by itself; it gives reproducibility and trust controls and provides a framework for running tests on your agents, but evaluation quality still depends on your tests and runtime design.
 
-- Existing V1 manifests remain valid when these fields are omitted.
-- If `env_vars` is present, each entry must be a non-empty string.
+## Installation and Quick Start
 
-## env_vars security contract (Feature10)
-
-When an agent declares `env_vars`, `kinnoo run` resolves values in this order:
-
-1. current process environment
-2. agent-local `.env` file
-3. masked interactive prompt for unresolved names
-
-Security invariants:
-
-- Secret values must never be printed, logged, or persisted by Kinnoo runtime flows.
-- User-facing diagnostics reference variable names only.
-
-Safe troubleshooting guidance:
-
-- Verify required variable names are declared in `kinnoo.yaml` under `env_vars`.
-- Check whether each required name exists in your shell environment or agent-local `.env`.
-- If prompted, provide the value interactively; do not paste or print secret values into logs.
-
-## kinnoo inspect (Feature11)
-
-`kinnoo inspect` reads manifest metadata from either an agent directory or a `.kno` archive.
-
-Usage:
-
-- `kinnoo inspect <agent-dir>`
-- `kinnoo inspect <archive.kno>`
-
-Examples:
-
-- `kinnoo inspect ./my-agent`
-- `kinnoo inspect ./my-agent.kno`
-
-Output semantics:
-
-- Output is human-readable formatted text (not a raw YAML dump).
-- Missing optional fields are omitted (not shown as `None` or empty placeholders).
-- `env_vars` are displayed as variable names only; values are never shown.
-
-Directory guidance behavior:
-
-- Missing `kinnoo.yaml`: prints guidance plus a minimal manifest example and exits non-zero.
-- Missing `requirements.txt`: prints guidance and robust generation commands:
-	- `pip install uv`
-	- `uv export --format requirements-txt > requirements.txt`
-
-Common failure cases:
-
-- Missing target argument: `Usage: kinnoo inspect <target>`
-- Invalid archive: archive is not a valid zip-based `.kno` file
-- Invalid manifest: prints `Error: Manifest validation failed.` with validator field-level errors
-
-## kinnoo run --preflight (Feature14)
-
-`kinnoo run --preflight` performs readiness validation only and does not execute agent logic.
-
-Usage:
-
-- `kinnoo run <agent-dir> --preflight`
-- `kinnoo run ./my-agent --preflight`
-
-Checklist behavior:
-
-- Preflight always prints a deterministic checklist with pass/fail lines.
-- Checklist sections include runtime version, env vars, entrypoint, and dependencies.
-- If every check passes, output includes `Ready to run`.
-- If any check fails, output includes `Not ready to run` and a remediation summary.
-- Preflight confirms that entrypoint execution is skipped in preflight mode.
-
-Security contract:
-
-- Preflight output is names-only for environment variables.
-- Preflight may list unresolved env var names, but it never prints env var values.
-
-## Trust Baseline (Feature15)
-
-Feature15 adds trust-focused behavior to install/run/inspect/pack workflows.
-
-Install-time transparency and consent:
-
-- `kinnoo install` shows a summary before installation, including:
-	- agent name and version,
-	- runtime type,
-	- dependency names,
-	- env var names (never values).
-- Install prompt:
-	- `Continue with install? [y/N]:`
-	- default is No when user presses enter.
-- `--yes` / `-y`:
-	- keeps summary output,
-	- skips confirmation prompt for CI and unattended workflows.
-
-Feature39 install permission disclosure and consent:
-
-- when manifest `permissions` is declared, install summary includes a deterministic permissions section:
-	- network
-	- filesystem scope
-	- shell
-	- browser
-	- env access (names only)
-- interactive installs require explicit permission consent:
-	- `This agent declares explicit permissions. Allow requested permissions? [y/N]:`
-	- default is deny
-- non-interactive installs must use explicit override:
-	- `kinnoo install ... --yes --accept-permissions`
-	- using `--yes` without `--accept-permissions` aborts safely with guidance
-
-Feature40 unsigned publisher warning and confirmation:
-
-- when archive integrity is verified (checksum present) but no signature metadata is present, install emits:
-	- `Warning: UNVERIFIED PUBLISHER - no signature metadata found for this archive.`
-- interactive installs require explicit confirmation:
-	- `UNVERIFIED PUBLISHER: no signature metadata found. Continue? [y/N]:`
-	- default is deny
-- non-interactive installs must use explicit override:
-	- `kinnoo install ... --yes --allow-unverified-publisher`
-	- using `--yes` without `--allow-unverified-publisher` aborts safely with guidance
-
-Unverified source warning:
-
-- If `<archive>.sha256` is missing, install prints:
-	- `This agent is from an unverified source.`
-- Without `--yes`, install asks:
-	- `This agent is from an unverified source. Continue? (y/n):`
-- If checksum sidecar exists, unverified warning is skipped.
-
-Run trace logging:
-
-- After `kinnoo run` completes (success or failure), Kinnoo writes:
-	- `~/.kinnoo/logs/run.<TIMESTAMP>.log`
-- Timestamp in filename and JSON is UTC-only.
-- Trace log JSON fields are safe-only:
-	- `timestamp`, `agent_name`, `agent-version`, `runtime_type`, `exit_code`
-- Trace logs never include:
-	- user input content,
-	- env var values,
-	- secret values,
-	- stdout/stderr payloads.
-
-Heuristic security sweep (`inspect` and `pack`):
-
-- `kinnoo inspect <agent-dir>` includes a `Security sweep:` section.
-- Clean scan output:
-	- `Security sweep: no env var exposure patterns detected (heuristic)`
-- Dirty scan output includes warning lines with file and line details.
-- `kinnoo pack <agent-dir>` runs the same sweep and prints warnings as non-blocking output.
-- Disclaimer always applies:
-	- `(heuristic scan — may produce false positives; not a substitute for code review)`
-
-Project-wide security invariant:
-
-- No env var or secret values are ever printed, logged, or persisted by Kinnoo trust paths.
-- Diagnostics and trust output are names-only for env vars.
-
-## Publisher key generation (Feature40)
-
-Use `kinnoo keygen` to generate an Ed25519 keypair for archive signing and publisher verification.
-
-Usage:
-
-- `kinnoo keygen`
-- `kinnoo keygen --private-key ./keys/publisher-private.pem --public-key ./keys/publisher-public.pem`
-
-Behavior:
-
-- Writes deterministic default filenames in the current working directory when paths are not provided:
-	- `kinnoo-ed25519-private.pem`
-	- `kinnoo-ed25519-public.pem`
-- Enforces secure permissions for generated keys:
-	- private key: `0600`
-	- public key: `0644`
-- Prints a public-key SHA256 fingerprint summary for operator verification.
-
-Security notes:
-
-- Kinnoo never prints private key material in command output.
-- Keep private keys out of source control and store them in a secure operator-controlled location.
-- Public keys may be distributed for verification workflows.
-
-## Archive Integrity (Feature16)
-
-Feature16 adds checksum lifecycle behavior across pack/install/inspect/publish using sidecar files.
-
-Checksum sidecar contract:
-
-- Sidecar naming: `<archive>.kno.sha256` (sibling to archive).
-- Sidecar content format: `<sha256>  <archive-filename>`.
-- SHA256 digest is lowercase hex and computed from archive bytes.
-
-Pack behavior:
-
-- `kinnoo pack` writes checksum sidecar after archive creation.
-- Pack output includes:
-	- `[kinnoo pack] Checksum sidecar written: <path>`
-
-Install behavior (`kinnoo install <file.kno>`):
-
-- Sidecar present + checksum match:
-	- install proceeds,
-	- output includes `[kinnoo install] Archive checksum verified.`
-- Sidecar present + mismatch:
-	- install aborts with exact error:
-	- `Archive integrity check failed — the file may be corrupted or tampered with`
-- Sidecar missing:
-	- warning-only path continues install,
-	- output includes: `No checksum file found — archive integrity not verified`
-
-Inspect behavior:
-
-- `kinnoo inspect <archive.kno>` reads sidecar when valid and displays:
-	- `- Checksum (SHA256): <digest>`
-
-Publish behavior:
-
-- `kinnoo publish <agent-name>` copies sidecar to registry when source sidecar exists.
-- Publish output includes one of:
-	- `Published checksum sidecar: <path>`
-	- `Published checksum sidecar: (none found at source)`
-
-## Project Publish Target Toggle
-
-`kinnoo publish` supports a project-level toggle in `kinnoo-config.txt` at your project root.
-
-Example:
-
-```txt
-publish_to_authenticated_registry=true
+To **install** the Kinnoo CLI:
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install --upgrade pip
+pip install kinnoo
 ```
 
-Behavior:
-
-- `true`: publish attempts authenticated remote registry publish by requesting a token from
-	`KINNOO_REGISTRY_URL/api/auth/token` using:
-	- `REGISTRY_ADMIN_EMAIL` (as username)
-	- `REGISTRY_ADMIN_PASSWORD`
-	- `KINNOO_TENANT_SLUG` (or `global` if unset)
-- `false`: publish keeps current behavior (local/scratch default unless `--remote` or registry URL config is already forcing remote).
-
-Notes:
-
-- `kinnoo publish --local` and `kinnoo publish --remote` still take precedence when explicitly provided.
-- If the toggle is `true`, ensure `KINNOO_REGISTRY_URL`, `REGISTRY_ADMIN_EMAIL`, and `REGISTRY_ADMIN_PASSWORD` are set.
-
-## Pack Size Reporting & Warnings (Feature17)
-
-Feature17 adds package-footprint visibility across pack/inspect/list workflows.
-
-Pack behavior:
-
-- `kinnoo pack` prints final archive size after artifact creation:
-	- `[kinnoo pack] Archive size: <human-readable>`
-- If archive size is strictly greater than 100 MB, pack prints:
-	- `Warning: archive is large (X MB). Consider whether all dependencies are necessary.`
-
-Inspect behavior:
-
-- `kinnoo inspect <archive.kno>` includes archive size metadata:
-	- `- Archive Size: <human-readable>`
-
-List behavior:
-
-- `kinnoo list`, `kinnoo list --local`, and `kinnoo list --remote` include additive size visibility per row:
-	- `| size: <human-readable>`
-- Size formatting is shared across commands and uses stable units (`B`, `KB`, `MB`, `GB`).
-
-## Asset Bundling Compatibility (Feature22)
-
-Feature22 adds optional manifest-driven asset bundling via `assets`.
-
-Compatibility guarantees:
-
-- Agents that do not declare `assets` continue to use the same pack/install behavior as pre-Feature22 flows.
-- `assets.paths` accepts file paths and directory paths relative to the agent root.
-- Directory paths are bundled recursively; declaring a base folder includes nested files/subfolders.
-- `assets.bundle: false` keeps asset metadata but skips asset payload inclusion in the archive.
-- `assets.max_bundle_size_mb` overrides the default 100 MB warning threshold when provided.
-
-## Mutable State Snapshots (Feature35)
-
-Feature35 introduces `state_dirs` for mutable runtime state such as memory folders. This is intentionally separate from immutable `assets`.
-
-Behavior summary:
-
-- `assets` remain immutable packaged resources with existing bundle behavior.
-- `state_dirs` are packed as mutable snapshots under `state_snapshots/<declared-state-dir>/...`.
-- install restores snapshots back into each declared state root.
-
-Structured `state_dirs` entries support exclude patterns:
-
-```yaml
-state_dirs:
-	- path: memory
-		exclude:
-			- daily/*.md
-			- secrets/*
+To **create and publish** an agent to the Kinnoo registry:
+```bash
+kinnoo init chatgpt my-chat-agent
+kinnoo pack my-chat-agent
+export KINNOO_REGISTRY_URL=https://api.kinnoo.ai
+kinnoo login
+kinnoo publish my-chat-agent --pack --strict --remote
 ```
 
-Exclude and restore semantics:
-
-- Excluded files are omitted during pack and therefore never restored.
-- Non-excluded files remain part of the snapshot/restore flow.
-- Install is warning-first and non-destructive when existing state is present.
-- Use `kinnoo install ... --state-overwrite` for explicit deterministic replacement of existing state.
-
-Compatibility guarantee:
-
-- Agents without `state_dirs` keep legacy asset-only pack/install behavior unchanged.
-
-## Input Safety Guard (Feature18)
-
-Feature18 adds an input safety guard to `kinnoo run` before agent execution.
-
-Guard behavior:
-
-- The guard runs automatically for `kinnoo run <agent-dir> "<input>"` before entrypoint execution.
-- It evaluates user input for common injection patterns and emits warnings to stderr.
-- The guard is non-blocking by design:
-	- in interactive terminals, users can acknowledge risk and proceed,
-	- in non-interactive mode, execution aborts by default for safety.
-
-Threat categories currently covered:
-
-- SQL injection
-- shell command injection
-- path traversal
-- SSRF
-- XSS
-- template injection
-
-CLI override for automation:
-
-- `--no-guard` disables the input safety check for trusted CI/automation pipelines.
-
-Type-aware checking model:
-
-- The guard supports typed checks (`text`, `string`, `file_path`, `url`, `id`) so threat-category evaluation can be narrowed by input semantics.
-- This supports future parameterized input flags without changing the guard contract.
-
-Architecture note:
-
-- The guard is implemented behind an `InputGuard` Protocol and factory (`get_default_guard()`), enabling future replacement with a model-based or hybrid classifier while preserving runtime integration.
-
-## JSON I/O Contract (Feature42)
-
-Feature42 adds manifest-driven structured I/O support while keeping legacy text workflows unchanged.
-
-Manifest contract:
-
-- `inputs.type` can include `json` for structured request payloads.
-- `outputs.type` can include `json` for structured response payloads.
-- Text workflows remain additive-compatible: existing `text` agents and commands keep the same behavior.
-
-Run command usage:
-
-- Inline JSON: `kinnoo run <agent-dir> --json-input '{"task":"ping"}'`
-- File JSON: `kinnoo run <agent-dir> --json-file ./payload.json`
-
-Output contract enforcement:
-
-- When `outputs.type` includes `json` for one-shot runtimes, stdout must be valid JSON.
-- Invalid JSON output fails with parse-context diagnostics (line/column) without echoing secret values.
-
-Inspect and preflight visibility:
-
-- `kinnoo inspect` shows declared input/output types and JSON contract hints.
-- Inspect metadata includes `Input Types`, `Output Types`, and `JSON Contract` lines when applicable.
-- `kinnoo run <agent-dir> --preflight` prints an explicit manifest I/O contract line, including JSON-mode guidance.
-
-## Feature33 manifest extensions for Node/OpenClaw
-
-Feature33 adds optional manifest fields for Node.js-oriented agent metadata:
-
-- `runtime.package_manager`: allowed values are `npm` or `pnpm`
-- `channels`: list of non-empty strings
-- `skills`: list of non-empty relative paths (no absolute paths or `..` traversal)
-- `state_dirs`: list of non-empty relative paths (no absolute paths or `..` traversal)
-
-OpenClaw-targeted behavior (`framework: openclaw`):
-
-- `runtime.language` must be `nodejs`
-- `runtime.type` must be `daemon`
-- `runtime.package_manager` is required with value `npm` or `pnpm`
-- `channels` must include `stdio`
-
-Non-openclaw compatibility:
-
-- Existing manifests that omit Feature33 fields remain valid.
-- Non-openclaw manifests may include Feature33 fields in valid shape without OpenClaw-only validation failures.
-
-## Mutable state snapshots (Feature35)
-
-Feature35 defines `state_dirs` as mutable runtime state snapshots, which are distinct from immutable `assets`.
-
-Semantics:
-
-- `assets` are immutable packaged resources intended to be identical across installs.
-- `state_dirs` are mutable warm-start runtime state that can change over time.
-- During pack, `state_dirs` content is stored under `state_snapshots/<state-dir>/...` to keep state semantics separate from asset paths.
-
-Exclusion support:
-
-- Structured entries support per-directory excludes:
-
-```yaml
-state_dirs:
-	- path: memory
-		exclude:
-			- daily/*.md
-			- secrets/*
+To **install and run** an agent from the registry:
+```bash
+kinnoo install kinnootest/test-chat-agent
+kinnoo run test-chat-agent 'what is 2+2?'
 ```
 
-- Excluded files are omitted from snapshots and therefore are not restored on install.
+See [Getting Started](https://github.com/kinnoo-project/kinnoo/blob/main/docs/getting-started.md) for more details.
 
-Install restore and overwrite behavior:
+## Supported Frameworks
 
-- By default, install is warning-first and non-destructive when target state already exists.
-- Existing state is preserved unless explicit overwrite is requested.
-- Use `--state-overwrite` to replace existing state with snapshot content.
+Kinnoo currently supports initializing and running agents for these frameworks:
 
-Backward compatibility:
+- vanilla python (generic)
+- vanilla javascript / typescript (generic)
+- chatgpt
+- gemini
+- claude-chat
+- pydantic-ai
+- langgraph
+- openai-agents
+- mcp-client
+- openclaw
 
-- Agents without `state_dirs` preserve legacy asset-only pack/install behavior.
+See [Supported Agents](https://github.com/kinnoo-project/kinnoo/blob/main/docs/supported-agents.md) for more details.
 
-## Pack/Publish Refactor (Feature13)
+## Contributing
 
-Feature13 shifts command responsibilities to an archive-first source model and a mock-registry publish target.
+Contributions are welcome. See `CONTRIBUTING.md` for development and contribution workflow.
 
-### Pack (archive-first)
+## License
 
-- `kinnoo pack <agent-dir>` writes by default to:
-	- `~/.kinnoo/archive/<agent>/<version>/<agent>.kno`
-- For tests and custom environments, archive root can be overridden with:
-	- `KINNOO_ARCHIVE_ROOT`
-
-### Publish (name-based source)
-
-- `kinnoo publish <agent-name>`
-- `kinnoo publish <agent-name> --local`
-
-Behavior:
-
-- Source artifact resolves from latest local archive version for `<agent-name>`.
-- Target publishes to mock registry path:
-	- `~/kinnoo-mock-registry-scratch/jerry/<agent>/<version>/<agent>.kno`
-- If tagged target already exists, previous payload is preserved under:
-	- `~/kinnoo-mock-registry-scratch/jerry/<agent>/untagged-<n>/`
-
-### Install selectors
-
-`kinnoo install` supports all of the following:
-
-- `kinnoo install <name>` (latest from mock registry)
-- `kinnoo install <name>==<version>` (exact version from mock registry)
-- `kinnoo install <file-path/file.kno>` (backward-compatible direct archive install)
-
-### List source modes
-
-- `kinnoo list` (default local archive)
-- `kinnoo list --local` (same as default)
-- `kinnoo list --remote` (mock registry inventory)
-
-### Search source modes
-
-- `kinnoo search <query>` (default local archive)
-- `kinnoo search --local <query>` (same as default)
-- `kinnoo search --remote <query>` (mock registry inventory)
-
-Search and list preserve consistent output shape (`name`, `latest`, `description`) and use case-insensitive matching for search name/description filtering.
-
-### Migration notes from Feature12
-
-- Old publish form:
-	- `kinnoo publish <archive.kno>`
-- New canonical publish form:
-	- `kinnoo publish <agent-name>`
-
-- Old registry docs centered on `~/.kinnoo/registry/` as primary source/target.
-- Feature13 split:
-	- source of truth for packaged artifacts: local archive (`~/.kinnoo/archive/...`)
-	- publish target: mock registry (`~/kinnoo-mock-registry-scratch/jerry/...`)
+MIT (`LICENSE`).

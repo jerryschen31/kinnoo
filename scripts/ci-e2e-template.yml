@@ -1,0 +1,58 @@
+name: Kinnoo CLI E2E Auth Template
+
+on:
+  workflow_dispatch:
+
+jobs:
+  cli-e2e:
+    runs-on: ubuntu-latest
+    env:
+      KINNOO_REGISTRY_URL: ${{ secrets.KINNOO_REGISTRY_URL }}
+      KINNOO_REGISTRY_TOKEN: ${{ secrets.KINNOO_REGISTRY_TOKEN }}
+      KINNOO_TENANT_SLUG: ${{ secrets.KINNOO_TENANT_SLUG }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate required secrets
+        run: |
+          set -euo pipefail
+          [[ -n "${KINNOO_REGISTRY_URL}" ]] || { echo "Missing secret: KINNOO_REGISTRY_URL"; exit 1; }
+          [[ -n "${KINNOO_REGISTRY_TOKEN}" ]] || { echo "Missing secret: KINNOO_REGISTRY_TOKEN"; exit 1; }
+          [[ -n "${KINNOO_TENANT_SLUG}" ]] || { echo "Missing secret: KINNOO_TENANT_SLUG"; exit 1; }
+
+      - name: Install kinnoo dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e .
+
+      - name: Publisher flow - init, pack, publish
+        run: |
+          set -euo pipefail
+          AGENT_DIR="kinnoo-ci-minimal-agent"
+
+          python src/kinnoo/cli.py init no-framework --language python "${AGENT_DIR}"
+          python src/kinnoo/cli.py pack "${AGENT_DIR}"
+
+          AGENT_NAME="$(python -c 'from pathlib import Path; import yaml; manifest=yaml.safe_load(Path("kinnoo-ci-minimal-agent/kinnoo.yaml").read_text(encoding="utf-8")); print(str(manifest.get("name", "")).strip())')"
+          [[ -n "${AGENT_NAME}" ]] || { echo "Unable to resolve agent name from kinnoo.yaml"; exit 1; }
+
+          python src/kinnoo/cli.py publish "${AGENT_NAME}" --remote
+          echo "AGENT_NAME=${AGENT_NAME}" >> "${GITHUB_ENV}"
+
+      - name: End-user flow - install, inspect, run
+        run: |
+          set -euo pipefail
+          INSTALL_DIR="${RUNNER_TEMP}/kinnoo-installed-agent"
+
+          python src/kinnoo/cli.py install "${AGENT_NAME}" "${INSTALL_DIR}" --remote -y --accept-permissions --allow-unverified-publisher
+          python src/kinnoo/cli.py inspect "${INSTALL_DIR}"
+          python src/kinnoo/cli.py run "${INSTALL_DIR}" "ping from ci"

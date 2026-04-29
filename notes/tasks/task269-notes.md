@@ -57,7 +57,7 @@ Result:
 
 Manifest validation:
 ```bash
-/Users/jerry/.pyenv/versions/3.11.12/bin/python src/validate_project_manifests.py
+/Users/jerry/.pyenv/versions/3.11.12/bin/python scripts/validate_project_manifests.py
 ```
 
 Result:

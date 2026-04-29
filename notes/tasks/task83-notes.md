@@ -18,7 +18,7 @@
 ## Commands and results
 - `python3 -m pytest tests/test_publish_refactor.py tests/test_cli_registry.py -q`
 	- Result: `8 passed`
-- `python3 src/validate_project_manifests.py`
+- `python3 scripts/validate_project_manifests.py`
 	- Result: passed
 
 ## Status updates

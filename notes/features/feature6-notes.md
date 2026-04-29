@@ -26,7 +26,7 @@ Feature6 implements the `kinnoo install` CLI command for installing packaged age
 
 ## Testing
 - Each task is linked to a test case (test51–test57) in TESTS.txt. Implement unit and integration tests as specified.
-- Run `python3 src/validate_project_manifests.py` after changes to ensure manifest integrity.
+- Run `python3 scripts/validate_project_manifests.py` after changes to ensure manifest integrity.
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 

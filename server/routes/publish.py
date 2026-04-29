@@ -3,21 +3,29 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 import hashlib
 from io import BytesIO
 import importlib
 from typing import Any
+import secrets
+from uuid import UUID
 import zipfile
 
 from starlette.requests import Request
 import yaml
 
 from server.auth.middleware import authenticate_request
+from server.auth.token import TokenClaims
 from server.auth.token import TokenService
+from server.config import resolve_auth_provider
 from server.metadata.manager import MetadataManager
 from server.metadata.models import VersionMetadata, utc_now_iso
 from server.routes.errors import build_error_envelope, resolve_request_id
+from server.services.security_check import invoke_security_check_lambda_async, run_post_publish_checks_bytes
 from server.storage.base import StorageBackend
+from server.storage.sqlite_auth_store import SQLiteAuthStore
+from server.storage.user_store import UserStore
 
 
 @dataclass(frozen=True)
@@ -35,6 +43,8 @@ def publish_archive(
     storage_backend: StorageBackend,
     metadata_manager: MetadataManager,
     max_upload_mb: int,
+    user_store: UserStore | None = None,
+    sqlite_auth_store: SQLiteAuthStore | None = None,
 ) -> PublishResult:
     try:
         claims = authenticate_request(
@@ -52,13 +62,14 @@ def publish_archive(
     max_size_bytes = max_upload_mb * 1024 * 1024
     if len(archive_bytes) > max_size_bytes:
         return PublishResult(
-            status_code=400,
+            status_code=413,
             body={"error": f"archive exceeds max upload size ({max_upload_mb} MB)"},
         )
 
-    manifest = _load_manifest_from_archive(archive_bytes)
-    if manifest is None:
-        return PublishResult(status_code=400, body={"error": "archive missing valid kinnoo.yaml"})
+    manifest, validation_error = _validate_archive_and_manifest(archive_bytes)
+    if validation_error is not None:
+        return PublishResult(status_code=validation_error[0], body={"error": validation_error[1]})
+    assert manifest is not None
 
     agent_slug = str(manifest.get("name", "")).strip()
     version = str(manifest.get("version", "")).strip()
@@ -66,6 +77,11 @@ def publish_archive(
         return PublishResult(status_code=400, body={"error": "manifest requires non-empty name and version"})
 
     tenant_slug = claims.tenant_slug
+    resolved_publisher = _resolve_publish_owner(
+        claims=claims,
+        user_store=user_store,
+        sqlite_auth_store=sqlite_auth_store,
+    )
 
     existing = metadata_manager.get_version_metadata(
         tenant_slug=tenant_slug,
@@ -77,6 +93,21 @@ def publish_archive(
             status_code=409,
             body={"error": f"Version already published for {tenant_slug}/{agent_slug}/{version}"},
         )
+
+    storage_usage = metadata_manager.get_tenant_storage_usage(tenant_slug=tenant_slug)
+    if storage_usage is not None:
+        used_bytes, quota_bytes = storage_usage
+        next_used = used_bytes + len(archive_bytes)
+        if next_used > quota_bytes:
+            return PublishResult(
+                status_code=413,
+                body={
+                    "error": (
+                        f"tenant storage quota exceeded ({used_bytes}/{quota_bytes} bytes used; "
+                        f"upload would increase usage to {next_used})"
+                    )
+                },
+            )
 
     archive_key = (
         f"archives/tenants/{tenant_slug}/agents/{agent_slug}/versions/{version}/{agent_slug}.kno"
@@ -96,11 +127,22 @@ def publish_archive(
     )
 
     timestamp = utc_now_iso()
+    check_report = run_post_publish_checks_bytes(archive_bytes)
+    security_report_rows = [
+        {
+            "check_name": str(item.get("check_name", "")),
+            "status": str(item.get("status", "")),
+            "detail": str(item.get("detail", "")),
+            "timestamp": timestamp,
+        }
+        for item in check_report.get("checks", [])
+        if isinstance(item, dict)
+    ]
     version_metadata = VersionMetadata(
         tenant_slug=tenant_slug,
         agent_slug=agent_slug,
         version=version,
-        visibility=str(manifest.get("visibility", "private")),
+        visibility=str(manifest.get("visibility", "public")),
         manifest=manifest,
         storage_keys={
             "archive": archive_key,
@@ -108,13 +150,24 @@ def publish_archive(
         },
         integrity={"sha256": sha256_hex},
         publisher={
-            "user_id": claims.sub,
+            "user_id": resolved_publisher["user_id"],
+            "external_subject": resolved_publisher["external_subject"],
+            "identity_provider": resolved_publisher["identity_provider"],
+            "tenant_owner_user_id": resolved_publisher["tenant_owner_user_id"],
             "token_id": claims.token_id,
         },
         created_at=timestamp,
         updated_at=timestamp,
+        security_status=check_report.get("security_status", ""),
+        security_report=security_report_rows,
+        archive_size_bytes=len(archive_bytes),
     )
     metadata_manager.upsert_version_metadata(version_metadata)
+    _ = invoke_security_check_lambda_async(
+        tenant_slug=tenant_slug,
+        agent_slug=agent_slug,
+        version=version,
+    )
 
     return PublishResult(
         status_code=201,
@@ -134,6 +187,8 @@ def create_publish_router(
     storage_backend: StorageBackend,
     metadata_manager: MetadataManager,
     max_upload_mb: int,
+    user_store: UserStore | None = None,
+    sqlite_auth_store: SQLiteAuthStore | None = None,
 ) -> Any:
     fastapi_module = importlib.import_module("fastapi")
     APIRouter = getattr(fastapi_module, "APIRouter")
@@ -160,6 +215,8 @@ def create_publish_router(
             storage_backend=storage_backend,
             metadata_manager=metadata_manager,
             max_upload_mb=max_upload_mb,
+            user_store=user_store,
+            sqlite_auth_store=sqlite_auth_store,
         )
         # Route wrappers are thin; publish_archive carries all business logic.
         if result.status_code >= 400:
@@ -176,16 +233,165 @@ def create_publish_router(
     return router
 
 
-def _load_manifest_from_archive(archive_bytes: bytes) -> dict[str, object] | None:
+def _validate_archive_and_manifest(
+    archive_bytes: bytes,
+) -> tuple[dict[str, object] | None, tuple[int, str] | None]:
     try:
         with zipfile.ZipFile(BytesIO(archive_bytes), "r") as archive:
             if "kinnoo.yaml" not in archive.namelist():
-                return None
+                return None, (400, "archive is missing required file: kinnoo.yaml")
             raw_manifest = archive.read("kinnoo.yaml").decode("utf-8")
             parsed = yaml.safe_load(raw_manifest)
-    except (zipfile.BadZipFile, OSError, UnicodeDecodeError, yaml.YAMLError):
-        return None
+
+            integrity_error = _validate_integrity_manifest_in_archive(archive)
+            if integrity_error is not None:
+                return None, (400, integrity_error)
+    except zipfile.BadZipFile:
+        return None, (400, "uploaded file is not a valid zip archive")
+    except (OSError, UnicodeDecodeError, yaml.YAMLError):
+        return None, (400, "kinnoo.yaml is invalid or unreadable")
 
     if not isinstance(parsed, dict):
+        return None, (400, "kinnoo.yaml must be a mapping")
+
+    missing_fields = []
+    for field_name in ("name", "version"):
+        value = parsed.get(field_name)
+        if not isinstance(value, str) or not value.strip():
+            missing_fields.append(field_name)
+    if missing_fields:
+        return None, (400, f"kinnoo.yaml missing required field(s): {', '.join(missing_fields)}")
+
+    return parsed, None
+
+
+def _is_uuid(value: str) -> bool:
+    try:
+        _ = UUID(value)
+        return True
+    except Exception:
+        return False
+
+
+def _resolve_publish_owner(
+    *,
+    claims: TokenClaims,
+    user_store: UserStore | None,
+    sqlite_auth_store: SQLiteAuthStore | None,
+) -> dict[str, str | None]:
+    if _is_uuid(claims.sub):
+        if sqlite_auth_store is not None:
+            tenant = sqlite_auth_store.upsert_tenant_owner(
+                tenant_slug=claims.tenant_slug,
+                owner_user_id=claims.sub,
+            )
+            tenant_owner_user_id = tenant.owner_user_id
+        else:
+            tenant_owner_user_id = claims.sub
+        return {
+            "user_id": claims.sub,
+            "external_subject": None,
+            "identity_provider": "internal",
+            "tenant_owner_user_id": tenant_owner_user_id,
+        }
+
+    provider_name = resolve_auth_provider()
+    if provider_name in {"", "legacy"}:
+        provider_name = "oidc_kinde"
+    internal_user_id = claims.sub
+    if sqlite_auth_store is not None:
+        mapping = sqlite_auth_store.get_identity_mapping(
+            provider=provider_name,
+            provider_user_id=claims.sub,
+        )
+        if mapping is not None:
+            internal_user_id = mapping.user_id
+        elif user_store is not None:
+            synthetic_username = (
+                f"oidc-{hashlib.sha256(claims.sub.encode('utf-8')).hexdigest()}@{provider_name}.local"
+            )
+            user = user_store.get_by_username(synthetic_username)
+            if user is None:
+                user = user_store.create_user(
+                    username=synthetic_username,
+                    plaintext_password=secrets.token_urlsafe(32),
+                    role="user",
+                    force_password_change=False,
+                )
+            internal_user_id = user.id
+            sqlite_auth_store.upsert_external_identity(
+                provider=provider_name,
+                provider_user_id=claims.sub,
+                user_id=user.id,
+                provider_email=synthetic_username,
+            )
+
+        tenant = sqlite_auth_store.upsert_tenant_owner(
+            tenant_slug=claims.tenant_slug,
+            owner_user_id=internal_user_id,
+        )
+        tenant_owner_user_id = tenant.owner_user_id
+    else:
+        tenant_owner_user_id = internal_user_id
+
+    return {
+        "user_id": internal_user_id,
+        "external_subject": claims.sub,
+        "identity_provider": provider_name,
+        "tenant_owner_user_id": tenant_owner_user_id,
+    }
+
+
+def _validate_integrity_manifest_in_archive(archive: zipfile.ZipFile) -> str | None:
+    integrity_path = "META-INF/integrity.json"
+    if integrity_path not in archive.namelist():
         return None
-    return parsed
+
+    try:
+        manifest = json.loads(archive.read(integrity_path).decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return "integrity validation failed: META-INF/integrity.json is invalid JSON"
+
+    manifest_files = manifest.get("files")
+    if not isinstance(manifest_files, dict):
+        return "integrity validation failed: integrity manifest must contain a files mapping"
+
+    actual_files = {
+        name
+        for name in archive.namelist()
+        if not name.endswith("/") and not name.startswith("META-INF/")
+    }
+    expected_files = set(manifest_files.keys())
+
+    for relpath in sorted(expected_files):
+        record = manifest_files.get(relpath)
+        if not isinstance(record, dict):
+            return f"integrity validation failed: {relpath} has invalid record"
+
+        expected_hash = record.get("sha256")
+        expected_size = record.get("size")
+        if not isinstance(expected_hash, str) or not expected_hash:
+            return f"integrity validation failed: {relpath} missing sha256"
+        if not isinstance(expected_size, int):
+            return f"integrity validation failed: {relpath} missing size"
+        if relpath not in actual_files:
+            return f"integrity validation failed: {relpath} missing from archive"
+
+        payload = archive.read(relpath)
+        if len(payload) != expected_size:
+            return (
+                "integrity validation failed: "
+                f"{relpath} size mismatch (expected {expected_size}, got {len(payload)})"
+            )
+        actual_hash = hashlib.sha256(payload).hexdigest()
+        if actual_hash != expected_hash:
+            return f"integrity validation failed: {relpath} hash mismatch"
+
+    extra_files = sorted(actual_files - expected_files)
+    if extra_files:
+        return (
+            "integrity validation failed: archive contains file(s) not listed in integrity manifest: "
+            + ", ".join(extra_files)
+        )
+
+    return None

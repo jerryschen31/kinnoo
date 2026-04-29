@@ -8,7 +8,7 @@
 # This file contains the project features as YAML entries. Each feature should
 # be represented as an item in the top-level `features` list. Use the template
 # below and the example to add new features. The validator script
-# `src/validate_project_manifests.py` enforces unique IDs and cross-file links.
+# `scripts/validate_project_manifests.py` enforces unique IDs and cross-file links.
 #
 # Template (YAML):
 # features:
@@ -209,7 +209,6 @@ features:
         description: "Generated Claude Chat agent is runnable with `kinnoo run` and produces Claude LLM responses to input."
     owner: techlead-agent
     dependencies: [feature2]
-    status: completed
   
   - id: feature5
     title: "kinnoo pack — Agent packaging"
@@ -244,7 +243,6 @@ features:
       - "No Docker or remote install support in MVP; deferred to V1.1/V2."
     owner: techlead-agent
     dependencies: [feature3]
-    status: completed
 
   - id: feature6
     title: "kinnoo install — Agent installation from archive"
@@ -278,7 +276,6 @@ features:
       - "kinnoo install extraction should just run tar -xzf under the hood, since .kno is currently just an alias for .tar.gz"
     owner: techlead-agent
     dependencies: [feature4, feature5]
-    status: completed
 
   # ======================================================================
   # Phase 2 (V2): expanded CLI
@@ -304,7 +301,6 @@ features:
         description: "All existing V1 tests continue to pass after refactor."
     owner: techlead-agent
     dependencies: []
-    status: completed
 
   - id: feature8
     title: "Packaging Robustness"
@@ -317,7 +313,7 @@ features:
       - id: AC1
         description: "`kinnoo pack` includes transitive dependencies (not just direct), so pip install in an offline venv succeeds."
       - id: AC2
-        description: "Archive format is zip with .kno extension; code, tests, and authoritative packaging docs (README + docs/manifest-schema-reference.md) reference zip consistently."
+        description: "Archive format is zip with .kno extension; code, tests, and authoritative packaging docs (README + notes/manifest-schema-reference.md) reference zip consistently."
       - id: AC3
         description: "If a wheel build fails for a dependency, `kinnoo pack` warns but continues (does not abort the entire pack)."
       - id: AC4
@@ -328,7 +324,6 @@ features:
         description: "If platform-specific wheels are detected during packing, a warning is printed: 'Archive contains platform-specific wheels that may not install on other operating systems'."
     owner: techlead-agent
     dependencies: []
-    status: completed
 
   - id: feature9
     title: "Manifest Schema V2 Extensions"
@@ -353,7 +348,6 @@ features:
         description: "env_vars items are validated as non-empty strings (empty string items in the list produce an error)."
     owner: techlead-agent
     dependencies: []
-    status: completed
 
   - id: feature10
     title: "Environment Variable / Secret Management (env_vars)"
@@ -380,7 +374,6 @@ features:
         description: "No code path in the codebase ever prints, logs, or displays the VALUE of any env var or secret — only variable NAMES may appear in output or logs."
     owner: techlead-agent
     dependencies: [feature9]
-    status: completed
 
   - id: feature11
     title: "kinnoo inspect — Manifest inspection command"
@@ -410,7 +403,6 @@ features:
         description: "If `kinnoo.yaml` is present but missing required fields, inspect output clearly names each missing required field using validator-provided messages."
     owner: techlead-agent
     dependencies: [feature7]
-    status: completed
 
   - id: feature12
     title: "Local Registry (kinnoo publish, kinnoo install <name>, kinnoo list, kinnoo search)"
@@ -441,7 +433,6 @@ features:
         description: "Publish/resolve logic is behind an abstraction (e.g., RegistryBackend interface) so swapping local for remote backend is a minimal change."
     owner: techlead-agent
     dependencies: [feature11]
-    status: deprecated
 
   - id: feature13
     title: "Pack/Publish Refactor — Local Archive + Registry Publish Flow"
@@ -527,7 +518,6 @@ features:
         description: "If all checks pass, prints 'Ready to run'; if any fail, prints actionable guidance per failed check."
     owner: techlead-agent
     dependencies: [feature10]
-    status: completed
 
   - id: feature15
     title: "Trust Baseline"
@@ -556,7 +546,6 @@ features:
       - "--yes/-y flag on install follows apt/brew convention for CI automation."
     owner: techlead-agent
     dependencies: [feature10]
-    status: completed
 
   - id: feature16
     title: "Archive Integrity (Checksums)"
@@ -581,7 +570,6 @@ features:
         description: "`kinnoo publish` publishes the .kno file along with associated .kno.sha256 file, if present."
     owner: techlead-agent
     dependencies: [feature8]
-    status: completed
 
   - id: feature17
     title: "Pack Size Reporting & Warnings"
@@ -601,7 +589,6 @@ features:
         description: "`kinnoo list` includes archive size in the registry listing output."
     owner: techlead-agent
     dependencies: [feature8]
-    status: completed
 
   - id: feature18
     title: "Input Safety Guard"
@@ -796,7 +783,6 @@ features:
       - "One smoke test per template: `kinnoo init` + validate generated manifest."
     owner: techlead-agent
     dependencies: [feature4]
-    status: completed
 
   - id: feature22
     title: "Asset Bundling"
@@ -1128,9 +1114,8 @@ features:
       JWT access tokens (short-lived, scoped claims). Web UI uses session cookies
       (feature30). The auth system is provided by feature43.
 
-      Storage uses an abstraction layer with three backends:
+      Storage uses an abstraction layer with two backends:
         - `LocalStorageBackend`  — filesystem, for dev and testing
-        - `MockS3Backend`        — moto-based, for automated tests
         - `S3StorageBackend`     — real S3/MinIO, for staging and production
 
       Switching backend is a config change (`REGISTRY_STORAGE_BACKEND` env var),
@@ -1157,7 +1142,7 @@ features:
       - id: AC1
         description: "A FastAPI server application exists in a dedicated `server/` directory with proper project structure (requirements.txt, entry point, config module)."
       - id: AC2
-        description: "A `StorageBackend` protocol exists with three implementations: `LocalStorageBackend` (filesystem), `MockS3Backend` (moto), and `S3StorageBackend` (real S3/MinIO). Backend is selected via `REGISTRY_STORAGE_BACKEND` env var."
+        description: "A `StorageBackend` protocol exists with two implementations: `LocalStorageBackend` (filesystem) and `S3StorageBackend` (real S3/MinIO). Backend is selected via `REGISTRY_STORAGE_BACKEND` env var."
       - id: AC3
         description: "POST `/api/publish` accepts archive upload, validates structure, recomputes SHA256 server-side, stores archive in object storage, and creates/updates JSON metadata documents. Duplicate tenant+agent+version returns 409 Conflict."
       - id: AC4
@@ -1169,7 +1154,7 @@ features:
       - id: AC7
         description: "All endpoints return appropriate HTTP status codes (200, 201, 400, 401, 403, 404, 409, 429, 500) with JSON error bodies including `error.code`, `error.message`, and `error.request_id`."
       - id: AC8
-        description: "Server tests use FastAPI TestClient and mock S3 (moto) — no real AWS credentials required for testing. All three storage backends have dedicated tests."
+        description: "Server tests use FastAPI TestClient and deterministic fake S3 clients — no real AWS credentials required for testing. Supported storage backends have dedicated tests."
       - id: AC9
         description: "Auth middleware validates JWT access tokens on all endpoints. Scoped claims (registry:read, registry:publish, registry:admin) are enforced per endpoint."
       - id: AC10
@@ -1179,8 +1164,8 @@ features:
       - "Use presigned URLs for archive upload/download to avoid proxying large files through the server."
       - "Three-tier JSON metadata: global index for fast listing, agent index for version history, version doc for detail/audit."
       - "Add pagination (offset/limit) to list and search endpoints from the start."
-      - "S3 backend is behind a `StorageBackend` abstraction. Use moto for mock S3 in tests, local filesystem for dev, real S3 for prod."
-      - "Server dependencies (fastapi, uvicorn, boto3, moto, python-jose) go in server/requirements.txt, NOT in the main kinnoo requirements.txt."
+      - "S3 backend is behind a `StorageBackend` abstraction. Use local filesystem for dev and real S3 for prod."
+      - "Server dependencies (fastapi, uvicorn, boto3, python-jose) go in server/requirements.txt, NOT in the main kinnoo requirements.txt."
       - "Immutable version keys: do not overwrite same version payload. Return 409 on duplicate publish."
       - "Schema-version metadata documents (v1 in filename and payload) to allow future migrations."
       - "Per-tenant visibility flag (public/private) available now. V1 default policy: only authenticated reads."
@@ -1261,7 +1246,6 @@ features:
       - "TypeScript entrypoint transpilation support is deferred; start with .js/.mjs execution."
     owner: techlead-agent
     dependencies: []
-    status: completed
 
   - id: feature32
     title: "Daemon Runtime Type + Process Controls"
@@ -1288,7 +1272,6 @@ features:
       - "Reuses existing supervisor and health-check modules as the control-plane base."
     owner: techlead-agent
     dependencies: [feature31]
-    status: completed
 
   - id: feature33
     title: "Manifest Schema Extensions for OpenClaw/JS Agents"
@@ -1314,7 +1297,6 @@ features:
       - "Acts as the schema contract for scaffold/import and pack/install state behavior."
     owner: techlead-agent
     dependencies: [feature31]
-    status: completed
 
   - id: feature34
     title: "OpenClaw Scaffold Template"
@@ -1339,7 +1321,6 @@ features:
       - "Keeps first version lean and runnable; advanced gateway bridge remains deferred."
     owner: techlead-agent
     dependencies: [feature31, feature33]
-    status: completed
 
   - id: feature35
     title: "Mutable State Directories in Pack/Install"
@@ -1364,7 +1345,6 @@ features:
       - "Framework-agnostic and reusable for non-OpenClaw agents with mutable local state."
     owner: techlead-agent
     dependencies: []
-    status: completed
 
   - id: feature36
     title: "OpenClaw Import Detection & Manifest Inference"
@@ -1390,7 +1370,6 @@ features:
       - "Should remain warning-first and operator-confirmed when confidence is mixed."
     owner: techlead-agent
     dependencies: [feature31, feature33, feature35]
-    status: completed
 
   - id: feature37
     title: "Node.js Dependency Audit & Lifecycle Script Controls"
@@ -1415,7 +1394,6 @@ features:
       - "Lifecycle script visibility is critical because install-time code execution is a major attack path."
     owner: techlead-agent
     dependencies: [feature31]
-    status: completed
 
   - id: feature38
     title: "JS/TS Static Security Sweep"
@@ -1440,7 +1418,6 @@ features:
       - "Rule set should be heuristic and non-blocking initially to reduce false-positive friction."
     owner: techlead-agent
     dependencies: [feature31]
-    status: completed
 
   - id: feature39
     title: "Manifest Permissions Model + Sandbox Execution"
@@ -1465,7 +1442,6 @@ features:
       - "This feature provides the contract required by runtime monitoring in feature41."
     owner: techlead-agent
     dependencies: []
-    status: completed
 
   - id: feature40
     title: "Archive Signing & Publisher Verification"
@@ -1490,7 +1466,6 @@ features:
       - "Keep signing module isolated for future key-rotation and trust-policy extensions."
     owner: techlead-agent
     dependencies: []
-    status: completed
 
   - id: feature41
     title: "Runtime Behavior Monitoring & Kill Switch"
@@ -1515,7 +1490,6 @@ features:
       - "Implementation should prioritize cross-platform baseline observability before deeper syscall-level instrumentation."
     owner: techlead-agent
     dependencies: [feature39]
-    status: completed
 
   - id: feature42
     title: "JSON Input/Output Types for Agent Interop"
@@ -1543,7 +1517,6 @@ features:
       - "Supports both local one-shot and future daemon/MCP-oriented structured message workflows."
     owner: techlead-agent
     dependencies: [feature20, feature31]
-    status: completed
 
   # ======================================================================
   # Phase 3 (V3) continued: Remote Registry — Auth & Management
@@ -1614,7 +1587,6 @@ features:
         description: "publish supports optional pack-and-publish flow from agent directories via --pack, including optional --bump major/minor/patch with clear guardrail errors"
     owner: techlead-agent
     dependencies: [feature30]
-    status: completed
 
   - id: feature45
     title: "kinnoo init mcp-server framework scaffolding"
@@ -1630,7 +1602,6 @@ features:
         description: "`kinnoo init -h` includes an explicit example showing mcp-server initialization usage."
     owner: techlead-agent
     dependencies: [feature23, feature26]
-    status: completed
 
   - id: feature46
     title: "UAT Phase 3/4 continuation — agent analysis, CLI improvements, and bug fixes"
@@ -1664,7 +1635,6 @@ features:
         description: "Preflight passes when runtime.path is set but .venv does not yet exist."
     owner: techlead-agent
     dependencies: [feature3, feature19, feature20, feature27, feature44]
-    status: completed
 
   - id: feature47
     title: "Agent supportability assessment and kinnoo compatibility roadmap"
@@ -1707,7 +1677,6 @@ features:
         description: "Analyzer detects OpenClaw-like JS/TS projects that lack a root package.json by inferring node runtime, entrypoint candidates, and OpenClaw framework signals from lightweight project evidence."
     owner: techlead-agent
     dependencies: [feature46]
-    status: completed
 
   - id: feature48
     title: "kinnoo inspect advanced metadata views and manifest update workflow"
@@ -1729,7 +1698,6 @@ features:
         description: "`kinnoo inspect --update <target> <old-key> <new-value>` updates manifest metadata with interactive warning prompt (`y/N`) and supports `--skip-warnings` to bypass prompt."
     owner: techlead-agent
     dependencies: [feature11, feature24]
-    status: completed
 
   # ======================================================================
   # Phase 5 (V5): Web Frontend and Registry Frontend + Backend
@@ -1765,7 +1733,6 @@ features:
         description: "Font family is set to 'Avenir Next', 'Segoe UI', sans-serif in the global CSS/Tailwind config."
     owner: techlead-agent
     dependencies: []
-    status: completed
 
   - id: feature50
     title: "MainLayout, Design System & Global Theme"
@@ -1796,7 +1763,6 @@ features:
         description: "Smoke tests pass: root layout renders hamburger menu and Login button, ThemeConfig design tokens match specification."
     owner: techlead-agent
     dependencies: [feature49]
-    status: completed
 
   # ------ Sub-phase 2: Landing Page and Secure Login UI ------
 
@@ -1826,7 +1792,6 @@ features:
         description: "Automated tests validate hero content, terminal preview command/copy button, and all six feature cards."
     owner: techlead-agent
     dependencies: [feature50]
-    status: completed
 
   - id: feature52
     title: "Secure Login UI, Validation, and Session-Cookie Submission Flow"
@@ -1854,7 +1819,6 @@ features:
         description: "Automated tests verify required fields, validation behavior, loading state, and successful redirect handling for the login flow."
     owner: techlead-agent
     dependencies: [feature50, feature51]
-    status: completed
 
   # ------ Sub-phase 3: Registry Dashboard ------
 
@@ -1883,7 +1847,6 @@ features:
         description: "Automated tests validate nav/tab rendering, default state, search controls, and tab transition behavior."
     owner: techlead-agent
     dependencies: [feature52]
-    status: completed
 
   - id: feature54
     title: "Agent Cards, Manifest Modal, and Install Command Copy Flow"
@@ -1910,7 +1873,6 @@ features:
         description: "Automated component tests validate card field rendering, name click behavior, modal open/close, manifest content rendering, and install-command copy functionality."
     owner: techlead-agent
     dependencies: [feature53]
-    status: completed
 
   # ------ Sub-phase 4: Integration, CSRF & Production Hardening ------
 
@@ -1940,7 +1902,6 @@ features:
         description: "All integration behavior remains compatible with existing session-cookie flow and does not require token storage in browser storage."
     owner: techlead-agent
     dependencies: [feature54]
-    status: completed
 
   - id: feature56
     title: "API Auth Compatibility, Local Registry Admin Bootstrap, and Mocked S3 Publish Path"
@@ -1965,7 +1926,6 @@ features:
         description: "No changes introduce credential/token leakage in logs, responses, or test artifacts."
     owner: techlead-agent
     dependencies: [feature55]
-    status: completed
 
   - id: feature57
     title: "Production Hardening: Security Headers, Error States, and Rate-Limiter Proxy Signals"
@@ -1989,7 +1949,6 @@ features:
         description: "Hardening changes preserve existing dashboard/login functionality without behavioral regressions."
     owner: techlead-agent
     dependencies: [feature55, feature56]
-    status: completed
 
   # ------ Sub-phase 5: User Registration & Password Reset (feature58, feature59, feature60) ------
 
@@ -2021,7 +1980,6 @@ features:
         description: "Automated tests cover registration happy path, duplicate-safe privacy behavior, token expiry/consumption, slug collision handling, password validation failures, and rate limiting."
     owner: techlead-agent
     dependencies: [feature57]
-    status: completed
 
   - id: feature59
     title: "Forgot Password Workflow, Policy Enforcement, and Session Revocation"
@@ -2048,7 +2006,6 @@ features:
         description: "Automated tests cover reset happy path, non-enumerating request behavior, token expiry/consumption failures, password-policy rejection paths, and rate limiting."
     owner: techlead-agent
     dependencies: [feature58]
-    status: completed
 
   - id: feature60
     title: "Relational Auth Foundation, Hash Rotation, and Sub-phase 5 Hardening"
@@ -2078,4 +2035,1825 @@ features:
         description: "Google/GitHub SSO implementation is deferred, but identity schema and ownership model are ready so tenant ownership never depends on provider email on each login."
     owner: techlead-agent
     dependencies: [feature58, feature59]
+
+  # ======================================================================
+  # Phase 6: OpenClaw Support + Registry Improvements + Competitive Response
+  # ======================================================================
+
+  - id: feature61
+    title: "kinnoo login and logout commands"
+    description: |
+      Add first-class CLI authentication commands for registry workflows so users can
+      login interactively or non-interactively, persist registry credentials locally,
+      and logout safely.
+    tasks: [task332, task333, task449]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo login` supports interactive email/username + hidden-password prompts, uses configured/default registry endpoint, and stores token + tenant slug in local config."
+      - id: AC2
+        description: "`kinnoo login --email --password` supports deterministic non-interactive usage suitable for automation without requiring registry/tenant flags."
+      - id: AC3
+        description: "`kinnoo logout` removes stored registry auth state and subsequent authenticated operations fail with clear guidance until re-login."
+      - id: AC4
+        description: "Publish and registry client paths prefer stored login state while preserving compatibility with explicit env-var overrides."
+      - id: AC5
+        description: "Tenant slug for login state is derived from authenticated identity (or token claims) rather than requiring user-provided `--tenant` input."
+    owner: techlead-agent
+    dependencies: []
+
+  - id: feature62
+    title: "openclaw-skill manifest schema extension"
+    description: |
+      Extend manifest schema and validation for OpenClaw skill packaging so mirrored and
+      imported ClawHub skills have explicit type and provenance while keeping metadata
+      intentionally minimal.
+    tasks: [task334, task335]
+    acceptance_criteria:
+      - id: AC1
+        description: "Schema supports `type: openclaw-skill` with validation rules for framework/type compatibility."
+      - id: AC2
+        description: "Schema supports a `provenance` object with `source_registry`, `source_version`, and at least one of `source_slug` or `source_url`, with deterministic validation errors on invalid combinations."
+      - id: AC3
+        description: "Manifest metadata remains minimal for now: no `channels`, `skills`, or `state_dirs` fields in schema, and validator rejects these fields with clear guidance."
+      - id: AC4
+        description: "Manifest schema reference docs include OpenClaw examples and migration guidance."
+    notes:
+      - "Deprecated in favor of Phase 7 wrapper model; replacements: feature76, feature77, feature78, feature79, feature80, feature81, feature82, feature83, feature84."
+      - "Schema-minimalism rule: do not add metadata fields unless they provide necessary runtime or trust information."
+      - "`provenance` is required for mirrored/imported artifacts and optional for locally authored projects."
+      - |
+        Canonical manifest example 1: mirrored ClawHub skill
+        ```yaml
+        name: weather-skill
+        version: 1.2.3
+        framework: openclaw
+        type: openclaw-skill
+        runtime:
+          language: nodejs
+          type: daemon
+        entrypoint: index.js
+        provenance:
+          source_registry: clawhub
+          source_slug: weather/weather-skill
+          source_url: https://clawhub.ai/skills/weather/weather-skill
+          source_version: 1.2.3
+        ```
+      - |
+        Canonical manifest example 2: GitHub-origin agent (not skill)
+        ```yaml
+        name: repo-triage-agent
+        version: 0.4.0
+        framework: langgraph
+        type: one-shot
+        runtime:
+          language: python
+          type: one-shot
+        entrypoint: run.py
+        dependencies:
+          - langgraph>=0.2
+          - openai>=1.0
+        provenance:
+          source_registry: github
+          source_url: https://github.com/acme/repo-triage-agent
+          source_version: v0.4.0
+        ```
+      - |
+        Canonical manifest example 3: locally authored OpenClaw project
+        ```yaml
+        name: local-notes-skill
+        version: 0.1.0
+        framework: openclaw
+        type: openclaw-skill
+        runtime:
+          language: nodejs
+          type: daemon
+        entrypoint: src/index.ts
+        # provenance omitted for local authored project
+        ```
+    owner: techlead-agent
+    dependencies: []
+
+  - id: feature63
+    title: "ClawHub mirror index with clawhub tenant ownership"
+    description: |
+      Build a ClawHub mirror namespace in registry metadata and store mirrored skills under
+      a centralized admin-controlled tenant slug `clawhub` to make provenance explicit.
+    tasks: [task336, task337]
+    acceptance_criteria:
+      - id: AC1
+        description: "Registry mirror pipeline stores synced skill records under tenant slug `clawhub` with source attribution fields."
+      - id: AC2
+        description: "Tenant slug `clawhub` is admin-controlled/public and does not require an interactive username/password account login path."
+      - id: AC3
+        description: "Search and inspect surfaces clearly label mirrored artifacts as ClawHub-origin and include last-sync metadata."
+      - id: AC4
+        description: "Mirror ingestion is idempotent and supports upsert semantics for repeated sync runs."
+    notes:
+      - "Deprecated in favor of direct OpenClaw CLI wrapper flows in feature76-feature84 (no bridge mirror-first UX)."
+    owner: techlead-agent
+    dependencies: [feature62]
+
+  - id: feature64
+    title: "ClawHub import bridge"
+    description: |
+      Add import path for ClawHub skills that resolves mirror metadata, scaffolds local
+      manifests, and preserves source provenance for downstream install/run workflows.
+    tasks: [task338, task339]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo import --source clawhub <slug>` resolves metadata from mirror index with optional live fallback and deterministic errors."
+      - id: AC2
+        description: "Generated manifest uses `type: openclaw-skill` and includes a `provenance` object with `source_registry`, `source_version`, and `source_slug` and/or `source_url` values."
+      - id: AC3
+        description: "Import output includes dependency/config/environment requirement hints extracted from mirrored metadata."
+      - id: AC4
+        description: "Import report is saved locally with actionable unresolved guidance for missing runtime prerequisites."
+    notes:
+      - "Deprecated in favor of feature78 OpenClaw workspace import via CLI wrapper and registration reconciliation."
+    owner: techlead-agent
+    dependencies: [feature62, feature63]
+
+  - id: feature65
+    title: "Delegated OpenClaw install bridge"
+    description: |
+      Integrate OpenClaw skill install flow in kinnoo by delegating installation to OpenClaw
+      CLI while preserving kinnoo validation and trust checks around the delegated path.
+    tasks: [task340, task341]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo install` detects `type: openclaw-skill` and delegates install to OpenClaw CLI with version-aware invocation."
+      - id: AC2
+        description: "Install path verifies OpenClaw CLI presence/version and emits deterministic remediation guidance when unavailable."
+      - id: AC3
+        description: "Kinnoo-side checks (manifest validation, security checks, trust diagnostics) still execute around delegated install flow."
+      - id: AC4
+        description: "Delegated install outcomes are captured in install diagnostics and trace outputs."
+    notes:
+      - "Deprecated in favor of feature80 extract + `openclaw agents add` registration wrapper flow."
+    owner: techlead-agent
+    dependencies: [feature62]
+
+  - id: feature66
+    title: "OpenClaw run adapter v1"
+    description: |
+      Add first-run OpenClaw execution adapter for kinnoo run flows so installed OpenClaw
+      skills can be executed through detected backend invocation paths with clear diagnostics.
+    tasks: [task342, task343]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo run` supports `openclaw-skill` packages by delegating to detected OpenClaw invocation path."
+      - id: AC2
+        description: "Adapter emits explicit backend-selection diagnostics and command-level execution traces for troubleshooting."
+      - id: AC3
+        description: "Adapter is gated behind explicit experimental compatibility control to minimize accidental behavior changes."
+      - id: AC4
+        description: "Failure modes (missing backend, unsupported version, non-zero exit) are surfaced with deterministic actionable errors."
+    notes:
+      - "Deprecated in favor of feature81 OpenClaw run wrapper (`openclaw agent --agent ... --message ...`)."
+      - "Feature66 tasks and tests are deprecated and excluded from active regression execution."
+    owner: techlead-agent
+    dependencies: [feature65]
+
+  - id: feature67
+    title: "ClawHub sync command"
+    description: |
+      Add registry sync command for ClawHub metadata ingestion with incremental/full sync
+      options, source attribution retention, and clawhub tenant upsert semantics.
+    tasks: [task344, task345]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo sync clawhub` supports incremental sync and full resync options with deterministic output summaries."
+      - id: AC2
+        description: "Synced records are upserted under tenant slug `clawhub` with source attribution and sync timestamp metadata."
+      - id: AC3
+        description: "Sync enforces rate-limit/polite-fetch behavior and handles unavailable upstream cases without corrupting local mirror state."
+      - id: AC4
+        description: "Sync diagnostics report created/updated/skipped counts and explicit failure categories."
+    notes:
+      - "Deprecated in favor of feature84 OpenClaw skill search wrapper and feature83 skill install wrapper pathways."
+    owner: techlead-agent
+    dependencies: [feature63]
+
+  - id: feature68
+    title: "GitHub Actions reference CI workflow"
+    description: |
+      Provide an official CI workflow and supporting docs for preflight, packaging, signing,
+      and publishing to registry in automation-friendly GitHub Actions pipelines.
+    tasks: [task346, task347]
+    acceptance_criteria:
+      - id: AC1
+        description: "Repository includes reference GitHub Actions workflow covering install, preflight, pack, and publish stages."
+      - id: AC2
+        description: "Workflow documents required env vars/secrets and non-zero failure behavior for CI correctness."
+      - id: AC3
+        description: "Publish flow supports registry token usage via secure CI secret inputs."
+      - id: AC4
+        description: "Docs include troubleshooting guidance for common CI signing/publish failures."
+    owner: techlead-agent
+    dependencies: [feature61]
+
+  - id: feature69
+    title: "kinnoo test foundation with standardized test file format"
+    description: |
+      Introduce `kinnoo test` command and a low-friction standardized declarative test
+      format for prompt/response style agent validation that works across Python and JS/TS agents.
+    tasks: [task348, task349]
+    acceptance_criteria:
+      - id: AC1
+        description: "CLI supports `kinnoo test <agent-dir>` executing declarative test cases and producing deterministic pass/fail summaries."
+      - id: AC2
+        description: "A standardized test format (`kinnoo.tests.yaml`) is defined, documented, and supports prompt/input, expected assertions, timeout, and exit-code checks."
+      - id: AC3
+        description: "Test runner supports both one-shot and daemon-compatible agent runtime contracts with consistent output schema."
+      - id: AC4
+        description: "Docs include minimal-friction examples for Python and JS/TS agents and guidance for CI integration."
+    owner: techlead-agent
+    dependencies: []
+
+  - id: feature70
+    title: "Landing page and docs messaging refresh"
+    description: |
+      Refresh public messaging across landing/docs/README to communicate OpenClaw integration,
+      mirror provenance behavior, and updated Phase 6 capabilities.
+    tasks: [task350, task351]
+    acceptance_criteria:
+      - id: AC1
+        description: "Landing page copy and feature cards reflect OpenClaw bridge, trust posture, and registry improvements."
+      - id: AC2
+        description: "README and docs include updated command references for new Phase 6 CLI behaviors."
+      - id: AC3
+        description: "Documentation explicitly explains ClawHub mirror attribution and `clawhub` tenant provenance model."
+      - id: AC4
+        description: "Content changes are covered by docs regression tests for key command snippets and references."
+    owner: techlead-agent
+    dependencies: []
+
+  - id: feature71
+    title: "Strict CI signed-package enforcement"
+    description: |
+      Add strict automation controls requiring signed package artifacts and verified publisher
+      metadata on install/publish paths used in CI/CD workflows.
+    tasks: [task352, task353]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo install --strict` fails deterministically when signature artifacts are missing or invalid."
+      - id: AC2
+        description: "`kinnoo publish --strict` fails deterministically when signing/trust requirements are unmet."
+      - id: AC3
+        description: "Strict mode disallows unverified publisher overrides and emits explicit remediation guidance."
+      - id: AC4
+        description: "CI documentation includes strict-mode rollout guidance and failure examples."
+    owner: techlead-agent
+    dependencies: []
+
+  - id: feature72
+    title: "Lockfile support for reproducible installs"
+    description: |
+      Add lockfile write/read behavior for agent install flows so CI and teams can reproduce
+      exact resolved installs across environments.
+    tasks: [task354, task355]
+    acceptance_criteria:
+      - id: AC1
+        description: "Install flow writes `kinnoo-lock.yaml` with deterministic schema including source/version/checksum metadata."
+      - id: AC2
+        description: "`kinnoo install --frozen` installs exactly from lockfile and fails clearly on drift/missing entries."
+      - id: AC3
+        description: "Lockfile updates are additive/deterministic for repeated installs and include platform/runtime metadata."
+      - id: AC4
+        description: "Docs describe lockfile lifecycle and team/CI best practices."
+    owner: techlead-agent
+    dependencies: []
+
+  - id: feature73
+    title: "kinnoo diff command"
+    description: |
+      Add archive diff command to compare two `.kno` packages and surface meaningful
+      manifest/file/dependency/permission changes for upgrade review.
+    tasks: [task356, task357]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo diff <a.kno> <b.kno>` reports manifest-level differences including dependencies/env vars/permissions."
+      - id: AC2
+        description: "Diff output reports added/removed/modified files with deterministic ordering."
+      - id: AC3
+        description: "Command supports machine-readable `--json` output with stable schema."
+      - id: AC4
+        description: "Exit code semantics are deterministic: success-identical vs success-different vs fatal-error."
+    owner: techlead-agent
+    dependencies: []
+
+  - id: feature74
+    title: "kinnoo uninstall command"
+    description: |
+      Add safe uninstall command for removing installed agents with mandatory operator
+      confirmation and cleanup of related local installation metadata.
+    tasks: [task358, task359]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo uninstall <name>` removes installed agent directory and associated runtime artifacts for the target package."
+      - id: AC2
+        description: "Uninstall requires mandatory interactive confirmation before destructive actions in Phase 6."
+      - id: AC3
+        description: "Uninstall updates install traces/lockfile state consistently after successful removal."
+      - id: AC4
+        description: "Missing-agent and partial-cleanup failure paths return deterministic actionable diagnostics."
+    owner: techlead-agent
+    dependencies: [feature72]
+
+  - id: feature75
+    title: "Framework import adapters for LangChain, LangGraph, and OpenAI Agents SDK"
+    description: |
+      Add framework-aware import adapters so `kinnoo import --from` can generate higher-fidelity
+      manifests for major Python and JS/TS agent ecosystems.
+    tasks: [task360, task361]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo import --from langchain|langgraph|openai` applies framework-specific analysis/adaptation over generic analyzer defaults."
+      - id: AC2
+        description: "Adapters emit higher-confidence entrypoint/runtime/dependency/env-var inference than generic mode for representative fixtures."
+      - id: AC3
+        description: "Unknown/incomplete framework cases degrade gracefully to generic analyzer with explicit guidance."
+      - id: AC4
+        description: "Automated adapter tests include at least one JS/TS-oriented fixture path where relevant and preserve deterministic CLI behavior."
+    owner: techlead-agent
+    dependencies: []
+
+  # ──────────────────────────────────────────────────────────────────────
+  # Phase 7 — OpenClaw CLI Wrapper (proper integration via openclaw CLI)
+  #
+  # These features replace the scaffold/bridge approach of features 62-67
+  # with a proper CLI wrapper strategy that delegates to `openclaw` CLI
+  # commands for agent lifecycle management.
+  #
+  # Key design decisions:
+  #   - kinnoo wraps openclaw CLI rather than reimplementing its internals
+  #   - openclaw CLI presence + version >= 2026.3.28 is a hard prerequisite
+  #   - Gateway must be running for run/logs commands
+  #   - Workspace convention: ~/.openclaw/workspace-<agent-name>/
+  #   - `kinnoo attach` and `kinnoo stop` are deferred — OpenClaw agents
+  #     run via the persistent Gateway daemon, not as standalone processes,
+  #     so there is no "running agent process" to attach to or stop
+  #     individually. Gateway lifecycle is managed by `openclaw gateway`.
+  # ──────────────────────────────────────────────────────────────────────
+
+  - id: feature76
+    title: "OpenClaw CLI preflight and version gate"
+    description: |
+      Add a reusable preflight check that verifies the openclaw CLI is installed,
+      meets version requirements (>= 2026.3.28), and optionally checks that the
+      Gateway daemon is running and healthy. All OpenClaw-related kinnoo commands
+      must call this preflight before proceeding.
+    tasks: [task362, task363]
+    acceptance_criteria:
+      - id: AC1
+        description: "Preflight detects `openclaw` CLI on PATH and extracts its version with deterministic error when missing."
+      - id: AC2
+        description: "Preflight rejects openclaw versions below 2026.3.28 with actionable upgrade guidance."
+      - id: AC3
+        description: "Preflight optionally probes Gateway health via `openclaw gateway status` and reports actionable remediation when the Gateway is not running."
+      - id: AC4
+        description: "Preflight result is a reusable function/module consumed by init, import, install, run, logs, and skill commands."
+      - id: AC5
+        description: "Version parsing handles semver-like OpenClaw date versions (YYYY.M.D) correctly including patch suffixes."
+    notes:
+      - "Gateway health check is optional — only required for commands that talk to the Gateway (run, logs)."
+      - "Init and import only need CLI presence + version, not a running Gateway."
+      - "Uses `openclaw --version` for version extraction."
+      - "Consider caching preflight result within a single CLI invocation to avoid redundant subprocess calls."
+    owner: techlead-agent
+    dependencies: []
+
+  - id: feature77
+    title: "OpenClaw init via CLI wrapper"
+    description: |
+      Rework `kinnoo init --framework openclaw <name>` to delegate agent creation
+      to `openclaw agents add <name> --workspace ~/.openclaw/workspace-<name>` and
+      then generate a kinnoo.yaml manifest for the new workspace. Replaces the
+      standalone scaffold approach from feature34 with proper CLI integration.
+    tasks: [task364, task365]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo init --framework openclaw <name>` runs preflight, then delegates to `openclaw agents add <name> --workspace ~/.openclaw/workspace-<name>`."
+      - id: AC2
+        description: "After successful `agents add`, generates a valid kinnoo.yaml in the workspace directory with framework: openclaw and correct runtime fields."
+      - id: AC3
+        description: "If the workspace directory already exists, emits a deterministic error with remediation guidance instead of overwriting."
+      - id: AC4
+        description: "Preflight (feature76) is called before any file or subprocess operations."
+      - id: AC5
+        description: "Output summary confirms agent name, workspace path, and next steps (e.g., edit SOUL.md, configure model)."
+    notes:
+      - "Replaces the standalone scaffold approach from feature34 — feature34 generated files without openclaw CLI."
+      - "This delegates to openclaw CLI so the agent is actually registered with the Gateway."
+      - "Workspace convention: ~/.openclaw/workspace-<name>/ (user-configurable override deferred)."
+      - "Does NOT require Gateway to be running — only openclaw CLI presence + version."
+      - "OpenClaw version must be 2026.3.28+"
+    owner: techlead-agent
+    dependencies: [feature76]
+
+  - id: feature78
+    title: "OpenClaw import via CLI wrapper"
+    description: |
+      Rework `kinnoo import` for OpenClaw workspaces to create a kinnoo.yaml manifest
+      from an existing OpenClaw workspace directory. If the workspace is not already
+      under ~/.openclaw/, optionally copy it there and register it via
+      `openclaw agents add`. Replaces the bridge import approach from feature36/64.
+    tasks: [task366, task367]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo import <workspace-dir>` detects OpenClaw workspace structure (AGENTS.md, SOUL.md, .openclaw/ or openclaw.json signals) and generates kinnoo.yaml."
+      - id: AC2
+        description: "If the workspace is not already under ~/.openclaw/, prompts the user to copy it and register via `openclaw agents add`."
+      - id: AC3
+        description: "If the workspace IS under ~/.openclaw/, checks if the agent is registered with `openclaw agents list` and registers if missing."
+      - id: AC4
+        description: "Generated kinnoo.yaml includes correct framework, runtime, and workspace path fields derived from the existing project."
+      - id: AC5
+        description: "Error handling covers: directory not found, not an OpenClaw workspace, target directory already exists during copy."
+    notes:
+      - "Replaces the ClawHub-bridge import from feature64 with direct workspace import."
+      - "Detection uses weighted signals from analyzer (SOUL.md, AGENTS.md, openclaw.json, skills/, memory/)."
+      - "Copy operation must handle .git exclusion (user may not want to copy .git from source)."
+      - "Preflight (feature76) is called before subprocess operations."
+      - "OpenClaw version must be 2026.3.28+"
+    owner: techlead-agent
+    dependencies: [feature76]
+
+  - id: feature79
+    title: "OpenClaw workspace pack"
+    description: |
+      Ensure `kinnoo pack` correctly packages OpenClaw workspaces into .kno archives,
+      including OpenClaw-specific files (AGENTS.md, SOUL.md, TOOLS.md, USER.md,
+      MEMORY.md, IDENTITY.md, BOOTSTRAP.md, HEARTBEAT.md, memory/, skills/) while
+      excluding runtime artifacts (.git, .openclaw/, node_modules/).
+    tasks: [task368, task369]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo pack` on an OpenClaw workspace includes identity files (AGENTS.md, SOUL.md, TOOLS.md, USER.md, MEMORY.md, IDENTITY.md, BOOTSTRAP.md, HEARTBEAT.md)."
+      - id: AC2
+        description: "Pack includes memory/ and skills/ directories with their contents."
+      - id: AC3
+        description: "Pack excludes .git/, .openclaw/, node_modules/, and other runtime artifacts via deterministic exclude rules."
+      - id: AC4
+        description: "Archive size reporting works correctly for OpenClaw workspace contents."
+      - id: AC5
+        description: "Packed archive can be installed via feature80 install flow to reconstitute a working OpenClaw workspace."
+    notes:
+      - "This builds on existing pack infrastructure — may only need exclude/include rule adjustments."
+      - "OpenClaw workspaces don't have the same entrypoint structure as Python agents, so pack must handle missing entrypoint gracefully."
+      - "Consider whether openclaw.json should be included (it may contain local-only config)."
+    owner: techlead-agent
+    dependencies: []
+
+  - id: feature80
+    title: "OpenClaw install via CLI wrapper"
+    description: |
+      Rework `kinnoo install` for OpenClaw agents to download the .kno archive,
+      extract to ~/.openclaw/workspace-<name>/, and register the agent via
+      `openclaw agents add <name> --workspace <path>`. Replaces the delegated
+      install bridge from feature65.
+    tasks: [task370, task371]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo install` for framework: openclaw packages extracts to ~/.openclaw/workspace-<name>/ and runs `openclaw agents add <name> --workspace <path>`."
+      - id: AC2
+        description: "If ~/.openclaw/workspace-<name>/ already exists, emits a deterministic error with remediation guidance (rename, remove, or force overwrite flag)."
+      - id: AC3
+        description: "Preflight (feature76) verifies openclaw CLI presence and version before extraction or registration."
+      - id: AC4
+        description: "Install diagnostics and trace outputs capture both kinnoo-side and openclaw-side outcomes."
+      - id: AC5
+        description: "kinnoo-side validation (manifest checks, security sweep) still executes before delegating to openclaw CLI."
+    notes:
+      - "Replaces feature65 delegated install bridge with a proper extract + register flow."
+      - "Download + unzip is kinnoo's responsibility; only the `agents add` registration is delegated."
+      - "Gateway does NOT need to be running for install — agents add works without it."
+      - "Agent name is derived from the manifest name field in kinnoo.yaml."
+      - "OpenClaw version must be 2026.3.28+"
+    owner: techlead-agent
+    dependencies: [feature76, feature79]
+
+  - id: feature81
+    title: "OpenClaw run via CLI wrapper"
+    description: |
+      Rework `kinnoo run <name> '<prompt>'` for OpenClaw agents to delegate execution
+      to `openclaw agent --agent <name> --message '<prompt>'` via the running Gateway.
+      Replaces the experimental run adapter from feature66.
+    tasks: [task372, task373]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo run <name> '<prompt>'` maps to `openclaw agent --agent <name> --message '<prompt>'` with stdout/stderr passthrough."
+      - id: AC2
+        description: "Preflight (feature76) verifies openclaw CLI, version, AND Gateway health before attempting run."
+      - id: AC3
+        description: "Run supports text input by default; JSON output supported using --json flag. JSON input support deferred to a future feature"
+      - id: AC4
+        description: "Non-zero exit codes from openclaw are propagated with actionable diagnostics (Gateway not running, agent not found, etc.)."
+      - id: AC5
+        description: "Optional `--thinking <level>` passthrough to openclaw agent command."
+    notes:
+      - "Replaces feature66 experimental run adapter — no more --experimental-openclaw-adapter flag."
+      - "Gateway MUST be running for this command — preflight should verify via `openclaw gateway status`."
+      - "Future: support --deliver, --reply-channel for routing output to channels."
+      - "Future: JSON structured input for programmatic use."
+      - "OpenClaw version must be 2026.3.28+"
+    owner: techlead-agent
+    dependencies: [feature76]
+
+  - id: feature82
+    title: "OpenClaw logs passthrough"
+    description: |
+      Add `kinnoo logs --daemon openclaw` (or `kinnoo logs --openclaw`) that delegates
+      to `openclaw logs` to tail Gateway logs. Provides a unified kinnoo surface for
+      viewing OpenClaw runtime logs without requiring users to know openclaw CLI commands.
+    tasks: [task374, task375]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo logs --daemon openclaw` delegates to `openclaw logs` with stdout/stderr passthrough."
+      - id: AC2
+        description: "Supports `--follow` flag passthrough for live tailing."
+      - id: AC3
+        description: "Preflight (feature76) verifies openclaw CLI presence before delegation."
+      - id: AC4
+        description: "Supports `--json` flag passthrough for machine-readable output."
+    notes:
+      - "Thin wrapper — kinnoo adds no processing, just delegates to openclaw logs."
+      - "Gateway must be running for logs to work (openclaw logs uses RPC)."
+      - "Consider also supporting `--local-time` passthrough."
+    owner: techlead-agent
+    dependencies: [feature76]
+
+  - id: feature83
+    title: "OpenClaw skill install for agents"
+    description: |
+      Add `kinnoo install --openclaw-skill <skill-slug-or-url> <agent-name>` to install
+      a ClawHub skill into an existing OpenClaw agent's workspace. If the agent is not
+      registered with openclaw, prompt to install the agent first. The skill must exist
+      on ClawHub.
+    tasks: [task376, task377]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo install --openclaw-skill <slug> <agent>` delegates to `openclaw skills install <slug>` targeting the agent's workspace."
+      - id: AC2
+        description: "If the agent is not registered in `openclaw agents list`, emits actionable guidance to install the agent first (via kinnoo install or openclaw agents add)."
+      - id: AC3
+        description: "Preflight (feature76) verifies openclaw CLI, version, and Gateway health before skill install."
+      - id: AC4
+        description: "Supports ClawHub slug and URL forms for skill identification."
+      - id: AC5
+        description: "Skill install outcome (success, already-installed, not-found) is reported with deterministic diagnostics."
+    notes:
+      - "This maps to `openclaw skills install <slug>` which installs into the active workspace's skills/ directory."
+      - "Need to determine how to target a specific agent's workspace — may need `--workspace` flag or agent context switching."
+      - "The skill must exist on ClawHub — local-only skills are not supported through this path."
+      - "Consider supporting `--version <version>` passthrough for pinned installs."
+      - "OpenClaw version must be 2026.3.28+"
+    owner: techlead-agent
+    dependencies: [feature76]
+
+  - id: feature84
+    title: "OpenClaw skill search via ClawHub"
+    description: |
+      Add `kinnoo search --openclaw-skill <query>` to search for skills on ClawHub
+      by delegating to `openclaw skills search <query>`. Provides discovery of
+      available OpenClaw skills through the kinnoo CLI surface.
+    tasks: [task378, task379]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo search --openclaw-skill <query>` delegates to `openclaw skills search <query>` with stdout passthrough."
+      - id: AC2
+        description: "Preflight (feature76) verifies openclaw CLI presence before delegation."
+      - id: AC3
+        description: "Empty results and search errors are surfaced with actionable guidance."
+      - id: AC4
+        description: "Output is human-readable by default; supports `--json` passthrough for machine-readable results."
+    notes:
+      - "Thin wrapper — kinnoo adds no processing, just delegates to openclaw skills search."
+      - "Gateway must be running for ClawHub search to work (skills search uses Gateway RPC)."
+      - "Future: integrate search results with kinnoo install --openclaw-skill for seamless discover-then-install flow."
+      - "OpenClaw version must be 2026.3.28+"
+    owner: techlead-agent
+    dependencies: [feature76]
+  
+  - id: feature85
+    title: "Deprecate OpenClaw bridge features 62-67"
+    description: |
+      Mark features 62-67 (openclaw-skill schema extension, ClawHub mirror index,
+      ClawHub import bridge, delegated install bridge, run adapter v1, ClawHub sync
+      command) as deprecated in favor of the Phase 7 CLI wrapper approach (features
+      76-84). Remove or gate the --experimental-openclaw-adapter flag. Existing code
+      paths should emit deprecation warnings pointing users to the new commands.
+    tasks: [task380, task381]
+    acceptance_criteria:
+      - id: AC1
+        description: "Features 62-67 are marked deprecated in FEATURES.txt with pointers to their Phase 7 replacements."
+      - id: AC2
+        description: "Code paths from features 62-67 that remain active emit deprecation warnings with migration guidance."
+      - id: AC3
+        description: "The --experimental-openclaw-adapter flag is removed or emits a deprecation notice."
+      - id: AC4
+        description: "Tests for features 62-67 are preserved but annotated as covering deprecated code paths."
+      - id: AC5
+        description: "No breaking changes for users who have not yet adopted Phase 7 commands — deprecated paths still function."
+      - id: AC6
+        description: "Help usage text related to features 62-67 should be removed."
+    notes:
+      - "Features 62-67 used a bridge/mirror/scaffold approach that is superseded by proper CLI wrapping."
+      - "Feature34 (OpenClaw Scaffold Template) is superseded by feature77 (init via CLI wrapper)."
+      - "Feature36 (OpenClaw Import Detection) analysis logic is reusable in feature78 — deprecate the scaffold output, keep the detector."
+      - "Deprecation is non-breaking — old code paths remain functional but warn."
+      - "Full removal of deprecated code is deferred to a future cleanup phase."
+    owner: techlead-agent
+    dependencies: [feature76, feature77, feature78, feature80, feature81]
+
+  # ──────────────────────────────────────────────────────────────
+  # Phase 8: Client-Side Security Hardening (features 86-88)
+  # ──────────────────────────────────────────────────────────────
+
+  - id: feature86
+    title: "Embedded integrity manifest (META-INF/integrity.json)"
+    description: |
+      During `kinnoo pack`, generate a JSON manifest listing every file in the
+      archive with its SHA-256 hash and file size. Store the manifest inside the
+      .kno archive at META-INF/integrity.json. Create a new module
+      src/kinnoo/integrity.py with functions to compute and verify file hashes.
+    tasks: [task382, task383]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo pack` produces a .kno containing META-INF/integrity.json."
+      - id: AC2
+        description: "META-INF/integrity.json contains SHA-256 hash and size for every file in the archive (excluding META-INF/ itself)."
+      - id: AC3
+        description: "Integrity module provides `compute_integrity_manifest(directory) -> dict` and `verify_integrity_manifest(directory, manifest) -> list[str]`."
+      - id: AC4
+        description: "Manifest format is documented with a JSON schema or example in the module docstring."
+      - id: AC5
+        description: "Existing tests for pack continue to pass; new tests cover manifest generation."
+    notes:
+      - "New module: src/kinnoo/integrity.py"
+      - "Modify: src/kinnoo/pack_command.py to call integrity module after archiving"
+      - "META-INF/integrity.json must be the last file added to the archive (so it covers all other files)"
+      - "See phase8-planning-3.md for full context"
+    owner: swe-agent
+    dependencies: []
+
+  - id: feature87
+    title: "Embedded signature (META-INF/signature.json)"
+    description: |
+      When `kinnoo pack --sign` is used, sign the integrity manifest
+      (META-INF/integrity.json) using the existing Ed25519 signing infrastructure
+      in signing.py and embed the signature in META-INF/signature.json. The
+      signature JSON includes the base64 signature, the public key fingerprint,
+      and a timestamp.
+    tasks: [task384, task385]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo pack --sign` produces META-INF/signature.json alongside META-INF/integrity.json."
+      - id: AC2
+        description: "Signature covers the raw bytes of META-INF/integrity.json."
+      - id: AC3
+        description: "signature.json contains: signature (base64), public_key_fingerprint (hex), signed_at (ISO 8601)."
+      - id: AC4
+        description: "`kinnoo pack` without `--sign` does NOT produce signature.json (integrity.json is still generated)."
+      - id: AC5
+        description: "Existing signing.py functions are reused; no new crypto dependencies."
+      - id: AC6
+        description: "Tests verify signed archives have valid signatures."
+    notes:
+      - "Reuses: src/kinnoo/signing.py (Ed25519 keygen + sign functions)"
+      - "Modify: src/kinnoo/pack_command.py to add signing step after integrity manifest"
+      - "Key pair must exist or be generated via `kinnoo keygen`"
+    owner: swe-agent
+    dependencies: [feature86]
+
+  - id: feature88
+    title: "Install-time integrity verification"
+    description: |
+      During `kinnoo install`, verify the integrity manifest before extracting
+      files. If `--strict` flag is passed, also verify the signature. Report
+      clear error messages for any mismatches. Add a `--skip-verify` flag to
+      bypass verification for development workflows.
+    tasks: [task386, task387]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo install` verifies META-INF/integrity.json hashes against actual file contents."
+      - id: AC2
+        description: "Installation aborts with clear error message if any file hash mismatches."
+      - id: AC3
+        description: "`kinnoo install --strict` additionally verifies META-INF/signature.json and fails if missing or invalid."
+      - id: AC4
+        description: "`kinnoo install --skip-verify` bypasses all verification."
+      - id: AC5
+        description: "Archives without META-INF/integrity.json install with a warning (backward compatibility with pre-feature86 archives)."
+      - id: AC6
+        description: "Verification results are logged: number of files checked, pass/fail status."
+      - id: AC7
+        description: "Tests cover: valid archive, tampered file, missing integrity manifest, unsigned + strict mode, skip-verify."
+    notes:
+      - "Modify: src/kinnoo/install_command.py"
+      - "Reuse: src/kinnoo/integrity.py verification functions from feature86"
+      - "Backward compatibility is critical — old archives must still install"
+    owner: swe-agent
+    dependencies: [feature86, feature87]
+
+  # ──────────────────────────────────────────────────────────────
+  # Phase 9: Server Hardening & Containerization (features 89-91, 100-102)
+  # ──────────────────────────────────────────────────────────────
+
+  - id: feature89
+    title: "Production server configuration and deployment hardening"
+    description: |
+      Harden the registry server for production deployment. Add structured JSON
+      logging. Configure CORS for dev.kinnoo.ai and dev-api.kinnoo.ai origins.
+      Add HTTPS redirect middleware. Add health check and readiness endpoints.
+      Configure Uvicorn for production (workers, timeouts, graceful shutdown).
+      Ensure all secrets come from environment variables with no dev defaults in
+      production mode.
+    tasks: [task388, task389]
+    acceptance_criteria:
+      - id: AC1
+        description: "Server logs in structured JSON format when KINNOO_ENV=production."
+      - id: AC2
+        description: "CORS is configured to allow only dev.kinnoo.ai and dev-api.kinnoo.ai origins."
+      - id: AC3
+        description: "GET /health returns 200 with {status: ok, version: X.Y.Z}."
+      - id: AC4
+        description: "GET /ready returns 200 only when S3 and auth store are accessible."
+      - id: AC5
+        description: "Server refuses to start in production mode if required secrets are missing."
+      - id: AC6
+        description: "Uvicorn config: 2 workers, 30s timeout, graceful shutdown on SIGTERM."
+      - id: AC7
+        description: "Tests validate health/ready endpoints and CORS headers."
+    notes:
+      - "Modify: server/config.py, server/app.py"
+      - "Create: server/logging_config.py or add to config.py"
+      - "server/config.py (~77 lines) already has ServerConfig class with env var loading"
+      - "server/app.py (194 lines) has create_app() factory function"
+    owner: swe-agent
+    dependencies: []
+
+  - id: feature90
+    title: "Server-side upload validation and integrity enforcement"
+    description: |
+      Validate uploaded .kno archives on the server before storing in S3.
+      Check: file size limits (configurable, default 100MB), valid zip format,
+      required manifest files (kinnoo.yaml), manifest field validation,
+      integrity.json presence and validity. Reject uploads that fail validation
+      with descriptive error messages.
+    tasks: [task390, task391]
+    acceptance_criteria:
+      - id: AC1
+        description: "Server rejects uploads exceeding configured max size with 413 status."
+      - id: AC2
+        description: "Server rejects non-zip files with 400 status."
+      - id: AC3
+        description: "Server rejects archives missing kinnoo.yaml with 400 status."
+      - id: AC4
+        description: "Server validates kinnoo.yaml has required fields (name, version, framework)."
+      - id: AC5
+        description: "Server validates META-INF/integrity.json if present."
+      - id: AC6
+        description: "All validation errors return JSON with error details."
+      - id: AC7
+        description: "Tests cover: oversized upload, invalid zip, missing manifest, invalid manifest, tampered integrity."
+    notes:
+      - "Modify: server/routes/publish.py (~250 lines)"
+      - "publish_archive() currently has minimal validation"
+      - "Max upload size should come from ServerConfig"
+    owner: swe-agent
+    dependencies: [feature86]
+
+  - id: feature91
+    title: "Production-grade rate limiting and abuse protections"
+    description: |
+      Enhance the existing in-memory rate limiter in server/middleware.py with
+      production-appropriate limits. Add per-tenant rate limiting (in addition
+      to per-IP). Add configurable limits for different endpoint groups.
+      Add rate limit headers (X-RateLimit-Limit, X-RateLimit-Remaining,
+      X-RateLimit-Reset). Add retry-after header on 429 responses.
+    tasks: [task392, task393]
+    acceptance_criteria:
+      - id: AC1
+        description: "Rate limits are configurable per endpoint group via server config."
+      - id: AC2
+        description: "Auth endpoints: 5 requests/minute per IP."
+      - id: AC3
+        description: "Publish endpoint: 10 requests/hour per tenant."
+      - id: AC4
+        description: "Search/download: 60 requests/minute per IP."
+      - id: AC5
+        description: "All 429 responses include Retry-After header."
+      - id: AC6
+        description: "All responses include X-RateLimit-* headers."
+      - id: AC7
+        description: "Tests verify rate limit enforcement and header presence."
+    notes:
+      - "Modify: server/middleware.py (~165 lines) — RateLimitRule, InMemoryRateLimiter already exist"
+      - "In-memory rate limiting is acceptable for single-instance beta"
+      - "Redis-backed rate limiting deferred to post-beta"
+    owner: swe-agent
+    dependencies: []
+
+# ──────────────────────────────────────────────────────────────
+# Phase 11: Documentation (features 92-99)
+# ──────────────────────────────────────────────────────────────
+
+  - id: feature92
+    title: "kinnoo.yaml specification document"
+    description: |
+      Create a comprehensive specification document for the kinnoo.yaml manifest
+      format. Document every field, its type, whether required/optional, default
+      values, and validation rules. Include examples for each supported framework.
+      Document the framework-specific fields and constraints.
+    tasks: [task394, task395]
+    acceptance_criteria:
+      - id: AC1
+        description: "docs/kinnoo-yaml-spec.md exists and documents every manifest field."
+      - id: AC2
+        description: "Each field has: name, type, required/optional, default, description, validation rules."
+      - id: AC3
+        description: "Examples provided for chatgpt, gemini, openai, claude, and generic frameworks."
+      - id: AC4
+        description: "Document specifies the manifest version and any backward compatibility notes."
+      - id: AC5
+        description: "Cross-referenced from README.md and CLI help text."
+    notes:
+      - "Create: docs/kinnoo-yaml-spec.md"
+      - "Reference: src/kinnoo/validator.py for field validation logic"
+      - "Reference: existing test fixtures for valid manifest examples"
+    owner: swe-agent
+    dependencies: []
+
+  - id: feature93
+    title: "CLI command reference document"
+    description: |
+      Create a comprehensive CLI reference documenting every kinnoo command and
+      sub-command. Include usage, arguments, options with defaults, environment
+      variables, exit codes, and examples. Cover both client-side (kinnoo) and
+      server-side (kinnoo-server) commands.
+    tasks: [task396, task397]
+    acceptance_criteria:
+      - id: AC1
+        description: "docs/cli-reference.md exists and documents every CLI command."
+      - id: AC2
+        description: "Each command entry has: usage, description, arguments, options, env vars, exit codes, examples."
+      - id: AC3
+        description: "Covers: init, pack, install, run, publish, search, login, logout, keygen, trust, inspect, uninstall."
+      - id: AC4
+        description: "Covers server commands: kinnoo-server bootstrap, user create, user list, user reset-password, invite create."
+      - id: AC5
+        description: "Cross-referenced from README.md."
+    notes:
+      - "Create: docs/cli-reference.md"
+      - "Reference: src/kinnoo/cli.py for client commands"
+      - "Reference: server/cli.py for server commands"
+      - "Some server commands (feature102) may not exist yet — document planned commands with [planned] tag"
+    owner: swe-agent
+    dependencies: []
+
+  - id: feature94
+    title: "Security model document"
+    description: |
+      Create a security model document describing kinnoo's trust and security
+      architecture. Cover: threat model, signing model (Ed25519), integrity
+      verification, trust store, permission model, auth flow (JWT), password
+      hashing (Argon2id), rate limiting, and upload validation.
+    tasks: [task398, task399]
+    acceptance_criteria:
+      - id: AC1
+        description: "docs/security-model.md exists and covers the complete security architecture."
+      - id: AC2
+        description: "Threat model identifies key threats and mitigations."
+      - id: AC3
+        description: "Signing model explains Ed25519 key generation, signing, and verification."
+      - id: AC4
+        description: "Auth flow documented: registration, login, JWT issuance, token refresh, logout."
+      - id: AC5
+        description: "Cross-referenced from README.md."
+    notes:
+      - "Create: docs/security-model.md"
+      - "Reference: src/kinnoo/signing.py, server/auth/token.py, server/auth/session.py"
+    owner: swe-agent
+    dependencies: [feature86, feature87, feature88]
+
+  - id: feature95
+    title: "Getting started guide and registry guide"
+    description: |
+      Create two user-facing guides: (1) a getting-started guide walking through
+      creating, packing, and running an agent from scratch, and (2) a registry
+      guide covering account creation, publishing, searching, and installing from
+      the remote registry.
+    tasks: [task400, task401]
+    acceptance_criteria:
+      - id: AC1
+        description: "docs/getting-started.md exists with a complete walkthrough from install to running an agent."
+      - id: AC2
+        description: "docs/registry-guide.md exists with publish, search, and install workflows."
+      - id: AC3
+        description: "Both guides include copy-paste terminal commands."
+      - id: AC4
+        description: "Both guides include expected output snippets."
+      - id: AC5
+        description: "Cross-referenced from README.md."
+    notes:
+      - "Create: docs/getting-started.md, docs/registry-guide.md"
+      - "Focus on the invite-only beta workflow"
+    owner: swe-agent
+    dependencies: []
+
+  - id: feature96
+    title: "README rewrite and supported agents document"
+    description: |
+      Rewrite README.md for the beta release. Include: project overview, install
+      instructions, quick-start example, link to docs, feature highlights,
+      supported frameworks. Create docs/supported-agents.md with a framework
+      compatibility matrix.
+    tasks: [task402, task403]
+    acceptance_criteria:
+      - id: AC1
+        description: "README.md is rewritten for beta: concise, professional, with badges."
+      - id: AC2
+        description: "README includes: overview, pip install, quick-start (5-command workflow), links to docs."
+      - id: AC3
+        description: "docs/supported-agents.md lists all supported frameworks with feature matrix."
+      - id: AC4
+        description: "Framework matrix covers: init scaffold, pack, run, publish, install for each framework."
+      - id: AC5
+        description: "README does not reference internal development details."
+    notes:
+      - "Modify: README.md"
+      - "Create: docs/supported-agents.md"
+    owner: swe-agent
+    dependencies: [feature92, feature93]
+
+  - id: feature97
+    title: "Public GitHub repository preparation"
+    description: |
+      Prepare the repository for public visibility. Audit for secrets, sensitive
+      data, and internal references. Create CONTRIBUTING.md, CODE_OF_CONDUCT.md.
+      Update LICENSE if needed. Create issue and PR templates. Ensure .gitignore
+      covers all generated files. Remove or redact any internal-only content.
+    tasks: [task404, task405, task447]
+    acceptance_criteria:
+      - id: AC1
+        description: "No secrets, API keys, or passwords present in any tracked file."
+      - id: AC2
+        description: "CONTRIBUTING.md exists with development setup, testing, and PR guidelines."
+      - id: AC3
+        description: "CODE_OF_CONDUCT.md exists."
+      - id: AC4
+        description: ".github/ISSUE_TEMPLATE/ contains bug report and feature request templates."
+      - id: AC5
+        description: ".github/PULL_REQUEST_TEMPLATE.md exists."
+      - id: AC6
+        description: ".gitignore covers: __pycache__, .egg-info, .kno, env/, scratch/, outputs/."
+      - id: AC7
+        description: "No internal meeting notes, personal notes, or WIP content in tracked files."
+    notes:
+      - "Create: CONTRIBUTING.md, CODE_OF_CONDUCT.md, .github/ISSUE_TEMPLATE/, .github/PULL_REQUEST_TEMPLATE.md"
+      - "Review: all files for secrets, internal references"
+      - "notes/ and scratch/ should be gitignored for public release"
+    owner: swe-agent
+    dependencies: []
+
+  - id: feature98
+    title: "GitHub Actions CI/CD pipeline"
+    description: |
+      Create comprehensive GitHub Actions workflows for: (1) CI — run tests and
+      linting on every PR, (2) backend deployment — build Docker image, push to
+      ECR, update ECS service on main branch push, (3) frontend deployment —
+      build Next.js static export, deploy to Cloudflare Pages on main push,
+      (4) Terraform plan on PR, apply on merge. Use OIDC for AWS credentials.
+    tasks: [task406, task407]
+    acceptance_criteria:
+      - id: AC1
+        description: ".github/workflows/ci.yml runs pytest and linting on every PR."
+      - id: AC2
+        description: ".github/workflows/deploy-backend.yml builds Docker image, pushes to ECR, updates ECS on main push."
+      - id: AC3
+        description: ".github/workflows/deploy-frontend.yml builds and deploys Next.js to Cloudflare Pages on main push."
+      - id: AC4
+        description: ".github/workflows/terraform.yml runs terraform plan on PR and terraform apply on merge to main."
+      - id: AC5
+        description: "All workflows use OIDC for AWS credentials (no static access keys)."
+      - id: AC6
+        description: "Deployment workflows include rollback steps on failure."
+    notes:
+      - "Existing: .github/workflows/ci.yml and kinnoo-publish.yml"
+      - "Modify ci.yml, create new deploy workflows"
+      - "OIDC provider must be set up in AWS (covered by IaC feature106)"
+      - "ECR repository created by IaC feature105"
+    owner: swe-agent
+    dependencies: [feature103, feature105]
+
+  - id: feature99
+    title: "PyPI package publishing configuration"
+    description: |
+      Configure the project for PyPI publishing. Validate pyproject.toml has
+      correct metadata (name, version, description, author, license, classifiers,
+      URLs). Set up trusted publisher in PyPI for GitHub Actions. Create
+      .github/workflows/pypi-publish.yml triggered on push to master.
+    tasks: [task408, task409, task443]
+    acceptance_criteria:
+      - id: AC1
+        description: "pyproject.toml has complete PyPI metadata (name, version, description, author, license, classifiers, project-urls)."
+      - id: AC2
+        description: "`pip install kinnoo` works from a built wheel."
+      - id: AC3
+        description: ".github/workflows/pypi-publish.yml publishes to PyPI on push to master."
+      - id: AC4
+        description: "Workflow uses trusted publisher (OIDC) — no API tokens."
+      - id: AC5
+        description: "Version is sourced from a single location (pyproject.toml or __version__)."
+    notes:
+      - "Modify: pyproject.toml"
+      - "Create: .github/workflows/pypi-publish.yml"
+      - "Trusted publisher setup requires manual PyPI configuration by operator"
+    owner: swe-agent
+    dependencies: []
+
+
+# ──────────────────────────────────────────────────────────────
+# Phase 9: Server Hardening & Containerization (features 89-91, 100-102)
+# ──────────────────────────────────────────────────────────────
+
+  - id: feature100
+    title: "Auth hardening — lockout, password policy, token blacklist"
+    description: |
+      Harden the existing authentication system. Add: (1) account lockout after 5
+      consecutive failed login attempts with 15-minute cooldown, (2) password
+      policy enforcement (minimum 12 characters, at least 1 uppercase, 1 lowercase,
+      1 digit, 1 special character), (3) token blacklist on logout so revoked
+      tokens cannot be reused.
+    tasks: [task410, task411, task412]
+    acceptance_criteria:
+      - id: AC1
+        description: "Account is locked after 5 failed login attempts."
+      - id: AC2
+        description: "Locked account returns 423 status with retry-after time."
+      - id: AC3
+        description: "Lockout automatically clears after 15 minutes."
+      - id: AC4
+        description: "Registration and password change enforce password policy."
+      - id: AC5
+        description: "Weak passwords are rejected with specific guidance (e.g., 'Password must contain at least 1 digit')."
+      - id: AC6
+        description: "POST /logout blacklists the JWT token."
+      - id: AC7
+        description: "Blacklisted tokens are rejected by the auth middleware."
+      - id: AC8
+        description: "Token blacklist is periodically pruned of expired tokens."
+      - id: AC9
+        description: "Tests cover: lockout trigger, lockout expiry, password policy, token blacklist."
+    notes:
+      - "Modify: server/auth/token.py (~350 lines), server/routes/auth.py (~300 lines)"
+      - "Modify: server/storage/user_store.py (~95 lines) — add failed_attempts, locked_until fields"
+      - "Token blacklist can be in-memory set for single-instance beta"
+      - "Argon2id password hashing already exists"
+    owner: swe-agent
+    dependencies: []
     status: completed
+
+  - id: feature101
+    title: "Production Dockerfile and docker-compose"
+    description: |
+      Create a production Dockerfile for the registry server. Multi-stage build
+      with Python 3.11 slim. Non-root user. Health check. Create docker-compose.yml
+      for local development with the server, including volume mounts for the auth
+      store and registry data.
+    tasks: [task413, task414]
+    acceptance_criteria:
+      - id: AC1
+        description: "Dockerfile exists at project root (or server/ — TBD by SWE)."
+      - id: AC2
+        description: "Multi-stage build: builder stage installs deps, final stage copies only needed files."
+      - id: AC3
+        description: "Final image runs as non-root user."
+      - id: AC4
+        description: "HEALTHCHECK instruction points to /health endpoint."
+      - id: AC5
+        description: "Image size is under 200MB."
+      - id: AC6
+        description: "docker-compose.yml starts the server with env vars, mounts local storage."
+      - id: AC7
+        description: "`docker compose up` starts server accessible at localhost:8000."
+      - id: AC8
+        description: "Tests: build succeeds, container starts, health check passes."
+    notes:
+      - "Create: Dockerfile (or server/Dockerfile), docker-compose.yml"
+      - "Server entry point: uvicorn server.app:create_app --factory"
+      - "Use python:3.11-slim as base"
+      - "Requirements: server/requirements.txt or separate from client requirements.txt"
+    owner: swe-agent
+    dependencies: [feature89]
+
+  - id: feature102
+    title: "Admin CLI for user management"
+    description: |
+      Extend the server CLI (server/cli.py) with admin commands for managing
+      users and invite tokens. Commands: `kinnoo-server user create`, `user list`,
+      `user reset-password`, `user unlock`, `user delete`, `invite create`,
+      `invite list`. All commands operate directly on the auth store.
+    tasks: [task415, task416]
+    acceptance_criteria:
+      - id: AC1
+        description: "`kinnoo-server user create --email <email>` creates a user and prints a temporary password."
+      - id: AC2
+        description: "`kinnoo-server user list` prints all registered users with status."
+      - id: AC3
+        description: "`kinnoo-server user reset-password --email <email>` generates a new temporary password."
+      - id: AC4
+        description: "`kinnoo-server user unlock --email <email>` clears lockout state."
+      - id: AC5
+        description: "`kinnoo-server user delete --email <email>` removes a user (with confirmation)."
+      - id: AC6
+        description: "`kinnoo-server invite create --email <email> --days-valid <N>` generates an invite token."
+      - id: AC7
+        description: "`kinnoo-server invite list` shows all pending invites with expiry."
+      - id: AC8
+        description: "All commands validate inputs and print clear error messages."
+      - id: AC9
+        description: "Tests cover all commands with valid and invalid inputs."
+    notes:
+      - "Modify: server/cli.py (~60 lines) — currently minimal with bootstrap only"
+      - "Modify: server/storage/user_store.py — add invite token storage"
+      - "Temporary passwords should be random 16-char strings with mixed case + digits + special"
+      - "Operates directly on the auth store file (no HTTP API needed)"
+    owner: swe-agent
+    dependencies: [feature100]
+
+  # ──────────────────────────────────────────────────────────────
+  # Phase 12: Infrastructure as Code (features 103-107)
+  # ──────────────────────────────────────────────────────────────
+
+  - id: feature103
+    title: "Terraform project setup, state bootstrap, and VPC networking"
+    description: |
+      Create the iac/ directory structure with Terraform project files. Create a
+      state bootstrap module (S3 backend with native lockfile state locking).
+      Create the VPC module with public subnets (2 AZs), security groups, and
+      VPC endpoints for S3 (gateway) and ECR (interface). No NAT Gateway.
+    tasks: [task417, task418, task441]
+    acceptance_criteria:
+      - id: AC1
+        description: "iac/ directory exists with: versions.tf, providers.tf, variables.tf, outputs.tf, locals.tf, main.tf."
+      - id: AC2
+        description: "iac/state/main.tf and backend config use S3 backend with use_lockfile=true (no DynamoDB lock table)."
+      - id: AC3
+        description: "iac/modules/vpc/ creates VPC with 2 public subnets in us-west-2a and us-west-2b."
+      - id: AC4
+        description: "Security groups: ALB SG (Cloudflare IPs only on 443), ECS SG (ALB SG on 8000), S3 endpoint."
+      - id: AC5
+        description: "VPC endpoint for S3 (gateway type) is configured."
+      - id: AC6
+        description: "No NAT Gateway resources."
+      - id: AC7
+        description: "iac/environments/dev/terraform.tfvars contains dev-specific values."
+      - id: AC8
+        description: "`terraform validate` passes for all modules."
+    notes:
+      - "Create: entire iac/ directory structure"
+      - "AWS account: 386775099533, region: us-west-2"
+      - "Cloudflare IP ranges: https://www.cloudflare.com/ips/ — use data source"
+      - "State bootstrap is applied manually before other modules"
+      - "Each Terraform root stack should use a unique backend key for isolated state files"
+      - "VPC endpoints avoid needing NAT for ECS → S3/ECR"
+    owner: swe-agent
+    dependencies: []
+
+  - id: feature104
+    title: "Terraform storage and security (S3, IAM, Secrets Manager)"
+    description: |
+      Create Terraform modules for: (1) S3 registry bucket with AES-256
+      encryption, GOVERNANCE mode Object Lock, versioning, lifecycle rules.
+      (2) IAM roles: ECS task role (S3 access), ECS execution role (ECR pull,
+      logs, secrets), GitHub Actions OIDC role. (3) Secrets Manager secrets
+      for JWT key, session key, admin password.
+    tasks: [task419, task420, task421]
+    acceptance_criteria:
+      - id: AC1
+        description: "iac/modules/s3-registry/ creates S3 bucket with AES-256 server-side encryption."
+      - id: AC2
+        description: "S3 bucket has GOVERNANCE mode Object Lock enabled."
+      - id: AC3
+        description: "S3 bucket has versioning enabled."
+      - id: AC4
+        description: "S3 bucket has public access blocked."
+      - id: AC5
+        description: "iac/modules/iam/ creates ECS task role with S3 read/write policy."
+      - id: AC6
+        description: "ECS execution role has ECR pull, CloudWatch logs, and Secrets Manager read policies."
+      - id: AC7
+        description: "GitHub Actions OIDC provider and role are created."
+      - id: AC8
+        description: "iac/modules/secrets/ creates Secrets Manager secrets for JWT_SECRET, SESSION_SECRET, ADMIN_PASSWORD."
+      - id: AC9
+        description: "`terraform validate` passes."
+    notes:
+      - "Create: iac/modules/s3-registry/, iac/modules/iam/, iac/modules/secrets/"
+      - "S3 bucket naming: kinnoo-registry-dev-{account_id}"
+      - "GOVERNANCE mode allows Jerry to delete objects if needed"
+      - "OIDC provider setup for GitHub Actions: repo kinnoo/kinnoo"
+    owner: swe-agent
+    dependencies: [feature103]
+
+  - id: feature105
+    title: "Terraform compute stack (ECR, ALB, ACM, ECS/Fargate, EFS)"
+    description: |
+      Create Terraform modules for the compute/deployment stack: (1) ECR
+      repository for Docker images. (2) ALB with HTTPS listener, ACM certificate
+      for dev-api.kinnoo.ai, target group for ECS. (3) ECS Fargate cluster,
+      task definition (0.5 vCPU, 1GB memory), service with desired count 1.
+      (4) EFS file system for persistent auth data.
+    tasks: [task422, task423, task424]
+    acceptance_criteria:
+      - id: AC1
+        description: "iac/modules/ecr/ creates ECR repository with image scanning and lifecycle policy."
+      - id: AC2
+        description: "iac/modules/alb/ creates ALB with HTTPS listener on port 443."
+      - id: AC3
+        description: "ACM certificate for dev-api.kinnoo.ai with DNS validation."
+      - id: AC4
+        description: "Target group health check points to /health endpoint."
+      - id: AC5
+        description: "iac/modules/ecs-fargate/ creates ECS cluster, task definition, and service."
+      - id: AC6
+        description: "Task definition: 0.5 vCPU, 1GB memory, EFS mount, secrets from Secrets Manager."
+      - id: AC7
+        description: "EFS file system with mount targets in both subnets."
+      - id: AC8
+        description: "Service desired count is 1 (single task for beta)."
+      - id: AC9
+        description: "`terraform validate` passes."
+    notes:
+      - "Create: iac/modules/ecr/, iac/modules/alb/, iac/modules/ecs-fargate/"
+      - "EFS mount path: /data (contains auth store, metadata)"
+      - "Container port: 8000"
+      - "Task definition references Dockerfile from feature101"
+      - "ACM certificate validation requires Cloudflare DNS records (feature106)"
+    owner: swe-agent
+    dependencies: [feature103, feature104]
+
+  - id: feature106
+    title: "Terraform Cloudflare DNS and Pages"
+    description: |
+      Create Terraform module for Cloudflare configuration: (1) DNS records —
+      dev.kinnoo.ai CNAME to Cloudflare Pages, dev-api.kinnoo.ai CNAME to ALB.
+      (2) Cloudflare Pages project for Next.js static export. (3) ACM validation
+      CNAME records in Cloudflare.
+    tasks: [task425, task426, task442, task448]
+    acceptance_criteria:
+      - id: AC1
+        description: "iac/modules/cloudflare/ creates DNS records for dev.kinnoo.ai and dev-api.kinnoo.ai."
+      - id: AC2
+        description: "dev.kinnoo.ai points to Cloudflare Pages deployment."
+      - id: AC3
+        description: "dev-api.kinnoo.ai proxied CNAME points to ALB DNS name."
+      - id: AC4
+        description: "ACM validation CNAME records are created."
+      - id: AC5
+        description: "Cloudflare API token sourced from environment variable."
+      - id: AC6
+        description: "`terraform validate` passes."
+    notes:
+      - "Create: iac/modules/cloudflare/"
+      - "Uses cloudflare Terraform provider"
+      - "Cloudflare zone must already exist for kinnoo.ai"
+      - "Pages project may be created manually — Terraform manages DNS only if Pages API is limited"
+    owner: swe-agent
+    dependencies: [feature103, feature105]
+
+  - id: feature107
+    title: "Terraform monitoring (CloudWatch, alarms, SNS)"
+    description: |
+      Create Terraform module for monitoring: (1) CloudWatch log group for ECS
+      container logs. (2) CloudWatch alarms for 5xx errors, unhealthy targets,
+      high CPU. (3) SNS topic for alerts with Jerry's email subscription.
+      (4) SNS topic for password reset notifications.
+    tasks: [task427, task428]
+    acceptance_criteria:
+      - id: AC1
+        description: "iac/modules/monitoring/ creates CloudWatch log group with 30-day retention."
+      - id: AC2
+        description: "Alarm: ALB 5xx count > 10 in 5 minutes triggers SNS notification."
+      - id: AC3
+        description: "Alarm: unhealthy target count > 0 for 2 consecutive checks triggers SNS."
+      - id: AC4
+        description: "Alarm: ECS CPU utilization > 80% for 5 minutes triggers SNS."
+      - id: AC5
+        description: "SNS topic for alerts with email subscription (Jerry's email)."
+      - id: AC6
+        description: "Separate SNS topic for password reset notifications."
+      - id: AC7
+        description: "`terraform validate` passes."
+    notes:
+      - "Create: iac/modules/monitoring/"
+      - "Jerry's alert email comes from terraform.tfvars"
+      - "Password reset SNS topic used by feature109"
+      - "30-day log retention is sufficient for beta"
+    owner: swe-agent
+    dependencies: [feature103, feature105]
+
+  # ──────────────────────────────────────────────────────────────
+  # Phase 14: Beta Operations Setup (features 108-110)
+  # ──────────────────────────────────────────────────────────────
+
+  - id: feature108
+    title: "Invite-only registration enforcement"
+    description: |
+      Modify the registration endpoint to require a valid invite token. Tokens
+      are generated via the admin CLI (feature102). Registration without a token
+      returns 403. Tokens are single-use and expire after a configurable duration.
+      The web registration page includes a token field.
+    tasks: [task429, task430]
+    acceptance_criteria:
+      - id: AC1
+        description: "POST /register requires `invite_token` parameter."
+      - id: AC2
+        description: "Registration without invite token returns 403 with message."
+      - id: AC3
+        description: "Invalid or expired invite token returns 403."
+      - id: AC4
+        description: "Valid invite token is consumed (single-use)."
+      - id: AC5
+        description: "Web registration page has invite token field (pre-filled from URL query param)."
+      - id: AC6
+        description: "Invite token validation is atomic (no race conditions)."
+      - id: AC7
+        description: "Tests cover: valid token, expired token, reused token, missing token."
+    notes:
+      - "Modify: server/routes/auth.py — registration endpoint"
+      - "Modify: server/routes/web_auth.py — registration page"
+      - "Modify: server/storage/user_store.py — invite token storage"
+      - "Depends on feature102 for invite token generation"
+    owner: swe-agent
+    dependencies: [feature102]
+
+  - id: feature109
+    title: "Forgot password flow with operator alert"
+    description: |
+      Add a forgot-password endpoint and web page. When a user submits a valid
+      email, log the request and fire an SNS notification to Jerry. Jerry then
+      uses the admin CLI to reset the password manually. No automated email
+      sending — this is a manual workflow for the invite-only beta.
+    tasks: [task431, task432, task444]
+    acceptance_criteria:
+      - id: AC1
+        description: "POST /forgot-password accepts email parameter."
+      - id: AC2
+        description: "Always returns 200 with generic message (no email enumeration)."
+      - id: AC3
+        description: "If email exists, fires SNS notification with user email and timestamp."
+      - id: AC4
+        description: "If email does not exist, logs but does not fire SNS (prevents abuse)."
+      - id: AC5
+        description: "Web page at /forgot-password with email form."
+      - id: AC6
+        description: "Rate limited: max 3 requests per IP per hour."
+      - id: AC7
+        description: "Tests cover: valid email, invalid email, rate limiting."
+    notes:
+      - "Modify: server/routes/auth.py or create server/routes/password.py"
+      - "Modify: server/routes/web_auth.py — add forgot password page"
+      - "SNS topic ARN comes from server config (environment variable)"
+      - "SNS topic created by Terraform feature107"
+      - "Jerry sees alert, runs: kinnoo-server user reset-password --email user@example.com"
+    owner: swe-agent
+    dependencies: [feature102, feature107]
+
+  - id: feature110
+    title: "Landing page update for invite-only beta"
+    description: |
+      Keep the landing page unchanged for now. Update the signup path to show a
+      minimal invite-only message and a single "Contact Me" action that opens a
+      Twitter/X DM compose link to Jerry. Do not render any email or mailto
+      contact path. Preserve login and registry behavior for authenticated users,
+      and keep static export compatibility for deployment.
+    tasks: [task433, task434]
+    acceptance_criteria:
+      - id: AC1
+        description: "Landing page remains unchanged from the current version (no copy/layout changes)."
+      - id: AC2
+        description: "Clicking Sign Up routes to a simple invite-only page with text: 'Sign up is currently invite-only. Please contact me for early access.'."
+      - id: AC3
+        description: "Invite-only page has a single 'Contact Me' button that opens https://twitter.com/messages/compose?recipient_id=4118511499 in a new tab/modal flow."
+      - id: AC4
+        description: "No 'Email us' link or mailto contact flow is shown anywhere in the web experience."
+      - id: AC5
+        description: "Valid login redirects the user to registry-dev.kinnoo.ai behavior-equivalent registry route."
+      - id: AC6
+        description: "registry-dev.kinnoo.ai renders the authenticated user's registry view as before."
+      - id: AC7
+        description: "`next build` succeeds for static deployment workflow (Next.js 16 removed `next export` in favor of build-time static export configuration)."
+    notes:
+      - "Modify: web/ directory (Next.js frontend)"
+      - "web/next.config.ts (~40 lines) already has rewrite config"
+      - "Static export: output: 'export' in next.config.ts"
+      - "Signup CTA contact path is Twitter/X DM only"
+    owner: swe-agent
+    dependencies: []
+
+  # ──────────────────────────────────────────────────────────────
+  # Phase 15: Deployment, Testing & Launch (features 111-113)
+  # ──────────────────────────────────────────────────────────────
+
+  - id: feature111
+    title: "End-to-end smoke test script"
+    description: |
+      Create an automated smoke test script that exercises the full user workflow
+      against a deployed registry. The script tests: login, init, pack, publish,
+      search, install, run, logout. It should be runnable as a CLI command and
+      in CI after deployment.
+    tasks: [task435, task436]
+    acceptance_criteria:
+      - id: AC1
+        description: "scripts/e2e-smoke-test.sh (or .py) exists and is executable."
+      - id: AC2
+        description: "Script accepts REGISTRY_URL and TEST_CREDENTIALS as parameters."
+      - id: AC3
+        description: "Tests: login → init agent → pack → publish → search → install → run → logout."
+      - id: AC4
+        description: "Each step prints PASS/FAIL with timing."
+      - id: AC5
+        description: "Script exits 0 on full pass, non-zero on any failure."
+      - id: AC6
+        description: "Cleans up test artifacts (published test agent is unpublished or uses test tenant)."
+      - id: AC7
+        description: "Can be integrated into CI deploy workflow as a post-deployment check."
+    notes:
+      - "Create: scripts/e2e-smoke-test.sh or scripts/e2e_smoke_test.py"
+      - "Needs a dedicated test user account on the registry"
+      - "Should be idempotent — safe to run multiple times"
+    owner: swe-agent
+    dependencies: [feature89, feature101]
+    status: completed
+
+  - id: feature112
+    title: "Registry seeding and validation"
+    description: |
+      Publish 3-5 real agents to the registry to validate the end-to-end workflow
+      and provide content for beta users. Validate that each agent can be found
+      via search, installed, and run successfully. Document the seeding process
+      for future use.
+    tasks: [task437, task438, task445]
+    acceptance_criteria:
+      - id: AC1
+        description: "At least 3 agents published to the registry covering different frameworks."
+      - id: AC2
+        description: "Each published agent is searchable via `kinnoo search`."
+      - id: AC3
+        description: "Each published agent can be installed and run successfully."
+      - id: AC4
+        description: "At least one agent is signed."
+      - id: AC5
+        description: "docs/registry-seeding.md documents the seeding process."
+    notes:
+      - "This is primarily operator work — Jerry publishes real agents"
+      - "SWE agent creates the documentation and any helper scripts"
+      - "Frameworks to cover: chatgpt, openai, gemini at minimum"
+    owner: swe-agent
+    dependencies: [feature86, feature87, feature88, feature89, feature90]
+    status: not-started
+
+  - id: feature113
+    title: "Launch readiness checklist"
+    description: |
+      Create a launch readiness checklist document that validates all systems
+      are operational before opening the beta. Covers: infrastructure health,
+      security review, documentation completeness, CI/CD validation, monitoring
+      alerts, and sample user onboarding walkthrough.
+    tasks: [task439, task440, task446]
+    acceptance_criteria:
+      - id: AC1
+        description: "docs/launch-checklist.md exists with categorized checklist items."
+      - id: AC2
+        description: "Categories: Infrastructure, Security, Documentation, CI/CD, Monitoring, User Onboarding."
+      - id: AC3
+        description: "Each item has: description, how to verify, pass/fail status field."
+      - id: AC4
+        description: "Includes a sample user onboarding walkthrough (create user → user logs in → publishes agent)."
+      - id: AC5
+        description: "Checklist is actionable — Jerry can follow it step by step on launch day."
+    notes:
+      - "Create: docs/launch-checklist.md"
+      - "This is the final go/no-go document before opening beta"
+    owner: swe-agent
+    dependencies: []
+
+  - id: feature114
+    title: "kinnoo test hardening"
+    description: |
+      Harden `kinnoo test` usability with clearer CLI reference documentation,
+      richer verbose diagnostics, and interactive test-file authoring workflows.
+      Add native append support so operators can grow suites incrementally without
+      manually editing YAML.
+    tasks: [task450]
+    acceptance_criteria:
+      - id: AC1
+        description: "CLI reference documents kinnoo.tests.yaml schema and supported assertion types (contains, not_contains, equals, regex) with practical examples including OR/case-insensitive regex usage."
+      - id: AC2
+        description: "`kinnoo test --verbose` exposes per-test diagnostics for input, expected_output, actual_output, runtime_duration_sec, expected_exit_code, actual_exit_code, and error_message on failures in both text and --json modes."
+      - id: AC3
+        description: "`kinnoo test --create [file] <agent-dir>` provides an interactive prompt that generates a valid tests YAML, defaulting to kinnoo.tests.yaml when file name is omitted."
+      - id: AC4
+        description: "`kinnoo test --create <file> --append <agent-dir>` appends additional interactive test cases to an existing tests YAML without corrupting prior entries."
+      - id: AC5
+        description: "`kinnoo test -h` includes the new --verbose, --create, and --append options with usage examples."
+    owner: swe-agent
+    dependencies: [feature69]
+
+  - id: feature115
+    title: "UAT Part 1 - CLI hardening"
+    description: |
+      Comprehensive CLI hardening based on User Acceptance Testing Part 1 findings.
+      Covers top-level help improvements, init refactoring (framework as positional arg,
+      interactive wizard, main.py entrypoint, complete/minimal templates, README improvements,
+      language-specific .gitignore templates), pack enhancements (data/ exclusion, --include/
+      --exclude, --preflight, help text, --bump default patch, --sign merge, --json), publish
+      improvements (--local|--remote mutual exclusion, version history, --json), install
+      cleanup (remove deprecated openclaw options, default openclaw path, --json), run
+      hardening (--json structured output, --enforce-policy flag rename), inspect improvements
+      (--json, --update simplification, confirmation prompt), command deprecation (sync/stop/
+      attach/logs comment-out), search/list --json options, registry UI security column and
+      tab, new fetch and uninstall commands.
+    tasks: [task453, task454, task455, task456, task457, task458, task459, task460, task461, task462, task463, task464, task465, task466, task467, task468, task469, task470, task471, task472, task473, task474, task475, task476, task477, task478, task479, task480, task481, task482, task483, task484, task485, task486, task487, task488, task489]
+    acceptance_criteria:
+      - id: AC1
+        description: "kinnoo -h displays 🍊 Kinnoo CLI v<version> (<commit-hash>) as the title line."
+      - id: AC2
+        description: "kinnoo init accepts framework as a required positional argument with no-framework option and interactive wizard when invoked with no arguments."
+      - id: AC3
+        description: "kinnoo init produces correct complete templates (with folders and .gitignore) by default, --minimal produces minimal templates, README.md includes entrypoint/manifest/folder-guide/footer, and language-specific .gitignore content is correct for python/js/ts/openclaw."
+      - id: AC4
+        description: "kinnoo pack excludes data/ by default, supports --include/--exclude, --preflight shows dry-run, --bump defaults to patch increment, --sign takes signing key directly, --json outputs structured JSON, defaults package visibility to public, supports --private to force visibility: private, and keeps --public as explicit default-public normalization that removes visibility: private when present."
+      - id: AC5
+        description: "kinnoo publish enforces --local|--remote mutual exclusion, preserves all versions with latest shown in listings, supports --private (with --pack) to force private packaging behavior, removes --public support, and --json outputs structured JSON."
+      - id: AC6
+        description: "kinnoo install has deprecated openclaw options removed, defaults openclaw install path to ~/.openclaw/workspace-<name>, and --json (with -y) outputs structured JSON."
+      - id: AC7
+        description: "kinnoo run --json produces structured JSON output for non-openclaw agents and passes through for openclaw; --sandbox is renamed to --enforce-policy."
+      - id: AC8
+        description: "kinnoo inspect --json outputs structured JSON, --update accepts 2 arguments (KEY NEW_VALUE) with positional flexibility and confirmation prompt (bypassable with --skip-warnings)."
+      - id: AC9
+        description: "kinnoo sync, stop, attach, logs are commented out with [agent] notes; daemon help section is removed from kinnoo -h."
+      - id: AC10
+        description: "kinnoo search --openclaw-skills is removed; search and list both support --json for structured JSON output."
+      - id: AC11
+        description: "Registry UI shows Security column with ✅📦🧩❌ icons, server-side post-publish checks run in a containerized environment, and Security tab in agent modal shows per-check pass/fail results."
+      - id: AC12
+        description: "kinnoo fetch downloads archive to local archive with integrity verification (and signature verification in --strict mode) without unpacking."
+      - id: AC13
+        description: "kinnoo uninstall supports three modes: delete dir+all archives, delete dir+specific version archive, delete archive-only with version specifier."
+      - id: AC14
+        description: "kinnoo list/search/fetch/publish catch remote registry client errors and print concise [kinnoo] user-facing messages (including response payload when present) without Python traceback output."
+      - id: AC15
+        description: "kinnoo init help/path fully deprecates --framework in favor of positional framework, kinnoo run removes --thinking, command help descriptions are orange-prefixed, and task482 lambda invocation has explicit retry/fallback behavior with operator-visible diagnostics."
+      - id: AC16
+        description: "Manifest/task/test/docs deprecation hygiene is updated for the default-public visibility switch, including deprecated test annotations ([agent] test deprecated), and docs examples consistently reflect public-by-default pack/publish behavior."
+      - id: AC17
+        description: "Manifest supports either entrypoint (single script) or entrypoints (list of scripts) but not both; kinnoo run adds --entrypoint selection constrained to declared script(s), defaults to first list item for entrypoints mode, validates nested script-path existence, and surfaces deterministic validation/errors in run/inspect/check (including run --json entrypoint metadata)."
+    notes:
+      - "Based on UAT Part 1 findings documented in notes/phases/phase13-sat-uat-updates.md"
+      - "37 tasks (task453-task489), test coverage extended through test692 for multi-entrypoint manifest/run validation and docs guidance"
+      - "SWE handoff brief in notes/features/feature115-notes.md"
+    owner: swe-agent
+    dependencies: [feature114]
+
+  - id: feature116
+    title: "UAT Part 2 - Regression test hardening"
+    description: |
+      Harden regression stability for the CLI and manifest validation surfaces by
+      reducing brittle assertion contracts, centralizing CLI invocation helpers,
+      separating schema-only validator tests from file/path integration tests,
+      and introducing explicit marker-driven test-set governance for selective
+      execution and deprecation hygiene.
+    tasks: [task490]
+    acceptance_criteria:
+      - id: AC1
+        description: "All active kinnoo CLI commands have shared invocation helpers in tests/helpers.py, and refactored tests consume these helpers instead of ad-hoc subprocess command construction."
+      - id: AC2
+        description: "High-fragility regression tests migrate from exact free-form output pinning to behavior/contract assertions (exit code, machine-readable JSON keys, invariant guidance fragments)."
+      - id: AC3
+        description: "Validator tests apply Option 3 layering: schema-only checks use validate_manifest_data(data) while path/file behavior remains in validate(path)-based integration tests."
+      - id: AC4
+        description: "Pytest marker taxonomy is documented and enforced through project config and test collection helpers, enabling deterministic subset execution by regression/layer/surface dimensions."
+      - id: AC5
+        description: "A dedicated test-agent guidance file codifies anti-brittleness and deprecation-on-removal workflows, and related suite integrity checks protect these contracts from drift."
+    notes:
+      - "Derived from UAT Part 2 regression failure analysis and hardening recommendations A-F."
+      - "Focus is test architecture resilience and contract clarity, not product surface expansion."
+    owner: swe-agent
+    dependencies: [feature115]
+
+  - id: feature117
+    title: "Pre-release feature 6 - import hardening (phase14)"
+    description: |
+      Harden the existing `kinnoo import` workflow for production-readiness across
+      a focused framework set (langchain, langgraph, openai/openai-agents, openclaw,
+      and generic Python/JS LLM agents). This is a hardening feature on top of the
+      current implementation, with priority on deterministic behavior, actionable
+      diagnostics, manifest validity, and robust test coverage.
+    tasks: [task491, task492, task493, task494, task495]
+    acceptance_criteria:
+      - id: AC1
+        description: "Import handles empty directories, unsupported languages, ambiguous project layouts, and large projects without traceback/crash, with deterministic user-facing outcomes."
+      - id: AC2
+        description: "Every generated kinnoo.yaml is validated before final write and import reports clear remediation when validation fails."
+      - id: AC3
+        description: "Import error messages follow a consistent actionable format across core failure paths."
+      - id: AC4
+        description: "LangChain adapter detects langchain sub-packages (e.g., langchain-openai/langchain-anthropic) and applies framework-specific dependency/env-var inference with minimal structural viability checks."
+      - id: AC5
+        description: "LangGraph adapter detects graph construction patterns (including compile()) in Python and Node projects and avoids LangChain misclassification regressions."
+      - id: AC6
+        description: "OpenAI adapter distinguishes base SDK usage from OpenAI Agents SDK and applies correct framework/dependency behavior, including Agent() viability checks for agents-sdk projects."
+      - id: AC7
+        description: "`kinnoo import --from openclaw <target> <workspace-path>` copies OpenClaw workspace agent assets while excluding .git/.openclaw/.clawhub/runtime artifacts and generates valid framework: openclaw manifest output."
+      - id: AC8
+        description: "Dependency detection supports Poetry pyproject (`tool.poetry.dependencies`) and framework sub-package inference."
+      - id: AC9
+        description: "Generic Python or JS/TS LLM agents (without explicit framework adapters) import cleanly with inferred dependencies/env vars and valid manifests."
+      - id: AC10
+        description: "Import hardening test suite includes at least 30 passing import-related tests with realistic fixtures and framework-detection accuracy coverage."
+    notes:
+      - "Source requirements: notes/PRE-RELEASE-CHECKLIST.md (Pre-release feature 6) and notes/features/import-hardening.md"
+      - "Scope is hardening of existing import implementation, not greenfield rewrite"
+      - "Includes OpenClaw workspace-based import flow update aligned with current agent model"
+    owner: techlead-agent
+    dependencies: []
+
+  - id: feature118
+    title: "Pre-release feature 1 - Kinde auth cutover planning manifests"
+    description: |
+      Define executable implementation and validation planning artifacts for the
+      Dev Kinde auth cutover with provider-portable architecture across server,
+      web, CLI, identity mapping, and deployment configuration surfaces.
+
+      Uses two-app Kinde topology (resolved per issue #350 followup):
+      - Kinnoo Web Dev: Backend/Python confidential client for browser-based web login.
+      - Kinnoo CLI Dev: Frontend/Native public client (PKCE) for CLI kinnoo login with
+        dynamic-port loopback callback.
+
+      This feature captures the task/test decomposition and handoff contracts
+      needed to deliver pre-release feature 1 in phased execution.
+    tasks: [task496, task497, task498, task499, task500, task501, task502, task503, task504]
+    acceptance_criteria:
+      - id: AC1
+        description: "Kinde prerequisite decisions and dual-app setup (Kinnoo Web Dev backend + Kinnoo CLI Dev public client; dev + staging posture, per-app callback/logout URLs, scopes, test users, and per-app secrets) are explicitly tracked with human-owned execution steps."
+      - id: AC2
+        description: "Server auth request paths validate OIDC/JWT tokens using discovery + JWKS and reject expired/invalid/wrong-issuer-or-audience tokens with clear error envelopes."
+      - id: AC3
+        description: "Server auth implementation is provider-portable with a single adapter boundary and config-driven provider selection (supporting dual client IDs for web and CLI) that fails fast when required auth config is missing."
+      - id: AC4
+        description: "`kinnoo login` uses Kinde CLI Dev public client with PKCE browser-based auth flow (dynamic-port loopback callback) and persists access token, refresh token, expiry metadata, and tenant context for registry workflows."
+      - id: AC5
+        description: "`kinnoo logout` clears local auth state and supports provider-session termination behavior without regressing existing no-state semantics."
+      - id: AC6
+        description: "Web login/signup/reset surfaces use Kinnoo Web Dev backend client and are migrated from custom credential forms to Kinde redirect/callback/logout flows while preserving protected-route redirects."
+      - id: AC7
+        description: "Internal identity remains UUID-based with external subject mapping; publish/ownership flows resolve authenticated user and tenant deterministically from provider-backed identity regardless of which Kinde app was used for login."
+      - id: AC8
+        description: "Legacy local password/session/reset runtime paths are removed or disabled behind explicit compatibility control defaulted off for Dev cutover."
+      - id: AC9
+        description: "Provider-neutral auth env contract is canonical at runtime with separate web/CLI client ID keys, Kinde-prefixed aliases are transition-only, and IaC/task env injection matches application-expected names."
+      - id: AC10
+        description: "Automated server/web/CLI auth and portability-contract tests are defined and passing for token validation, callback/logout behavior, refresh flow, and adapter contracts across both Kinde apps."
+      - id: AC11
+        description: "Dev cutover smoke matrix and rollback runbook are documented and executable, including auth success/failure probes and publish-identity verification for both web and CLI login paths."
+    notes:
+      - "Source requirements: notes/PRE-RELEASE-CHECKLIST.md (Pre-release feature 1) and notes/kinde-auth-setup-dev.md"
+      - "Includes human-owned setup tasks and SWE-owned implementation tasks with explicit handoff contracts"
+      - "Tests map to all ACs through test706-test716"
+      - "Two-app Kinde topology resolved per issue #350 followup: notes/kinde-auth-setup-followup.md"
+    owner: techlead-agent
+    dependencies: []
+    status: completed
+
+  - id: feature119
+    title: "Pre-release feature 2 - Postgres registry database planning manifests"
+    description: |
+      Define the implementation decomposition for replacing JSON/SQLite-backed
+      registry metadata storage with a Postgres-backed architecture using
+      SQLAlchemy/Alembic, repository boundaries, feature-flagged cutover,
+      migration parity gates, and operational safeguards.
+
+      This feature captures the TechLead planning manifests (feature/tasks),
+      test manifest coverage, and SWE/Test handoff contracts needed for
+      phased implementation and validation.
+    tasks: [task505, task506, task507, task508, task509, task510, task511, task512, task513]
+    acceptance_criteria:
+      - id: AC1
+        description: "Terraform-managed Postgres infrastructure is specified with private-network security posture (private subnets, ECS-only ingress on 5432, encryption/TLS posture, and dev/prod profile differences)."
+      - id: AC2
+        description: "Server database runtime scope is fully specified for an 8-table schema (`users`, `tenants`, `tenant_members`, `agents`, `agent_versions`, `api_keys`, `audit_log`, `download_events`) with index expectations and UUID/audit conventions."
+      - id: AC3
+        description: "Alembic async migration setup and initial schema migration contract are defined, including upgrade/downgrade expectations and migration safety discipline."
+      - id: AC4
+        description: "Repository-layer contracts and route integration boundaries are defined so route handlers avoid embedded SQL and metadata flows remain interface-compatible."
+      - id: AC5
+        description: "Postgres metadata backend cutover contract is defined with `REGISTRY_METADATA_BACKEND=json|postgres` defaulting to `json`, including app wiring and health-check behavior when postgres mode is enabled."
+      - id: AC6
+        description: "Data migration/backfill and deterministic parity verification requirements are defined, including mismatch reporting and cutover gate requirements."
+      - id: AC7
+        description: "Rollback strategy and outage behavior requirements are defined, including explicit rollback drill expectations and predictable failure/degradation behavior."
+      - id: AC8
+        description: "Server CLI database/admin command scope is defined for migration/seed/connect and domain-level read/admin workflows required by the Postgres rollout."
+      - id: AC9
+        description: "Local dev and CI execution requirements are defined for Postgres-backed testing (Docker Compose, CI service container, transaction rollback isolation, and concurrency sanity expectations)."
+      - id: AC10
+        description: "Operational readiness requirements are defined for observability and runbooks (alarms, alerting path, cutover/rollback/restore/connection-saturation guidance)."
+      - id: AC11
+        description: "UserStore/TenantStore/legacy auth replacement is explicitly gated on pre-release feature 1 Kinde readiness, with non-goals documented for this phase."
+      - id: AC12
+        description: "Feature-level task/test decomposition covers all acceptance criteria with explicit human-owned approval gates where operator actions are required."
+    notes:
+      - "Source requirements: notes/PRE-RELEASE-CHECKLIST.md (Pre-release feature 2) and notes/features/postgres-registry-db-planning.md"
+      - "Planning scope only in this issue: create feature/task/test manifests plus handoff briefs; no server/iac implementation changes"
+      - "Phase model aligned to planning addendum: 13.1 IaC foundation, 13.2 runtime/schema, 13.3 migration/parity/cutover, 13.4 observability/runbooks"
+      - "UserStore/TenantStore replacement remains gated by feature118 readiness"
+    owner: techlead-agent
+    dependencies: [feature118]
+    status: completed
+
+  - id: feature120
+    title: "UAT round 3 testing and bug fixes"
+    description: |
+      Pre-release testing and bug fixes as we prepare for production
+      deployment and release.
+    tasks: [task514, task515, task516, task526, task527]
+    acceptance_criteria:
+      - id: AC1
+        description: "Agent manifest modal shows exact-version install command syntax using '=='."
+      - id: AC2
+        description: "`kinnoo install` accepts tenant-qualified selectors (`tenant/agent` and `tenant/agent==version`)."
+      - id: AC3
+        description: "`kinnoo fetch` accepts tenant-qualified selectors (`tenant/agent` and `tenant/agent==version`)."
+      - id: AC4
+        description: "Remote installs/fetches can verify archive checksum using server-provided checksum metadata even when no local sidecar file exists at temp download path."
+      - id: AC5
+        description: "Regression tests cover parser updates, tenant-qualified remote resolution, and checksum metadata verification flow."
+    owner: swe-agent
+    dependencies: []
+    status: in-progress
+
+  - id: feature121
+    title: "Production deployment instructions and production-cutover gap register"
+    description: |
+      Establish a clear, operator-ready production deployment runbook and an
+      explicit gap register for codebase work required to make production
+      deployment complete, repeatable, and safely isolated from Dev.
+
+      Scope includes: production state-bucket bootstrap instructions, production
+      IaC apply flow, image build/redeploy path, phased smoke-test gates, and
+      explicit no-cross-contamination rules between Dev and Prod domains,
+      secrets, and runtime configuration.
+    tasks: [task517, task518, task519, task520, task521, task522, task523, task524, task525]
+    acceptance_criteria:
+      - id: AC1
+        description: "A detailed `notes/prod-deployment-instructions.md` runbook exists with explicit, ordered deployment phases and gate checks."
+      - id: AC2
+        description: "Runbook includes explicit no-cross-contamination checks to keep Dev/Prod DNS, secrets, env vars, and process flows isolated."
+      - id: AC3
+        description: "Known production deployment gaps discovered during runbook authoring are captured as explicit tasks in TASKS.txt."
+      - id: AC4
+        description: "Runbook documents production Terraform state bootstrap, production root-stack apply flow, and production ECS image deploy/redeploy steps."
+      - id: AC5
+        description: "Runbook defines phase-end smoke tests and rollback checks before declaring production deployment complete."
+    notes:
+      - "Source: issue #369 and follow-up comment requiring dev/prod mirroring plus strict isolation."
+      - "This feature starts with runbook + gap capture; implementation of gap tasks is tracked separately."
+    owner: techlead-agent
+    dependencies: [feature118, feature119]
+    status: in-progress
+
+  - id: feature122
+    title: "Long-form professional Terms of Service and Privacy Policy pages"
+    description: |
+      Add /terms and /privacy public pages to the Kinnoo web frontend with
+      long-form, professional legal text drafted to address issue #379. The
+      Terms of Service include the production-ready protections requested in
+      the issue (non-endorsement, Human-in-the-Loop user responsibility, AS-IS
+      / AS-AVAILABLE limitation of liability, Acceptable Use Policy, IP
+      ownership and license grant, sole-discretion termination with archival
+      retention, and 18+ age requirement with COPPA/CalOPPA carve-out). The
+      Privacy Policy describes data collected, identifies Kinde Auth as our
+      data processor (including Google/GitHub social sign-in), states that we
+      do not sell data and do not handle payments, covers GDPR/CCPA/CalOPPA
+      compliance, and includes a no-children-under-13 clause. Both pages are
+      reachable from the global site footer and the navigation menu.
+    tasks: [task528]
+    acceptance_criteria:
+      - id: AC1
+        description: "/terms route renders a long-form Terms of Service page including non-endorsement, Human-in-the-Loop user responsibility, AS-IS / AS-AVAILABLE limitation of liability, Acceptable Use Policy, IP, sole-discretion termination with archival retention, and 18+/COPPA/CalOPPA age requirement sections."
+      - id: AC2
+        description: "/privacy route renders a long-form Privacy Policy page that identifies Kinde Auth as the data processor (including Google/GitHub social sign-in), declares names and emails as collected data with no sale of data and no payment handling, covers GDPR/CCPA/CalOPPA rights and compliance, and includes a no-children-under-13 clause."
+      - id: AC3
+        description: "Both /terms and /privacy are reachable from the global site footer and the navigation menu, and link to each other."
+      - id: AC4
+        description: "Automated Vitest coverage asserts that the required sections and clauses are rendered on both pages."
+    notes:
+      - "Source: issue #379."
+    owner: swe-agent
+    dependencies: []
+    status: needs-review

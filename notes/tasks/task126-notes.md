@@ -26,7 +26,7 @@
 - Fix attempts for this bug class: 1 (resolved; below 5-attempt cap).
 
 ## Validation and regression results
-- `python3 src/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
+- `python3 scripts/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
 - `python3 -m pytest tests/test_init.py -k "feature21 or framework"` -> `10 passed, 16 deselected`
 - `python3 -m pytest tests/test_init.py` -> `26 passed`
 

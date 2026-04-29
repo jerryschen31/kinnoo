@@ -6,7 +6,7 @@ describe("themeConfig", () => {
   it("exports correct color tokens", () => {
     expect(themeConfig.colors.bg).toBe("#000000");
     expect(themeConfig.colors.text).toBe("#F9FAFB");
-    expect(themeConfig.colors.accent).toBe("#3B82F6");
+    expect(themeConfig.colors.accent).toBe("#FF7F00");
     expect(themeConfig.colors.surface).toBe("#111111");
     expect(themeConfig.colors.cardBorder).toBe("rgba(255,255,255,0.1)");
   });

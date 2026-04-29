@@ -18,7 +18,7 @@
   - `feature29`: Remote Registry Server
   - `feature30`: Registry Web UI
 - Sequencing update (explicit): implement feature23-feature26 first, then feature27, then feature19.
-- Manifest updates validated with `python3 src/validate_project_manifests.py` (pass).
+- Manifest updates validated with `python3 scripts/validate_project_manifests.py` (pass).
 
 ### Feature19 import model refinement (2026-03-16)
 
@@ -108,7 +108,7 @@ The 6 high-level features from `notes/phases/phase3-notes-opus-4-6.md` were deco
 - Split MCP into runtime type + packages to avoid a monolithic feature
 - Split Service Declarations into schema + runtime for cleaner separation of concerns
 - All features have explicit regression notes in YAML so SWE agents know which test suites to run
-- Manifest validator passes after all additions (confirmed via `python3 src/validate_project_manifests.py`)
+- Manifest validator passes after all additions (confirmed via `python3 scripts/validate_project_manifests.py`)
 
 ---
 
@@ -189,7 +189,7 @@ This fallback approach allows packaging and installation to proceed even if some
 ### Manifest fixes made during setup
 1. **FEATURES.txt**: was missing top-level `features:` key; content was not indented under it; AC5 description had an unquoted colon sequence `(is_valid: bool, ...)`.
 2. **TASKS.txt**: task0 step3 had an unquoted colon sequence `validate(manifest_path: str)`.
-Both files now pass `python3 src/validate_project_manifests.py`.
+Both files now pass `python3 scripts/validate_project_manifests.py`.
 
 ---
 
@@ -1664,3 +1664,158 @@ For your next feature, try this workflow:
 The key insight: **the bottleneck in your current workflow isn't the AI agent's capability - it's the context-reload and handoff overhead between sessions.** A well-written spec eliminates that overhead by giving the agent everything it needs in one shot.
 
 Your manifest system (FEATURES.txt / TASKS.txt / TESTS.txt) is still valuable as a planning and tracking tool. You'd still define the feature and tests up front. You'd just collapse the execution from N serial sessions into 1 session with a comprehensive spec.
+
+---
+
+## Phase 7 — OpenClaw CLI Wrapper Architecture (2026-03-31)
+
+### Context
+User installed OpenClaw v2026.3.28, tested the CLI directly, and determined that the existing bridge/scaffold approach (features 62-67) is inadequate. OpenClaw now has a full CLI surface for agent management, and kinnoo should wrap it rather than reimplementing internals.
+
+### OpenClaw CLI Surface (confirmed via docs at github.com/openclaw/openclaw)
+- **Agent management**: `openclaw agents add/list/delete/bind/unbind/set-identity`
+- **Agent execution**: `openclaw agent --agent <name> --message "..." [--thinking <level>]`
+- **Skills**: `openclaw skills search/install/update/list/info/check` (ClawHub-backed)
+- **Gateway lifecycle**: `openclaw gateway run/status/health/probe/install/start/stop/restart`
+- **Logs**: `openclaw logs [--follow] [--json] [--local-time]`
+- **Daemon**: `openclaw daemon ...` (legacy alias for gateway service commands)
+- **Doctor**: `openclaw doctor` — surface misconfigurations
+- **Config**: `~/.openclaw/openclaw.json`, Gateway port default 18789
+- **Workspace**: `~/.openclaw/workspace` (default), per-agent via `~/.openclaw/workspace-<name>/`
+- **Latest version**: 2026.4.1 (bumped from 2026.3.31)
+
+### Key Design Decisions
+
+1. **kinnoo wraps openclaw CLI** — no reimplementation of agent registration, skill install, or Gateway interaction.
+2. **Preflight is mandatory** — every OpenClaw command checks CLI presence + version >= 2026.3.28.
+3. **Gateway check is conditional** — only required for run/logs, not init/import/install.
+4. **`kinnoo attach` deferred** — OpenClaw agents run via persistent Gateway daemon, not standalone processes. No "process" to attach to.
+5. **`kinnoo stop` deferred** — stopping individual agents isn't supported by OpenClaw. `openclaw gateway stop` stops everything. Too blunt for a wrapper.
+6. **Version format is date-based** — YYYY.M.D, not semver. Parser must handle this.
+
+### Feature Map (76-85)
+| Feature | Title | Replaces | Gateway Required? |
+|---------|-------|----------|-------------------|
+| 76 | CLI preflight & version gate | (new) | Optional probe |
+| 77 | Init via CLI wrapper | feature34 | No |
+| 78 | Import via CLI wrapper | feature36, feature64 | No |
+| 79 | Workspace pack | (extends existing) | No |
+| 80 | Install via CLI wrapper | feature65 | No |
+| 81 | Run via CLI wrapper | feature66 | Yes |
+| 82 | Logs passthrough | (new) | Yes |
+| 83 | Skill install for agents | (new, user req) | Yes |
+| 84 | Skill search via ClawHub | (new, user req) | Yes |
+| 85 | Deprecate features 62-67 | (cleanup) | N/A |
+
+### Deprecation Plan
+- Features 62-67 are marked deprecated, NOT removed
+- Deprecated code paths emit warnings pointing to Phase 7 replacements
+- `--experimental-openclaw-adapter` flag removed or warns
+- Tests preserved but annotated as deprecated coverage
+- Feature34 scaffold approach superseded by feature77 (init via CLI)
+- Feature36 analysis logic is reusable — only scaffold output is deprecated
+- Full removal deferred to future cleanup phase
+
+### Phase 7 Manifest Planning Execution (2026-04-01)
+
+- Added task decomposition for feature76-feature85:
+  - `task362`-`task381` appended to `TASKS.txt`
+- Added test decomposition for feature76-feature85 with AC coverage:
+  - `test521`-`test540` appended to `TESTS.txt`
+- Updated feature task links in `FEATURES.txt`:
+  - feature76 -> `[task362, task363]`
+  - feature77 -> `[task364, task365]`
+  - feature78 -> `[task366, task367]`
+  - feature79 -> `[task368, task369]`
+  - feature80 -> `[task370, task371]`
+  - feature81 -> `[task372, task373]`
+  - feature82 -> `[task374, task375]`
+  - feature83 -> `[task376, task377]`
+  - feature84 -> `[task378, task379]`
+  - feature85 -> `[task380, task381]`
+- Created SWE handoff briefs:
+  - `notes/features/feature76-swe-handoff.md` through `notes/features/feature85-swe-handoff.md`
+- JS/TS testing note:
+  - Added Vitest automation path for JS/TS-specific workspace fixture contract in `test528`:
+    - `web/__tests__/openclaw-pack-fixtures.test.ts::it_preserves_openclaw_workspace_pack_contract`
+- Validation:
+  - `python scripts/validate_project_manifests.py` -> pass
+- Full `python -m pytest` run from repo root currently fails due unrelated workspace test-collection conflicts (example-scratch and server/mock-server module collisions); no failures tied to the manifest edits above.
+
+## Phase 8 Tech Lead Review 1 (2026-04-04)
+
+- Reviewed feature86-feature88 against `notes/phases/phase8-planning-3.md` Phase 8 scope.
+- Wrote formal review entry in `notes/phases/phase8-features-review-notes.md` under "Tech Lead Review 1".
+- Validation runs:
+  - `/Users/jerry/.pyenv/versions/3.11.12/bin/python -m pytest tests/test_feature_86.py tests/test_feature_87.py tests/test_feature_88.py` -> pass
+  - `/Users/jerry/.pyenv/versions/3.11.12/bin/python -m pytest tests` -> `516 passed, 10 skipped`
+- Security check:
+  - Repo-wide credential-pattern scan found test/dev placeholder matches only; no clear production secret leakage tied to phase8 implementation.
+- Review outcome:
+  - feature86, feature88 implementation validated as ready for approval path.
+  - feature87 functionally good with a recommended non-blocking test-depth improvement (metadata format assertions).
+
+## Phase 9 Tech Lead Review 1 (2026-04-04)
+
+- Reviewed feature89-feature91 and feature100-feature102 against Phase 9 plan in `notes/phases/phase8-planning-3.md`.
+- Created formal review write-up in `notes/phases/phase9-features-review-notes.md` under section "Tech Lead Review 1".
+- Full regression executed and passing:
+  - `/Users/jerry/.pyenv/versions/3.11.12/bin/python -m pytest tests` -> `516 passed, 10 skipped`
+- Manifest validation executed and passing:
+  - `/Users/jerry/.pyenv/versions/3.11.12/bin/python scripts/validate_project_manifests.py` -> pass
+- Key decision notes:
+  - feature100 is still partial (task410 done; task411/task412 not started), so it should not be treated as complete.
+  - feature101 and feature102 are implemented but have AC-depth gaps in current tests.
+- Minor fixes applied during review:
+  - `server/cli.py`: fixed user-list tenant slug derivation bug.
+  - `docker-compose.yml`: removed inline secret literals; now requires env vars.
+  - `src/kinnoo/templates.py`: made dotenv import optional for generated MCP client template.
+  - `tests/test_registry.py`: updated legacy publish fixtures to include `framework` field.
+
+
+### Concerns about vendor lock-in with Kinde Auth
+
+**prompt**
+There is one worry about vendor lock-in for Kinde as an Auth provider. Let's make sure notes/kinde-auth-setup-dev.md takes this into account. These are the suggestions from a different conversation with an agent:
+
+Notes on migration to a different auth provider down the road, if needed.
+
+How to "Lock-in Proof" Kinnoo
+If you're worried about Kinde being a startup or becoming too expensive, follow these Rigor rules:
+
+Use Open Standards: Only use the standard OIDC flows. If Kinde disappears tomorrow, you can point your AUTH_ISSUER_URL to Auth0, Clerk, or your own Keycloak instance, and the fundamental protocol remains the same. - NOTE TO AGENT: make sure this is noted in notes/kinde-auth-setup-dev.md, if not already
+Own the "Sub" (Subject): In your Postgres DB, never make the Kinde user_id your primary key. Create your own internal_user_id (UUID) and have a mapping table that links it to the kinde_sub.
+Migration Scenario: If you switch to Auth0, you just update the mapping table with the new Auth0 IDs. Your internal foreign keys stay intact. - NOTE TO AGENT: Make sure that the users table proposed for the registry metadata Postgres DB has a separate internal user ID as the primary key, with the kinde user ID being a separate field in that table - check notes/features/postgres-registry-db-planning.md.
+Abstraction Layer: Don't sprinkle Kinde-specific SDK calls throughout your UI. Wrap your auth logic in a simple useAuth() hook or AuthService class. - NOTE TO AGENT: If this is not explicit yet in notes/kinde-auth-setup-dev.md, make sure to add a section in these notes to make sure the SWE agents wraps the auth logic into its own hook or class, so an auth vendor switch is seamless in the codebase.
+Because Kinde is built on OIDC (OpenID Connect) and OAuth2, your server doesn't actually "know" it's talking to Kinde; it just knows it's talking to an Issuer.
+
+The Switch: If you move to Auth0 or an open-source alternative like Logto, you change your ISSUER_URL and CLIENT_ID.
+The Code: Since your server (Python/FastAPI) is likely using a standard library like PyJWT or authlib to validate tokens, the code changes are minimal. You’re just pointing the "Receiver" at a different "Broadcaster."
+Update notes/kinde-auth-setup-dev.md to make sure the SWE agent writes the Auth setup code in such a way that switching vendors is relatively straightforward, by encapsulating auth code into separate hooks or classes, as suggested, and using appropriate config vars and feature flags so that switching is just a matter of changing configuration or substituting a class or hook with a different one - if that makes sense. Separating auth code also makes testing and updates easier.
+
+**response**
+What I changed in the Kinde setup plan:
+
+Added a hard requirement that provider switching should be mostly config + adapter substitution, not route rewrites:
+- kinde-auth-setup-dev.md:18
+Added a new mandatory Vendor Lock-In Guardrails section covering:
+- OIDC/OAuth2 standards-only boundary
+- internal UUID identity ownership
+- server/web/CLI abstraction boundaries
+- provider-neutral config contract
+- provider selection feature flag
+- portability-focused tests
+- kinde-auth-setup-dev.md:59
+Updated server implementation guidance to require an OIDC abstraction with a Kinde-first adapter:
+- kinde-auth-setup-dev.md:183
+Updated web and CLI sections to require single auth hook/service abstractions (no provider calls scattered across UI/commands):
+- kinde-auth-setup-dev.md:263
+- kinde-auth-setup-dev.md:289
+Updated config section to require provider-neutral env keys and optional Kinde aliases:
+- kinde-auth-setup-dev.md:341
+Added portability tests and acceptance criteria for provider abstraction:
+- kinde-auth-setup-dev.md:378
+- kinde-auth-setup-dev.md:418
+Verification of your Postgres-table concern:
+- Internal UUID primary key exists for users: postgres-registry-db-planning.md:223
+- External Kinde subject is separate mapping field kinde_user_id: postgres-registry-db-planning.md:224

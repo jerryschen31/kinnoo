@@ -94,7 +94,7 @@ Notes:
 
 ### Definition of Done
 - All ACs for feature27 are mapped to passing automated tests (`test243`-`test251`).
-- `python3 src/validate_project_manifests.py` passes after any manifest edits.
+- `python3 scripts/validate_project_manifests.py` passes after any manifest edits.
 - Focused analyzer tests pass, then full `python3 -m pytest` regression passes.
 - Task statuses should move to `needs-review` when SWE implementation is complete.
 

@@ -33,7 +33,7 @@ cd /Users/jerry/gh/kinnoo && python3 -m pytest server/tests/test_agents_routes.p
 3. Manifest integrity validation
 - Command:
 ```bash
-cd /Users/jerry/gh/kinnoo && python3 src/validate_project_manifests.py
+cd /Users/jerry/gh/kinnoo && python3 scripts/validate_project_manifests.py
 ```
 - Expected:
   - TASKS/FEATURES/TESTS manifests remain valid after task331 addition.

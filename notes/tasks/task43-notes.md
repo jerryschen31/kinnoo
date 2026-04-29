@@ -24,7 +24,7 @@ Date: 2026-02-27
   - `python3 -m pytest tests/test_pack.py tests/test_cli_install_extract.py tests/test_pack_robustness.py`
   - Result: `10 passed`
 - Manifest validation:
-  - `python3 src/validate_project_manifests.py`
+  - `python3 scripts/validate_project_manifests.py`
   - Result: `Validation passed: manifests are consistent`
 
 ### Task Status

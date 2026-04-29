@@ -264,7 +264,7 @@ Executed in repo root:
 1. `python -m pytest tests/test_trust_baseline.py tests/test_docs.py -k "feature15 or trust_baseline"`
    - Result: **9 passed, 5 deselected**
 
-2. `python src/validate_project_manifests.py`
+2. `python scripts/validate_project_manifests.py`
    - Result: **Validation passed: manifests are consistent**
 
 ## AC Coverage Assessment

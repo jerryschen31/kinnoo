@@ -1,8 +1,3 @@
-export type LoginCredentials = {
-  email: string;
-  password: string;
-};
-
 export type LoginResult = {
   ok: boolean;
   status: number;
@@ -11,45 +6,9 @@ export type LoginResult = {
 export type AuthMeResult = {
   ok: boolean;
   status: number;
+  tenantSlug: string | null;
+  username: string | null;
 };
-
-function readCookie(name: string): string | null {
-  if (typeof document === "undefined") {
-    return null;
-  }
-
-  const encodedName = `${encodeURIComponent(name)}=`;
-  const cookie = document.cookie
-    .split(";")
-    .map((part) => part.trim())
-    .find((part) => part.startsWith(encodedName));
-
-  if (!cookie) {
-    return null;
-  }
-
-  return decodeURIComponent(cookie.slice(encodedName.length));
-}
-
-function extractLoginCsrfToken(html: string): string | null {
-  const match = html.match(/name="csrf_token"\s+value="([^"]+)"/i);
-  return match?.[1] ?? null;
-}
-
-async function fetchLoginCsrfToken(): Promise<string | null> {
-  const response = await fetch("/api/login", {
-    method: "GET",
-    credentials: "include",
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    return null;
-  }
-
-  const html = await response.text();
-  return extractLoginCsrfToken(html);
-}
 
 function isSuccessfulLoginResponse(response: Response): boolean {
   if (response.ok) {
@@ -62,60 +21,21 @@ function isSuccessfulLoginResponse(response: Response): boolean {
     return true;
   }
 
-  // Backend currently returns 303 on successful form login.
-  return response.status === 303;
+  // Redirect-based auth flows can surface standard redirect responses
+  // depending on browser/runtime behavior.
+  return [302, 303, 307, 308].includes(response.status);
 }
 
-export async function loginWithPassword(credentials: LoginCredentials): Promise<LoginResult> {
-  const csrfToken = await fetchLoginCsrfToken();
-
-  const form = new URLSearchParams();
-  form.set("username", credentials.email.trim());
-  form.set("password", credentials.password);
-  if (csrfToken) {
-    form.set("csrf_token", csrfToken);
-  }
-
+export async function startLoginRedirect(): Promise<LoginResult> {
   const response = await fetch("/api/login", {
-    method: "POST",
+    method: "GET",
     credentials: "include",
     cache: "no-store",
     redirect: "manual",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: form.toString(),
   });
 
   return {
     ok: isSuccessfulLoginResponse(response),
-    status: response.status,
-  };
-}
-
-export async function postWithSessionCsrf(path: string): Promise<Response> {
-  const csrfToken = readCookie("kinnoo_csrf");
-  const form = new URLSearchParams();
-  if (csrfToken) {
-    form.set("csrf_token", csrfToken);
-  }
-
-  return fetch(path, {
-    method: "POST",
-    credentials: "include",
-    cache: "no-store",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
-    },
-    body: form.toString(),
-  });
-}
-
-export async function logoutWithSessionCsrf(): Promise<LoginResult> {
-  const response = await postWithSessionCsrf("/api/logout");
-  return {
-    ok: response.ok,
     status: response.status,
   };
 }
@@ -135,14 +55,34 @@ export async function fetchAuthMeServer(cookieHeader: string): Promise<AuthMeRes
       },
     });
 
+    let tenantSlug: string | null = null;
+    let username: string | null = null;
+    if (response.ok) {
+      try {
+        const payload = (await response.json()) as { tenant_slug?: unknown; username?: unknown };
+        if (typeof payload.tenant_slug === "string" && payload.tenant_slug.trim()) {
+          tenantSlug = payload.tenant_slug.trim();
+        }
+        if (typeof payload.username === "string" && payload.username.trim()) {
+          username = payload.username.trim();
+        }
+      } catch {
+        // Keep auth status even if payload parsing fails.
+      }
+    }
+
     return {
       ok: response.ok,
       status: response.status,
+      tenantSlug,
+      username,
     };
   } catch {
     return {
       ok: false,
       status: 503,
+      tenantSlug: null,
+      username: null,
     };
   }
 }

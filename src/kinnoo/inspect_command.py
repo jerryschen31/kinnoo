@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import json
 import sys
 import zipfile
 from copy import deepcopy
@@ -18,6 +20,8 @@ try:
         INSPECT_MISSING_REQUIREMENTS_GUIDANCE_LINES,
     )
     from kinnoo.validator import validate_manifest_data
+    from kinnoo.registry_backends import MockFilesystemRegistryBackend
+    from kinnoo.registry import RegistryService
 except ImportError:
     from .checksum import ChecksumParseError, read_checksum_sidecar
     from .code_sweep import sweep_env_var_exposure
@@ -28,6 +32,8 @@ except ImportError:
         INSPECT_MISSING_REQUIREMENTS_GUIDANCE_LINES,
     )
     from .validator import validate_manifest_data
+    from .registry_backends import MockFilesystemRegistryBackend
+    from .registry import RegistryService
 
 
 def _print_missing_manifest_guidance() -> None:
@@ -496,6 +502,22 @@ def _print_inspect_output(
         else:
             print("- Env Vars: (none)")
 
+    provenance = normalized.get("provenance")
+    if isinstance(provenance, dict):
+        print("- Provenance:")
+        source_registry = provenance.get("source_registry")
+        source_version = provenance.get("source_version")
+        source_slug = provenance.get("source_slug")
+        source_url = provenance.get("source_url")
+        if isinstance(source_registry, str) and source_registry.strip():
+            print(f"  - source_registry: {source_registry}")
+        if isinstance(source_version, str) and source_version.strip():
+            print(f"  - source_version: {source_version}")
+        if isinstance(source_slug, str) and source_slug.strip():
+            print(f"  - source_slug: {source_slug}")
+        if isinstance(source_url, str) and source_url.strip():
+            print(f"  - source_url: {source_url}")
+
     _print_services_metadata(normalized)
 
     _print_asset_metadata(normalized, asset_file_sizes or {})
@@ -504,7 +526,66 @@ def _print_inspect_output(
         _print_full_metadata_fields(normalized)
 
 
-def _inspect_archive_target(archive_path: Path, *, full: bool, raw: bool) -> int:
+def _build_inspect_json_payload(
+    target_label: str,
+    manifest_data: dict[str, Any],
+    archive_checksum: str | None = None,
+    archive_size_human: str | None = None,
+    asset_file_sizes: dict[str, int] | None = None,
+    *,
+    full: bool = False,
+    raw: bool = False,
+) -> dict[str, Any]:
+    normalized = _normalize_manifest_for_display(manifest_data)
+    payload: dict[str, Any] = {
+        "target_type": target_label,
+        "full": full,
+        "raw": raw,
+    }
+
+    if raw:
+        flattened = _flatten_manifest_fields(normalized)
+        if full:
+            payload["manifest_raw"] = {
+                field: (_render_raw_value(flattened[field]) if field in flattened else "N/A")
+                for field in KNOWN_MANIFEST_METADATA_FIELDS
+            }
+        else:
+            payload["manifest_raw"] = {
+                field: _render_raw_value(value) for field, value in sorted(flattened.items())
+            }
+        return payload
+
+    input_types = _declared_types_for_display(normalized, "inputs")
+    output_types = _declared_types_for_display(normalized, "outputs")
+    json_contract_notes: list[str] = []
+    if "json" in input_types:
+        json_contract_notes.append("use --json-input/--json-file for structured input payloads")
+    if normalized["runtime"]["type"] != "mcp-server" and "json" in output_types:
+        json_contract_notes.append("stdout must be valid JSON when outputs.type includes json")
+
+    payload["manifest"] = normalized
+    payload["input_types"] = input_types
+    payload["output_types"] = output_types
+    payload["json_contract_notes"] = json_contract_notes
+    payload["archive_size"] = archive_size_human
+    payload["archive_checksum_sha256"] = archive_checksum
+    payload["asset_file_sizes"] = asset_file_sizes or {}
+
+    if full:
+        payload["all_metadata_fields"] = {
+            field: (
+                _render_raw_value(_manifest_get_path(normalized, field))
+                if _manifest_path_exists(normalized, field)
+                else "N/A"
+            )
+            for field in KNOWN_MANIFEST_METADATA_FIELDS
+        }
+
+    return payload
+
+
+def _inspect_archive_target(archive_path: Path, *, full: bool, raw: bool, json_output: bool = False) -> int:
     manifest_data = read_manifest_from_kno_archive(archive_path)
     if manifest_data is None:
         return 1
@@ -517,20 +598,32 @@ def _inspect_archive_target(archive_path: Path, *, full: bool, raw: bool) -> int
     archive_size_human = format_size_human_readable(archive_path.stat().st_size)
     archive_checksum = _archive_checksum_for_display(archive_path)
     asset_file_sizes = _asset_file_sizes_for_archive(manifest_data, archive_path)
-    _print_inspect_output(
-        "archive (.kno)",
-        manifest_data,
-        archive_checksum=archive_checksum,
-        archive_size_human=archive_size_human,
-        asset_file_sizes=asset_file_sizes,
-        full=full,
-        raw=raw,
-    )
+    if json_output:
+        payload = _build_inspect_json_payload(
+            "archive (.kno)",
+            manifest_data,
+            archive_checksum=archive_checksum,
+            archive_size_human=archive_size_human,
+            asset_file_sizes=asset_file_sizes,
+            full=full,
+            raw=raw,
+        )
+        print(json.dumps(payload, sort_keys=True))
+    else:
+        _print_inspect_output(
+            "archive (.kno)",
+            manifest_data,
+            archive_checksum=archive_checksum,
+            archive_size_human=archive_size_human,
+            asset_file_sizes=asset_file_sizes,
+            full=full,
+            raw=raw,
+        )
 
     return 0
 
 
-def _inspect_directory_target(directory_path: Path, *, full: bool, raw: bool) -> int:
+def _inspect_directory_target(directory_path: Path, *, full: bool, raw: bool, json_output: bool = False) -> int:
     manifest_path = directory_path / "kinnoo.yaml"
     requirements_path = directory_path / "requirements.txt"
 
@@ -546,49 +639,109 @@ def _inspect_directory_target(directory_path: Path, *, full: bool, raw: bool) ->
     if manifest_data is None:
         return 1
 
-    is_valid, errors = validate_manifest_data(manifest_data)
+    is_valid, errors = validate_manifest_data(manifest_data, manifest_root=directory_path)
     if not is_valid:
         _print_manifest_validation_errors(errors)
         return 1
 
     asset_file_sizes = _asset_file_sizes_for_directory(manifest_data, directory_path)
-    _print_inspect_output(
-        "directory",
-        manifest_data,
-        asset_file_sizes=asset_file_sizes,
-        full=full,
-        raw=raw,
-    )
+    if json_output:
+        payload = _build_inspect_json_payload(
+            "directory",
+            manifest_data,
+            asset_file_sizes=asset_file_sizes,
+            full=full,
+            raw=raw,
+        )
+    else:
+        _print_inspect_output(
+            "directory",
+            manifest_data,
+            asset_file_sizes=asset_file_sizes,
+            full=full,
+            raw=raw,
+        )
 
-    if raw:
+    import_report = _load_import_report(directory_path)
+    if import_report is not None and not json_output:
+        _print_import_report_hints(import_report)
+    if json_output:
+        payload["import_report"] = import_report
+
+    if raw and not json_output:
         return 0
 
     declared_env_vars = _env_var_names_for_display(_normalize_manifest_for_display(manifest_data))
     sweep_warnings = sweep_env_var_exposure(directory_path, declared_env_vars)
-    if sweep_warnings:
+    if json_output:
+        payload["security_sweep_warnings"] = sweep_warnings
+        payload["security_sweep_heuristic"] = True
+        print(json.dumps(payload, sort_keys=True))
+    elif sweep_warnings:
         print("Security sweep:")
         # [agent] SECURITY INVARIANT: only env var NAMES, never values
         for warning in sweep_warnings:
             print(f"- {warning}")
     else:
         print("Security sweep: no env var exposure patterns detected (heuristic)")
-    print("(heuristic scan — may produce false positives; not a substitute for code review)")
+    if not json_output:
+        print("(heuristic scan — may produce false positives; not a substitute for code review)")
 
     return 0
 
 
-def inspect_target(target_arg: str, *, full: bool = False, raw: bool = False) -> int:
+def _load_import_report(directory_path: Path) -> dict[str, Any] | None:
+    report_path = directory_path / "kinnoo-import-report.json"
+    if not report_path.exists() or not report_path.is_file():
+        return None
+
+    try:
+        payload = json.loads(report_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    return payload
+
+
+def _print_import_report_hints(import_report: dict[str, Any]) -> None:
+    requirements = import_report.get("requirements")
+    unresolved = import_report.get("unresolved")
+
+    if isinstance(requirements, dict):
+        print("- Imported Requirement Hints:")
+        for section in ("env", "config", "bin"):
+            values = requirements.get(section)
+            if isinstance(values, list) and values:
+                rendered = ", ".join(str(item) for item in values)
+                print(f"  - {section}: {rendered}")
+            else:
+                print(f"  - {section}: (none)")
+
+    if isinstance(unresolved, list) and unresolved:
+        print("- Unresolved Guidance:")
+        for item in unresolved:
+            if isinstance(item, str) and item.strip():
+                print(f"  - {item}")
+
+
+def inspect_target(target_arg: str, *, full: bool = False, raw: bool = False, json_output: bool = False) -> int:
+    normalized_target = target_arg.strip()
+    if normalized_target.lower().startswith("clawhub:") or normalized_target.lower().startswith("clawhub/"):
+        mirror_slug = normalized_target.split(":", 1)[1] if ":" in normalized_target else normalized_target
+        return _inspect_clawhub_mirror_target(mirror_slug, full=full, raw=raw, json_output=json_output)
+
     target = Path(target_arg)
     if not target.exists():
         print(f"Error: Inspect target '{target}' does not exist.", file=sys.stderr)
         return 1
 
     if target.is_dir():
-        return _inspect_directory_target(target, full=full, raw=raw)
+        return _inspect_directory_target(target, full=full, raw=raw, json_output=json_output)
 
     if target.is_file():
         if target.suffix.lower() == ".kno":
-            return _inspect_archive_target(target, full=full, raw=raw)
+            return _inspect_archive_target(target, full=full, raw=raw, json_output=json_output)
 
         print(
             f"Error: Unsupported inspect target file '{target}'. Expected an agent directory or .kno archive.",
@@ -600,12 +753,81 @@ def inspect_target(target_arg: str, *, full: bool = False, raw: bool = False) ->
     return 1
 
 
+def _inspect_clawhub_mirror_target(slug: str, *, full: bool, raw: bool, json_output: bool = False) -> int:
+    normalized_slug = slug.strip().strip("/")
+    if not normalized_slug:
+        print("Error: ClawHub inspect target slug cannot be empty.", file=sys.stderr)
+        return 1
+
+    registry_root = os.environ.get("KINNOO_REGISTRY_ROOT")
+    backend_root = Path(registry_root).expanduser() if registry_root else None
+    service = RegistryService(backend=MockFilesystemRegistryBackend(root=backend_root))
+
+    matches = [
+        record
+        for record in service.list_clawhub_mirror_records()
+        if record.agent_slug == normalized_slug
+    ]
+    if not matches:
+        print(
+            f"Error: ClawHub mirror record '{normalized_slug}' not found in local mirror index.",
+            file=sys.stderr,
+        )
+        return 1
+
+    selected = sorted(matches, key=lambda item: item.source_version, reverse=True)[0]
+
+    if json_output:
+        payload = {
+            "target_type": "clawhub mirror",
+            "full": full,
+            "raw": raw,
+            "tenant_slug": selected.tenant_slug,
+            "agent_slug": selected.agent_slug,
+            "name": selected.name,
+            "version": selected.version,
+            "source_registry": selected.source_registry,
+            "source_version": selected.source_version,
+            "source_url": selected.source_url,
+            "synced_at": selected.synced_at,
+        }
+        print(json.dumps(payload, sort_keys=True))
+        return 0
+
+    if raw:
+        print("Inspect target type: clawhub mirror")
+        print(f"tenant_slug: {selected.tenant_slug}")
+        print(f"agent_slug: {selected.agent_slug}")
+        print(f"name: {selected.name}")
+        print(f"version: {selected.version}")
+        print(f"source_registry: {selected.source_registry}")
+        print(f"source_version: {selected.source_version}")
+        print(f"source_url: {selected.source_url or 'N/A'}")
+        print(f"synced_at: {selected.synced_at or 'N/A'}")
+        return 0
+
+    print("Inspect target type: clawhub mirror")
+    print(f"- Name: {selected.name}")
+    print(f"- Version: {selected.version}")
+    print("- Source: ClawHub (mirrored)")
+    print(f"- Source Slug: {selected.agent_slug}")
+    print(f"- Source Registry: {selected.source_registry}")
+    if selected.source_url:
+        print(f"- Source URL: {selected.source_url}")
+    print(f"- Last Synced At: {selected.synced_at or 'N/A'}")
+    if full:
+        print(f"- Tenant Slug: {selected.tenant_slug}")
+
+    return 0
+
+
 def inspect_update_target(
     target_arg: str,
     metadata_key: str,
     new_value_raw: str,
     *,
     skip_warnings: bool = False,
+    json_output: bool = False,
 ) -> int:
     target = Path(target_arg)
     if not target.exists():
@@ -646,22 +868,35 @@ def inspect_update_target(
     parsed_new_value = _parse_update_value(new_value_raw)
 
     if not skip_warnings:
+        old_value_label = _render_raw_value(old_value) if old_value is not None else "N/A"
+        new_value_label = _render_raw_value(parsed_new_value)
         prompt = (
-            f"Warning: are you sure you want to modify {metadata_key} to have the new value "
-            f"{new_value_raw}? (y/N): "
+            f"Changing {metadata_key} from {old_value_label} to {new_value_label}. Proceed? (y/N): "
         )
         try:
             response = input(prompt)
         except EOFError:
             response = ""
         if response.strip().lower() not in {"y", "yes"}:
-            print("Update aborted.")
+            if json_output:
+                payload = {
+                    "updated": False,
+                    "aborted": True,
+                    "target": str(target),
+                    "key": metadata_key,
+                    "old_value": _render_raw_value(old_value) if old_value is not None else "N/A",
+                    "new_value": _render_raw_value(parsed_new_value),
+                    "error": "Update aborted.",
+                }
+                print(json.dumps(payload, sort_keys=True))
+            else:
+                print("Update aborted.")
             return 1
 
     updated_manifest = deepcopy(manifest_data)
     _manifest_set_path(updated_manifest, metadata_key, parsed_new_value)
 
-    is_valid, errors = validate_manifest_data(updated_manifest)
+    is_valid, errors = validate_manifest_data(updated_manifest, manifest_root=target)
     if not is_valid:
         _print_manifest_validation_errors(errors)
         print("No changes were written.", file=sys.stderr)
@@ -676,8 +911,20 @@ def inspect_update_target(
         print(f"Error: Failed writing '{manifest_path}': {error}", file=sys.stderr)
         return 1
 
-    print("Manifest metadata updated.")
-    print(f"- key: {metadata_key}")
-    print(f"- old value: {_render_raw_value(old_value) if old_value is not None else 'N/A'}")
-    print(f"- new value: {_render_raw_value(parsed_new_value)}")
+    if json_output:
+        payload = {
+            "updated": True,
+            "aborted": False,
+            "target": str(target),
+            "key": metadata_key,
+            "old_value": _render_raw_value(old_value) if old_value is not None else "N/A",
+            "new_value": _render_raw_value(parsed_new_value),
+            "error": None,
+        }
+        print(json.dumps(payload, sort_keys=True))
+    else:
+        print("Manifest metadata updated.")
+        print(f"- key: {metadata_key}")
+        print(f"- old value: {_render_raw_value(old_value) if old_value is not None else 'N/A'}")
+        print(f"- new value: {_render_raw_value(parsed_new_value)}")
     return 0

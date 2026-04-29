@@ -115,7 +115,7 @@ Implementation quality is strong, behavior aligns with requested UX/security con
   - `tests/test_docs.py`
 - Validation run by TechLead:
   - `python3 -m pytest tests/test_cli_inspect.py tests/test_docs.py` → **9 passed**
-  - `python3 src/validate_project_manifests.py` → **Validation passed**
+  - `python3 scripts/validate_project_manifests.py` → **Validation passed**
 
 ### AC coverage assessment (feature11)
 

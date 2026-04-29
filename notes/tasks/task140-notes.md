@@ -16,7 +16,7 @@
 - test211: tests/test_regression_v1.py::test_feature22_no_assets_regression_unchanged
 
 ## Test runs and results
-- python3 src/validate_project_manifests.py -> Validation passed: manifests are consistent
+- python3 scripts/validate_project_manifests.py -> Validation passed: manifests are consistent
 - python3 -m pytest tests/test_regression_v1.py::test_feature22_no_assets_regression_unchanged -> 1 passed
 
 ## Bug/error notes

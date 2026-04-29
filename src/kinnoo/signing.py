@@ -64,6 +64,14 @@ def public_key_fingerprint(public_key: object) -> str:
     return hashlib.sha256(raw_public_key).hexdigest()
 
 
+def public_key_pem(public_key: object) -> str:
+    serialization, _, _ = _crypto_modules()
+    return public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    ).decode("utf-8")
+
+
 def generate_ed25519_keypair(private_key_path: Path, public_key_path: Path) -> KeygenResult:
     serialization, ed25519, _ = _crypto_modules()
     private_key = ed25519.Ed25519PrivateKey.generate()
@@ -156,11 +164,7 @@ def create_detached_signature_artifacts(
     signature_target.parent.mkdir(parents=True, exist_ok=True)
     signature_target.write_bytes(signature)
 
-    serialization, _, _ = _crypto_modules()
-    public_key_pem = public_key.public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo,
-    ).decode("utf-8")
+    public_key_pem_value = public_key_pem(public_key)
 
     metadata_payload = {
         "schema_version": 1,
@@ -170,7 +174,7 @@ def create_detached_signature_artifacts(
         "signature_filename": signature_target.name,
         "signature_base64": base64.b64encode(signature).decode("ascii"),
         "public_key_fingerprint_sha256": public_key_fingerprint(public_key),
-        "public_key_pem": public_key_pem,
+        "public_key_pem": public_key_pem_value,
         "verification_hint": "Verify archive authenticity using the publisher public key.",
     }
     metadata_target.parent.mkdir(parents=True, exist_ok=True)
