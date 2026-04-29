@@ -17,4 +17,9 @@ locals {
   effective_frontend_record_type    = var.dev_record_type != "" ? var.dev_record_type : var.frontend_record_type
   effective_frontend_record_content = var.dev_record_content != "" ? var.dev_record_content : var.frontend_record_content
   effective_manage_frontend_record  = var.manage_frontend_record || var.manage_dev_record
+
+  # Dev-only cost control toggles. Non-dev environments are always enabled
+  # regardless of toggle values in tfvars to prevent accidental prod impact.
+  enable_runtime_stack  = var.environment == "dev" ? var.enable_dev_runtime : true
+  enable_database_stack = var.environment == "dev" ? var.enable_dev_database : true
 }

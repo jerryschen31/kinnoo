@@ -83,8 +83,8 @@ clearly define which files and folders in the codebase should be mirrored in the
 
 [definition of done]
 - A documented manifest (e.g., PUBLIC-REPO-MANIFEST.md or a script) that lists every included and excluded directory/file
-- Excluded: notes/, scratch/, internal scripts, .github agent files, internal planning docs, env/ config with secrets
-- Included: src/, tests/, server/, web/, docs/, iac/, scripts/ (public subset), pyproject.toml, requirements.txt, README.md, LICENSE, CONTRIBUTING.md, CODE_OF_CONDUCT.md
+- Excluded: notes/, scratch/, iac/, server/, scripts/, .github agent files, internal planning docs, env/ config with secrets
+- Included: src/, tests/, web/, docs/, pyproject.toml, requirements.txt, README.md, LICENSE, CONTRIBUTING.md, CODE_OF_CONDUCT.md
 - A reproducible script or CI step that can build the public repo from the private repo using the manifest
 - Running the script produces a clean repo with no internal-only content
 

@@ -36,8 +36,8 @@ resource "aws_db_instance" "this" {
   multi_az                     = local.is_prod
   deletion_protection          = local.is_prod
   performance_insights_enabled = true
-  skip_final_snapshot          = !local.is_prod
-  final_snapshot_identifier    = local.is_prod ? "${local.name_prefix}-postgres-final-snapshot" : null
+  skip_final_snapshot          = false
+  final_snapshot_identifier    = "${local.name_prefix}-postgres-final-snapshot"
   copy_tags_to_snapshot        = true
 
   tags = merge(var.tags, {
