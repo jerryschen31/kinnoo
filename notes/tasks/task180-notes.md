@@ -17,7 +17,7 @@
 
 ## Tests and results
 - `python3 -m pytest tests/test_cli.py::test_feature32_stop_daemon_graceful_and_fallback` -> `1 passed`
-- `python3 src/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
+- `python3 scripts/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
 
 ## Bug/error notes
 - No implementation bugs encountered while developing task180.

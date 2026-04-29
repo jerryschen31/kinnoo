@@ -20,7 +20,7 @@
 ## Test runs and results
 - python3 -m pytest tests/test_cli.py::test_feature23_run_mcp_server_long_running_mode -> 1 passed
 - python3 -m pytest tests/test_cli.py::test_feature23_mcp_server_streams_stdout_stderr -> 1 passed
-- python3 src/validate_project_manifests.py -> Validation passed: manifests are consistent
+- python3 scripts/validate_project_manifests.py -> Validation passed: manifests are consistent
 
 ## Bug/error notes
 - Initial test218 assertion was too strict (first stdout line can be readiness marker); updated the test to assert streamed markers across multiple lines while process remains running.

@@ -51,7 +51,7 @@ Add generic daemon runtime support with operator lifecycle controls (`run` start
 - Run full regression before handoff completion:
   - python3 -m pytest
 - Validate manifests after task/test updates:
-  - python3 src/validate_project_manifests.py
+  - python3 scripts/validate_project_manifests.py
 
 ### Status Workflow Guidance
 - Move tasks task178-task183 from not-started -> in-progress when implementation begins.

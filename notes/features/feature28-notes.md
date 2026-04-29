@@ -69,7 +69,7 @@ Feature28 introduces a clean client-side abstraction for registry operations so 
   - `FEATURES.txt`: `feature28` references `task229`-`task233`
   - `TASKS.txt`: `task229`-`task233` reference `test327`-`test331`
   - `TESTS.txt`: `test327`-`test331` exist and point to concrete automated checks
-- Manifest integrity gate passed: `python3 src/validate_project_manifests.py`
+- Manifest integrity gate passed: `python3 scripts/validate_project_manifests.py`
 
 ### Gate Checklist Results (Feature28)
 - [x] Scope sanity: Tasks `task229`-`task233` and tests `test327`-`test331` are present and linked.

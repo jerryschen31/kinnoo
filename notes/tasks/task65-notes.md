@@ -20,7 +20,7 @@
 ### Validation results
 
 - `python3 -m pytest tests/test_cli_inspect.py` → passed (`4 passed`)
-- `python3 src/validate_project_manifests.py` → Validation passed
+- `python3 scripts/validate_project_manifests.py` → Validation passed
 
 ### Bookkeeping
 

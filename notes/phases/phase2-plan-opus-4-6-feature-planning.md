@@ -200,7 +200,7 @@ Add `--mcp <server>` flag to `kinnoo init` that generates MCP client boilerplate
 7. Using an unsupported `--mcp` value prints an error listing available options
 
 **Verification**
-- Run `python3 src/validate_project_manifests.py` after adding features to ensure FEATURES.txt is valid
+- Run `python3 scripts/validate_project_manifests.py` after adding features to ensure FEATURES.txt is valid
 - Each feature's ACs map directly to unit/integration tests that will be defined in TESTS.txt when tasks are created
 - Dependency graph: verify no circular dependencies and Tier 1 features have no feature dependencies
 

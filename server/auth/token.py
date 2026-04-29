@@ -10,7 +10,9 @@ import hmac
 import json
 import secrets
 from typing import Any
+from dataclasses import replace
 
+from server.models.user import username_to_tenant_slug
 from server.storage.user_store import UserStore
 
 
@@ -166,18 +168,57 @@ class TokenService:
         username: str,
         plaintext_password: str,
         user_store: UserStore,
-        tenant_slug: str = "global",
+        tenant_slug: str | None = None,
     ) -> str:
         user = user_store.get_by_username(username)
-        if user is None or not user.verify_password(plaintext_password):
+        if user is None:
             raise PermissionError("401 unauthorized: invalid username or password")
+
+        now = datetime.now(timezone.utc)
+        if user.locked_until:
+            try:
+                locked_until = datetime.fromisoformat(user.locked_until.replace("Z", "+00:00"))
+            except ValueError:
+                locked_until = None
+
+            if locked_until is not None and locked_until > now:
+                retry_after = max(1, int((locked_until - now).total_seconds()))
+                raise PermissionError(f"423 account_locked: retry_after={retry_after}")
+
+            # Expired lockout should be cleared lazily on next auth attempt.
+            user = user_store.reset_login_failures(user=user)
+
+        if not user.verify_password(plaintext_password):
+            updated = user_store.increment_failed_login(user=user, lockout_after=5, lockout_minutes=15)
+            if updated.locked_until:
+                raise PermissionError("423 account_locked: retry_after=900")
+            raise PermissionError("401 unauthorized: invalid username or password")
+
+        if user.failed_login_attempts > 0 or user.locked_until is not None:
+            user = user_store.reset_login_failures(user=user)
+
+        if user.password_changed_at is None:
+            user = replace(
+                user,
+                password_changed_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                updated_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            )
+            user_store.save(user)
 
         if user.role == "admin":
             scopes = ["registry:read", "registry:publish", "registry:admin"]
+            # Admin can explicitly target a tenant, otherwise default to identity-derived tenant.
+            resolved_tenant_slug = (
+                tenant_slug.strip()
+                if isinstance(tenant_slug, str) and tenant_slug.strip()
+                else username_to_tenant_slug(user.username)
+            )
         else:
             scopes = ["registry:read"]
+            # Tenant context for non-admin credentials is always identity-derived.
+            resolved_tenant_slug = username_to_tenant_slug(user.username)
 
-        return self.issue_token(subject=user.id, tenant_slug=tenant_slug, scopes=scopes)
+        return self.issue_token(subject=user.id, tenant_slug=resolved_tenant_slug, scopes=scopes)
 
     def _validate_signature(self, *, signing_input: str, signature: str, header: dict[str, Any]) -> None:
         kid = header.get("kid")

@@ -28,7 +28,7 @@
 
 ## Test runs and results
 - python3 -m pytest tests/test_validator.py::test_feature24_services_optional_list_is_accepted tests/test_validator.py::test_feature24_no_services_regression_unchanged -> 2 passed
-- python3 src/validate_project_manifests.py -> Validation passed: manifests are consistent
+- python3 scripts/validate_project_manifests.py -> Validation passed: manifests are consistent
 
 ## Scope boundary notes
 - This task intentionally implements schema/shape support only.

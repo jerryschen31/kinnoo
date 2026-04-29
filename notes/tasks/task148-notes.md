@@ -22,7 +22,7 @@
 
 ## Test runs and results
 - python3 -m pytest tests/test_cli_inspect.py::test_feature24_inspect_displays_services -> 1 passed
-- python3 src/validate_project_manifests.py -> Validation passed: manifests are consistent
+- python3 scripts/validate_project_manifests.py -> Validation passed: manifests are consistent
 
 ## Bug/error notes
 - Encountered one failure due to malformed YAML indentation in the new test fixture manifest string.

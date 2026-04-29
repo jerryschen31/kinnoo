@@ -74,7 +74,7 @@ With MVP (Phase 1) complete, Kinnoo now offers reproducible agent packaging, fra
 ---
 
 **Verification**
-- Run `python3 src/validate_project_manifests.py` on new manifest examples.
+- Run `python3 scripts/validate_project_manifests.py` on new manifest examples.
 - Test CLI commands for MCP agents, registry operations, preflight checks.
 - Validate framework templates with real-world agents.
 - Run evaluation harness on sample agents.

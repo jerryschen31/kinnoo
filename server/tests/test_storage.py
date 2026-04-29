@@ -6,7 +6,6 @@ from urllib.parse import urlparse
 from server.config import ServerConfig
 from server.storage import build_storage_backend_from_config
 from server.storage.local import LocalStorageBackend
-from server.storage.mock_s3 import MockS3Backend
 from server.storage.s3 import S3StorageBackend
 
 
@@ -39,6 +38,15 @@ class _FakeS3Client:
             f"{Params['Bucket']}/{Params['Key']}"
             f"?expires_in={ExpiresIn}"
         )
+
+
+class _MissingKeyS3Client:
+    class NoSuchKey(Exception):
+        pass
+
+    def get_object(self, *, Bucket: str, Key: str):
+        del Bucket, Key
+        raise self.NoSuchKey("missing")
 
 
 def _exercise_protocol(backend, key_prefix: str) -> None:
@@ -78,20 +86,6 @@ def test_storage_protocol(tmp_path, monkeypatch):
     assert isinstance(local_backend, LocalStorageBackend)
     _exercise_protocol(local_backend, "tenant/local")
 
-    mock_config = ServerConfig(
-        storage_backend="mock",
-        local_storage_root=tmp_path / "unused",
-        s3_bucket="kinnoo-registry-dev",
-        s3_region="us-east-1",
-        s3_endpoint_url=None,
-        s3_access_key_id=None,
-        s3_secret_access_key=None,
-        presign_ttl_seconds=120,
-        max_upload_mb=50,
-    )
-    mock_backend = build_storage_backend_from_config(mock_config, s3_client=fake_client)
-    assert isinstance(mock_backend, MockS3Backend)
-    _exercise_protocol(mock_backend, "tenant/mock")
 
     s3_config = ServerConfig(
         storage_backend="s3",
@@ -112,10 +106,22 @@ def test_storage_protocol(tmp_path, monkeypatch):
     selected_local = ServerConfig.from_env()
     assert selected_local.storage_backend == "local"
 
-    monkeypatch.setenv("REGISTRY_STORAGE_BACKEND", "mock")
-    selected_mock = ServerConfig.from_env()
-    assert selected_mock.storage_backend == "mock"
 
     monkeypatch.setenv("REGISTRY_STORAGE_BACKEND", "s3")
     selected_s3 = ServerConfig.from_env()
     assert selected_s3.storage_backend == "s3"
+
+
+def test_s3_get_object_missing_key_raises_file_not_found() -> None:
+    backend = S3StorageBackend(
+        bucket="kinnoo-registry-dev",
+        region="us-east-1",
+        s3_client=_MissingKeyS3Client(),
+    )
+
+    try:
+        backend.get_object(key="missing/object.txt")
+    except FileNotFoundError:
+        pass
+    else:
+        raise AssertionError("Expected FileNotFoundError for missing S3 key")

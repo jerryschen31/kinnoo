@@ -24,7 +24,7 @@
 ### Validation results
 
 - `python3 -m pytest tests/test_pack_refactor.py::test_pack_uses_canonical_archive_path_and_storage_abstraction tests/test_registry.py::test_registry_backend_contract_and_local_layout` → passed (`2 passed`)
-- `python3 src/validate_project_manifests.py` → Validation passed
+- `python3 scripts/validate_project_manifests.py` → Validation passed
 
 ### Bookkeeping
 

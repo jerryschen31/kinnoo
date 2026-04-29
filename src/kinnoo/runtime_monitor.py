@@ -9,6 +9,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
 
+from .runtime_language import is_nodejs_compatible_runtime
+
 RUNTIME_MONITOR_EVENTS_RELATIVE_PATH = Path(".kinnoo") / "runtime-monitor-events.jsonl"
 _NETWORK_EVENTS_FILENAME = "runtime-monitor-network.jsonl"
 _MONITOR_SCHEMA_VERSION = "1.0"
@@ -156,7 +158,7 @@ def resolve_monitor_policy_summary(
     browser_allowed = bool(permissions.get("browser") is True)
 
     limited_capabilities: list[str] = []
-    if runtime_language == "nodejs":
+    if is_nodejs_compatible_runtime(runtime_language):
         limited_capabilities.extend(["network", "filesystem"])
     if force_telemetry_limited:
         for capability in ("network", "filesystem"):

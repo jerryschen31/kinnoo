@@ -26,7 +26,7 @@
 - `tests/test_cli.py::test_feature21_pydantic_ai_basic_run` (test195)
 
 ## Validation and regression results
-- `python3 src/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
+- `python3 scripts/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
 - `python3 -m pytest tests/test_init.py::test_feature21_pydantic_ai_framework_native_template tests/test_cli.py::test_feature21_pydantic_ai_basic_run -q` -> `2 passed`
 - `python3 -m pytest tests/test_init.py -k "framework or feature21"` -> `20 passed, 16 deselected`
 - `python3 -m pytest tests/test_cli.py -k "feature21"` -> `4 passed, 19 deselected`

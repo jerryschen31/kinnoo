@@ -47,7 +47,7 @@ Add Node.js dependency risk checks and lifecycle-script controls to install work
 - Run full regression before handoff completion:
         - python3 -m pytest
 - Validate manifests after task/test updates:
-        - python3 src/validate_project_manifests.py
+        - python3 scripts/validate_project_manifests.py
 
 ### Status Workflow Guidance
 - Move tasks task204-task208 from not-started -> in-progress when implementation begins.

@@ -11,4 +11,4 @@
 - Verification:
 	- `python3 -m pytest tests/test_validator.py -k "feature9_v1_manifest_compatibility"` → pass
 	- `python3 -m pytest tests/test_validator.py` → pass
-	- `python3 src/validate_project_manifests.py` → pass
+	- `python3 scripts/validate_project_manifests.py` → pass

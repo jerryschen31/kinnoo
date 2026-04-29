@@ -89,7 +89,7 @@ Feature29 delivers the remote registry server with secure multi-tenant API behav
 - Checked feature/task/test linkage for `feature29` and `task239`-`task244` with mapped tests `test337`-`test342`.
 - Reviewed server implementation in storage, metadata, and route modules.
 - Executed requested gates:
-  - `python3 src/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
+  - `python3 scripts/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
   - `python3 -m pytest --testmon` -> failed during collection (missing `fastapi`/`starlette` in current environment)
   - Sensitive-data scan across `server/` with credential/token/key patterns
   - Large-file audit across repository and git-tracked files

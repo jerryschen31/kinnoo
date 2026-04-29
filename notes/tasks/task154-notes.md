@@ -15,7 +15,7 @@
 - `python3 -m pytest tests/test_validator.py::test_feature26_permissions_schema_validation` -> `1 passed`
 - `python3 -m pytest tests/test_pack.py::test_feature26_filesystem_mcp_fixture_valid_and_packable` -> `1 passed`
 - `python3 -m pytest tests/test_validator.py::test_feature26_permissions_schema_validation tests/test_pack.py::test_feature26_filesystem_mcp_fixture_valid_and_packable` -> `2 passed`
-- `python3 src/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
+- `python3 scripts/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
 
 ## Bug/error notes
 - Encountered one indentation error in the new pack test function.

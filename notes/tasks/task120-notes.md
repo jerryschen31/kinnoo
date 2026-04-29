@@ -24,7 +24,7 @@
 - `python3 -m pytest -q tests/test_input_guard.py` -> `13 passed`
 - `python3 -m pytest -q tests/test_input_guard_integration.py` -> `4 passed`
 - `python3 -m pytest -q` -> `158 passed, 1 skipped`
-- `python3 src/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
+- `python3 scripts/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
 
 ## Teaching notes
 - Precision vs recall is a core tradeoff in security classifiers. Regex guards optimize for deterministic recall, but production quality depends on precision tuning to avoid alert fatigue.

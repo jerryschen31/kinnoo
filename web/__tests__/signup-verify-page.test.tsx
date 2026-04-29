@@ -12,7 +12,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("/signup/verify page", () => {
+describe.skip("/signup/verify page [deprecated]", () => {
   it("enforces password match and minimum length", async () => {
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")

@@ -68,6 +68,14 @@ def test_jwt_lifecycle(tmp_path):
     assert admin_claims.tenant_slug == "tenant-alpha"
     assert "registry:admin" in admin_claims.scopes
 
+    admin_default_tenant_token = token_service.issue_token_for_credentials(
+        username="admin",
+        plaintext_password="admin-secret",
+        user_store=user_store,
+    )
+    admin_default_claims = token_service.validate_token(admin_default_tenant_token)
+    assert admin_default_claims.tenant_slug == "admin"
+
     try:
         token_service.issue_token_for_credentials(
             username="admin",

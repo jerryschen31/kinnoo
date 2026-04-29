@@ -24,7 +24,7 @@
 - `tests/test_regression_v1.py::test_feature21_framework_templates_do_not_regress_existing_frameworks` (additional regression gate support)
 
 ## Validation and regression results
-- `python3 src/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
+- `python3 scripts/validate_project_manifests.py` -> `Validation passed: manifests are consistent`
 - `python3 -m pytest tests/test_init.py -k "framework or feature21"` -> `17 passed, 16 deselected`
 - `python3 -m pytest tests/test_cli.py -k "feature21"` -> `3 passed, 18 deselected`
 - `python3 -m pytest tests/test_regression_v1.py -k "framework or feature21"` -> `1 passed, 2 deselected`

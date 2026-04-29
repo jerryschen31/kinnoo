@@ -32,7 +32,7 @@
 ## Test runs and results
 - python3 -m pytest tests/test_cli.py::test_feature23_sigint_graceful_shutdown_with_escalation -> 1 passed
 - python3 -m pytest tests/test_trust_baseline.py::test_feature23_trace_log_server_lifecycle_fields -> 1 passed
-- python3 src/validate_project_manifests.py -> Validation passed: manifests are consistent
+- python3 scripts/validate_project_manifests.py -> Validation passed: manifests are consistent
 
 ## Bug/error notes
 - Encountered a flaky signal-delivery testing issue while trying to validate SIGINT through nested subprocesses (no reliable marker/log emission in that setup).

@@ -55,7 +55,7 @@ describe("AgentCard", () => {
   it("opens manifest modal from name click and closes using X", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
       const url = String(input);
-      if (url === "/api/agents") {
+      if (url === "/api/agents?show_only_mine=true") {
         return Promise.resolve(
           jsonResponse([
             {
@@ -76,6 +76,16 @@ describe("AgentCard", () => {
           }),
         );
       }
+      if (url === "/api/agents/acme/calendar-helper/1.2.3/security-report") {
+        return Promise.resolve(
+          jsonResponse({
+            tenant_slug: "acme",
+            agent_slug: "calendar-helper",
+            version: "1.2.3",
+            checks: [],
+          }),
+        );
+      }
       return Promise.resolve(jsonResponse([]));
     });
 
@@ -93,10 +103,10 @@ describe("AgentCard", () => {
     });
   });
 
-  it("fetches detail endpoint and renders registry and agent manifest tabs", async () => {
+  it("fetches detail endpoint and renders registry, agent, versions, and security tabs", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
       const url = String(input);
-      if (url === "/api/agents") {
+      if (url === "/api/agents?show_only_mine=true") {
         return Promise.resolve(
           jsonResponse([
             {
@@ -113,8 +123,21 @@ describe("AgentCard", () => {
           jsonResponse({
             tenant_slug: "acme",
             agent_slug: "calendar-helper",
-            versions: [{ version: "1.2.3" }],
+            versions: [{ version: "1.2.3", created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z" }],
             agent_manifest: { framework: "langgraph" },
+          }),
+        );
+      }
+      if (url === "/api/agents/acme/calendar-helper/1.2.3/security-report") {
+        return Promise.resolve(
+          jsonResponse({
+            tenant_slug: "acme",
+            agent_slug: "calendar-helper",
+            version: "1.2.3",
+            checks: [
+              { check_name: "signature", status: "unsigned", detail: "missing" },
+              { check_name: "archive_integrity", status: "pass", detail: "ok" },
+            ],
           }),
         );
       }
@@ -128,6 +151,8 @@ describe("AgentCard", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Registry Manifest" })).toBeTruthy();
       expect(screen.getByRole("button", { name: "Agent Manifest" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Agent Versions" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Security" })).toBeTruthy();
       expect(screen.getByText(/"agent_slug": "calendar-helper"/)).toBeTruthy();
     });
 
@@ -135,6 +160,17 @@ describe("AgentCard", () => {
 
     await waitFor(() => {
       expect(screen.getByText(/"framework": "langgraph"/)).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Agent Versions" }));
+    await waitFor(() => {
+      expect(screen.getAllByText("2026-01-01T00:00:00Z").length).toBeGreaterThan(0);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Security" }));
+    await waitFor(() => {
+      expect(screen.getByText("[UNSIGNED]", { exact: false })).toBeTruthy();
+      expect(screen.getByText("[PASS]", { exact: false })).toBeTruthy();
     });
 
     const urls = fetchSpy.mock.calls.map(([url]) => String(url));
@@ -151,7 +187,7 @@ describe("AgentCard", () => {
     vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
       const url = String(input);
 
-      if (url === "/api/agents") {
+      if (url === "/api/agents?show_only_mine=true") {
         return Promise.resolve(
           jsonResponse([
             {
@@ -186,6 +222,16 @@ describe("AgentCard", () => {
           }),
         );
       }
+      if (url === "/api/agents/acme/public-helper/2.0.0/security-report") {
+        return Promise.resolve(
+          jsonResponse({
+            tenant_slug: "acme",
+            agent_slug: "public-helper",
+            version: "2.0.0",
+            checks: [],
+          }),
+        );
+      }
 
       return Promise.resolve(jsonResponse([]));
     });
@@ -199,13 +245,13 @@ describe("AgentCard", () => {
     fireEvent.click(await screen.findByRole("button", { name: "public-helper" }));
 
     await waitFor(() => {
-      expect(screen.getByText("kinnoo install acme/public-helper@2.0.0")).toBeTruthy();
+      expect(screen.getByText("kinnoo install acme/public-helper==2.0.0")).toBeTruthy();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Copy" }));
 
     await waitFor(() => {
-      expect(writeText).toHaveBeenCalledWith("kinnoo install acme/public-helper@2.0.0");
+      expect(writeText).toHaveBeenCalledWith("kinnoo install acme/public-helper==2.0.0");
       expect(screen.getByRole("button", { name: "Copied!" })).toBeTruthy();
     });
   });
@@ -220,7 +266,7 @@ describe("AgentCard", () => {
     vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
       const url = String(input);
 
-      if (url === "/api/agents") {
+      if (url === "/api/agents?show_only_mine=true") {
         return Promise.resolve(
           jsonResponse([
             {
@@ -262,6 +308,16 @@ describe("AgentCard", () => {
           }),
         );
       }
+      if (url === "/api/agents/acme/calendar-helper/1.2.3/security-report") {
+        return Promise.resolve(
+          jsonResponse({
+            tenant_slug: "acme",
+            agent_slug: "calendar-helper",
+            version: "1.2.3",
+            checks: [],
+          }),
+        );
+      }
 
       if (url === "/api/agents/acme/public-helper") {
         return Promise.resolve(
@@ -270,6 +326,16 @@ describe("AgentCard", () => {
             agent_slug: "public-helper",
             versions: [{ version: "2.0.0" }],
             agent_manifest: { framework: "langgraph" },
+          }),
+        );
+      }
+      if (url === "/api/agents/acme/public-helper/2.0.0/security-report") {
+        return Promise.resolve(
+          jsonResponse({
+            tenant_slug: "acme",
+            agent_slug: "public-helper",
+            version: "2.0.0",
+            checks: [],
           }),
         );
       }
@@ -300,12 +366,12 @@ describe("AgentCard", () => {
     fireEvent.click(await screen.findByRole("button", { name: "public-helper" }));
 
     await waitFor(() => {
-      expect(screen.getByText("kinnoo install acme/public-helper@2.0.0")).toBeTruthy();
+      expect(screen.getByText("kinnoo install acme/public-helper==2.0.0")).toBeTruthy();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Copy" }));
     await waitFor(() => {
-      expect(writeText).toHaveBeenCalledWith("kinnoo install acme/public-helper@2.0.0");
+      expect(writeText).toHaveBeenCalledWith("kinnoo install acme/public-helper==2.0.0");
       expect(screen.getByRole("button", { name: "Copied!" })).toBeTruthy();
     });
   });

@@ -117,7 +117,7 @@ Observation:
 	- Result: `2 passed`
 - `python3 -m pytest tests/test_pack_robustness.py tests/test_cli_install.py -k "transitive or canonical or per_dependency or platform_specific or falls_back_to_pypi or offline"`
 	- Result: `6 passed, 2 deselected`
-- `python3 src/validate_project_manifests.py`
+- `python3 scripts/validate_project_manifests.py`
 	- Result: `Validation passed: manifests are consistent`
 
 ## Addendum — Blockers Resolved (2026-02-27)
@@ -144,7 +144,7 @@ Status update: All four blockers listed above have been addressed.
 ### Verification
 - `python3 -m pytest tests/test_pack_robustness.py tests/test_cli_install.py -k "transitive or canonical or per_dependency or platform_specific or falls_back_to_pypi or offline"`
   - Result: `6 passed, 2 deselected`
-- `python3 src/validate_project_manifests.py`
+- `python3 scripts/validate_project_manifests.py`
   - Result: `Validation passed: manifests are consistent`
 
 ## Final TechLead Decision (2026-02-27)

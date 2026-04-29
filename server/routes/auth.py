@@ -35,6 +35,7 @@ from server.storage.user_store import UserStore
 def create_auth_router(
     *,
     token_service: TokenService,
+    legacy_token_service: TokenService | None = None,
     user_store: UserStore,
     session_service: SessionService,
     registration_token_service: RegistrationTokenService,
@@ -42,6 +43,8 @@ def create_auth_router(
     sqlite_auth_store: SQLiteAuthStore,
     frontend_url: str,
     email_service: EmailService,
+    enable_legacy_auth_paths: bool = True,
+    oidc_provider: Any | None = None,
 ) -> Any:
     fastapi_module = importlib.import_module("fastapi")
     APIRouter = getattr(fastapi_module, "APIRouter")
@@ -51,9 +54,39 @@ def create_auth_router(
 
     router = APIRouter()
 
+    password_auth_token_service = legacy_token_service or token_service
+
+    @router.get("/api/auth/config")
+    async def auth_config(request: Request) -> dict[str, object]:
+        request_id = resolve_request_id(request)
+        if oidc_provider is None:
+            return JSONResponse(
+                status_code=404,
+                content=build_error_envelope(
+                    status_code=404,
+                    message="hosted auth config is not available",
+                    request_id=request_id,
+                ),
+            )
+
+        provider_config = oidc_provider.config
+        return {
+            "schema_version": 1,
+            "auth_mode": "oidc",
+            "issuer_url": provider_config.issuer_url,
+            "authorization_endpoint": provider_config.authorization_endpoint,
+            "token_endpoint": provider_config.token_endpoint,
+            "logout_endpoint": provider_config.logout_endpoint,
+            "userinfo_endpoint": provider_config.userinfo_endpoint,
+            "audience": provider_config.audience,
+            "cli_client_id": provider_config.cli_client_id,
+        }
+
     @router.post("/api/auth/token")
     async def issue_token(request: Request) -> dict[str, object]:
         request_id = resolve_request_id(request)
+        if not enable_legacy_auth_paths:
+            return _legacy_auth_disabled_response(JSONResponse=JSONResponse, request_id=request_id)
 
         try:
             payload = await request.json()
@@ -72,17 +105,21 @@ def create_auth_router(
 
         status, response_payload = post_auth_token(
             payload=payload,
-            token_service=token_service,
+            token_service=password_auth_token_service,
             user_store=user_store,
         )
         if status >= 400:
+            envelope = build_error_envelope(
+                status_code=status,
+                message=str(response_payload.get("error", "request failed")),
+                request_id=request_id,
+            )
+            retry_after = response_payload.get("retry_after")
+            if isinstance(retry_after, int):
+                envelope["error"]["retry_after"] = retry_after
             return JSONResponse(
                 status_code=status,
-                content=build_error_envelope(
-                    status_code=status,
-                    message=str(response_payload.get("error", "request failed")),
-                    request_id=request_id,
-                ),
+                content=envelope,
             )
 
         return response_payload
@@ -90,6 +127,8 @@ def create_auth_router(
     @router.post("/api/auth/register-request")
     async def register_request(request: Request) -> dict[str, object]:
         request_id = resolve_request_id(request)
+        if not enable_legacy_auth_paths:
+            return _legacy_auth_disabled_response(JSONResponse=JSONResponse, request_id=request_id)
         try:
             payload = await request.json()
         except Exception:
@@ -132,6 +171,8 @@ def create_auth_router(
     @router.post("/api/auth/register-confirm")
     async def register_confirm(request: Request) -> dict[str, object]:
         request_id = resolve_request_id(request)
+        if not enable_legacy_auth_paths:
+            return _legacy_auth_disabled_response(JSONResponse=JSONResponse, request_id=request_id)
         try:
             payload = await request.json()
         except Exception:
@@ -254,6 +295,8 @@ def create_auth_router(
     @router.post("/api/auth/password-reset-request")
     async def password_reset_request(request: Request) -> dict[str, object]:
         request_id = resolve_request_id(request)
+        if not enable_legacy_auth_paths:
+            return _legacy_auth_disabled_response(JSONResponse=JSONResponse, request_id=request_id)
 
         try:
             payload = await request.json()
@@ -297,6 +340,8 @@ def create_auth_router(
     @router.post("/api/auth/password-reset-confirm")
     async def password_reset_confirm(request: Request) -> dict[str, object]:
         request_id = resolve_request_id(request)
+        if not enable_legacy_auth_paths:
+            return _legacy_auth_disabled_response(JSONResponse=JSONResponse, request_id=request_id)
 
         try:
             payload = await request.json()
@@ -416,3 +461,14 @@ def create_auth_router(
         }
 
     return router
+
+
+def _legacy_auth_disabled_response(*, JSONResponse: Any, request_id: str) -> Any:
+    return JSONResponse(
+        status_code=403,
+        content=build_error_envelope(
+            status_code=403,
+            message="legacy auth path disabled; set AUTH_ENABLE_LEGACY_PATHS=true to temporarily re-enable",
+            request_id=request_id,
+        ),
+    )

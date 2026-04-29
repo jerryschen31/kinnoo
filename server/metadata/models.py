@@ -28,6 +28,9 @@ class VersionMetadata:
     publisher: dict[str, Any]
     created_at: str
     updated_at: str
+    security_status: Any = ""
+    security_report: Any = None
+    archive_size_bytes: int = 0
     schema_version: str = SCHEMA_VERSION_V1
 
     def to_document(self) -> dict[str, Any]:
@@ -43,6 +46,9 @@ class VersionMetadata:
             "publisher": self.publisher,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
+            "security_status": self.security_status,
+            "security_report": self.security_report,
+            "archive_size_bytes": self.archive_size_bytes,
         }
 
     @classmethod
@@ -52,13 +58,16 @@ class VersionMetadata:
             tenant_slug=str(document["tenant_slug"]),
             agent_slug=str(document["agent_slug"]),
             version=str(document["version"]),
-            visibility=str(document.get("visibility", "private")),
+            visibility=str(document.get("visibility", "public")),
             manifest=dict(document.get("manifest", {})),
             storage_keys=dict(document.get("storage_keys", {})),
             integrity=dict(document.get("integrity", {})),
             publisher=dict(document.get("publisher", {})),
             created_at=str(document.get("created_at", utc_now_iso())),
             updated_at=str(document.get("updated_at", utc_now_iso())),
+            security_status=document.get("security_status", ""),
+            security_report=document.get("security_report"),
+            archive_size_bytes=int(document.get("archive_size_bytes", 0) or 0),
         )
 
 
@@ -113,7 +122,7 @@ class AgentIndex:
             schema_version=str(document.get("schema_version", SCHEMA_VERSION_V1)),
             tenant_slug=str(document["tenant_slug"]),
             agent_slug=str(document["agent_slug"]),
-            visibility=str(document.get("visibility", "private")),
+            visibility=str(document.get("visibility", "public")),
             versions=tuple(AgentVersionSummary.from_document(item) for item in raw_versions),
         )
 
@@ -137,7 +146,7 @@ class GlobalAgentSummary:
     def from_document(cls, document: dict[str, Any]) -> "GlobalAgentSummary":
         return cls(
             agent_slug=str(document["agent_slug"]),
-            visibility=str(document.get("visibility", "private")),
+            visibility=str(document.get("visibility", "public")),
             latest_version=str(document.get("latest_version", "")),
             latest_updated_at=str(document.get("latest_updated_at", "")),
         )
