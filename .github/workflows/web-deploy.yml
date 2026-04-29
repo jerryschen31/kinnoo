@@ -1,10 +1,10 @@
 name: Web Deploy
 
 on:
-  push:
-    branches:
-      - build
-      - master
+  # push:
+  #  branches:
+  #    - build
+  #    - master
   workflow_dispatch:
 
 jobs:
