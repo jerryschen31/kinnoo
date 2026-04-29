@@ -27,7 +27,7 @@ describe.skip("Landing page", () => {
       }),
     ).toBeTruthy();
 
-    expect(screen.getByText("Building AI agents together")).toBeTruthy();
+    expect(screen.getByText("The package manager for AI agents")).toBeTruthy();
 
     expect(
       screen.getByText(
@@ -122,7 +122,7 @@ describe.skip("Landing page", () => {
         name: "kinnoo",
       }),
     ).toBeTruthy();
-    expect(screen.getByText("Building AI agents together")).toBeTruthy();
+    expect(screen.getByText("The package manager for AI agents")).toBeTruthy();
     expect(screen.getByText("pip install kinnoo")).toBeTruthy();
     expect(screen.getByTestId("feature-grid")).toBeTruthy();
   });

@@ -1,11 +1,13 @@
 name: CI
 
 on:
+  push:
+    branches: [ master ]
   pull_request:
     branches: [ master ]
 
 jobs:
-  test:
+  python-tests:
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -33,13 +35,6 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: 'web/.nvmrc'
-          cache: 'npm'
-          cache-dependency-path: 'web/package-lock.json'
-
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
@@ -47,6 +42,24 @@ jobs:
 
       - name: Install kinnoo package (editable mode)
         run: pip install -e .
+
+      - name: Run pytest suite (unit tests only)
+        run: python3 -m pytest tests -m "not integration"
+
+  frontend-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: 'web/.nvmrc'
+          cache: 'npm'
+          cache-dependency-path: 'web/package-lock.json'
 
       - name: Install web dependencies
         run: npm ci
