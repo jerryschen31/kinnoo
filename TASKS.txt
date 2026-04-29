@@ -6872,6 +6872,7 @@ tasks:
   - id: task334
     title: "Feature62 openclaw-skill schema and validator extension"
     type: task
+    status: deprecated
     epic: [E1, E10]
     description: |
       Extend schema and validation to support `openclaw-skill` package type and a
@@ -7702,6 +7703,7 @@ tasks:
   - id: task376
     title: "Feature83 openclaw skill install command and agent resolution"
     type: task
+    status: deprecated
     epic: [E2, E10]
     description: |
       Add `kinnoo install --openclaw-skill` command path that validates the target
@@ -7740,6 +7742,7 @@ tasks:
   - id: task378
     title: "Feature84 openclaw skill search command wrapper"
     type: task
+    status: deprecated
     epic: [E2, E10]
     description: |
       Add `kinnoo search --openclaw-skill <query>` as a thin wrapper around
