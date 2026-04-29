@@ -85,6 +85,29 @@ describe("Terms of Service page", () => {
     expect(within(article).getByText(/at least 18 years old/i)).toBeTruthy();
     expect(within(article).getByText(/COPPA/)).toBeTruthy();
     expect(within(article).getByText(/CalOPPA/)).toBeTruthy();
+
+    // Kinnoo-specific: CLI / local execution / third-party services invoked by Agents
+    expect(
+      within(article).getByText(/CLI is not a sandbox/i),
+    ).toBeTruthy();
+    expect(
+      within(article).getAllByText(/Third-Party Service/).length,
+    ).toBeGreaterThan(0);
+
+    // Kinnoo-specific: no secrets in published archives + namespace squatting + sanctions
+    expect(
+      within(article).getByText(/no secrets, credentials, or personal data/i),
+    ).toBeTruthy();
+    expect(within(article).getByText(/namespace squatting/i)).toBeTruthy();
+    expect(within(article).getByText(/economic sanctions or trade embargoes/i))
+      .toBeTruthy();
+
+    // DMCA designated agent contact
+    expect(within(article).getByText(/512\(c\)\(2\)/)).toBeTruthy();
+    expect(within(article).getByText(/dmca@kinnoo\.dev/)).toBeTruthy();
+
+    // Access Tokens covered in account section
+    expect(within(article).getAllByText(/Access Tokens/).length).toBeGreaterThan(0);
   });
 
   it("links to the Privacy Policy", () => {
@@ -163,6 +186,25 @@ describe("Privacy Policy page", () => {
     // No children under 13 clause
     expect(
       within(article).getByText(/we do not knowingly\s+collect personal information from children under the age of 13/i),
+    ).toBeTruthy();
+
+    // Kinnoo-specific: CLI data collection + local execution privacy
+    expect(
+      within(article).getByText(/Information collected by the Kinnoo CLI/i),
+    ).toBeTruthy();
+    expect(
+      within(article).getByText(/does not transmit telemetry to Kinnoo other than/i),
+    ).toBeTruthy();
+    expect(
+      within(article).getByText(/Information when you run an Agent locally/i),
+    ).toBeTruthy();
+    expect(
+      within(article).getByText(/Kinnoo does not receive, store, or process the prompts/i),
+    ).toBeTruthy();
+
+    // Authentication and access tokens are listed as a category
+    expect(
+      within(article).getByText(/Authentication and access tokens:/),
     ).toBeTruthy();
   });
 

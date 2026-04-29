@@ -72,6 +72,14 @@ export default function PrivacyPolicyPage() {
               federated representation of your authentication credentials.
             </li>
             <li>
+              <span className="font-semibold text-white/90">Authentication and access tokens:
+              </span>{" "}
+              session tokens issued by Kinde Auth and any CLI access tokens, publish tokens, or
+              API tokens that you generate or that the Service issues to you. We store these in a
+              hashed or otherwise non-reversible form where technically feasible and use them only
+              to authenticate your requests to the Service.
+            </li>
+            <li>
               <span className="font-semibold text-white/90">Profile information:</span> any
               optional profile fields you choose to fill in, such as a biography, links, or an
               avatar image.
@@ -81,9 +89,12 @@ export default function PrivacyPolicyPage() {
               archives (source code, compiled artifacts, configuration, and other files), Agent
               metadata (names, descriptions, tags, version numbers, dependency declarations,
               permission declarations, and documentation), and any other content you submit
-              through the Service. Please remember that User Content you publish is generally
-              public; do not include personal information in published content unless you intend
-              for it to be public.
+              through the Service. User Content you publish is generally public, is fetched and
+              served to other Users on request, and may be downloaded, mirrored, cached, or
+              indexed by third parties. Do not include personal information about yourself or
+              others, and do not include API keys, tokens, credentials, or other secrets, in
+              published User Content unless you intend for that information to be permanently
+              public; if you do, you must consider the secret compromised and rotate it.
             </li>
             <li>
               <span className="font-semibold text-white/90">Communications:</span> the contents of
@@ -147,6 +158,41 @@ export default function PrivacyPolicyPage() {
             introduce paid features in the future, we will update this Privacy Policy and the
             payment information will be handled by a regulated payment processor under that
             processor&rsquo;s own terms.
+          </p>
+        </LegalSubsection>
+        <LegalSubsection heading="2.5 Information collected by the Kinnoo CLI">
+          <p>
+            The Kinnoo command-line interface (the &ldquo;CLI&rdquo;) communicates with the
+            Service when you authenticate, search the registry, publish or unpublish an Agent,
+            install or fetch an Agent, or otherwise invoke a CLI command that maps to a registry
+            API. When the CLI makes such a request, the same categories of log data described in
+            Section 2.3 are recorded for that request, including IP address, user-agent string,
+            CLI version, the API endpoint invoked, and the Agent selector or query that you
+            provided. Where the request is authenticated, we associate it with your account or
+            Access Token.
+          </p>
+          <p>
+            The CLI does not transmit telemetry to Kinnoo other than what is required to fulfill
+            the registry API request you have invoked. It does not report on which Agents you run
+            locally, the inputs or outputs of those Agents, your file system contents, your
+            environment variables, or other information about your local machine. Some CLI
+            commands may write configuration, cached archives, or log files to a directory under
+            your home directory; that local data is stored on your machine and is not transmitted
+            to Kinnoo.
+          </p>
+        </LegalSubsection>
+        <LegalSubsection heading="2.6 Information when you run an Agent locally">
+          <p>
+            When you use the CLI to run an Agent on your machine, the Agent executes locally with
+            the permissions of the operating-system user that invoked the CLI. Kinnoo does not
+            receive, store, or process the prompts, inputs, outputs, files, network traffic, or
+            other data that the Agent generates or exchanges with any third-party service while
+            it is running. If the Agent invokes a third-party service (for example, a large-
+            language-model provider, search API, payment provider, or cloud-storage provider),
+            the data sent to and received from that service is governed by the privacy notice and
+            terms of that third-party service and not by this Privacy Policy. You are responsible
+            for understanding the data-handling practices of any third-party service that an
+            Agent you run is configured to use.
           </p>
         </LegalSubsection>
       </LegalSection>
