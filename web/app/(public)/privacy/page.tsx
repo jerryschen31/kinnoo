@@ -537,14 +537,8 @@ export default function PrivacyPolicyPage() {
       <LegalSection id="contact" heading="13. How to Contact Us">
         <p>
           If you have questions about this Privacy Policy or wish to exercise any of your rights,
-          you may contact us by emailing{" "}
-          <a
-            href="mailto:privacy@kinnoo.dev"
-            className="text-[#FF7F00] underline hover:no-underline"
-          >
-            privacy@kinnoo.dev
-          </a>{" "}
-          or by opening an issue at{" "}
+          you may contact Kinnoo support through the channels published on the Kinnoo website,
+          including by opening an issue at{" "}
           <a
             href="https://github.com/kinnoo-project/kinnoo/issues"
             className="text-[#FF7F00] underline hover:no-underline"

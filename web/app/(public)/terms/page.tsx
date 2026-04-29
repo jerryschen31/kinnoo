@@ -417,15 +417,11 @@ export default function TermsOfServicePage() {
             infringers.
           </p>
           <p>
-            For purposes of 17 U.S.C. § 512(c)(2), the Kinnoo designated agent for receipt of
-            notifications of claimed infringement may be reached at{" "}
-            <a
-              href="mailto:dmca@kinnoo.dev"
-              className="text-[#FF7F00] underline hover:no-underline"
-            >
-              dmca@kinnoo.dev
-            </a>
-            . Notices must include all of the elements required by 17 U.S.C. § 512(c)(3),
+            For purposes of 17 U.S.C. § 512(c)(2), Kinnoo has designated an agent to receive
+            notifications of claimed infringement. The current contact information for the
+            designated agent is published on the Kinnoo website and may also be obtained by
+            contacting Kinnoo support through the channels described in Section 13. Notices must
+            include all of the elements required by 17 U.S.C. § 512(c)(3),
             including a physical or electronic signature, identification of the copyrighted work
             claimed to have been infringed, identification of the allegedly infringing material
             sufficient to permit us to locate it, your contact information, a good-faith
@@ -647,7 +643,8 @@ export default function TermsOfServicePage() {
         </LegalSubsection>
         <LegalSubsection heading="13.6 Contact">
           <p>
-            If you have questions about these Terms, you may contact us by opening an issue at{" "}
+            If you have questions about these Terms, you may contact Kinnoo support through the
+            channels published on the Kinnoo website, including by opening an issue at{" "}
             <a
               href="https://github.com/kinnoo-project/kinnoo/issues"
               className="text-[#FF7F00] underline hover:no-underline"
@@ -655,13 +652,6 @@ export default function TermsOfServicePage() {
               rel="noreferrer"
             >
               https://github.com/kinnoo-project/kinnoo/issues
-            </a>{" "}
-            or by emailing{" "}
-            <a
-              href="mailto:legal@kinnoo.dev"
-              className="text-[#FF7F00] underline hover:no-underline"
-            >
-              legal@kinnoo.dev
             </a>
             .
           </p>

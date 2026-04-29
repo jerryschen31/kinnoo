@@ -104,7 +104,9 @@ describe("Terms of Service page", () => {
 
     // DMCA designated agent contact
     expect(within(article).getByText(/512\(c\)\(2\)/)).toBeTruthy();
-    expect(within(article).getByText(/dmca@kinnoo\.dev/)).toBeTruthy();
+    expect(
+      within(article).getByText(/Kinnoo has designated an agent to receive/i),
+    ).toBeTruthy();
 
     // Access Tokens covered in account section
     expect(within(article).getAllByText(/Access Tokens/).length).toBeGreaterThan(0);
