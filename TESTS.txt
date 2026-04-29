@@ -13078,3 +13078,51 @@ tests:
       - "automation_path_subfolder: tests/iac"
     automated: true
     automation_path: tests/iac/test_feature120_waf_publish_rate_limit.py::test_feature120_test750_waf_publish_ip_rate_limit_contract
+
+  - id: test751
+    title: "issue379 terms of service page renders required sections and clauses"
+    type: unit
+    preconditions: task528 /terms page implementation is present
+    steps:
+      - 'step1: Render TermsOfServicePage and assert the H1 title and last-updated date are visible.'
+      - 'step2: Assert the thirteen top-level section headings render in the expected order.'
+      - 'step3: Assert presence of the production-ready clauses required by issue #379: non-endorsement, Human-in-the-Loop user responsibility, AS-IS / AS-AVAILABLE limitation of liability including autonomous-error language, Acceptable Use prohibitions (deepfakes, self-harm prompts, scraping), user IP retention, sole-discretion archival retention on termination, and 18+/COPPA/CalOPPA age requirement.'
+      - 'step4: Assert at least one in-page link navigates to /privacy.'
+    expected: /terms page renders all required sections and clauses called out in issue #379.
+    pass_criteria: All assertions pass under Vitest jsdom environment.
+    covers:
+      - feature: feature122
+        ac: AC1
+      - feature: feature122
+        ac: AC3
+      - feature: feature122
+        ac: AC4
+    notes:
+      - "pytest_markers: regression_unit,frontend"
+      - "automation_path_subfolder: web/__tests__"
+    automated: true
+    automation_path: web/__tests__/legal-pages.test.tsx
+
+  - id: test752
+    title: "issue379 privacy policy page renders required sections and clauses"
+    type: unit
+    preconditions: task528 /privacy page implementation is present
+    steps:
+      - 'step1: Render PrivacyPolicyPage and assert the H1 title and last-updated date are visible.'
+      - 'step2: Assert the thirteen top-level section headings render in the expected order.'
+      - 'step3: Assert presence of GDPR, CCPA, and CalOPPA references; identification of Kinde Auth as data processor with Google and GitHub social sign-in; collection of name and email; the no-sale-of-data declaration; the no-payments declaration; and the no-children-under-13 clause.'
+      - 'step4: Assert at least one in-page link navigates to /terms.'
+    expected: /privacy page renders all required sections and clauses called out in issue #379.
+    pass_criteria: All assertions pass under Vitest jsdom environment.
+    covers:
+      - feature: feature122
+        ac: AC2
+      - feature: feature122
+        ac: AC3
+      - feature: feature122
+        ac: AC4
+    notes:
+      - "pytest_markers: regression_unit,frontend"
+      - "automation_path_subfolder: web/__tests__"
+    automated: true
+    automation_path: web/__tests__/legal-pages.test.tsx

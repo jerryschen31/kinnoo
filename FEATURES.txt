@@ -3826,3 +3826,34 @@ features:
     owner: techlead-agent
     dependencies: [feature118, feature119]
     status: in-progress
+
+  - id: feature122
+    title: "Long-form professional Terms of Service and Privacy Policy pages"
+    description: |
+      Add /terms and /privacy public pages to the Kinnoo web frontend with
+      long-form, professional legal text drafted to address issue #379. The
+      Terms of Service include the production-ready protections requested in
+      the issue (non-endorsement, Human-in-the-Loop user responsibility, AS-IS
+      / AS-AVAILABLE limitation of liability, Acceptable Use Policy, IP
+      ownership and license grant, sole-discretion termination with archival
+      retention, and 18+ age requirement with COPPA/CalOPPA carve-out). The
+      Privacy Policy describes data collected, identifies Kinde Auth as our
+      data processor (including Google/GitHub social sign-in), states that we
+      do not sell data and do not handle payments, covers GDPR/CCPA/CalOPPA
+      compliance, and includes a no-children-under-13 clause. Both pages are
+      reachable from the global site footer and the navigation menu.
+    tasks: [task528]
+    acceptance_criteria:
+      - id: AC1
+        description: "/terms route renders a long-form Terms of Service page including non-endorsement, Human-in-the-Loop user responsibility, AS-IS / AS-AVAILABLE limitation of liability, Acceptable Use Policy, IP, sole-discretion termination with archival retention, and 18+/COPPA/CalOPPA age requirement sections."
+      - id: AC2
+        description: "/privacy route renders a long-form Privacy Policy page that identifies Kinde Auth as the data processor (including Google/GitHub social sign-in), declares names and emails as collected data with no sale of data and no payment handling, covers GDPR/CCPA/CalOPPA rights and compliance, and includes a no-children-under-13 clause."
+      - id: AC3
+        description: "Both /terms and /privacy are reachable from the global site footer and the navigation menu, and link to each other."
+      - id: AC4
+        description: "Automated Vitest coverage asserts that the required sections and clauses are rendered on both pages."
+    notes:
+      - "Source: issue #379."
+    owner: swe-agent
+    dependencies: []
+    status: needs-review

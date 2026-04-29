@@ -174,6 +174,18 @@ export default function MainLayout({ children, initialTenantSlug = null, appBase
                     >
                       Report an Issue
                     </a>
+                    <Link
+                      href="/terms"
+                      className="text-kinnoo-text transition hover:text-[#FF7F00]"
+                    >
+                      Terms of Service
+                    </Link>
+                    <Link
+                      href="/privacy"
+                      className="text-kinnoo-text transition hover:text-[#FF7F00]"
+                    >
+                      Privacy Policy
+                    </Link>
                   </nav>
                 </Dialog.Content>
               </Dialog.Portal>
@@ -238,6 +250,29 @@ export default function MainLayout({ children, initialTenantSlug = null, appBase
       </header>
 
       <main className="mx-auto w-full max-w-6xl px-4 py-6">{children}</main>
+
+      <footer
+        className="mt-12 border-t border-white/10 text-sm text-white/60"
+        style={{ borderColor: themeConfig.colors.cardBorder }}
+      >
+        <div className="mx-auto flex w-full max-w-6xl flex-col items-start justify-between gap-3 px-4 py-6 sm:flex-row sm:items-center">
+          <p>© {new Date().getFullYear()} Kinnoo</p>
+          <nav aria-label="Legal" className="flex flex-wrap items-center gap-x-6 gap-y-2">
+            <Link
+              href="/terms"
+              className="text-white/70 transition hover:text-[#FF7F00]"
+            >
+              Terms of Service
+            </Link>
+            <Link
+              href="/privacy"
+              className="text-white/70 transition hover:text-[#FF7F00]"
+            >
+              Privacy Policy
+            </Link>
+          </nav>
+        </div>
+      </footer>
     </div>
   );
 }
