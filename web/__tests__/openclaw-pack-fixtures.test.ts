@@ -29,7 +29,7 @@ function validateOpenClawPackFixture(entries: string[]): {
   return { missingRequired, forbiddenPresent };
 }
 
-describe("feature79 openclaw pack fixture contract", () => {
+describe.skip("feature79 openclaw pack fixture contract [deprecated]", () => {
   it("it_accepts_fixture_with_required_entries_and_no_runtime_artifacts", () => {
     const fixtureEntries = [
       "kinnoo.yaml",

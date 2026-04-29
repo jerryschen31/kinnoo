@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildSecurityHeaders } from "../proxy";
+import { buildSecurityHeaders } from "../next.config";
 
 describe("Security headers middleware", () => {
   it("includes required baseline security headers", () => {

@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-function buildSecurityHeaders(nodeEnv: string | undefined): Record<string, string> {
+export function buildSecurityHeaders(nodeEnv: string | undefined): Record<string, string> {
 	const isProduction = (nodeEnv ?? "").toLowerCase() === "production";
 	const contentSecurityPolicy = isProduction
 		? [
