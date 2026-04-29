@@ -11056,3 +11056,36 @@ tasks:
     dependencies: []
     tests: [test751, test752]
     status: needs-review
+
+  - id: task529
+    title: "frontend ci and cloudflare command alignment"
+    type: task
+    epic: [E4, E7, E9]
+    owner: swe-agent
+    description: |
+      Align frontend CI and web test execution with the current Next.js auth
+      implementation and Cloudflare OpenNext build/deploy expectations. Replace
+      the incorrect frontend pytest invocation with npm-based web tests, add
+      deploy secret preflight checks that never print secret values, deprecate
+      stale auth/OpenClaw frontend tests, and fix broken frontend test imports
+      so `npm test` in web/ is green. Document the correct Cloudflare dashboard
+      commands for dev/prod using the scoped OpenNext package name.
+    files:
+      - .github/workflows/ci.yml
+      - .github/workflows/web-deploy.yml
+      - web/__tests__/feature118-auth-flow.test.tsx
+      - web/__tests__/forgot-password-page.test.tsx
+      - web/__tests__/openclaw-pack-fixtures.test.ts
+      - web/__tests__/security-headers.test.ts
+      - web/__tests__/signup-verify-page.test.tsx
+      - web/next.config.ts
+      - notes/tasks/task529-notes.md
+    steps:
+      - 'step1: Update frontend-tests job in CI to run npm test from web/ (not python3 -m pytest).'
+      - 'step2: Add Web Deploy environment bindings and non-echoing preflight checks for CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID before deploy commands.'
+      - 'step3: Deprecate stale frontend suites tied to removed auth/OpenClaw behavior (signup verify legacy password flow, forgot-password legacy login-link contract, OpenClaw fixture contract, and the placeholder feature118 suite).'
+      - 'step4: Fix remaining frontend test drift by importing security-header helper from the active source and exporting that helper from next.config.ts.'
+      - 'step5: Validate web test suite with npm test in web/, and document recommended Cloudflare dashboard commands using npx @opennextjs/cloudflare build/deploy/upload with web as root directory.'
+    dependencies: []
+    tests: []
+    status: needs-review

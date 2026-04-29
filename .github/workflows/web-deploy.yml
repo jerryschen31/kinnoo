@@ -11,6 +11,8 @@ jobs:
   deploy-dev:
     if: github.ref == 'refs/heads/build'
     runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.ref_name }}
     permissions:
       contents: read
     defaults:
@@ -29,6 +31,14 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Validate Cloudflare secrets are present
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          [[ -n "${CLOUDFLARE_API_TOKEN:-}" ]] || { echo "Missing required secret: CLOUDFLARE_API_TOKEN"; exit 1; }
+          [[ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ]] || { echo "Missing required secret: CLOUDFLARE_ACCOUNT_ID"; exit 1; }
 
       - name: Deploy dev worker
         env:
@@ -39,6 +49,8 @@ jobs:
   deploy-prod:
     if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.ref_name }}
     permissions:
       contents: read
     defaults:
@@ -57,6 +69,14 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Validate Cloudflare secrets are present
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          [[ -n "${CLOUDFLARE_API_TOKEN:-}" ]] || { echo "Missing required secret: CLOUDFLARE_API_TOKEN"; exit 1; }
+          [[ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ]] || { echo "Missing required secret: CLOUDFLARE_ACCOUNT_ID"; exit 1; }
 
       - name: Deploy prod worker
         env:

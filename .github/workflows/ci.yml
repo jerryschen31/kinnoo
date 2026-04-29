@@ -50,6 +50,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    defaults:
+      run:
+        working-directory: web
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -63,7 +66,6 @@ jobs:
 
       - name: Install web dependencies
         run: npm ci
-        working-directory: web
       
-      - name: Run pytest suite
-        run: python3 -m pytest
+      - name: Run web test suite
+        run: npm test
