@@ -66,14 +66,20 @@ export default function TermsOfServicePage() {
             and the California Online Privacy Protection Act (&ldquo;CalOPPA&rdquo;).
           </p>
         </LegalSubsection>
-        <LegalSubsection heading="2.2 Account information">
+        <LegalSubsection heading="2.2 Account information and authentication tokens">
           <p>
             When you register for an account, you must provide accurate, current, and complete
             information and keep it up to date. You are responsible for maintaining the
-            confidentiality of any credentials issued to you by Kinde Auth and for all activity
-            that occurs under your account, whether or not authorized by you. You agree to notify
-            us promptly of any actual or suspected unauthorized use of your account or any other
-            breach of security.
+            confidentiality of any credentials issued to you by Kinde Auth and of any CLI access
+            tokens, publish tokens, or API tokens that you generate or that the Service issues to
+            you (collectively, &ldquo;Access Tokens&rdquo;), and you are responsible for all
+            activity that occurs under your account or with your Access Tokens, whether or not
+            authorized by you. You agree to keep Access Tokens secret, to scope them to the
+            minimum permissions required, to rotate or revoke them promptly when they may have
+            been exposed (including when accidentally committed to a published Agent archive or to
+            any public location), and to notify us promptly of any actual or suspected
+            unauthorized use of your account, of any Access Token, or of any other breach of
+            security.
           </p>
         </LegalSubsection>
         <LegalSubsection heading="2.3 One human per account">
@@ -130,7 +136,25 @@ export default function TermsOfServicePage() {
             Unless an Agent or piece of metadata is explicitly marked as private and the Service
             supports such marking, you should assume that User Content you publish to the registry
             is publicly accessible to any visitor or User of the Service, including indexable by
-            third-party search engines and downloadable by other Users.
+            third-party search engines and downloadable by other Users. Once an Agent archive or
+            piece of metadata has been published, it may have been downloaded, mirrored, cached,
+            or indexed by other Users or third parties, and Kinnoo cannot recall those copies on
+            your behalf.
+          </p>
+        </LegalSubsection>
+        <LegalSubsection heading="3.5 No secrets, credentials, or personal data in published archives">
+          <p>
+            You are responsible for the contents of every Agent archive and every piece of
+            metadata you publish. You agree not to publish, and you represent and warrant that
+            your published User Content does not contain, any of the following: API keys, OAuth
+            tokens, personal access tokens, cryptographic private keys, database connection
+            strings or credentials, cloud-provider access keys, customer data, personally
+            identifiable information about any third party, protected health information, payment-
+            card data, or any other secret or sensitive information that you do not intend to
+            disclose publicly. You acknowledge that any such information you publish must be
+            considered compromised, that you are responsible for promptly rotating or revoking it,
+            and that Kinnoo&rsquo;s removal of the published copy does not remediate copies that
+            other Users or third parties may have downloaded.
           </p>
         </LegalSubsection>
       </LegalSection>
@@ -218,6 +242,43 @@ export default function TermsOfServicePage() {
             financial services, healthcare, and the use of artificial intelligence.
           </p>
         </LegalSubsection>
+        <LegalSubsection heading="5.5 The CLI, local execution, and third-party services invoked by Agents">
+          <p>
+            The Kinnoo command-line interface (the &ldquo;CLI&rdquo;) is a client application that
+            you download to and run on a computer that you control. When you use the CLI to
+            install, fetch, or run an Agent, the Agent&rsquo;s code is executed on your local
+            machine (or on whatever environment in which you choose to run the CLI), with the
+            permissions of the operating-system user that invoked the CLI. The CLI is not a
+            sandbox, and Kinnoo does not control, monitor, or limit what the Agent can do once it
+            is running on your machine. You are solely responsible for the environment in which
+            you run the CLI and for any read, write, network, billing, or side-effect actions that
+            an Agent performs once executed.
+          </p>
+          <p>
+            Agents may, when executed, invoke third-party services, including but not limited to
+            large-language-model providers, search APIs, payment APIs, communication platforms,
+            cloud-storage providers, vector databases, browser-automation services, and other
+            online services (collectively, &ldquo;Third-Party Services&rdquo;). Kinnoo is not a
+            party to your relationship with any Third-Party Service. Your use of any Third-Party
+            Service is governed solely by that service&rsquo;s own terms, acceptable-use policy,
+            and privacy notice, and you are solely responsible for: (a) reviewing and complying
+            with those terms; (b) any data, prompts, content, or instructions that an Agent
+            transmits to a Third-Party Service while running on your machine; (c) any fees,
+            charges, or quota consumption incurred by an Agent against a Third-Party Service
+            using your credentials; and (d) any consequences of a Third-Party Service&rsquo;s
+            response being acted upon by the Agent. Kinnoo does not receive, store, or process
+            the inputs or outputs that an Agent exchanges with a Third-Party Service when the
+            Agent is executed locally through the CLI.
+          </p>
+          <p>
+            If you provide an Agent with credentials or Access Tokens to a Third-Party Service,
+            you do so at your own risk and are responsible for the secure storage, scoping, and
+            rotation of those credentials. Kinnoo recommends configuring the most restrictive
+            permissions and spending limits available, running Agents in an isolated environment
+            (for example, a dedicated user account, container, or virtual machine), and reviewing
+            the Agent&rsquo;s declared permissions and dependencies before execution.
+          </p>
+        </LegalSubsection>
       </LegalSection>
 
       <LegalSection id="acceptable-use" heading="6. Acceptable Use Policy">
@@ -281,6 +342,30 @@ export default function TermsOfServicePage() {
             component of the Service, except to the extent that such restriction is expressly
             prohibited by applicable law.
           </li>
+          <li>
+            Embed, hard-code, or otherwise include in any published Agent archive, metadata
+            field, or other User Content any API keys, OAuth tokens, personal access tokens,
+            cryptographic private keys, database credentials, cloud-provider access keys, or
+            other secrets, whether your own or those of a third party.
+          </li>
+          <li>
+            Register, claim, or use a tenant slug, Agent name, namespace, display name, or other
+            identifier in a manner that infringes the trademark, service mark, or other
+            identifying right of any third party; that impersonates any person, organization, or
+            project; or that is intended to mislead Users into believing that an Agent is
+            authored, sponsored, endorsed, or maintained by a person or organization that has not
+            authorized such use (including &ldquo;namespace squatting&rdquo; or
+            &ldquo;typosquatting&rdquo; on well-known names).
+          </li>
+          <li>
+            Access, use, publish, install, fetch, or run any portion of the Service or any Agent
+            from, to, or on behalf of any country, region, entity, or individual that is the
+            subject of comprehensive economic sanctions or trade embargoes administered by the
+            United States, the European Union, the United Kingdom, the United Nations, or any
+            other applicable jurisdiction, or that is otherwise prohibited from receiving United
+            States exports or services. You represent and warrant that you are not such a person
+            and are not acting on behalf of one.
+          </li>
         </ul>
         <p>
           Kinnoo may, at its sole discretion and without prior notice, investigate suspected
@@ -320,7 +405,7 @@ export default function TermsOfServicePage() {
             any purpose, without any obligation or compensation to you.
           </p>
         </LegalSubsection>
-        <LegalSubsection heading="7.4 Copyright complaints">
+        <LegalSubsection heading="7.4 Copyright complaints and DMCA designated agent">
           <p>
             Kinnoo respects the intellectual-property rights of others. If you believe that
             content available through the Service infringes your copyright, you may submit a
@@ -330,6 +415,23 @@ export default function TermsOfServicePage() {
             internal procedures, including by removing or disabling access to allegedly infringing
             content and, in appropriate circumstances, terminating the accounts of repeat
             infringers.
+          </p>
+          <p>
+            For purposes of 17 U.S.C. § 512(c)(2), the Kinnoo designated agent for receipt of
+            notifications of claimed infringement may be reached at{" "}
+            <a
+              href="mailto:dmca@kinnoo.dev"
+              className="text-[#FF7F00] underline hover:no-underline"
+            >
+              dmca@kinnoo.dev
+            </a>
+            . Notices must include all of the elements required by 17 U.S.C. § 512(c)(3),
+            including a physical or electronic signature, identification of the copyrighted work
+            claimed to have been infringed, identification of the allegedly infringing material
+            sufficient to permit us to locate it, your contact information, a good-faith
+            statement, and a statement under penalty of perjury that the information is accurate
+            and that you are authorized to act on behalf of the rights holder. Misrepresentations
+            in a DMCA notice may subject you to liability under 17 U.S.C. § 512(f).
           </p>
         </LegalSubsection>
       </LegalSection>
