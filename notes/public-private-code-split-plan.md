@@ -146,7 +146,176 @@ code-backup/                  # untouched copies of any file we modify-in-place
 
 6. **Stage 5 — Diff and dry-run the cutover.** Once both `mock-public/` and the implicit "mock-private" both pass, write a `notes/migration/cutover-runbook.md` with the exact `git mv` / `git rm` sequence, the order to do it in, and the rollback procedure.
 
-7. **Stage 6 — Real cutover** (separate task, not in this plan): create the real public repo from `mock-public/` (preferring `git filter-repo` to preserve history of the public files; otherwise an initial squashed commit), then in this private repo delete the migrated files in a single PR.
+7. **Stage 6 — Real cutover (detailed, safe, squashed-commit path)**
+
+You said you prefer the **initial squashed commit** approach. Given that `master` and `build` are currently at the same HEAD in `kinnoo-project/kinnoo`, this is a good time to do it.
+
+### Stage 6A. Preconditions (must be true before touching the public repo)
+1. `mock-public/` passes all public gates from Stage 2:
+    - Python: `pip install -e .` and `pytest`.
+      - update: 244 passed, 188 skipped
+    - Web: `npm ci && npm run lint && npm test && npm run build` in `mock-public/web/`.
+      - update: 45 passed, 11 skipped.
+2. Secret/PII scan is clean for the candidate public tree.
+    - update: gitleaks rerun completed; findings reviewed and classified as dummy fixtures. [PASS]
+3. You have a maintainer token/SSH access to push branches to `kinnoo-project/kinnoo`.
+
+### Stage 6B. Make a temporary release snapshot from private repo
+Run from the private repo root (this repo):
+
+```bash
+cd /Users/jerry/gh/kinnoo
+
+# Safety check: ensure mock-public exists and has expected roots.
+test -d mock-public/src/kinnoo && test -d mock-public/web && test -f mock-public/pyproject.toml
+
+# Create an immutable snapshot tarball so you can always reproduce exactly what was migrated.
+mkdir -p outputs/public-split
+tar -czf outputs/public-split/mock-public-$(date +%Y%m%d-%H%M%S).tar.gz mock-public
+```
+
+### Stage 6C. Prepare a clean working clone of the public repo
+Use a separate checkout so no local state leaks into the migration.
+
+```bash
+mkdir -p /tmp/kinnoo-public-cutover
+cd /tmp/kinnoo-public-cutover
+
+git clone git@github.com:kinnoo-project/kinnoo.git
+cd kinnoo
+
+# Confirm branch state.
+git fetch origin --prune
+git checkout build
+git pull --ff-only origin build
+git rev-parse --short HEAD
+git rev-parse --short origin/master
+```
+
+What each command does:
+- `git fetch origin --prune`: updates remote-tracking refs from `origin` and removes stale refs for deleted remote branches.
+- `git checkout build`: switches your local working branch to `build`.
+- `git pull --ff-only origin build`: updates local `build` from remote `build`, but only if it can fast-forward (prevents accidental merge commits).
+- `git rev-parse --short HEAD`: prints the current checked-out commit SHA (short form).
+- `git rev-parse --short origin/master`: prints the latest remote `master` SHA (short form) for comparison.
+
+At this point, compare the two SHAs so you know whether `build` and `master` are still aligned before you start.
+
+### Stage 6D. Create a dedicated migration branch in the public repo
+```bash
+git checkout -b chore/public-bootstrap-from-mock-public
+```
+
+### Stage 6E. Replace public repo working tree with `mock-public/`
+From `/tmp/kinnoo-public-cutover/kinnoo`:
+
+```bash
+# Remove tracked files from the index/worktree while preserving .git metadata.
+git rm -r .
+
+# Copy the candidate public tree into this checkout.
+rsync -a --delete \
+   --exclude '.git' \
+   /Users/jerry/gh/kinnoo/mock-public/ ./
+
+# Optional sanity checks.
+test -d src/kinnoo
+test -d web
+test -f pyproject.toml
+```
+
+Why this pattern:
+- `git rm -r .` guarantees old tracked files do not linger.
+- `rsync --delete` guarantees parity with `mock-public/` and avoids hidden leftovers.
+
+### Stage 6F. Run verification in the public checkout before committing
+```bash
+# Python checks
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -U pip
+pip install -e .
+pytest
+
+# CLI smoke
+python src/kinnoo/cli.py --help
+
+# Web checks
+cd web
+npm ci
+npm run lint
+npm test
+npm run build
+cd ..
+
+# Import boundary checks (must return no matches)
+rg -n "^\s*(from|import)\s+server\b|import\s+lambda_handler\b" src tests || true
+```
+
+If anything fails, fix in private `mock-public/` first, then re-run Stage 6E in this temp checkout.
+
+### Stage 6G. Commit as a single squashed baseline
+```bash
+git add -A
+git status
+
+git commit -m "chore: migrate Kinnoo CLI, web, tests, and docs to public repository"
+```
+
+Recommended richer commit message body:
+
+```text
+chore: migrate Kinnoo CLI, web, tests, and docs to public repository
+
+Migrate the Kinnoo open-source surface into the public repository as a
+single baseline commit.
+
+Includes:
+- CLI code under src/kinnoo
+- Web frontend under web/
+- Public docs, tests, scripts, manifests, and CI workflows
+
+This is an intentional squashed baseline commit for the public split.
+```
+
+### Stage 6H. Push and open PR to public `build`
+```bash
+git push -u origin chore/public-bootstrap-from-mock-public
+```
+
+Open a PR:
+- Base: `build`
+- Compare: `chore/public-bootstrap-from-mock-public`
+- Title: `chore: migrate Kinnoo CLI, web, tests, and docs to public repository`
+- In PR description, link the private migration plan and note this is intentionally squashed.
+
+### Stage 6I. Post-merge branch strategy (build-only first)
+Because you want to avoid touching `master` initially, keep this migration isolated to `build`.
+
+```bash
+git checkout build
+git pull --ff-only origin build
+```
+
+Do not merge into `master` until you explicitly approve that next step. When ready later, open a separate PR from `build` to `master`.
+
+### Stage 6J. Rollback procedure (if needed)
+If migration PR is not merged: close PR and delete branch.
+
+If merged into `build` and you need to roll back quickly:
+
+```bash
+git checkout build
+git pull --ff-only origin build
+git revert <bootstrap_commit_sha>
+git push origin build
+```
+
+If you later promote this change to `master`, handle that rollback separately with its own revert PR.
+
+### Notes on alternatives
+- This Stage 6 uses the squashed baseline you requested.
+- `git filter-repo` is still a valid alternative only if you later decide preserving per-file history is worth the complexity and secret-audit overhead.
 
 ## 5. Test plan — how to know the split is actually clean
 

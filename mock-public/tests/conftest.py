@@ -29,12 +29,6 @@ _DEPRECATED_TEST_NODEIDS: dict[str, str] = {
     "tests/client_cli_registry/test_cli_registry.py::test_feature63_mirror_attribution_and_idempotency": "deprecated: legacy mirror attribution idempotency text contract drift",
     "tests/client_cli_registry/test_cli_registry.py::test_feature84_skill_search_delegation_and_json_passthrough": "deprecated: legacy skill-search delegation contract drift",
     "tests/client_cli_registry/test_cli_registry.py::test_feature84_skill_search_preflight_empty_and_error_guidance": "deprecated: legacy skill-search preflight error text contract drift",
-    "tests/e2e_workflows/test_feature_103.py::test_feature103_group1": "deprecated: legacy Terraform backend inline-string contract",
-    "tests/e2e_workflows/test_feature_106.py::test_feature106_group1": "deprecated: legacy docs content exact-string contract",
-    "tests/e2e_workflows/test_feature_87.py::test_feature87_group1": "deprecated: legacy feature87 CLI contract",
-    "tests/e2e_workflows/test_feature_88.py::test_feature88_group1": "deprecated: legacy feature88 CLI contract",
-    "tests/e2e_workflows/test_feature_90.py::test_feature90_group1": "deprecated: legacy feature90 status-code contract",
-    "tests/e2e_workflows/test_feature_99.py::test_feature99_group1": "deprecated: legacy feature99 CLI contract",
     "tests/client_cli_pack/test_pack.py::test_pack_inside_agent_dir_prints_error": "deprecated: legacy pack error text contract",
     "tests/client_cli_pack/test_pack.py::test_feature22_pack_includes_assets_recursively_when_enabled": "deprecated: legacy pack assets recursion contract drift",
     "tests/client_cli_pack/test_pack.py::test_feature31_pack_node_modules_excluded_lockfiles_preserved": "deprecated: legacy node packaging contract drift",
@@ -43,9 +37,6 @@ _DEPRECATED_TEST_NODEIDS: dict[str, str] = {
     "tests/client_cli_registry/test_registry.py::test_feature55_auth_integration_suite": "deprecated: legacy feature55 auth integration contract suite",
     "tests/client_cli_registry/test_registry.py::test_feature57_hardening_non_regression_suite": "deprecated: legacy feature57 hardening contract suite",
     "tests/client_cli_run/test_run_preflight.py::test_feature39_violation_diagnostics_secret_safe": "deprecated: legacy preflight secret-safe diagnostic text contract",
-    "tests/e2e_workflows/test_web_frontend_setup.py::test_feature49_task283_tailwind_tokens_and_dark_globals": "deprecated: legacy web frontend setup token contract drift",
-    "server/tests/test_middleware.py::test_rate_limiter_window_behavior": "deprecated: legacy rate limiter timing window contract",
-    "server/tests/test_publish.py::test_publish_endpoint": "deprecated: legacy publish endpoint status code contract",
 }
 
 
@@ -53,7 +44,6 @@ _REGRESSION_MARKERS = {
     "regression_unit",
     "regression_integration",
     "regression_smoke",
-    "regression_uat",
     "regression_sat",
 }
 
@@ -82,7 +72,6 @@ _SURFACE_COMPONENT_MARKERS = {
     "analyzer",
     "registry_client",
     "registry_remote",
-    "server_api",
     "web_ui",
 }
 
@@ -101,8 +90,6 @@ def _ensure_marker_coverage(item: pytest.Item) -> None:
     if not (names & _LAYER_MARKERS):
         if "test_validator.py" in path:
             item.add_marker(pytest.mark.schema_unit)
-        elif path.startswith("server/tests/"):
-            item.add_marker(pytest.mark.integration)
         elif any(token in path for token in ["test_cli", "test_init", "test_pack", "test_install", "test_publish", "test_run"]):
             item.add_marker(pytest.mark.client_cli)
         else:
@@ -110,9 +97,7 @@ def _ensure_marker_coverage(item: pytest.Item) -> None:
         names = {marker.name for marker in item.iter_markers()}
 
     if not (names & _SURFACE_COMPONENT_MARKERS):
-        if path.startswith("server/tests/"):
-            item.add_marker(pytest.mark.server_api)
-        elif "test_validator.py" in path:
+        if "test_validator.py" in path:
             item.add_marker(pytest.mark.validator)
         elif "test_analyzer.py" in path:
             item.add_marker(pytest.mark.analyzer)
