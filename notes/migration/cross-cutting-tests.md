@@ -6,7 +6,7 @@ This file records first-pass disposition for tests crossing CLI/web and server b
 
 - `tests/client_cli_registry/test_registry.py`
   - Reason: imports `server.*` in-process app/router/middleware/storage internals
-  - Follow-up: add `[agent]` comment in future refactor pass for better public/private separation
+  - Decision: keep private; private CI installs public `kinnoo` package (from public repo) before running this suite
 
 - `tests/registry_integration/test_web_auth_oidc_logout.py`
   - Reason: imports server web-auth routes/token validation

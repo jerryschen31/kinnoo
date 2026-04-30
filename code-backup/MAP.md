@@ -17,8 +17,8 @@
 
 - original: /home/runner/work/kinnoo/kinnoo/tests/client_cli_registry/test_registry.py
   backup: /home/runner/work/kinnoo/kinnoo/code-backup/tests/client_cli_registry/test_registry.py
-  reason: Added requested `[agent]` note documenting private/public test-separation refactor requirement
+  reason: Added requested `[agent]` note and updated imports/CLI invocation to support private CI dependency on public `kinnoo`
   restore: cp /home/runner/work/kinnoo/kinnoo/code-backup/tests/client_cli_registry/test_registry.py /home/runner/work/kinnoo/kinnoo/tests/client_cli_registry/test_registry.py
 
 # Stage 4 note
-# No additional in-place file modifications were required for Stage 3 worktree validation or Stage 5 runbook generation.
+# Additional in-place changes after Stage 5 documented above for private-CI dependency alignment.

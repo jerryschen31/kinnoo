@@ -189,7 +189,7 @@ def test_feature26_filesystem_permissions_runtime_enforcement(tmp_path: Path) ->
 
 
 def test_feature40_registry_publisher_key_association(tmp_path: Path) -> None:
-	from src.kinnoo.signing import create_detached_signature_artifacts, generate_ed25519_keypair
+	from kinnoo.signing import create_detached_signature_artifacts, generate_ed25519_keypair
 
 	archive_source = tmp_path / "feature40-registry-source.kno"
 	manifest_text = (
@@ -250,7 +250,8 @@ def test_feature40_registry_publisher_key_association(tmp_path: Path) -> None:
 	valid_result = subprocess.run(
 		[
 			sys.executable,
-			"src/kinnoo/cli.py",
+			"-m",
+			"kinnoo.cli",
 			"install",
 			"feature40-registry-agent==1.0.0",
 			str(valid_target),
@@ -280,7 +281,8 @@ def test_feature40_registry_publisher_key_association(tmp_path: Path) -> None:
 	spoof_result = subprocess.run(
 		[
 			sys.executable,
-			"src/kinnoo/cli.py",
+			"-m",
+			"kinnoo.cli",
 			"install",
 			"feature40-registry-agent==1.0.0",
 			str(spoof_target),

@@ -12,9 +12,14 @@ This runbook defines the exact dry-run and real-cutover sequence for splitting c
    - Command result summary:
      - `pytest server/tests tests/iac -q` -> pass (`54 passed, 2 skipped`)
      - private cross tests excluding `test_registry.py` -> pass (`8 passed`)
-     - `tests/client_cli_registry/test_registry.py` fails in private-only view because it imports public `kinnoo` package; tracked for refactor.
-3. Backup map current at `code-backup/MAP.md`.
-4. Secrets scan completed on candidate public tree prior to publication.
+     - `tests/client_cli_registry/test_registry.py` is intentionally private and requires public `kinnoo` package in private CI.
+3. Policy validation with public dependency installed completed:
+   - Worktree path used: `/tmp/kinnoo-private-only-policy`
+   - `pip install -e /tmp/kinnoo-public-export` applied before private tests
+   - `pytest tests/client_cli_registry/test_registry.py -q` -> pass (`31 passed, 2 skipped`)
+   - `pytest tests/registry_integration/test_web_auth_oidc_logout.py tests/registry_integration/test_oidc_error_handling.py tests/registry_integration/test_lambda_handler.py -q` -> pass (`8 passed`)
+4. Backup map current at `code-backup/MAP.md`.
+5. Secrets scan completed on candidate public tree prior to publication.
 
 ## Dry-run sequence (no irreversible changes)
 
@@ -58,7 +63,10 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 pip install -r server/requirements.txt
+# install public CLI package into private CI env
+pip install -e /tmp/kinnoo-public-export
 pytest server/tests tests/iac -q
+pytest tests/client_cli_registry/test_registry.py -q
 pytest tests/registry_integration/test_web_auth_oidc_logout.py tests/registry_integration/test_oidc_error_handling.py tests/registry_integration/test_lambda_handler.py -q
 ```
 
@@ -112,8 +120,10 @@ If post-cutover regression appears in public repo:
 2. Rebuild public tree from latest known-good `mock-public/` snapshot.
 3. Re-run public validation suite before re-cutting.
 
-## Open blocker tracked from Stage 3
+## Private CI dependency policy
 
-- `tests/client_cli_registry/test_registry.py` is tagged private but currently imports the public `kinnoo` package; this is an intentional tracked blocker for refactor into:
-  - private integration tests (server-coupled), and
-  - public contract tests (CLI behavior against fake server).
+- `tests/client_cli_registry/test_registry.py` stays in the private repo.
+- Private CI must install public `kinnoo` before running private suites that import it.
+- Recommended source precedence:
+  1. checked-out public repo workspace (`pip install -e <path>`), or
+  2. pinned release artifact from public package index.
