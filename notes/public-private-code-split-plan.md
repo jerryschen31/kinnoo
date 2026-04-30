@@ -203,30 +203,21 @@ At this point, compare the two SHAs so you know whether `build` and `master` are
 
 ### Stage 6D. Create a dedicated migration branch in the public repo
 ```bash
-git checkout -b chore/public-bootstrap-from-mock-public
+git checkout -b chore/cli-and-web-code-migration-from-private
 ```
 
 ### Stage 6E. Replace public repo working tree with `mock-public/`
 From `/tmp/kinnoo-public-cutover/kinnoo`:
 
 ```bash
-# Remove tracked files from the index/worktree while preserving .git metadata.
-git rm -r .
-
 # Copy the candidate public tree into this checkout.
-rsync -a --delete \
-   --exclude '.git' \
-   /Users/jerry/gh/kinnoo/mock-public/ ./
+rsync -a --exclude '.git' /Users/jerry/gh/kinnoo/mock-public/ ./
 
 # Optional sanity checks.
 test -d src/kinnoo
 test -d web
 test -f pyproject.toml
 ```
-
-Why this pattern:
-- `git rm -r .` guarantees old tracked files do not linger.
-- `rsync --delete` guarantees parity with `mock-public/` and avoids hidden leftovers.
 
 ### Stage 6F. Run verification in the public checkout before committing
 ```bash
@@ -239,6 +230,7 @@ pytest
 
 # CLI smoke
 python src/kinnoo/cli.py --help
+python src/kinnoo/cli.py init --help
 
 # Web checks
 cd web
@@ -265,7 +257,7 @@ git commit -m "chore: migrate Kinnoo CLI, web, tests, and docs to public reposit
 Recommended richer commit message body:
 
 ```text
-chore: migrate Kinnoo CLI, web, tests, and docs to public repository
+chore: migrate Kinnoo CLI, web, tests, docs, and other supporting docs to public repository
 
 Migrate the Kinnoo open-source surface into the public repository as a
 single baseline commit.
@@ -274,19 +266,20 @@ Includes:
 - CLI code under src/kinnoo
 - Web frontend under web/
 - Public docs, tests, scripts, manifests, and CI workflows
+- Other supporting files such as project files and notes
 
 This is an intentional squashed baseline commit for the public split.
 ```
 
 ### Stage 6H. Push and open PR to public `build`
 ```bash
-git push -u origin chore/public-bootstrap-from-mock-public
+git push -u origin chore/cli-and-web-code-migration-from-private
 ```
 
 Open a PR:
 - Base: `build`
-- Compare: `chore/public-bootstrap-from-mock-public`
-- Title: `chore: migrate Kinnoo CLI, web, tests, and docs to public repository`
+- Compare: `chore/cli-and-web-code-migration-from-private`
+- Title: `chore: migrate Kinnoo CLI, web, tests, docs and other supporting files to public repository`
 - In PR description, link the private migration plan and note this is intentionally squashed.
 
 ### Stage 6I. Post-merge branch strategy (build-only first)
