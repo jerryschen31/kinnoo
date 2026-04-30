@@ -1,37 +1,17 @@
-## 2026-03-05 — SWE Progress Summary (Feature12 task72 / test99)
+# Task94 — Implement env vars preflight resolution check
 
-- Implemented `task72` selector parsing while preserving existing file-path install behavior.
-- Added install target parsing contract in `src/kinnoo/registry.py`:
-	- `InstallTargetSpec` dataclass for deterministic routing metadata.
-	- `parse_install_target_spec(target)` to classify targets as:
-		- `archive-path` (filesystem path / `.kno` path semantics),
-		- `registry-latest` (`<name>`),
-		- `registry-exact` (`<name>==<version>`),
-		- `invalid` (clear parse error).
-	- Validation uses existing `NAME_PATTERN` and `SEMVER_PATTERN` for selector correctness.
-- Updated `src/kinnoo/install_command.py` to route through parser:
-	- preserves direct archive install flow unchanged for file paths,
-	- returns explicit deterministic error for registry selector installs (deferred to upcoming integration tasks),
-	- returns clear parse errors for invalid selector forms.
+## Summary
+- Added preflight env-var resolvability check in `<redacted-path>`.
+- Preflight now reuses feature10-style resolution order (`environment` -> `agent .env`) and never prompts for values.
+- Output is names-only and deterministic: declared/resolved variable names and missing variable names are shown, but no secret values are printed.
+- Preflight returns non-zero when any declared `env_vars` are unresolved.
 
-### Test coverage (test99)
+## Test122 implementation
+- Added `tests/test_run_preflight.py::test_preflight_env_vars_resolution_and_secret_safety`.
+- Test covers:
+	- resolved case (`REDACTED_ENV_VAR` from environment + `DB_KEY` from `.env`) passes,
+	- unresolved case (`REDACTED_ENV_VAR`) fails with actionable guidance,
+	- secret values in env and `.env` do not appear in output.
 
-- Added `tests/test_cli_registry.py::test_install_selector_parsing_preserves_file_install`.
-- Test verifies:
-	- filesystem `.kno` install still succeeds and extracts as before,
-	- `<name>` and `<name>==<version>` are routed to registry selector path with clear non-zero error,
-	- invalid selector format reports deterministic parse error.
-
-### Validation results
-
-- `/Users/jerry/gh/kinnoo/.venv/bin/python -m pytest tests/test_cli_registry.py tests/test_cli_install.py` → passed (`7 passed`)
-- `/Users/jerry/gh/kinnoo/.venv/bin/python scripts/validate_project_manifests.py` → Validation passed
-
-### Bug/Error handling note
-
-- Encountered one test collection `IndentationError` while adding test99.
-- Resolved in 1 fix attempt (below the 5-attempt cap).
-
-### Bookkeeping
-
-- Updated `TASKS.txt`: `task72` status set to `needs-review`.
+## Commands and results
+- `python3 -m pytest tests/test_run_preflight.py -q` -> `3 passed`

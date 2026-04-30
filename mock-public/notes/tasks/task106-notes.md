@@ -1,36 +1,20 @@
-# Task106 Notes — Add checksum utility helpers
+# Task 284 Notes - Route groups and placeholder pages (2026-03-24)
 
-## Scope implemented
-- Added shared checksum helper module at `src/kinnoo/checksum.py`.
-- Centralized SHA256 compute, sidecar format/parse, sidecar path, verify, and sidecar write logic.
-- Refactored command modules to consume shared helpers and remove duplicate checksum logic.
+## Summary
+- Created route-group structure under `web/app`:
+  - `(public)/page.tsx`, `(public)/login/page.tsx`, `(public)/signup/page.tsx`
+  - `(auth)/layout.tsx`, `(auth)/registry/page.tsx`
+- Added required placeholder directories and `.gitkeep` markers:
+  - `web/components/ui/`, `web/components/blocks/`, `web/lib/`, `web/__tests__/`
+- Removed scaffold default `web/app/page.tsx` so `(public)/page.tsx` serves `/`.
+- Added automated tests for `test424` and `test425`.
 
-## Implementation details
-- New helper APIs in `src/kinnoo/checksum.py`:
-  - `checksum_sidecar_path_for_archive(archive_path)`
-  - `compute_file_sha256(file_path)`
-  - `format_checksum_sidecar_line(checksum_value, archive_filename)`
-  - `parse_checksum_sidecar_text(sidecar_text)`
-  - `read_checksum_sidecar(sidecar_path)`
-  - `verify_archive_checksum(archive_path, expected_checksum)`
-  - `write_checksum_sidecar_for_archive(archive_path)`
-  - `ChecksumParseError` for strict parse failures
-- `src/kinnoo/pack_command.py`
-  - Removed in-module checksum compute/write helpers.
-  - Uses `write_checksum_sidecar_for_archive(...)`.
-- `src/kinnoo/install_command.py`
-  - Replaced local sidecar path helper with shared `checksum_sidecar_path_for_archive(...)`.
-- This is a classic software supply-chain integrity pattern used in agentic systems too: centralizing hash/parse/verify primitives prevents command drift and gives deterministic trust checks across pack/install/publish flows.
+## Teaching Notes
+- Next.js route groups (`(public)`, `(auth)`) shape layout composition without affecting URL path segments; this is useful for separating auth/public shell behavior early.
+- Converting manual acceptance checks into automated route smoke tests (HTTP 200 + identifiable markers) gives high-signal regression protection with low maintenance.
+- Keep placeholder pages intentionally minimal at foundation stage; this reduces merge conflicts when feature4 introduces shared layout/components.
 
-## Tests implemented
-- Added `tests/test_archive_integrity.py::test_checksum_helpers_compute_and_parse` (test137):
-  - Computes checksum for deterministic fixture archive bytes.
-  - Formats and parses sidecar text.
-  - Verifies expected-vs-actual checksum match path.
-
-## Test results
-- `python3 -m pytest tests/test_archive_integrity.py -q` -> `3 passed`
-- `python3 -m pytest tests/test_pack_refactor.py tests/test_cli_install.py::test_install_delegates_to_install_command -q` -> `3 passed`
-
-## Notes
-- This foundation keeps checksum behavior deterministic and avoids command-level drift as tasks 107-110 integrate checksum validation and propagation.
+## Test Runs
+- Build: `cd /Users/jerry/gh/kinnoo/web && npm run build` -> success
+- Targeted regression: `/Users/jerry/.pyenv/versions/3.11.12/bin/python -m pytest /Users/jerry/gh/kinnoo/tests/test_web_frontend_setup.py -k "task106" --testmon -q`
+- Result: `2 passed, 3 deselected`

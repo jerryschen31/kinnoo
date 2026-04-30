@@ -1,26 +1,42 @@
-## 2026-03-05 — SWE Progress Summary (Feature11 task68 / test95)
+# Task88 — Preserve file-path install compatibility
 
-- Implemented `task68` by centralizing inspect guidance templates in `src/kinnoo/templates.py` and wiring inspect to consume them from `src/kinnoo/inspect_command.py`.
-- Added reusable constants:
-	- `INSPECT_MINIMAL_KINNOO_YAML_EXAMPLE`
-	- `INSPECT_MISSING_REQUIREMENTS_GUIDANCE_LINES`
-- Added explicit `[agent]` maintenance note near the minimal manifest template indicating it must be updated whenever required schema/template fields change.
-- Updated inspect guidance rendering to use centralized constants (no inline minimal manifest duplication in inspect module).
+## What was implemented
+- Added task68 compatibility coverage in `tests/test_install_refactor.py`:
+	- Implemented `test_install_file_path_mode_preserved` (test116) to verify `kinnoo install <file-path/file.kno>` remains on direct archive-path flow.
+	- Test creates a conflicting mock-registry record for the same agent name to ensure file-path mode is not misrouted to registry selector install logic.
+	- Test asserts install output does not include registry selector resolution messaging, confirms archive extraction path behavior, and verifies runtime output comes from file-path artifact (not registry artifact).
+- Added helper `_write_archive_at_path(...)` for deterministic creation of a `.kno` archive at an explicit filesystem path used by file-path mode tests.
 
-### Test coverage (test95)
+## Tests added/updated
+- Added `tests/test_install_refactor.py::test_install_file_path_mode_preserved` (test116).
 
-- Added `tests/test_cli_inspect.py::test_missing_manifest_guidance_uses_centralized_template_with_agent_note`.
-- Test verifies:
-	- minimal manifest example constant exists in `templates.py`,
-	- `[agent]` maintenance note is present,
-	- `inspect_command.py` references centralized constant instead of inlining minimal manifest,
-	- missing-manifest runtime output includes the centralized minimal example guidance.
+## Commands and results
+- `python3 -m pytest tests/test_install_refactor.py tests/test_publish_refactor.py tests/test_cli_registry_modes.py -q`
+	- Result: `8 passed`
 
-### Validation results
+## Additional regression note
+- Broader install regression sweep included one unrelated failure:
+	- `tests/test_cli_install.py::test_install_offline_succeeds_with_complete_wheels`
+	- Failure reason: expected generated archive file was missing at test runtime (`.../offline-ready-agent.kno does not exist`).
+	- This does not touch task68 file-path selector routing and was not modified in this task.
 
-- `python3 -m pytest tests/test_cli_inspect.py` → passed (`6 passed`)
-- `python3 scripts/validate_project_manifests.py` → Validation passed
+## Status updates
+- Updated `TASKS.txt`: `task68` status moved to `needs-review`.
 
-### Bookkeeping
+# Bugfix — offline install test archive path mismatch
 
-- Updated `TASKS.txt`: `task68` status set to `needs-review`.
+## Root cause
+- `tests/test_cli_install.py::test_install_offline_succeeds_with_complete_wheels` assumed `pack` wrote `<tmp>/<agent>.kno`.
+- After feature13 archive-first refactor, `pack` writes to archive backend path (`<archive-root>/<agent>/<version>/<agent>.kno`).
+
+## Fix
+- Updated helper `_create_packed_archive_with_complete_transitive_wheels(...)` in `tests/test_cli_install.py` to:
+	- set isolated `KINNOO_ARCHIVE_ROOT` for `pack` execution
+	- resolve and return canonical archive path `<archive-root>/<agent>/1.0.0/<agent>.kno`
+	- assert that canonical archive path exists
+
+## Validation
+- `python3 -m pytest tests/test_cli_install.py::test_install_offline_succeeds_with_complete_wheels -q`
+	- Result: `1 passed`
+- `python3 -m pytest tests/test_cli_install.py tests/test_install_refactor.py tests/test_cli_install_extract.py tests/test_cli_install_manifest.py tests/test_cli_install_invalid.py tests/test_cli_install_runnable.py -q`
+	- Result: `12 passed`

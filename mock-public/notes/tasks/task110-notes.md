@@ -1,36 +1,25 @@
-# Task110 Notes — Publish checksum sidecar with archive
+# Task 288 Notes - Responsive MainLayout behavior (2026-03-24)
 
-## Scope implemented
-- Extended publish flow to propagate checksum sidecar artifacts into the registry alongside published `.kno` archives.
-- Sidecar propagation is conditional: present sidecar is copied; absent sidecar remains non-fatal.
-- Added explicit publish output describing sidecar status.
+## Summary
+- Updated MainLayout responsive behavior for small viewports:
+  - tightened header spacing and button gap behavior
+  - added narrow-screen auth button sizing classes
+  - made drawer full-screen on mobile and constrained to fixed width on small+ screens
+- Added automated responsive smoke assertion in web/__tests__/layout.test.tsx.
+- Marked test431 as automated and linked it to the layout test file.
 
-## Implementation details
-- Updated `src/kinnoo/publish_command.py`:
-  - imported shared helper `checksum_sidecar_path_for_archive(...)` to keep sidecar path resolution deterministic.
-  - resolved source sidecar from source archive path before publish.
-  - after successful archive publish, copied sidecar to destination sibling path when present.
-  - added non-ambiguous output lines:
-    - `Published checksum sidecar: <path>` when copied
-    - `Published checksum sidecar: (none found at source)` when absent
-  - added robust error handling for sidecar copy failures with clear actionable message.
+## Teaching Notes
+- In responsive UI work, class-level contract tests are a fast safety net when pixel-perfect viewport simulation is too heavy for unit tests.
+- A practical pattern for mobile drawers is: full-screen by default, then progressively constrain with breakpoint-prefixed classes.
+- For AI/agent interview framing: this is an example of specifying behavior as constraints (breakpoints, overflow safety, control visibility) and validating those constraints incrementally.
 
-## Tests implemented
-- Added `tests/test_archive_integrity.py::test_publish_copies_checksum_sidecar_when_present` (test142)
-  - creates local archive and valid sidecar,
-  - runs `kinnoo publish <agent-name>` from local archive source,
-  - asserts published registry archive and sidecar both exist,
-  - asserts sidecar content matches source,
-  - asserts sidecar publish status line appears.
-
-## Test results
-- `python3 -m pytest tests/test_archive_integrity.py -q` -> `8 passed`
-- `python3 -m pytest tests/test_publish_refactor.py -q` -> `4 passed`
-
-## Teaching notes
-- Supply-chain reliability pattern: treat archive + checksum as a pair in promotion steps; this is the same pattern used in model registry pipelines where model artifacts and digests move together.
-- Design tradeoff used here: sidecar absence is warning-only at publish time to preserve backward compatibility, while downstream install verification remains strict when sidecar exists.
-- Agentic AI interview angle: this is a concrete “artifact provenance” control. You can discuss how deterministic checksums support trust boundaries between pack, publish, and install stages.
-
-## Notes
-- Implementation intentionally uses shared checksum path helper from feature16 foundation (`task106`) to avoid duplicate naming logic and reduce drift risk.
+## Targeted Test Runs
+- Vitest (task-associated):
+  - cd web && npx vitest run __tests__/layout.test.tsx --environment jsdom -t "responsive classes"
+  - Result: 1 passed (2 skipped in file)
+- Build/type check:
+  - cd web && npm run build
+  - Result: success
+- Manifest validation:
+  - python scripts/validate_project_manifests.py
+  - Result: validation passed

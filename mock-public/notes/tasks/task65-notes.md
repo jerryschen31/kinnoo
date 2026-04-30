@@ -1,27 +1,24 @@
-## 2026-03-05 — SWE Progress Summary (Feature11 task65 / test92)
+# Task85 — Install by registry name/version using mock backend
 
-- Implemented `task65` in `src/kinnoo/inspect_command.py` and `src/kinnoo/validator.py` to validate loaded manifests and render stable, human-readable inspect output.
-- Added `validate_manifest_data(manifest_data)` in `validator.py` so inspect can reuse feature1 validation for both directory and archive manifests without file extraction.
-- Refactored file-path `validate(manifest_path)` to reuse the same validation logic, preserving existing validation behavior while enabling in-memory validation.
-- Updated inspect flow so both directory and archive targets:
-	- load manifest data,
-	- run validator-backed checks,
-	- print field-by-field validator errors on invalid manifests,
-	- render formatted metadata output on success.
-- Human-readable output now includes stable labels and omits missing optional fields (`description`, `author`, `license`) instead of printing empty/None placeholders.
+## What was implemented
+- Updated registry-selector install resolution in `src/kinnoo/install_command.py` to use `MockFilesystemRegistryBackend` (instead of local backend) while preserving existing `RegistryService` abstraction boundary.
+	- `kinnoo install <name>` now resolves latest from mock registry backend root.
+	- `kinnoo install <name>==<version>` now resolves exact version from mock registry backend root.
+	- Resolved archives continue through existing `_install_from_archive_path(...)` pipeline (no duplicated install logic).
 
-### Test coverage (test92)
+## Tests added/updated
+- Added `tests/test_install_refactor.py` with:
+	- `test_install_name_resolves_latest_from_mock_registry` (test112)
+	- `test_install_name_equals_version_from_mock_registry` (test113)
+- Coverage includes:
+	- latest selector resolution path
+	- exact selector resolution path
+	- missing exact-version error behavior
+	- successful installed-agent execution to verify selected artifact version
 
-- Added `tests/test_cli_inspect.py::test_inspect_formatting_optional_omission_and_missing_required_field_errors` to verify:
-	- formatted human-readable inspect output for valid manifests,
-	- omission of absent optional fields,
-	- validator-provided missing required field errors for invalid manifests.
+## Commands and results
+- `python3 -m pytest tests/test_install_refactor.py -q`
+	- Result: `2 passed`
 
-### Validation results
-
-- `python3 -m pytest tests/test_cli_inspect.py` → passed (`4 passed`)
-- `python3 scripts/validate_project_manifests.py` → Validation passed
-
-### Bookkeeping
-
-- Updated `TASKS.txt`: `task65` status set to `needs-review`.
+## Status updates
+- Updated `TASKS.txt`: `task65` status moved to `needs-review`.

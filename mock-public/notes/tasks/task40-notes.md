@@ -1,26 +1,19 @@
-## Task40 Summary — Global CLI Version Flag
+# Task48 / Tests71-72 — Feature9 optional schema field scaffolding
 
-### Implementation
-- Added canonical version export in `src/kinnoo/__init__.py`:
-  - `__version__` is resolved from installed package metadata via `importlib.metadata.version("kinnoo")`.
-  - Added development fallback to `pyproject.toml` parsing (via `tomllib`) when package metadata is unavailable.
-- Added parser-level global flag in `src/kinnoo/cli.py`:
-  - `parser.add_argument("--version", action="version", version=KINNOO_VERSION)`
-  - Works without requiring a subcommand and exits with code `0`.
+## What was implemented
+- Added optional V2 field definitions in `src/kinnoo/schema.py`:
+	- `OPTIONAL_FIELDS = [description, author, license, env_vars]`
+	- `OPTIONAL_FIELD_TYPES` mapping for deterministic schema/type metadata.
+- Added explicit validator hook in `src/kinnoo/validator.py` that references optional field definitions without enforcing type checks yet.
+	- This keeps task40 scoped to schema extension + deterministic hooks.
+	- Type enforcement remains intentionally deferred to task41.
 
-### Test62
-- Added `test_cli_version_flag` in `tests/test_cli.py`.
-- Test invokes CLI via script path (`python src/kinnoo/cli.py --version`) and asserts:
-  - exit code is `0`
-  - output contains a semantic version pattern (`X.Y.Z`).
+## Tests implemented
+- Added `tests/test_validator.py::test_feature9_optional_string_fields_are_accepted` (test71).
+- Added `tests/test_validator.py::test_feature9_env_vars_list_of_strings_is_accepted` (test72).
 
-### Validation Runs
-- Attempted handoff targeted command:
-  - `python3 -m pytest tests/test_cli_install.py tests/test_cli.py tests/test_suite_integrity.py tests/test_regression_v1.py`
-  - Result: failed because `tests/test_suite_integrity.py` is not present yet (task41 scope).
-- Ran existing relevant tests:
-  - `python3 -m pytest tests/test_cli.py::test_cli_version_flag tests/test_cli_install.py::test_install_delegates_to_install_command tests/test_cli.py`
-  - Result: `11 passed`.
-- Manifest validation after task status updates:
-  - `python3 scripts/validate_project_manifests.py`
-  - Result: `Validation passed: manifests are consistent`.
+## Test runs
+- `python3 -m pytest tests/test_validator.py::test_feature9_optional_string_fields_are_accepted tests/test_validator.py::test_feature9_env_vars_list_of_strings_is_accepted`
+	- Result: `2 passed`
+- `python3 -m pytest tests/test_validator.py`
+	- Result: `17 passed`

@@ -1,27 +1,22 @@
-# Task105 Notes — Generate checksum sidecar during pack
+# Task 283 Notes - Tailwind tokens and dark globals (2026-03-24)
 
-## Scope implemented
-- Extended `kinnoo pack` to compute SHA256 for the final stored `.kno` archive.
-- Added sidecar write behavior to emit `<archive>.kno.sha256` adjacent to the archive.
-- Sidecar content uses stable format: `<sha256>  <archive-filename>`.
-- Added explicit pack output line showing sidecar location.
+## Summary
+- Extended `web/tailwind.config.ts` with feature3 design tokens:
+  - Colors: kinnoo.bg/text/accent/surface and `card-border`
+  - Font family: `"Avenir Next", "Segoe UI", sans-serif`
+  - Radius tokens: `card` and `button`
+  - Spacing token scale aligned to project sizing units
+- Updated `web/app/globals.css` to enforce dark base styles and added reusable utility classes:
+  - `.glass-surface` for subtle glassmorphism backdrop blur
+  - `.card-border-1` for 1px low-contrast border
+- Added targeted automated test for `test423`.
 
-## Implementation details
-- Updated `src/kinnoo/pack_command.py`:
-  - Added `_compute_sha256(file_path: Path) -> str` (streaming hash computation).
-  - Added `_write_checksum_sidecar(archive_path: Path) -> Path` (writes deterministic sidecar text).
-  - After archive storage, writes sidecar next to canonical archive path.
-  - On sidecar write failure, prints actionable error and exits non-zero.
+## Teaching Notes
+- Treat design tokens as source-of-truth primitives; pages/components should consume these tokens instead of hardcoded values. This prevents visual drift as the UI grows.
+- For theme verification tests, a lightweight text-level assertion is sufficient early in scaffolding; richer snapshot/component tests are better once UI primitives exist.
+- When running scoped tests in a shared terminal session, absolute paths reduce failures caused by cwd drift.
 
-## Notes
-- Quick learning note: writing the checksum as <digest> <filename> mirrors common sha256sum conventions, making verification deterministic and human/tool-friendly.
-
-## Tests implemented
-- `tests/test_archive_integrity.py::test_pack_generates_checksum_sidecar` (test135)
-  - Verifies sidecar creation, format validity, digest correctness, and output line.
-- `tests/test_archive_integrity.py::test_pack_stores_checksum_with_local_archive` (test136)
-  - Verifies local archive destination contains both `.kno` and `.kno.sha256` as siblings.
-
-## Test results
-- `python3 -m pytest tests/test_archive_integrity.py -q` -> `2 passed`
-- `python3 -m pytest tests/test_pack_refactor.py -q` -> `2 passed`
+## Test Runs
+- Build: `cd /Users/jerry/gh/kinnoo/web && npm run build` -> success
+- Targeted regression: `/Users/jerry/.pyenv/versions/3.11.12/bin/python -m pytest /Users/jerry/gh/kinnoo/tests/test_web_frontend_setup.py -k "task105" --testmon -q`
+- Result: `1 passed, 2 deselected`

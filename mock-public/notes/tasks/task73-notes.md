@@ -1,30 +1,18 @@
-## 2026-03-05 — SWE Progress Summary (Feature12 task73 / test100)
+# Task95 — Implement entrypoint and dependency checks
 
-- Implemented `task73` registry version resolution logic in `src/kinnoo/registry_backends.py` and `src/kinnoo/registry.py`.
-- Updated local backend resolution behavior:
-	- exact resolution (`<name>==<version>`) now returns explicit, actionable not-found errors including available versions when applicable,
-	- latest resolution (`<name>`) now uses deterministic semver-aware ordering,
-	- latest resolution scans published versions deterministically and returns the first installable archive,
-	- error message is explicit when published version folders exist but no installable archives are present.
-- Added semver-aware sorting support in backend:
-	- `_parse_semver(...)` and `_version_sort_key(...)` now prioritize valid semver values with correct precedence,
-	- release versions sort higher than prereleases,
-	- non-semver directory names remain deterministically ordered behind semver entries.
-- Added backend-agnostic service helper `RegistryService.resolve_with_error(...)` in `src/kinnoo/registry.py` for consistent consumer-facing error handling.
+## Summary
+- Added preflight entrypoint check in `src/kinnoo/run_command.py` to validate that manifest-declared entrypoint exists, is a file, and is readable.
+- Added preflight dependency readiness check in `src/kinnoo/run_command.py` to evaluate installability readiness without running agent logic.
+	- Parses installable dependency names from `requirements.txt`.
+	- If dependencies exist, verifies `.venv` presence and `pip` availability.
+	- Uses `pip show <package>` for each dependency to detect missing installs.
+- Added deterministic actionable guidance for both failure types while keeping behavior isolated to preflight mode.
 
-### Test coverage (test100)
+## Test123 implementation
+- Added `tests/test_run_preflight.py::test_preflight_entrypoint_and_dependency_checks`.
+- Test covers:
+	- missing entrypoint fixture -> preflight fails with entrypoint-specific guidance,
+	- dependency readiness failure fixture (requirements present, no `.venv`) -> preflight fails with dependency-specific guidance.
 
-- Added `tests/test_registry.py::test_registry_version_resolution_latest_and_exact`.
-- Test verifies:
-	- latest resolution for `<name>` selects highest published version,
-	- exact resolution for `<name>==<version>` returns requested version,
-	- unknown agent and unknown version return clear actionable errors.
-
-### Validation results
-
-- `/Users/jerry/gh/kinnoo/.venv/bin/python -m pytest tests/test_registry.py tests/test_cli_registry.py` → passed (`5 passed`)
-- `/Users/jerry/gh/kinnoo/.venv/bin/python scripts/validate_project_manifests.py` → Validation passed
-
-### Bookkeeping
-
-- Updated `TASKS.txt`: `task73` status set to `needs-review`.
+## Commands and results
+- `python3 -m pytest tests/test_run_preflight.py -q` -> `4 passed`

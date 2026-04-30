@@ -1,37 +1,27 @@
-## 2026-03-05 — SWE Progress Summary (Feature12 task76 / test103)
+# Task99 Notes — Unverified source confirmation prompt
 
-- Implemented `task76` by adding local registry search command support over name/description metadata.
-- Added `src/kinnoo/search_command.py` with `search_agents(query)`:
-	- validates non-empty query,
-	- runs backend-agnostic search via `RegistryService`,
-	- prints deterministic human-readable results,
-	- prints stable no-match guidance message with zero exit code.
-- Updated `src/kinnoo/cli.py`:
-	- added `kinnoo search <query>` subcommand,
-	- added explicit usage message for missing query,
-	- delegated execution to `search_command.search_agents`.
-- Extended registry abstraction/backend:
-	- `src/kinnoo/registry.py`: added `search_agents(...)` contract/service path for latest-summary search semantics.
-	- `src/kinnoo/registry_backends.py`: implemented case-insensitive substring matching across `name` and `description` using latest-version summaries.
+## Scope implemented
+- Added unverified-source detection for archive installs using `<archive>.sha256` sidecar presence.
+- If missing, install now prints warning:
+  - `This agent is from an unverified source.`
+- If missing and `--yes`/`-y` is NOT set, install prompts:
+  - `This agent is from an unverified source. Continue? (y/n):`
+  - proceeds only on `y` / `yes`, otherwise aborts non-zero.
+- If `--yes`/`-y` is set and checksum is missing, warning is still shown but prompt is skipped.
+- If `<archive>.sha256` exists, unverified warning is not shown.
 
-### Test coverage (test103)
+## Files changed
+- `src/kinnoo/install_command.py`
+- `tests/test_trust_baseline.py`
+- `TASKS.txt`
 
-- Added `tests/test_cli_registry.py::test_search_filters_by_name_and_description_substring`.
-- Test verifies:
-	- name substring query returns only matching agent(s),
-	- description substring query returns only matching agent(s),
-	- no-match query returns clear no-results guidance and no error.
+## Tests
+- Added/implemented `test128`:
+  - `tests/test_trust_baseline.py::test_install_unverified_source_warning`
 
-### Validation results
+## Validation
+- `python3 -m pytest tests/test_trust_baseline.py -q` -> `3 passed`
 
-- `/Users/jerry/gh/kinnoo/.venv/bin/python -m pytest tests/test_cli_registry.py tests/test_registry.py` → passed (`8 passed`)
-- `/Users/jerry/gh/kinnoo/.venv/bin/python scripts/validate_project_manifests.py` → Validation passed
-
-### Bug/Error handling note
-
-- Encountered one test collection `IndentationError` while adding test103.
-- Resolved in 1 fix attempt (well below the 5-attempt cap).
-
-### Bookkeeping
-
-- Updated `TASKS.txt`: `task76` status set to `needs-review`.
+## Notes
+- While implementing task76, task75 tests initially failed because task76 introduced an additional prompt when checksum was absent.
+- Test fixtures for task75 were updated to include `.sha256` so task75 tests remain scoped to summary/`--yes` behavior, while task76 test explicitly validates missing-checksum behavior.

@@ -1,32 +1,32 @@
-## 2026-03-05 — SWE Progress Summary (Feature12 task75 / test102)
+# Task98 Notes — Install summary + confirmation + --yes
 
-- Implemented `task75` local registry list command across CLI and registry modules.
-- Added `src/kinnoo/list_command.py` with `list_agents()`:
-	- reads local registry backend (supports `KINNOO_REGISTRY_ROOT` test override),
-	- prints deterministic human-readable output rows with `name`, `latest` version, and `description`,
-	- handles empty registry with a stable no-results message.
-- Updated `src/kinnoo/cli.py`:
-	- added `kinnoo list` subcommand,
-	- delegated execution to `list_command.list_agents()`.
-- Extended registry abstraction/backend for latest-summary listing:
-	- `src/kinnoo/registry.py`: added `RegistryAgentSummary` and `RegistryService.list_latest_agents()`.
-	- `src/kinnoo/registry_backends.py`: added `LocalFilesystemRegistryBackend.list_latest_agents()`
-		that aggregates by agent, computes latest version with existing deterministic version ordering,
-		and reads description from `manifest-metadata.json` for the latest version.
+## Scope implemented
+- Added `--yes` / `-y` to `kinnoo install` CLI parsing.
+- Added install-time summary before extraction/install with:
+  - agent name and version,
+  - runtime type,
+  - dependency names from archive `requirements.txt`,
+  - env var names from manifest `env_vars`.
+- Added confirmation prompt when `--yes` is not provided:
+  - `Continue with install? [y/N]:`
+  - proceeds only on `y` / `yes`, otherwise aborts.
+- Added safe EOF handling for non-interactive prompt reads: treat as user abort (no traceback).
 
-### Test coverage (test102)
+## Files changed
+- `src/kinnoo/cli.py`
+- `src/kinnoo/install_command.py`
+- `tests/test_trust_baseline.py`
+- `tests/test_install.py` (automation compatibility with confirmation gate)
+- `tests/test_cli_install.py` (automation compatibility with confirmation gate)
+- `tests/test_pack_robustness.py` (automation compatibility with confirmation gate)
 
-- Added `tests/test_cli_registry.py::test_list_shows_name_latest_version_and_description`.
-- Test verifies:
-	- list output includes name/latest/description fields,
-	- latest version for a multi-version agent is selected correctly,
-	- multiple agents are listed with deterministic expected rows.
+## Tests added (task75 mapping)
+- `test126` -> `tests/test_trust_baseline.py::test_install_summary_and_confirmation_prompt`
+- `test127` -> `tests/test_trust_baseline.py::test_install_yes_flag_bypasses_prompt`
 
-### Validation results
+## Test run results
+- `python3 -m pytest tests/test_trust_baseline.py -q` -> `2 passed`
+- `python3 -m pytest tests/test_trust_baseline.py tests/test_cli_install.py::test_install_delegates_to_install_command tests/test_install.py::test_install_extracts_to_user_specified_directory -q` -> passed for those selected tests.
 
-- `/Users/jerry/gh/kinnoo/.venv/bin/python -m pytest tests/test_cli_registry.py tests/test_registry.py` → passed (`7 passed`)
-- `/Users/jerry/gh/kinnoo/.venv/bin/python scripts/validate_project_manifests.py` → Validation passed
-
-### Bookkeeping
-
-- Updated `TASKS.txt`: `task75` status set to `needs-review`.
+## Notes
+- A selected unrelated pack test (`tests/test_pack_robustness.py::test_kno_zip_format_is_canonical`) failed due archive path expectation mismatch in that test, not due task75 install prompt logic.

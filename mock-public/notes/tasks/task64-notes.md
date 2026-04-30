@@ -1,24 +1,25 @@
-## 2026-03-05 — SWE Progress Summary (Feature11 task64 / test91)
+# Task84 — Implement publish mock registry target and rollover
 
-- Implemented `task64` in `src/kinnoo/inspect_command.py` to read `kinnoo.yaml` directly from `.kno` archives without extracting archive contents.
-- Added reusable helper `_read_manifest_from_archive(archive_path)` that:
-	- opens `.kno` as zip
-	- locates `kinnoo.yaml` member
-	- decodes and parses manifest YAML in-memory
-	- returns actionable errors for missing manifest, invalid zip, decode failure, and YAML parse failure.
-- Updated archive inspect path to print human-readable metadata lines from archive manifest (`name`, `version`, `entrypoint`) and return non-zero on archive read failures.
+## What was implemented
+- Implemented mock-registry publish rollover behavior in `src/kinnoo/registry_backends.py` via `MockFilesystemRegistryBackend.publish` override.
+	- Publish target is canonical: `registry-scratch/jerry/<agent>/<version>/<agent>.kno` (or `KINNOO_REGISTRY_ROOT` override in tests).
+	- If tagged target already exists, backend now preserves the prior artifact in deterministic slot `untagged-<n>` under the same agent root (e.g., `.../<agent>/untagged-1/<agent>.kno`) before writing new tagged payload.
+	- Existing metadata file is also preserved alongside rollover archive when present.
+- Updated `src/kinnoo/publish_command.py` to emit rollover outcome details:
+	- Source archive path
+	- Target tagged registry path
+	- Rollover archive path when an existing tagged artifact was moved to untagged slot
 
-### Test coverage (test91)
+## Tests added/updated
+- Added `test_publish_rolls_existing_tagged_to_untagged` in `tests/test_publish_refactor.py` (test110):
+	- Publishes same `agent/version` twice with different payloads.
+	- Verifies first payload is preserved in `untagged-1`.
+	- Verifies tagged destination contains second payload.
+	- Verifies publish output reports rollover archive path.
 
-- Extended `tests/test_cli_inspect.py` with:
-	- `test_inspect_reads_manifest_from_archive_without_extracting`
-- Test creates a `.kno` zip fixture with `kinnoo.yaml`, runs inspect via script path, verifies metadata in output, and asserts no extraction artifacts are created.
+## Commands and results
+- `python3 -m pytest tests/test_publish_refactor.py -q`
+	- Result: `3 passed`
 
-### Validation results
-
-- `python3 -m pytest tests/test_cli_inspect.py -k "inspect_reads_manifest_from_archive_without_extracting or inspect_missing_required_files_prints_guidance or inspect_missing_target_prints_usage"` → passed
-- `python3 scripts/validate_project_manifests.py` → Validation passed
-
-### Bookkeeping
-
-- Updated `TASKS.txt`: `task64` status set to `needs-review`.
+## Status updates
+- Updated `TASKS.txt`: `task64` status moved to `needs-review`.

@@ -1,19 +1,21 @@
-# Task48 / Tests71-72 — Feature9 optional schema field scaffolding
+## 2026-03-05 — SWE Progress Summary (Feature11 task48 / test89)
 
-## What was implemented
-- Added optional V2 field definitions in `src/kinnoo/schema.py`:
-	- `OPTIONAL_FIELDS = [description, author, license, env_vars]`
-	- `OPTIONAL_FIELD_TYPES` mapping for deterministic schema/type metadata.
-- Added explicit validator hook in `src/kinnoo/validator.py` that references optional field definitions without enforcing type checks yet.
-	- This keeps task48 scoped to schema extension + deterministic hooks.
-	- Type enforcement remains intentionally deferred to task49.
+- Implemented `task48` by adding top-level `inspect` subcommand parsing in `src/kinnoo/cli.py`.
+- Added positional `target` argument handling for `kinnoo inspect` with deterministic missing-argument behavior.
+- Added missing-target usage guard:
+	- `Usage: kinnoo inspect <target>` (stderr)
+	- exits non-zero
+- Wired CLI dispatch to dedicated inspect module entrypoint: `inspect_target(...)` in `src/kinnoo/inspect_command.py`.
+- Added new test module `tests/test_cli_inspect.py` and implemented `test89`:
+	- `test_inspect_missing_target_prints_usage`
+	- invokes CLI via script path (`python src/kinnoo/cli.py`) per project testing convention.
 
-## Tests implemented
-- Added `tests/test_validator.py::test_feature9_optional_string_fields_are_accepted` (test71).
-- Added `tests/test_validator.py::test_feature9_env_vars_list_of_strings_is_accepted` (test72).
+### Validation results
 
-## Test runs
-- `python3 -m pytest tests/test_validator.py::test_feature9_optional_string_fields_are_accepted tests/test_validator.py::test_feature9_env_vars_list_of_strings_is_accepted`
-	- Result: `2 passed`
-- `python3 -m pytest tests/test_validator.py`
-	- Result: `17 passed`
+- `python3 -m pytest tests/test_cli_inspect.py -k "inspect_missing_target_prints_usage"` → passed
+- `python3 -m pytest tests/test_cli.py -k "cli_version_flag"` → passed
+- `python3 scripts/validate_project_manifests.py` → Validation passed
+
+### Bookkeeping
+
+- Updated `TASKS.txt`: `task48` status set to `needs-review`.

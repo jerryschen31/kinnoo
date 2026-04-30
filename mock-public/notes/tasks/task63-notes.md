@@ -1,26 +1,25 @@
-## 2026-03-05 — SWE Progress Summary (Feature11 task63 / test90)
+# Task83 — Refactor publish CLI to agent-name source
 
-- Implemented `task63` in `src/kinnoo/inspect_command.py` with deterministic inspect target detection.
-- Added target branching for:
-	- directory targets
-	- `.kno` file targets (archive branch handoff for task64)
-	- unsupported files / invalid targets
-- Added directory required-file checks before manifest processing:
-	- missing `kinnoo.yaml` prints stdout guidance and a minimal manifest example, exits non-zero
-	- missing `requirements.txt` prints stdout guidance and robust generation commands (`pip install uv`, `uv export --format requirements-txt > requirements.txt`), exits non-zero
-- Added safe manifest-read path when both required files exist for downstream inspect stages.
+## What was implemented
+- Refactored publish CLI contract to `kinnoo publish <agent-name> [--local]` in `src/kinnoo/cli.py`.
+- Implemented name-based publish flow in `src/kinnoo/publish_command.py`:
+	- Resolves latest local archive via `LocalArchiveBackend` from `~/.kinnoo/archive/<agent>/<version>/<agent>.kno` (or `KINNOO_ARCHIVE_ROOT` in tests).
+	- Validates resolved archive manifest and enforces name/version consistency against resolved source record.
+	- Publishes to mock registry backend (`MockFilesystemRegistryBackend`) and prints source/target path outcome messages.
+	- Returns explicit non-zero errors for missing agent source, no versions, no publishable artifacts, unreadable archive metadata, or invalid manifest metadata.
+- Preserved compatibility for legacy `publish <archive.kno>` callers by detecting `.kno` path input and publishing through the same validation/publish pipeline.
 
-### Test coverage (test90)
+## Tests added/updated
+- Added `tests/test_publish_refactor.py` with:
+	- `test_publish_name_resolves_latest_local_archive` (test109)
+	- `test_publish_errors_for_missing_or_invalid_archive_source` (test111)
+- Updated `tests/test_cli_registry.py` usage expectation to `Usage: kinnoo publish <agent-name> [--local]`.
 
-- Extended `tests/test_cli_inspect.py` with:
-	- `test_inspect_missing_required_files_prints_guidance`
-- The test covers both task63 required guidance scenarios and asserts graceful non-zero exits with no traceback output.
+## Commands and results
+- `python3 -m pytest tests/test_publish_refactor.py tests/test_cli_registry.py -q`
+	- Result: `8 passed`
+- `python3 scripts/validate_project_manifests.py`
+	- Result: passed
 
-### Validation results
-
-- `python3 -m pytest tests/test_cli_inspect.py -k "inspect_missing_target_prints_usage or inspect_missing_required_files_prints_guidance"` → passed
-- `python3 scripts/validate_project_manifests.py` → Validation passed
-
-### Bookkeeping
-
-- Updated `TASKS.txt`: `task63` status set to `needs-review`.
+## Status updates
+- Updated `TASKS.txt`: `task63` status moved to `needs-review`.

@@ -1,6 +1,6 @@
-# Blocked notes for public migration
+# Blocked notes review log
 
-The following feature/task notes were not copied into `mock-public/notes/` because they contain potentially sensitive implementation or operational details and require manual review.
+The following feature/task notes were previously blocked, then copied to `mock-public/notes/` after sanitization of private paths, specific secrets/env names, and backend URL/endpoint/port details.
 
 | Note file | Original ID | Public ID | Block reason |
 |---|---|---|---|

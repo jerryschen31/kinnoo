@@ -1,29 +1,11 @@
-# Task47 / Test70 — Platform-specific wheel warning
+## task47 - subprocess env var injection coverage
 
-## What was implemented
-- Updated `src/kinnoo/pack_command.py` to detect platform-specific wheel artifacts by parsing wheel filename tags.
-- Added `_is_platform_specific_wheel(...)` helper that treats wheel platform tag `any` as universal and non-`any` tags as platform-specific.
-- During `kinnoo pack`, added a non-fatal warning when platform-specific wheels are present:
-	- `Warning: Platform-specific wheels detected; bundled wheels may not be portable across operating systems: ...`
-- Warning is explicit and stable for test assertions, while archive creation remains successful.
-
-## Test70 implementation
-- Added `tests/test_pack_robustness.py::test_pack_warns_on_platform_specific_wheels`.
-- Fixture includes:
-	- `orjson==3.10.6` (as requested in handoff)
-	- `psutil==7.0.0` (deterministic platform-wheel availability in this environment)
-- Assertions verify:
-	- `kinnoo pack` exits `0`,
-	- portability warning text is emitted,
-	- `.kno` archive is still created.
-
-## Bug encountered and fix
-- Initial test70 attempt failed because `orjson==3.10.6` wheel build failed on this environment, so no platform wheel existed to trigger the warning.
-- Fix: retained `orjson` in fixture and added `psutil==7.0.0` to guarantee a platform-specific wheel is present.
-- Attempts used for the same bug: `1` (within requested max of 5).
-
-## Test runs
-- `python3 -m pytest tests/test_pack_robustness.py::test_pack_warns_on_platform_specific_wheels tests/test_pack_robustness.py::test_pack_includes_transitive_wheels_for_pinned_deps tests/test_pack_robustness.py::test_pack_continues_on_per_dependency_wheel_failure`
-	- Result: `3 passed`
-- `python3 -m pytest tests/test_pack.py tests/test_pack_robustness.py tests/test_cli_install.py`
-	- Result: `15 passed`
+- Confirmed runtime path in `<redacted-path>` already merges resolved declared env vars into subprocess env via `subprocess_env.update(resolved_env_vars)` and passes `env=subprocess_env` to `subprocess.Popen(...)`.
+- Added `test_resolved_env_vars_injected_into_subprocess` in `tests/test_cli_env_vars.py` (test81).
+- test81 validates injection success for all resolution paths:
+	- process environment
+	- agent-local `.env`
+	- masked prompt fallback
+- Security guardrail included: asserts sentinel secret values do not appear in captured output for each path.
+- Validation run:
+	- `python3 -m pytest tests/test_cli_env_vars.py -k "env_vars or prompt or injected or secret"` -> 6 passed
