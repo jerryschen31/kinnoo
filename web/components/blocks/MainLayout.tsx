@@ -174,18 +174,6 @@ export default function MainLayout({ children, initialTenantSlug = null, appBase
                     >
                       Report an Issue
                     </a>
-                    <Link
-                      href="/terms"
-                      className="text-kinnoo-text transition hover:text-[#FF7F00]"
-                    >
-                      Terms of Service
-                    </Link>
-                    <Link
-                      href="/privacy"
-                      className="text-kinnoo-text transition hover:text-[#FF7F00]"
-                    >
-                      Privacy Policy
-                    </Link>
                   </nav>
                 </Dialog.Content>
               </Dialog.Portal>
