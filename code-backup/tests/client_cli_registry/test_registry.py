@@ -19,7 +19,6 @@ from kinnoo.config import CLAW_HUB_TENANT_SLUG
 
 
 # [agent] test deprecated: Feature12 registry tests are superseded by feature13 tests.
-# [agent] NOTE: This file currently mixes private server integration and client CLI imports; refactor into private-only and public-contract suites before final repo split.
 # def test_registry_backend_contract_and_local_layout(tmp_path: Path) -> None:
 #     ...
 #
