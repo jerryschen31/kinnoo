@@ -19,6 +19,7 @@ from kinnoo.config import CLAW_HUB_TENANT_SLUG
 
 
 # [agent] test deprecated: Feature12 registry tests are superseded by feature13 tests.
+# [agent] NOTE: This file currently mixes private server integration and client CLI imports; refactor into private-only and public-contract suites before final repo split.
 # def test_registry_backend_contract_and_local_layout(tmp_path: Path) -> None:
 #     ...
 #
@@ -188,7 +189,7 @@ def test_feature26_filesystem_permissions_runtime_enforcement(tmp_path: Path) ->
 
 
 def test_feature40_registry_publisher_key_association(tmp_path: Path) -> None:
-	from src.kinnoo.signing import create_detached_signature_artifacts, generate_ed25519_keypair
+	from kinnoo.signing import create_detached_signature_artifacts, generate_ed25519_keypair
 
 	archive_source = tmp_path / "feature40-registry-source.kno"
 	manifest_text = (
@@ -249,7 +250,8 @@ def test_feature40_registry_publisher_key_association(tmp_path: Path) -> None:
 	valid_result = subprocess.run(
 		[
 			sys.executable,
-			"src/kinnoo/cli.py",
+			"-m",
+			"kinnoo.cli",
 			"install",
 			"feature40-registry-agent==1.0.0",
 			str(valid_target),
@@ -279,7 +281,8 @@ def test_feature40_registry_publisher_key_association(tmp_path: Path) -> None:
 	spoof_result = subprocess.run(
 		[
 			sys.executable,
-			"src/kinnoo/cli.py",
+			"-m",
+			"kinnoo.cli",
 			"install",
 			"feature40-registry-agent==1.0.0",
 			str(spoof_target),

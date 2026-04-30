@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+*scratch*
+*.bak
+.env
+dist/
+build/
+.testmon*
+.vscode/
+.specstory/cli/
+*.DS_Store*
+*env/
+.agent-repo-cache*
+scripts/archive/
+.registry-storage/
+*.pem
+.registry*
+.specstory/
+.coverage
+tests/coverage/
+
+# Config and Plan files
+kinnoo-config.txt
+iac/tfplan*
+
+# Next.js web frontend
+web/node_modules/
+web/.next*
+web/.open-next/
+web/.wrangler/
+.wrangler/
+
+# Terraform local artifacts
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfstate*
+*tfplan*
+*.plan
+
+# Reports
+outputs/
