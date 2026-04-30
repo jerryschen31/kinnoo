@@ -3626,7 +3626,7 @@ tasks:
     '
   files:
   - web/next.config.ts
-  - web/.env.example
+  - web/.env.example (stale)
   steps:
   - 'step1: Define BACKEND_URL-based rewrite mapping for /api/* to backend service'
   - 'step2: Ensure development default is http://localhost:8000 when env not set'
@@ -3704,7 +3704,7 @@ tasks:
 
     '
   files:
-  - web/middleware.ts
+  - web/middleware.ts (stale)
   - web/next.config.ts
   steps:
   - 'step1: Set required baseline headers for all frontend responses'
@@ -3995,9 +3995,9 @@ tasks:
     '
   files:
   - README.md
-  - web/app/page.tsx
-  - web/components/blocks/Hero.tsx
-  - web/components/blocks/Features.tsx
+  - web/app/page.tsx (stale)
+  - web/components/blocks/Hero.tsx (stale)
+  - web/components/blocks/Features.tsx (stale)
   steps:
   - 'step1: Refresh landing hero and feature-card copy to reflect Phase 6 scope'
   - 'step2: Update README command matrix and OpenClaw integration documentation'
@@ -4024,7 +4024,7 @@ tasks:
   - src/kinnoo/publish_command.py
   - src/kinnoo/cli.py
   - README.md
-  - .github/workflows/kinnoo-publish.yml
+  - .github/workflows/kinnoo-publish.yml (removed)
   steps:
   - 'step1: Add `--strict` publish flag and enforce signature/trust requirements before
     upload'
@@ -4597,7 +4597,7 @@ tasks:
 
     '
   files:
-  - docs/registry-seeding.md
+  - docs/registry-seeding.md (stale)
   steps:
   - 'step1: Implement At least 3 agents published to the registry covering different
     frameworks.'
@@ -4622,7 +4622,7 @@ tasks:
 
     '
   files:
-  - docs/registry-seeding.md
+  - docs/registry-seeding.md (stale)
   steps:
   - 'step1: Implement At least one agent is signed.'
   - 'step2: Implement docs/registry-seeding.md documents the seeding process.'
@@ -4643,7 +4643,7 @@ tasks:
 
     '
   files:
-  - docs/launch-checklist.md
+  - docs/launch-checklist.md (stale)
   steps:
   - 'step1: Implement docs/launch-checklist.md exists with categorized checklist items.'
   - 'step2: Implement Categories: Infrastructure, Security, Documentation, CI/CD,
@@ -4666,7 +4666,7 @@ tasks:
 
     '
   files:
-  - docs/launch-checklist.md
+  - docs/launch-checklist.md (stale)
   steps:
   - 'step1: Implement Includes a sample user onboarding walkthrough (create user →
     user logs in → publishes agent).'
@@ -4694,7 +4694,7 @@ tasks:
   files:
   - .github/workflows/pypi-publish.yml
   - pyproject.toml
-  - docs/pypi-release-runbook.md
+  - docs/pypi-release-runbook.md (stale)
   steps:
   - 'step1: Open PyPI project settings and add a Trusted Publisher entry for the repository/workflow.'
   - 'step2: Confirm release tag pattern and workflow filename match the PyPI trusted
