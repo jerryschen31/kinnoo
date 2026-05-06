@@ -77,6 +77,12 @@ variable "auth_provider" {
   default     = "oidc_kinde"
 }
 
+variable "cors_origins" {
+  description = "Comma-separated CORS origins for runtime"
+  type        = string
+  default     = ""
+}
+
 variable "registry_metadata_backend" {
   description = "Metadata backend mode exposed to runtime"
   type        = string

@@ -77,6 +77,12 @@ variable "auth_provider" {
   default     = "oidc_kinde"
 }
 
+variable "cors_origins" {
+  description = "Comma-separated CORS origins passed to ECS runtime"
+  type        = string
+  default     = ""
+}
+
 variable "registry_metadata_backend" {
   description = "Metadata backend mode for registry runtime"
   type        = string
@@ -99,6 +105,29 @@ variable "registry_db_pool_recycle_seconds" {
   description = "Database pool recycle window in seconds"
   type        = number
   default     = 1800
+}
+
+variable "rds_master_secret_rotation_enabled" {
+  description = "Whether rotation is enabled for the RDS-managed master user secret"
+  type        = bool
+  default     = false
+}
+
+variable "rds_master_secret_rotation_automatically_after_days" {
+  description = "Rotation interval in days when rds_master_secret_rotation_enabled is true"
+  type        = number
+  default     = 7
+
+  validation {
+    condition     = var.rds_master_secret_rotation_automatically_after_days >= 1
+    error_message = "rds_master_secret_rotation_automatically_after_days must be >= 1."
+  }
+}
+
+variable "rds_sync_registry_database_url_on_rotation_apply" {
+  description = "Whether Terraform apply should refresh REGISTRY_DATABASE_URL from the current RDS master secret"
+  type        = bool
+  default     = true
 }
 
 variable "zone_id" {
