@@ -1,9 +1,9 @@
 locals {
-  name_prefix       = "${var.project_name}-${var.environment}"
-  is_prod           = var.environment == "prod"
+  name_prefix = "${var.project_name}-${var.environment}"
+  is_prod     = var.environment == "prod"
   # Keep dev/non-prod within stricter free-tier backup retention limits.
-  backup_retention  = 1
-  database_name     = "kinnoo_registry"
+  backup_retention = 1
+  database_name    = "kinnoo_registry"
 }
 
 resource "aws_db_subnet_group" "this" {
@@ -43,6 +43,38 @@ resource "aws_db_instance" "this" {
   tags = merge(var.tags, {
     Name = "${local.name_prefix}-postgres"
   })
+}
+
+data "aws_secretsmanager_secret_rotation" "master_user" {
+  secret_id = aws_db_instance.this.master_user_secret[0].secret_arn
+}
+
+# Guardrail: enforce desired rotation state for the RDS-managed master secret.
+# This uses a local script because current aws_db_instance schema in this repo
+# does not expose first-class rotation toggles.
+resource "terraform_data" "master_secret_rotation_guardrail" {
+  triggers_replace = {
+    secret_arn     = aws_db_instance.this.master_user_secret[0].secret_arn
+    desired_enabled = tostring(var.master_secret_rotation_enabled)
+    desired_days    = tostring(var.master_secret_rotation_automatically_after_days)
+    desired_sync    = tostring(var.sync_registry_database_url_on_rotation_apply)
+    observed_enabled = tostring(data.aws_secretsmanager_secret_rotation.master_user.rotation_enabled)
+    observed_days    = tostring(try(data.aws_secretsmanager_secret_rotation.master_user.rotation_rules[0].automatically_after_days, 0))
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      "${path.module}/../../../scripts/ops/enforce-rds-master-secret-rotation.sh" \
+        --secret-id "${aws_db_instance.this.master_user_secret[0].secret_arn}" \
+        --enabled "${var.master_secret_rotation_enabled}" \
+        --days "${var.master_secret_rotation_automatically_after_days}" \
+        --region "${var.aws_region}" \
+        --db-instance-identifier "${aws_db_instance.this.identifier}" \
+        --environment "${var.environment}" \
+        --project "${var.project_name}" \
+        --sync-registry-database-url "${var.sync_registry_database_url_on_rotation_apply}"
+    EOT
+  }
 }
 
 resource "aws_cloudwatch_metric_alarm" "cpu_high" {

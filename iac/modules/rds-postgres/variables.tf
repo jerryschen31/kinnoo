@@ -8,6 +8,11 @@ variable "environment" {
   type        = string
 }
 
+variable "aws_region" {
+  description = "AWS region for CLI/API calls made by guardrail scripts"
+  type        = string
+}
+
 variable "private_subnet_ids" {
   description = "Private subnet IDs used for DB subnet group"
   type        = list(string)
@@ -40,6 +45,24 @@ variable "alarm_topic_arn" {
   description = "SNS topic ARN for database alarms"
   type        = string
   default     = ""
+}
+
+variable "master_secret_rotation_enabled" {
+  description = "Whether rotation should be enabled for the RDS-managed master user secret"
+  type        = bool
+  default     = false
+}
+
+variable "master_secret_rotation_automatically_after_days" {
+  description = "Rotation interval in days when master_secret_rotation_enabled is true"
+  type        = number
+  default     = 7
+}
+
+variable "sync_registry_database_url_on_rotation_apply" {
+  description = "Whether to refresh REGISTRY_DATABASE_URL from the current RDS master secret during Terraform apply"
+  type        = bool
+  default     = true
 }
 
 variable "tags" {
