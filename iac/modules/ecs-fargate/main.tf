@@ -1,6 +1,9 @@
 locals {
-  name_prefix = "${var.project_name}-${var.environment}"
+  name_prefix              = "${var.project_name}-${var.environment}"
   has_auth_provider_secret = contains(keys(var.secret_arns), "AUTH_PROVIDER")
+  kinnoo_env               = var.environment == "prod" ? "production" : "dev"
+  default_cors_origins     = var.environment == "prod" ? "https://kinnoo.ai" : "https://dev.kinnoo.ai"
+  effective_cors_origins   = trimspace(var.cors_origins) != "" ? trimspace(var.cors_origins) : local.default_cors_origins
 
   # Keep explicit secret names to make container injection predictable.
   ordered_secret_keys = [
@@ -148,7 +151,11 @@ resource "aws_ecs_task_definition" "app" {
         for item in [
           {
             name  = "KINNOO_ENV"
-            value = "production"
+            value = local.kinnoo_env
+          },
+          {
+            name  = "CORS_ORIGINS"
+            value = local.effective_cors_origins
           },
           {
             name  = "AUTH_PROVIDER"
