@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 import hashlib
 import hmac
 import importlib
+import logging
 import secrets
 from typing import Any
 
@@ -22,6 +23,7 @@ from server.storage.user_store import UserStore
 
 SESSION_CSRF_COOKIE = "kinnoo_csrf"
 OIDC_STATE_COOKIE = "kinnoo_oidc_state"
+logger = logging.getLogger(__name__)
 
 
 def create_web_auth_router(
@@ -93,7 +95,11 @@ def create_web_auth_router(
 
             try:
                 token_payload = oidc_provider.exchange_code_for_tokens(code=code)
-            except Exception:
+            except Exception as error:
+                # Do not log auth code/token data; exception type/message is enough
+                # to diagnose provider-side failures (invalid_client, invalid_grant,
+                # redirect mismatch, network issues, etc.).
+                logger.exception("OIDC callback token exchange failed: %s", str(error))
                 response = RedirectResponse(url="/login?error=auth_exchange_failed", status_code=303)
                 response.delete_cookie(OIDC_STATE_COOKIE, path="/")
                 return response
