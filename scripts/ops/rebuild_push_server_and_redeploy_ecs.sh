@@ -131,12 +131,12 @@ ensure_prod_cors_origins_present() {
 
   env_cors="$(aws ecs describe-task-definition \
     --task-definition "$service_task_definition_arn" \
-    --query "taskDefinition.containerDefinitions[?name=='${ECS_CONTAINER_NAME}'][0].environment[?name=='CORS_ORIGINS'].value | [0]" \
+    --query "taskDefinition.containerDefinitions[?name=='${ECS_CONTAINER_NAME}'].environment[] | [?name=='CORS_ORIGINS'].value | [0]" \
     --output text 2>/dev/null || true)"
 
   secret_cors="$(aws ecs describe-task-definition \
     --task-definition "$service_task_definition_arn" \
-    --query "taskDefinition.containerDefinitions[?name=='${ECS_CONTAINER_NAME}'][0].secrets[?name=='CORS_ORIGINS'].valueFrom | [0]" \
+    --query "taskDefinition.containerDefinitions[?name=='${ECS_CONTAINER_NAME}'].secrets[] | [?name=='CORS_ORIGINS'].valueFrom | [0]" \
     --output text 2>/dev/null || true)"
 
   if [[ "$env_cors" == "None" ]]; then
