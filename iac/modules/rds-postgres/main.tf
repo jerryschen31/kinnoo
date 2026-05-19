@@ -54,10 +54,10 @@ data "aws_secretsmanager_secret_rotation" "master_user" {
 # does not expose first-class rotation toggles.
 resource "terraform_data" "master_secret_rotation_guardrail" {
   triggers_replace = {
-    secret_arn     = aws_db_instance.this.master_user_secret[0].secret_arn
-    desired_enabled = tostring(var.master_secret_rotation_enabled)
-    desired_days    = tostring(var.master_secret_rotation_automatically_after_days)
-    desired_sync    = tostring(var.sync_registry_database_url_on_rotation_apply)
+    secret_arn       = aws_db_instance.this.master_user_secret[0].secret_arn
+    desired_enabled  = tostring(var.master_secret_rotation_enabled)
+    desired_days     = tostring(var.master_secret_rotation_automatically_after_days)
+    desired_sync     = tostring(var.sync_registry_database_url_on_rotation_apply)
     observed_enabled = tostring(data.aws_secretsmanager_secret_rotation.master_user.rotation_enabled)
     observed_days    = tostring(try(data.aws_secretsmanager_secret_rotation.master_user.rotation_rules[0].automatically_after_days, 0))
   }
