@@ -1,6 +1,7 @@
 locals {
   name_prefix              = "${var.project_name}-${var.environment}"
   has_auth_provider_secret = contains(keys(var.secret_arns), "AUTH_PROVIDER")
+  has_cors_origins_secret  = contains(keys(var.secret_arns), "CORS_ORIGINS")
   kinnoo_env               = var.environment == "prod" ? "production" : "dev"
   default_cors_origins     = var.environment == "prod" ? "https://kinnoo.ai" : "https://dev.kinnoo.ai"
   effective_cors_origins   = trimspace(var.cors_origins) != "" ? trimspace(var.cors_origins) : local.default_cors_origins
@@ -42,6 +43,7 @@ locals {
     "LOGOUT_ENDPOINT",
     "USERINFO_ENDPOINT",
     "REVOCATION_ENDPOINT",
+    "CORS_ORIGINS",
   ]
   container_secrets = [
     for secret_key in local.ordered_secret_keys : {
@@ -214,8 +216,11 @@ resource "aws_ecs_task_definition" "app" {
             value = var.security_check_lambda_name
           },
         ] : item
-        # Filter out AUTH_PROVIDER env var when matching secret exists, so secret value wins.
-        if !(local.has_auth_provider_secret && item.name == "AUTH_PROVIDER")
+        # Filter out env vars when matching secrets exist, so secret values win.
+        if !(
+          (local.has_auth_provider_secret && item.name == "AUTH_PROVIDER") ||
+          (local.has_cors_origins_secret && item.name == "CORS_ORIGINS")
+        )
       ]
       secrets = local.container_secrets
       mountPoints = [
