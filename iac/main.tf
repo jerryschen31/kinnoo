@@ -111,6 +111,7 @@ module "ecs_fargate" {
   sns_topic_arn                    = var.sns_topic_arn
   security_check_lambda_name       = module.lambda_security_check.function_name
   auth_provider                    = var.auth_provider
+  cors_origins                     = var.cors_origins
   registry_metadata_backend        = var.registry_metadata_backend
   registry_db_pool_size            = var.registry_db_pool_size
   registry_db_max_overflow         = var.registry_db_max_overflow
@@ -122,13 +123,17 @@ module "rds_postgres" {
   count  = local.enable_database_stack ? 1 : 0
   source = "./modules/rds-postgres"
 
-  project_name            = var.project_name
-  environment             = var.environment
-  private_subnet_ids      = module.vpc.private_subnet_ids
-  db_security_group_id    = module.vpc.db_security_group_id
-  database_url_secret_arn = lookup(module.secrets.secret_arns, "REGISTRY_DATABASE_URL", "")
-  alarm_topic_arn         = var.sns_topic_arn
-  tags                    = local.common_tags
+  project_name                                    = var.project_name
+  environment                                     = var.environment
+  aws_region                                      = var.aws_region
+  private_subnet_ids                              = module.vpc.private_subnet_ids
+  db_security_group_id                            = module.vpc.db_security_group_id
+  database_url_secret_arn                         = lookup(module.secrets.secret_arns, "REGISTRY_DATABASE_URL", "")
+  alarm_topic_arn                                 = var.sns_topic_arn
+  master_secret_rotation_enabled                  = var.rds_master_secret_rotation_enabled
+  master_secret_rotation_automatically_after_days = var.rds_master_secret_rotation_automatically_after_days
+  sync_registry_database_url_on_rotation_apply    = var.rds_sync_registry_database_url_on_rotation_apply
+  tags                                            = local.common_tags
 }
 
 module "cloudflare" {

@@ -111,6 +111,73 @@ if [[ -z "$ECS_CLUSTER" ]]; then
   exit 1
 fi
 
+ECS_CONTAINER_NAME="${ECS_CONTAINER_NAME:-kinnoo-server}"
+
+ensure_prod_cors_origins_present() {
+  local service_task_definition_arn=""
+  local env_cors=""
+  local secret_cors=""
+
+  service_task_definition_arn="$(aws ecs describe-services \
+    --cluster "$ECS_CLUSTER" \
+    --services "$ECS_SERVICE" \
+    --query 'services[0].taskDefinition' \
+    --output text 2>/dev/null || true)"
+
+  if [[ -z "$service_task_definition_arn" || "$service_task_definition_arn" == "None" ]]; then
+    echo "[error] Could not resolve active task definition for ${ECS_CLUSTER}/${ECS_SERVICE}." >&2
+    exit 1
+  fi
+
+  env_cors="$(aws ecs describe-task-definition \
+    --task-definition "$service_task_definition_arn" \
+    --query "taskDefinition.containerDefinitions[?name=='${ECS_CONTAINER_NAME}'].environment[] | [?name=='CORS_ORIGINS'].value | [0]" \
+    --output text 2>/dev/null || true)"
+
+  secret_cors="$(aws ecs describe-task-definition \
+    --task-definition "$service_task_definition_arn" \
+    --query "taskDefinition.containerDefinitions[?name=='${ECS_CONTAINER_NAME}'].secrets[] | [?name=='CORS_ORIGINS'].valueFrom | [0]" \
+    --output text 2>/dev/null || true)"
+
+  if [[ "$env_cors" == "None" ]]; then
+    env_cors=""
+  fi
+  if [[ "$secret_cors" == "None" ]]; then
+    secret_cors=""
+  fi
+
+  if [[ -z "$env_cors" && -z "$secret_cors" ]]; then
+    echo "[error] Production guardrail: CORS_ORIGINS is missing for container '${ECS_CONTAINER_NAME}'" >&2
+    echo "        on active task definition ${service_task_definition_arn}." >&2
+    echo "        Set CORS_ORIGINS (environment or secret) before redeploying." >&2
+    exit 1
+  fi
+}
+
+ensure_registry_database_url_in_sync() {
+  local sync_script="$ROOT_DIR/scripts/ops/sync-database-url.sh"
+  if [[ ! -x "$sync_script" ]]; then
+    echo "[error] Missing executable sync script: $sync_script" >&2
+    exit 1
+  fi
+
+  if "$sync_script" "$ENVIRONMENT" --region "$AWS_REGION" --project "kinnoo" --dry-run --fail-on-mismatch >/dev/null; then
+    echo "[ok] REGISTRY_DATABASE_URL credentials already match current RDS master secret"
+    return 0
+  fi
+
+  echo "[warn] REGISTRY_DATABASE_URL credentials are out of sync; refreshing now..."
+  "$sync_script" "$ENVIRONMENT" --region "$AWS_REGION" --project "kinnoo" >/dev/null
+
+  if "$sync_script" "$ENVIRONMENT" --region "$AWS_REGION" --project "kinnoo" --dry-run --fail-on-mismatch >/dev/null; then
+    echo "[ok] REGISTRY_DATABASE_URL credentials are now in sync"
+    return 0
+  fi
+
+  echo "[error] REGISTRY_DATABASE_URL remains out of sync after refresh attempt" >&2
+  exit 1
+}
+
 # Defensive guard: never push a prod image into a dev cluster or vice versa.
 case "$ENVIRONMENT" in
   prod)
@@ -132,6 +199,22 @@ echo "[info] AWS region: $AWS_REGION"
 echo "[info] ECR repo: $ECR_REPO_URI"
 echo "[info] ECS cluster: $ECS_CLUSTER"
 echo "[info] ECS service: $ECS_SERVICE"
+
+echo "[info] Validating REGISTRY_DATABASE_URL secret is in sync with RDS master secret..."
+if [[ "$DRY_RUN" == "1" ]]; then
+  echo "[dry-run] Would check/sync REGISTRY_DATABASE_URL against current RDS master secret"
+else
+  ensure_registry_database_url_in_sync
+fi
+
+if [[ "$ENVIRONMENT" == "prod" ]]; then
+  echo "[info] Validating production CORS_ORIGINS configuration..."
+  if [[ "$DRY_RUN" == "1" ]]; then
+    echo "[dry-run] Would verify active task definition contains CORS_ORIGINS for ${ECS_CONTAINER_NAME}" 
+  else
+    ensure_prod_cors_origins_present
+  fi
+fi
 
 if [[ "$DRY_RUN" == "1" ]]; then
   echo "[dry-run] Would build/push $ECR_REPO_URI:latest and force-redeploy $ECS_CLUSTER/$ECS_SERVICE"

@@ -55,8 +55,21 @@ def _http_json_request(
         with urllib_request.urlopen(request, timeout=timeout_seconds) as response:
             payload = response.read().decode("utf-8")
     except urllib_error.HTTPError as error:
+        detail = ""
+        try:
+            raw_error_payload = error.read().decode("utf-8")
+            parsed_error = json.loads(raw_error_payload)
+            if isinstance(parsed_error, dict):
+                code = str(parsed_error.get("error", "")).strip()
+                desc = str(parsed_error.get("error_description", "")).strip()
+                if code or desc:
+                    detail = f" provider_error={code or 'unknown'}"
+                    if desc:
+                        detail += f" provider_error_description={desc}"
+        except Exception:
+            detail = ""
         raise OIDCRequestError(
-            f"OIDC {method.upper()} {url} failed with HTTP {error.code}."
+            f"OIDC {method.upper()} {url} failed with HTTP {error.code}.{detail}"
         ) from error
     except urllib_error.URLError as error:
         raise OIDCRequestError(

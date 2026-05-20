@@ -21,6 +21,7 @@ locals {
     LOGOUT_ENDPOINT           = "${var.project_name}/${var.environment}/LOGOUT_ENDPOINT"
     USERINFO_ENDPOINT         = "${var.project_name}/${var.environment}/USERINFO_ENDPOINT"
     REVOCATION_ENDPOINT       = "${var.project_name}/${var.environment}/REVOCATION_ENDPOINT"
+    CORS_ORIGINS              = "${var.project_name}/${var.environment}/CORS_ORIGINS"
     REGISTRY_DATABASE_URL     = "/${var.project_name}/${var.environment}/REGISTRY_DATABASE_URL"
   }
 
@@ -104,6 +105,10 @@ data "aws_secretsmanager_secret" "revocation_endpoint" {
   name = local.referenced_secret_names.REVOCATION_ENDPOINT
 }
 
+data "aws_secretsmanager_secret" "cors_origins" {
+  name = local.referenced_secret_names.CORS_ORIGINS
+}
+
 data "aws_secretsmanager_secret" "registry_database_url" {
   name = local.referenced_secret_names.REGISTRY_DATABASE_URL
 }
@@ -111,41 +116,42 @@ data "aws_secretsmanager_secret" "registry_database_url" {
 output "secret_arns" {
   description = "Secrets Manager ARNs for app runtime"
   value = {
-    JWT_SECRET                = aws_secretsmanager_secret.jwt_secret.arn
-    SESSION_SECRET            = aws_secretsmanager_secret.session_secret.arn
-    ADMIN_PASSWORD            = aws_secretsmanager_secret.admin_password.arn
-    REGISTRY_TOKEN_SIGNING_SECRET       = aws_secretsmanager_secret.jwt_secret.arn
-    REGISTRY_SESSION_SIGNING_SECRET     = aws_secretsmanager_secret.session_secret.arn
-    REGISTRY_REGISTER_TOKEN_SECRET      = aws_secretsmanager_secret.jwt_secret.arn
+    JWT_SECRET                           = aws_secretsmanager_secret.jwt_secret.arn
+    SESSION_SECRET                       = aws_secretsmanager_secret.session_secret.arn
+    ADMIN_PASSWORD                       = aws_secretsmanager_secret.admin_password.arn
+    REGISTRY_TOKEN_SIGNING_SECRET        = aws_secretsmanager_secret.jwt_secret.arn
+    REGISTRY_SESSION_SIGNING_SECRET      = aws_secretsmanager_secret.session_secret.arn
+    REGISTRY_REGISTER_TOKEN_SECRET       = aws_secretsmanager_secret.jwt_secret.arn
     REGISTRY_PASSWORD_RESET_TOKEN_SECRET = aws_secretsmanager_secret.session_secret.arn
-    AUTH_PROVIDER               = format("%s:%s::", data.aws_secretsmanager_secret.auth_provider.arn, "AUTH_PROVIDER")
-    AUTH_WEB_CLIENT_ID          = format("%s:%s::", data.aws_secretsmanager_secret.kinde_web_client_id.arn, "KINDE_WEB_CLIENT_ID")
-    AUTH_WEB_CLIENT_SECRET      = format("%s:%s::", data.aws_secretsmanager_secret.kinde_web_client_secret.arn, "KINDE_WEB_CLIENT_SECRET")
-    AUTH_CLI_CLIENT_ID          = format("%s:%s::", data.aws_secretsmanager_secret.kinde_cli_client_id.arn, "KINDE_CLI_CLIENT_ID")
-    AUTH_ISSUER_URL             = format("%s:%s::", data.aws_secretsmanager_secret.kinde_issuer_url.arn, "KINDE_ISSUER_URL")
-    AUTH_AUDIENCE               = format("%s:%s::", data.aws_secretsmanager_secret.kinde_audience.arn, "KINDE_AUDIENCE")
-    AUTH_WEB_REDIRECT_URI       = format("%s:%s::", data.aws_secretsmanager_secret.kinde_web_redirect_uri.arn, "KINDE_WEB_REDIRECT_URI")
-    AUTH_LOGOUT_REDIRECT_URI    = format("%s:%s::", data.aws_secretsmanager_secret.kinde_logout_redirect_uri.arn, "KINDE_LOGOUT_REDIRECT_URI")
-    AUTH_JWKS_ENDPOINT_URL      = format("%s:%s::", data.aws_secretsmanager_secret.jwks_endpoint_url.arn, "JWKS_ENDPOINT_URL")
-    AUTH_TOKEN_ENDPOINT         = format("%s:%s::", data.aws_secretsmanager_secret.token_endpoint.arn, "TOKEN_ENDPOINT")
-    AUTH_AUTHORIZATION_ENDPOINT = format("%s:%s::", data.aws_secretsmanager_secret.authorization_endpoint.arn, "AUTHORIZATION_ENDPOINT")
-    AUTH_LOGOUT_ENDPOINT        = format("%s:%s::", data.aws_secretsmanager_secret.logout_endpoint.arn, "LOGOUT_ENDPOINT")
-    AUTH_USERINFO_ENDPOINT      = format("%s:%s::", data.aws_secretsmanager_secret.userinfo_endpoint.arn, "USERINFO_ENDPOINT")
-    AUTH_REVOCATION_ENDPOINT    = format("%s:%s::", data.aws_secretsmanager_secret.revocation_endpoint.arn, "REVOCATION_ENDPOINT")
-    KINDE_WEB_CLIENT_ID         = format("%s:%s::", data.aws_secretsmanager_secret.kinde_web_client_id.arn, "KINDE_WEB_CLIENT_ID")
-    KINDE_WEB_CLIENT_SECRET     = format("%s:%s::", data.aws_secretsmanager_secret.kinde_web_client_secret.arn, "KINDE_WEB_CLIENT_SECRET")
-    KINDE_CLI_CLIENT_ID         = format("%s:%s::", data.aws_secretsmanager_secret.kinde_cli_client_id.arn, "KINDE_CLI_CLIENT_ID")
-    KINDE_ISSUER_URL            = format("%s:%s::", data.aws_secretsmanager_secret.kinde_issuer_url.arn, "KINDE_ISSUER_URL")
-    KINDE_AUDIENCE              = format("%s:%s::", data.aws_secretsmanager_secret.kinde_audience.arn, "KINDE_AUDIENCE")
-    KINDE_WEB_REDIRECT_URI      = format("%s:%s::", data.aws_secretsmanager_secret.kinde_web_redirect_uri.arn, "KINDE_WEB_REDIRECT_URI")
-    KINDE_LOGOUT_REDIRECT_URI   = format("%s:%s::", data.aws_secretsmanager_secret.kinde_logout_redirect_uri.arn, "KINDE_LOGOUT_REDIRECT_URI")
-    JWKS_ENDPOINT_URL           = format("%s:%s::", data.aws_secretsmanager_secret.jwks_endpoint_url.arn, "JWKS_ENDPOINT_URL")
-    TOKEN_ENDPOINT              = format("%s:%s::", data.aws_secretsmanager_secret.token_endpoint.arn, "TOKEN_ENDPOINT")
-    AUTHORIZATION_ENDPOINT      = format("%s:%s::", data.aws_secretsmanager_secret.authorization_endpoint.arn, "AUTHORIZATION_ENDPOINT")
-    LOGOUT_ENDPOINT             = format("%s:%s::", data.aws_secretsmanager_secret.logout_endpoint.arn, "LOGOUT_ENDPOINT")
-    USERINFO_ENDPOINT           = format("%s:%s::", data.aws_secretsmanager_secret.userinfo_endpoint.arn, "USERINFO_ENDPOINT")
-    REVOCATION_ENDPOINT         = format("%s:%s::", data.aws_secretsmanager_secret.revocation_endpoint.arn, "REVOCATION_ENDPOINT")
-    REGISTRY_DATABASE_URL       = format("%s:%s::", data.aws_secretsmanager_secret.registry_database_url.arn, "REGISTRY_DATABASE_URL")
+    AUTH_PROVIDER                        = format("%s:%s::", data.aws_secretsmanager_secret.auth_provider.arn, "AUTH_PROVIDER")
+    AUTH_WEB_CLIENT_ID                   = format("%s:%s::", data.aws_secretsmanager_secret.kinde_web_client_id.arn, "KINDE_WEB_CLIENT_ID")
+    AUTH_WEB_CLIENT_SECRET               = format("%s:%s::", data.aws_secretsmanager_secret.kinde_web_client_secret.arn, "KINDE_WEB_CLIENT_SECRET")
+    AUTH_CLI_CLIENT_ID                   = format("%s:%s::", data.aws_secretsmanager_secret.kinde_cli_client_id.arn, "KINDE_CLI_CLIENT_ID")
+    AUTH_ISSUER_URL                      = format("%s:%s::", data.aws_secretsmanager_secret.kinde_issuer_url.arn, "KINDE_ISSUER_URL")
+    AUTH_AUDIENCE                        = format("%s:%s::", data.aws_secretsmanager_secret.kinde_audience.arn, "KINDE_AUDIENCE")
+    AUTH_WEB_REDIRECT_URI                = format("%s:%s::", data.aws_secretsmanager_secret.kinde_web_redirect_uri.arn, "KINDE_WEB_REDIRECT_URI")
+    AUTH_LOGOUT_REDIRECT_URI             = format("%s:%s::", data.aws_secretsmanager_secret.kinde_logout_redirect_uri.arn, "KINDE_LOGOUT_REDIRECT_URI")
+    AUTH_JWKS_ENDPOINT_URL               = format("%s:%s::", data.aws_secretsmanager_secret.jwks_endpoint_url.arn, "JWKS_ENDPOINT_URL")
+    AUTH_TOKEN_ENDPOINT                  = format("%s:%s::", data.aws_secretsmanager_secret.token_endpoint.arn, "TOKEN_ENDPOINT")
+    AUTH_AUTHORIZATION_ENDPOINT          = format("%s:%s::", data.aws_secretsmanager_secret.authorization_endpoint.arn, "AUTHORIZATION_ENDPOINT")
+    AUTH_LOGOUT_ENDPOINT                 = format("%s:%s::", data.aws_secretsmanager_secret.logout_endpoint.arn, "LOGOUT_ENDPOINT")
+    AUTH_USERINFO_ENDPOINT               = format("%s:%s::", data.aws_secretsmanager_secret.userinfo_endpoint.arn, "USERINFO_ENDPOINT")
+    AUTH_REVOCATION_ENDPOINT             = format("%s:%s::", data.aws_secretsmanager_secret.revocation_endpoint.arn, "REVOCATION_ENDPOINT")
+    KINDE_WEB_CLIENT_ID                  = format("%s:%s::", data.aws_secretsmanager_secret.kinde_web_client_id.arn, "KINDE_WEB_CLIENT_ID")
+    KINDE_WEB_CLIENT_SECRET              = format("%s:%s::", data.aws_secretsmanager_secret.kinde_web_client_secret.arn, "KINDE_WEB_CLIENT_SECRET")
+    KINDE_CLI_CLIENT_ID                  = format("%s:%s::", data.aws_secretsmanager_secret.kinde_cli_client_id.arn, "KINDE_CLI_CLIENT_ID")
+    KINDE_ISSUER_URL                     = format("%s:%s::", data.aws_secretsmanager_secret.kinde_issuer_url.arn, "KINDE_ISSUER_URL")
+    KINDE_AUDIENCE                       = format("%s:%s::", data.aws_secretsmanager_secret.kinde_audience.arn, "KINDE_AUDIENCE")
+    KINDE_WEB_REDIRECT_URI               = format("%s:%s::", data.aws_secretsmanager_secret.kinde_web_redirect_uri.arn, "KINDE_WEB_REDIRECT_URI")
+    KINDE_LOGOUT_REDIRECT_URI            = format("%s:%s::", data.aws_secretsmanager_secret.kinde_logout_redirect_uri.arn, "KINDE_LOGOUT_REDIRECT_URI")
+    JWKS_ENDPOINT_URL                    = format("%s:%s::", data.aws_secretsmanager_secret.jwks_endpoint_url.arn, "JWKS_ENDPOINT_URL")
+    TOKEN_ENDPOINT                       = format("%s:%s::", data.aws_secretsmanager_secret.token_endpoint.arn, "TOKEN_ENDPOINT")
+    AUTHORIZATION_ENDPOINT               = format("%s:%s::", data.aws_secretsmanager_secret.authorization_endpoint.arn, "AUTHORIZATION_ENDPOINT")
+    LOGOUT_ENDPOINT                      = format("%s:%s::", data.aws_secretsmanager_secret.logout_endpoint.arn, "LOGOUT_ENDPOINT")
+    USERINFO_ENDPOINT                    = format("%s:%s::", data.aws_secretsmanager_secret.userinfo_endpoint.arn, "USERINFO_ENDPOINT")
+    REVOCATION_ENDPOINT                  = format("%s:%s::", data.aws_secretsmanager_secret.revocation_endpoint.arn, "REVOCATION_ENDPOINT")
+    CORS_ORIGINS                         = data.aws_secretsmanager_secret.cors_origins.arn
+    REGISTRY_DATABASE_URL                = format("%s:%s::", data.aws_secretsmanager_secret.registry_database_url.arn, "REGISTRY_DATABASE_URL")
   }
 }
 

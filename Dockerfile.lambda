@@ -1,4 +1,3 @@
 FROM public.ecr.aws/lambda/python:3.12
-COPY src/kinnoo ${LAMBDA_TASK_ROOT}/kinnoo
 COPY lambda_handler.py ${LAMBDA_TASK_ROOT}
 CMD ["lambda_handler.handler"]

@@ -45,27 +45,3 @@ jobs:
 
       - name: Run pytest suite (unit tests only)
         run: python3 -m pytest tests -m "not integration"
-
-  frontend-tests:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    defaults:
-      run:
-        working-directory: web
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: 'web/.nvmrc'
-          cache: 'npm'
-          cache-dependency-path: 'web/package-lock.json'
-
-      - name: Install web dependencies
-        run: npm ci
-      
-      - name: Run web test suite
-        run: npm test

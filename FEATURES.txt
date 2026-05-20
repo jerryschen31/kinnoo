@@ -45,6 +45,7 @@
 # ======================================================================
 features:
   - id: feature1
+    visibility: public
     title: Manifest schema and validation
     description: |
       Define the kinnoo.yaml manifest schema and implement a validator that parses
@@ -85,6 +86,7 @@ features:
     status: completed
 
   - id: feature2
+    visibility: public
     title: "kinnoo init — Project scaffolding"
     description: |
       Implement the `kinnoo init` CLI command that generates a template agent directory
@@ -132,6 +134,7 @@ features:
     status: completed
 
   - id: feature3
+    visibility: private
     title: "kinnoo run (local) — Agent execution from source"
     description: |
       Implement the `kinnoo run` CLI command that executes an agent from a local
@@ -184,6 +187,7 @@ features:
     status: completed
 
   - id: feature4
+    visibility: private
     title: "kinnoo init --framework flag for LLM agent templates"
     description: |
       Add a `--framework` flag to the `kinnoo init` CLI command to generate agent directories pre-populated with boilerplate for popular LLM APIs. Supported values: `gemini`, `chatgpt`, `claude-chat`.
@@ -211,6 +215,7 @@ features:
     dependencies: [feature2]
   
   - id: feature5
+    visibility: private
     title: "kinnoo pack — Agent packaging"
     description: |
       Implement the `kinnoo pack` CLI command that packages an agent project (code, manifest, dependencies)
@@ -245,6 +250,7 @@ features:
     dependencies: [feature3]
 
   - id: feature6
+    visibility: private
     title: "kinnoo install — Agent installation from archive"
     description: |
       Implement the `kinnoo install` CLI command that installs a packaged agent archive with the `.kno` extension
@@ -282,6 +288,7 @@ features:
   # ======================================================================
 
   - id: feature7
+    visibility: private
     title: "CLI Refactor & Modular Architecture"
     description: |
       Extract install logic from monolithic cli.py into a dedicated install_command.py module,
@@ -303,6 +310,7 @@ features:
     dependencies: []
 
   - id: feature8
+    visibility: private
     title: "Packaging Robustness"
     description: |
       Fix transitive dependency bundling in `kinnoo pack` (currently uses --no-deps which omits
@@ -326,6 +334,7 @@ features:
     dependencies: []
 
   - id: feature9
+    visibility: private
     title: "Manifest Schema V2 Extensions"
     description: |
       Add optional fields to the kinnoo.yaml schema: description (string), author (string),
@@ -350,6 +359,7 @@ features:
     dependencies: []
 
   - id: feature10
+    visibility: private
     title: "Environment Variable / Secret Management (env_vars)"
     description: |
       When running an agent whose kinnoo.yaml declares env_vars, the runtime checks, resolves,
@@ -376,6 +386,7 @@ features:
     dependencies: [feature9]
 
   - id: feature11
+    visibility: private
     title: "kinnoo inspect — Manifest inspection command"
     description: |
       New CLI command that reads and displays manifest metadata from a .kno archive or agent
@@ -405,6 +416,7 @@ features:
     dependencies: [feature7]
 
   - id: feature12
+    visibility: private
     title: "Local Registry (kinnoo publish, kinnoo install <name>, kinnoo list, kinnoo search)"
     description: |
       Implement a local registry at ~/.kinnoo/registry/ where agents can be published by
@@ -435,6 +447,7 @@ features:
     dependencies: [feature11]
 
   - id: feature13
+    visibility: private
     title: "Pack/Publish Refactor — Local Archive + Registry Publish Flow"
     description: |
       Refactor packaging and publishing responsibilities:
@@ -494,6 +507,7 @@ features:
     status: completed
 
   - id: feature14
+    visibility: private
     title: "Preflight Checks (--preflight flag on kinnoo run)"
     description: |
       Add a --preflight flag to `kinnoo run` that validates the agent's environment before
@@ -520,6 +534,7 @@ features:
     dependencies: [feature10]
 
   - id: feature15
+    visibility: private
     title: "Trust Baseline"
     description: |
       Add transparency and trust features: display dependency/secret name summary on install,
@@ -548,6 +563,7 @@ features:
     dependencies: [feature10]
 
   - id: feature16
+    visibility: private
     title: "Archive Integrity (Checksums)"
     description: |
       Generate and verify SHA256 checksums for .kno archives. Enables detection of tampered
@@ -572,6 +588,7 @@ features:
     dependencies: [feature8]
 
   - id: feature17
+    visibility: private
     title: "Pack Size Reporting & Warnings"
     description: |
       Report archive size after packing and warn when archives are unusually large, which is
@@ -591,6 +608,7 @@ features:
     dependencies: [feature8]
 
   - id: feature18
+    visibility: private
     title: "Input Safety Guard"
     description: |
       Add a pluggable input safety check to `kinnoo run` that inspects user-provided input
@@ -638,6 +656,7 @@ features:
     status: completed
 
   - id: feature19
+    visibility: private
     title: "kinnoo import — Analyzer-backed onboarding wizard"
     description: |
       Add a guided onboarding flow for existing agents: `kinnoo import [path]`
@@ -690,6 +709,7 @@ features:
   # ======================================================================
 
   - id: feature20
+    visibility: private
     title: "Flexible Runtime Inputs — No-input run & pass-through arguments"
     description: |
       Extend `kinnoo run` to support agents that require no user input (self-contained
@@ -734,6 +754,7 @@ features:
     status: completed
 
   - id: feature21
+    visibility: private
     title: "Framework & Template Expansion — PydanticAI, LangGraph, OpenAI Agents"
     description: |
       Expand `kinnoo init --framework` to support three new framework templates:
@@ -785,6 +806,7 @@ features:
     dependencies: [feature4]
 
   - id: feature22
+    visibility: private
     title: "Asset Bundling"
     description: |
       Add a manifest `assets` section for declaring static files and directories to be
@@ -843,6 +865,7 @@ features:
     status: completed
 
   - id: feature23
+    visibility: private
     title: "MCP Server Runtime Type — Schema & Lifecycle"
     description: |
       Add `mcp-server` as a supported `runtime.type` in the manifest schema. MCP servers
@@ -881,6 +904,7 @@ features:
     status: completed
 
   - id: feature24
+    visibility: private
     title: "Service Declarations — Manifest Schema"
     description: |
       Add an optional `services` section to the kinnoo.yaml manifest schema for declaring
@@ -931,6 +955,7 @@ features:
     status: completed
 
   - id: feature25
+    visibility: private
     title: "Service Health Checks — Runtime Preflight"
     description: |
       Implement runtime health checks for services declared in the manifest's `services`
@@ -970,6 +995,7 @@ features:
     status: completed
 
   - id: feature26
+    visibility: private
     title: "MCP Server Packages & Client Templates"
     description: |
       Build on the mcp-server runtime type (feature23) to provide:
@@ -1009,6 +1035,7 @@ features:
     status: completed
 
   - id: feature27
+    visibility: private
     title: "Project Analyzer Module — Manifest Field Inference"
     description: |
       Add a reusable static analysis module (`src/kinnoo/analyzer.py`) that
@@ -1058,6 +1085,7 @@ features:
     status: completed
 
   - id: feature28
+    visibility: private
     title: "Registry Backend Abstraction & Remote Client"
     description: |
       Extract the current local mock registry logic behind a formal `RegistryBackend`
@@ -1102,6 +1130,7 @@ features:
     status: completed
 
   - id: feature29
+    visibility: private
     title: "Remote Registry Server"
     description: |
       Implement a FastAPI-based registry server that stores agent archives in
@@ -1175,6 +1204,7 @@ features:
     status: completed
 
   - id: feature30
+    visibility: private
     title: "Registry Web UI"
     description: |
       Add a web-based UI to the remote registry server (feature29) using Jinja2 templates
@@ -1220,6 +1250,7 @@ features:
   # ======================================================================
 
   - id: feature31
+    visibility: private
     title: "Node.js Runtime Support (Foundation)"
     description: |
       Add first-class Node.js runtime support so kinnoo can package, install, and run
@@ -1248,6 +1279,7 @@ features:
     dependencies: []
 
   - id: feature32
+    visibility: private
     title: "Daemon Runtime Type + Process Controls"
     description: |
       Add a generic daemon runtime mode for long-running agents. Extend kinnoo lifecycle
@@ -1274,6 +1306,7 @@ features:
     dependencies: [feature31]
 
   - id: feature33
+    visibility: private
     title: "Manifest Schema Extensions for OpenClaw/JS Agents"
     description: |
       Extend kinnoo.yaml schema for OpenClaw-oriented and generic JS/TS runtime needs.
@@ -1299,6 +1332,7 @@ features:
     dependencies: [feature31]
 
   - id: feature34
+    visibility: private
     title: "OpenClaw Scaffold Template"
     description: |
       Add `kinnoo init --framework openclaw` template generation for standalone OpenClaw-style
@@ -1323,6 +1357,7 @@ features:
     dependencies: [feature31, feature33]
 
   - id: feature35
+    visibility: private
     title: "Mutable State Directories in Pack/Install"
     description: |
       Add first-class mutable state directory handling (`state_dirs`) for package snapshots
@@ -1347,6 +1382,7 @@ features:
     dependencies: []
 
   - id: feature36
+    visibility: private
     title: "OpenClaw Import Detection & Manifest Inference"
     description: |
       Extend analyzer-backed import flow to detect and onboard existing OpenClaw projects
@@ -1372,6 +1408,7 @@ features:
     dependencies: [feature31, feature33, feature35]
 
   - id: feature37
+    visibility: private
     title: "Node.js Dependency Audit & Lifecycle Script Controls"
     description: |
       Add Node.js dependency risk checks during install. Provide security visibility into
@@ -1396,6 +1433,7 @@ features:
     dependencies: [feature31]
 
   - id: feature38
+    visibility: private
     title: "JS/TS Static Security Sweep"
     description: |
       Extend kinnoo static security sweep coverage from Python-only patterns to JS/TS and
@@ -1420,6 +1458,7 @@ features:
     dependencies: [feature31]
 
   - id: feature39
+    visibility: private
     title: "Manifest Permissions Model + Sandbox Execution"
     description: |
       Introduce explicit permission declarations for agent capabilities and enforce them at
@@ -1444,6 +1483,7 @@ features:
     dependencies: []
 
   - id: feature40
+    visibility: private
     title: "Archive Signing & Publisher Verification"
     description: |
       Add authenticity guarantees to kinnoo archives using public-key signatures. Extend pack,
@@ -1468,6 +1508,7 @@ features:
     dependencies: []
 
   - id: feature41
+    visibility: private
     title: "Runtime Behavior Monitoring & Kill Switch"
     description: |
       Add runtime monitoring for policy enforcement and post-run auditability. Monitor key
@@ -1492,6 +1533,7 @@ features:
     dependencies: [feature39]
 
   - id: feature42
+    visibility: private
     title: "JSON Input/Output Types for Agent Interop"
     description: |
       Add first-class `json` support for manifest input/output contracts so agents
@@ -1523,6 +1565,7 @@ features:
   # ======================================================================
 
   - id: feature43
+    visibility: private
     title: "Auth, User & Tenant Management"
     description: |
       Implement the authentication, user management, and tenant management system
@@ -1574,6 +1617,7 @@ features:
     status: completed
 
   - id: feature44
+    visibility: private
     title: "Jerry - Phase 3 and 4 User Acceptance Testing"
     description: |
       Track user acceptance work for Phase 3 and Phase 4 web-registry UX updates.
@@ -1589,6 +1633,7 @@ features:
     dependencies: [feature30]
 
   - id: feature45
+    visibility: private
     title: "kinnoo init mcp-server framework scaffolding"
     description: |
       Add `mcp-server` as a supported `kinnoo init --framework` option so users can
@@ -1604,6 +1649,7 @@ features:
     dependencies: [feature23, feature26]
 
   - id: feature46
+    visibility: private
     title: "UAT Phase 3/4 continuation — agent analysis, CLI improvements, and bug fixes"
     description: |
       Continuation of user acceptance testing for Phase 3 and 4. Covers analysis of
@@ -1637,6 +1683,7 @@ features:
     dependencies: [feature3, feature19, feature20, feature27, feature44]
 
   - id: feature47
+    visibility: private
     title: "Agent supportability assessment and kinnoo compatibility roadmap"
     description: |
       Assessment of 246 downloaded agent examples (114 from scratch-1 + 132 from scratch-2)
@@ -1679,6 +1726,7 @@ features:
     dependencies: [feature46]
 
   - id: feature48
+    visibility: private
     title: "kinnoo inspect advanced metadata views and manifest update workflow"
     description: |
       Extend `kinnoo inspect` with richer metadata rendering modes and a controlled
@@ -1706,6 +1754,7 @@ features:
   # ------ Sub-phase 1: Frontend Setup ------
 
   - id: feature49
+    visibility: public
     title: "Next.js Project Initialization & Directory Structure"
     description: |
       Initialize a Next.js 15+ (App Router) project with TypeScript and Tailwind CSS v3 in a
@@ -1735,6 +1784,7 @@ features:
     dependencies: []
 
   - id: feature50
+    visibility: public
     title: "MainLayout, Design System & Global Theme"
     description: |
       Build the root MainLayout component rendered in app/layout.tsx with the project's visual
@@ -1767,6 +1817,7 @@ features:
   # ------ Sub-phase 2: Landing Page and Secure Login UI ------
 
   - id: feature51
+    visibility: public
     title: "Landing Page Content, Terminal Preview, and Feature Grid"
     description: |
       Build the public landing page at / with the exact Phase 5 marketing copy and structure:
@@ -1794,6 +1845,7 @@ features:
     dependencies: [feature50]
 
   - id: feature52
+    visibility: public
     title: "Secure Login UI, Validation, and Session-Cookie Submission Flow"
     description: |
       Build the public login page at /login as a centered minimalist card with username (email)
@@ -1823,6 +1875,7 @@ features:
   # ------ Sub-phase 3: Registry Dashboard ------
 
   - id: feature53
+    visibility: public
     title: "Authenticated Registry Dashboard Shell, Tabs, and Data Views"
     description: |
       Build the authenticated /registry dashboard shell with a secondary navigation bar containing
@@ -1849,6 +1902,7 @@ features:
     dependencies: [feature52]
 
   - id: feature54
+    visibility: public
     title: "Agent Cards, Manifest Modal, and Install Command Copy Flow"
     description: |
       Build reusable AgentCard and manifest modal workflows for dashboard results. Cards must
@@ -1877,6 +1931,7 @@ features:
   # ------ Sub-phase 4: Integration, CSRF & Production Hardening ------
 
   - id: feature55
+    visibility: private
     title: "BFF Proxy Integration, CSRF Pass-through, and Auth Route Guard"
     description: |
       Finalize frontend-to-backend integration between Next.js and FastAPI by configuring
@@ -1904,6 +1959,7 @@ features:
     dependencies: [feature54]
 
   - id: feature56
+    visibility: private
     title: "API Auth Compatibility, Local Registry Admin Bootstrap, and Mocked S3 Publish Path"
     description: |
       Improve backend auth compatibility and local operability by allowing JSON API routes to
@@ -1928,6 +1984,7 @@ features:
     dependencies: [feature55]
 
   - id: feature57
+    visibility: private
     title: "Production Hardening: Security Headers, Error States, and Rate-Limiter Proxy Signals"
     description: |
       Add production-hardening controls across Next.js and backend integration, including strict
@@ -1953,6 +2010,7 @@ features:
   # ------ Sub-phase 5: User Registration & Password Reset (feature58, feature59, feature60) ------
 
   - id: feature58
+    visibility: private
     title: "Relational Registration Flow: Signup UI, Verification, and Tenant Provisioning"
     description: |
       Implement a relational-store-backed sign-up journey from public navigation to account creation,
@@ -1982,6 +2040,7 @@ features:
     dependencies: [feature57]
 
   - id: feature59
+    visibility: private
     title: "Forgot Password Workflow, Policy Enforcement, and Session Revocation"
     description: |
       Implement the full password reset workflow using /forgot-password and /forgot-password/reset
@@ -2008,6 +2067,7 @@ features:
     dependencies: [feature58]
 
   - id: feature60
+    visibility: private
     title: "Relational Auth Foundation, Hash Rotation, and Sub-phase 5 Hardening"
     description: |
       Establish a DB-backed auth foundation for Sub-phase 5 using SQLite in development with a
@@ -2041,6 +2101,7 @@ features:
   # ======================================================================
 
   - id: feature61
+    visibility: private
     title: "kinnoo login and logout commands"
     description: |
       Add first-class CLI authentication commands for registry workflows so users can
@@ -2062,6 +2123,7 @@ features:
     dependencies: []
 
   - id: feature62
+    visibility: private
     title: "openclaw-skill manifest schema extension"
     description: |
       Extend manifest schema and validation for OpenClaw skill packaging so mirrored and
@@ -2135,6 +2197,7 @@ features:
     dependencies: []
 
   - id: feature63
+    visibility: private
     title: "ClawHub mirror index with clawhub tenant ownership"
     description: |
       Build a ClawHub mirror namespace in registry metadata and store mirrored skills under
@@ -2155,6 +2218,7 @@ features:
     dependencies: [feature62]
 
   - id: feature64
+    visibility: private
     title: "ClawHub import bridge"
     description: |
       Add import path for ClawHub skills that resolves mirror metadata, scaffolds local
@@ -2175,6 +2239,7 @@ features:
     dependencies: [feature62, feature63]
 
   - id: feature65
+    visibility: private
     title: "Delegated OpenClaw install bridge"
     description: |
       Integrate OpenClaw skill install flow in kinnoo by delegating installation to OpenClaw
@@ -2195,6 +2260,7 @@ features:
     dependencies: [feature62]
 
   - id: feature66
+    visibility: private
     title: "OpenClaw run adapter v1"
     description: |
       Add first-run OpenClaw execution adapter for kinnoo run flows so installed OpenClaw
@@ -2216,6 +2282,7 @@ features:
     dependencies: [feature65]
 
   - id: feature67
+    visibility: private
     title: "ClawHub sync command"
     description: |
       Add registry sync command for ClawHub metadata ingestion with incremental/full sync
@@ -2236,6 +2303,7 @@ features:
     dependencies: [feature63]
 
   - id: feature68
+    visibility: private
     title: "GitHub Actions reference CI workflow"
     description: |
       Provide an official CI workflow and supporting docs for preflight, packaging, signing,
@@ -2254,6 +2322,7 @@ features:
     dependencies: [feature61]
 
   - id: feature69
+    visibility: private
     title: "kinnoo test foundation with standardized test file format"
     description: |
       Introduce `kinnoo test` command and a low-friction standardized declarative test
@@ -2272,6 +2341,7 @@ features:
     dependencies: []
 
   - id: feature70
+    visibility: private
     title: "Landing page and docs messaging refresh"
     description: |
       Refresh public messaging across landing/docs/README to communicate OpenClaw integration,
@@ -2290,6 +2360,7 @@ features:
     dependencies: []
 
   - id: feature71
+    visibility: private
     title: "Strict CI signed-package enforcement"
     description: |
       Add strict automation controls requiring signed package artifacts and verified publisher
@@ -2308,6 +2379,7 @@ features:
     dependencies: []
 
   - id: feature72
+    visibility: private
     title: "Lockfile support for reproducible installs"
     description: |
       Add lockfile write/read behavior for agent install flows so CI and teams can reproduce
@@ -2326,6 +2398,7 @@ features:
     dependencies: []
 
   - id: feature73
+    visibility: private
     title: "kinnoo diff command"
     description: |
       Add archive diff command to compare two `.kno` packages and surface meaningful
@@ -2344,6 +2417,7 @@ features:
     dependencies: []
 
   - id: feature74
+    visibility: private
     title: "kinnoo uninstall command"
     description: |
       Add safe uninstall command for removing installed agents with mandatory operator
@@ -2362,6 +2436,7 @@ features:
     dependencies: [feature72]
 
   - id: feature75
+    visibility: private
     title: "Framework import adapters for LangChain, LangGraph, and OpenAI Agents SDK"
     description: |
       Add framework-aware import adapters so `kinnoo import --from` can generate higher-fidelity
@@ -2398,6 +2473,7 @@ features:
   # ──────────────────────────────────────────────────────────────────────
 
   - id: feature76
+    visibility: private
     title: "OpenClaw CLI preflight and version gate"
     description: |
       Add a reusable preflight check that verifies the openclaw CLI is installed,
@@ -2425,6 +2501,7 @@ features:
     dependencies: []
 
   - id: feature77
+    visibility: private
     title: "OpenClaw init via CLI wrapper"
     description: |
       Rework `kinnoo init --framework openclaw <name>` to delegate agent creation
@@ -2453,6 +2530,7 @@ features:
     dependencies: [feature76]
 
   - id: feature78
+    visibility: private
     title: "OpenClaw import via CLI wrapper"
     description: |
       Rework `kinnoo import` for OpenClaw workspaces to create a kinnoo.yaml manifest
@@ -2481,6 +2559,7 @@ features:
     dependencies: [feature76]
 
   - id: feature79
+    visibility: private
     title: "OpenClaw workspace pack"
     description: |
       Ensure `kinnoo pack` correctly packages OpenClaw workspaces into .kno archives,
@@ -2507,6 +2586,7 @@ features:
     dependencies: []
 
   - id: feature80
+    visibility: private
     title: "OpenClaw install via CLI wrapper"
     description: |
       Rework `kinnoo install` for OpenClaw agents to download the .kno archive,
@@ -2535,6 +2615,7 @@ features:
     dependencies: [feature76, feature79]
 
   - id: feature81
+    visibility: private
     title: "OpenClaw run via CLI wrapper"
     description: |
       Rework `kinnoo run <name> '<prompt>'` for OpenClaw agents to delegate execution
@@ -2562,6 +2643,7 @@ features:
     dependencies: [feature76]
 
   - id: feature82
+    visibility: private
     title: "OpenClaw logs passthrough"
     description: |
       Add `kinnoo logs --daemon openclaw` (or `kinnoo logs --openclaw`) that delegates
@@ -2585,6 +2667,7 @@ features:
     dependencies: [feature76]
 
   - id: feature83
+    visibility: private
     title: "OpenClaw skill install for agents"
     description: |
       Add `kinnoo install --openclaw-skill <skill-slug-or-url> <agent-name>` to install
@@ -2614,6 +2697,7 @@ features:
     dependencies: [feature76]
 
   - id: feature84
+    visibility: private
     title: "OpenClaw skill search via ClawHub"
     description: |
       Add `kinnoo search --openclaw-skill <query>` to search for skills on ClawHub
@@ -2639,6 +2723,7 @@ features:
     dependencies: [feature76]
   
   - id: feature85
+    visibility: private
     title: "Deprecate OpenClaw bridge features 62-67"
     description: |
       Mark features 62-67 (openclaw-skill schema extension, ClawHub mirror index,
@@ -2674,6 +2759,7 @@ features:
   # ──────────────────────────────────────────────────────────────
 
   - id: feature86
+    visibility: public
     title: "Embedded integrity manifest (META-INF/integrity.json)"
     description: |
       During `kinnoo pack`, generate a JSON manifest listing every file in the
@@ -2701,6 +2787,7 @@ features:
     dependencies: []
 
   - id: feature87
+    visibility: public
     title: "Embedded signature (META-INF/signature.json)"
     description: |
       When `kinnoo pack --sign` is used, sign the integrity manifest
@@ -2730,6 +2817,7 @@ features:
     dependencies: [feature86]
 
   - id: feature88
+    visibility: public
     title: "Install-time integrity verification"
     description: |
       During `kinnoo install`, verify the integrity manifest before extracting
@@ -2764,6 +2852,7 @@ features:
   # ──────────────────────────────────────────────────────────────
 
   - id: feature89
+    visibility: private
     title: "Production server configuration and deployment hardening"
     description: |
       Harden the registry server for production deployment. Add structured JSON
@@ -2797,6 +2886,7 @@ features:
     dependencies: []
 
   - id: feature90
+    visibility: private
     title: "Server-side upload validation and integrity enforcement"
     description: |
       Validate uploaded .kno archives on the server before storing in S3.
@@ -2828,6 +2918,7 @@ features:
     dependencies: [feature86]
 
   - id: feature91
+    visibility: private
     title: "Production-grade rate limiting and abuse protections"
     description: |
       Enhance the existing in-memory rate limiter in server/middleware.py with
@@ -2863,6 +2954,7 @@ features:
 # ──────────────────────────────────────────────────────────────
 
   - id: feature92
+    visibility: public
     title: "kinnoo.yaml specification document"
     description: |
       Create a comprehensive specification document for the kinnoo.yaml manifest
@@ -2889,6 +2981,7 @@ features:
     dependencies: []
 
   - id: feature93
+    visibility: private
     title: "CLI command reference document"
     description: |
       Create a comprehensive CLI reference documenting every kinnoo command and
@@ -2916,6 +3009,7 @@ features:
     dependencies: []
 
   - id: feature94
+    visibility: public
     title: "Security model document"
     description: |
       Create a security model document describing kinnoo's trust and security
@@ -2941,6 +3035,7 @@ features:
     dependencies: [feature86, feature87, feature88]
 
   - id: feature95
+    visibility: public
     title: "Getting started guide and registry guide"
     description: |
       Create two user-facing guides: (1) a getting-started guide walking through
@@ -2966,6 +3061,7 @@ features:
     dependencies: []
 
   - id: feature96
+    visibility: public
     title: "README rewrite and supported agents document"
     description: |
       Rewrite README.md for the beta release. Include: project overview, install
@@ -2991,6 +3087,7 @@ features:
     dependencies: [feature92, feature93]
 
   - id: feature97
+    visibility: private
     title: "Public GitHub repository preparation"
     description: |
       Prepare the repository for public visibility. Audit for secrets, sensitive
@@ -3021,6 +3118,7 @@ features:
     dependencies: []
 
   - id: feature98
+    visibility: private
     title: "GitHub Actions CI/CD pipeline"
     description: |
       Create comprehensive GitHub Actions workflows for: (1) CI — run tests and
@@ -3051,6 +3149,7 @@ features:
     dependencies: [feature103, feature105]
 
   - id: feature99
+    visibility: public
     title: "PyPI package publishing configuration"
     description: |
       Configure the project for PyPI publishing. Validate pyproject.toml has
@@ -3082,6 +3181,7 @@ features:
 # ──────────────────────────────────────────────────────────────
 
   - id: feature100
+    visibility: private
     title: "Auth hardening — lockout, password policy, token blacklist"
     description: |
       Harden the existing authentication system. Add: (1) account lockout after 5
@@ -3119,6 +3219,7 @@ features:
     status: completed
 
   - id: feature101
+    visibility: private
     title: "Production Dockerfile and docker-compose"
     description: |
       Create a production Dockerfile for the registry server. Multi-stage build
@@ -3152,6 +3253,7 @@ features:
     dependencies: [feature89]
 
   - id: feature102
+    visibility: private
     title: "Admin CLI for user management"
     description: |
       Extend the server CLI (server/cli.py) with admin commands for managing
@@ -3191,6 +3293,7 @@ features:
   # ──────────────────────────────────────────────────────────────
 
   - id: feature103
+    visibility: private
     title: "Terraform project setup, state bootstrap, and VPC networking"
     description: |
       Create the iac/ directory structure with Terraform project files. Create a
@@ -3226,6 +3329,7 @@ features:
     dependencies: []
 
   - id: feature104
+    visibility: private
     title: "Terraform storage and security (S3, IAM, Secrets Manager)"
     description: |
       Create Terraform modules for: (1) S3 registry bucket with AES-256
@@ -3262,6 +3366,7 @@ features:
     dependencies: [feature103]
 
   - id: feature105
+    visibility: private
     title: "Terraform compute stack (ECR, ALB, ACM, ECS/Fargate, EFS)"
     description: |
       Create Terraform modules for the compute/deployment stack: (1) ECR
@@ -3299,6 +3404,7 @@ features:
     dependencies: [feature103, feature104]
 
   - id: feature106
+    visibility: private
     title: "Terraform Cloudflare DNS and Pages"
     description: |
       Create Terraform module for Cloudflare configuration: (1) DNS records —
@@ -3328,6 +3434,7 @@ features:
     dependencies: [feature103, feature105]
 
   - id: feature107
+    visibility: private
     title: "Terraform monitoring (CloudWatch, alarms, SNS)"
     description: |
       Create Terraform module for monitoring: (1) CloudWatch log group for ECS
@@ -3363,6 +3470,7 @@ features:
   # ──────────────────────────────────────────────────────────────
 
   - id: feature108
+    visibility: private
     title: "Invite-only registration enforcement"
     description: |
       Modify the registration endpoint to require a valid invite token. Tokens
@@ -3394,6 +3502,7 @@ features:
     dependencies: [feature102]
 
   - id: feature109
+    visibility: private
     title: "Forgot password flow with operator alert"
     description: |
       Add a forgot-password endpoint and web page. When a user submits a valid
@@ -3426,6 +3535,7 @@ features:
     dependencies: [feature102, feature107]
 
   - id: feature110
+    visibility: public
     title: "Landing page update for invite-only beta"
     description: |
       Keep the landing page unchanged for now. Update the signup path to show a
@@ -3462,6 +3572,7 @@ features:
   # ──────────────────────────────────────────────────────────────
 
   - id: feature111
+    visibility: private
     title: "End-to-end smoke test script"
     description: |
       Create an automated smoke test script that exercises the full user workflow
@@ -3493,6 +3604,7 @@ features:
     status: completed
 
   - id: feature112
+    visibility: private
     title: "Registry seeding and validation"
     description: |
       Publish 3-5 real agents to the registry to validate the end-to-end workflow
@@ -3520,6 +3632,7 @@ features:
     status: not-started
 
   - id: feature113
+    visibility: private
     title: "Launch readiness checklist"
     description: |
       Create a launch readiness checklist document that validates all systems
@@ -3545,6 +3658,7 @@ features:
     dependencies: []
 
   - id: feature114
+    visibility: private
     title: "kinnoo test hardening"
     description: |
       Harden `kinnoo test` usability with clearer CLI reference documentation,
@@ -3567,6 +3681,7 @@ features:
     dependencies: [feature69]
 
   - id: feature115
+    visibility: private
     title: "UAT Part 1 - CLI hardening"
     description: |
       Comprehensive CLI hardening based on User Acceptance Testing Part 1 findings.
@@ -3624,6 +3739,7 @@ features:
     dependencies: [feature114]
 
   - id: feature116
+    visibility: private
     title: "UAT Part 2 - Regression test hardening"
     description: |
       Harden regression stability for the CLI and manifest validation surfaces by
@@ -3650,6 +3766,7 @@ features:
     dependencies: [feature115]
 
   - id: feature117
+    visibility: private
     title: "Pre-release feature 6 - import hardening (phase14)"
     description: |
       Harden the existing `kinnoo import` workflow for production-readiness across
@@ -3687,6 +3804,7 @@ features:
     dependencies: []
 
   - id: feature118
+    visibility: private
     title: "Pre-release feature 1 - Kinde auth cutover planning manifests"
     description: |
       Define executable implementation and validation planning artifacts for the
@@ -3734,6 +3852,7 @@ features:
     status: completed
 
   - id: feature119
+    visibility: private
     title: "Pre-release feature 2 - Postgres registry database planning manifests"
     description: |
       Define the implementation decomposition for replacing JSON/SQLite-backed
@@ -3780,6 +3899,7 @@ features:
     status: completed
 
   - id: feature120
+    visibility: private
     title: "UAT round 3 testing and bug fixes"
     description: |
       Pre-release testing and bug fixes as we prepare for production
@@ -3801,6 +3921,7 @@ features:
     status: in-progress
 
   - id: feature121
+    visibility: private
     title: "Production deployment instructions and production-cutover gap register"
     description: |
       Establish a clear, operator-ready production deployment runbook and an
@@ -3831,6 +3952,7 @@ features:
     status: in-progress
 
   - id: feature122
+    visibility: public
     title: "Long-form professional Terms of Service and Privacy Policy pages"
     description: |
       Add /terms and /privacy public pages to the Kinnoo web frontend with

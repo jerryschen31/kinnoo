@@ -85,6 +85,7 @@
 
 tasks:
   - id: task0
+    visibility: public
     title: Project structure and schema definition
     type: task
     epic: [E1]
@@ -106,6 +107,7 @@ tasks:
     status: completed
 
   - id: task1
+    visibility: public
     title: Required field and type validation
     type: task
     epic: [E1]
@@ -124,6 +126,7 @@ tasks:
     status: completed
 
   - id: task2
+    visibility: public
     title: Semantic validation (semver, runtime.type, name format)
     type: task
     epic: [E1]
@@ -142,6 +145,7 @@ tasks:
     status: completed
 
   - id: task3
+    visibility: public
     title: Optional fields and integration
     type: task
     epic: [E1]
@@ -160,6 +164,7 @@ tasks:
     status: completed
 
   - id: task4
+    visibility: public
     title: CLI entry point and argument parsing
     type: task
     epic: [E2]
@@ -181,6 +186,7 @@ tasks:
     status: completed
 
   - id: task5
+    visibility: public
     title: Template files and directory generation
     type: task
     epic: [E2]
@@ -203,6 +209,7 @@ tasks:
     status: completed
 
   - id: task6
+    visibility: public
     title: Directory collision detection and CLI integration
     type: task
     epic: [E2]
@@ -222,6 +229,7 @@ tasks:
     status: completed
   
   - id: task7
+    visibility: public
     title: Manifest validation in kinnoo run
     type: task
     epic: [E2]
@@ -235,6 +243,7 @@ tasks:
     status: completed
 
   - id: task8
+    visibility: public
     title: Create Python venv in agent directory
     type: task
     epic: [E2]
@@ -248,6 +257,7 @@ tasks:
     status: completed
 
   - id: task9
+    visibility: public
     title: Install dependencies from requirements.txt
     type: task
     epic: [E2]
@@ -261,6 +271,7 @@ tasks:
     status: completed
 
   - id: task10
+    visibility: public
     title: Execute entrypoint with user input
     type: task
     epic: [E2]
@@ -274,6 +285,7 @@ tasks:
     status: completed
 
   - id: task11
+    visibility: public
     title: Stream stdout and stderr from entrypoint
     type: task
     epic: [E2]
@@ -287,6 +299,7 @@ tasks:
     status: completed
 
   - id: task12
+    visibility: public
     title: Propagate entrypoint exit code
     type: task
     epic: [E2]
@@ -300,6 +313,7 @@ tasks:
     status: completed
 
   - id: task13
+    visibility: public
     title: Print usage error when arguments are missing
     type: task
     epic: [E2]
@@ -313,6 +327,7 @@ tasks:
     status: completed
 
   - id: task14
+    visibility: public
     title: Handle missing entrypoint file gracefully
     type: task
     epic: [E2]
@@ -326,6 +341,7 @@ tasks:
     status: completed
 
   - id: task15
+    visibility: private
     title: feature3 review - checks
     type: task
     epic: [E2]
@@ -345,6 +361,7 @@ tasks:
     status: completed    
 
   - id: task16
+    visibility: public
     title: CLI Argument Parsing and Validation for --framework
     type: task
     epic: [E2, E10]
@@ -368,6 +385,7 @@ tasks:
     status: completed
 
   - id: task17
+    visibility: public
     title: Framework-Specific Template Generation
     type: task
     epic: [E2, E10]
@@ -391,6 +409,7 @@ tasks:
     status: completed
 
   - id: task18
+    visibility: public
     title: Manifest Validation for Generated Agents
     type: task
     epic: [E2, E10]
@@ -412,6 +431,7 @@ tasks:
     status: completed
 
   - id: task19
+    visibility: public
     title: General Usage and Error Handling
     type: task
     epic: [E2, E10]
@@ -434,6 +454,7 @@ tasks:
     status: completed
 
   - id: task20
+    visibility: private
     title: Unit Tests for Framework Templates and Error Cases
     type: task
     epic: [E2, E10]
@@ -457,6 +478,7 @@ tasks:
     status: completed
 
   - id: task21
+    visibility: private
     title: Allow underscores in agent names
     type: task
     epic: [E2, E10]
@@ -481,6 +503,7 @@ tasks:
     status: completed
 
   - id: task22
+    visibility: private
     title: Update Gemini agent template to use google-genai and gemini-2.5-flash-lite
     type: task
     epic: [E2]
@@ -508,6 +531,7 @@ tasks:
     status: completed
 
   - id: task23
+    visibility: public
     title: kinnoo pack CLI argument parsing and error handling
     type: task
     epic: [E2]
@@ -525,6 +549,7 @@ tasks:
     status: completed
 
   - id: task24
+    visibility: public
     title: Manifest validation before packaging
     type: task
     epic: [E2]
@@ -541,6 +566,7 @@ tasks:
     status: completed
 
   - id: task25
+    visibility: public
     title: Gather required files for packaging
     type: task
     epic: [E2]
@@ -557,6 +583,7 @@ tasks:
     status: completed
 
   - id: task26
+    visibility: public
     title: Build wheel files for dependencies
     type: task
     epic: [E2]
@@ -574,6 +601,7 @@ tasks:
     status: completed
 
   - id: task27
+    visibility: public
     title: Create .kno archive with all contents
     type: task
     epic: [E2]
@@ -590,6 +618,7 @@ tasks:
     status: completed
 
   - id: task28
+    visibility: private
     title: Unit and integration tests for kinnoo pack
     type: task
     epic: [E2]
@@ -606,6 +635,7 @@ tasks:
     status: completed
   
   - id: task29
+    visibility: public
     title: CLI argument parsing and usage error for kinnoo install
     type: task
     epic: [E2]
@@ -620,6 +650,7 @@ tasks:
     status: completed
 
   - id: task30
+    visibility: public
     title: Extract .kno archive to new directory with collision handling
     type: task
     epic: [E2]
@@ -633,6 +664,7 @@ tasks:
     status: completed
 
   - id: task31
+    visibility: public
     title: Validate manifest before installation
     type: task
     epic: [E2]
@@ -647,6 +679,7 @@ tasks:
     status: completed
 
   - id: task32
+    visibility: public
     title: Create Python venv and install dependencies from wheels
     type: task
     epic: [E2]
@@ -660,6 +693,7 @@ tasks:
     status: completed
 
   - id: task33
+    visibility: public
     title: Ensure agent is runnable with kinnoo run after install
     type: task
     epic: [E2]
@@ -673,6 +707,7 @@ tasks:
     status: completed
 
   - id: task34
+    visibility: public
     title: Error handling for invalid archive or missing files
     type: task
     epic: [E2]
@@ -686,6 +721,7 @@ tasks:
     status: completed
 
   - id: task35
+    visibility: public
     title: Prevent overwrites unless --force flag is provided
     type: task
     epic: [E2]
@@ -699,6 +735,7 @@ tasks:
     status: paused
 
   - id: task36
+    visibility: public
     title: Allow user-specified extraction directory for kinnoo install
     type: task
     epic: [E2]
@@ -715,6 +752,7 @@ tasks:
     status: completed
 
   - id: task37
+    visibility: private
     title: Optional dependencies, inputs, outputs fields (with defaults)
     type: task
     epic: [E2]
@@ -728,6 +766,7 @@ tasks:
     status: completed
 
   - id: task38
+    visibility: private
     title: Support single string, list-style or block-style for "type" field
     type: task
     epic: [E2]
@@ -741,6 +780,7 @@ tasks:
     status: completed
 
   - id: task39
+    visibility: public
     title: Extract install flow into install_command module
     type: task
     epic: [E2]
@@ -762,6 +802,7 @@ tasks:
     status: completed
 
   - id: task40
+    visibility: public
     title: Add global CLI version flag support
     type: task
     epic: [E2]
@@ -782,6 +823,7 @@ tasks:
     status: completed
 
   - id: task41
+    visibility: private
     title: Remove duplicate test functions across suite
     type: task
     epic: [E2]
@@ -804,6 +846,7 @@ tasks:
     status: completed
 
   - id: task42
+    visibility: public
     title: Include transitive dependencies in pack artifacts
     type: task
     epic: [E2]
@@ -823,6 +866,7 @@ tasks:
     status: completed
 
   - id: task43
+    visibility: private
     title: Canonicalize .kno archive format as zip
     type: task
     epic: [E2]
@@ -845,6 +889,7 @@ tasks:
     status: completed
 
   - id: task44
+    visibility: public
     title: Add non-fatal wheel build fallback warnings
     type: task
     epic: [E2]
@@ -864,6 +909,7 @@ tasks:
     status: completed
 
   - id: task45
+    visibility: public
     title: Add install fallback to PyPI for missing wheels
     type: task
     epic: [E2]
@@ -883,6 +929,7 @@ tasks:
     status: completed
 
   - id: task46
+    visibility: public
     title: Harden offline install behavior and messaging
     type: task
     epic: [E2]
@@ -904,6 +951,7 @@ tasks:
     status: completed
 
   - id: task47
+    visibility: public
     title: Detect platform-specific wheels and warn users
     type: task
     epic: [E2]
@@ -923,6 +971,7 @@ tasks:
     status: completed
 
   - id: task48
+    visibility: public
     title: Extend schema for optional V2 manifest fields
     type: task
     epic: [E1]
@@ -942,6 +991,7 @@ tasks:
     status: completed
 
   - id: task49
+    visibility: public
     title: Implement validator type checks for new optional fields
     type: task
     epic: [E1]
@@ -960,6 +1010,7 @@ tasks:
     status: completed
 
   - id: task50
+    visibility: public
     title: Preserve V1 manifest compatibility under V2 schema
     type: task
     epic: [E1]
@@ -979,6 +1030,7 @@ tasks:
     status: completed
 
   - id: task51
+    visibility: public
     title: Update init templates with description and author placeholders
     type: task
     epic: [E1]
@@ -998,6 +1050,7 @@ tasks:
     status: completed
 
   - id: task52
+    visibility: private
     title: Align schema documentation for feature9 fields
     type: task
     epic: [E1]
@@ -1017,6 +1070,7 @@ tasks:
     status: completed
 
   - id: task53
+    visibility: public
     title: Resolve declared env_vars from process environment
     type: task
     epic: [E2, E6]
@@ -1036,6 +1090,7 @@ tasks:
     status: completed
 
   - id: task54
+    visibility: public
     title: Add secure .env fallback resolution
     type: task
     epic: [E2, E6]
@@ -1056,6 +1111,7 @@ tasks:
     status: completed
 
   - id: task55
+    visibility: public
     title: Implement masked prompt fallback and cancel handling
     type: task
     epic: [E2, E6]
@@ -1074,6 +1130,7 @@ tasks:
     status: completed
 
   - id: task56
+    visibility: public
     title: Inject resolved env_vars into subprocess execution
     type: task
     epic: [E2, E6]
@@ -1092,6 +1149,7 @@ tasks:
     status: completed
 
   - id: task57
+    visibility: private
     title: Enforce secret non-disclosure across output and logs
     type: task
     epic: [E2, E6]
@@ -1113,6 +1171,7 @@ tasks:
     status: completed
 
   - id: task58
+    visibility: private
     title: Document env_vars security contract and operator guidance
     type: task
     epic: [E2, E6]
@@ -1133,6 +1192,7 @@ tasks:
     status: completed
 
   - id: task59
+    visibility: private
     title: Enforce env precedence over .env values
     type: task
     epic: [E2, E6]
@@ -1151,6 +1211,7 @@ tasks:
     status: completed
 
   - id: task60
+    visibility: private
     title: Add mixed-source env_vars resolution regression
     type: task
     epic: [E2, E6]
@@ -1169,6 +1230,7 @@ tasks:
     status: completed
 
   - id: task61
+    visibility: private
     title: Add filesystem secret leak sentinel checks
     type: task
     epic: [E2, E6]
@@ -1188,6 +1250,7 @@ tasks:
     status: paused
 
   - id: task62
+    visibility: public
     title: Add inspect CLI command parsing
     type: task
     epic: [E2]
@@ -1206,6 +1269,7 @@ tasks:
     status: completed
 
   - id: task63
+    visibility: public
     title: Implement inspect target detection
     type: task
     epic: [E2]
@@ -1227,6 +1291,7 @@ tasks:
     status: completed
 
   - id: task64
+    visibility: public
     title: Read manifest directly from .kno zip
     type: task
     epic: [E2]
@@ -1246,6 +1311,7 @@ tasks:
     status: completed
 
   - id: task65
+    visibility: public
     title: Validate manifest and format inspect output
     type: task
     epic: [E2]
@@ -1266,6 +1332,7 @@ tasks:
     status: completed
 
   - id: task66
+    visibility: private
     title: Enforce inspect secret-safe display
     type: task
     epic: [E2]
@@ -1285,6 +1352,7 @@ tasks:
     status: completed
 
   - id: task67
+    visibility: private
     title: Document inspect command usage and examples
     type: task
     epic: [E2]
@@ -1306,6 +1374,7 @@ tasks:
     status: completed
 
   - id: task68
+    visibility: public
     title: Add inspect guidance templates with maintenance note
     type: task
     epic: [E2]
@@ -1327,6 +1396,7 @@ tasks:
     status: completed
 
   - id: task69
+    visibility: public
     title: Define registry abstraction and local backend
     type: task
     epic: [E2]
@@ -1348,6 +1418,7 @@ tasks:
     status: deprecated
 
   - id: task70
+    visibility: public
     title: Add publish command parsing and CLI wiring
     type: task
     epic: [E2]
@@ -1367,6 +1438,7 @@ tasks:
     status: deprecated
 
   - id: task71
+    visibility: public
     title: Implement publish metadata extraction and copy flow
     type: task
     epic: [E2]
@@ -1389,6 +1461,7 @@ tasks:
     status: deprecated
 
   - id: task72
+    visibility: public
     title: Parse install registry spec while preserving file install
     type: task
     epic: [E2]
@@ -1410,6 +1483,7 @@ tasks:
     status: deprecated
 
   - id: task73
+    visibility: public
     title: Implement registry version resolution rules
     type: task
     epic: [E2]
@@ -1429,6 +1503,7 @@ tasks:
     status: deprecated
 
   - id: task74
+    visibility: public
     title: Integrate registry resolution into install flow
     type: task
     epic: [E2]
@@ -1450,6 +1525,7 @@ tasks:
     status: deprecated
 
   - id: task75
+    visibility: public
     title: Add local registry list command
     type: task
     epic: [E2]
@@ -1471,6 +1547,7 @@ tasks:
     status: deprecated
 
   - id: task76
+    visibility: public
     title: Add local registry search command
     type: task
     epic: [E2]
@@ -1492,6 +1569,7 @@ tasks:
     status: deprecated
 
   - id: task77
+    visibility: private
     title: Document local registry commands and behavior
     type: task
     epic: [E2]
@@ -1513,6 +1591,7 @@ tasks:
     status: deprecated
 
   - id: task78
+    visibility: private
     title: Prompt before overwriting existing .kno archive
     type: issue
     epic: [E2]
@@ -1536,6 +1615,7 @@ tasks:
     status: deprecated
 
   - id: task79
+    visibility: private
     title: Add --bump version automation to kinnoo pack
     type: task
     epic: [E2]
@@ -1567,6 +1647,7 @@ tasks:
     status: completed
 
   - id: task80
+    visibility: public
     title: Define archive and registry storage abstractions
     type: task
     epic: [E2]
@@ -1587,6 +1668,7 @@ tasks:
     tests: [test107]
 
   - id: task81
+    visibility: public
     title: Refactor pack default archive destination
     type: task
     epic: [E2]
@@ -1606,6 +1688,7 @@ tasks:
     tests: [test107]
 
   - id: task82
+    visibility: private
     title: Standardize pack output and overwrite confirmation
     type: task
     epic: [E2]
@@ -1626,6 +1709,7 @@ tasks:
     tests: [test108]
 
   - id: task83
+    visibility: public
     title: Refactor publish CLI to agent-name source
     type: task
     epic: [E2]
@@ -1645,6 +1729,7 @@ tasks:
     tests: [test109, test111]
 
   - id: task84
+    visibility: public
     title: Implement publish mock registry target and rollover
     type: task
     epic: [E2]
@@ -1664,6 +1749,7 @@ tasks:
     tests: [test110]
 
   - id: task85
+    visibility: public
     title: Install by registry name/version using mock backend
     type: task
     epic: [E2]
@@ -1684,6 +1770,7 @@ tasks:
     tests: [test112, test113]
 
   - id: task86
+    visibility: public
     title: Refactor list with default local and source flags
     type: task
     epic: [E2]
@@ -1704,6 +1791,7 @@ tasks:
     tests: [test114]
 
   - id: task87
+    visibility: public
     title: Refactor search with default local and source flags
     type: task
     epic: [E2]
@@ -1724,6 +1812,7 @@ tasks:
     tests: [test115]
 
   - id: task88
+    visibility: public
     title: Preserve file-path install compatibility
     type: task
     epic: [E2]
@@ -1742,6 +1831,7 @@ tasks:
     tests: [test116]
 
   - id: task89
+    visibility: private
     title: Document pack/publish/archive/registry refactor
     type: task
     epic: [E2]
@@ -1762,6 +1852,7 @@ tasks:
     tests: [test117]
 
   - id: task90
+    visibility: public
     title: Harden source-mode CLI validation and errors
     type: task
     epic: [E2]
@@ -1783,6 +1874,7 @@ tasks:
     tests: [test118]
 
   - id: task91
+    visibility: private
     title: Use absolute mock registry scratch path
     type: task
     epic: [E2]
@@ -1806,6 +1898,7 @@ tasks:
     tests: [test119]
 
   - id: task92
+    visibility: public
     title: Add --preflight CLI mode wiring
     type: task
     epic: [E2]
@@ -1825,6 +1918,7 @@ tasks:
     tests: [test120]
 
   - id: task93
+    visibility: public
     title: Implement runtime version preflight check
     type: task
     epic: [E2]
@@ -1844,6 +1938,7 @@ tasks:
     tests: [test121]
 
   - id: task94
+    visibility: public
     title: Implement env vars preflight resolution check
     type: task
     epic: [E2]
@@ -1863,6 +1958,7 @@ tasks:
     tests: [test122]
 
   - id: task95
+    visibility: public
     title: Implement entrypoint and dependency checks
     type: task
     epic: [E2]
@@ -1881,6 +1977,7 @@ tasks:
     tests: [test123]
 
   - id: task96
+    visibility: public
     title: Add checklist output and ready summary
     type: task
     epic: [E2]
@@ -1899,6 +1996,7 @@ tasks:
     tests: [test124]
 
   - id: task97
+    visibility: private
     title: Document preflight usage and contracts
     type: task
     epic: [E2]
@@ -1918,6 +2016,7 @@ tasks:
     tests: [test125]
 
   - id: task98
+    visibility: public
     title: Install summary display and confirmation prompt with --yes flag
     type: task
     epic: [E6]
@@ -1941,6 +2040,7 @@ tasks:
     tests: [test126, test127]
 
   - id: task99
+    visibility: public
     title: Unverified source confirmation prompt
     type: task
     epic: [E6]
@@ -1960,6 +2060,7 @@ tasks:
     tests: [test128]
 
   - id: task100
+    visibility: public
     title: Run trace logging to ~/.kinnoo/logs/
     type: task
     epic: [E6]
@@ -1982,6 +2083,7 @@ tasks:
     tests: [test129, test130]
 
   - id: task101
+    visibility: private
     title: Log file secret-safety enforcement
     type: task
     epic: [E6]
@@ -2001,6 +2103,7 @@ tasks:
     tests: [test130]
 
   - id: task102
+    visibility: public
     title: Inline no-secret-values comments on trust code
     type: task
     epic: [E6]
@@ -2021,6 +2124,7 @@ tasks:
     tests: [test131]
 
   - id: task103
+    visibility: public
     title: Env var exposure heuristic sweep in inspect and pack
     type: task
     epic: [E6]
@@ -2047,6 +2151,7 @@ tasks:
     tests: [test132, test133]
 
   - id: task104
+    visibility: private
     title: Documentation for trust baseline features
     type: task
     epic: [E6]
@@ -2067,6 +2172,7 @@ tasks:
     tests: [test134]
 
   - id: task105
+    visibility: public
     title: Generate checksum sidecar during pack
     type: task
     epic: [E6]
@@ -2085,6 +2191,7 @@ tasks:
     tests: [test135, test136]
 
   - id: task106
+    visibility: public
     title: Add checksum utility helpers
     type: task
     epic: [E6]
@@ -2106,6 +2213,7 @@ tasks:
     tests: [test137]
 
   - id: task107
+    visibility: public
     title: Enforce checksum verification on install
     type: task
     epic: [E6]
@@ -2123,6 +2231,7 @@ tasks:
     tests: [test138, test139]
 
   - id: task108
+    visibility: public
     title: Missing checksum warning on install
     type: task
     epic: [E6]
@@ -2139,6 +2248,7 @@ tasks:
     tests: [test140]
 
   - id: task109
+    visibility: public
     title: Show checksum in inspect output
     type: task
     epic: [E6]
@@ -2155,6 +2265,7 @@ tasks:
     tests: [test141]
 
   - id: task110
+    visibility: public
     title: Publish checksum sidecar with archive
     type: task
     epic: [E6]
@@ -2172,6 +2283,7 @@ tasks:
     tests: [test142]
 
   - id: task111
+    visibility: private
     title: Docs and regression coverage for checksums
     type: task
     epic: [E6]
@@ -2191,6 +2303,7 @@ tasks:
     tests: [test143]
 
   - id: task112
+    visibility: public
     title: Pack archive size reporting and large-archive warning
     type: task
     epic: [E2]
@@ -2208,6 +2321,7 @@ tasks:
     tests: [test144, test145]
 
   - id: task113
+    visibility: public
     title: Inspect displays archive size metadata
     type: task
     epic: [E2]
@@ -2224,6 +2338,7 @@ tasks:
     tests: [test146]
 
   - id: task114
+    visibility: public
     title: List output includes archive size
     type: task
     epic: [E2]
@@ -2242,6 +2357,7 @@ tasks:
     tests: [test147]
 
   - id: task115
+    visibility: private
     title: Docs and regression coverage for feature17
     type: task
     epic: [E2]
@@ -2260,6 +2376,7 @@ tasks:
     tests: [test148]
 
   - id: task116
+    visibility: public
     title: InputGuard protocol, result models, and factory function
     type: task
     epic: [E6]
@@ -2285,6 +2402,7 @@ tasks:
     tests: [test149, test150]
 
   - id: task117
+    visibility: public
     title: "RegexInputGuard — comprehensive injection pattern library"
     type: task
     epic: [E6]
@@ -2368,6 +2486,7 @@ tasks:
     status: completed
 
   - id: task118
+    visibility: public
     title: "CLI --no-guard flag and run_command integration"
     type: task
     epic: [E6]
@@ -2402,6 +2521,7 @@ tasks:
     tests: [test160, test161, test162, test163]
 
   - id: task119
+    visibility: private
     title: "Docs and regression coverage for feature18"
     type: task
     epic: [E6]
@@ -2423,6 +2543,7 @@ tasks:
     tests: [test164]
 
   - id: task120
+    visibility: private
     title: "Reduce SQL comment false positives while preserving detection rigor"
     type: task
     epic: [E6]
@@ -2445,6 +2566,7 @@ tasks:
     tests: [test165, test166]
 
   - id: task121
+    visibility: private
     title: "Add inputs.required manifest field"
     type: task
     epic: [E2]
@@ -2465,6 +2587,7 @@ tasks:
     tests: [test167, test168, test169]
 
   - id: task122
+    visibility: private
     title: "Update run CLI parsing for no-input and pass-through"
     type: task
     epic: [E2]
@@ -2484,6 +2607,7 @@ tasks:
     tests: [test170, test171, test172]
 
   - id: task123
+    visibility: private
     title: "Implement run_command flexible input execution flow"
     type: task
     epic: [E2]
@@ -2506,6 +2630,7 @@ tasks:
     tests: [test173, test174, test175, test176]
 
   - id: task124
+    visibility: private
     title: "Feature20 regression suite verification"
     type: task
     epic: [E2]
@@ -2525,6 +2650,7 @@ tasks:
     tests: [test177]
 
   - id: task125
+    visibility: private
     title: "Feature20 merge-fix: enforce required input and refresh run usage guidance"
     type: task
     epic: [E2]
@@ -2547,6 +2673,7 @@ tasks:
     tests: [test178, test179]
 
   - id: task126
+    visibility: private
     title: "Extend init --framework parsing for feature21"
     type: task
     epic: [E2, E10]
@@ -2567,6 +2694,7 @@ tasks:
     tests: [test180, test181]
 
   - id: task127
+    visibility: private
     title: "Generate framework templates and metadata artifacts"
     type: task
     epic: [E2, E10]
@@ -2587,6 +2715,7 @@ tasks:
     tests: [test182, test183, test184, test185, test186, test187]
 
   - id: task128
+    visibility: private
     title: "Add runnable smoke tests for new frameworks"
     type: task
     epic: [E2, E10]
@@ -2606,6 +2735,7 @@ tasks:
     tests: [test188, test189, test190]
 
   - id: task129
+    visibility: private
     title: "Feature21 regression gate for existing frameworks"
     type: task
     epic: [E2, E10]
@@ -2625,6 +2755,7 @@ tasks:
     tests: [test191]
 
   - id: task130
+    visibility: private
     title: "Feature21 dependency compatibility pinning update"
     type: task
     epic: [E2, E10]
@@ -2647,6 +2778,7 @@ tasks:
     tests: [test192, test193]
 
   - id: task131
+    visibility: private
     title: "Feature21 implement real PydanticAI runnable template"
     type: task
     epic: [E2, E10]
@@ -2668,6 +2800,7 @@ tasks:
     tests: [test194, test195]
 
   - id: task132
+    visibility: private
     title: "Feature21 implement real LangGraph runnable template"
     type: task
     epic: [E2, E10]
@@ -2689,6 +2822,7 @@ tasks:
     tests: [test196, test197]
 
   - id: task133
+    visibility: private
     title: "Feature21 implement real OpenAI Agents runnable template"
     type: task
     epic: [E2, E10]
@@ -2710,6 +2844,7 @@ tasks:
     tests: [test198, test199]
 
   - id: task134
+    visibility: private
     title: "Feature21 optional kinnoo.yaml model metadata field"
     type: task
     epic: [E2, E10]
@@ -2734,6 +2869,7 @@ tasks:
     tests: [test200, test201]
 
   - id: task135
+    visibility: private
     title: "Feature22 manifest assets schema and validation"
     type: task
     epic: [E2]
@@ -2754,6 +2890,7 @@ tasks:
     tests: [test202, test203]
 
   - id: task136
+    visibility: private
     title: "Feature22 pack asset path inclusion and safety"
     type: task
     epic: [E2]
@@ -2773,6 +2910,7 @@ tasks:
     tests: [test204, test205, test206, test207]
 
   - id: task137
+    visibility: private
     title: "Feature22 install extraction and inspect visibility"
     type: task
     epic: [E2]
@@ -2794,6 +2932,7 @@ tasks:
     tests: [test208, test210]
 
   - id: task138
+    visibility: private
     title: "Feature22 archive size threshold behavior for assets"
     type: task
     epic: [E2]
@@ -2812,6 +2951,7 @@ tasks:
     tests: [test209]
 
   - id: task139
+    visibility: private
     title: "Feature22 asset credential warning sweep in pack"
     type: task
     epic: [E2]
@@ -2832,6 +2972,7 @@ tasks:
     tests: [test212, test213]
 
   - id: task140
+    visibility: private
     title: "Feature22 documentation and regression gate"
     type: task
     epic: [E2]
@@ -2852,6 +2993,7 @@ tasks:
     tests: [test211]
 
   - id: task141
+    visibility: private
     title: "Feature23 schema support for mcp-server runtime type"
     type: task
     epic: [E2, E10]
@@ -2872,6 +3014,7 @@ tasks:
     tests: [test214]
 
   - id: task142
+    visibility: private
     title: "Feature23 supervisor lifecycle and readiness probes"
     type: task
     epic: [E2, E10]
@@ -2892,6 +3035,7 @@ tasks:
     tests: [test216, test221]
 
   - id: task143
+    visibility: private
     title: "Feature23 run_command integration for mcp-server mode"
     type: task
     epic: [E2, E10]
@@ -2912,6 +3056,7 @@ tasks:
     tests: [test215, test218]
 
   - id: task144
+    visibility: private
     title: "Feature23 graceful shutdown and trace logging"
     type: task
     epic: [E2, E10]
@@ -2933,6 +3078,7 @@ tasks:
     tests: [test217, test219]
 
   - id: task145
+    visibility: private
     title: "Feature23 regression gate for one-shot runtime"
     type: task
     epic: [E2, E10]
@@ -2951,6 +3097,7 @@ tasks:
     tests: [test220]
 
   - id: task146
+    visibility: public
     title: "Feature24 schema constants and manifest shape support for services"
     type: task
     epic: [E1]
@@ -2969,6 +3116,7 @@ tasks:
     tests: [test222, test225]
 
   - id: task147
+    visibility: private
     title: "Feature24 validator rules for services objects and duplicates"
     type: task
     epic: [E1]
@@ -2987,6 +3135,7 @@ tasks:
     tests: [test223, test224, test227]
 
   - id: task148
+    visibility: private
     title: "Feature24 inspect output support for declared services"
     type: task
     epic: [E1]
@@ -3005,6 +3154,7 @@ tasks:
     tests: [test226]
 
   - id: task149
+    visibility: private
     title: "Feature24 AC coverage and regression gate"
     type: task
     epic: [E1]
@@ -3024,6 +3174,7 @@ tasks:
     tests: [test222, test223, test224, test225, test226, test227]
 
   - id: task150
+    visibility: private
     title: "Feature25 health-check module and checker primitives"
     type: task
     epic: [E2]
@@ -3044,6 +3195,7 @@ tasks:
     tests: [test228, test229, test230]
 
   - id: task151
+    visibility: private
     title: "Feature25 integrate service checks into run and preflight output"
     type: task
     epic: [E2]
@@ -3063,6 +3215,7 @@ tasks:
     tests: [test231, test232]
 
   - id: task152
+    visibility: private
     title: "Feature25 interactive and non-interactive failure policy"
     type: task
     epic: [E2]
@@ -3082,6 +3235,7 @@ tasks:
     tests: [test233, test234]
 
   - id: task153
+    visibility: private
     title: "Feature25 AC coverage and no-services regression gate"
     type: task
     epic: [E2]
@@ -3102,6 +3256,7 @@ tasks:
     tests: [test228, test229, test230, test231, test232, test233, test234, test235]
 
   - id: task154
+    visibility: private
     title: "Feature26 filesystem MCP server package and permissions schema"
     type: task
     epic: [E2, E10]
@@ -3124,6 +3279,7 @@ tasks:
     tests: [test236, test237]
 
   - id: task155
+    visibility: private
     title: "Feature26 filesystem MCP runtime permission enforcement"
     type: task
     epic: [E2, E10]
@@ -3143,6 +3299,7 @@ tasks:
     tests: [test238]
 
   - id: task156
+    visibility: private
     title: "Feature26 github MCP server package and mcp-client init template"
     type: task
     epic: [E2, E10]
@@ -3164,6 +3321,7 @@ tasks:
     tests: [test239, test240, test241]
 
   - id: task157
+    visibility: private
     title: "Feature26 AC coverage and regression gate"
     type: task
     epic: [E2, E10]
@@ -3183,6 +3341,7 @@ tasks:
     tests: [test236, test237, test238, test239, test240, test241, test242]
 
   - id: task158
+    visibility: private
     title: "Feature27 analyzer core API and report model"
     type: task
     epic: [E2, E10]
@@ -3202,6 +3361,7 @@ tasks:
     tests: [test243, test249, test250]
 
   - id: task159
+    visibility: private
     title: "Feature27 entrypoint runtime framework detectors"
     type: task
     epic: [E2, E10]
@@ -3220,6 +3380,7 @@ tasks:
     tests: [test244]
 
   - id: task160
+    visibility: private
     title: "Feature27 dependencies and env var detectors"
     type: task
     epic: [E2, E10]
@@ -3238,6 +3399,7 @@ tasks:
     tests: [test245, test246]
 
   - id: task161
+    visibility: private
     title: "Feature27 assets and services detectors"
     type: task
     epic: [E2, E10]
@@ -3256,6 +3418,7 @@ tasks:
     tests: [test247, test248]
 
   - id: task162
+    visibility: private
     title: "Feature27 analyzer validation suite and import reusability gate"
     type: task
     epic: [E2, E10]
@@ -3276,6 +3439,7 @@ tasks:
     tests: [test251]
 
   - id: task163
+    visibility: private
     title: "Feature19 import CLI surface and path resolution"
     type: task
     epic: [E2, E10]
@@ -3296,6 +3460,7 @@ tasks:
     tests: [test252, test253]
 
   - id: task164
+    visibility: private
     title: "Feature19 in-place manifest write, collision safety, and rollback"
     type: task
     epic: [E2, E10]
@@ -3316,6 +3481,7 @@ tasks:
     tests: [test254, test255, test256]
 
   - id: task165
+    visibility: private
     title: "Feature19 analyzer integration and confirm-first wizard"
     type: task
     epic: [E2, E10]
@@ -3336,6 +3502,7 @@ tasks:
     tests: [test257, test258]
 
   - id: task166
+    visibility: private
     title: "Feature19 schema-conditional prompts and entrypoint bridge handling"
     type: task
     epic: [E2, E10]
@@ -3356,6 +3523,7 @@ tasks:
     tests: [test259, test260]
 
   - id: task167
+    visibility: private
     title: "Feature19 interruption safety and in-place runnability gate"
     type: task
     epic: [E2, E10]
@@ -3376,6 +3544,7 @@ tasks:
     tests: [test261, test262]
 
   - id: task168
+    visibility: private
     title: "Feature31 schema and validator support for runtime.language nodejs"
     type: task
     epic: [E2, E10]
@@ -3396,6 +3565,7 @@ tasks:
     tests: [test263, test264]
 
   - id: task169
+    visibility: private
     title: "Feature31 run path for Node.js entrypoints"
     type: task
     epic: [E2, E10]
@@ -3416,6 +3586,7 @@ tasks:
     tests: [test265]
 
   - id: task170
+    visibility: private
     title: "Feature31 Node.js dependency install via npm or pnpm"
     type: task
     epic: [E2, E10]
@@ -3436,6 +3607,7 @@ tasks:
     tests: [test266]
 
   - id: task171
+    visibility: private
     title: "Feature31 pack/install archive behavior for node_modules and lockfiles"
     type: task
     epic: [E2, E10]
@@ -3457,6 +3629,7 @@ tasks:
     tests: [test267]
 
   - id: task172
+    visibility: private
     title: "Feature31 Node.js preflight checks"
     type: task
     epic: [E2, E10]
@@ -3478,6 +3651,7 @@ tasks:
     tests: [test268]
 
   - id: task173
+    visibility: private
     title: "Feature31 python runtime regression gate"
     type: task
     epic: [E2, E10]
@@ -3499,6 +3673,7 @@ tasks:
     tests: [test269]
 
   - id: task174
+    visibility: private
     title: "Feature42 schema and validator support for json input/output types"
     type: task
     epic: [E2, E10]
@@ -3519,6 +3694,7 @@ tasks:
     tests: [test270, test271]
 
   - id: task175
+    visibility: private
     title: "Feature42 run path JSON input modes"
     type: task
     epic: [E2, E10]
@@ -3539,6 +3715,7 @@ tasks:
     tests: [test272, test273]
 
   - id: task176
+    visibility: private
     title: "Feature42 json output contract enforcement"
     type: task
     epic: [E2, E10]
@@ -3559,6 +3736,7 @@ tasks:
     tests: [test274]
 
   - id: task177
+    visibility: private
     title: "Feature42 docs preflight inspect and regression gates"
     type: task
     epic: [E2, E10]
@@ -3582,6 +3760,7 @@ tasks:
     tests: [test275]
 
   - id: task178
+    visibility: private
     title: "Feature32 daemon runtime schema and validation"
     type: task
     epic: [E2]
@@ -3602,6 +3781,7 @@ tasks:
     tests: [test276]
 
   - id: task179
+    visibility: private
     title: "Feature32 daemon start path and persisted state"
     type: task
     epic: [E2]
@@ -3623,6 +3803,7 @@ tasks:
     tests: [test277]
 
   - id: task180
+    visibility: private
     title: "Feature32 daemon stop command and graceful termination"
     type: task
     epic: [E2]
@@ -3644,6 +3825,7 @@ tasks:
     tests: [test278]
 
   - id: task181
+    visibility: private
     title: "Feature32 daemon attach interactive control"
     type: task
     epic: [E2]
@@ -3665,6 +3847,7 @@ tasks:
     tests: [test279]
 
   - id: task182
+    visibility: private
     title: "Feature32 daemon logs command and contextual output"
     type: task
     epic: [E2]
@@ -3686,6 +3869,7 @@ tasks:
     tests: [test280]
 
   - id: task183
+    visibility: private
     title: "Feature32 supervisor health state diagnostics and regression gate"
     type: task
     epic: [E2]
@@ -3708,6 +3892,7 @@ tasks:
     tests: [test281]
 
   - id: task184
+    visibility: private
     title: "Feature33 runtime.package_manager schema and validator support"
     type: task
     epic: [E1, E10]
@@ -3728,6 +3913,7 @@ tasks:
     tests: [test282]
 
   - id: task185
+    visibility: private
     title: "Feature33 channels skills and state_dirs type/path validation"
     type: task
     epic: [E1, E10]
@@ -3748,6 +3934,7 @@ tasks:
     tests: [test283]
 
   - id: task186
+    visibility: private
     title: "Feature33 framework openclaw targeted validation rules"
     type: task
     epic: [E1, E10]
@@ -3767,6 +3954,7 @@ tasks:
     tests: [test284]
 
   - id: task187
+    visibility: private
     title: "Feature33 non-openclaw compatibility and non-breaking guard"
     type: task
     epic: [E1, E10]
@@ -3787,6 +3975,7 @@ tasks:
     tests: [test285]
 
   - id: task188
+    visibility: private
     title: "Feature33 manifest docs updates for OpenClaw and generic Node examples"
     type: task
     epic: [E1, E10]
@@ -3807,6 +3996,7 @@ tasks:
     tests: [test286]
 
   - id: task189
+    visibility: private
     title: "Feature34 OpenClaw scaffold file and directory generation"
     type: task
     epic: [E2, E10]
@@ -3827,6 +4017,7 @@ tasks:
     tests: [test287]
 
   - id: task190
+    visibility: private
     title: "Feature34 generated OpenClaw manifest validation contract"
     type: task
     epic: [E2, E10]
@@ -3847,6 +4038,7 @@ tasks:
     tests: [test288]
 
   - id: task191
+    visibility: private
     title: "Feature34 OpenClaw template runnable via kinnoo run"
     type: task
     epic: [E2, E10]
@@ -3868,6 +4060,7 @@ tasks:
     tests: [test289]
 
   - id: task192
+    visibility: private
     title: "Feature34 OpenClaw template README setup guidance"
     type: task
     epic: [E2, E10]
@@ -3889,6 +4082,7 @@ tasks:
     tests: [test290]
 
   - id: task193
+    visibility: private
     title: "Feature34 deterministic scaffold output without openclaw CLI dependency"
     type: task
     epic: [E2, E10]
@@ -3910,6 +4104,7 @@ tasks:
     tests: [test291]
 
   - id: task194
+    visibility: private
     title: "Feature35 state_dirs schema contract and validation rules"
     type: task
     epic: [E2]
@@ -3930,6 +4125,7 @@ tasks:
     tests: [test292]
 
   - id: task195
+    visibility: private
     title: "Feature35 pack snapshot capture for mutable state directories"
     type: task
     epic: [E2]
@@ -3950,6 +4146,7 @@ tasks:
     tests: [test293]
 
   - id: task196
+    visibility: private
     title: "Feature35 install restore flow with overwrite warning and force controls"
     type: task
     epic: [E2]
@@ -3970,6 +4167,7 @@ tasks:
     tests: [test294]
 
   - id: task197
+    visibility: private
     title: "Feature35 selective snapshot exclusions for state_dirs"
     type: task
     epic: [E2]
@@ -3990,6 +4188,7 @@ tasks:
     tests: [test295]
 
   - id: task198
+    visibility: private
     title: "Feature35 docs and compatibility regression safeguards"
     type: task
     epic: [E2]
@@ -4011,6 +4210,7 @@ tasks:
     tests: [test296]
 
   - id: task199
+    visibility: private
     title: "Feature36 OpenClaw detector evidence and confidence scoring"
     type: task
     epic: [E2, E10]
@@ -4031,6 +4231,7 @@ tasks:
     tests: [test297]
 
   - id: task200
+    visibility: private
     title: "Feature36 manifest inference for runtime package manager skills and state dirs"
     type: task
     epic: [E2, E10]
@@ -4052,6 +4253,7 @@ tasks:
     tests: [test298]
 
   - id: task201
+    visibility: private
     title: "Feature36 identity signal detection for SOUL AGENTS and optional USER docs"
     type: task
     epic: [E2, E10]
@@ -4071,6 +4273,7 @@ tasks:
     tests: [test299]
 
   - id: task202
+    visibility: private
     title: "Feature36 import output validity and unresolved-field guidance"
     type: task
     epic: [E2, E10]
@@ -4092,6 +4295,7 @@ tasks:
     tests: [test300]
 
   - id: task203
+    visibility: private
     title: "Feature36 non-openclaw regression safeguards"
     type: task
     epic: [E2, E10]
@@ -4112,6 +4316,7 @@ tasks:
     tests: [test301]
 
   - id: task204
+    visibility: private
     title: "Feature37 Node audit summary and severity reporting"
     type: task
     epic: [E2, E6]
@@ -4132,6 +4337,7 @@ tasks:
     tests: [test302]
 
   - id: task205
+    visibility: private
     title: "Feature37 critical CVE install gate and override control"
     type: task
     epic: [E2, E6]
@@ -4152,6 +4358,7 @@ tasks:
     tests: [test303]
 
   - id: task206
+    visibility: private
     title: "Feature37 lifecycle script detection warnings and ignore-scripts"
     type: task
     epic: [E2, E6]
@@ -4172,6 +4379,7 @@ tasks:
     tests: [test304]
 
   - id: task207
+    visibility: private
     title: "Feature37 machine-readable audit and install decision trace"
     type: task
     epic: [E2, E6]
@@ -4191,6 +4399,7 @@ tasks:
     tests: [test305]
 
   - id: task208
+    visibility: private
     title: "Feature37 non-node install regression safeguards"
     type: task
     epic: [E2, E6]
@@ -4209,6 +4418,7 @@ tasks:
     tests: [test306]
 
   - id: task209
+    visibility: private
     title: "Feature38 JS TS JSON credential scanning rules"
     type: task
     epic: [E6]
@@ -4229,6 +4439,7 @@ tasks:
     tests: [test307]
 
   - id: task210
+    visibility: private
     title: "Feature38 risky JS execution primitive detection"
     type: task
     epic: [E6]
@@ -4248,6 +4459,7 @@ tasks:
     tests: [test308]
 
   - id: task211
+    visibility: private
     title: "Feature38 OpenClaw config danger rule set"
     type: task
     epic: [E6]
@@ -4266,6 +4478,7 @@ tasks:
     tests: [test309]
 
   - id: task212
+    visibility: private
     title: "Feature38 memory snapshot credential scan before pack"
     type: task
     epic: [E6]
@@ -4285,6 +4498,7 @@ tasks:
     tests: [test310]
 
   - id: task213
+    visibility: private
     title: "Feature38 sweep output contract and no-secret regression safeguards"
     type: task
     epic: [E6]
@@ -4304,6 +4518,7 @@ tasks:
     tests: [test311]
 
   - id: task214
+    visibility: private
     title: "Feature39 permissions schema and validator contract"
     type: task
     epic: [E6]
@@ -4325,6 +4540,7 @@ tasks:
     tests: [test312]
 
   - id: task215
+    visibility: private
     title: "Feature39 install-time permission disclosure and consent flow"
     type: task
     epic: [E6]
@@ -4346,6 +4562,7 @@ tasks:
     tests: [test313]
 
   - id: task216
+    visibility: private
     title: "Feature39 sandbox execution mode and enforcement backend"
     type: task
     epic: [E6]
@@ -4367,6 +4584,7 @@ tasks:
     tests: [test314]
 
   - id: task217
+    visibility: private
     title: "Feature39 cross-runtime permission enforcement for Python and Node"
     type: task
     epic: [E6]
@@ -4388,6 +4606,7 @@ tasks:
     tests: [test315]
 
   - id: task218
+    visibility: private
     title: "Feature39 violation diagnostics and secret-safe logging"
     type: task
     epic: [E6]
@@ -4409,6 +4628,7 @@ tasks:
     tests: [test316]
 
   - id: task219
+    visibility: private
     title: "Feature40 key generation workflow"
     type: task
     epic: [E6]
@@ -4429,6 +4649,7 @@ tasks:
     tests: [test317]
 
   - id: task220
+    visibility: private
     title: "Feature40 pack signing integration"
     type: task
     epic: [E6]
@@ -4450,6 +4671,7 @@ tasks:
     tests: [test318]
 
   - id: task221
+    visibility: private
     title: "Feature40 install signature verification gate"
     type: task
     epic: [E6]
@@ -4471,6 +4693,7 @@ tasks:
     tests: [test319]
 
   - id: task222
+    visibility: private
     title: "Feature40 unsigned archive warning and confirmation path"
     type: task
     epic: [E6]
@@ -4492,6 +4715,7 @@ tasks:
     tests: [test320]
 
   - id: task223
+    visibility: private
     title: "Feature40 registry publisher key association"
     type: task
     epic: [E6]
@@ -4513,6 +4737,7 @@ tasks:
     tests: [test321]
 
   - id: task224
+    visibility: private
     title: "Feature41 runtime event monitoring baseline"
     type: task
     epic: [E6]
@@ -4534,6 +4759,7 @@ tasks:
     tests: [test322]
 
   - id: task225
+    visibility: private
     title: "Feature41 permission violation enforcement and kill switch"
     type: task
     epic: [E6]
@@ -4555,6 +4781,7 @@ tasks:
     tests: [test323]
 
   - id: task226
+    visibility: private
     title: "Feature41 resource control enforcement"
     type: task
     epic: [E6]
@@ -4576,6 +4803,7 @@ tasks:
     tests: [test324]
 
   - id: task227
+    visibility: private
     title: "Feature41 dry-run monitoring mode"
     type: task
     epic: [E6]
@@ -4596,6 +4824,7 @@ tasks:
     tests: [test325]
 
   - id: task228
+    visibility: private
     title: "Feature41 feature39 integration and graceful degradation"
     type: task
     epic: [E6]
@@ -4621,6 +4850,7 @@ tasks:
   # ======================================================================
 
   - id: task229
+    visibility: private
     title: "RegistryBackend protocol + LocalRegistryBackend refactor"
     type: task
     epic: [E2]
@@ -4643,6 +4873,7 @@ tasks:
     tests: [test327]
 
   - id: task230
+    visibility: private
     title: "RemoteRegistryClient HTTP implementation"
     type: task
     epic: [E2]
@@ -4666,6 +4897,7 @@ tasks:
     tests: [test328]
 
   - id: task231
+    visibility: private
     title: "Registry config system (URL, token, tenant)"
     type: task
     epic: [E2]
@@ -4685,6 +4917,7 @@ tasks:
     tests: [test329]
 
   - id: task232
+    visibility: private
     title: "CLI command integration with backend abstraction"
     type: task
     epic: [E2]
@@ -4710,6 +4943,7 @@ tasks:
     tests: [test330]
 
   - id: task233
+    visibility: private
     title: "Remote client error handling"
     type: task
     epic: [E2]
@@ -4736,6 +4970,7 @@ tasks:
   # ======================================================================
 
   - id: task234
+    visibility: private
     title: "User model and password hashing"
     type: task
     epic: [E8, E6]
@@ -4759,6 +4994,7 @@ tasks:
     tests: [test332]
 
   - id: task235
+    visibility: private
     title: "Bootstrap admin CLI command"
     type: task
     epic: [E3, E8]
@@ -4781,6 +5017,7 @@ tasks:
     tests: [test333]
 
   - id: task236
+    visibility: private
     title: "Tenant model and slug management"
     type: task
     epic: [E8]
@@ -4803,6 +5040,7 @@ tasks:
     tests: [test334]
 
   - id: task237
+    visibility: private
     title: "JWT access token issuance and validation"
     type: task
     epic: [E8, E6]
@@ -4828,6 +5066,7 @@ tasks:
     tests: [test335]
 
   - id: task238
+    visibility: private
     title: "Session cookie auth for web UI"
     type: task
     epic: [E8, E6]
@@ -4854,6 +5093,7 @@ tasks:
   # ======================================================================
 
   - id: task239
+    visibility: private
     title: "FastAPI server scaffold + S3 storage abstraction"
     type: task
     epic: [E7]
@@ -4884,6 +5124,7 @@ tasks:
     tests: [test337]
 
   - id: task240
+    visibility: private
     title: "JSON metadata model (3-tier)"
     type: task
     epic: [E7]
@@ -4908,6 +5149,7 @@ tasks:
     tests: [test338]
 
   - id: task241
+    visibility: private
     title: "Publish endpoint (POST /api/publish)"
     type: task
     epic: [E7]
@@ -4934,6 +5176,7 @@ tasks:
     tests: [test339]
 
   - id: task242
+    visibility: private
     title: "List and detail endpoints"
     type: task
     epic: [E7]
@@ -4956,6 +5199,7 @@ tasks:
     tests: [test340]
 
   - id: task243
+    visibility: private
     title: "Download endpoint with presigned URLs"
     type: task
     epic: [E7, E6]
@@ -4978,6 +5222,7 @@ tasks:
     tests: [test341]
 
   - id: task244
+    visibility: private
     title: "Search endpoint and auth middleware + rate limiting"
     type: task
     epic: [E7, E6, E8]
@@ -5005,6 +5250,7 @@ tasks:
   # ======================================================================
 
   - id: task245
+    visibility: private
     title: "Jinja2 template setup + base layout"
     type: task
     epic: [E4]
@@ -5027,6 +5273,7 @@ tasks:
     tests: [test343]
 
   - id: task246
+    visibility: private
     title: "Login page + session auth flow"
     type: task
     epic: [E4, E8]
@@ -5049,6 +5296,7 @@ tasks:
     tests: [test344]
 
   - id: task247
+    visibility: private
     title: "Agent listing + search pages"
     type: task
     epic: [E4]
@@ -5071,6 +5319,7 @@ tasks:
     tests: [test345]
 
   - id: task248
+    visibility: private
     title: "Agent profile + download pages"
     type: task
     epic: [E4]
@@ -5091,6 +5340,7 @@ tasks:
     tests: [test346]
 
   - id: task249
+    visibility: private
     title: "Agents page clickable name + right-side manifest key/value table"
     type: task
     epic: [E9]
@@ -5112,6 +5362,7 @@ tasks:
     tests: [test347]
 
   - id: task250
+    visibility: private
     title: "Published Agents table framework column"
     type: task
     epic: [E9]
@@ -5131,6 +5382,7 @@ tasks:
     tests: [test348]
 
   - id: task251
+    visibility: private
     title: Remote list/search summary-shape compatibility fix
     type: issue
     epic: [E2]
@@ -5151,6 +5403,7 @@ tasks:
     tests: [test349, test350]
 
   - id: task252
+    visibility: private
     title: Publish optional pack-and-bump flow
     type: task
     epic: [E9]
@@ -5175,6 +5428,7 @@ tasks:
     tests: [test351, test352, test353]
 
   - id: task253
+    visibility: private
     title: Add mcp-server framework option to kinnoo init
     type: task
     epic: [E2, E10]
@@ -5196,6 +5450,7 @@ tasks:
     tests: [test354, test355]
 
   - id: task254
+    visibility: private
     title: Curate and stage real-world open-source agent examples for import/run/pack trials
     type: task
     epic: [E2]
@@ -5218,6 +5473,7 @@ tasks:
     tests: []
 
   - id: task255
+    visibility: private
     title: Execute 42-agent import/inspect/run/pack validation matrix
     type: task
     epic: [E2]
@@ -5245,6 +5501,7 @@ tasks:
     tests: [test356, test357, test358, test359]
 
   - id: task256
+    visibility: private
     title: Auto-generate requirements.txt during kinnoo import
     type: issue
     epic: [E2, E10]
@@ -5270,6 +5527,7 @@ tasks:
     tests: [test360, test361]
 
   - id: task257
+    visibility: private
     title: Add runtime.path executable override for kinnoo run
     type: task
     epic: [E2]
@@ -5298,6 +5556,7 @@ tasks:
     tests: [test362, test363]
 
   - id: task258
+    visibility: private
     title: Analyzer input/output type auto-detection
     type: task
     epic: [E9]
@@ -5318,6 +5577,7 @@ tasks:
     tests: [test364, test365]
 
   - id: task259
+    visibility: private
     title: Add --preflight flag to kinnoo pack
     type: task
     epic: [E9]
@@ -5340,6 +5600,7 @@ tasks:
     tests: [test366, test367]
 
   - id: task260
+    visibility: private
     title: Separate daemon commands in help output
     type: task
     epic: [E9]
@@ -5359,6 +5620,7 @@ tasks:
     tests: [test368]
 
   - id: task261
+    visibility: private
     title: Analyzer model auto-detection
     type: task
     epic: [E9]
@@ -5378,6 +5640,7 @@ tasks:
     tests: [test369, test370]
 
   - id: task262
+    visibility: private
     title: Framework help — one per line with descriptions
     type: task
     epic: [E9]
@@ -5395,6 +5658,7 @@ tasks:
     tests: [test371]
 
   - id: task263
+    visibility: private
     title: Add --language flag to kinnoo init
     type: task
     epic: [E9]
@@ -5416,6 +5680,7 @@ tasks:
     tests: [test372, test373]
 
   - id: task264
+    visibility: private
     title: Remove remnant Python files from OpenClaw init
     type: task
     epic: [E9]
@@ -5434,6 +5699,7 @@ tasks:
     tests: [test374]
 
   - id: task265
+    visibility: private
     title: kinnoo import from GitHub URL
     type: task
     epic: [E9]
@@ -5457,6 +5723,7 @@ tasks:
     tests: [test375, test376, test377]
 
   - id: task266
+    visibility: private
     title: Add kinnoo check command
     type: task
     epic: [E9]
@@ -5478,6 +5745,7 @@ tasks:
     tests: [test378, test379]
 
   - id: task267
+    visibility: public
     title: Pretty print with color across CLI commands
     type: task
     epic: [E9]
@@ -5502,6 +5770,7 @@ tasks:
     tests: [test380, test381]
 
   - id: task268
+    visibility: private
     title: Fix preflight venv check when runtime.path is set
     type: issue
     epic: [E9]
@@ -5523,6 +5792,7 @@ tasks:
     tests: [test382, test383]
 
   - id: task269
+    visibility: public
     title: Auto-wrapper generation for class-only Python agents
     type: enhancement
     epic: [E9, E10]
@@ -5546,6 +5816,7 @@ tasks:
     tests: [test384, test385]
 
   - id: task270
+    visibility: public
     title: Jupyter notebook to Python script conversion
     type: enhancement
     epic: [E2]
@@ -5565,6 +5836,7 @@ tasks:
     tests: [test386, test387]
 
   - id: task271
+    visibility: public
     title: Subdirectory entrypoint detection improvement
     type: enhancement
     epic: [E9, E10]
@@ -5585,6 +5857,7 @@ tasks:
     tests: [test388, test389]
 
   - id: task272
+    visibility: public
     title: Requirements auto-inference from Python imports
     type: enhancement
     epic: [E9, E10]
@@ -5604,6 +5877,7 @@ tasks:
     tests: [test390, test391, test408]
 
   - id: task273
+    visibility: public
     title: Node.js/TypeScript agent import and run improvements
     type: enhancement
     epic: [E9, E10]
@@ -5624,6 +5898,7 @@ tasks:
     tests: [test392, test393]
 
   - id: task274
+    visibility: public
     title: Async entrypoint and hardcoded input detection
     type: enhancement
     epic: [E9, E10]
@@ -5643,6 +5918,7 @@ tasks:
     tests: [test394, test395]
 
   - id: task275
+    visibility: public
     title: Service dependency auto-detection
     type: enhancement
     epic: [E9, E10]
@@ -5662,6 +5938,7 @@ tasks:
     tests: [test396, test397]
 
   - id: task276
+    visibility: public
     title: PydanticAI dependency injection (deps) support
     type: enhancement
     epic: [E9, E10]
@@ -5681,6 +5958,7 @@ tasks:
     tests: [test398, test399]
 
   - id: task277
+    visibility: private
     title: End-to-end validation with representative agents
     type: validation
     epic: [E9, E10]
@@ -5702,6 +5980,7 @@ tasks:
     tests: [test400, test401]
     
   - id: task278
+    visibility: public
     title: Streamlit/Gradio UI agent support
     type: feature
     epic: [E9, E10]
@@ -5725,6 +6004,7 @@ tasks:
     tests: [test402, test403, test404, test405]
 
   - id: task279
+    visibility: public
     title: "DEPRECATED — Extended framework detection (CrewAI, Swarm, Agno, etc.)"
     type: feature
     epic: [E2]
@@ -5742,6 +6022,7 @@ tasks:
     tests: [test406, test407, test409]
 
   - id: task280
+    visibility: private
     title: OpenClaw-like analyzer detection without root package.json
     type: enhancement
     epic: [E9, E10]
@@ -5763,6 +6044,7 @@ tasks:
     tests: [test410, test411, test412, test413]
 
   - id: task281
+    visibility: private
     title: Inspect full/raw rendering and metadata update command
     type: enhancement
     epic: [E2]
@@ -5792,6 +6074,7 @@ tasks:
   # ------ Sub-phase 1: Frontend Setup (feature49, feature50) ------
 
   - id: task282
+    visibility: public
     title: "Initialize Next.js 15+ project in web/ directory"
     type: task
     epic: [E4]
@@ -5818,6 +6101,7 @@ tasks:
     tests: [test421, test422]
 
   - id: task283
+    visibility: public
     title: "Configure Tailwind with dark-mode design tokens"
     type: task
     epic: [E4]
@@ -5840,6 +6124,7 @@ tasks:
     tests: [test423]
 
   - id: task284
+    visibility: public
     title: "Create directory structure and placeholder route pages"
     type: task
     epic: [E4]
@@ -5871,6 +6156,7 @@ tasks:
     tests: [test424, test425]
 
   - id: task285
+    visibility: public
     title: "Install Radix UI, Lucide, and framer-motion dependencies"
     type: task
     epic: [E4]
@@ -5889,6 +6175,7 @@ tasks:
     tests: [test426]
 
   - id: task286
+    visibility: public
     title: "Create ThemeConfig design token module"
     type: task
     epic: [E4]
@@ -5911,6 +6198,7 @@ tasks:
     tests: [test427, test428]
 
   - id: task287
+    visibility: public
     title: "Build MainLayout header with hamburger menu and auth buttons"
     type: task
     epic: [E4]
@@ -5936,6 +6224,7 @@ tasks:
     tests: [test429, test430]
 
   - id: task288
+    visibility: public
     title: "Make layout responsive for mobile viewports"
     type: task
     epic: [E4]
@@ -5956,6 +6245,7 @@ tasks:
     tests: [test431]
 
   - id: task289
+    visibility: public
     title: "Write smoke tests for layout and design tokens"
     type: task
     epic: [E4]
@@ -5980,6 +6270,7 @@ tasks:
   # ------ Sub-phase 2: Landing Page and Secure Login UI (feature51, feature52) ------
 
   - id: task290
+    visibility: public
     title: "Implement landing page hero section and responsive structure"
     type: task
     epic: [E4]
@@ -5998,6 +6289,7 @@ tasks:
     tests: [test432]
 
   - id: task291
+    visibility: public
     title: "Create Terminal Preview component with copy-to-clipboard"
     type: task
     epic: [E4]
@@ -6017,6 +6309,7 @@ tasks:
     tests: [test433]
 
   - id: task292
+    visibility: public
     title: "Build six-card Features section with required copy"
     type: task
     epic: [E4]
@@ -6036,6 +6329,7 @@ tasks:
     tests: [test434, test435]
 
   - id: task293
+    visibility: public
     title: "Add landing page automated test coverage"
     type: task
     epic: [E4]
@@ -6054,6 +6348,7 @@ tasks:
     tests: [test432, test433, test434, test435, test436]
 
   - id: task294
+    visibility: public
     title: "Implement login page UI card and required fields"
     type: task
     epic: [E4, E8]
@@ -6072,6 +6367,7 @@ tasks:
     tests: [test437]
 
   - id: task295
+    visibility: public
     title: "Add client-side validation and loading-state behavior"
     type: task
     epic: [E4, E8]
@@ -6091,6 +6387,7 @@ tasks:
     tests: [test438, test439, test442]
 
   - id: task296
+    visibility: public
     title: "Implement secure login submission through BFF proxy"
     type: task
     epic: [E4, E8]
@@ -6111,6 +6408,7 @@ tasks:
     tests: [test440, test441]
 
   - id: task297
+    visibility: public
     title: "Add login page automated tests for validation and auth flow"
     type: task
     epic: [E4, E8]
@@ -6131,6 +6429,7 @@ tasks:
   # ------ Sub-phase 3: Registry Dashboard (feature53, feature54) ------
 
   - id: task298
+    visibility: public
     title: "Implement /registry dashboard shell and secondary nav"
     type: task
     epic: [E4]
@@ -6150,6 +6449,7 @@ tasks:
     tests: [test443, test444]
 
   - id: task299
+    visibility: public
     title: "Implement My Agents and Search view state with framer-motion transitions"
     type: task
     epic: [E4]
@@ -6169,6 +6469,7 @@ tasks:
     tests: [test445, test446]
 
   - id: task300
+    visibility: public
     title: "Integrate dashboard data fetching for my agents and search"
     type: task
     epic: [E4]
@@ -6188,6 +6489,7 @@ tasks:
     tests: [test447]
 
   - id: task301
+    visibility: public
     title: "Add automated tests for dashboard shell and tab/view behavior"
     type: task
     epic: [E4]
@@ -6206,6 +6508,7 @@ tasks:
     tests: [test443, test444, test445, test446, test447]
 
   - id: task302
+    visibility: public
     title: "Build reusable AgentCard with required metadata fields"
     type: task
     epic: [E4]
@@ -6225,6 +6528,7 @@ tasks:
     tests: [test448]
 
   - id: task303
+    visibility: public
     title: "Implement manifest modal with detail endpoint integration"
     type: task
     epic: [E4]
@@ -6245,6 +6549,7 @@ tasks:
     tests: [test449, test450]
 
   - id: task304
+    visibility: public
     title: "Add install command terminal block and copy action in search modal"
     type: task
     epic: [E4]
@@ -6264,6 +6569,7 @@ tasks:
     tests: [test451]
 
   - id: task305
+    visibility: public
     title: "Add automated tests for AgentCard and modal copy workflow"
     type: task
     epic: [E4]
@@ -6282,6 +6588,7 @@ tasks:
     tests: [test448, test449, test450, test451, test452]
 
   - id: task306
+    visibility: private
     title: "Polish landing and header visuals per brand updates"
     type: task
     epic: [E2]
@@ -6309,6 +6616,7 @@ tasks:
   # ------ Sub-phase 4: Integration, CSRF & Production Hardening (feature55, feature56, feature57) ------
 
   - id: task307
+    visibility: public
     title: "Configure Next.js API rewrites with BACKEND_URL and forwarded headers"
     type: task
     epic: [E4, E6]
@@ -6328,6 +6636,7 @@ tasks:
     tests: [test453]
 
   - id: task308
+    visibility: public
     title: "Implement CSRF pass-through for login and authenticated POST flows"
     type: task
     epic: [E4, E6]
@@ -6347,6 +6656,7 @@ tasks:
     tests: [test454, test455]
 
   - id: task309
+    visibility: private
     title: "Add backend /api/auth/me endpoint for session validation"
     type: task
     epic: [E4, E6]
@@ -6366,6 +6676,7 @@ tasks:
     tests: [test456]
 
   - id: task310
+    visibility: public
     title: "Implement auth guard in app/(auth)/layout.tsx using /api/auth/me"
     type: task
     epic: [E4, E6]
@@ -6384,6 +6695,7 @@ tasks:
     tests: [test457, test458]
 
   - id: task311
+    visibility: private
     title: "Add session-cookie fallback auth for JSON API routes"
     type: task
     epic: [E8, E6]
@@ -6402,6 +6714,7 @@ tasks:
     tests: [test459]
 
   - id: task312
+    visibility: private
     title: "Bootstrap local admin account from environment"
     type: task
     epic: [E8, E7]
@@ -6422,6 +6735,7 @@ tasks:
     tests: [test460]
 
   - id: task313
+    visibility: private
     title: "Ensure local kinnoo publish writes to tenant path in mocked S3"
     type: task
     epic: [E7]
@@ -6442,6 +6756,7 @@ tasks:
     tests: [test461]
 
   - id: task314
+    visibility: private
     title: "Add integration tests for auth fallback, admin bootstrap, and publish paths"
     type: task
     epic: [E9, E8, E7]
@@ -6461,6 +6776,7 @@ tasks:
     tests: [test459, test460, test461, test462]
 
   - id: task315
+    visibility: public
     title: "Add Next.js security headers middleware for production hardening"
     type: task
     epic: [E6, E7]
@@ -6479,6 +6795,7 @@ tasks:
     tests: [test463]
 
   - id: task316
+    visibility: public
     title: "Implement (auth) loading.tsx and error.tsx for graceful failures"
     type: task
     epic: [E6, E7]
@@ -6498,6 +6815,7 @@ tasks:
     tests: [test464]
 
   - id: task317
+    visibility: private
     title: "Forward X-Forwarded-For for rate limiter compatibility and add migration TODO"
     type: task
     epic: [E6, E7]
@@ -6517,6 +6835,7 @@ tasks:
     tests: [test465]
 
   - id: task318
+    visibility: private
     title: "Finalize Sub-phase 4 integration/hardening test suite"
     type: task
     epic: [E6, E7]
@@ -6539,6 +6858,7 @@ tasks:
   # ------ Sub-phase 5: User Registration & Password Reset (feature58, feature59, feature60) ------
 
   - id: task319
+    visibility: public
     title: "Add Sign Up CTA and policy-aware signup pages"
     type: task
     epic: [E4, E8]
@@ -6561,6 +6881,7 @@ tasks:
     tests: [test467, test468, test471]
 
   - id: task320
+    visibility: private
     title: "Implement register-request endpoint with privacy + token issuance"
     type: task
     epic: [E4, E8]
@@ -6582,6 +6903,7 @@ tasks:
     tests: [test469, test470]
 
   - id: task321
+    visibility: private
     title: "Implement register-confirm with DB-backed user, identity, tenant creation"
     type: task
     epic: [E4, E8]
@@ -6606,6 +6928,7 @@ tasks:
     tests: [test472, test473, test486]
 
   - id: task322
+    visibility: private
     title: "Add registration integration/component tests including slug collisions"
     type: task
     epic: [E4, E8]
@@ -6625,6 +6948,7 @@ tasks:
     tests: [test467, test468, test469, test470, test471, test472, test473, test474, test486]
 
   - id: task323
+    visibility: public
     title: "Build forgot-password pages and policy-aware reset UX"
     type: task
     epic: [E4, E8]
@@ -6645,6 +6969,7 @@ tasks:
     tests: [test475, test478]
 
   - id: task324
+    visibility: private
     title: "Implement password-reset-request endpoint with generic response"
     type: task
     epic: [E4, E8]
@@ -6665,6 +6990,7 @@ tasks:
     tests: [test476, test477]
 
   - id: task325
+    visibility: private
     title: "Implement password-reset-confirm with policy checks and session revocation"
     type: task
     epic: [E4, E8]
@@ -6689,6 +7015,7 @@ tasks:
     tests: [test479, test480, test487, test489]
 
   - id: task326
+    visibility: private
     title: "Add forgot-password integration/component tests with policy paths"
     type: task
     epic: [E4, E8]
@@ -6708,6 +7035,7 @@ tasks:
     tests: [test475, test476, test477, test478, test479, test480, test481, test487, test489]
 
   - id: task327
+    visibility: private
     title: "Introduce SQLite auth schema and repository foundation"
     type: task
     epic: [E6, E8]
@@ -6730,6 +7058,7 @@ tasks:
     tests: [test485]
 
   - id: task328
+    visibility: private
     title: "Add EmailService abstraction, env secrets, and single-use token state"
     type: task
     epic: [E6, E8]
@@ -6754,6 +7083,7 @@ tasks:
     tests: [test482, test483]
 
   - id: task329
+    visibility: private
     title: "Apply password hardening, rehash-on-login, and auth abuse controls"
     type: task
     epic: [E6, E8]
@@ -6776,6 +7106,7 @@ tasks:
     tests: [test470, test477, test487, test488]
 
   - id: task330
+    visibility: private
     title: "Finalize Sub-phase 5 integration, smoke tests, and SSO-ready docs"
     type: task
     epic: [E6, E8]
@@ -6801,6 +7132,7 @@ tasks:
     tests: [test474, test481, test482, test483, test484, test489, test490]
 
   - id: task331
+    visibility: private
     title: "Registry manifest tabs, install terminal block, and blank-search UX fix"
     type: task
     epic: [E4, E6]
@@ -6828,6 +7160,7 @@ tasks:
     tests: []
 
   - id: task332
+    visibility: public
     title: "Feature61 login/logout CLI commands and auth state persistence"
     type: task
     epic: [E2, E8]
@@ -6849,6 +7182,7 @@ tasks:
     tests: [test491]
 
   - id: task333
+    visibility: private
     title: "Feature61 login/logout tests and operator documentation"
     type: task
     epic: [E2, E8]
@@ -6870,6 +7204,7 @@ tasks:
     tests: [test492]
 
   - id: task334
+    visibility: private
     title: "Feature62 openclaw-skill schema and validator extension"
     type: task
     status: deprecated
@@ -6892,6 +7227,7 @@ tasks:
     tests: [test493]
 
   - id: task335
+    visibility: private
     title: "Feature62 schema fixture coverage and migration guidance"
     type: task
     epic: [E1, E10]
@@ -6911,6 +7247,7 @@ tasks:
     tests: [test494]
 
   - id: task336
+    visibility: public
     title: "Feature63 ClawHub mirror storage with clawhub tenant ownership model"
     type: task
     epic: [E10, E7, E8]
@@ -6931,6 +7268,7 @@ tasks:
     tests: [test495]
 
   - id: task337
+    visibility: private
     title: "Feature63 mirror attribution UX and query behavior"
     type: task
     epic: [E10, E4]
@@ -6951,6 +7289,7 @@ tasks:
     tests: [test496]
 
   - id: task338
+    visibility: public
     title: "Feature64 kinnoo import source clawhub command path"
     type: task
     epic: [E2, E10]
@@ -6971,6 +7310,7 @@ tasks:
     tests: [test497]
 
   - id: task339
+    visibility: private
     title: "Feature64 import hinting and unresolved guidance"
     type: task
     epic: [E2, E10]
@@ -6991,6 +7331,7 @@ tasks:
     tests: [test498]
 
   - id: task340
+    visibility: public
     title: "Feature65 delegated OpenClaw install runtime integration"
     type: task
     epic: [E2, E10]
@@ -7011,6 +7352,7 @@ tasks:
     tests: [test499]
 
   - id: task341
+    visibility: private
     title: "Feature65 delegated install failure-mode handling and tests"
     type: task
     epic: [E2, E10]
@@ -7031,6 +7373,7 @@ tasks:
     tests: [test500]
 
   - id: task342
+    visibility: public
     title: "Feature66 OpenClaw run adapter backend selection and flagging"
     type: task
     epic: [E2, E10]
@@ -7051,6 +7394,7 @@ tasks:
     tests: [test501]
 
   - id: task343
+    visibility: private
     title: "Feature66 run adapter error handling and regression tests"
     type: task
     epic: [E2, E10]
@@ -7071,6 +7415,7 @@ tasks:
     tests: [test502]
 
   - id: task344
+    visibility: public
     title: "Feature67 sync clawhub command with incremental/full modes"
     type: task
     epic: [E2, E10]
@@ -7091,6 +7436,7 @@ tasks:
     tests: [test503]
 
   - id: task345
+    visibility: private
     title: "Feature67 sync resilience, rate control, and diagnostics"
     type: task
     epic: [E2, E10]
@@ -7111,6 +7457,7 @@ tasks:
     tests: [test504]
 
   - id: task346
+    visibility: private
     title: "Feature68 GitHub Actions reference workflow and env contract"
     type: task
     epic: [E7, E9]
@@ -7131,6 +7478,7 @@ tasks:
     tests: [test505]
 
   - id: task347
+    visibility: private
     title: "Feature68 CI workflow regression checks and docs validation"
     type: task
     epic: [E7, E9]
@@ -7151,6 +7499,7 @@ tasks:
     tests: [test506]
 
   - id: task348
+    visibility: private
     title: "Feature69 kinnoo tests file format and parser"
     type: task
     epic: [E2, E10]
@@ -7171,6 +7520,7 @@ tasks:
     tests: [test507]
 
   - id: task349
+    visibility: private
     title: "Feature69 kinnoo test execution engine and CLI summary"
     type: task
     epic: [E2, E10]
@@ -7191,6 +7541,7 @@ tasks:
     tests: [test508]
 
   - id: task350
+    visibility: public
     title: "Feature70 landing page and README messaging update"
     type: task
     epic: [E4, E5]
@@ -7211,6 +7562,7 @@ tasks:
     tests: [test509]
 
   - id: task351
+    visibility: private
     title: "Feature70 docs consistency checks and release-note updates"
     type: task
     epic: [E4, E5]
@@ -7231,6 +7583,7 @@ tasks:
     tests: [test510]
 
   - id: task352
+    visibility: private
     title: "Feature71 strict install enforcement"
     type: task
     epic: [E2, E10]
@@ -7251,6 +7604,7 @@ tasks:
     tests: [test511]
 
   - id: task353
+    visibility: public
     title: "Feature71 strict publish enforcement and CI rollout docs"
     type: task
     epic: [E2, E10]
@@ -7271,6 +7625,7 @@ tasks:
     tests: [test512]
 
   - id: task354
+    visibility: private
     title: "Feature72 lockfile write/update implementation"
     type: task
     epic: [E2, E10]
@@ -7291,6 +7646,7 @@ tasks:
     tests: [test513]
 
   - id: task355
+    visibility: private
     title: "Feature72 frozen lockfile install behavior"
     type: task
     epic: [E2, E10]
@@ -7311,6 +7667,7 @@ tasks:
     tests: [test514]
 
   - id: task356
+    visibility: private
     title: "Feature73 diff command core engine"
     type: task
     epic: [E2, E10]
@@ -7331,6 +7688,7 @@ tasks:
     tests: [test515]
 
   - id: task357
+    visibility: private
     title: "Feature73 diff json output and exit semantics"
     type: task
     epic: [E2, E10]
@@ -7351,6 +7709,7 @@ tasks:
     tests: [test516]
 
   - id: task358
+    visibility: private
     title: "Feature74 uninstall command and mandatory confirmation"
     type: task
     epic: [E2, E10]
@@ -7371,6 +7730,7 @@ tasks:
     tests: [test517]
 
   - id: task359
+    visibility: private
     title: "Feature74 uninstall metadata cleanup and error-path coverage"
     type: task
     epic: [E2, E10]
@@ -7391,6 +7751,7 @@ tasks:
     tests: [test518]
 
   - id: task360
+    visibility: public
     title: "Feature75 framework adapter architecture for langchain langgraph openai"
     type: task
     epic: [E2, E10]
@@ -7412,6 +7773,7 @@ tasks:
     tests: [test519]
 
   - id: task361
+    visibility: private
     title: "Feature75 adapter confidence tuning docs and cross-runtime tests"
     type: task
     epic: [E2, E10]
@@ -7432,6 +7794,7 @@ tasks:
     tests: [test520]
 
   - id: task362
+    visibility: private
     title: "Feature76 preflight CLI detection and version parsing"
     type: task
     epic: [E2, E10]
@@ -7451,6 +7814,7 @@ tasks:
     tests: [test521]
 
   - id: task363
+    visibility: private
     title: "Feature76 preflight reuse and optional gateway health gating"
     type: task
     epic: [E2, E10]
@@ -7470,6 +7834,7 @@ tasks:
     tests: [test522]
 
   - id: task364
+    visibility: private
     title: "Feature77 init delegation to openclaw agents add"
     type: task
     epic: [E2, E10]
@@ -7489,6 +7854,7 @@ tasks:
     tests: [test523]
 
   - id: task365
+    visibility: private
     title: "Feature77 init manifest generation and operator summary"
     type: task
     epic: [E2, E10]
@@ -7509,6 +7875,7 @@ tasks:
     tests: [test524]
 
   - id: task366
+    visibility: private
     title: "Feature78 OpenClaw workspace detection and manifest inference"
     type: task
     epic: [E2, E10]
@@ -7528,6 +7895,7 @@ tasks:
     tests: [test525]
 
   - id: task367
+    visibility: private
     title: "Feature78 import copy/register workflow and conflict handling"
     type: task
     epic: [E2, E10]
@@ -7547,6 +7915,7 @@ tasks:
     tests: [test526]
 
   - id: task368
+    visibility: private
     title: "Feature79 OpenClaw pack include rules"
     type: task
     epic: [E2, E10]
@@ -7566,6 +7935,7 @@ tasks:
     tests: [test527]
 
   - id: task369
+    visibility: private
     title: "Feature79 OpenClaw pack exclude rules and roundtrip viability"
     type: task
     epic: [E2, E10]
@@ -7586,6 +7956,7 @@ tasks:
     tests: [test528]
 
   - id: task370
+    visibility: private
     title: "Feature80 OpenClaw install extract and register flow"
     type: task
     epic: [E2, E10]
@@ -7605,6 +7976,7 @@ tasks:
     tests: [test529]
 
   - id: task371
+    visibility: private
     title: "Feature80 install diagnostics conflicts and trust checks"
     type: task
     epic: [E2, E10]
@@ -7625,6 +7997,7 @@ tasks:
     tests: [test530]
 
   - id: task372
+    visibility: private
     title: "Feature81 run delegation thinking passthrough and exit semantics"
     type: task
     epic: [E2, E10]
@@ -7644,6 +8017,7 @@ tasks:
     tests: [test531]
 
   - id: task373
+    visibility: private
     title: "Feature81 gateway preflight gating and json output passthrough"
     type: task
     epic: [E2, E10]
@@ -7663,6 +8037,7 @@ tasks:
     tests: [test532]
 
   - id: task374
+    visibility: private
     title: "Feature82 logs command wrapper and flag passthrough"
     type: task
     epic: [E2, E10]
@@ -7682,6 +8057,7 @@ tasks:
     tests: [test533]
 
   - id: task375
+    visibility: private
     title: "Feature82 logs preflight validation and failure diagnostics"
     type: task
     epic: [E2, E10]
@@ -7701,6 +8077,7 @@ tasks:
     tests: [test534]
 
   - id: task376
+    visibility: private
     title: "Feature83 openclaw skill install command and agent resolution"
     type: task
     status: deprecated
@@ -7721,6 +8098,7 @@ tasks:
     tests: [test535]
 
   - id: task377
+    visibility: private
     title: "Feature83 skill identifier normalization and outcome diagnostics"
     type: task
     epic: [E2, E10]
@@ -7740,6 +8118,7 @@ tasks:
     tests: [test536]
 
   - id: task378
+    visibility: private
     title: "Feature84 openclaw skill search command wrapper"
     type: task
     status: deprecated
@@ -7760,6 +8139,7 @@ tasks:
     tests: [test537]
 
   - id: task379
+    visibility: private
     title: "Feature84 search preflight and empty/error guidance"
     type: task
     epic: [E2, E10]
@@ -7779,6 +8159,7 @@ tasks:
     tests: [test538]
 
   - id: task380
+    visibility: public
     title: "Feature85 deprecation metadata and cli/help migration messaging"
     type: task
     epic: [E2, E10]
@@ -7799,6 +8180,7 @@ tasks:
     tests: [test539]
 
   - id: task381
+    visibility: private
     title: "Feature85 runtime deprecation warnings and non-breaking compatibility"
     type: task
     epic: [E2, E10]
@@ -7819,6 +8201,7 @@ tasks:
     tests: [test540]
 
   - id: task382
+    visibility: public
     title: "Create integrity.py module and embed SHA-256 manifest in .kno archives"
     type: task
     epic: [E6]
@@ -7836,6 +8219,7 @@ tasks:
     tests: [test541, test542]
 
   - id: task383
+    visibility: public
     title: "Document integrity manifest format and verify pack integration"
     type: task
     epic: [E6]
@@ -7852,6 +8236,7 @@ tasks:
     tests: [test541, test542]
 
   - id: task384
+    visibility: public
     title: "Add Ed25519 signing to .kno archives via --sign flag"
     type: task
     epic: [E6]
@@ -7869,6 +8254,7 @@ tasks:
     tests: [test543, test544]
 
   - id: task385
+    visibility: public
     title: "Verify signature integration and unsigned archive backward compat"
     type: task
     epic: [E6]
@@ -7886,6 +8272,7 @@ tasks:
     tests: [test543, test544]
 
   - id: task386
+    visibility: public
     title: "Add install-time integrity and signature verification (--strict, --skip-verify)"
     type: task
     epic: [E6]
@@ -7904,6 +8291,7 @@ tasks:
     tests: [test545, test546]
 
   - id: task387
+    visibility: public
     title: "Handle missing manifests, tampered files, and backward compat in install"
     type: task
     epic: [E6]
@@ -7921,6 +8309,7 @@ tasks:
     tests: [test545, test546]
 
   - id: task388
+    visibility: private
     title: "Add JSON logging, CORS, and health/ready endpoints to server"
     type: task
     epic: [E6, E7]
@@ -7939,6 +8328,7 @@ tasks:
     tests: [test547, test548]
 
   - id: task389
+    visibility: private
     title: "Harden Uvicorn config and enforce secret validation in production mode"
     type: task
     epic: [E6, E7]
@@ -7956,6 +8346,7 @@ tasks:
     tests: [test547, test548]
 
   - id: task390
+    visibility: private
     title: "Add server-side upload validation (size, zip, manifest fields)"
     type: task
     epic: [E6, E7]
@@ -7973,6 +8364,7 @@ tasks:
     tests: [test549, test550]
 
   - id: task391
+    visibility: private
     title: "Enforce integrity.json validation on upload and return JSON errors"
     type: task
     epic: [E6, E7]
@@ -7989,6 +8381,7 @@ tasks:
     tests: [test549, test550]
 
   - id: task392
+    visibility: private
     title: "Implement configurable per-endpoint and per-tenant rate limiting"
     type: task
     epic: [E6, E7]
@@ -8006,6 +8399,7 @@ tasks:
     tests: [test551, test552]
 
   - id: task393
+    visibility: private
     title: "Add X-RateLimit-* and Retry-After headers to all responses"
     type: task
     epic: [E6, E7]
@@ -8022,6 +8416,7 @@ tasks:
     tests: [test551, test552]
 
   - id: task394
+    visibility: public
     title: "Create kinnoo.yaml spec doc with field reference table"
     type: task
     epic: [E5]
@@ -8039,6 +8434,7 @@ tasks:
     tests: [test553, test554]
 
   - id: task395
+    visibility: public
     title: "Add framework examples and version/compat notes to spec doc"
     type: task
     epic: [E5]
@@ -8054,6 +8450,7 @@ tasks:
     tests: [test553, test554]
 
   - id: task396
+    visibility: public
     title: "Create CLI reference doc for client commands (init through uninstall)"
     type: task
     epic: [E5]
@@ -8071,6 +8468,7 @@ tasks:
     tests: [test555, test556]
 
   - id: task397
+    visibility: private
     title: "Add server CLI commands and cross-references to CLI reference"
     type: task
     epic: [E5]
@@ -8087,6 +8485,7 @@ tasks:
     tests: [test555, test556]
 
   - id: task398
+    visibility: public
     title: "Create security model doc with threat model and signing architecture"
     type: task
     epic: [E5]
@@ -8103,6 +8502,7 @@ tasks:
     tests: [test557, test558]
 
   - id: task399
+    visibility: public
     title: "Document auth flow and cross-reference from README"
     type: task
     epic: [E5]
@@ -8119,6 +8519,7 @@ tasks:
     tests: [test557, test558]
 
   - id: task400
+    visibility: public
     title: "Create getting-started guide with end-to-end agent walkthrough"
     type: task
     epic: [E5]
@@ -8135,6 +8536,7 @@ tasks:
     tests: [test559, test560]
 
   - id: task401
+    visibility: public
     title: "Create registry guide with publish/install workflows and expected output"
     type: task
     epic: [E5]
@@ -8150,6 +8552,7 @@ tasks:
     tests: [test559, test560]
 
   - id: task402
+    visibility: public
     title: "Rewrite README for beta with badges and quick-start"
     type: task
     epic: [E5]
@@ -8166,6 +8569,7 @@ tasks:
     tests: [test561, test562]
 
   - id: task403
+    visibility: public
     title: "Create supported-agents.md with framework compatibility matrix"
     type: task
     epic: [E5]
@@ -8181,6 +8585,7 @@ tasks:
     tests: [test561, test562]
 
   - id: task404
+    visibility: public
     title: "Audit repo for secrets and create CONTRIBUTING.md, CODE_OF_CONDUCT.md"
     type: task
     epic: [E5]
@@ -8199,6 +8604,7 @@ tasks:
     tests: [test563, test564]
 
   - id: task405
+    visibility: private
     title: "Create issue/PR templates and verify .gitignore coverage"
     type: task
     epic: [E5]
@@ -8217,6 +8623,7 @@ tasks:
     tests: [test563, test564]
 
   - id: task406
+    visibility: private
     title: "Create CI and backend deploy GitHub Actions workflows"
     type: task
     epic: [E5]
@@ -8234,6 +8641,7 @@ tasks:
     tests: [test565, test566]
 
   - id: task407
+    visibility: private
     title: "Create frontend deploy and Terraform plan/apply workflows with OIDC"
     type: task
     epic: [E5]
@@ -8251,6 +8659,7 @@ tasks:
     tests: [test565, test566]
 
   - id: task408
+    visibility: public
     title: "Validate pyproject.toml metadata and configure trusted publisher"
     type: task
     epic: [E5]
@@ -8267,6 +8676,7 @@ tasks:
     tests: [test567, test568]
 
   - id: task409
+    visibility: public
     title: "Create pypi-publish.yml workflow triggered on push to master"
     type: task
     epic: [E5]
@@ -8282,6 +8692,7 @@ tasks:
     tests: [test567, test568]
 
   - id: task410
+    visibility: private
     title: "Implement account lockout after 5 failed logins with 15-min cooldown"
     type: task
     epic: [E8, E6, E7]
@@ -8299,6 +8710,7 @@ tasks:
     tests: [test569, test570, test571]
 
   - id: task411
+    visibility: private
     title: "Implement password policy enforcement with specific guidance messages"
     type: task
     epic: [E8, E6, E7]
@@ -8314,6 +8726,7 @@ tasks:
     tests: [test569, test570, test571]
 
   - id: task412
+    visibility: private
     title: "Implement JWT token blacklist on logout with automatic pruning"
     type: task
     epic: [E8, E6, E7]
@@ -8332,6 +8745,7 @@ tasks:
     tests: [test569, test570, test571]
 
   - id: task413
+    visibility: private
     title: "Create multi-stage production Dockerfile with non-root user and healthcheck"
     type: task
     epic: [E7, E6]
@@ -8349,6 +8763,7 @@ tasks:
     tests: [test572, test573]
 
   - id: task414
+    visibility: private
     title: "Create docker-compose.yml for local dev and verify container startup"
     type: task
     epic: [E7]
@@ -8366,6 +8781,7 @@ tasks:
     tests: [test572, test573]
 
   - id: task415
+    visibility: private
     title: "Implement user management CLI commands (create, list, reset-password, unlock, delete)"
     type: task
     epic: [E3, E8, E6, E7]
@@ -8385,6 +8801,7 @@ tasks:
     tests: [test574, test575]
 
   - id: task416
+    visibility: private
     title: "Implement invite token CLI commands (create, list) with input validation"
     type: task
     epic: [E3, E8, E6, E7]
@@ -8403,6 +8820,7 @@ tasks:
     tests: [test574, test575]
 
   - id: task417
+    visibility: private
     title: "Create iac/ project structure with versions.tf, providers.tf, and state bootstrap"
     type: task
     epic: [E7]
@@ -8424,6 +8842,7 @@ tasks:
     tests: [test576, test577]
 
   - id: task418
+    visibility: private
     title: "Create VPC module with public subnets, security groups, and S3 endpoint"
     type: task
     epic: [E7]
@@ -8444,6 +8863,7 @@ tasks:
     tests: [test576, test577]
 
   - id: task419
+    visibility: private
     title: "Create S3 registry module with encryption, Object Lock, and versioning"
     type: task
     epic: [E7]
@@ -8462,6 +8882,7 @@ tasks:
     tests: [test578, test579, test580]
 
   - id: task420
+    visibility: private
     title: "Create IAM roles module (ECS task, execution, GitHub OIDC)"
     type: task
     epic: [E7]
@@ -8479,6 +8900,7 @@ tasks:
     tests: [test578, test579, test580]
 
   - id: task421
+    visibility: private
     title: "Create Secrets Manager module for JWT, session, and admin secrets"
     type: task
     epic: [E7]
@@ -8495,6 +8917,7 @@ tasks:
     tests: [test578, test579, test580]
 
   - id: task422
+    visibility: private
     title: "Create ECR repository and ALB modules with HTTPS/ACM"
     type: task
     epic: [E7]
@@ -8513,6 +8936,7 @@ tasks:
     tests: [test581, test582, test583]
 
   - id: task423
+    visibility: private
     title: "Create ECS Fargate cluster, task definition, and service"
     type: task
     epic: [E7]
@@ -8529,6 +8953,7 @@ tasks:
     tests: [test581, test582, test583]
 
   - id: task424
+    visibility: private
     title: "Create EFS module with mount targets and verify terraform validate"
     type: task
     epic: [E7]
@@ -8545,6 +8970,7 @@ tasks:
     tests: [test581, test582, test583]
 
   - id: task425
+    visibility: private
     title: "Create Cloudflare DNS module for dev.kinnoo.ai and dev-api.kinnoo.ai"
     type: task
     epic: [E7]
@@ -8562,6 +8988,7 @@ tasks:
     tests: [test584, test585]
 
   - id: task426
+    visibility: private
     title: "Add ACM validation CNAME records and Cloudflare API token config"
     type: task
     epic: [E7]
@@ -8578,6 +9005,7 @@ tasks:
     tests: [test584, test585]
 
   - id: task427
+    visibility: private
     title: "Create CloudWatch log group and alarm modules (5xx, unhealthy, CPU)"
     type: task
     epic: [E7]
@@ -8596,6 +9024,7 @@ tasks:
     tests: [test586, test587]
 
   - id: task428
+    visibility: private
     title: "Create SNS topics for alerts and password reset notifications"
     type: task
     epic: [E7]
@@ -8612,6 +9041,7 @@ tasks:
     tests: [test586, test587]
 
   - id: task429
+    visibility: private
     title: "Add invite token validation to registration endpoint"
     type: task
     epic: [E7, E8]
@@ -8630,6 +9060,7 @@ tasks:
     tests: [test588, test589]
 
   - id: task430
+    visibility: private
     title: "Add invite token field to web registration and handle race conditions"
     type: task
     epic: [E7, E8]
@@ -8647,6 +9078,7 @@ tasks:
     tests: [test588, test589]
 
   - id: task431
+    visibility: private
     title: "Add forgot-password endpoint with SNS notification to operator"
     type: task
     epic: [E7, E8]
@@ -8664,6 +9096,7 @@ tasks:
     tests: [test590, test591]
 
   - id: task432
+    visibility: private
     title: "Add forgot-password web page with rate limiting"
     type: task
     epic: [E7, E8]
@@ -8681,6 +9114,7 @@ tasks:
     status: deprecated
 
   - id: task433
+    visibility: public
     title: "Keep landing unchanged and simplify Sign Up invite-only page"
     type: task
     epic: [E7, E8]
@@ -8697,6 +9131,7 @@ tasks:
     tests: [test592, test593]
 
   - id: task434
+    visibility: public
     title: "Verify no mailto flow and preserve login/registry + static export"
     type: task
     epic: [E7, E8]
@@ -8714,6 +9149,7 @@ tasks:
     tests: [test592, test593]
 
   - id: task435
+    visibility: private
     title: "Create e2e smoke test script with parameterized registry URL and credentials"
     type: task
     epic: [E7, E9]
@@ -8732,6 +9168,7 @@ tasks:
     status: deprecated
 
   - id: task436
+    visibility: private
     title: "Add cleanup, CI integration, and per-step timing to smoke test"
     type: task
     epic: [E7, E9]
@@ -8749,6 +9186,7 @@ tasks:
     status: deprecated
 
   - id: task437
+    visibility: public
     title: "Publish 3+ agents covering different frameworks to the registry"
     type: task
     epic: [E7, E9]
@@ -8766,6 +9204,7 @@ tasks:
     status: not-started
 
   - id: task438
+    visibility: public
     title: "Verify searchability, installability, and document seeding process"
     type: task
     epic: [E7, E9]
@@ -8782,6 +9221,7 @@ tasks:
     status: deprecated
 
   - id: task439
+    visibility: public
     title: "Create launch checklist doc with Infrastructure, Security, CI/CD sections"
     type: task
     epic: [E7, E9]
@@ -8799,6 +9239,7 @@ tasks:
     status: completed
 
   - id: task440
+    visibility: public
     title: "Add User Onboarding walkthrough and make checklist actionable for operator"
     type: task
     epic: [E7, E9]
@@ -8815,6 +9256,7 @@ tasks:
     status: completed
 
   - id: task441
+    visibility: private
     title: "Apply Terraform state bootstrap in AWS and verify S3 native lockfile backend"
     type: task
     epic: [E7]
@@ -8836,6 +9278,7 @@ tasks:
     tests: [test602]
 
   - id: task442
+    visibility: private
     title: "Configure Cloudflare credentials and complete live DNS validation"
     type: task
     epic: [E7]
@@ -8858,6 +9301,7 @@ tasks:
     status: completed
 
   - id: task443
+    visibility: public
     title: "Configure PyPI trusted publisher (OIDC) for release workflow"
     type: task
     epic: [E5]
@@ -8880,6 +9324,7 @@ tasks:
     status: not-started
 
   - id: task444
+    visibility: private
     title: "Run operator forgot-password drill and verify reset runbook"
     type: task
     epic: [E7, E8]
@@ -8902,6 +9347,7 @@ tasks:
     status: deprecated
 
   - id: task445
+    visibility: private
     title: "Execute registry seeding runbook with signed multi-framework agents"
     type: task
     epic: [E7, E9]
@@ -8923,6 +9369,7 @@ tasks:
     status: not-started
 
   - id: task446
+    visibility: private
     title: "Execute launch-day checklist and record go/no-go decision"
     type: task
     epic: [E7, E9]
@@ -8944,6 +9391,7 @@ tasks:
     status: not-started
 
   - id: task447
+    visibility: private
     title: "Run final public-repo scrub and explicit operator release signoff"
     type: task
     epic: [E5]
@@ -8968,6 +9416,7 @@ tasks:
     status: not-started
 
   - id: task448
+    visibility: private
     title: "Resolve dev infra blockers (Cloudflare 1014 + ECS/ECR readiness)"
     type: task
     epic: [E7]
@@ -8994,6 +9443,7 @@ tasks:
     status: completed
 
   - id: task449
+    visibility: private
     title: "Login and logout CLI hardening"
     type: task
     epic: [E2, E8]
@@ -9022,6 +9472,7 @@ tasks:
     status: completed
 
   - id: task450
+    visibility: private
     title: "kinnoo test hardening"
     type: task
     epic: [E2, E6]
@@ -9049,6 +9500,7 @@ tasks:
     tests: [test610, test611, test612, test613, test614]
 
   - id: task451
+    visibility: private
     title: "Fix remote install latest resolution and download URL handling"
     type: issue
     epic: [E2]
@@ -9077,6 +9529,7 @@ tasks:
     tests: [test615, test616, test617, test618, test619, test620, test621, test622, test623]
 
   - id: task452
+    visibility: private
     title: "Fix publish framework requirement and JS/TS runtime language handling"
     type: issue
     epic: [E2]
@@ -9121,6 +9574,7 @@ tasks:
   # [agent] instead of manual console-only changes.
 
   - id: task453
+    visibility: private
     title: "CLI top-level help - version, commit hash, and icon"
     type: task
     epic: [E2, E9]
@@ -9143,6 +9597,7 @@ tasks:
     tests: [test628]
 
   - id: task454
+    visibility: private
     title: "init - framework as required positional argument"
     type: task
     epic: [E2, E9]
@@ -9168,6 +9623,7 @@ tasks:
     tests: [test629, test630]
 
   - id: task455
+    visibility: private
     title: "init - interactive wizard when no arguments"
     type: task
     epic: [E2, E9]
@@ -9193,6 +9649,7 @@ tasks:
     tests: [test631]
 
   - id: task456
+    visibility: private
     title: "init - change default python entrypoint to main.py"
     type: task
     epic: [E2, E9]
@@ -9213,6 +9670,7 @@ tasks:
     tests: [test632]
 
   - id: task457
+    visibility: private
     title: "init - complete template with folders and --minimal flag"
     type: task
     epic: [E2, E9]
@@ -9239,6 +9697,7 @@ tasks:
     tests: [test633, test634, test635]
 
   - id: task458
+    visibility: private
     title: "init - README.md template improvements"
     type: task
     epic: [E2, E9]
@@ -9262,6 +9721,7 @@ tasks:
     tests: [test636]
 
   - id: task459
+    visibility: private
     title: "init - language-specific .gitignore templates"
     type: task
     epic: [E2, E9]
@@ -9282,6 +9742,7 @@ tasks:
     tests: [test637, test638, test639, test640]
 
   - id: task460
+    visibility: private
     title: "pack - ignore data/ by default and add --include/--exclude"
     type: task
     epic: [E2, E9]
@@ -9303,6 +9764,7 @@ tasks:
     tests: [test641, test642]
 
   - id: task461
+    visibility: private
     title: "pack - --preflight dry-run"
     type: task
     epic: [E2, E9]
@@ -9323,6 +9785,7 @@ tasks:
     tests: [test643]
 
   - id: task462
+    visibility: private
     title: "pack - help text updates and default patch bump"
     type: task
     epic: [E2, E9]
@@ -9345,6 +9808,7 @@ tasks:
     tests: [test644, test645]
 
   - id: task463
+    visibility: private
     title: "pack - merge --signing-key into --sign"
     type: task
     epic: [E2, E9]
@@ -9368,6 +9832,7 @@ tasks:
     tests: [test646]
 
   - id: task464
+    visibility: private
     title: "pack - --json flag for structured output"
     type: task
     epic: [E2, E9]
@@ -9389,6 +9854,7 @@ tasks:
     tests: [test647]
 
   - id: task465
+    visibility: private
     title: "publish - --local | --remote mutual exclusion and help text"
     type: task
     epic: [E2, E9]
@@ -9408,6 +9874,7 @@ tasks:
     tests: [test648]
 
   - id: task466
+    visibility: private
     title: "publish - version history and Agent Versions tab"
     type: task
     epic: [E2, E9]
@@ -9430,6 +9897,7 @@ tasks:
     tests: [test649]
 
   - id: task467
+    visibility: private
     title: "publish - --json flag for structured output"
     type: task
     epic: [E2, E9]
@@ -9450,6 +9918,7 @@ tasks:
     tests: [test650]
 
   - id: task468
+    visibility: private
     title: "install - remove deprecated openclaw options"
     type: task
     epic: [E2, E9]
@@ -9471,6 +9940,7 @@ tasks:
     tests: [test651]
 
   - id: task469
+    visibility: private
     title: "install - default openclaw install to ~/.openclaw/workspace-<name>"
     type: task
     epic: [E2, E9]
@@ -9490,6 +9960,7 @@ tasks:
     tests: [test652]
 
   - id: task470
+    visibility: private
     title: "install - --json flag for structured output"
     type: task
     epic: [E2, E9]
@@ -9511,6 +9982,7 @@ tasks:
     tests: [test653]
 
   - id: task471
+    visibility: private
     title: "run - --json structured output for all agent types"
     type: task
     epic: [E2, E9]
@@ -9533,6 +10005,7 @@ tasks:
     tests: [test654]
 
   - id: task472
+    visibility: private
     title: "run - replace --sandbox with --enforce-policy"
     type: task
     epic: [E2, E9]
@@ -9555,6 +10028,7 @@ tasks:
     tests: [test655]
 
   - id: task473
+    visibility: private
     title: "inspect - --json flag for structured output"
     type: task
     epic: [E2, E9]
@@ -9577,6 +10051,7 @@ tasks:
     tests: [test656]
 
   - id: task474
+    visibility: private
     title: "inspect - --update simplification to 2 arguments"
     type: task
     epic: [E2, E9]
@@ -9599,6 +10074,7 @@ tasks:
     tests: [test657]
 
   - id: task475
+    visibility: private
     title: "inspect - --update confirmation prompt"
     type: task
     epic: [E2, E9]
@@ -9620,6 +10096,7 @@ tasks:
     tests: [test658]
 
   - id: task476
+    visibility: public
     title: "Comment out sync, stop, attach, logs commands and daemon help"
     type: task
     epic: [E2, E9]
@@ -9641,6 +10118,7 @@ tasks:
     tests: [test659]
 
   - id: task477
+    visibility: private
     title: "search - remove --openclaw-skills and refactor --json"
     type: task
     epic: [E2, E9]
@@ -9661,6 +10139,7 @@ tasks:
     tests: [test660, test661]
 
   - id: task478
+    visibility: private
     title: "list - add --json option"
     type: task
     epic: [E2, E9]
@@ -9679,6 +10158,7 @@ tasks:
     tests: [test662]
 
   - id: task479
+    visibility: private
     title: "Registry UI - inline security icons in Name column"
     type: task
     epic: [E2, E9]
@@ -9703,6 +10183,7 @@ tasks:
     tests: [test663]
 
   - id: task480
+    visibility: private
     title: "Registry - server-side security check script"
     type: task
     epic: [E2, E9]
@@ -9725,6 +10206,7 @@ tasks:
     tests: [test664]
 
   - id: task481
+    visibility: private
     title: "Registry - update security column and persist check report"
     type: task
     epic: [E2, E9]
@@ -9749,6 +10231,7 @@ tasks:
     tests: [test665]
 
   - id: task482
+    visibility: private
     title: "Registry - containerized Lambda for server-side checks"
     type: task
     epic: [E2, E9]
@@ -9779,6 +10262,7 @@ tasks:
     tests: [test666]
 
   - id: task483
+    visibility: private
     title: "Registry UI - Security tab in selected-agent details"
     type: task
     epic: [E2, E9]
@@ -9800,6 +10284,7 @@ tasks:
     tests: [test667]
 
   - id: task484
+    visibility: private
     title: "New kinnoo fetch command"
     type: task
     epic: [E2, E9]
@@ -9824,6 +10309,7 @@ tasks:
     tests: [test668, test669]
 
   - id: task485
+    visibility: private
     title: "New kinnoo uninstall command"
     type: task
     epic: [E2, E9]
@@ -9847,6 +10333,7 @@ tasks:
     tests: [test670, test671]
 
   - id: task486
+    visibility: private
     title: "Hotfix - hide traceback for remote registry auth/conflict failures"
     type: task
     epic: [E2, E9]
@@ -9867,6 +10354,7 @@ tasks:
     tests: [test672, test673]
 
   - id: task487
+    visibility: private
     title: "Hotfix - init/run help cleanup + task482 retry/fallback diagnostics"
     type: task
     epic: [E2, E9]
@@ -9913,6 +10401,7 @@ tasks:
     tests: [test674, test675, test676, test677]
 
   - id: task488
+    visibility: private
     title: "pack/publish visibility default switch to public + deprecation/doc cleanup"
     type: task
     epic: [E2, E9]
@@ -9958,6 +10447,7 @@ tasks:
     status: completed
 
   - id: task489
+    visibility: private
     title: "multi-entrypoint manifest + run/inspect/check validation"
     type: task
     epic: [E2, E9]
@@ -10010,6 +10500,7 @@ tasks:
     status: completed
 
   - id: task490
+    visibility: private
     title: "regression hardening foundation for CLI and validator tests"
     type: task
     epic: [E2, E9]
@@ -10048,6 +10539,7 @@ tasks:
     tests: [test693, test694, test695]
 
   - id: task491
+    visibility: private
     title: "feature117 import core error hardening and manifest validation gate"
     type: task
     epic: [E2, E9, E10]
@@ -10074,6 +10566,7 @@ tasks:
     tests: [test696, test697, test698]
 
   - id: task492
+    visibility: private
     title: "feature117 framework adapter hardening for langchain langgraph and openai"
     type: task
     epic: [E2, E9, E10]
@@ -10102,6 +10595,7 @@ tasks:
     tests: [test699, test700, test701]
 
   - id: task493
+    visibility: private
     title: "feature117 openclaw workspace import --from flow hardening"
     type: task
     epic: [E2, E9, E10]
@@ -10128,6 +10622,7 @@ tasks:
     tests: [test702]
 
   - id: task494
+    visibility: private
     title: "feature117 dependency inference hardening and generic llm agent support"
     type: task
     epic: [E2, E9, E10]
@@ -10154,6 +10649,7 @@ tasks:
     tests: [test703, test704]
 
   - id: task495
+    visibility: private
     title: "feature117 import hardening regression matrix and fixture expansion"
     type: task
     epic: [E9, E10]
@@ -10179,6 +10675,7 @@ tasks:
     tests: [test705]
 
   - id: task496
+    visibility: private
     title: "feature118 prerequisite decisions and dual Kinde app setup execution"
     type: task
     epic: [E8, E7]
@@ -10212,6 +10709,7 @@ tasks:
     tests: [test706, test717, test718, test719]
 
   - id: task497
+    visibility: private
     title: "feature118 server OIDC auth adapter and route cutover"
     type: task
     epic: [E8, E6]
@@ -10241,6 +10739,7 @@ tasks:
     tests: [test707, test708]
 
   - id: task498
+    visibility: public
     title: "feature118 web auth migration to Kinde-hosted redirects"
     type: task
     epic: [E4, E8]
@@ -10266,6 +10765,7 @@ tasks:
     tests: [test709]
 
   - id: task499
+    visibility: private
     title: "feature118 CLI login/logout/refresh flow migration"
     type: task
     epic: [E2, E8]
@@ -10293,6 +10793,7 @@ tasks:
     tests: [test710, test711]
 
   - id: task500
+    visibility: private
     title: "feature118 internal identity mapping and publish ownership linkage"
     type: task
     epic: [E8, E3]
@@ -10318,6 +10819,7 @@ tasks:
     tests: [test712]
 
   - id: task501
+    visibility: private
     title: "feature118 provider-neutral auth config and IaC env alignment"
     type: task
     epic: [E7, E8]
@@ -10342,6 +10844,7 @@ tasks:
     tests: [test713]
 
   - id: task502
+    visibility: private
     title: "feature118 legacy auth runtime retirement and compatibility gating"
     type: task
     epic: [E8, E6]
@@ -10365,6 +10868,7 @@ tasks:
     tests: [test714]
 
   - id: task503
+    visibility: private
     title: "feature118 auth portability and integration test expansion"
     type: task
     epic: [E9, E8]
@@ -10391,6 +10895,7 @@ tasks:
     tests: [test715]
 
   - id: task504
+    visibility: private
     title: "feature118 dev cutover smoke validation and rollback rehearsal"
     type: task
     epic: [E9, E7]
@@ -10416,6 +10921,7 @@ tasks:
     status: completed
 
   - id: task505
+    visibility: private
     title: "feature119 operator prerequisite decisions and rollout guardrails"
     type: task
     epic: [E7, E8]
@@ -10437,6 +10943,7 @@ tasks:
     status: completed
 
   - id: task506
+    visibility: private
     title: "feature119 phase13.1 terraform postgres foundation and ecs wiring"
     type: task
     epic: [E7, E3]
@@ -10465,6 +10972,7 @@ tasks:
     tests: [test721, test722]
 
   - id: task507
+    visibility: private
     title: "feature119 phase13.2 server database package schema and migrations"
     type: task
     epic: [E3, E8]
@@ -10490,6 +10998,7 @@ tasks:
     tests: [test723, test724]
 
   - id: task508
+    visibility: private
     title: "feature119 phase13.2 metadata backend integration and health wiring"
     type: task
     epic: [E3, E8]
@@ -10514,6 +11023,7 @@ tasks:
     tests: [test725, test726]
 
   - id: task509
+    visibility: private
     title: "feature119 phase13.3 json-to-postgres migration parity and rollback gates"
     type: task
     epic: [E3, E9]
@@ -10536,6 +11046,7 @@ tasks:
     tests: [test727]
 
   - id: task510
+    visibility: private
     title: "feature119 server db/admin command surface for postgres operations"
     type: task
     epic: [E3]
@@ -10558,6 +11069,7 @@ tasks:
     tests: [test728]
 
   - id: task511
+    visibility: private
     title: "feature119 postgres test harness local-dev and ci integration"
     type: task
     epic: [E9, E7]
@@ -10581,6 +11093,7 @@ tasks:
     tests: [test729, test730]
 
   - id: task512
+    visibility: private
     title: "feature119 observability resilience runbooks and scalability controls"
     type: task
     epic: [E7, E9]
@@ -10603,6 +11116,7 @@ tasks:
     tests: [test731]
 
   - id: task513
+    visibility: private
     title: "feature119 human cutover gate execution and final approval"
     type: task
     epic: [E7, E9]
@@ -10625,6 +11139,7 @@ tasks:
     status: completed
 
   - id: task514
+    visibility: private
     title: "feature120 UAT3 install/fetch selector and verification-sidecar fixes"
     type: task
     epic: [E9]
@@ -10656,6 +11171,7 @@ tasks:
     status: not-started
 
   - id: task515
+    visibility: private
     title: "hosted auth discovery via registry config endpoint"
     type: task
     epic: [E9]
@@ -10683,6 +11199,7 @@ tasks:
     status: needs-review
 
   - id: task516
+    visibility: private
     title: "phase 14 regression test fixes"
     type: task
     epic: [E9]
@@ -10710,6 +11227,7 @@ tasks:
     status: needs-review
 
   - id: task517
+    visibility: private
     title: "feature121 author production deployment runbook"
     type: task
     epic: [E7, E5]
@@ -10752,6 +11270,7 @@ tasks:
       - "  6. task521 (terraform provider portability) - last, decouples operator credentials from hardcoded profile."
 
   - id: task518
+    visibility: private
     title: "feature121 iac prod-domain and cloudflare routing parity"
     type: task
     epic: [E7]
@@ -10777,6 +11296,7 @@ tasks:
     status: needs-review
 
   - id: task519
+    visibility: private
     title: "feature121 production-safe deployment, lambda bootstrap, and dns smoke scripts"
     type: task
     epic: [E7, E9]
@@ -10813,6 +11333,7 @@ tasks:
     status: needs-review
 
   - id: task520
+    visibility: private
     title: "feature121 runtime production default isolation hardening"
     type: task
     epic: [E7, E6]
@@ -10836,6 +11357,7 @@ tasks:
     status: needs-review
 
   - id: task521
+    visibility: private
     title: "feature121 terraform provider profile portability"
     type: task
     epic: [E7]
@@ -10857,6 +11379,7 @@ tasks:
     status: needs-review
 
   - id: task522
+    visibility: private
     title: "feature121 web frontend prod wrangler config and worker deploy"
     type: task
     epic: [E4, E7]
@@ -10887,6 +11410,7 @@ tasks:
     status: needs-review
 
   - id: task523
+    visibility: private
     title: "feature121 prod lambda security-check image bootstrap procedure"
     type: task
     epic: [E7, E6]
@@ -10923,6 +11447,7 @@ tasks:
     status: needs-review
 
   - id: task524
+    visibility: private
     title: "feature121 complete prod terraform.tfvars contract"
     type: task
     epic: [E7]
@@ -10951,6 +11476,7 @@ tasks:
     status: needs-review
 
   - id: task525
+    visibility: private
     title: "feature121 registry database url stub secret bootstrap"
     type: task
     epic: [E7, E3]
@@ -10981,6 +11507,7 @@ tasks:
 
 
   - id: task526
+    visibility: private
     title: "issue372 tenant storage quota schema and publish enforcement"
     type: task
     epic: [E9]
@@ -11011,6 +11538,7 @@ tasks:
     status: needs-review
 
   - id: task527
+    visibility: private
     title: "issue372 aws waf per-ip publish rate limiting"
     type: task
     epic: [E9]
@@ -11032,6 +11560,7 @@ tasks:
     status: needs-review
 
   - id: task528
+    visibility: public
     title: "issue379 add Terms of Service and Privacy Policy pages"
     type: task
     epic: [E4]
@@ -11061,6 +11590,7 @@ tasks:
     status: needs-review
 
   - id: task529
+    visibility: private
     title: "frontend ci and cloudflare command alignment"
     type: task
     epic: [E4, E7, E9]

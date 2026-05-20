@@ -198,9 +198,9 @@ def test_publish_endpoint(tmp_path):
         files={"file": ("agent-copilot.kno", large_archive, "application/octet-stream")},
         headers={"Authorization": f"Bearer {publish_token}"},
     )
-    assert too_large.status_code == 400
+    assert too_large.status_code == 413
     too_large_body = too_large.json()
-    assert too_large_body["error"]["code"] == "bad_request"
+    assert too_large_body["error"]["code"] == "payload_too_large"
     assert too_large_body["error"]["message"]
     assert too_large_body["error"]["request_id"]
 
