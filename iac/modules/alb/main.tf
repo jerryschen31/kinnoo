@@ -79,6 +79,8 @@ resource "aws_lb_listener" "http_redirect" {
 }
 
 resource "aws_wafv2_web_acl" "alb" {
+  count = var.enable_waf ? 1 : 0
+
   name  = "${local.name_prefix}-alb-waf"
   scope = "REGIONAL"
 
@@ -136,6 +138,8 @@ resource "aws_wafv2_web_acl" "alb" {
 }
 
 resource "aws_wafv2_web_acl_association" "alb" {
+  count = var.enable_waf ? 1 : 0
+
   resource_arn = aws_lb.this.arn
-  web_acl_arn  = aws_wafv2_web_acl.alb.arn
+  web_acl_arn  = aws_wafv2_web_acl.alb[0].arn
 }

@@ -29,6 +29,12 @@ variable "database_url_secret_arn" {
   default     = ""
 }
 
+variable "multi_az" {
+  description = "Whether to run the DB instance in Multi-AZ mode."
+  type        = bool
+  default     = true
+}
+
 variable "allocated_storage" {
   description = "Allocated DB storage in GB"
   type        = number
