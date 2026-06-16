@@ -33,7 +33,7 @@ resource "aws_db_instance" "this" {
   maintenance_window           = "sun:05:00-sun:06:00"
   auto_minor_version_upgrade   = true
   apply_immediately            = !local.is_prod
-  multi_az                     = local.is_prod
+  multi_az                     = var.multi_az
   deletion_protection          = local.is_prod
   performance_insights_enabled = true
   skip_final_snapshot          = !local.is_prod

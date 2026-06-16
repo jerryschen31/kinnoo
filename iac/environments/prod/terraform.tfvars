@@ -32,9 +32,11 @@ registry_metadata_backend                           = "postgres"
 registry_db_pool_size                               = 20
 registry_db_max_overflow                            = 40
 registry_db_pool_recycle_seconds                    = 1800
+rds_multi_az                                        = false
 rds_master_secret_rotation_enabled                  = false
 rds_master_secret_rotation_automatically_after_days = 7
 rds_sync_registry_database_url_on_rotation_apply    = true
+alb_enable_waf                                      = false
 
 # --- Cloudflare zone (task524) ---
 # Same kinnoo.ai zone as dev; DNS records are isolated by frontend_subdomain/
