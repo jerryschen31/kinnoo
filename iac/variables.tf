@@ -130,6 +130,18 @@ variable "rds_sync_registry_database_url_on_rotation_apply" {
   default     = true
 }
 
+variable "rds_multi_az" {
+  description = "Whether RDS should run in Multi-AZ mode (set false to use Single-AZ)."
+  type        = bool
+  default     = true
+}
+
+variable "alb_enable_waf" {
+  description = "Whether to create and associate WAF with the ALB."
+  type        = bool
+  default     = true
+}
+
 variable "zone_id" {
   description = "Cloudflare zone ID for kinnoo.ai"
   type        = string

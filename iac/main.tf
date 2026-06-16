@@ -89,6 +89,7 @@ module "alb" {
   public_subnet_ids     = module.vpc.public_subnet_ids
   alb_security_group_id = module.vpc.alb_security_group_id
   api_domain            = local.api_fqdn
+  enable_waf            = var.alb_enable_waf
   tags                  = local.common_tags
 }
 
@@ -129,6 +130,7 @@ module "rds_postgres" {
   private_subnet_ids                              = module.vpc.private_subnet_ids
   db_security_group_id                            = module.vpc.db_security_group_id
   database_url_secret_arn                         = lookup(module.secrets.secret_arns, "REGISTRY_DATABASE_URL", "")
+  multi_az                                        = var.rds_multi_az
   alarm_topic_arn                                 = var.sns_topic_arn
   master_secret_rotation_enabled                  = var.rds_master_secret_rotation_enabled
   master_secret_rotation_automatically_after_days = var.rds_master_secret_rotation_automatically_after_days
