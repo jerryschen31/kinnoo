@@ -27,6 +27,7 @@ tests/coverage/
 # Config and Plan files
 kinnoo-config.txt
 iac/tfplan*
+secrets.env
 
 # Next.js web frontend
 web/node_modules/
