@@ -178,6 +178,37 @@ ensure_registry_database_url_in_sync() {
   exit 1
 }
 
+tfvar_value() {
+  local key="$1"
+  awk -F= -v key="$key" '
+    $1 ~ "^[[:space:]]*" key "[[:space:]]*$" {
+      value = $2
+      sub(/[[:space:]]*#.*/, "", value)
+      gsub(/[[:space:]"]/, "", value)
+      print value
+      exit
+    }
+  ' "$TFVARS_FILE"
+}
+
+registry_database_url_sync_enabled() {
+  local metadata_backend
+  local dev_database_enabled
+
+  metadata_backend="$(tfvar_value registry_metadata_backend)"
+  if [[ "$metadata_backend" != "postgres" ]]; then
+    return 1
+  fi
+
+  if [[ "$ENVIRONMENT" == "dev" ]]; then
+    dev_database_enabled="$(tfvar_value enable_dev_database)"
+    dev_database_enabled="${dev_database_enabled:-true}"
+    [[ "$dev_database_enabled" == "true" ]] || return 1
+  fi
+
+  return 0
+}
+
 # Defensive guard: never push a prod image into a dev cluster or vice versa.
 case "$ENVIRONMENT" in
   prod)
@@ -200,11 +231,15 @@ echo "[info] ECR repo: $ECR_REPO_URI"
 echo "[info] ECS cluster: $ECS_CLUSTER"
 echo "[info] ECS service: $ECS_SERVICE"
 
-echo "[info] Validating REGISTRY_DATABASE_URL secret is in sync with RDS master secret..."
-if [[ "$DRY_RUN" == "1" ]]; then
-  echo "[dry-run] Would check/sync REGISTRY_DATABASE_URL against current RDS master secret"
+if registry_database_url_sync_enabled; then
+  echo "[info] Validating REGISTRY_DATABASE_URL secret is in sync with RDS master secret..."
+  if [[ "$DRY_RUN" == "1" ]]; then
+    echo "[dry-run] Would check/sync REGISTRY_DATABASE_URL against current RDS master secret"
+  else
+    ensure_registry_database_url_in_sync
+  fi
 else
-  ensure_registry_database_url_in_sync
+  echo "[info] Skipping REGISTRY_DATABASE_URL sync (environment does not use the Postgres/RDS registry backend)"
 fi
 
 if [[ "$ENVIRONMENT" == "prod" ]]; then

@@ -28,6 +28,11 @@ def test_feature121_test742_environment_safe_scripts(tmp_path: Path) -> None:
     dns_text = _read(dns_check)
     lambda_text = _read(lambda_build)
 
+    # Database URL synchronization only applies to configured PostgreSQL/RDS.
+    assert "registry_metadata_backend" in rebuild_text
+    assert "enable_dev_database" in rebuild_text
+    assert "registry_database_url_sync_enabled" in rebuild_text
+
     # No hardcoded dev cluster/service names.
     assert 'ECS_SERVICE="kinnoo-dev-service"' not in rebuild_text
     assert 'ECS_CLUSTER="kinnoo-dev-cluster"' not in rebuild_text
@@ -87,3 +92,45 @@ def test_feature121_test742_environment_safe_scripts(tmp_path: Path) -> None:
     )
     combined_dev = result_dev.stdout + result_dev.stderr
     assert "kinnoo-prod-" not in combined_dev
+
+    # Database sync is skipped for JSON metadata or when the dev RDS module is
+    # disabled, but remains enabled for the configured Postgres/RDS backend.
+    fixture_root = tmp_path / "database-config"
+    fixture_scripts = fixture_root / "scripts" / "ops"
+    fixture_iac = fixture_root / "iac" / "environments" / "dev"
+    fixture_bin = tmp_path / "fixture-bin"
+    fixture_scripts.mkdir(parents=True)
+    fixture_iac.mkdir(parents=True)
+    fixture_bin.mkdir()
+    (fixture_root / "Dockerfile").touch()
+    (fixture_iac / "backend.hcl").touch()
+    fixture_rebuild = fixture_scripts / rebuild.name
+    fixture_rebuild.write_text(rebuild_text, encoding="utf-8")
+    fixture_rebuild.chmod(0o755)
+    for cmd in ("terraform", "docker", "aws"):
+        stub = fixture_bin / cmd
+        stub.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+        stub.chmod(0o755)
+
+    fixture_env = os.environ.copy()
+    fixture_env["PATH"] = f"{fixture_bin}:{fixture_env['PATH']}"
+    for backend, database_enabled, should_sync in (
+        ("postgres", "true", True),
+        ("postgres", "false", False),
+        ("postgres", None, True),
+        ("json", "true", False),
+    ):
+        tfvars = f'registry_metadata_backend = "{backend}"\n'
+        if database_enabled is not None:
+            tfvars = f"enable_dev_database = {database_enabled}\n" + tfvars
+        (fixture_iac / "terraform.tfvars").write_text(tfvars, encoding="utf-8")
+        result = subprocess.run(
+            [bash, str(fixture_rebuild), "--env", "dev", "--dry-run"],
+            env=fixture_env,
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+        combined = result.stdout + result.stderr
+        assert result.returncode == 0, combined
+        assert ("Would check/sync REGISTRY_DATABASE_URL" in combined) is should_sync
