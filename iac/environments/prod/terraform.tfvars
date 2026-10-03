@@ -41,7 +41,8 @@ alb_enable_waf                                      = false
 # --- Cloudflare zone (task524) ---
 # Same kinnoo.ai zone as dev; DNS records are isolated by frontend_subdomain/
 # api_subdomain above.
-zone_id = "374008a2e2e60744960d315cd526a384"
+# zone_id is supplied via the environment: export TF_VAR_zone_id=<cloudflare-zone-id>
 
 # --- Lambda security-check image (task523/task524) ---
-lambda_security_check_image_uri = "386775099533.dkr.ecr.us-west-2.amazonaws.com/kinnoo-prod-lambda-security-check:latest"
+# lambda_security_check_image_uri is supplied via the environment:
+#   export TF_VAR_lambda_security_check_image_uri=<aws-account-id>.dkr.ecr.us-west-2.amazonaws.com/kinnoo-prod-lambda-security-check:latest
