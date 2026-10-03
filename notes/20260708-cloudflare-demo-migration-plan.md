@@ -189,9 +189,10 @@ Notes:
 
 ### Phase 3 — Run the server
 ```bash
+# Persistent auth state (Option 1/2).
 docker run -d --name kinnoo-server \
   --env-file .env \
-  -v kinnoo-data:/data/registry \      # persistent auth state (Option 1/2)
+  -v kinnoo-data:/data/registry \
   -p 127.0.0.1:8000:8000 \
   kinnoo-server
 curl -s http://127.0.0.1:8000/health   # expect {"status":"ok"}
