@@ -44,6 +44,37 @@ require_cmd() {
   fi
 }
 
+wait_for_rotation_completion() {
+  local previous_version_id="$1"
+  local waited_seconds=0
+  local current_version_id
+  local wait_interval_seconds=10
+  local wait_timeout_seconds=900
+
+  echo "[info] Waiting for AWSCURRENT to move beyond version $previous_version_id"
+  while (( waited_seconds <= wait_timeout_seconds )); do
+    current_version_id="$(AWS_PAGER='' aws secretsmanager get-secret-value \
+      --region "$AWS_REGION" \
+      --secret-id "$SECRET_ID" \
+      --version-stage AWSCURRENT \
+      --query 'VersionId' \
+      --output text)"
+    if [[ -n "$current_version_id" && "$current_version_id" != "None" && "$current_version_id" != "$previous_version_id" ]]; then
+      echo "[ok] AWSCURRENT advanced to version $current_version_id"
+      return 0
+    fi
+
+    if (( waited_seconds == wait_timeout_seconds )); then
+      break
+    fi
+    sleep "$wait_interval_seconds"
+    waited_seconds=$((waited_seconds + wait_interval_seconds))
+  done
+
+  echo "[error] AWSCURRENT did not advance within ${wait_timeout_seconds}s" >&2
+  return 1
+}
+
 SECRET_ID=""
 ENABLED=""
 DAYS="7"
@@ -52,6 +83,7 @@ DB_INSTANCE_IDENTIFIER=""
 ENVIRONMENT=""
 PROJECT_NAME="kinnoo"
 SYNC_REGISTRY_DATABASE_URL="false"
+ROTATION_BASE_VERSION_ID=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -126,6 +158,17 @@ if [[ "$ENABLED" == "false" ]]; then
   fi
 else
   if [[ "$current_enabled" != "true" || "$current_days" != "$DAYS" ]]; then
+    ROTATION_BASE_VERSION_ID="$(AWS_PAGER='' aws secretsmanager get-secret-value \
+      --region "$AWS_REGION" \
+      --secret-id "$SECRET_ID" \
+      --version-stage AWSCURRENT \
+      --query 'VersionId' \
+      --output text)"
+    if [[ -z "$ROTATION_BASE_VERSION_ID" || "$ROTATION_BASE_VERSION_ID" == "None" ]]; then
+      echo "[error] Could not determine the current secret version before rotation" >&2
+      exit 1
+    fi
+
     echo "[info] Enabling/updating rotation for secret: $SECRET_ID (days=$DAYS)"
     AWS_PAGER='' aws secretsmanager rotate-secret \
       --region "$AWS_REGION" \
@@ -147,6 +190,10 @@ if [[ "$SYNC_REGISTRY_DATABASE_URL" == "true" ]]; then
   if [[ ! -x "$refresh_script" ]]; then
     echo "[error] Missing executable sync helper: $refresh_script" >&2
     exit 1
+  fi
+
+  if [[ -n "$ROTATION_BASE_VERSION_ID" ]]; then
+    wait_for_rotation_completion "$ROTATION_BASE_VERSION_ID"
   fi
 
   echo "[info] Refreshing /${PROJECT_NAME}/${ENVIRONMENT}/REGISTRY_DATABASE_URL from current RDS master secret"
