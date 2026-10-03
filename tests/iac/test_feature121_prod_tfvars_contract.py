@@ -76,3 +76,16 @@ def test_feature121_test747_prod_tfvars_required_keys() -> None:
     # And the auth_provider must be explicitly declared.
     assert "auth_provider" in prod_values
     assert prod_values["auth_provider"].strip('"') in {"oidc_kinde", "legacy"}
+
+    secrets_module = (ROOT / "iac" / "modules" / "secrets" / "main.tf").read_text(
+        encoding="utf-8"
+    )
+    ecs_module = (ROOT / "iac" / "modules" / "ecs-fargate" / "main.tf").read_text(
+        encoding="utf-8"
+    )
+    assert "CORS_ORIGINS" not in secrets_module
+    assert "cors_origins                     = var.cors_origins" in (
+        ROOT / "iac" / "main.tf"
+    ).read_text(encoding="utf-8")
+    assert 'name  = "CORS_ORIGINS"' in ecs_module
+    assert "value = local.effective_cors_origins" in ecs_module

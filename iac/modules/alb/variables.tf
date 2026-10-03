@@ -28,6 +28,12 @@ variable "api_domain" {
   type        = string
 }
 
+variable "enable_waf" {
+  description = "Whether to create and attach WAF to the ALB."
+  type        = bool
+  default     = true
+}
+
 variable "tags" {
   description = "Common tags"
   type        = map(string)
